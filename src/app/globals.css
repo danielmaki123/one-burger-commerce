@@ -1,0 +1,184 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  color-scheme: light;
+  /* ── Casa Antigua visual system v2 — white + soft cream + Italian blue ── */
+  --brand: #2b6c96;            /* Italian/Mediterranean blue — primary UI */
+  --brand-strong: #22597e;     /* deeper blue — hover/active */
+  --brand-foreground: #f7fafc; /* cool near-white on blue */
+  --terracotta: #b85f3a;       /* limited accent — promos / special only */
+  --ink-green: #12351f;        /* brand wordmark only (not principal UI) */
+  --ink-green-foreground: #f4efe6;
+  --cream: #f2ece0;            /* soft secondary surface */
+  --gold: #c8a96a;             /* rare highlight */
+  --coal: #16212a;             /* darkest text — warm blue-charcoal */
+
+  /* ── Semantic tokens (white canvas, blue primary) ── */
+  --background: #fbf9f5;       /* warm white canvas (much less beige) */
+  --foreground: #23303a;       /* warm blue-charcoal text */
+  --card: #ffffff;             /* clean white surface */
+  --card-foreground: #23303a;
+  --popover: #ffffff;
+  --popover-foreground: #23303a;
+  --primary: var(--brand);
+  --primary-foreground: var(--brand-foreground);
+  --secondary: #f1ece2;        /* soft cream */
+  --secondary-foreground: #22597e; /* blue text on secondary */
+  --muted: #eef0f2;
+  --muted-foreground: #5b6670; /* warm blue-gray — ≥4.5:1 */
+  --accent: #eaf1f6;           /* light blue tint */
+  --accent-foreground: #22597e;
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: #e4e2dc;           /* subtle warm-gray border */
+  --input: #e4e2dc;
+  --ring: var(--brand);
+  --chart-1: var(--brand);       /* Italian blue */
+  --chart-2: var(--terracotta);  /* terracotta */
+  --chart-3: var(--gold);        /* gold */
+  --chart-4: #4f8a68;            /* soft Mediterranean green */
+  --chart-5: #7f95a3;            /* muted blue-gray */
+  --success: #e8f3ea;
+  --success-foreground: #1f5c3f;
+  --success-strong: var(--chart-4);   /* reuse existing soft Mediterranean green */
+  --warning: #f7ecd6;
+  --warning-foreground: #7a5518;
+  --warning-strong: var(--gold);      /* reuse existing gold accent */
+  --danger: #f7e4dc;
+  --danger-foreground: #8a3220;
+  --danger-strong: #b8422b;           /* keeps --terracotta reserved for promo use */
+  /* Admin v2 — vocabulario de estados sólidos (legible a contraluz del salón) */
+  --status-nueva: #2b6c96;      /* = brand: recién ingresada, pide confirmación */
+  --status-preparando: #b5701c; /* ámbar oscuro: en cocina */
+  --status-lista: #1f7a4d;      /* verde profundo: lista para servir */
+  --status-cerrada: #5b6670;    /* = muted-foreground: pagada/cerrada */
+  --status-alerta: #b23c2a;     /* requiere atención ya */
+  --radius: 0.625rem;
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+}
+
+body {
+  min-height: 100vh;
+  background:
+    radial-gradient(125% 85% at 50% -12%, rgba(43, 108, 150, 0.08), transparent 58%),
+    linear-gradient(180deg, #fcfaf6 0%, #f3f1ea 100%);
+  color: var(--foreground);
+}
+
+@theme inline {
+  --font-sans: var(--font-body);
+  --font-heading: var(--font-heading);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-success-strong: var(--success-strong);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-warning-strong: var(--warning-strong);
+  --color-danger: var(--danger);
+  --color-danger-foreground: var(--danger-foreground);
+  --color-danger-strong: var(--danger-strong);
+  --color-status-nueva: var(--status-nueva);
+  --color-status-preparando: var(--status-preparando);
+  --color-status-lista: var(--status-lista);
+  --color-status-cerrada: var(--status-cerrada);
+  --color-status-alerta: var(--status-alerta);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --color-brand: var(--brand);
+  --color-brand-strong: var(--brand-strong);
+  --color-brand-foreground: var(--brand-foreground);
+  --color-terracotta: var(--terracotta);
+  --color-ink-green: var(--ink-green);
+  --color-ink-green-foreground: var(--ink-green-foreground);
+  --color-cream: var(--cream);
+  --color-gold: var(--gold);
+  --color-coal: var(--coal);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-body), ui-sans-serif, system-ui, sans-serif;
+  }
+}

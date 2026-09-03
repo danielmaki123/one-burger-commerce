@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="One Burger">
+  <rect width="128" height="128" rx="28" fill="#1f6f45"/>
+  <circle cx="64" cy="64" r="42" fill="#f5c451"/>
+  <path d="M30 58h68c-3-15-17-25-34-25S33 43 30 58Z" fill="#f8efe0"/>
+  <path d="M28 68h72" stroke="#2d1d14" stroke-width="10" stroke-linecap="round"/>
+  <path d="M33 82h62c-4 9-15 15-31 15s-27-6-31-15Z" fill="#f8efe0"/>
+  <text x="64" y="71" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="700" fill="#ffffff">OB</text>
+</svg>

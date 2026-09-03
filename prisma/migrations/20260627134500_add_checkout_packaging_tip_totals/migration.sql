@@ -1,0 +1,15 @@
+-- AlterTable
+ALTER TABLE "Product"
+ADD COLUMN "packagingFeeAmount" DECIMAL(10,2);
+
+-- AlterTable
+ALTER TABLE "Order"
+ADD COLUMN "packagingAmount" DECIMAL(10,2) NOT NULL DEFAULT 0,
+ADD COLUMN "tipAmount" DECIMAL(10,2) NOT NULL DEFAULT 0,
+ADD COLUMN "tipRate" DECIMAL(5,2);
+
+-- AlterTable
+ALTER TABLE "OrderItem"
+ADD COLUMN "packagingUnitAmount" DECIMAL(10,2) NOT NULL DEFAULT 0,
+ADD COLUMN "packagingQuantity" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN "packagingTotalAmount" DECIMAL(10,2) NOT NULL DEFAULT 0;

@@ -1,0 +1,191 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import * as React from "react";
+
+import { isAdminRole } from "@/modules/auth/domain/admin-role";
+
+import {
+  ADMIN_SECONDARY_NAV_ITEMS,
+  getAdminNavGroups,
+  getAdminNavIconClassName,
+  getAdminNavLinkClassName,
+  isAdminNavItemActive,
+} from "../admin-layout-helpers";
+import AdminMobileNav from "./admin-mobile-nav";
+import AdminSessionControls, {
+  type AdminSessionState,
+} from "./admin-session-controls";
+
+export default function AdminShell({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const isLoginRoute = pathname === "/admin/login";
+  const [session, setSession] = React.useState<AdminSessionState>({
+    status: "loading",
+  });
+
+  React.useEffect(() => {
+    if (isLoginRoute) {
+      setSession({ status: "loading" });
+      return;
+    }
+
+    let isCurrent = true;
+
+    const loadRole = async () => {
+      try {
+        const response = await fetch("/api/auth/admin/session", {
+          method: "GET",
+          cache: "no-store",
+        });
+        if (!response.ok) {
+          if (isCurrent) setSession({ status: "unauthenticated" });
+          return;
+        }
+
+        const payload = (await response.json()) as {
+          data?: {
+            user?: { name?: string; email?: string; role?: string };
+          };
+        };
+        const user = payload.data?.user;
+        if (isCurrent && user?.role && isAdminRole(user.role)) {
+          setSession({
+            status: "authenticated",
+            user: {
+              name: user.name ?? "Admin",
+              email: user.email ?? "",
+              role: user.role,
+            },
+          });
+        } else if (isCurrent) {
+          setSession({ status: "unauthenticated" });
+        }
+      } catch {
+        if (isCurrent) setSession({ status: "unauthenticated" });
+      }
+    };
+
+    void loadRole();
+    return () => {
+      isCurrent = false;
+    };
+  }, [isLoginRoute]);
+
+  const role = session.status === "authenticated" ? session.user.role : undefined;
+  const navGroups = React.useMemo(() => getAdminNavGroups(role), [role]);
+  const homeHref = role === "owner" ? "/admin" : "/admin/orders";
+
+  if (isLoginRoute) {
+    return <div className="min-h-screen bg-background text-foreground">{children}</div>;
+  }
+
+  return (
+    <div className="flex min-h-screen bg-background text-foreground">
+      <AdminMobileNav pathname={pathname} groups={navGroups} session={session} />
+
+      <aside data-admin-background className="admin-sidebar-shell hidden md:sticky md:top-0 md:flex md:h-screen md:w-64 md:shrink-0 md:flex-col md:border-r md:border-border md:bg-card/95 md:backdrop-blur">
+        <div className="flex flex-col items-start gap-3 px-5 py-5">
+          <Link
+            href={homeHref}
+            className="flex min-h-11 items-center gap-3 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+          >
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand text-sm font-bold text-brand-foreground shadow-sm">
+              OB
+            </span>
+            <span className="min-w-0">
+              <span className="block font-heading text-base font-bold tracking-tight text-foreground">
+                One Burger
+              </span>
+              <span className="block text-xs font-medium text-muted-foreground">
+                Admin operativo
+              </span>
+            </span>
+          </Link>
+        </div>
+
+        <nav className="flex flex-1 overflow-y-auto px-4 pb-5" aria-label="Navegación principal">
+          <div className="flex flex-col gap-5">
+            {navGroups.map((group) => (
+              <div key={group.label} className="flex flex-col gap-1.5">
+                <p className="px-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/70">
+                  {group.label}
+                </p>
+                {group.items.map((item) => {
+                  const isActive = isAdminNavItemActive(pathname, item.href);
+                  const Icon = item.icon;
+
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      data-admin-desktop-nav-link
+                      aria-current={isActive ? "page" : undefined}
+                      className={getAdminNavLinkClassName(isActive)}
+                    >
+                      <Icon className={getAdminNavIconClassName(isActive)} strokeWidth={2} aria-hidden="true" />
+                      <span className="flex min-w-0 flex-col gap-0.5">
+                        <span>{item.label}</span>
+                        <span
+                          className={`text-[11px] font-normal ${
+                            isActive
+                              ? "text-brand-foreground/80"
+                              : "text-muted-foreground group-hover:text-brand-strong"
+                          }`}
+                        >
+                          {item.description}
+                        </span>
+                      </span>
+                    </Link>
+                  );
+                })}
+              </div>
+            ))}
+
+            <div className="flex flex-col gap-1.5">
+              <p className="px-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/50">
+                Avanzado
+              </p>
+              {ADMIN_SECONDARY_NAV_ITEMS.map((item) => {
+                const isActive = isAdminNavItemActive(pathname, item.href);
+                const Icon = item.icon;
+
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    data-admin-desktop-nav-link
+                    aria-current={isActive ? "page" : undefined}
+                    className={[
+                      "group inline-flex min-h-11 w-full min-w-0 items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand motion-reduce:transition-none",
+                      isActive
+                        ? "bg-accent text-brand"
+                        : "text-muted-foreground hover:bg-accent hover:text-brand",
+                    ].join(" ")}
+                  >
+                    <Icon className="h-4 w-4 shrink-0" strokeWidth={2} aria-hidden="true" />
+                    <span>{item.label}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        </nav>
+
+        <div className="border-t border-border p-4">
+          <AdminSessionControls session={session} />
+        </div>
+      </aside>
+
+      <main
+        data-admin-background
+        data-admin-main-focus-target
+        tabIndex={-1}
+        className="min-w-0 flex-1 px-3 py-4 pb-24 focus:outline-none sm:px-4 md:px-7 md:py-7 md:pb-7"
+      >
+        <div className="mx-auto w-full min-w-0 max-w-7xl">{children}</div>
+      </main>
+    </div>
+  );
+}

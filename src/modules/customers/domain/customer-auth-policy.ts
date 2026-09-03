@@ -1,0 +1,4 @@
+export const CUSTOMER_OTP_TTL_SECONDS = 60 * 5;
+export const CUSTOMER_OTP_COOLDOWN_SECONDS = 60;
+export const CUSTOMER_OTP_MAX_ATTEMPTS = 5;
+export const CUSTOMER_SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30;
