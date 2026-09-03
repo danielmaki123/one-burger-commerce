@@ -23,6 +23,7 @@ process.env.NEXT_PUBLIC_APP_VERSION = buildVersion;
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  agentRules: false,
   env: {
     NEXT_PUBLIC_APP_VERSION: buildVersion,
   },
