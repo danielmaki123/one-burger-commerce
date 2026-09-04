@@ -9,7 +9,7 @@ export default async function AdminOverviewPage() {
   const session = await requireAdminSession();
 
   if (!canViewAdminOverview(session.user.role)) {
-    redirect("/admin/inventory");
+    redirect("/admin/orders");
   }
 
   return <AdminOverviewClient />;

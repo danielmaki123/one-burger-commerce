@@ -14,10 +14,10 @@ export default function AdminNotFoundPage() {
         </CardHeader>
         <CardContent className="flex flex-col gap-3 sm:flex-row">
           <Link
-            href="/admin/inventory"
+            href="/admin/menu"
             className="inline-flex min-h-11 items-center justify-center rounded-md bg-brand px-4 py-2 font-medium text-brand-foreground transition-colors hover:bg-brand-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 motion-reduce:transition-none sm:w-auto"
           >
-            Ir a Inventario
+            Ir al menú
           </Link>
           <Link
             href="/admin/orders"

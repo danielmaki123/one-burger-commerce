@@ -135,7 +135,7 @@ describe("admin ui contracts", () => {
 
     expect(pageSource).toContain("requireAdminSession");
     expect(pageSource).toContain("canViewAdminOverview");
-    expect(pageSource).toContain('redirect("/admin/inventory")');
+    expect(pageSource).toContain('redirect("/admin/orders")');
     expect(existsSync(overviewPath)).toBe(true);
     if (!existsSync(overviewPath)) return;
 
@@ -286,8 +286,8 @@ describe("admin ui contracts", () => {
   it("keeps admin not-found navigation authorized and avoids nested controls", () => {
     const source = readAdminFile("not-found.tsx");
 
-    expect(source).toContain('href="/admin/inventory"');
-    expect(source).toContain("Ir a Inventario");
+    expect(source).toContain('href="/admin/menu"');
+    expect(source).toContain("Ir al menú");
     expect(source).not.toContain('href="/admin"');
     expect(source).not.toContain("<Button");
     expect(source).not.toContain('from "@/shared/ui/button"');
