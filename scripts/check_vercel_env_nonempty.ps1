@@ -1,4 +1,4 @@
-$keys = @("DATABASE_URL", "NEXTAUTH_SECRET", "APP_ENV", "NODE_ENV")
+$keys = @("DATABASE_URL", "DIRECT_URL", "NEXTAUTH_SECRET", "APP_ENV", "NODE_ENV", "NOTIFICATIONS_DRIVER")
 foreach ($k in $keys) {
   $v = [Environment]::GetEnvironmentVariable($k)
   if ([string]::IsNullOrEmpty($v)) {

@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "Menu and pickup ordering platform for One Burger.",
   "scripts": {
+    "prebuild": "node scripts/check_vercel_env_runtime.js --strict-production",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",

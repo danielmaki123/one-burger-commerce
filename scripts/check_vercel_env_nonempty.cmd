@@ -5,6 +5,12 @@ if "%DATABASE_URL%"=="" (
   echo DATABASE_URL=present_nonempty
 )
 
+if "%DIRECT_URL%"=="" (
+  echo DIRECT_URL=present_empty
+) else (
+  echo DIRECT_URL=present_nonempty
+)
+
 if "%NEXTAUTH_SECRET%"=="" (
   echo NEXTAUTH_SECRET=present_empty
 ) else (
@@ -21,4 +27,10 @@ if "%NODE_ENV%"=="" (
   echo NODE_ENV=present_empty
 ) else (
   echo NODE_ENV=present_nonempty
+)
+
+if "%NOTIFICATIONS_DRIVER%"=="" (
+  echo NOTIFICATIONS_DRIVER=present_empty
+) else (
+  echo NOTIFICATIONS_DRIVER=present_nonempty
 )
