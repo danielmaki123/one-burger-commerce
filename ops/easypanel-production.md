@@ -46,6 +46,16 @@ EASYPANEL_TOKEN="<api-token>" \
 npm run deploy:easypanel -- --dry-run
 ```
 
+Check whether the panel is ready for deployment without creating or changing anything:
+
+```bash
+EASYPANEL_URL="https://<panel-domain>" \
+EASYPANEL_TOKEN="<api-token>" \
+npm run deploy:easypanel -- --preflight
+```
+
+Do not combine `--preflight` with `--dry-run`: preflight needs a real token so it can read the current Easypanel state.
+
 The script stops before any service creation if project `oneburguer` does not exist and Easypanel reports that the project limit has been reached. In that case, free/upgrade the panel so the project can be created. Do not point `EASYPANEL_PROJECT_NAME` at `brunobot` unless the owner explicitly accepts deploying into that shared existing project.
 
 Optional service domain:

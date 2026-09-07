@@ -15,6 +15,7 @@ const DOMAIN_HOST = process.env.EASYPANEL_DOMAIN_HOST?.trim();
 const ALLOW_EXISTING_PROJECT = process.env.EASYPANEL_ALLOW_EXISTING_PROJECT === "true";
 
 const dryRun = process.argv.includes("--dry-run");
+const preflight = process.argv.includes("--preflight");
 
 function requiredEnv(name) {
   const value = process.env[name]?.trim();
@@ -176,12 +177,47 @@ async function createDomainIfRequested(api, token) {
   console.log(`Easypanel domain requested for ${host}.`);
 }
 
+async function runPreflight(api, token) {
+  const projects = await rpc(api, token, "/api/rpc/projects/listProjects", undefined);
+  const exists = Array.isArray(projects) && projects.some((project) => project.name === PROJECT_NAME);
+  const canCreate = exists ? true : await canCreateProject(api, token);
+  const appExists = exists
+    ? await serviceExists(api, token, "/api/rpc/services/app/inspectService", PROJECT_NAME, APP_SERVICE_NAME)
+    : false;
+  const postgresExists = exists
+    ? await serviceExists(api, token, "/api/rpc/services/postgres/inspectService", PROJECT_NAME, POSTGRES_SERVICE_NAME)
+    : false;
+
+  console.log(`Easypanel API: ${api.wrap ? "rpc" : "legacy"}`);
+  console.log(`Target project: ${PROJECT_NAME}`);
+  console.log(`Project exists: ${exists ? "yes" : "no"}`);
+  console.log(`Can create project: ${canCreate ? "yes" : "no"}`);
+  console.log(`App service exists: ${appExists ? "yes" : "no"}`);
+  console.log(`Postgres service exists: ${postgresExists ? "yes" : "no"}`);
+
+  if (!exists && !canCreate) {
+    throw new Error(`Preflight failed: Easypanel cannot create project "${PROJECT_NAME}" right now.`);
+  }
+
+  assertProjectTarget();
+}
+
 async function main() {
+  if (dryRun && preflight) {
+    throw new Error("Use either --dry-run or --preflight, not both.");
+  }
+
   const panelUrl = normalizePanelUrl(requiredEnv("EASYPANEL_URL"));
   const token = requiredEnv("EASYPANEL_TOKEN");
+  const api = await detectApiBase(panelUrl, token);
+
+  if (preflight) {
+    await runPreflight(api, token);
+    return;
+  }
+
   const postgresPassword = secretEnv("EASYPANEL_POSTGRES_PASSWORD");
   const nextAuthSecret = secretEnv("NEXTAUTH_SECRET", 32);
-  const api = await detectApiBase(panelUrl, token);
   const databaseUrl = `postgresql://${POSTGRES_USER}:${postgresPassword}@${DATABASE_HOST}:5432/${POSTGRES_DB}?schema=public`;
   const appEnv = [
     "APP_ENV=production",
