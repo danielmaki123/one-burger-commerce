@@ -10,6 +10,8 @@ const GITHUB_REPO = process.env.EASYPANEL_GITHUB_REPO || "one-burger-commerce";
 const GITHUB_REF = process.env.EASYPANEL_GITHUB_REF || "main";
 const GITHUB_PATH = process.env.EASYPANEL_GITHUB_PATH || "/";
 const DATABASE_HOST = process.env.EASYPANEL_DATABASE_HOST || `${PROJECT_NAME}_${POSTGRES_SERVICE_NAME}`;
+const CREATE_DOMAIN = process.env.EASYPANEL_CREATE_DOMAIN === "true";
+const DOMAIN_HOST = process.env.EASYPANEL_DOMAIN_HOST?.trim();
 
 const dryRun = process.argv.includes("--dry-run");
 
@@ -136,6 +138,35 @@ async function serviceExists(api, token, path, projectName, serviceName) {
   }
 }
 
+async function createDomainIfRequested(api, token) {
+  if (!CREATE_DOMAIN) {
+    return;
+  }
+
+  const serviceDomain = DOMAIN_HOST ? undefined : await rpc(api, token, "/api/rpc/settings/getServiceDomain", undefined);
+  const host = DOMAIN_HOST || `${PROJECT_NAME}-${APP_SERVICE_NAME}.${serviceDomain}`;
+
+  await rpc(api, token, "/api/rpc/domains/createDomain", {
+    certificateResolver: "letsencrypt",
+    destinationType: "service",
+    host,
+    https: true,
+    id: randomBytes(10).toString("hex"),
+    middlewares: [],
+    path: "/",
+    serviceDestination: {
+      path: "/",
+      port: 3000,
+      projectName: PROJECT_NAME,
+      protocol: "http",
+      serviceName: APP_SERVICE_NAME,
+    },
+    wildcard: false,
+  });
+
+  console.log(`Easypanel domain requested for ${host}.`);
+}
+
 async function main() {
   const panelUrl = normalizePanelUrl(requiredEnv("EASYPANEL_URL"));
   const token = requiredEnv("EASYPANEL_TOKEN");
@@ -223,6 +254,8 @@ async function main() {
       serviceName: APP_SERVICE_NAME,
       forceRebuild: true,
     });
+
+    await createDomainIfRequested(api, token);
 
     console.log(`Easypanel deployment requested for ${PROJECT_NAME}/${APP_SERVICE_NAME}.`);
     return;
