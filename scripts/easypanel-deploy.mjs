@@ -1,10 +1,10 @@
 import { randomBytes } from "node:crypto";
 
-const PROJECT_NAME = process.env.EASYPANEL_PROJECT_NAME || "one-burger";
+const PROJECT_NAME = process.env.EASYPANEL_PROJECT_NAME || "oneburguer";
 const APP_SERVICE_NAME = process.env.EASYPANEL_APP_SERVICE_NAME || "web";
 const POSTGRES_SERVICE_NAME = process.env.EASYPANEL_POSTGRES_SERVICE_NAME || "postgres";
-const POSTGRES_DB = process.env.EASYPANEL_POSTGRES_DB || "oneburger";
-const POSTGRES_USER = process.env.EASYPANEL_POSTGRES_USER || "oneburger";
+const POSTGRES_DB = process.env.EASYPANEL_POSTGRES_DB || "oneburguer";
+const POSTGRES_USER = process.env.EASYPANEL_POSTGRES_USER || "oneburguer";
 const GITHUB_OWNER = process.env.EASYPANEL_GITHUB_OWNER || "danielmaki123";
 const GITHUB_REPO = process.env.EASYPANEL_GITHUB_REPO || "one-burger-commerce";
 const GITHUB_REF = process.env.EASYPANEL_GITHUB_REF || "main";
@@ -67,6 +67,12 @@ async function request(baseUrl, token, method, path, body) {
 }
 
 async function detectApiBase(panelUrl, token) {
+  const configuredBaseUrl = process.env.EASYPANEL_API_BASE?.trim();
+
+  if (configuredBaseUrl) {
+    return normalizePanelUrl(configuredBaseUrl);
+  }
+
   const candidates = [`${panelUrl}/api/trpc`, `${panelUrl}`];
 
   for (const baseUrl of candidates) {

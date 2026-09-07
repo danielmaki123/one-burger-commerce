@@ -4,7 +4,7 @@ This project deploys as one Easypanel app service plus one Easypanel PostgreSQL 
 
 ## Services
 
-- Project: `one-burger`
+- Project: `oneburguer`
 - App service: `web`
 - PostgreSQL service: `postgres`
 - GitHub repository: `danielmaki123/one-burger-commerce`
@@ -18,6 +18,15 @@ Use the Easypanel API with `Authorization: Bearer <token>`.
 The repo includes a guarded API script:
 
 ```bash
+EASYPANEL_URL="https://<panel-domain>" \
+EASYPANEL_TOKEN="<api-token>" \
+npm run deploy:easypanel
+```
+
+If the panel exposes the API somewhere other than `/api/trpc`, set the exact API base:
+
+```bash
+EASYPANEL_API_BASE="https://<panel-domain>/<api-base>" \
 EASYPANEL_URL="https://<panel-domain>" \
 EASYPANEL_TOKEN="<api-token>" \
 npm run deploy:easypanel
@@ -41,7 +50,7 @@ Body:
 
 ```json
 {
-  "name": "one-burger"
+  "name": "oneburguer"
 }
 ```
 
@@ -55,10 +64,10 @@ Body:
 
 ```json
 {
-  "projectName": "one-burger",
+  "projectName": "oneburguer",
   "serviceName": "postgres",
-  "databaseName": "oneburger",
-  "user": "oneburger",
+  "databaseName": "oneburguer",
+  "user": "oneburguer",
   "password": "<generated-password>"
 }
 ```
@@ -73,7 +82,7 @@ Body:
 
 ```json
 {
-  "projectName": "one-burger",
+  "projectName": "oneburguer",
   "serviceName": "web"
 }
 ```
@@ -88,7 +97,7 @@ Body:
 
 ```json
 {
-  "projectName": "one-burger",
+  "projectName": "oneburguer",
   "serviceName": "web",
   "owner": "danielmaki123",
   "repo": "one-burger-commerce",
@@ -107,9 +116,9 @@ Body:
 
 ```json
 {
-  "projectName": "one-burger",
+  "projectName": "oneburguer",
   "serviceName": "web",
-  "env": "APP_ENV=production\nNODE_ENV=production\nPORT=3000\nDATABASE_URL=postgresql://oneburger:<generated-password>@postgres:5432/oneburger?schema=public\nDIRECT_URL=postgresql://oneburger:<generated-password>@postgres:5432/oneburger?schema=public\nNEXTAUTH_SECRET=<generated-secret>\nNOTIFICATIONS_DRIVER=dummy\nTELEGRAM_NOTIFICATIONS_ENABLED=false"
+  "env": "APP_ENV=production\nNODE_ENV=production\nPORT=3000\nDATABASE_URL=postgresql://oneburguer:<generated-password>@postgres:5432/oneburguer?schema=public\nDIRECT_URL=postgresql://oneburguer:<generated-password>@postgres:5432/oneburguer?schema=public\nNEXTAUTH_SECRET=<generated-secret>\nNOTIFICATIONS_DRIVER=dummy\nTELEGRAM_NOTIFICATIONS_ENABLED=false"
 }
 ```
 
@@ -123,7 +132,7 @@ Body:
 
 ```json
 {
-  "projectName": "one-burger",
+  "projectName": "oneburguer",
   "serviceName": "web",
   "forceRebuild": true
 }
