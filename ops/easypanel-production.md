@@ -246,3 +246,22 @@ BASE_URL="https://<public-app-domain>" npm run test:e2e:prod
 ```
 
 The production smoke suite is non-mutating. It checks health, public menu, cart, checkout, the reservation redirect, and admin login.
+
+Run the full production E2E suite after creating the first admin:
+
+```bash
+BASE_URL="https://<public-app-domain>" \
+E2E_ADMIN_EMAIL="owner@example.com" \
+E2E_ADMIN_PASSWORD="<strong-password>" \
+npm run test:e2e:prod:full
+```
+
+By default, the full production suite still skips tests that create orders or users. To verify real pickup ordering, user creation, and role restrictions against production, opt into mutations explicitly:
+
+```bash
+BASE_URL="https://<public-app-domain>" \
+E2E_ADMIN_EMAIL="owner@example.com" \
+E2E_ADMIN_PASSWORD="<strong-password>" \
+E2E_ALLOW_MUTATIONS="true" \
+npm run test:e2e:prod:full
+```
