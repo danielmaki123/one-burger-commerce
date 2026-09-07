@@ -15,6 +15,22 @@ This project deploys as one Easypanel app service plus one Easypanel PostgreSQL 
 
 Use the Easypanel API with `Authorization: Bearer <token>`.
 
+The repo includes a guarded API script:
+
+```bash
+EASYPANEL_URL="https://<panel-domain>" \
+EASYPANEL_TOKEN="<api-token>" \
+npm run deploy:easypanel
+```
+
+Preview the API calls without creating services:
+
+```bash
+EASYPANEL_URL="https://<panel-domain>" \
+EASYPANEL_TOKEN="<api-token>" \
+npm run deploy:easypanel -- --dry-run
+```
+
 1. Create the project:
 
 ```http
