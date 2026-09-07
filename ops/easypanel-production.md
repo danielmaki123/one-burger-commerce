@@ -20,15 +20,19 @@ The repo includes a guarded API script:
 ```bash
 EASYPANEL_URL="https://<panel-domain>" \
 EASYPANEL_TOKEN="<api-token>" \
+EASYPANEL_POSTGRES_PASSWORD="<strong-db-password>" \
+NEXTAUTH_SECRET="<strong-nextauth-secret>" \
 npm run deploy:easypanel
 ```
 
-If the panel exposes the API somewhere other than `/api/trpc`, set the exact API base:
+The tested panel exposes its API at `/api/rpc`. The script detects that API automatically. If a future panel exposes a different API base, set it explicitly:
 
 ```bash
 EASYPANEL_API_BASE="https://<panel-domain>/<api-base>" \
 EASYPANEL_URL="https://<panel-domain>" \
 EASYPANEL_TOKEN="<api-token>" \
+EASYPANEL_POSTGRES_PASSWORD="<strong-db-password>" \
+NEXTAUTH_SECRET="<strong-nextauth-secret>" \
 npm run deploy:easypanel
 ```
 
@@ -40,101 +44,155 @@ EASYPANEL_TOKEN="<api-token>" \
 npm run deploy:easypanel -- --dry-run
 ```
 
-1. Create the project:
+The script stops before any service creation if project `oneburguer` does not exist and Easypanel reports that the project limit has been reached. In that case, either free/upgrade the panel so the project can be created, or explicitly choose an existing project name with `EASYPANEL_PROJECT_NAME=<existing-project>`.
+
+Optional service domain:
+
+```bash
+EASYPANEL_CREATE_DOMAIN="true" \
+EASYPANEL_DOMAIN_HOST="oneburguer.example.com" \
+EASYPANEL_URL="https://<panel-domain>" \
+EASYPANEL_TOKEN="<api-token>" \
+EASYPANEL_POSTGRES_PASSWORD="<strong-db-password>" \
+NEXTAUTH_SECRET="<strong-nextauth-secret>" \
+npm run deploy:easypanel
+```
+
+If `EASYPANEL_CREATE_DOMAIN=true` and `EASYPANEL_DOMAIN_HOST` is omitted, the script uses Easypanel's configured service domain and creates:
+
+```text
+oneburguer-web.<service-domain>
+```
+
+1. Create the project, when missing and allowed:
 
 ```http
-POST /createProject
+POST /api/rpc/projects/createProject
 ```
 
 Body:
 
 ```json
 {
-  "name": "oneburguer"
+  "json": {
+    "name": "oneburguer"
+  }
 }
 ```
 
 2. Create PostgreSQL:
 
 ```http
-POST /createPostgresService
+POST /api/rpc/services/postgres/createService
 ```
 
 Body:
 
 ```json
 {
-  "projectName": "oneburguer",
-  "serviceName": "postgres",
-  "databaseName": "oneburguer",
-  "user": "oneburguer",
-  "password": "<generated-password>"
+  "json": {
+    "projectName": "oneburguer",
+    "serviceName": "postgres",
+    "databaseName": "oneburguer",
+    "user": "oneburguer",
+    "password": "<strong-db-password>",
+    "image": "postgres:17"
+  }
 }
 ```
 
 3. Create the app service:
 
 ```http
-POST /createAppService
+POST /api/rpc/services/app/createService
 ```
 
 Body:
 
 ```json
 {
-  "projectName": "oneburguer",
-  "serviceName": "web"
+  "json": {
+    "projectName": "oneburguer",
+    "serviceName": "web"
+  }
 }
 ```
 
 4. Point the app to GitHub:
 
 ```http
-POST /updateAppSourceGithub
+POST /api/rpc/services/app/updateSourceGithub
 ```
 
 Body:
 
 ```json
 {
-  "projectName": "oneburguer",
-  "serviceName": "web",
-  "owner": "danielmaki123",
-  "repo": "one-burger-commerce",
-  "ref": "main",
-  "path": "/"
+  "json": {
+    "projectName": "oneburguer",
+    "serviceName": "web",
+    "owner": "danielmaki123",
+    "repo": "one-burger-commerce",
+    "ref": "main",
+    "path": "/"
+  }
 }
 ```
 
 5. Configure app environment:
 
 ```http
-POST /updateAppEnv
+POST /api/rpc/services/app/updateEnv
 ```
 
 Body:
 
 ```json
 {
-  "projectName": "oneburguer",
-  "serviceName": "web",
-  "env": "APP_ENV=production\nNODE_ENV=production\nPORT=3000\nDATABASE_URL=postgresql://oneburguer:<generated-password>@postgres:5432/oneburguer?schema=public\nDIRECT_URL=postgresql://oneburguer:<generated-password>@postgres:5432/oneburguer?schema=public\nNEXTAUTH_SECRET=<generated-secret>\nNOTIFICATIONS_DRIVER=dummy\nTELEGRAM_NOTIFICATIONS_ENABLED=false"
+  "json": {
+    "projectName": "oneburguer",
+    "serviceName": "web",
+    "env": "APP_ENV=production\nNODE_ENV=production\nPORT=3000\nDATABASE_URL=postgresql://oneburguer:<strong-db-password>@oneburguer_postgres:5432/oneburguer?schema=public\nDIRECT_URL=postgresql://oneburguer:<strong-db-password>@oneburguer_postgres:5432/oneburguer?schema=public\nNEXTAUTH_SECRET=<strong-nextauth-secret>\nNOTIFICATIONS_DRIVER=dummy\nTELEGRAM_NOTIFICATIONS_ENABLED=false"
+  }
 }
 ```
 
-6. Deploy the app:
+6. Configure deploy settings:
 
 ```http
-POST /deployAppService
+POST /api/rpc/services/app/updateDeploy
 ```
 
 Body:
 
 ```json
 {
-  "projectName": "oneburguer",
-  "serviceName": "web",
-  "forceRebuild": true
+  "json": {
+    "projectName": "oneburguer",
+    "serviceName": "web",
+    "deploy": {
+      "replicas": 1,
+      "zeroDowntime": true
+    }
+  }
+}
+```
+
+7. Deploy the app:
+
+```http
+POST /api/rpc/services/app/deployService
+```
+
+Body:
+
+```json
+{
+  "json": {
+    "projectName": "oneburguer",
+    "serviceName": "web",
+    "forceRebuild": true
+  }
 }
 ```
 
