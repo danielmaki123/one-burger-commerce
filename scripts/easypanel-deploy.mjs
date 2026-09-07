@@ -9,6 +9,7 @@ const GITHUB_OWNER = process.env.EASYPANEL_GITHUB_OWNER || "danielmaki123";
 const GITHUB_REPO = process.env.EASYPANEL_GITHUB_REPO || "one-burger-commerce";
 const GITHUB_REF = process.env.EASYPANEL_GITHUB_REF || "main";
 const GITHUB_PATH = process.env.EASYPANEL_GITHUB_PATH || "/";
+const DATABASE_HOST = process.env.EASYPANEL_DATABASE_HOST || `${PROJECT_NAME}_${POSTGRES_SERVICE_NAME}`;
 
 const dryRun = process.argv.includes("--dry-run");
 
@@ -23,7 +24,17 @@ function requiredEnv(name) {
 }
 
 function secretEnv(name, fallbackBytes = 24) {
-  return process.env[name]?.trim() || randomBytes(fallbackBytes).toString("base64url");
+  const value = process.env[name]?.trim();
+
+  if (value) {
+    return value;
+  }
+
+  if (!dryRun) {
+    throw new Error(`Missing required environment variable for live deploy: ${name}`);
+  }
+
+  return randomBytes(fallbackBytes).toString("base64url");
 }
 
 function normalizePanelUrl(raw) {
@@ -41,7 +52,7 @@ function redact(value) {
 
 async function request(baseUrl, token, method, path, body) {
   const url = `${baseUrl}${path}`;
-  const payload = body ? JSON.stringify(body) : undefined;
+  const payload = body === undefined ? undefined : JSON.stringify(body);
 
   if (dryRun) {
     console.log(redact(`${method} ${url}\n${payload || ""}`));
@@ -73,22 +84,56 @@ async function detectApiBase(panelUrl, token) {
     return normalizePanelUrl(configuredBaseUrl);
   }
 
-  const candidates = [`${panelUrl}/api/trpc`, `${panelUrl}`];
+  const candidates = [
+    { baseUrl: panelUrl, listProjectsPath: "/api/rpc/projects/listProjects", wrap: true },
+    { baseUrl: `${panelUrl}/api/trpc`, listProjectsPath: "/listProjects", wrap: false },
+    { baseUrl: panelUrl, listProjectsPath: "/listProjects", wrap: false },
+  ];
 
-  for (const baseUrl of candidates) {
+  for (const candidate of candidates) {
     try {
-      await request(baseUrl, token, "GET", "/listProjects");
-      return baseUrl;
+      await request(candidate.baseUrl, token, "GET", candidate.listProjectsPath);
+      return candidate;
     } catch (error) {
       if (dryRun) {
-        return baseUrl;
+        return candidate;
       }
 
-      console.warn(`API base check failed for ${baseUrl}: ${redact(error.message)}`);
+      console.warn(`API base check failed for ${candidate.baseUrl}${candidate.listProjectsPath}: ${redact(error.message)}`);
     }
   }
 
   throw new Error("Could not detect Easypanel API base URL.");
+}
+
+async function rpc(api, token, path, input) {
+  const method = input === undefined ? "GET" : "POST";
+  const body = api.wrap ? { json: input } : input;
+  const result = await request(api.baseUrl, token, method, path, method === "GET" ? undefined : body);
+
+  return api.wrap && result && Object.hasOwn(result, "json") ? result.json : result;
+}
+
+async function projectExists(api, token, projectName) {
+  const projects = await rpc(api, token, "/api/rpc/projects/listProjects", undefined);
+  return Array.isArray(projects) && projects.some((project) => project.name === projectName);
+}
+
+async function canCreateProject(api, token) {
+  return Boolean(await rpc(api, token, "/api/rpc/projects/canCreateProject", undefined));
+}
+
+async function serviceExists(api, token, path, projectName, serviceName) {
+  try {
+    await rpc(api, token, path, { projectName, serviceName });
+    return true;
+  } catch (error) {
+    if (/HTTP 404|not found/i.test(error.message)) {
+      return false;
+    }
+
+    throw error;
+  }
 }
 
 async function main() {
@@ -96,8 +141,8 @@ async function main() {
   const token = requiredEnv("EASYPANEL_TOKEN");
   const postgresPassword = secretEnv("EASYPANEL_POSTGRES_PASSWORD");
   const nextAuthSecret = secretEnv("NEXTAUTH_SECRET", 32);
-  const baseUrl = await detectApiBase(panelUrl, token);
-  const databaseUrl = `postgresql://${POSTGRES_USER}:${postgresPassword}@${POSTGRES_SERVICE_NAME}:5432/${POSTGRES_DB}?schema=public`;
+  const api = await detectApiBase(panelUrl, token);
+  const databaseUrl = `postgresql://${POSTGRES_USER}:${postgresPassword}@${DATABASE_HOST}:5432/${POSTGRES_DB}?schema=public`;
   const appEnv = [
     "APP_ENV=production",
     "NODE_ENV=production",
@@ -109,11 +154,85 @@ async function main() {
     "TELEGRAM_NOTIFICATIONS_ENABLED=false",
   ].join("\n");
 
-  await request(baseUrl, token, "POST", "/createProject", {
+  if (api.wrap) {
+    const exists = await projectExists(api, token, PROJECT_NAME);
+
+    if (!exists) {
+      if (!(await canCreateProject(api, token))) {
+        throw new Error(
+          `Easypanel cannot create project "${PROJECT_NAME}" right now. The panel reports the project limit is reached; create space, upgrade the license, or set EASYPANEL_PROJECT_NAME to an existing project you explicitly want to use.`,
+        );
+      }
+
+      await rpc(api, token, "/api/rpc/projects/createProject", { name: PROJECT_NAME });
+    }
+
+    if (!(await serviceExists(api, token, "/api/rpc/services/postgres/inspectService", PROJECT_NAME, POSTGRES_SERVICE_NAME))) {
+      await rpc(api, token, "/api/rpc/services/postgres/createService", {
+        projectName: PROJECT_NAME,
+        serviceName: POSTGRES_SERVICE_NAME,
+        databaseName: POSTGRES_DB,
+        user: POSTGRES_USER,
+        password: postgresPassword,
+        image: "postgres:17",
+      });
+    }
+
+    if (!(await serviceExists(api, token, "/api/rpc/services/app/inspectService", PROJECT_NAME, APP_SERVICE_NAME))) {
+      await rpc(api, token, "/api/rpc/services/app/createService", {
+        projectName: PROJECT_NAME,
+        serviceName: APP_SERVICE_NAME,
+      });
+    }
+
+    await rpc(api, token, "/api/rpc/services/app/updateSourceGithub", {
+      projectName: PROJECT_NAME,
+      serviceName: APP_SERVICE_NAME,
+      owner: GITHUB_OWNER,
+      repo: GITHUB_REPO,
+      ref: GITHUB_REF,
+      path: GITHUB_PATH,
+    });
+
+    await rpc(api, token, "/api/rpc/services/app/updateBuild", {
+      projectName: PROJECT_NAME,
+      serviceName: APP_SERVICE_NAME,
+      build: {
+        type: "dockerfile",
+        file: "Dockerfile",
+      },
+    });
+
+    await rpc(api, token, "/api/rpc/services/app/updateEnv", {
+      projectName: PROJECT_NAME,
+      serviceName: APP_SERVICE_NAME,
+      env: appEnv,
+    });
+
+    await rpc(api, token, "/api/rpc/services/app/updateDeploy", {
+      projectName: PROJECT_NAME,
+      serviceName: APP_SERVICE_NAME,
+      deploy: {
+        replicas: 1,
+        zeroDowntime: true,
+      },
+    });
+
+    await rpc(api, token, "/api/rpc/services/app/deployService", {
+      projectName: PROJECT_NAME,
+      serviceName: APP_SERVICE_NAME,
+      forceRebuild: true,
+    });
+
+    console.log(`Easypanel deployment requested for ${PROJECT_NAME}/${APP_SERVICE_NAME}.`);
+    return;
+  }
+
+  await request(api.baseUrl, token, "POST", "/createProject", {
     name: PROJECT_NAME,
   });
 
-  await request(baseUrl, token, "POST", "/createPostgresService", {
+  await request(api.baseUrl, token, "POST", "/createPostgresService", {
     projectName: PROJECT_NAME,
     serviceName: POSTGRES_SERVICE_NAME,
     databaseName: POSTGRES_DB,
@@ -121,12 +240,12 @@ async function main() {
     password: postgresPassword,
   });
 
-  await request(baseUrl, token, "POST", "/createAppService", {
+  await request(api.baseUrl, token, "POST", "/createAppService", {
     projectName: PROJECT_NAME,
     serviceName: APP_SERVICE_NAME,
   });
 
-  await request(baseUrl, token, "POST", "/updateAppSourceGithub", {
+  await request(api.baseUrl, token, "POST", "/updateAppSourceGithub", {
     projectName: PROJECT_NAME,
     serviceName: APP_SERVICE_NAME,
     owner: GITHUB_OWNER,
@@ -135,13 +254,13 @@ async function main() {
     path: GITHUB_PATH,
   });
 
-  await request(baseUrl, token, "POST", "/updateAppEnv", {
+  await request(api.baseUrl, token, "POST", "/updateAppEnv", {
     projectName: PROJECT_NAME,
     serviceName: APP_SERVICE_NAME,
     env: appEnv,
   });
 
-  await request(baseUrl, token, "POST", "/deployAppService", {
+  await request(api.baseUrl, token, "POST", "/deployAppService", {
     projectName: PROJECT_NAME,
     serviceName: APP_SERVICE_NAME,
     forceRebuild: true,
