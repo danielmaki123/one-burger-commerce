@@ -11,6 +11,8 @@ This project deploys as one Easypanel app service plus one Easypanel PostgreSQL 
 - Git ref: `main`
 - App port: `3000`
 
+Do not deploy One Burger into an existing Easypanel project such as `brunobot`. Treat that as the server/panel context only; the production project name for this app is `oneburguer`.
+
 ## API sequence
 
 Use the Easypanel API with `Authorization: Bearer <token>`.
@@ -44,7 +46,7 @@ EASYPANEL_TOKEN="<api-token>" \
 npm run deploy:easypanel -- --dry-run
 ```
 
-The script stops before any service creation if project `oneburguer` does not exist and Easypanel reports that the project limit has been reached. In that case, either free/upgrade the panel so the project can be created, or explicitly choose an existing project name with `EASYPANEL_PROJECT_NAME=<existing-project>`.
+The script stops before any service creation if project `oneburguer` does not exist and Easypanel reports that the project limit has been reached. In that case, free/upgrade the panel so the project can be created. Do not point `EASYPANEL_PROJECT_NAME` at `brunobot` unless the owner explicitly accepts deploying into that shared existing project.
 
 Optional service domain:
 

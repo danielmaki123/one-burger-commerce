@@ -12,6 +12,7 @@ const GITHUB_PATH = process.env.EASYPANEL_GITHUB_PATH || "/";
 const DATABASE_HOST = process.env.EASYPANEL_DATABASE_HOST || `${PROJECT_NAME}_${POSTGRES_SERVICE_NAME}`;
 const CREATE_DOMAIN = process.env.EASYPANEL_CREATE_DOMAIN === "true";
 const DOMAIN_HOST = process.env.EASYPANEL_DOMAIN_HOST?.trim();
+const ALLOW_EXISTING_PROJECT = process.env.EASYPANEL_ALLOW_EXISTING_PROJECT === "true";
 
 const dryRun = process.argv.includes("--dry-run");
 
@@ -125,6 +126,14 @@ async function canCreateProject(api, token) {
   return Boolean(await rpc(api, token, "/api/rpc/projects/canCreateProject", undefined));
 }
 
+function assertProjectTarget() {
+  if (PROJECT_NAME !== "oneburguer" && !ALLOW_EXISTING_PROJECT) {
+    throw new Error(
+      `Refusing to deploy into existing/shared project "${PROJECT_NAME}". Use project "oneburguer", or set EASYPANEL_ALLOW_EXISTING_PROJECT=true only after explicitly accepting that shared-project risk.`,
+    );
+  }
+}
+
 async function serviceExists(api, token, path, projectName, serviceName) {
   try {
     await rpc(api, token, path, { projectName, serviceName });
@@ -187,6 +196,7 @@ async function main() {
 
   if (api.wrap) {
     const exists = await projectExists(api, token, PROJECT_NAME);
+    assertProjectTarget();
 
     if (!exists) {
       if (!(await canCreateProject(api, token))) {
