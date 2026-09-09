@@ -245,7 +245,7 @@ After Easypanel returns the public app URL:
 BASE_URL="https://<public-app-domain>" npm run test:e2e:prod
 ```
 
-The production smoke suite is non-mutating. It checks health, public menu, cart, checkout, the reservation redirect, and admin login.
+The production smoke suite is non-mutating. It checks health, database readiness, public menu, cart, checkout, the reservation redirect, and admin login.
 
 Run the full production E2E suite after creating the first admin:
 

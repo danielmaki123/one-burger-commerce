@@ -10,6 +10,15 @@ test.describe("production smoke", () => {
     expect(payload.service).toBe("one-burger-commerce");
   });
 
+  test("readiness endpoint confirms database connectivity", async ({ request }) => {
+    const response = await request.get("/api/readiness");
+    expect(response.ok()).toBe(true);
+
+    const payload = await response.json();
+    expect(payload.status).toBe("ready");
+    expect(payload.checks.database.status).toBe("ok");
+  });
+
   test("public MVP routes are reachable and reservation flow redirects to menu", async ({ page }) => {
     await page.goto("/menu");
     await expect(page.getByRole("heading", { name: "Menú" })).toBeVisible();
