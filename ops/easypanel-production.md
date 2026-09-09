@@ -43,6 +43,8 @@ npm run deploy:easypanel
 Preview the API calls without creating services:
 
 ```bash
+EASYPANEL_POSTGRES_PASSWORD="<strong-db-password>" \
+NEXTAUTH_SECRET="<strong-nextauth-secret>" \
 EASYPANEL_URL="https://<panel-domain>" \
 EASYPANEL_TOKEN="<api-token>" \
 npm run deploy:easypanel:dry-run
@@ -57,6 +59,12 @@ npm run deploy:easypanel:preflight
 ```
 
 Do not combine `--preflight` with `--dry-run`: preflight needs a real token so it can read the current Easypanel state.
+
+Before committing or deploying, check that no high-risk credentials were written to the repository:
+
+```bash
+npm run security:secrets
+```
 
 The script stops before any service creation if project `oneburguer` does not exist and Easypanel reports that the project limit has been reached. In that case, free/upgrade the panel so the project can be created. Do not point `EASYPANEL_PROJECT_NAME` at `brunobot` unless the owner explicitly accepts deploying into that shared existing project.
 
