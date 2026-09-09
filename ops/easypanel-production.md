@@ -43,7 +43,7 @@ Preview the API calls without creating services:
 ```bash
 EASYPANEL_URL="https://<panel-domain>" \
 EASYPANEL_TOKEN="<api-token>" \
-npm run deploy:easypanel -- --dry-run
+npm run deploy:easypanel:dry-run
 ```
 
 Check whether the panel is ready for deployment without creating or changing anything:
@@ -51,7 +51,7 @@ Check whether the panel is ready for deployment without creating or changing any
 ```bash
 EASYPANEL_URL="https://<panel-domain>" \
 EASYPANEL_TOKEN="<api-token>" \
-npm run deploy:easypanel -- --preflight
+npm run deploy:easypanel:preflight
 ```
 
 Do not combine `--preflight` with `--dry-run`: preflight needs a real token so it can read the current Easypanel state.
