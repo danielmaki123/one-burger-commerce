@@ -27,6 +27,8 @@ NEXTAUTH_SECRET="<strong-nextauth-secret>" \
 npm run deploy:easypanel
 ```
 
+For live deploys, `EASYPANEL_POSTGRES_PASSWORD` must be at least 16 characters and `NEXTAUTH_SECRET` must be at least 32 characters.
+
 The tested panel exposes its API at `/api/rpc`. The script detects that API automatically. If a future panel exposes a different API base, set it explicitly:
 
 ```bash

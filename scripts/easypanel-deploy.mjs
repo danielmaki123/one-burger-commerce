@@ -27,10 +27,14 @@ function requiredEnv(name) {
   return value;
 }
 
-function secretEnv(name, fallbackBytes = 24) {
+function secretEnv(name, { fallbackBytes = 24, minLength = 16 } = {}) {
   const value = process.env[name]?.trim();
 
   if (value) {
+    if (!dryRun && value.length < minLength) {
+      throw new Error(`Environment variable ${name} must be at least ${minLength} characters for live deploy.`);
+    }
+
     return value;
   }
 
@@ -209,15 +213,16 @@ async function main() {
 
   const panelUrl = normalizePanelUrl(requiredEnv("EASYPANEL_URL"));
   const token = requiredEnv("EASYPANEL_TOKEN");
-  const api = await detectApiBase(panelUrl, token);
 
   if (preflight) {
+    const api = await detectApiBase(panelUrl, token);
     await runPreflight(api, token);
     return;
   }
 
-  const postgresPassword = secretEnv("EASYPANEL_POSTGRES_PASSWORD");
-  const nextAuthSecret = secretEnv("NEXTAUTH_SECRET", 32);
+  const postgresPassword = secretEnv("EASYPANEL_POSTGRES_PASSWORD", { minLength: 16 });
+  const nextAuthSecret = secretEnv("NEXTAUTH_SECRET", { fallbackBytes: 32, minLength: 32 });
+  const api = await detectApiBase(panelUrl, token);
   const databaseUrl = `postgresql://${POSTGRES_USER}:${postgresPassword}@${DATABASE_HOST}:5432/${POSTGRES_DB}?schema=public`;
   const appEnv = [
     "APP_ENV=production",
