@@ -140,16 +140,43 @@ function assertProjectTarget() {
 }
 
 async function serviceExists(api, token, path, projectName, serviceName) {
+  return Boolean(await inspectService(api, token, path, projectName, serviceName));
+}
+
+async function inspectService(api, token, path, projectName, serviceName) {
   try {
-    await rpc(api, token, path, { projectName, serviceName });
-    return true;
+    return await rpc(api, token, path, { projectName, serviceName });
   } catch (error) {
     if (/HTTP 404|not found/i.test(error.message)) {
-      return false;
+      return null;
     }
 
     throw error;
   }
+}
+
+function parseEnvValue(env, key) {
+  const line = env
+    ?.split(/\r?\n/)
+    .find((entry) => entry.startsWith(`${key}=`));
+
+  return line ? line.slice(key.length + 1) : undefined;
+}
+
+function resolveServiceDomain(value) {
+  if (typeof value === "string") {
+    return value;
+  }
+
+  if (value?.customServiceDomain) {
+    return value.customServiceDomain;
+  }
+
+  if (value?.defaultServiceDomain) {
+    return value.defaultServiceDomain;
+  }
+
+  throw new Error("Easypanel did not return a service domain.");
 }
 
 async function createDomainIfRequested(api, token) {
@@ -157,7 +184,9 @@ async function createDomainIfRequested(api, token) {
     return;
   }
 
-  const serviceDomain = DOMAIN_HOST ? undefined : await rpc(api, token, "/api/rpc/settings/getServiceDomain", undefined);
+  const serviceDomain = DOMAIN_HOST
+    ? undefined
+    : resolveServiceDomain(await rpc(api, token, "/api/rpc/settings/getServiceDomain", undefined));
   const host = DOMAIN_HOST || `${PROJECT_NAME}-${APP_SERVICE_NAME}.${serviceDomain}`;
 
   await rpc(api, token, "/api/rpc/domains/createDomain", {
@@ -220,20 +249,15 @@ async function main() {
     return;
   }
 
-  const postgresPassword = secretEnv("EASYPANEL_POSTGRES_PASSWORD", { minLength: 16 });
-  const nextAuthSecret = secretEnv("NEXTAUTH_SECRET", { fallbackBytes: 32, minLength: 32 });
+  let postgresPassword = process.env.EASYPANEL_POSTGRES_PASSWORD?.trim();
+  let nextAuthSecret = process.env.NEXTAUTH_SECRET?.trim();
+
+  if (dryRun) {
+    postgresPassword = postgresPassword || secretEnv("EASYPANEL_POSTGRES_PASSWORD", { minLength: 16 });
+    nextAuthSecret = nextAuthSecret || secretEnv("NEXTAUTH_SECRET", { fallbackBytes: 32, minLength: 32 });
+  }
+
   const api = await detectApiBase(panelUrl, token);
-  const databaseUrl = `postgresql://${POSTGRES_USER}:${postgresPassword}@${DATABASE_HOST}:5432/${POSTGRES_DB}?schema=public`;
-  const appEnv = [
-    "APP_ENV=production",
-    "NODE_ENV=production",
-    "PORT=3000",
-    `DATABASE_URL=${databaseUrl}`,
-    `DIRECT_URL=${databaseUrl}`,
-    `NEXTAUTH_SECRET=${nextAuthSecret}`,
-    "NOTIFICATIONS_DRIVER=dummy",
-    "TELEGRAM_NOTIFICATIONS_ENABLED=false",
-  ].join("\n");
 
   if (api.wrap) {
     const exists = await projectExists(api, token, PROJECT_NAME);
@@ -249,7 +273,17 @@ async function main() {
       await rpc(api, token, "/api/rpc/projects/createProject", { name: PROJECT_NAME });
     }
 
-    if (!(await serviceExists(api, token, "/api/rpc/services/postgres/inspectService", PROJECT_NAME, POSTGRES_SERVICE_NAME))) {
+    const postgresService = await inspectService(
+      api,
+      token,
+      "/api/rpc/services/postgres/inspectService",
+      PROJECT_NAME,
+      POSTGRES_SERVICE_NAME,
+    );
+
+    if (!postgresService) {
+      postgresPassword = postgresPassword || secretEnv("EASYPANEL_POSTGRES_PASSWORD", { minLength: 16 });
+
       await rpc(api, token, "/api/rpc/services/postgres/createService", {
         projectName: PROJECT_NAME,
         serviceName: POSTGRES_SERVICE_NAME,
@@ -258,14 +292,36 @@ async function main() {
         password: postgresPassword,
         image: "postgres:17",
       });
+    } else if (postgresService.password) {
+      postgresPassword = postgresService.password;
     }
 
-    if (!(await serviceExists(api, token, "/api/rpc/services/app/inspectService", PROJECT_NAME, APP_SERVICE_NAME))) {
+    if (!postgresPassword) {
+      throw new Error(`Postgres service "${POSTGRES_SERVICE_NAME}" exists, but Easypanel did not return a password.`);
+    }
+
+    const appService = await inspectService(api, token, "/api/rpc/services/app/inspectService", PROJECT_NAME, APP_SERVICE_NAME);
+
+    if (!appService) {
       await rpc(api, token, "/api/rpc/services/app/createService", {
         projectName: PROJECT_NAME,
         serviceName: APP_SERVICE_NAME,
       });
     }
+
+    nextAuthSecret = nextAuthSecret || parseEnvValue(appService?.env, "NEXTAUTH_SECRET") || secretEnv("NEXTAUTH_SECRET", { fallbackBytes: 32, minLength: 32 });
+
+    const databaseUrl = `postgresql://${POSTGRES_USER}:${postgresPassword}@${DATABASE_HOST}:5432/${POSTGRES_DB}?schema=public`;
+    const appEnv = [
+      "APP_ENV=production",
+      "NODE_ENV=production",
+      "PORT=3000",
+      `DATABASE_URL=${databaseUrl}`,
+      `DIRECT_URL=${databaseUrl}`,
+      `NEXTAUTH_SECRET=${nextAuthSecret}`,
+      "NOTIFICATIONS_DRIVER=dummy",
+      "TELEGRAM_NOTIFICATIONS_ENABLED=false",
+    ].join("\n");
 
     await rpc(api, token, "/api/rpc/services/app/updateSourceGithub", {
       projectName: PROJECT_NAME,
@@ -329,6 +385,21 @@ async function main() {
     serviceName: APP_SERVICE_NAME,
   });
 
+  postgresPassword = postgresPassword || secretEnv("EASYPANEL_POSTGRES_PASSWORD", { minLength: 16 });
+  nextAuthSecret = nextAuthSecret || secretEnv("NEXTAUTH_SECRET", { fallbackBytes: 32, minLength: 32 });
+
+  const legacyDatabaseUrl = `postgresql://${POSTGRES_USER}:${postgresPassword}@${DATABASE_HOST}:5432/${POSTGRES_DB}?schema=public`;
+  const legacyAppEnv = [
+    "APP_ENV=production",
+    "NODE_ENV=production",
+    "PORT=3000",
+    `DATABASE_URL=${legacyDatabaseUrl}`,
+    `DIRECT_URL=${legacyDatabaseUrl}`,
+    `NEXTAUTH_SECRET=${nextAuthSecret}`,
+    "NOTIFICATIONS_DRIVER=dummy",
+    "TELEGRAM_NOTIFICATIONS_ENABLED=false",
+  ].join("\n");
+
   await request(api.baseUrl, token, "POST", "/updateAppSourceGithub", {
     projectName: PROJECT_NAME,
     serviceName: APP_SERVICE_NAME,
@@ -341,7 +412,7 @@ async function main() {
   await request(api.baseUrl, token, "POST", "/updateAppEnv", {
     projectName: PROJECT_NAME,
     serviceName: APP_SERVICE_NAME,
-    env: appEnv,
+    env: legacyAppEnv,
   });
 
   await request(api.baseUrl, token, "POST", "/deployAppService", {
