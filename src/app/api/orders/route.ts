@@ -5,8 +5,18 @@ import { registerOutboxEventBusHandlers } from "@/modules/notifications/adapters
 import { PrismaOrderRepository } from "@/modules/orders/adapters/prisma-order-repository";
 import { createOrder } from "@/modules/orders/features/create-order/create-order";
 import { createErrorResponse } from "@/shared/lib/http/error-response";
+import {
+  enforceRateLimit,
+  FixedWindowRateLimiter,
+} from "@/shared/lib/rate-limit/rate-limit";
 
 registerOutboxEventBusHandlers();
+
+const createOrderRateLimiter = new FixedWindowRateLimiter({
+  prefix: "public-create-order",
+  limit: 10,
+  windowMs: 60_000,
+});
 
 const itemSchema = z.object({
   productId: z.string().min(1),
@@ -38,6 +48,16 @@ const orderSchema = z.object({
 
 export async function POST(request: Request) {
   try {
+    const rateLimited = enforceRateLimit({
+      limiter: createOrderRateLimiter,
+      request,
+      message: "Demasiados pedidos seguidos. Esperá un momento antes de reintentar.",
+    });
+
+    if (rateLimited) {
+      return rateLimited;
+    }
+
     const payload = await request.json().catch(() => ({}));
     const parsed = orderSchema.safeParse(payload);
 

@@ -5,6 +5,10 @@ import { registerOutboxEventBusHandlers } from "@/modules/notifications/adapters
 import { PrismaReservationRepository } from "@/modules/reservations/adapters/prisma-reservation-repository";
 import { createReservation } from "@/modules/reservations/features/create-reservation/create-reservation";
 import { createErrorResponse } from "@/shared/lib/http/error-response";
+import {
+  enforceRateLimit,
+  FixedWindowRateLimiter,
+} from "@/shared/lib/rate-limit/rate-limit";
 
 registerOutboxEventBusHandlers();
 
@@ -18,8 +22,24 @@ const reservationSchema = z.object({
   notes: z.string().nullable().optional(),
 });
 
+const createReservationRateLimiter = new FixedWindowRateLimiter({
+  prefix: "public-create-reservation",
+  limit: 10,
+  windowMs: 60_000,
+});
+
 export async function POST(request: Request) {
   try {
+    const rateLimited = enforceRateLimit({
+      limiter: createReservationRateLimiter,
+      request,
+      message: "Demasiadas solicitudes seguidas. Esperá un momento antes de reintentar.",
+    });
+
+    if (rateLimited) {
+      return rateLimited;
+    }
+
     const payload = await request.json().catch(() => ({}));
     const parsed = reservationSchema.safeParse(payload);
 

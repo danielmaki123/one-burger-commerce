@@ -10,6 +10,10 @@ import { PrismaCustomerAuthRepository } from "@/modules/customers/adapters/prism
 import { CustomerAuthError } from "@/modules/customers/domain/customer-auth-errors";
 import { verifyOtp } from "@/modules/customers/features/verify-otp/verify-otp";
 import { createErrorResponse } from "@/shared/lib/http/error-response";
+import {
+  enforceRateLimit,
+  FixedWindowRateLimiter,
+} from "@/shared/lib/rate-limit/rate-limit";
 
 const verifyOtpSchema = z.object({
   whatsapp: z.string().min(1),
@@ -17,8 +21,24 @@ const verifyOtpSchema = z.object({
   fullName: z.string().min(1).optional(),
 });
 
+const verifyOtpRateLimiter = new FixedWindowRateLimiter({
+  prefix: "customer-verify-otp",
+  limit: 10,
+  windowMs: 60_000,
+});
+
 export async function POST(request: Request) {
   try {
+    const rateLimited = enforceRateLimit({
+      limiter: verifyOtpRateLimiter,
+      request,
+      message: "Demasiados intentos. Esperá un momento antes de reintentar.",
+    });
+
+    if (rateLimited) {
+      return rateLimited;
+    }
+
     const payload = await request.json().catch(() => {
       throw new CustomerAuthError(400, "BAD_REQUEST", "Invalid payload");
     });

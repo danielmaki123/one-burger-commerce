@@ -79,18 +79,62 @@ export class FixedWindowRateLimiter {
   }
 }
 
+/**
+ * Resolves the client IP for rate limiting.
+ *
+ * Only values written by our own reverse proxy are trusted:
+ * - `x-real-ip` is overwritten by the proxy with the peer address.
+ * - The **last** entry of `x-forwarded-for` is the one appended by our proxy.
+ *   The leftmost entries are supplied by the client and must never be trusted
+ *   (a client can rotate them to bypass the limit).
+ */
 export function getClientIp(request: Request) {
-  const forwardedFor = request.headers.get("x-forwarded-for");
-  if (forwardedFor) {
-    return forwardedFor.split(",")[0]?.trim() || "unknown";
-  }
-
   const realIp = request.headers.get("x-real-ip");
   if (realIp) {
-    return realIp.trim();
+    const trimmedRealIp = realIp.trim();
+    if (trimmedRealIp) {
+      return trimmedRealIp;
+    }
+  }
+
+  const forwardedFor = request.headers.get("x-forwarded-for");
+  if (forwardedFor) {
+    const hops = forwardedFor
+      .split(",")
+      .map((hop) => hop.trim())
+      .filter(Boolean);
+    const lastHop = hops.at(-1);
+    if (lastHop) {
+      return lastHop;
+    }
   }
 
   return "unknown";
+}
+
+/**
+ * Applies a fixed window limit and returns a ready-to-return 429 response when
+ * the caller exceeded it. Returns `null` when the request may continue.
+ *
+ * The limiter store is in-process: it protects a single instance. See
+ * `ops/production-readiness.md` for the shared-store follow-up.
+ */
+export function enforceRateLimit(params: {
+  limiter: FixedWindowRateLimiter;
+  request: Request;
+  message: string;
+  scope?: string;
+}): NextResponse | null {
+  const key = params.scope
+    ? `${getClientIp(params.request)}:${params.scope}`
+    : getClientIp(params.request);
+  const result = params.limiter.consume(key);
+
+  if (result.allowed) {
+    return null;
+  }
+
+  return createRateLimitResponse(params.message, result.retryAfterSeconds);
 }
 
 export function createRateLimitResponse(message: string, retryAfterSeconds: number) {

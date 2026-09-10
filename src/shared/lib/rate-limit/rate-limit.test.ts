@@ -58,7 +58,7 @@ describe("FixedWindowRateLimiter", () => {
 });
 
 describe("getClientIp", () => {
-  it("prioriza x-forwarded-for", () => {
+  it("prioriza x-real-ip porque lo escribe nuestro proxy", () => {
     const request = new Request("http://localhost/test", {
       headers: {
         "x-forwarded-for": "203.0.113.1, 10.0.0.1",
@@ -66,17 +66,33 @@ describe("getClientIp", () => {
       },
     });
 
-    expect(getClientIp(request)).toBe("203.0.113.1");
+    expect(getClientIp(request)).toBe("198.51.100.5");
   });
 
-  it("usa x-real-ip como fallback", () => {
+  it("usa el ultimo hop de x-forwarded-for y no el que envia el cliente", () => {
     const request = new Request("http://localhost/test", {
       headers: {
-        "x-real-ip": "198.51.100.5",
+        "x-forwarded-for": "203.0.113.1, 10.0.0.1",
       },
     });
 
-    expect(getClientIp(request)).toBe("198.51.100.5");
+    expect(getClientIp(request)).toBe("10.0.0.1");
+  });
+
+  it("ignora un x-forwarded-for falsificado en el primer hop", () => {
+    const spoofed = new Request("http://localhost/test", {
+      headers: {
+        "x-forwarded-for": "1.2.3.4, 203.0.113.9",
+      },
+    });
+    const rotated = new Request("http://localhost/test", {
+      headers: {
+        "x-forwarded-for": "9.9.9.9, 203.0.113.9",
+      },
+    });
+
+    expect(getClientIp(spoofed)).toBe("203.0.113.9");
+    expect(getClientIp(rotated)).toBe("203.0.113.9");
   });
 
   it("devuelve unknown si no hay headers de ip", () => {
