@@ -1,6 +1,6 @@
 # Estado del proyecto — One Burger Commerce
 
-> Actualizado: 2026-09-10 · Commit en `main`: `9c28895` · Build en producción: `build-20260910-150351`
+> Actualizado: 2026-09-10 · Commit en `main`: `c785446` · Build en producción: `build-20260910-150351`
 > Este documento es el punto de entrada para retomar el trabajo. Mantenerlo al día al cerrar cada tarea.
 > Para arrancar en un chat nuevo: `ops/tasks/START-HERE.md`.
 
@@ -86,6 +86,21 @@ productos: es el primer pendiente de contenido.
 
 **CI**: `verify` + `migrations` (drift) + `container` (imagen real) + `publish` (GHCR).
 
+**Personalización del negocio (`TASK-whitelabel-branding`, 6 fases)**
+
+- **Fase 1/6 cerrada — núcleo de settings, sin cambios visibles.** Módulo DDD
+  `src/modules/business-settings/` (dominio con tipos y defaults, validación zod
+  compartida cliente/servidor, puerto, adaptadores Prisma e in-memory, casos de uso
+  `getBusinessSettings` / `updateBusinessSettings`). Modelo `BusinessSettings` con una
+  sola fila (`id = "default"`) y migración `20260910120000_add_business_settings` que
+  siembra exactamente los valores que hoy están hardcodeados, para que el deploy no
+  cambie nada. El seed local deriva de los defaults (no los copia) y un test de contrato
+  falla si la migración y los defaults se desincronizan.
+  - **Todavía ninguna superficie lee la configuración**: los datos siguen hardcodeados
+    en el sitio público hasta la fase 2. La fila existe pero nadie la consume.
+  - Ojo: el DDL de la migración se verificó contra el que genera
+    `prisma migrate diff` (el job `migrations` del CI falla ante cualquier drift).
+
 ## 3. Infraestructura y secretos
 
 - `EASYPANEL_URL` y `EASYPANEL_TOKEN`: solo en el entorno de quien ejecuta el deploy (nunca
@@ -106,7 +121,7 @@ productos: es el primer pendiente de contenido.
 | 4 | **Borrar el servicio duplicado huérfano `oneburguer-web`** (responde 502) | Agente | Evita confundir futuros deploys. |
 | 5 | **Endurecimiento técnico**: scrypt más fuerte con rehash al login, CSP, extraer componentes exportados de las páginas (hoy `next build --webpack` falla) | Agente | No bloquea. |
 | 6 | **Cerrar puertos innecesarios** de otros servicios del servidor (`capostgres` 5455, `postimage` 8585) | Daniel | No es de One Burger, pero están expuestos a internet. |
-| 7 | **Personalización / quitar hardcodeo** (nombre, colores, logo, contacto, horarios, dirección) | Siguiente tarea | **Aprobada el 2026-09-10**; brief y decisiones resueltas en `ops/tasks/TASK-whitelabel-branding.md`. Arranque: `ops/tasks/START-HERE.md`. |
+| 7 | **Personalización / quitar hardcodeo** (nombre, colores, logo, contacto, horarios, dirección) | En curso | Aprobada el 2026-09-10; brief y decisiones en `ops/tasks/TASK-whitelabel-branding.md`. **Fase 1/6 cerrada** (núcleo de settings). Siguiente: fase 2 (aplicar la config en el sitio público sin cambiar lo visible). |
 
 ## 5. Cómo continuar
 

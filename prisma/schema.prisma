@@ -525,3 +525,55 @@ model OutboxEvent {
   @@index([aggregateType, aggregateId])
   @@index([createdAt])
 }
+
+/// Configuración del negocio editable desde /admin/settings.
+/// Una sola fila (`id = "default"`): no hay multi-sucursal en el MVP.
+/// Los defaults reproducen lo que hoy está hardcodeado en el sitio público
+/// (ver src/modules/business-settings/domain/business-settings-defaults.ts).
+model BusinessSettings {
+  id                   String   @id @default("default")
+  // Identidad
+  name                 String   @default("One Burger")
+  tagline              String?
+  description          String?
+  logoUrl              String?
+  logoMarkUrl          String?
+  faviconUrl           String?
+  ogImageUrl           String?
+  // Apariencia
+  primaryColor         String   @default("#2b6c96")
+  accentColor          String   @default("#eaf1f6")
+  backgroundColor      String   @default("#fbf9f5")
+  foregroundColor      String   @default("#23303a")
+  surfaceColor         String   @default("#ffffff")
+  headingFont          String   @default("fraunces")
+  bodyFont             String   @default("inter")
+  // Contacto y ubicación
+  phone                String?
+  whatsapp             String?
+  email                String?
+  instagram            String?
+  facebook             String?
+  tiktok               String?
+  addressLine          String?
+  city                 String?
+  addressReference     String?
+  mapsUrl              String?
+  latitude             Float?
+  longitude            Float?
+  // Operación
+  timezone             String   @default("America/Managua")
+  businessHours        Json
+  currencyCode         String   @default("NIO")
+  currencySymbol       String   @default("C$")
+  locale               String   @default("es-NI")
+  pickupLeadMinutes    Int      @default(25)
+  paymentInstructions  String?  @default("Pagás en el local al retirar tu pedido. No se cobra nada online.")
+  tipEnabled           Boolean  @default(true)
+  tipRate              Int      @default(10)
+  isAcceptingOrders    Boolean  @default(true)
+  closedMessage        String?  @default("Estamos cerrados. Podés mirar el menú y volver cuando abramos.")
+  // Auditoría
+  updatedAt            DateTime @updatedAt
+  updatedByUserId      String?
+}

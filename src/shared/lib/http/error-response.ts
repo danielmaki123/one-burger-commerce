@@ -2,6 +2,7 @@ import { PrismaClientInitializationError } from "@prisma/client/runtime/library"
 import { NextResponse } from "next/server";
 
 import { AuthError } from "@/modules/auth/domain/auth-errors";
+import { BusinessSettingsError } from "@/modules/business-settings/domain/business-settings-errors";
 import { CustomerAuthError } from "@/modules/customers/domain/customer-auth-errors";
 import { MenuError } from "@/modules/menu/domain/menu-errors";
 import { OutboxError } from "@/modules/notifications/domain/outbox-errors";
@@ -11,6 +12,19 @@ import { ReservationError } from "@/modules/reservations/domain/reservation-erro
 
 export function createErrorResponse(error: unknown) {
   if (error instanceof AuthError) {
+    return NextResponse.json(
+      {
+        error: {
+          code: error.code,
+          message: error.message,
+          ...(error.fields ? { fields: error.fields } : {}),
+        },
+      },
+      { status: error.status },
+    );
+  }
+
+  if (error instanceof BusinessSettingsError) {
     return NextResponse.json(
       {
         error: {

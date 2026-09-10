@@ -1,7 +1,8 @@
 // Local dev seed — run after: docker-compose up -d → npx prisma migrate dev → npx prisma db seed
 // Creates: 1 admin, 3 categories, 3 subcategories, 5 products, 4 tables
 
-import { PrismaClient } from "@prisma/client";
+import { Prisma, PrismaClient } from "@prisma/client";
+import { DEFAULT_BUSINESS_SETTINGS } from "../src/modules/business-settings/domain/business-settings-defaults";
 import { hashPassword } from "../src/shared/lib/auth/password-hasher";
 
 const prisma = new PrismaClient();
@@ -16,6 +17,17 @@ async function main() {
       email: "admin@example.com",
       passwordHash: hashPassword("Admin1234!"),
       role: "owner",
+    },
+  });
+
+  // Configuración del negocio: los valores salen del módulo de defaults, no se
+  // copian acá (una sola fuente de verdad para el branding).
+  await prisma.businessSettings.upsert({
+    where: { id: DEFAULT_BUSINESS_SETTINGS.id },
+    update: {},
+    create: {
+      ...DEFAULT_BUSINESS_SETTINGS,
+      businessHours: DEFAULT_BUSINESS_SETTINGS.businessHours as unknown as Prisma.InputJsonValue,
     },
   });
 
@@ -143,7 +155,9 @@ async function main() {
     });
   }
 
-  console.log("Seed completed: admin + 3 categories + 3 subcategories + 5 products + 4 tables.");
+  console.log(
+    "Seed completed: admin + business settings + 3 categories + 3 subcategories + 5 products + 4 tables.",
+  );
 }
 
 main()
