@@ -86,6 +86,12 @@ productos: es el primer pendiente de contenido.
 
 **CI**: `verify` + `migrations` (drift) + `container` (imagen real) + `publish` (GHCR).
 
+> Arreglo de CI del 2026-09-10: el job `container` falló una vez con exit 141 (SIGPIPE)
+> porque el script usaba `docker logs … | grep -q` bajo `set -o pipefail`; el contenedor
+> había arrancado bien (los logs muestran `initial admin ready` y el login 200). Ahora se
+> guarda la salida en un archivo antes del `grep`, y `deploy-runtime-contract.test.ts`
+> falla si el patrón vuelve.
+
 **Personalización del negocio (`TASK-whitelabel-branding`, 6 fases)**
 
 - **Fase 1/6 cerrada — núcleo de settings, sin cambios visibles.** Módulo DDD
