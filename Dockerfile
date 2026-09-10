@@ -26,7 +26,9 @@ COPY --from=builder /app/public ./public
 
 EXPOSE 3000
 
+# Readiness performs a real database round trip and answers 503 when the
+# database is unreachable, so an unhealthy container is not promoted.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
-  CMD node -e "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+  CMD node -e "fetch('http://127.0.0.1:3000/api/readiness').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
 CMD ["npm", "run", "start:production"]

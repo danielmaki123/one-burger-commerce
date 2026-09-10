@@ -23,11 +23,13 @@ The repo includes a guarded API script:
 EASYPANEL_URL="https://<panel-domain>" \
 EASYPANEL_TOKEN="<api-token>" \
 EASYPANEL_POSTGRES_PASSWORD="<strong-db-password>" \
-NEXTAUTH_SECRET="<strong-nextauth-secret>" \
 npm run deploy:easypanel
 ```
 
-For live deploys, `EASYPANEL_POSTGRES_PASSWORD` must be at least 16 characters and `NEXTAUTH_SECRET` must be at least 32 characters.
+For live deploys, `EASYPANEL_POSTGRES_PASSWORD` must be at least 16 characters.
+`updateEnv` merges variables: only `APP_ENV`, `NODE_ENV`, `PORT`, `DATABASE_URL`
+and `DIRECT_URL` are overwritten, so values configured by hand (Telegram, n8n,
+outbox processor, ...) survive a redeploy.
 
 The tested panel exposes its API at `/api/rpc`. The script detects that API automatically. If a future panel exposes a different API base, set it explicitly:
 
@@ -36,7 +38,6 @@ EASYPANEL_API_BASE="https://<panel-domain>/<api-base>" \
 EASYPANEL_URL="https://<panel-domain>" \
 EASYPANEL_TOKEN="<api-token>" \
 EASYPANEL_POSTGRES_PASSWORD="<strong-db-password>" \
-NEXTAUTH_SECRET="<strong-nextauth-secret>" \
 npm run deploy:easypanel
 ```
 
@@ -44,7 +45,6 @@ Preview the API calls without creating services:
 
 ```bash
 EASYPANEL_POSTGRES_PASSWORD="<strong-db-password>" \
-NEXTAUTH_SECRET="<strong-nextauth-secret>" \
 EASYPANEL_URL="https://<panel-domain>" \
 EASYPANEL_TOKEN="<api-token>" \
 npm run deploy:easypanel:dry-run
@@ -76,7 +76,6 @@ EASYPANEL_DOMAIN_HOST="oneburguer.example.com" \
 EASYPANEL_URL="https://<panel-domain>" \
 EASYPANEL_TOKEN="<api-token>" \
 EASYPANEL_POSTGRES_PASSWORD="<strong-db-password>" \
-NEXTAUTH_SECRET="<strong-nextauth-secret>" \
 npm run deploy:easypanel
 ```
 
@@ -174,7 +173,7 @@ Body:
   "json": {
     "projectName": "oneburguer",
     "serviceName": "web",
-    "env": "APP_ENV=production\nNODE_ENV=production\nPORT=3000\nDATABASE_URL=postgresql://oneburguer:<strong-db-password>@oneburguer_postgres:5432/oneburguer?schema=public\nDIRECT_URL=postgresql://oneburguer:<strong-db-password>@oneburguer_postgres:5432/oneburguer?schema=public\nNEXTAUTH_SECRET=<strong-nextauth-secret>\nNOTIFICATIONS_DRIVER=dummy\nTELEGRAM_NOTIFICATIONS_ENABLED=false"
+    "env": "APP_ENV=production\nNODE_ENV=production\nPORT=3000\nDATABASE_URL=postgresql://oneburguer:<strong-db-password>@oneburguer_postgres:5432/oneburguer?schema=public\nDIRECT_URL=postgresql://oneburguer:<strong-db-password>@oneburguer_postgres:5432/oneburguer?schema=public\nNOTIFICATIONS_DRIVER=dummy\nTELEGRAM_NOTIFICATIONS_ENABLED=false"
   }
 }
 ```
@@ -224,12 +223,19 @@ Easypanel builds and runs the app service from this repository. No local Docker 
 
 The production container command runs `npm run start:production`.
 
-That command runs:
+That command:
 
-1. `prisma migrate deploy` with retries.
-2. `next start` only after migrations pass.
+1. Validates the runtime environment and exits non-zero when `DATABASE_URL`, `DIRECT_URL`, `APP_ENV` or `NODE_ENV` are missing, when `NODE_ENV` is not `production`, or when the staging-only OTP debug switches are on.
+2. Runs `prisma migrate deploy` with retries (unless `MIGRATIONS_AUTO=false`).
+3. Runs `next start` only after migrations pass.
 
 This keeps a fresh PostgreSQL service from serving broken menu/order routes before the schema exists.
+
+The image `HEALTHCHECK` calls `/api/readiness`, which performs a real `SELECT 1`
+and answers `503` when the database is unreachable.
+
+Full operational runbook (backups, rollback, notifications, first data load):
+`ops/production-readiness.md`.
 
 ## First admin user
 

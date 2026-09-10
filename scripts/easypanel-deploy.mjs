@@ -155,12 +155,33 @@ async function inspectService(api, token, path, projectName, serviceName) {
   }
 }
 
-function parseEnvValue(env, key) {
-  const line = env
-    ?.split(/\r?\n/)
-    .find((entry) => entry.startsWith(`${key}=`));
+/**
+ * Builds the service env without clobbering values the operator set by hand
+ * (Telegram, n8n, outbox processor, rate limits, ...). Only `managedEntries`
+ * are overwritten; `defaultEntries` are written exclusively when the key is
+ * still absent.
+ */
+function buildAppEnv(existingEnv, managedEntries, defaultEntries = []) {
+  const existingLines = (existingEnv ?? "")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const keyOf = (line) => line.split("=")[0]?.trim();
+  const managedKeys = new Set(managedEntries.map(([key]) => key));
+  const existingKeys = new Set(existingLines.map(keyOf).filter(Boolean));
+  const preservedLines = existingLines.filter((line) => {
+    const key = keyOf(line);
+    return key && !managedKeys.has(key);
+  });
+  const defaultLines = defaultEntries
+    .filter(([key]) => !existingKeys.has(key) && !managedKeys.has(key))
+    .map(([key, value]) => `${key}=${value}`);
 
-  return line ? line.slice(key.length + 1) : undefined;
+  return [
+    ...preservedLines,
+    ...defaultLines,
+    ...managedEntries.map(([key, value]) => `${key}=${value}`),
+  ].join("\n");
 }
 
 function resolveServiceDomain(value) {
@@ -250,11 +271,9 @@ async function main() {
   }
 
   let postgresPassword = process.env.EASYPANEL_POSTGRES_PASSWORD?.trim();
-  let nextAuthSecret = process.env.NEXTAUTH_SECRET?.trim();
 
   if (dryRun) {
     postgresPassword = postgresPassword || secretEnv("EASYPANEL_POSTGRES_PASSWORD", { minLength: 16 });
-    nextAuthSecret = nextAuthSecret || secretEnv("NEXTAUTH_SECRET", { fallbackBytes: 32, minLength: 32 });
   }
 
   const api = await detectApiBase(panelUrl, token);
@@ -309,19 +328,21 @@ async function main() {
       });
     }
 
-    nextAuthSecret = nextAuthSecret || parseEnvValue(appService?.env, "NEXTAUTH_SECRET") || secretEnv("NEXTAUTH_SECRET", { fallbackBytes: 32, minLength: 32 });
-
     const databaseUrl = `postgresql://${POSTGRES_USER}:${postgresPassword}@${DATABASE_HOST}:5432/${POSTGRES_DB}?schema=public`;
-    const appEnv = [
-      "APP_ENV=production",
-      "NODE_ENV=production",
-      "PORT=3000",
-      `DATABASE_URL=${databaseUrl}`,
-      `DIRECT_URL=${databaseUrl}`,
-      `NEXTAUTH_SECRET=${nextAuthSecret}`,
-      "NOTIFICATIONS_DRIVER=dummy",
-      "TELEGRAM_NOTIFICATIONS_ENABLED=false",
-    ].join("\n");
+    const appEnv = buildAppEnv(
+      appService?.env,
+      [
+        ["APP_ENV", "production"],
+        ["NODE_ENV", "production"],
+        ["PORT", "3000"],
+        ["DATABASE_URL", databaseUrl],
+        ["DIRECT_URL", databaseUrl],
+      ],
+      [
+        ["NOTIFICATIONS_DRIVER", "dummy"],
+        ["TELEGRAM_NOTIFICATIONS_ENABLED", "false"],
+      ],
+    );
 
     await rpc(api, token, "/api/rpc/services/app/updateSourceGithub", {
       projectName: PROJECT_NAME,
@@ -386,19 +407,22 @@ async function main() {
   });
 
   postgresPassword = postgresPassword || secretEnv("EASYPANEL_POSTGRES_PASSWORD", { minLength: 16 });
-  nextAuthSecret = nextAuthSecret || secretEnv("NEXTAUTH_SECRET", { fallbackBytes: 32, minLength: 32 });
 
   const legacyDatabaseUrl = `postgresql://${POSTGRES_USER}:${postgresPassword}@${DATABASE_HOST}:5432/${POSTGRES_DB}?schema=public`;
-  const legacyAppEnv = [
-    "APP_ENV=production",
-    "NODE_ENV=production",
-    "PORT=3000",
-    `DATABASE_URL=${legacyDatabaseUrl}`,
-    `DIRECT_URL=${legacyDatabaseUrl}`,
-    `NEXTAUTH_SECRET=${nextAuthSecret}`,
-    "NOTIFICATIONS_DRIVER=dummy",
-    "TELEGRAM_NOTIFICATIONS_ENABLED=false",
-  ].join("\n");
+  const legacyAppEnv = buildAppEnv(
+    null,
+    [
+      ["APP_ENV", "production"],
+      ["NODE_ENV", "production"],
+      ["PORT", "3000"],
+      ["DATABASE_URL", legacyDatabaseUrl],
+      ["DIRECT_URL", legacyDatabaseUrl],
+    ],
+    [
+      ["NOTIFICATIONS_DRIVER", "dummy"],
+      ["TELEGRAM_NOTIFICATIONS_ENABLED", "false"],
+    ],
+  );
 
   await request(api.baseUrl, token, "POST", "/updateAppSourceGithub", {
     projectName: PROJECT_NAME,
