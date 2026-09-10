@@ -118,4 +118,34 @@ test.describe("landing", () => {
       expect(response.status(), `${name} debería estar publicado`).toBe(200);
     }
   });
+
+  test("en 375 px entra todo y no hay scroll horizontal", async ({ page }) => {
+    // El repo exige verificar la UI a 375 px: es el ancho de referencia.
+    await page.setViewportSize({ width: 375, height: 812 });
+    await page.goto("/landing");
+
+    const button = page.getByRole("link", { name: "MENU" });
+    await expect(button).toBeVisible();
+
+    const buttonBox = await button.boundingBox();
+    expect(buttonBox).not.toBeNull();
+    expect(buttonBox!.x).toBeGreaterThanOrEqual(0);
+    expect(buttonBox!.x + buttonBox!.width).toBeLessThanOrEqual(375);
+    // Control táctil: nunca menos de 44 px de alto.
+    expect(buttonBox!.height).toBeGreaterThanOrEqual(44);
+
+    const frameBox = await page.locator("#landing-frame").boundingBox();
+    expect(frameBox!.width).toBeLessThanOrEqual(375);
+
+    // El escenario móvil es más corto (255vh): si no, el scroll se hace eterno.
+    const stageHeight = await page
+      .locator("#landing-stage")
+      .evaluate((element) => element.getBoundingClientRect().height);
+    expect(stageHeight).toBeLessThan(812 * 2.7);
+
+    const horizontalOverflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - window.innerWidth,
+    );
+    expect(horizontalOverflow).toBeLessThanOrEqual(1);
+  });
 });
