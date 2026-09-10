@@ -32,7 +32,7 @@ function getRequestHost(request: NextRequest): string | null {
 }
 
 export async function proxy(request: NextRequest) {
-  const { pathname } = request.nextUrl;
+  const { pathname, search } = request.nextUrl;
 
   if (pathname.startsWith("/api")) {
     return NextResponse.next();
@@ -40,8 +40,10 @@ export async function proxy(request: NextRequest) {
 
   const host = getRequestHost(request);
 
-  // El apex sirve el landing; el host admin lleva su raíz a /admin.
-  const hostRoute = resolveHostRoute({ host, pathname });
+  // Cada host sirve una parte del producto; la decisión vive en
+  // `resolveHostRoute` (puro y con tests) y acá solo se traduce a Next.
+  const hostRoute = resolveHostRoute({ host, pathname, search });
+
   if (hostRoute.action === "rewrite") {
     const url = request.nextUrl.clone();
     url.pathname = hostRoute.pathname;
@@ -52,6 +54,10 @@ export async function proxy(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname = hostRoute.pathname;
     return NextResponse.redirect(url);
+  }
+
+  if (hostRoute.action === "redirectAbsolute") {
+    return NextResponse.redirect(hostRoute.url);
   }
 
   if (pathname.startsWith("/admin")) {
@@ -83,5 +89,7 @@ export async function proxy(request: NextRequest) {
 export { classifyHost, isAdminHost } from "@/shared/config/host-routing";
 
 export const config = {
-  matcher: ["/", "/landing", "/admin/:path*", "/admin"],
+  // Todo lo que sea una página. Los assets (incluido `manifest.webmanifest`,
+  // `sw.js`, `robots.txt` y los frames del landing) no pasan por acá.
+  matcher: ["/((?!api|_next/static|_next/image|.*\\..*).*)"],
 };

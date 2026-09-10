@@ -208,7 +208,7 @@ describe("proxy admin auth guard", () => {
     }
   });
 
-  it("no reescribe otras rutas del dominio de marca", async () => {
+  it("solo reescribe la raiz del dominio de marca: el resto se redirige", async () => {
     const request = new NextRequest("https://oneburgernic.com/menu", {
       headers: {
         host: "oneburgernic.com",
@@ -218,8 +218,8 @@ describe("proxy admin auth guard", () => {
 
     const response = await proxy(request);
 
-    expect(response.status).toBe(200);
     expect(response.headers.get("x-middleware-rewrite")).toBeNull();
+    expect(response.headers.get("location")).toBe("https://menu.oneburgernic.com/menu");
   });
 
   it("permite entrar al landing por su ruta directa en cualquier host", async () => {
@@ -229,5 +229,81 @@ describe("proxy admin auth guard", () => {
 
     expect(response.status).toBe(200);
     expect(response.headers.get("x-middleware-rewrite")).toBeNull();
+  });
+
+  it("manda el resto del apex a la app de pedidos", async () => {
+    const request = new NextRequest("https://oneburgernic.com/cart?cupon=PROMO", {
+      headers: {
+        host: "oneburgernic.com",
+        "x-forwarded-host": "oneburgernic.com",
+      },
+    });
+
+    const response = await proxy(request);
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe(
+      "https://menu.oneburgernic.com/cart?cupon=PROMO",
+    );
+  });
+
+  it("manda el admin al host del panel desde el apex y desde el menu", async () => {
+    for (const host of ["oneburgernic.com", "menu.oneburgernic.com"]) {
+      const request = new NextRequest(`https://${host}/admin/orders`, {
+        headers: { host, "x-forwarded-host": host },
+      });
+
+      const response = await proxy(request);
+
+      expect(response.headers.get("location")).toBe(
+        "https://admin.oneburgernic.com/admin/orders",
+      );
+    }
+  });
+
+  it("en el host admin, el panel sigue pasando por el guard de sesion", async () => {
+    const request = new NextRequest("https://admin.oneburgernic.com/admin/orders", {
+      headers: {
+        host: "admin.oneburgernic.com",
+        "x-forwarded-host": "admin.oneburgernic.com",
+      },
+    });
+
+    const response = await proxy(request);
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe(
+      "https://admin.oneburgernic.com/admin/login",
+    );
+  });
+
+  it("en el host admin, el resto va a la app de pedidos", async () => {
+    const request = new NextRequest("https://admin.oneburgernic.com/checkout", {
+      headers: {
+        host: "admin.oneburgernic.com",
+        "x-forwarded-host": "admin.oneburgernic.com",
+      },
+    });
+
+    const response = await proxy(request);
+
+    expect(response.headers.get("location")).toBe("https://menu.oneburgernic.com/checkout");
+  });
+
+  it("no redirige los frames del landing", async () => {
+    const request = new NextRequest(
+      "https://oneburgernic.com/landing/frames/burger_0045.webp",
+      {
+        headers: {
+          host: "oneburgernic.com",
+          "x-forwarded-host": "oneburgernic.com",
+        },
+      },
+    );
+
+    const response = await proxy(request);
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("location")).toBeNull();
   });
 });

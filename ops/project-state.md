@@ -240,6 +240,28 @@ productos: es el primer pendiente de contenido.
   - Los subdominios `menu.` y `admin.` ya resuelven por DNS y responden con HTTPS (los creó
     Daniel antes de este trabajo).
 
+- **Commit 2 — separación de dominios.** Cada host sirve una sola parte del producto:
+  - `oneburgernic.com` (y `www`): **solo** el landing. `/` se reescribe a `/landing`; el
+    resto de las páginas se redirige al host de pedidos conservando path y query, y
+    `/admin` al host del panel.
+  - `menu.oneburgernic.com`: la app de pedidos completa. `/admin` se redirige al panel.
+  - `admin.oneburgernic.com`: **solo** el panel. Su raíz entra a `/admin` y cualquier otra
+    página se redirige al host de pedidos.
+  - Assets, `/_next`, `manifest.webmanifest`, `sw.js`, `robots.txt` y los frames del
+    landing nunca se redirigen: el matcher del proxy ya los deja fuera.
+  - Si no se puede deducir el subdominio (local, IP, host de Easypanel) no hay redirección:
+    todo se sirve igual que siempre, que es lo que mantiene sano el entorno local y el E2E.
+  - `MENU_APP_URL` y `ADMIN_APP_URL` permiten forzar los destinos sin tocar código.
+
+  Matriz verificada contra el build de producción con `Host:` inyectado:
+
+  | Host | `/` | `/menu` o `/cart` | `/admin` |
+  |---|---|---|---|
+  | apex / www | landing (rewrite, 200) | 307 → `menu.*` | 307 → `admin.*` |
+  | `menu.*` | app de pedidos (200) | 200 | 307 → `admin.*` |
+  | `admin.*` | 307 → `/admin` | 307 → `menu.*` | guard de sesión |
+  | local / IP | app de pedidos (200) | 200 | guard de sesión |
+
 **Arreglo de branding: el logo y los colores no llegaban a toda la app (2026-09-10)**
 
 Dos bugs de la fase 2 que solo aparecen usando el producto, reportados por el owner:

@@ -118,25 +118,68 @@ export function resolveAdminAppUrl(host: string | null | undefined): string | nu
 }
 
 /**
+ * Rutas que el middleware nunca reescribe ni redirige: assets, la propia ruta
+ * del landing y las páginas internas de Next.
+ */
+function isAssetPath(pathname: string): boolean {
+  if (pathname.startsWith("/_next")) return true;
+  if (pathname === "/landing" || pathname.startsWith("/landing/")) return true;
+  // Un punto en el último segmento es un archivo (imagen, fuente, sw.js,
+  // manifest.webmanifest, robots.txt). Ninguna página del producto lo tiene.
+  return /\.[a-z0-9]+$/i.test(pathname);
+}
+
+function redirectTo(target: string | null, pathname: string, search: string): HostRoute {
+  return target
+    ? { action: "redirectAbsolute", url: `${target}${pathname}${search}` }
+    : { action: "next" };
+}
+
+/**
  * Qué hacer con una request según el host y el path.
  *
- * Fase 1: el apex muestra el landing y todo lo demás sigue igual (la app de
- * pedidos responde en cualquier host), así que el cambio no puede romper el
- * flujo de compra. Las reglas entre subdominios se suman cuando sus dominios
- * existen de verdad.
+ * - Apex y `www`: solo el landing. Todo lo demás se va al host de pedidos (y
+ *   `/admin`, al host del panel).
+ * - `menu.*`: la app de pedidos; `/admin` se va al host del panel.
+ * - `admin.*`: solo el panel; su raíz entra a `/admin`.
+ * - Cualquier otro host (local, IP, host de la plataforma): no hay subdominio
+ *   que deducir, así que se sirve todo tal cual y nada se rompe.
  */
 export function resolveHostRoute({
   host,
   pathname,
+  search = "",
 }: {
   host: string | null | undefined;
   pathname: string;
+  search?: string;
 }): HostRoute {
   const kind = classifyHost(host);
 
   if (pathname === "/") {
     if (kind === "brand") return { action: "rewrite", pathname: "/landing" };
     if (kind === "admin") return { action: "redirect", pathname: "/admin" };
+    return { action: "next" };
+  }
+
+  if (isAssetPath(pathname)) {
+    return { action: "next" };
+  }
+
+  const isAdminPath = pathname === "/admin" || pathname.startsWith("/admin/");
+
+  if (kind === "brand") {
+    return isAdminPath
+      ? redirectTo(resolveAdminAppUrl(host), pathname, search)
+      : redirectTo(resolveMenuAppUrl(host), pathname, search);
+  }
+
+  if (kind === "menu") {
+    return isAdminPath ? redirectTo(resolveAdminAppUrl(host), pathname, search) : { action: "next" };
+  }
+
+  if (kind === "admin") {
+    return isAdminPath ? { action: "next" } : redirectTo(resolveMenuAppUrl(host), pathname, search);
   }
 
   return { action: "next" };
