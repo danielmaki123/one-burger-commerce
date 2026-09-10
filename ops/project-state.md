@@ -1,6 +1,6 @@
 # Estado del proyecto — One Burger Commerce
 
-> Actualizado: 2026-09-10 · Commit en `main`: `7e11d6e` · Build en producción: `build-20260910-230239`
+> Actualizado: 2026-09-10 · Commit en `main`: `bb2a7ca` · Build en producción: `build-20260910-234250`
 > Este documento es el punto de entrada para retomar el trabajo. Mantenerlo al día al cerrar cada tarea.
 > Para arrancar en un chat nuevo: `ops/tasks/START-HERE.md`.
 
@@ -288,8 +288,33 @@ y fallaban exactamente en lo que introducen los commits; **después del deploy p
 `landing.spec.ts` **7/7** (la animación avanza, el botón aparece al terminar, se alcanza
 por teclado, movimiento reducido y 375 px).
 
-Cambio de última hora pedido por el owner: **el botón MENU ya no es fijo desde el arranque,
+Cambio de última hora pedido por el owner: **el botón MENÚ ya no es fijo desde el arranque,
 se revela al terminar la animación**. Se ata al último frame (`shouldRevealMenuButton`).
+
+### Auditoría del landing y rediseño del botón (2026-09-10)
+
+Desplegado `bb2a7ca` como `build-20260910-234250`. Informe completo en
+[`ops/audit-landing.md`](audit-landing.md), con todos los números medidos contra el sitio
+real con `scripts/audit-landing*.mjs` (rendimiento, celular con datos lentos y cascada).
+
+- **El botón acumulaba cuatro defectos medidos**: borde de 1 px **y** sombra ancha en el
+  mismo elemento (patrón que la guía de diseño prohíbe), tres capas de sombra más un
+  degradado de brillo, `font-weight: 950` que **no existe** (la fuente solo trae 400 y
+  700: se midió que 700/900/950 rinden igual) y tracking de 0,16em en mayúsculas. Ahora es
+  una pastilla ámbar sólida sin borde ni sombra, peso 700 real, 16 px y tracking 0,06em.
+- **`MENU` → `MENÚ`**: faltaba la tilde.
+- **Accesibilidad**: el texto "Deslizá" se anunciaba a lectores de pantalla sin aportar
+  nada (ahora `aria-hidden`) y medía 11,2 px (ahora 12). `100dvh` en vez de `100vh`.
+- **Rendimiento**: en celular con datos lentos la primera frame tardaba 11,4 s. **La
+  hipótesis inicial era incorrecta** (se secuenció la precarga y no cambió nada): la
+  cascada real muestra 327 KB, de los cuales **135 KB son JavaScript** y **81 KB son dos
+  pesos de Fraunces que el landing no usa**. Se agregó un póster de la primera frame a
+  24 px embebido como data URI (~1 KB) que elimina la pantalla negra. La causa de fondo
+  queda documentada con tres opciones, sin aplicar: el owner pidió dejarlo así por ahora.
+- La secuencia de 37 frames salta dos veces (movimiento por frame de 1 a 30) porque cubre
+  el 32 % del video. Es la secuencia elegida a propósito; los 120 frames la emparejarían.
+
+Verificado en producción: `6/6` dominios, `4/4` smoke y `8/8` landing (más 1 saltado).
 
 - El botón se oculta con **opacidad, nunca con `visibility: hidden`**: la primera versión
   usaba `visibility` y el test destapó que así el elemento desaparece del árbol de
