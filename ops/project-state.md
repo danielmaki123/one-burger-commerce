@@ -1,6 +1,6 @@
 # Estado del proyecto — One Burger Commerce
 
-> Actualizado: 2026-09-10 · Commit en `main`: `8b022e3` · Build en producción: `build-20260910-170321`
+> Actualizado: 2026-09-10 · Commit en `main`: `5d8dfd6` · Build en producción: `build-20260910-174113`
 > Este documento es el punto de entrada para retomar el trabajo. Mantenerlo al día al cerrar cada tarea.
 > Para arrancar en un chat nuevo: `ops/tasks/START-HERE.md`.
 
@@ -191,6 +191,62 @@ productos: es el primer pendiente de contenido.
 - Producción se ve igual que antes salvo los cambios deliberados ya documentados: el
   `<title>` es `One Burger` (era `One Burger Commerce`) y el manifiesto del PWA pasó a
   generarse desde la configuración.
+
+**QA en producción con la cuenta owner (2026-09-10)**
+
+- **La tabla existe y la migración quedó aplicada**: `GET /api/admin/business-settings`
+  con la sesión del owner devuelve la fila `id = "default"`.
+- **El owner ya cargó los datos reales** desde `/admin/settings` (tagline `just One.`,
+  dirección `Camino de Oriente, Carretera Masaya y Casa Antigua (Jinotepe)`, teléfono
+  `+505 8781 0800`, logo propio en el manifiesto). La fila tiene `updatedByUserId`, así
+  que el guardado quedó auditado: el camino admin → base está probado por uso real.
+- **Escritura controlada y reversión**: se guardó un valor temporal en `closedMessage`
+  (un campo que no se renderiza en ninguna superficie pública), se verificó que persistió
+  y que el resto de la configuración quedó intacto (el parche es parcial), y se restauró
+  el valor original.
+- `/admin/settings` carga con los valores actuales y sus secciones, y el sitio público
+  (`/menu`, `/`, manifiesto) muestra los datos configurados.
+- Smoke productivo **4/4** tras el deploy de `f430fff`.
+- Observación operativa: el isotipo configurado apunta a `images.casaantiguanic.com`, un
+  host externo al stack de One Burger. Si ese servicio se cae, el logo del PWA y del
+  header se rompe; conviene moverlo a un asset propio (o esperar a la fase 5, que lo
+  subiría al servidor).
+
+**Cambio de alcance pedido por el owner (2026-09-10)**
+
+- Se retiró la sección **"Accesos rápidos"** de la home: repetía los mismos enlaces que
+  el header y la barra inferior. Se eliminó también el helper muerto
+  `getHomeQuickActions`, que además seguía listando "Reservar" e "Historial" (fuera del
+  MVP). Commit `f430fff`.
+
+**Arreglo de branding: el logo y los colores no llegaban a toda la app (2026-09-10)**
+
+Dos bugs de la fase 2 que solo aparecen usando el producto, reportados por el owner:
+
+1. **El isotipo no llegaba a todas las superficies.** `logoMarkUrl` se usaba solo en el
+   header público y en la confirmación de pedido; la home, el shell del admin y el login
+   del admin seguían mostrando las iniciales "OB", y `logoUrl` no se usaba en ningún lado.
+   El favicon, además, tenía como default el asset viejo, que tapaba al isotipo.
+2. **Los colores solo se veían en la home.** Cada página tenía su propio degradado con el
+   azul y los cremas escritos a mano (`rgba(43,108,150,…)`, `#fcfaf6`/`#f4f2ec`); solo `/`
+   usaba la clase con tokens.
+
+Arreglado en `5d8dfd6`:
+
+- `domain/brand-assets.ts` decide una sola vez qué imagen va en cada lugar y cuál es el
+  favicon efectivo (`faviconUrl` sigue al isotipo mientras siga el valor sembrado, porque
+  ese valor no es una elección del owner).
+- `shared/ui/brand-mark.tsx` es el único componente que dibuja la marca; se usa en el
+  header público y de la home, el footer de la home, el shell y el login del admin, las
+  confirmaciones y la vista previa.
+- Fondos y sombras salen de clases con tokens en `globals.css` (`.brand-canvas`,
+  `.brand-surface`, `.brand-photo`, `.brand-overlay`, `.brand-hero-fallback`,
+  `.brand-shadow-*`). El service worker ya no precachea el logo viejo.
+- El contrato anti-hardcode suma un guard que falla si vuelve un color del sistema viejo.
+
+Verificado en producción (`build-20260910-174113`): las cinco superficies muestran el logo
+configurado y ninguna muestra ya las iniciales; el favicon y el apple-touch-icon apuntan
+al logo; ningún HTML público trae los colores viejos; smoke 4/4.
 
 ## 3. Infraestructura y secretos
 
