@@ -27,6 +27,27 @@ vi.mock("@/shared/lib/rate-limit/rate-limit", async () => {
   return actual;
 });
 
+const DEFAULT_LIMIT = 10;
+
+function loginRequest(ip: string) {
+  return new Request("http://localhost/api/auth/admin/login", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-forwarded-for": ip,
+    },
+    body: JSON.stringify({ email: "admin@example.com", password: "secret" }),
+  });
+}
+
+function stubSuccessfulLogin() {
+  loginAdminMock.mockResolvedValue({
+    sessionToken: "session_token",
+    expiresAt: new Date("2026-06-10T00:00:00.000Z"),
+    user: { id: "admin_1", name: "Daniel", email: "admin@example.com", role: "owner" },
+  });
+}
+
 describe("POST /api/auth/admin/login", () => {
   beforeEach(async () => {
     vi.clearAllMocks();
@@ -37,69 +58,49 @@ describe("POST /api/auth/admin/login", () => {
     });
   });
 
-  it("permite hasta 5 intentos desde la misma IP", async () => {
-    loginAdminMock.mockResolvedValue({
-      sessionToken: "session_token",
-      expiresAt: new Date("2026-06-10T00:00:00.000Z"),
-      user: { id: "admin_1", name: "Daniel", email: "admin@example.com", role: "owner" },
-    });
+  it("allows a full shift change from the same IP before limiting", async () => {
+    stubSuccessfulLogin();
 
     const { POST } = await import("./route");
 
-    for (let i = 0; i < 5; i += 1) {
-      const response = await POST(
-        new Request("http://localhost/api/auth/admin/login", {
-          method: "POST",
-          headers: {
-            "content-type": "application/json",
-            "x-forwarded-for": "203.0.113.10",
-          },
-          body: JSON.stringify({ email: "admin@example.com", password: "secret" }),
-        }),
-      );
-
+    for (let i = 0; i < DEFAULT_LIMIT; i += 1) {
+      const response = await POST(loginRequest("203.0.113.10"));
       expect(response.status).toBe(200);
     }
   });
 
-  it("bloquea el sexto intento con 429 y Retry-After", async () => {
-    loginAdminMock.mockResolvedValue({
-      sessionToken: "session_token",
-      expiresAt: new Date("2026-06-10T00:00:00.000Z"),
-      user: { id: "admin_1", name: "Daniel", email: "admin@example.com", role: "owner" },
-    });
+  it("blocks the attempt after the default limit with 429 and Retry-After", async () => {
+    stubSuccessfulLogin();
 
     const { POST } = await import("./route");
 
-    for (let i = 0; i < 5; i += 1) {
-      await POST(
-        new Request("http://localhost/api/auth/admin/login", {
-          method: "POST",
-          headers: {
-            "content-type": "application/json",
-            "x-forwarded-for": "198.51.100.20",
-          },
-          body: JSON.stringify({ email: "admin@example.com", password: "secret" }),
-        }),
-      );
+    for (let i = 0; i < DEFAULT_LIMIT; i += 1) {
+      await POST(loginRequest("198.51.100.20"));
     }
 
-    const blocked = await POST(
-      new Request("http://localhost/api/auth/admin/login", {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          "x-forwarded-for": "198.51.100.20",
-        },
-        body: JSON.stringify({ email: "admin@example.com", password: "secret" }),
-      }),
-    );
-
+    const blocked = await POST(loginRequest("198.51.100.20"));
     const body = await blocked.json();
 
     expect(blocked.status).toBe(429);
     expect(blocked.headers.get("Retry-After")).toBeTruthy();
     expect(body.error.code).toBe("TOO_MANY_REQUESTS");
-    expect(loginAdminMock).toHaveBeenCalledTimes(5);
+    expect(loginAdminMock).toHaveBeenCalledTimes(DEFAULT_LIMIT);
+  });
+
+  it("honours ADMIN_LOGIN_RATE_LIMIT", async () => {
+    stubSuccessfulLogin();
+    vi.resetModules();
+    vi.stubEnv("ADMIN_LOGIN_RATE_LIMIT", "2");
+
+    try {
+      const { POST } = await import("./route");
+
+      expect((await POST(loginRequest("192.0.2.30"))).status).toBe(200);
+      expect((await POST(loginRequest("192.0.2.30"))).status).toBe(200);
+      expect((await POST(loginRequest("192.0.2.30"))).status).toBe(429);
+    } finally {
+      vi.unstubAllEnvs();
+      vi.resetModules();
+    }
   });
 });

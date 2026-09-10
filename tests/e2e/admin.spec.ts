@@ -1,42 +1,61 @@
 import { expect, test } from "@playwright/test";
 
-import { ADMIN_PASSWORD, loginAsOwner, mutationsAllowed } from "./helpers";
+import {
+  ADMIN_PASSWORD,
+  createAdminUserViaUi,
+  loginAsOwner,
+  logoutAdmin,
+  mutationsAllowed,
+} from "./helpers";
 
 test.describe("admin operations", () => {
   test.skip(!mutationsAllowed, "Admin mutations are disabled unless E2E_ALLOW_MUTATIONS=true.");
 
   test("owner can sign in and manage users", async ({ page }) => {
     await loginAsOwner(page);
+    await createAdminUserViaUi(page, {
+      name: "Cocina E2E",
+      email: `cocina-${Date.now()}@example.com`,
+      password: "Cocina123!",
+      role: "kitchen",
+    });
+  });
 
-    await page.goto("/admin/users");
-    await expect(page.getByRole("heading", { name: "Usuarios" })).toBeVisible();
-    await expect(page.getByText("Admin One Burger")).toBeVisible();
+  test("owner can change a role and revoke access", async ({ page }) => {
+    await loginAsOwner(page);
 
-    const email = `cocina-${Date.now()}@example.com`;
-    await page.locator('input[type="text"]').first().fill("Cocina E2E");
-    await page.locator('input[type="email"]').fill(email);
-    await page.locator('input[type="password"]').fill("Cocina123!");
-    await page.locator("select").selectOption("kitchen");
-    await page.getByRole("button", { name: "Crear usuario" }).click();
+    const email = `cambio-${Date.now()}@example.com`;
+    await createAdminUserViaUi(page, {
+      name: "Cambio E2E",
+      email,
+      password: ADMIN_PASSWORD,
+      role: "kitchen",
+    });
 
-    await expect(page.getByText("Usuario creado correctamente.")).toBeVisible();
-    await expect(page.getByText(email)).toBeVisible();
+    const row = page.getByRole("article").filter({ hasText: email });
+    await expect(row).toBeVisible();
+    await row.getByLabel("Rol de Cambio E2E").selectOption("manager");
+    await expect(page.getByText("Rol actualizado.")).toBeVisible();
+
+    // Revoking asks for confirmation; Playwright dismisses dialogs by default.
+    page.on("dialog", (dialog) => void dialog.accept());
+    await row.getByRole("button", { name: "Revocar acceso de Cambio E2E" }).click();
+    await expect(page.getByText("Acceso revocado.")).toBeVisible();
+    await expect(page.getByText(email)).toHaveCount(0);
   });
 
   test("kitchen user can access orders but not user management", async ({ page }) => {
     await loginAsOwner(page);
 
     const email = `kitchen-${Date.now()}@example.com`;
-    await page.request.post("/api/admin/users", {
-      data: {
-        name: "Kitchen E2E",
-        email,
-        password: ADMIN_PASSWORD,
-        role: "kitchen",
-      },
+    await createAdminUserViaUi(page, {
+      name: "Kitchen E2E",
+      email,
+      password: ADMIN_PASSWORD,
+      role: "kitchen",
     });
 
-    await page.goto("/admin/login");
+    await logoutAdmin(page);
     await page.locator('input[type="email"]').fill(email);
     await page.locator('input[type="password"]').fill(ADMIN_PASSWORD);
     await page.getByRole("button", { name: "Iniciar sesión" }).click();

@@ -11,6 +11,7 @@ import {
   createRateLimitResponse,
   FixedWindowRateLimiter,
   getClientIp,
+  resolveRateLimit,
 } from "@/shared/lib/rate-limit/rate-limit";
 
 const loginSchema = z.object({
@@ -18,9 +19,11 @@ const loginSchema = z.object({
   password: z.string().min(1),
 });
 
+// Restaurant staff often share one public IP, so the default leaves room for a
+// shift change while still braking brute force (scrypt makes each attempt costly).
 const adminLoginRateLimiter = new FixedWindowRateLimiter({
   prefix: "admin-login",
-  limit: 5,
+  limit: resolveRateLimit(process.env.ADMIN_LOGIN_RATE_LIMIT, 10),
   windowMs: 60_000,
 });
 

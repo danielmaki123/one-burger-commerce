@@ -80,6 +80,27 @@ export class FixedWindowRateLimiter {
 }
 
 /**
+ * Reads a rate limit from the environment, falling back when the value is
+ * missing or is not a positive integer.
+ */
+export function resolveRateLimit(
+  value: string | undefined,
+  fallback: number,
+): number {
+  if (!value) {
+    return fallback;
+  }
+
+  const parsed = Number(value);
+
+  if (!Number.isSafeInteger(parsed) || parsed < 1) {
+    return fallback;
+  }
+
+  return parsed;
+}
+
+/**
  * Resolves the client IP for rate limiting.
  *
  * Only values written by our own reverse proxy are trusted:

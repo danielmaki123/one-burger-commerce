@@ -352,6 +352,7 @@ export default function AdminUsersPage() {
             <label className="grid gap-1.5 text-sm font-medium text-foreground">
               Rol
               <select
+                aria-label="Rol del nuevo usuario"
                 value={formData.role}
                 onChange={(event) =>
                   setFormData((current) => ({

@@ -1,6 +1,26 @@
 import { describe, expect, it } from "vitest";
 
-import { FixedWindowRateLimiter, getClientIp } from "@/shared/lib/rate-limit/rate-limit";
+import {
+  FixedWindowRateLimiter,
+  getClientIp,
+  resolveRateLimit,
+} from "@/shared/lib/rate-limit/rate-limit";
+
+describe("resolveRateLimit", () => {
+  it("uses the configured positive integer", () => {
+    expect(resolveRateLimit("12", 5)).toBe(12);
+    expect(resolveRateLimit("1", 5)).toBe(1);
+  });
+
+  it("falls back for missing, empty or invalid values", () => {
+    expect(resolveRateLimit(undefined, 10)).toBe(10);
+    expect(resolveRateLimit("", 10)).toBe(10);
+    expect(resolveRateLimit("nope", 10)).toBe(10);
+    expect(resolveRateLimit("0", 10)).toBe(10);
+    expect(resolveRateLimit("-3", 10)).toBe(10);
+    expect(resolveRateLimit("2.5", 10)).toBe(10);
+  });
+});
 
 describe("FixedWindowRateLimiter", () => {
   it("permite hasta el limite y bloquea el siguiente intento dentro de la ventana", () => {

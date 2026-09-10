@@ -410,7 +410,9 @@ export default function CheckoutPage() {
   const [formData, setFormData] = useState({
     customerName: "",
     customerWhatsapp: "",
-    pickupTime: "",
+    // Must match the option the UI renders as selected, otherwise the CTA stays
+    // disabled ("Falta hora de retiro") while a time looks chosen.
+    pickupTime: "19:30",
     pickupNotes: "",
   });
 
