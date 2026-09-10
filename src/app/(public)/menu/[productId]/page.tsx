@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 
 import { useCart } from "@/shared/lib/cart";
-import { useCurrencyFormat } from "@/shared/lib/business-settings";
+import { useBusinessSettings, useCurrencyFormat } from "@/shared/lib/business-settings";
 import { formatCurrency } from "@/shared/lib/format-currency";
 import { getPublicStartingPrice } from "@/shared/lib/public-product-pricing";
 import { Button } from "@/shared/ui/button";
@@ -115,6 +115,7 @@ export default function ProductDetailPage() {
   const router = useRouter();
   const { addItem, items } = useCart();
   const currency = useCurrencyFormat();
+  const settings = useBusinessSettings();
 
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
@@ -363,7 +364,7 @@ export default function ProductDetailPage() {
           </Button>
 
           <div className="rounded-full border border-white/25 bg-stone-950/38 px-3 py-1.5 text-[11px] font-semibold tracking-[0.24em] text-stone-50 uppercase backdrop-blur-sm">
-            One Burger
+            {settings.name}
           </div>
         </div>
       </div>

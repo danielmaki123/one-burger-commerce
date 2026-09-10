@@ -13,15 +13,29 @@ MVP para pedidos de One Burger: menu publico, carrito, checkout **solo para reti
 ## Alcance MVP
 
 - Publico: home, menu, detalle de producto, carrito, checkout pickup, confirmacion y seguimiento del pedido.
-- Admin: ordenes, menu y usuarios.
+- Admin: ordenes, menu, usuarios y **personalizacion del negocio** (`/admin/settings`).
 - Roles: `owner`, `manager`, `kitchen`.
 - Pago: se cobra **en el local al retirar**. No hay pasarela de pago.
-- Propina: opcional, desmarcada por defecto, 10 % si el cliente la agrega.
+- Propina: opcional, desmarcada por defecto, **porcentaje configurable** desde el admin
+  (el servidor es la fuente de verdad y no acepta un monto del cliente).
 
 Fuera del MVP: reservas, mesas, delivery, inventario, reportes avanzados y pagos online.
 Ese codigo sigue en el repositorio, pero **no se ofrece en la UI ni en las APIs publicas**:
 las paginas de admin de esos modulos quedan solo accesibles por URL y las APIs de reservas,
 mesas y zonas de delivery fueron retiradas. Ver `ops/production-readiness.md`.
+
+## Personalizacion del negocio
+
+Ningun dato del negocio esta escrito en el codigo: nombre, colores, tipografias, logos,
+contacto, direccion, horarios, moneda, propina y textos operativos salen de la fila unica
+de `BusinessSettings` y se editan en `/admin/settings` (solo `owner`). Los cambios se ven
+en la siguiente carga del sitio publico, sin redeploy.
+
+- Modulo: `src/modules/business-settings/` (leer su `README.md`).
+- Valores por defecto: `domain/business-settings-defaults.ts`, el unico lugar del codigo
+  donde pueden vivir esos literales. Un test de contrato
+  (`anti-hardcode-contract.test.ts`) falla si reaparecen en otra superficie.
+- Brief y decisiones: [`ops/tasks/TASK-whitelabel-branding.md`](ops/tasks/TASK-whitelabel-branding.md).
 
 ## Validacion
 

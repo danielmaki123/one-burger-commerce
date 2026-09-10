@@ -372,7 +372,7 @@ export default function AdminSettingsClientPage({
         <SettingsField
           id="settings-phone"
           label="Teléfono"
-          hint="Formato E.164, por ejemplo +50588770888."
+          hint="Formato E.164, por ejemplo +12025550123."
           error={fieldErrors.phone}
           onReset={() => resetField("phone")}
         >
@@ -386,7 +386,7 @@ export default function AdminSettingsClientPage({
         <SettingsField
           id="settings-whatsapp"
           label="WhatsApp"
-          hint="E.164 sin +, por ejemplo 50588770888."
+          hint="E.164 sin +, por ejemplo 12025550123."
           error={fieldErrors.whatsapp}
           onReset={() => resetField("whatsapp")}
         >

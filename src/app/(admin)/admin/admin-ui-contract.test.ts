@@ -488,15 +488,17 @@ describe("admin ui contracts", () => {
     expect(source).toContain("Reintentar");
   });
 
-  it("formats admin menu money with the shared C$ helper (R2)", () => {
+  it("formats admin menu money with the configured currency helper (R2)", () => {
     const detailSource = readAdminFile("menu/products/[id]/page.tsx");
     const dishSource = readAdminFile("menu/products/product-dish-card.tsx");
     const modifierListSource = readAdminFile("menu/modifier-groups/page.tsx");
     const modifierHelperSource = readAdminFile("menu/modifier-groups/modifier-group-helpers.ts");
     const modifierDetailSource = readAdminFile("menu/modifier-groups/[id]/page.tsx");
 
-    expect(detailSource).toContain('label="Precio base (C$)"');
-    expect(detailSource).toContain('label="Empaque por unidad (C$)"');
+    // El símbolo sale de la configuración del negocio, no de un "C$" escrito a
+    // mano: el contrato pasó de exigir el literal a exigir el token configurado.
+    expect(detailSource).toContain("label={`Precio base (${currency.symbol})`}");
+    expect(detailSource).toContain("label={`Empaque por unidad (${currency.symbol})`}");
     expect(detailSource).toContain("formatCurrency(formData.basePrice, currency)");
     expect(detailSource).not.toContain("${formData.basePrice}");
     expect(detailSource).not.toContain("${formData.packagingFeeAmount");
@@ -504,7 +506,9 @@ describe("admin ui contracts", () => {
     expect(modifierListSource).toContain("formatOptionPriceDelta");
     expect(modifierListSource).not.toContain("${opt.priceDelta}");
     expect(modifierHelperSource).toContain("formatCurrency(Math.abs(priceDelta), format)");
-    expect(modifierDetailSource).toContain('label={index === 0 ? "Recargo (C$)" : undefined}');
+    expect(modifierDetailSource).toContain(
+      "label={index === 0 ? `Recargo (${currency.symbol})` : undefined}",
+    );
   });
 
   it("keeps menu configuration summaries and modifier groups compact (V2)", () => {

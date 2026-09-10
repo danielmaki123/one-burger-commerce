@@ -3,11 +3,15 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { Lock, Mail, ShieldAlert, UtensilsCrossed } from "lucide-react";
+
+import { businessInitials } from "@/modules/business-settings/domain/brand-initials";
+import { useBusinessSettings } from "@/shared/lib/business-settings";
 import { Input } from "@/shared/ui/input";
 import { Button } from "@/shared/ui/button";
 
 export default function AdminLoginPage() {
   const router = useRouter();
+  const settings = useBusinessSettings();
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [loading, setLoading] = React.useState(false);
@@ -101,7 +105,7 @@ export default function AdminLoginPage() {
             <UtensilsCrossed className="h-5 w-5" strokeWidth={2} aria-hidden="true" />
           </span>
           <span className="font-heading text-xl font-bold tracking-tight text-white">
-            One Burger
+            {settings.name}
           </span>
         </div>
 
@@ -118,7 +122,7 @@ export default function AdminLoginPage() {
         </div>
 
         <p className="relative text-xs text-white/40">
-          © {new Date().getFullYear()} One Burger
+          © {new Date().getFullYear()} {settings.name}
         </p>
       </div>
 
@@ -127,12 +131,12 @@ export default function AdminLoginPage() {
         <div className="w-full max-w-sm space-y-8">
           <div className="space-y-2 text-center md:text-left">
             <span className="mb-2 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-brand text-sm font-bold text-brand-foreground shadow-sm md:hidden">
-              OB
+              {businessInitials(settings.name)}
             </span>
             <h1 className="font-heading text-2xl font-bold tracking-tight text-foreground">
               Iniciar sesión
             </h1>
-            <p className="text-sm text-muted-foreground">Acceso administrativo de One Burger</p>
+            <p className="text-sm text-muted-foreground">Acceso administrativo de {settings.name}</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4 rounded-2xl border border-border bg-card p-6 shadow-sm">

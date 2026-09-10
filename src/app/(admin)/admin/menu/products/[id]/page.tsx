@@ -264,7 +264,7 @@ export default function ProductFormPage() {
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <Input
-                  label="Precio base (C$)"
+                  label={`Precio base (${currency.symbol})`}
                   type="number"
                   step="0.01"
                   value={formData.basePrice}
@@ -272,7 +272,7 @@ export default function ProductFormPage() {
                   required
                 />
                 <Input
-                  label="Empaque por unidad (C$)"
+                  label={`Empaque por unidad (${currency.symbol})`}
                   type="number"
                   step="0.01"
                   min="0"

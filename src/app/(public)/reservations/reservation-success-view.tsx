@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import { useBusinessSettings } from "@/shared/lib/business-settings";
 import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";
 
@@ -65,6 +66,7 @@ export default function ReservationSuccessView({
   onViewActivity,
 }: ReservationSuccessViewProps) {
   const [hideMascot, setHideMascot] = useState(false);
+  const settings = useBusinessSettings();
   const statusLabel = getReservationStatusLabel(reservation.status);
   const reservationCode = reservation.reservationNumber ?? "Pendiente de código";
   const areaLabel = reservation.tableLabel ?? "Mesa por confirmar";
@@ -102,7 +104,7 @@ export default function ReservationSuccessView({
               ¡Reserva confirmada!
             </h1>
             <p className="mt-2 max-w-sm text-center text-base leading-6 text-muted-foreground sm:mt-3 sm:text-lg">
-              Te esperamos en One Burger.
+              Te esperamos en {settings.name}.
             </p>
 
             <Badge
@@ -158,7 +160,7 @@ export default function ReservationSuccessView({
 
         <div className="mx-auto mt-6 max-w-sm space-y-1 text-center text-sm leading-6 text-muted-foreground sm:mt-7">
           <p>Te enviaremos un recordatorio antes de tu reserva.</p>
-          <p>Gracias por elegir One Burger.</p>
+          <p>Gracias por elegir {settings.name}.</p>
         </div>
       </main>
     </div>

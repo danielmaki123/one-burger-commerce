@@ -18,7 +18,7 @@ export const COLOR_PRESETS: ColorPreset[] = [
   {
     id: "actual",
     label: "Actual",
-    description: "El esquema que usa hoy One Burger.",
+    description: "El esquema actual del negocio.",
     colors: {
       primaryColor: "#2b6c96",
       accentColor: "#eaf1f6",

@@ -87,7 +87,7 @@ const colorSchema = z
 const timeOfDaySchema = z
   .string()
   .trim()
-  .refine((value) => TIME_OF_DAY_PATTERN.test(value), "Usá el formato HH:mm, por ejemplo 12:00");
+  .refine((value) => TIME_OF_DAY_PATTERN.test(value), "Usá el formato HH:mm, por ejemplo 09:30");
 
 const businessHoursDaySchema = z
   .object({
@@ -146,10 +146,10 @@ export const businessSettingsPatchSchema = z.object({
   surfaceColor: colorSchema.optional(),
   headingFont: z.enum(FONT_CHOICES).optional(),
   bodyFont: z.enum(FONT_CHOICES).optional(),
-  phone: e164Schema(E164_PHONE_PATTERN, "Usá formato E.164, por ejemplo +50588770888").optional(),
+  phone: e164Schema(E164_PHONE_PATTERN, "Usá formato E.164, por ejemplo +12025550123").optional(),
   whatsapp: e164Schema(
     E164_DIGITS_PATTERN,
-    "Usá formato E.164 sin +, por ejemplo 50588770888",
+    "Usá formato E.164 sin +, por ejemplo 12025550123",
   ).optional(),
   email: z
     .string()

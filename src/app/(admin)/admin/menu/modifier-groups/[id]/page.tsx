@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, LoaderCircle, Plus, Trash2 } from "lucide-react";
 
+import { useCurrencyFormat } from "@/shared/lib/business-settings";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { AdminPageHeader } from "../../../_components/admin-operational-ui";
@@ -69,6 +70,7 @@ function OptionActiveSwitch({
 export default function ModifierGroupFormPage() {
   const params = useParams();
   const router = useRouter();
+  const currency = useCurrencyFormat();
   const isNew = params.id === "new";
 
   const [loading, setLoading] = React.useState(!isNew);
@@ -319,7 +321,7 @@ export default function ModifierGroupFormPage() {
             </div>
             <div className="w-28 shrink-0">
               <Input
-                label={index === 0 ? "Recargo (C$)" : undefined}
+                label={index === 0 ? `Recargo (${currency.symbol})` : undefined}
                 type="number"
                 step="0.01"
                 value={opt.priceDelta}

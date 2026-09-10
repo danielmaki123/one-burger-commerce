@@ -150,6 +150,18 @@ productos: es el primer pendiente de contenido.
     contraste. La vista previa ya mostraba los colores sin guardar.
   - Los colores se aplican como tokens CSS en `<html>`, así que se ven en todo el sitio
     (público y admin) sin tocar el CSS.
+- **Fase 6/6 cerrada — barrido final y contrato anti-hardcode.** El barrido encontró
+  hardcodeo que quedaba en el login del admin, el checkout (`C$0.00`), la ficha de
+  producto, la confirmación de reservas, las etiquetas `(C$)` de menú y los propios
+  mensajes de ejemplo del esquema. Todo salió de la configuración.
+  - `anti-hardcode-contract.test.ts` recorre todo `src/` (sin tests), quita comentarios y
+    falla si reaparece el nombre, el teléfono, el WhatsApp, el Instagram, el símbolo de
+    moneda o el horario por defecto fuera de `business-settings-defaults.ts`. Los módulos
+    fuera del MVP (reservas, mesas, delivery, inventario) quedan excluidos y documentados.
+  - `README.md` documenta la personalización y su módulo.
+  - **Fase 5 (subida de assets) no se hizo**: está marcada como opcional en el brief y
+    requiere un volumen persistente en Easypanel, que es una decisión de infraestructura
+    del owner. Hoy los logos se configuran por URL.
 
 ## 3. Infraestructura y secretos
 
@@ -171,7 +183,7 @@ productos: es el primer pendiente de contenido.
 | 4 | **Borrar el servicio duplicado huérfano `oneburguer-web`** (responde 502) | Agente | Evita confundir futuros deploys. |
 | 5 | **Endurecimiento técnico**: scrypt más fuerte con rehash al login, CSP, extraer componentes exportados de las páginas (hoy `next build --webpack` falla) | Agente | No bloquea. |
 | 6 | **Cerrar puertos innecesarios** de otros servicios del servidor (`capostgres` 5455, `postimage` 8585) | Daniel | No es de One Burger, pero están expuestos a internet. |
-| 7 | **Personalización / quitar hardcodeo** (nombre, colores, logo, contacto, horarios, dirección) | En curso | Aprobada el 2026-09-10; brief y decisiones en `ops/tasks/TASK-whitelabel-branding.md`. **Fases 1, 2 y 3 cerradas** (núcleo, sitio público y `/admin/settings`). Siguiente: fase 4 (colores editables con presets y aviso de contraste) y fase 6 (barrido anti-hardcode). Pendientes de decisión: las opciones de hora de retiro (`19:30`–`21:00`) siguen siendo una lista fija, y la subida de logos (fase 5, opcional) necesita un volumen persistente en Easypanel. |
+| 7 | **Personalización / quitar hardcodeo** (nombre, colores, logo, contacto, horarios, dirección) | **Cerrada (fases 1-4 y 6)** | Aprobada el 2026-09-10; brief en `ops/tasks/TASK-whitelabel-branding.md`. Sitio público, `/admin/settings`, apariencia con presets y contrato anti-hardcode, todo en `main` con CI verde. Queda la **fase 5 (subida de logos)**, opcional y con decisión de infraestructura pendiente: necesita un volumen persistente en Easypanel. |
 
 ## 5. Cómo continuar
 

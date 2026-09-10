@@ -212,6 +212,7 @@ export function CheckoutPickupPanel({
   disabled: boolean;
 }) {
   const settings = useBusinessSettings();
+  const currency = useCurrencyFormat();
   const todayHours = formatTodayHours(settings.businessHours, new Date(), settings.timezone);
   const leadMinutes = settings.pickupLeadMinutes;
 
@@ -302,7 +303,7 @@ export function CheckoutPickupPanel({
         </div>
         <div className="space-y-2 border-t border-border pt-3">
           <div className="flex justify-between text-sm"><span>Subtotal</span><span>{totalLabel}</span></div>
-          <div className="flex justify-between text-sm"><span>Empaque</span><span>C$0.00</span></div>
+          <div className="flex justify-between text-sm"><span>Empaque</span><span>{formatCurrency(0, currency)}</span></div>
           <div className="flex justify-between text-base font-bold text-foreground"><span>Total a pagar</span><span>{totalLabel}</span></div>
         </div>
       </section>
