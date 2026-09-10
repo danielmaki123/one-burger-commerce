@@ -303,12 +303,15 @@ export default function AdminOverviewClient() {
     });
   }
   if ((turno.reservasVigentes ?? 0) > 0) {
+    // Reservations are outside the pickup MVP scope: `/admin/reservations`
+    // redirects to `/admin/orders`, so this counter stays informational and
+    // must not link to a redirecting route.
     attentionItems.push({
       key: "reservas",
-      href: "/admin/reservations",
+      href: "/admin/orders",
       icon: CalendarClock,
       title: `${turno.reservasVigentes} reserva${turno.reservasVigentes === 1 ? "" : "s"} vigente${turno.reservasVigentes === 1 ? "" : "s"} hoy`,
-      detail: "Confirmá mesas y horarios antes del pico",
+      detail: "Módulo de reservas fuera del alcance actual de la operación",
     });
   }
 

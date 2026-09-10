@@ -4,7 +4,6 @@ import { useState } from "react";
 
 import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";
-import mascotReservation from "../../../../public/brand/mascota-reserva.png";
 
 export type ReservationSuccessData = {
   status: string;
@@ -79,7 +78,7 @@ export default function ReservationSuccessView({
               <div className="relative flex w-full items-end justify-center pt-1">
                 <div className="absolute bottom-0 h-16 w-40 rounded-t-full bg-brand/10 sm:h-28 sm:w-72" />
                 <img
-                  src={mascotReservation.src}
+                  src="/brand/one-burger-mark.svg"
                   alt=""
                   aria-hidden="true"
                   data-mascot="mascota-reserva"
@@ -103,7 +102,7 @@ export default function ReservationSuccessView({
               ¡Reserva confirmada!
             </h1>
             <p className="mt-2 max-w-sm text-center text-base leading-6 text-muted-foreground sm:mt-3 sm:text-lg">
-              Te esperamos en Casa Antigua.
+              Te esperamos en One Burger.
             </p>
 
             <Badge
@@ -159,7 +158,7 @@ export default function ReservationSuccessView({
 
         <div className="mx-auto mt-6 max-w-sm space-y-1 text-center text-sm leading-6 text-muted-foreground sm:mt-7">
           <p>Te enviaremos un recordatorio antes de tu reserva.</p>
-          <p>Gracias por elegir Casa Antigua.</p>
+          <p>Gracias por elegir One Burger.</p>
         </div>
       </main>
     </div>

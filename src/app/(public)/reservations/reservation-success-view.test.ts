@@ -21,7 +21,7 @@ describe("reservation success view", () => {
     );
 
     expect(html).toContain("¡Reserva confirmada!");
-    expect(html).toContain("Te esperamos en Casa Antigua.");
+    expect(html).toContain("Te esperamos en One Burger.");
     expect(html).toContain("Confirmada");
     expect(html).toContain("<img");
     expect(html).toContain('alt=""');
@@ -36,7 +36,7 @@ describe("reservation success view", () => {
     expect(html).toContain("2 personas");
     expect(html).toContain("Mesa 1");
     expect(html).toContain("Te enviaremos un recordatorio antes de tu reserva.");
-    expect(html).toContain("Gracias por elegir Casa Antigua.");
+    expect(html).toContain("Gracias por elegir One Burger.");
     expect(html).not.toContain("/brand/mascota-confirmacion.png");
     expect(html).not.toContain("Ver en Mi actividad");
     expect(html).not.toContain("Hacer otra reserva");

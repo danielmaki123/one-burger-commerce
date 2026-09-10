@@ -150,7 +150,7 @@ describe("admin ui contracts", () => {
     expect(overviewSource).toContain('aria-label="Turno de hoy"');
     expect(overviewSource).toContain("Necesita atención ·");
     expect(overviewSource).toContain('href: "/admin/orders"');
-    expect(overviewSource).toContain('href: "/admin/reservations"');
+    expect(overviewSource).not.toContain('href: "/admin/reservations"');
     expect(overviewSource).toContain("Todo en orden: nada requiere atención inmediata.");
     expect(overviewSource).toContain("TURNO_LATE_MINUTES");
     expect(navSource).toContain('href: "/admin/orders"');

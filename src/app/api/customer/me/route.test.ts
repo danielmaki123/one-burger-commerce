@@ -71,7 +71,7 @@ describe("GET /api/customer/me", () => {
   it("does not authenticate customer session from admin cookie", async () => {
     cookiesMock.mockResolvedValueOnce({
       get: (name: string) =>
-        name === "ca_admin_session" ? { value: "admin_token" } : undefined,
+        name === "ob_admin_session" ? { value: "admin_token" } : undefined,
     });
     getCustomerSessionMock.mockImplementationOnce(() => {
       throw new CustomerAuthError(401, "UNAUTHORIZED", "Customer session expired");

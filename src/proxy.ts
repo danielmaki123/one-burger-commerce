@@ -6,7 +6,35 @@ import { AuthError } from "@/modules/auth/domain/auth-errors";
 import { ADMIN_SESSION_COOKIE_NAME } from "@/modules/auth/domain/session-cookie";
 import { getAdminSession } from "@/modules/auth/features/get-admin-session/get-admin-session";
 
-const ADMIN_HOSTS = new Set(["admin.casaantiguanic.com"]);
+/**
+ * Hosts whose root path belongs to the admin app.
+ *
+ * Any subdomain starting with `admin.` is treated as an admin host, optionally
+ * extended through the `ADMIN_HOSTS` env var (comma separated). No brand host is
+ * hardcoded, so the same build works for every deployment domain.
+ */
+const ADMIN_HOST_LABEL = "admin";
+
+export function getConfiguredAdminHosts(): Set<string> {
+  return new Set(
+    (process.env.ADMIN_HOSTS ?? "")
+      .split(",")
+      .map((host) => normalizeHost(host))
+      .filter((host): host is string => Boolean(host)),
+  );
+}
+
+export function isAdminHost(host: string | null): boolean {
+  if (!host) {
+    return false;
+  }
+
+  if (getConfiguredAdminHosts().has(host)) {
+    return true;
+  }
+
+  return host.split(".")[0] === ADMIN_HOST_LABEL;
+}
 
 function redirectToAdminLogin(request: NextRequest) {
   const loginUrl = new URL("/admin/login", request.url);
@@ -43,7 +71,7 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  if (pathname === "/" && ADMIN_HOSTS.has(getRequestHost(request))) {
+  if (pathname === "/" && isAdminHost(getRequestHost(request))) {
     return redirectToAdminHome(request);
   }
 

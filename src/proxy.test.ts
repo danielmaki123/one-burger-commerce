@@ -38,7 +38,7 @@ describe("proxy admin auth guard", () => {
   it("redirige a login si la sesion no existe o expiro", async () => {
     const request = new NextRequest("http://localhost:3000/admin/orders", {
       headers: {
-        cookie: "ca_admin_session=invalid_token",
+        cookie: "ob_admin_session=invalid_token",
       },
     });
 
@@ -51,13 +51,13 @@ describe("proxy admin auth guard", () => {
     expect(getAdminSessionMock).toHaveBeenCalledWith("invalid_token", expect.any(Object));
     expect(response.status).toBe(307);
     expect(response.headers.get("location")).toBe("http://localhost:3000/admin/login");
-    expect(response.cookies.get("ca_admin_session")?.value).toBe("");
+    expect(response.cookies.get("ob_admin_session")?.value).toBe("");
   });
 
   it("permite acceso admin cuando la sesion es valida", async () => {
     const request = new NextRequest("http://localhost:3000/admin/orders", {
       headers: {
-        cookie: "ca_admin_session=valid_token",
+        cookie: "ob_admin_session=valid_token",
       },
     });
 
@@ -99,6 +99,44 @@ describe("proxy admin auth guard", () => {
     expect(response.status).toBe(307);
     expect(response.headers.get("location")).toBe("https://admin.casaantiguanic.com/admin");
     expect(getAdminSessionMock).not.toHaveBeenCalled();
+  });
+
+  it("reconoce cualquier host admin sin dominio de marca hardcodeado", async () => {
+    const request = new NextRequest("https://admin.oneburger.example/", {
+      headers: {
+        host: "admin.oneburger.example",
+        "x-forwarded-host": "admin.oneburger.example",
+      },
+    });
+
+    const response = await proxy(request);
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe(
+      "https://admin.oneburger.example/admin",
+    );
+  });
+
+  it("acepta hosts admin extra por variable de entorno", async () => {
+    process.env.ADMIN_HOSTS = "panel.oneburger.example";
+
+    try {
+      const request = new NextRequest("https://panel.oneburger.example/", {
+        headers: {
+          host: "panel.oneburger.example",
+          "x-forwarded-host": "panel.oneburger.example",
+        },
+      });
+
+      const response = await proxy(request);
+
+      expect(response.status).toBe(307);
+      expect(response.headers.get("location")).toBe(
+        "https://panel.oneburger.example/admin",
+      );
+    } finally {
+      delete process.env.ADMIN_HOSTS;
+    }
   });
 
   it("mantiene publica la raiz en el host de menu", async () => {
