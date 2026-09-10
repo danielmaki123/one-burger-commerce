@@ -82,7 +82,13 @@ test.describe("landing", () => {
     await expect(page.getByRole("link", { name: "One Burger inicio" })).toHaveCount(0);
 
     // El botón existe y apunta a la app de pedidos, pero todavía no se ve.
-    await expect(menuButton(page)).toHaveAttribute("href", /\/menu$/);
+    // En el apex el destino es el subdominio; en local, donde no hay subdominio
+    // que deducir, es el menú de este mismo host.
+    const href = await menuButton(page).getAttribute("href");
+    expect(
+      href === "/menu" || /^https:\/\/menu\./.test(href ?? ""),
+      `el botón debería apuntar a la app de pedidos, llegó "${href}"`,
+    ).toBe(true);
     await expect(menuButton(page)).toHaveAttribute("data-revealed", "false");
     await expect.poll(() => menuOpacity(page), { message: "todavía no debe verse" }).toBe(0);
   });

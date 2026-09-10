@@ -1,6 +1,6 @@
 # Estado del proyecto — One Burger Commerce
 
-> Actualizado: 2026-09-10 · Commit en `main`: `5d8dfd6` · Build en producción: `build-20260910-174113`
+> Actualizado: 2026-09-10 · Commit en `main`: `7e11d6e` · Build en producción: `build-20260910-230239`
 > Este documento es el punto de entrada para retomar el trabajo. Mantenerlo al día al cerrar cada tarea.
 > Para arrancar en un chat nuevo: `ops/tasks/START-HERE.md`.
 
@@ -277,14 +277,26 @@ productos: es el primer pendiente de contenido.
     redirige al login del host actual y los frames dan 404). Eso confirma que el arnés mide
     lo que dice medir; tienen que quedar verdes con el deploy.
 
-### Pendiente inmediato
+### Deploy del landing y la separación de dominios (2026-09-10)
 
-- **Desplegar los commits del landing y la separación de dominios.** Está todo verificado
-  en local (958 unitarios, E2E 17/17, CI verde en los tres commits) y los subdominios ya
-  existen, pero **falta el OK del owner**: el deploy cambia URLs de producción. Se
-  confirmó con él dos veces y todavía no respondió.
-  - Después del deploy: `BASE_URL=https://oneburgernic.com npm run test:e2e:prod:hosts`
-    y el smoke productivo.
+Desplegado con el OK del owner, `build-20260910-230239`, con una sola llamada a
+`deployService` sobre el servicio existente. **No se creó ni se reconfiguró nada.**
+
+Antes del deploy se corrieron los 6 casos de `production-hosts.spec.ts` contra producción
+y fallaban exactamente en lo que introducen los commits; **después del deploy pasaron los
+6**. Además, contra el sitio real: smoke productivo **4/4** y los 8 casos de
+`landing.spec.ts` **7/7** (la animación avanza, el botón aparece al terminar, se alcanza
+por teclado, movimiento reducido y 375 px).
+
+Cambio de última hora pedido por el owner: **el botón MENU ya no es fijo desde el arranque,
+se revela al terminar la animación**. Se ata al último frame (`shouldRevealMenuButton`).
+
+- El botón se oculta con **opacidad, nunca con `visibility: hidden`**: la primera versión
+  usaba `visibility` y el test destapó que así el elemento desaparece del árbol de
+  accesibilidad, con lo que un usuario de teclado se quedaba sin forma de llegar al menú.
+  Ahora sigue siendo enfocable y `:focus-visible` lo muestra al instante.
+- Con `prefers-reduced-motion` no hay animación que esperar, así que el botón se muestra
+  enseguida en vez de esconderse detrás de un scroll largo que ya no muestra nada.
 
 **Arreglo de branding: el logo y los colores no llegaban a toda la app (2026-09-10)**
 
