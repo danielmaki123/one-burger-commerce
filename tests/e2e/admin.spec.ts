@@ -90,4 +90,55 @@ test.describe("admin operations", () => {
     await page.goto("/admin/reservations");
     await expect(page).toHaveURL(/\/admin\/orders$/);
   });
+
+  test("owner changes the business name and the public site shows it without a redeploy", async ({
+    page,
+  }) => {
+    await loginAsOwner(page);
+
+    await page.goto("/admin/settings");
+    await expect(
+      page.getByRole("heading", { name: "Personalización del negocio" }),
+    ).toBeVisible();
+
+    const nameInput = page.getByLabel("Nombre *");
+    const originalName = await nameInput.inputValue();
+    const editedName = `Burger E2E ${Date.now()}`;
+
+    try {
+      await nameInput.fill(editedName);
+      await page.getByRole("button", { name: "Guardar cambios" }).click();
+      await expect(page.getByText("Cambios guardados ✓")).toBeVisible();
+
+      // La ruta pública es dinámica: el cambio se ve en la siguiente carga.
+      await page.goto("/menu");
+      await expect(page.getByText(editedName).first()).toBeVisible();
+    } finally {
+      await page.goto("/admin/settings");
+      await page.getByLabel("Nombre *").fill(originalName);
+      await page.getByRole("button", { name: "Guardar cambios" }).click();
+      await expect(page.getByText("Cambios guardados ✓")).toBeVisible();
+    }
+  });
+
+  test("a manager cannot reach the business settings", async ({ page }) => {
+    await loginAsOwner(page);
+
+    const email = `manager-settings-${Date.now()}@example.com`;
+    await createAdminUserViaUi(page, {
+      name: "Manager E2E",
+      email,
+      password: ADMIN_PASSWORD,
+      role: "manager",
+    });
+
+    await logoutAdmin(page);
+    await page.locator('input[type="email"]').fill(email);
+    await page.locator('input[type="password"]').fill(ADMIN_PASSWORD);
+    await page.getByRole("button", { name: "Iniciar sesión" }).click();
+    await expect(page).toHaveURL(/\/admin(?:\/orders)?$/);
+
+    await page.goto("/admin/settings");
+    await expect(page).toHaveURL(/\/admin\/orders$/);
+  });
 });

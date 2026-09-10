@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  canManageBusinessSettings,
   canManageCriticalConfig,
   canManageInventoryOperations,
   canManageMenu,
@@ -49,5 +50,11 @@ describe("admin permissions", () => {
     expect(canManageInventoryOperations(ADMIN_ROLES.owner)).toBe(true);
     expect(canManageInventoryOperations(ADMIN_ROLES.manager)).toBe(true);
     expect(canManageInventoryOperations(ADMIN_ROLES.kitchen)).toBe(false);
+  });
+
+  it("lets only owner change the business settings", () => {
+    expect(canManageBusinessSettings(ADMIN_ROLES.owner)).toBe(true);
+    expect(canManageBusinessSettings(ADMIN_ROLES.manager)).toBe(false);
+    expect(canManageBusinessSettings(ADMIN_ROLES.kitchen)).toBe(false);
   });
 });

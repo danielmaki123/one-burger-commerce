@@ -1,6 +1,7 @@
 import {
   ClipboardList,
   LayoutDashboard,
+  Settings,
   UtensilsCrossed,
   Users,
   type LucideIcon,
@@ -33,6 +34,7 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
     items: [
       { href: "/admin/menu", label: "Menú", description: "Catálogo y promos", icon: UtensilsCrossed },
       { href: "/admin/users", label: "Usuarios", description: "Roles y accesos", icon: Users },
+      { href: "/admin/settings", label: "Personalización", description: "Marca y operación", icon: Settings },
     ],
   },
 ];

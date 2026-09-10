@@ -126,6 +126,21 @@ productos: es el primer pendiente de contenido.
   - Bug que solo apareció en la verificación real: el helper de tokens CSS se exportaba
     desde un módulo `"use client"` y el layout de servidor no podía llamarlo (500 en todas
     las páginas). Se movió al dominio y hay un test de contrato que lo impide.
+- **Fase 3/6 cerrada — `/admin/settings`.** El owner edita y guarda la configuración sin
+  tocar la base a mano:
+  - Permiso nuevo `canManageBusinessSettings` (solo `owner`); el `manager` que entra por
+    URL directa es redirigido a `/admin/orders`, igual que en Usuarios.
+  - `GET`/`PUT /api/admin/business-settings` con la sesión de admin, el permiso y el
+    mapeo de `BusinessSettingsError` a 422 con el detalle por campo.
+  - Formulario con secciones (Identidad, Contacto y ubicación, Horarios con los 7 días,
+    Operación y Avanzado), **vista previa en vivo** con los colores, el logo y el nombre
+    que se están editando, "Restablecer" por campo, errores por campo en español y
+    auditoría visible (`updatedAt` / `updatedByUserId`). Mobile-first.
+  - Entrada nueva en la navegación del admin ("Personalización", grupo Configuración),
+    visible solo para el owner.
+  - **E2E**: el owner cambia el nombre en el admin y lo ve en `/menu` sin redeploy (el test
+    restaura el valor original al terminar); un manager no puede entrar a la sección.
+    Suite completa 13/13 en verde en local con Postgres real.
 
 ## 3. Infraestructura y secretos
 
@@ -147,7 +162,7 @@ productos: es el primer pendiente de contenido.
 | 4 | **Borrar el servicio duplicado huérfano `oneburguer-web`** (responde 502) | Agente | Evita confundir futuros deploys. |
 | 5 | **Endurecimiento técnico**: scrypt más fuerte con rehash al login, CSP, extraer componentes exportados de las páginas (hoy `next build --webpack` falla) | Agente | No bloquea. |
 | 6 | **Cerrar puertos innecesarios** de otros servicios del servidor (`capostgres` 5455, `postimage` 8585) | Daniel | No es de One Burger, pero están expuestos a internet. |
-| 7 | **Personalización / quitar hardcodeo** (nombre, colores, logo, contacto, horarios, dirección) | En curso | Aprobada el 2026-09-10; brief y decisiones en `ops/tasks/TASK-whitelabel-branding.md`. **Fases 1 y 2 cerradas** (núcleo + sitio público leyendo la config). Siguiente: fase 3 (`/admin/settings` para editar sin tocar la base a mano). Pendiente de decisión: las opciones de hora de retiro (`19:30`–`21:00`) siguen siendo una lista fija; hacerlas configurables requiere un campo nuevo. |
+| 7 | **Personalización / quitar hardcodeo** (nombre, colores, logo, contacto, horarios, dirección) | En curso | Aprobada el 2026-09-10; brief y decisiones en `ops/tasks/TASK-whitelabel-branding.md`. **Fases 1, 2 y 3 cerradas** (núcleo, sitio público y `/admin/settings`). Siguiente: fase 4 (colores editables con presets y aviso de contraste) y fase 6 (barrido anti-hardcode). Pendientes de decisión: las opciones de hora de retiro (`19:30`–`21:00`) siguen siendo una lista fija, y la subida de logos (fase 5, opcional) necesita un volumen persistente en Easypanel. |
 
 ## 5. Cómo continuar
 

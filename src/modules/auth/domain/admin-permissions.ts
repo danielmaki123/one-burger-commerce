@@ -8,6 +8,14 @@ export function canManageUsers(role: AdminRole) {
   return role === ADMIN_ROLES.owner;
 }
 
+/**
+ * La personalización del negocio cambia el sitio público completo (nombre,
+ * colores, moneda, propina): queda reservada al owner.
+ */
+export function canManageBusinessSettings(role: AdminRole) {
+  return role === ADMIN_ROLES.owner;
+}
+
 export function canManageMenu(role: AdminRole) {
   return role === ADMIN_ROLES.owner || role === ADMIN_ROLES.manager;
 }
