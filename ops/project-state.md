@@ -141,6 +141,15 @@ productos: es el primer pendiente de contenido.
   - **E2E**: el owner cambia el nombre en el admin y lo ve en `/menu` sin redeploy (el test
     restaura el valor original al terminar); un manager no puede entrar a la sección.
     Suite completa 13/13 en verde en local con Postgres real.
+- **Fase 4/6 cerrada — apariencia.** Los colores son editables con red de seguridad:
+  - Dominio nuevo `color-contrast.ts` (luminancia relativa y ratio WCAG) con **aviso** de
+    contraste AA que **no bloquea** el guardado, y `color-presets.ts` con 6 esquemas
+    curados. Un test recorre todos los presets y falla si alguno deja de ser legible.
+  - El formulario suma la sección **Apariencia**: presets con muestra de color, los cinco
+    colores editables (selector + hex) y las tipografías, más la lista de avisos de
+    contraste. La vista previa ya mostraba los colores sin guardar.
+  - Los colores se aplican como tokens CSS en `<html>`, así que se ven en todo el sitio
+    (público y admin) sin tocar el CSS.
 
 ## 3. Infraestructura y secretos
 

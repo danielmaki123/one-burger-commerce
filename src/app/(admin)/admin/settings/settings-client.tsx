@@ -4,6 +4,11 @@ import * as React from "react";
 
 import { formatBusinessHoursSummary } from "@/modules/business-settings/domain/business-hours-format";
 import {
+  checkBusinessSettingsContrast,
+  type BusinessSettingsColors,
+} from "@/modules/business-settings/domain/color-contrast";
+import { COLOR_PRESETS } from "@/modules/business-settings/domain/color-presets";
+import {
   FONT_CHOICES,
   WEEKDAY_KEYS,
   type BusinessHours,
@@ -32,6 +37,19 @@ export const WEEKDAY_LABELS: Record<WeekdayKey, string> = {
   sat: "Sábado",
   sun: "Domingo",
 };
+
+/** Campos de color editables, en el orden en que se muestran. */
+export const COLOR_FIELDS: {
+  field: keyof BusinessSettingsColors;
+  label: string;
+  hint?: string;
+}[] = [
+  { field: "primaryColor", label: "Color de marca", hint: "Botones y acentos principales." },
+  { field: "backgroundColor", label: "Fondo del sitio" },
+  { field: "foregroundColor", label: "Color del texto" },
+  { field: "surfaceColor", label: "Fondo de las tarjetas" },
+  { field: "accentColor", label: "Acento suave", hint: "Tintes y fondos secundarios." },
+];
 
 type FieldErrors = Record<string, string>;
 
@@ -227,6 +245,7 @@ export default function AdminSettingsClientPage({
   }
 
   const hoursSummary = formatBusinessHoursSummary(draft.businessHours);
+  const contrastWarnings = checkBusinessSettingsContrast(draft);
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6 pb-24">
@@ -690,9 +709,104 @@ export default function AdminSettingsClientPage({
       </SettingsSection>
 
       <SettingsSection
-        title="Avanzado"
-        description="Tipografías incluidas en el sitio."
+        title="Apariencia"
+        description="Colores y tipografías del sitio. Los avisos de contraste no bloquean el guardado."
       >
+        <div className="space-y-2 sm:col-span-2">
+          <p className="text-sm font-medium text-foreground">Presets</p>
+          <div className="flex flex-wrap gap-2">
+            {COLOR_PRESETS.map((preset) => {
+              const isActive = Object.entries(preset.colors).every(
+                ([key, value]) =>
+                  draft[key as keyof BusinessSettingsColors] === value,
+              );
+
+              return (
+                <button
+                  key={preset.id}
+                  type="button"
+                  aria-pressed={isActive}
+                  title={preset.description}
+                  onClick={() => {
+                    setDraft((current) => ({ ...current, ...preset.colors }));
+                    setStatus("idle");
+                  }}
+                  className={`flex min-h-11 items-center gap-2 rounded-xl border px-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${
+                    isActive
+                      ? "border-brand bg-accent text-foreground"
+                      : "border-border bg-card text-foreground hover:border-brand/40"
+                  }`}
+                >
+                  <span className="flex gap-0.5" aria-hidden="true">
+                    {[
+                      preset.colors.primaryColor,
+                      preset.colors.accentColor,
+                      preset.colors.backgroundColor,
+                    ].map((color) => (
+                      <span
+                        key={color}
+                        className="h-4 w-4 rounded-full border border-border"
+                        style={{ backgroundColor: color }}
+                      />
+                    ))}
+                  </span>
+                  {preset.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {COLOR_FIELDS.map(({ field, label, hint }) => (
+          <SettingsField
+            key={field}
+            id={`settings-${field}`}
+            label={label}
+            hint={hint}
+            error={fieldErrors[field]}
+            onReset={() => resetField(field)}
+          >
+            <div className="flex items-center gap-2">
+              <input
+                id={`settings-${field}`}
+                type="color"
+                value={draft[field]}
+                onChange={(event) => setField(field, event.target.value)}
+                className="h-11 w-14 shrink-0 cursor-pointer rounded-lg border border-input bg-card p-1"
+              />
+              <Input
+                aria-label={`${label} en hexadecimal`}
+                value={draft[field]}
+                maxLength={7}
+                onChange={(event) => setField(field, event.target.value)}
+                className="font-mono"
+              />
+            </div>
+          </SettingsField>
+        ))}
+
+        <div className="space-y-2 sm:col-span-2">
+          <p className="text-sm font-medium text-foreground">Contraste</p>
+          {contrastWarnings.length === 0 ? (
+            <p className="rounded-xl border border-border bg-success/60 px-4 py-3 text-sm text-success-foreground">
+              Los colores elegidos cumplen el contraste mínimo (WCAG AA). ✓
+            </p>
+          ) : (
+            <ul className="space-y-2">
+              {contrastWarnings.map((warning) => (
+                <li
+                  key={warning.id}
+                  className="rounded-xl border border-warning-strong/50 bg-warning/70 px-4 py-3 text-sm text-warning-foreground"
+                >
+                  <strong className="font-semibold">{warning.label}</strong>: contraste{" "}
+                  {warning.ratio}:1, hace falta {warning.required}:1. El sitio puede quedar
+                  difícil de leer, pero podés guardar igual.
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
         <SettingsField
           id="settings-heading-font"
           label="Tipografía de títulos"

@@ -129,4 +129,47 @@ describe("AdminSettingsClientPage", () => {
     expect(body.businessHours.sun.closed).toBe(true);
     expect(body.businessHours.mon.closed).toBe(false);
   });
+
+  it("aplicar un preset cambia los colores y viaja en el payload", async () => {
+    const user = userEvent.setup();
+    render(<AdminSettingsClientPage initialSettings={initialSettings()} />);
+
+    expect(inputValue(screen.getByLabelText("Color de marca en hexadecimal"))).toBe("#2b6c96");
+
+    await user.click(screen.getByRole("button", { name: /Brasa/ }));
+
+    expect(inputValue(screen.getByLabelText("Color de marca en hexadecimal"))).toBe("#a8321f");
+    expect(screen.getByText(/cumplen el contraste mínimo/)).toBeTruthy();
+
+    await user.click(screen.getByRole("button", { name: "Guardar cambios" }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+
+    const body = JSON.parse(
+      String((fetchMock.mock.calls[0] as [string, RequestInit])[1].body),
+    ) as Record<string, unknown>;
+
+    expect(body.primaryColor).toBe("#a8321f");
+    expect(body.accentColor).toBe("#f7e6e0");
+  });
+
+  it("avisa del contraste bajo sin bloquear el guardado", async () => {
+    const user = userEvent.setup();
+    render(<AdminSettingsClientPage initialSettings={initialSettings()} />);
+
+    const primaryHex = screen.getByLabelText("Color de marca en hexadecimal");
+    await user.clear(primaryHex);
+    await user.type(primaryHex, "#eeeeee");
+
+    expect(screen.getByText(/El texto de los botones sobre el color de marca/)).toBeTruthy();
+    const saveButton = screen.getByRole("button", { name: "Guardar cambios" });
+    expect((saveButton as HTMLButtonElement).disabled).toBe(false);
+
+    await user.click(screen.getByRole("button", { name: "Guardar cambios" }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    const body = JSON.parse(
+      String((fetchMock.mock.calls[0] as [string, RequestInit])[1].body),
+    ) as Record<string, unknown>;
+    expect(body.primaryColor).toBe("#eeeeee");
+  });
 });
