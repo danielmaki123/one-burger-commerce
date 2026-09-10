@@ -146,7 +146,7 @@ function MenuPageContent() {
   }
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(120%_80%_at_50%_-10%,rgba(43,108,150,0.07),transparent_55%),linear-gradient(180deg,#fcfaf6_0%,#f4f2ec_100%)]">
+    <div className="min-h-screen brand-canvas">
       <div className={publicMenuDensityClasses.pageShell}>
         <div className="flex items-center justify-between gap-4 px-1">
           <div>

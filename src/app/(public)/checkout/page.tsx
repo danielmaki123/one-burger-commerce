@@ -621,7 +621,7 @@ export default function CheckoutPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(120%_80%_at_50%_-10%,rgba(43,108,150,0.07),transparent_55%),linear-gradient(180deg,#fcfaf6_0%,#f4f2ec_100%)] px-4 py-7 pb-[calc(8.5rem+env(safe-area-inset-bottom))] md:pb-10 lg:pb-8">
+    <div className="min-h-screen brand-canvas px-4 py-7 pb-[calc(8.5rem+env(safe-area-inset-bottom))] md:pb-10 lg:pb-8">
       <div className={publicCheckoutScaleClasses.layoutShell}>
         <div className="space-y-6">
           <header className="space-y-3">

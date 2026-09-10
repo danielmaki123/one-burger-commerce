@@ -3,9 +3,10 @@
 const VERSION = new URL(self.location.href).searchParams.get("v") || "dev";
 const STATIC_CACHE_PREFIX = "one-burger-static-";
 const STATIC_CACHE_NAME = `${STATIC_CACHE_PREFIX}${VERSION}`;
+// Los logos son URLs que se configuran desde /admin/settings: precachear una
+// ruta fija dejaba el logo viejo clavado en el PWA ya instalado.
 const STATIC_ASSETS = [
   "/manifest.webmanifest",
-  "/brand/one-burger-mark.svg",
 ];
 
 function isStaticAssetPath(pathname) {

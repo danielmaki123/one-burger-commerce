@@ -22,9 +22,9 @@ export function PublicConfirmationShell({
   children,
 }: PublicConfirmationShellProps) {
   return (
-    <div className="min-h-screen bg-[linear-gradient(180deg,#fffdf8_0%,#f4ecde_100%)]">
+    <div className="min-h-screen brand-canvas">
       <div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col px-4 pb-28 pt-6 sm:px-6 sm:pb-16 sm:pt-8">
-        <section className="overflow-hidden rounded-[32px] border border-stone-200/80 bg-[radial-gradient(circle_at_top_left,rgba(245,158,11,0.16),transparent_36%),linear-gradient(145deg,rgba(255,255,255,0.98),rgba(250,244,234,0.98))] shadow-[0_30px_80px_-52px_rgba(41,37,36,0.55)]">
+        <section className="overflow-hidden rounded-[32px] border border-stone-200/80 brand-surface shadow-[0_30px_80px_-52px_rgba(41,37,36,0.55)]">
           <div className="grid gap-8 p-6 sm:p-8 md:grid-cols-[minmax(0,1fr)_220px] md:items-end">
             <div className="space-y-5">
               <Badge

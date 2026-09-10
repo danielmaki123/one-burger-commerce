@@ -424,7 +424,7 @@ export function PwaUpdateGate() {
   }
 
   return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-[radial-gradient(circle_at_top,rgba(43,108,150,0.16),transparent_50%),rgba(252,250,246,0.96)] px-4 py-6 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[120] flex items-center justify-center brand-overlay px-4 py-6 backdrop-blur-sm">
       <Card className="w-full max-w-md rounded-[30px] border-white/80 bg-card/95 shadow-[0_28px_70px_-36px_rgba(28,25,23,0.55)] ring-1 ring-border">
         <CardContent className="space-y-6 p-8 text-center sm:p-10">
           <div className="flex flex-col items-center gap-4">

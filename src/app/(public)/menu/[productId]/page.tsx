@@ -49,7 +49,7 @@ export function countAvailableSelectionGroups(groups: ModifierGroup[]): number {
 
 function ProductHeroPlaceholder({ name }: { name: string }) {
   return (
-    <div className="relative flex h-full w-full items-center justify-center overflow-hidden bg-[radial-gradient(circle_at_30%_16%,rgba(43,108,150,0.12),transparent_55%),linear-gradient(160deg,#f7f1e6_0%,#edf1f5_100%)]">
+    <div className="relative flex h-full w-full items-center justify-center overflow-hidden brand-photo">
       <div className="relative flex flex-col items-center gap-4">
         <span className="flex h-16 w-16 items-center justify-center rounded-full border border-brand/15 bg-card/80 text-brand/75 shadow-sm">
           <svg
@@ -293,14 +293,14 @@ export default function ProductDetailPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(120%_80%_at_50%_-10%,rgba(43,108,150,0.07),transparent_55%),linear-gradient(180deg,#fcfaf6_0%,#f4f2ec_100%)] pb-[calc(11rem+env(safe-area-inset-bottom))]">
+    <div className="min-h-screen brand-canvas pb-[calc(11rem+env(safe-area-inset-bottom))]">
       {toastVisible ? (
         <div
           role="status"
           aria-live="polite"
           className="fixed inset-x-0 top-4 z-[70] flex justify-center px-4"
         >
-          <div className="flex items-center gap-2 rounded-full border border-brand/20 bg-card/95 px-4 py-2.5 text-sm font-semibold text-foreground shadow-[0_16px_36px_-22px_rgba(43,108,150,0.6)] backdrop-blur">
+          <div className="flex items-center gap-2 rounded-full border border-brand/20 bg-card/95 px-4 py-2.5 text-sm font-semibold text-foreground brand-shadow-floating backdrop-blur">
             <span className="flex h-5 w-5 items-center justify-center rounded-full bg-brand text-brand-foreground">
               <svg
                 xmlns="http://www.w3.org/2000/svg"

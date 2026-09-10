@@ -5,6 +5,7 @@ import "@/app/globals.css";
 
 import { getPublicBusinessSettings } from "@/modules/business-settings/features/get-public-business-settings/get-public-business-settings";
 import { businessSettingsStyleVariables } from "@/modules/business-settings/domain/business-settings-style";
+import { resolveFaviconUrl } from "@/modules/business-settings/domain/brand-assets";
 import {
   BusinessSettingsProvider,
   type BusinessSettingsValue,
@@ -53,7 +54,7 @@ const inter = localFont({
 
 export async function generateMetadata(): Promise<Metadata> {
   const settings = await getPublicBusinessSettings();
-  const icon = settings.faviconUrl ?? settings.logoMarkUrl;
+  const icon = resolveFaviconUrl(settings);
   const description = settings.description ?? undefined;
 
   return {

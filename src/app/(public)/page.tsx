@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { formatBusinessHoursSummary } from "@/modules/business-settings/domain/business-hours-format";
-import { businessInitials } from "@/modules/business-settings/domain/brand-initials";
+import { BrandMark } from "@/shared/ui/brand-mark";
 import { formatPhoneForDisplay } from "@/modules/business-settings/domain/format-phone";
 import {
   useBusinessSettings,
@@ -139,7 +139,7 @@ function HeroSlide({ block }: { block: MarketingBlock }) {
             onError={() => setImageFailed(true)}
           />
         ) : (
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(43,108,150,0.4),transparent_42%),linear-gradient(150deg,#1d3a4d,#16212a)]" />
+          <div className="absolute inset-0 brand-hero-fallback" />
         )}
         <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(13,11,8,0.45)_0%,rgba(13,11,8,0.05)_38%,rgba(13,11,8,0.78)_100%)]" />
 
@@ -264,9 +264,11 @@ export default function PublicHomePage() {
           >
             {settings.name}
           </p>
-          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-brand text-base font-bold text-brand-foreground">
-            {businessInitials(settings.name)}
-          </span>
+          <BrandMark
+            brand={settings}
+            className="h-12 w-12 shrink-0 rounded-2xl object-cover"
+            fallbackClassName="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-brand text-base font-bold text-brand-foreground"
+          />
         </header>
 
         {/* Hero carousel */}
@@ -458,9 +460,12 @@ export default function PublicHomePage() {
         {/* Footer */}
         <footer className="mt-1 rounded-[24px] border border-border bg-card/70 p-5">
           <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand text-sm font-bold text-brand-foreground">
-              {businessInitials(settings.name)}
-            </span>
+            <BrandMark
+              brand={settings}
+              variant="full"
+              className="h-10 w-10 shrink-0 rounded-xl object-cover"
+              fallbackClassName="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand text-sm font-bold text-brand-foreground"
+            />
             <p
               className="text-base font-semibold text-ink-green"
               style={{ fontFamily: "var(--font-heading)" }}

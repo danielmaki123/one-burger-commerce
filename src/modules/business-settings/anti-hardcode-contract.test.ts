@@ -45,6 +45,20 @@ const FORBIDDEN_LITERALS = [
   "22:00",
 ];
 
+/** Colores del sistema visual viejo: tienen que salir de `--brand`/`--background`. */
+const FORBIDDEN_BRAND_COLORS = [
+  "rgba(43,108,150",
+  "rgba(43, 108, 150",
+  "#fcfaf6",
+  "#f4f2ec",
+  "#fdfbf7",
+  "#fffdf8",
+  "#f4ecde",
+  "#f7f1e6",
+  "#eef2f5",
+  "#edf1f5",
+];
+
 /**
  * Quita comentarios para revisar solo el código.
  *
@@ -148,5 +162,33 @@ describe("contrato anti-hardcode", () => {
     expect(defaults).toContain(DEFAULT_BUSINESS_SETTINGS.whatsapp!);
     expect(defaults).toContain(DEFAULT_BUSINESS_SETTINGS.instagram!);
     expect(defaults).toContain(DEFAULT_BUSINESS_SETTINGS.currencySymbol);
+  });
+
+  it("los fondos salen de los tokens: ningun color del sistema viejo escrito a mano", () => {
+    // Cada página tenía su propio degradado con el azul y los cremas fijos, así
+    // que cambiar los colores en el admin solo se veía en la home. Ahora usan
+    // `.brand-canvas`, `.brand-surface`, `.brand-photo`, `.brand-overlay` o
+    // `.brand-hero-fallback`, que salen de `--brand` y `--background`.
+    const offenders: string[] = [];
+
+    for (const file of listSourceFiles(srcRoot)) {
+      const relative = path.relative(repoRoot, file).split(path.sep).join("/");
+      // `globals.css` es el único lugar con literales de color: son los tokens
+      // de respaldo del sistema visual.
+      if (relative === "src/app/globals.css") continue;
+
+      const code = withoutComments(readFileSync(file, "utf8"));
+
+      for (const literal of FORBIDDEN_BRAND_COLORS) {
+        if (code.includes(literal)) {
+          offenders.push(`${relative} → "${literal}"`);
+        }
+      }
+    }
+
+    expect(
+      offenders,
+      `Estos archivos fijan colores del sistema viejo en vez de usar los tokens:\n${offenders.join("\n")}`,
+    ).toEqual([]);
   });
 });

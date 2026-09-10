@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import { Button } from "@/shared/ui/button";
 import { Badge } from "@/shared/ui/badge";
+import { resolveBrandImageUrl, resolveFaviconUrl } from "@/modules/business-settings/domain/brand-assets";
 import { useBusinessSettings, useCurrencyFormat } from "@/shared/lib/business-settings";
 import { formatCurrency } from "@/shared/lib/format-currency";
 
@@ -81,7 +82,9 @@ export default function OrderSuccessView({
   const statusLabel = formatPublicOrderStatus(order.status);
   const settings = useBusinessSettings();
   const currency = useCurrencyFormat();
-  const brandMark = settings.logoMarkUrl ?? settings.faviconUrl;
+  // Logo completo; si todavía no hay ninguno configurado se mantiene el asset de
+  // respaldo que ya se mostraba acá como mascota.
+  const brandMark = resolveBrandImageUrl(settings, "full") ?? resolveFaviconUrl(settings);
 
   return (
     <div className="brand-canvas min-h-dvh text-foreground">
@@ -102,7 +105,7 @@ export default function OrderSuccessView({
                   src={brandMark}
                   alt=""
                   aria-hidden="true"
-                  className="relative z-10 h-auto w-[178px] object-contain drop-shadow-[0_18px_22px_rgba(43,108,150,0.16)] sm:w-[220px]"
+                  className="relative z-10 h-auto w-[178px] object-contain brand-drop-shadow sm:w-[220px]"
                   onError={() => setHideMascot(true)}
                 />
               </div>
@@ -140,7 +143,7 @@ export default function OrderSuccessView({
 
         <div className="mt-7">
           <Button
-            className="h-14 w-full rounded-2xl bg-brand text-base font-semibold text-brand-foreground shadow-[0_16px_28px_-20px_rgba(43,108,150,0.5)] hover:bg-brand-strong"
+            className="h-14 w-full rounded-2xl bg-brand text-base font-semibold text-brand-foreground brand-shadow-cta hover:bg-brand-strong"
             onClick={onViewActivity}
           >
             Ver mis pedidos

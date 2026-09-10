@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import { resolveBrandImageUrl } from "@/modules/business-settings/domain/brand-assets";
 import { useBusinessSettings } from "@/shared/lib/business-settings";
 import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";
@@ -72,7 +73,7 @@ export default function ReservationSuccessView({
   const areaLabel = reservation.tableLabel ?? "Mesa por confirmar";
 
   return (
-    <div className="min-h-dvh bg-[radial-gradient(120%_80%_at_50%_-10%,rgba(43,108,150,0.06),transparent_50%),linear-gradient(180deg,#fdfbf7_0%,#f4f2ec_100%)] text-foreground">
+    <div className="min-h-dvh brand-canvas text-foreground">
       <main className="mx-auto flex min-h-dvh w-full max-w-xl flex-col px-5 pb-36 pt-4 sm:max-w-2xl sm:px-8 sm:pb-16 sm:pt-10">
         <section className="text-center">
           <div className="mx-auto flex max-w-md flex-col items-center">
@@ -80,11 +81,11 @@ export default function ReservationSuccessView({
               <div className="relative flex w-full items-end justify-center pt-1">
                 <div className="absolute bottom-0 h-16 w-40 rounded-t-full bg-brand/10 sm:h-28 sm:w-72" />
                 <img
-                  src="/brand/one-burger-mark.svg"
+                  src={resolveBrandImageUrl(settings, "full") ?? undefined}
                   alt=""
                   aria-hidden="true"
                   data-mascot="mascota-reserva"
-                  className="relative z-10 h-auto w-[112px] object-contain drop-shadow-[0_18px_22px_rgba(43,108,150,0.16)] sm:w-[220px]"
+                  className="relative z-10 h-auto w-[112px] object-contain brand-drop-shadow sm:w-[220px]"
                   onError={() => setHideMascot(true)}
                 />
               </div>
@@ -122,7 +123,7 @@ export default function ReservationSuccessView({
 
         <div className="mt-4 sm:mt-7">
           <Button
-            className="h-14 w-full rounded-2xl bg-brand text-base font-semibold text-brand-foreground shadow-[0_16px_28px_-20px_rgba(43,108,150,0.5)] hover:bg-brand-strong"
+            className="h-14 w-full rounded-2xl bg-brand text-base font-semibold text-brand-foreground brand-shadow-cta hover:bg-brand-strong"
             onClick={onViewActivity}
           >
             Ver mis reservas

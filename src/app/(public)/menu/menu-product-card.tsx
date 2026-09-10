@@ -23,7 +23,7 @@ export interface PublicMenuProductCardData {
 
 function PhotoPlaceholder({ productName }: { productName: string }) {
   return (
-    <div className="relative flex h-full w-full items-center justify-center overflow-hidden bg-[radial-gradient(circle_at_30%_18%,rgba(43,108,150,0.1),transparent_55%),linear-gradient(160deg,#f7f1e6_0%,#eef2f5_100%)]">
+    <div className="relative flex h-full w-full items-center justify-center overflow-hidden brand-photo">
       <div className="relative flex flex-col items-center gap-2.5">
         <span className="flex h-12 w-12 items-center justify-center rounded-full border border-brand/15 bg-card/80 text-brand/75 shadow-sm">
           <svg
@@ -95,7 +95,7 @@ export function MenuProductCard({
               </span>
               <span
                 aria-hidden="true"
-                className="flex h-8 w-8 items-center justify-center rounded-xl border border-brand/18 bg-sky-50 text-[1.15rem] font-medium leading-none text-brand shadow-[0_3px_8px_rgba(43,108,150,0.10)] transition duration-300 group-hover:border-brand/30 group-hover:bg-white"
+                className="flex h-8 w-8 items-center justify-center rounded-xl border border-brand/18 bg-sky-50 text-[1.15rem] font-medium leading-none text-brand brand-shadow-soft transition duration-300 group-hover:border-brand/30 group-hover:bg-white"
               >
                 {actionCopy.symbol}
               </span>

@@ -5,13 +5,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { CartProvider, useCart } from "@/shared/lib/cart";
-import {
-  useBusinessSettings,
-  useCurrencyFormat,
-  type BusinessSettingsValue,
-} from "@/shared/lib/business-settings";
+import { useBusinessSettings, useCurrencyFormat } from "@/shared/lib/business-settings";
 import { formatBusinessHoursSummary } from "@/modules/business-settings/domain/business-hours-format";
-import { businessInitials } from "@/modules/business-settings/domain/brand-initials";
+import { BrandMark } from "@/shared/ui/brand-mark";
 import { formatPhoneForDisplay } from "@/modules/business-settings/domain/format-phone";
 import { formatCurrency } from "@/shared/lib/format-currency";
 import { PwaUpdateGate } from "@/shared/pwa/pwa-update-gate";
@@ -25,37 +21,6 @@ import {
   getPublicMobileInfoFooterClassName,
   shouldRenderPublicMobileBottomNav,
 } from "./public-layout-helpers";
-
-/** Isotipo del header: el logo configurado o, si no hay, las iniciales del nombre. */
-function BrandMark({
-  settings,
-  className,
-}: {
-  settings: BusinessSettingsValue;
-  className?: string;
-}) {
-  if (settings.logoMarkUrl) {
-    return (
-      <img
-        src={settings.logoMarkUrl}
-        alt=""
-        aria-hidden="true"
-        className={`shrink-0 rounded-xl object-cover ${className ?? "h-9 w-9 md:h-10 md:w-10"}`}
-      />
-    );
-  }
-
-  return (
-    <span
-      aria-hidden="true"
-      className={`flex shrink-0 items-center justify-center rounded-xl bg-brand text-sm font-bold text-brand-foreground ${
-        className ?? "h-9 w-9 md:h-10 md:w-10"
-      }`}
-    >
-      {businessInitials(settings.name)}
-    </span>
-  );
-}
 
 function Header() {
   const { items } = useCart();
@@ -87,7 +52,7 @@ function Header() {
           className="flex min-w-0 items-center gap-2 text-ink-green md:gap-3"
           aria-label={`${settings.name} inicio`}
         >
-          <BrandMark settings={settings} />
+          <BrandMark brand={settings} />
           <span className="flex min-w-0 flex-col leading-none">
             <span
               className="truncate text-base font-semibold tracking-[-0.01em] md:text-xl"

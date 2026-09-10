@@ -272,7 +272,7 @@ export default function CustomerActivityPage() {
 
 function HistoryShell({ children }: { children: ReactNode }) {
   return (
-    <main className="min-h-dvh bg-[radial-gradient(120%_80%_at_50%_-10%,rgba(43,108,150,0.07),transparent_55%),linear-gradient(180deg,#fcfaf6_0%,#f4f2ec_100%)]">
+    <main className="min-h-dvh brand-canvas">
       <div className="mx-auto flex w-full max-w-3xl flex-col gap-7 px-4 pb-32 pt-6 sm:px-6 sm:pb-20 md:px-8">
         {children}
       </div>

@@ -4,7 +4,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { Lock, Mail, ShieldAlert, UtensilsCrossed } from "lucide-react";
 
-import { businessInitials } from "@/modules/business-settings/domain/brand-initials";
+import { BrandMark } from "@/shared/ui/brand-mark";
 import { useBusinessSettings } from "@/shared/lib/business-settings";
 import { Input } from "@/shared/ui/input";
 import { Button } from "@/shared/ui/button";
@@ -131,7 +131,7 @@ export default function AdminLoginPage() {
         <div className="w-full max-w-sm space-y-8">
           <div className="space-y-2 text-center md:text-left">
             <span className="mb-2 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-brand text-sm font-bold text-brand-foreground shadow-sm md:hidden">
-              {businessInitials(settings.name)}
+              <BrandMark brand={settings} variant="full" className="h-11 w-11 rounded-xl object-cover" fallbackClassName="flex h-11 w-11 items-center justify-center rounded-xl bg-brand text-sm font-bold text-brand-foreground" />
             </span>
             <h1 className="font-heading text-2xl font-bold tracking-tight text-foreground">
               Iniciar sesión

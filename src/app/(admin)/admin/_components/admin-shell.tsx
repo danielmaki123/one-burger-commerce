@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import * as React from "react";
 
 import { isAdminRole } from "@/modules/auth/domain/admin-role";
-import { businessInitials } from "@/modules/business-settings/domain/brand-initials";
+import { BrandMark } from "@/shared/ui/brand-mark";
 import { useBusinessSettings } from "@/shared/lib/business-settings";
 
 import {
@@ -94,9 +94,11 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
             href={homeHref}
             className="flex min-h-11 items-center gap-3 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
           >
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand text-sm font-bold text-brand-foreground shadow-sm">
-              {businessInitials(settings.name)}
-            </span>
+            <BrandMark
+              brand={settings}
+              className="h-10 w-10 shrink-0 rounded-xl object-cover shadow-sm"
+              fallbackClassName="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand text-sm font-bold text-brand-foreground shadow-sm"
+            />
             <span className="min-w-0">
               <span className="block font-heading text-base font-bold tracking-tight text-foreground">
                 {settings.name}

@@ -14,7 +14,7 @@ import {
   type BusinessHours,
   type WeekdayKey,
 } from "@/modules/business-settings/domain/business-settings.types";
-import { businessInitials } from "@/modules/business-settings/domain/brand-initials";
+import { BrandMark } from "@/shared/ui/brand-mark";
 import type { BusinessSettingsValue } from "@/shared/lib/business-settings";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
@@ -908,24 +908,12 @@ function PreviewCard({ draft }: { draft: BusinessSettingsDraft }) {
           className="flex items-center gap-3 px-4 py-3"
           style={{ backgroundColor: draft.backgroundColor }}
         >
-          {draft.logoMarkUrl ? (
-            <img
-              src={draft.logoMarkUrl}
-              alt=""
-              aria-hidden="true"
-              className="h-9 w-9 rounded-lg object-cover"
-            />
-          ) : (
-            <span
-              className="flex h-9 w-9 items-center justify-center rounded-lg text-sm font-bold"
-              style={{
-                backgroundColor: draft.primaryColor,
-                color: "#ffffff",
-              }}
-            >
-              {businessInitials(draft.name)}
-            </span>
-          )}
+          <BrandMark
+            brand={draft}
+            variant="full"
+            className="h-9 w-9 shrink-0 rounded-lg object-cover"
+            fallbackClassName="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-sm font-bold"
+          />
           <span
             className="font-semibold"
             style={{
