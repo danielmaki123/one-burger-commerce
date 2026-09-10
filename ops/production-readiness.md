@@ -157,16 +157,23 @@ atómico (una sola instancia procesa cada evento), así que mantener
 
 ## 6. Primer arranque con datos reales
 
-1. Dominio y SSL del servicio `web` en Easypanel (`EASYPANEL_CREATE_DOMAIN=true` + `EASYPANEL_DOMAIN_HOST`, o desde el panel).
-2. Crear el primer admin (nunca con el seed):
+1. Dominio y SSL: hoy el servicio usa el dominio por defecto de Easypanel
+   (`brunobot-oneburguerweb.2jcsgw.easypanel.host`, HTTPS). Para un dominio propio,
+   crearlo en el panel apuntando al servicio `oneburguerweb` puerto `3000`.
+2. Crear el primer admin (nunca con el seed). El contenedor ya trae `scripts/`, así
+   que se puede ejecutar desde la **Terminal del servicio** en Easypanel:
 
    ```bash
    BOOTSTRAP_ADMIN_EMAIL="owner@dominio" \
    BOOTSTRAP_ADMIN_PASSWORD="<12+ caracteres>" \
-   BOOTSTRAP_ADMIN_NAME="Owner" \
+   BOOTSTRAP_ADMIN_NAME="Daniel" \
    BOOTSTRAP_ADMIN_ROLE="owner" \
    npm run admin:bootstrap
    ```
+
+   El comando hace `upsert` y es idempotente: volver a correrlo con la misma
+   contraseña no rompe nada, y con otra la rota. Verificado en local: crea el
+   usuario y el login devuelve 200.
 
 3. Cargar el menú real desde `/admin/menu` (categorías, productos, modificadores, bloques de marketing).
 4. Definir de dónde salen las fotos: los productos guardan una URL de imagen externa y **no hay subida de archivos**. `public/images/` no se versiona, así que la imagen desplegada no trae fotos.
