@@ -66,8 +66,37 @@ describe("admin reservations routes", () => {
     expect(body.meta.count).toBe(1);
   });
 
-  it("returns 401 for admin detail when session is invalid", async () => {
-    requireAdminSessionMock.mockRejectedValueOnce(
+  it("returns 403 for admin list when the role cannot manage reservations", async () => {
+    requireAdminSessionMock.mockResolvedValueOnce({
+      user: { id: "admin_kitchen", role: "kitchen" },
+    });
+    const { GET } = await import("@/app/api/admin/reservations/route");
+
+    const response = await GET(
+      new Request("http://localhost/api/admin/reservations"),
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(403);
+    expect(body.error.code).toBe("FORBIDDEN");
+    expect(listAdminReservationsMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 403 for admin detail when the role cannot manage reservations", async () => {
+    requireAdminSessionMock.mockResolvedValueOnce({
+      user: { id: "admin_manager", role: "manager" },
+    });
+    const { GET } = await import("@/app/api/admin/reservations/[id]/route");
+
+    const response = await GET(new Request("http://localhost"), {
+      params: Promise.resolve({ id: "res_01" }),
+    });
+
+    expect(response.status).toBe(403);
+    expect(getAdminReservationMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 401 for admin detail when session is invalid", async () => {    requireAdminSessionMock.mockRejectedValueOnce(
       new AuthError(401, "UNAUTHORIZED", "Invalid admin session"),
     );
     const { GET } = await import("@/app/api/admin/reservations/[id]/route");

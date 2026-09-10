@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { canManageInventoryOperations } from "@/modules/auth/domain/admin-permissions";
+import { AuthError } from "@/modules/auth/domain/auth-errors";
 import { requireAdminSession } from "@/modules/auth/features/require-admin-session/require-admin-session";
 import { PrismaInventoryRepository } from "@/modules/inventory/adapters/prisma-inventory-repository";
 import { listInventoryMovements } from "@/modules/inventory/features/list-inventory-movements/list-inventory-movements";
@@ -14,7 +16,11 @@ const querySchema = z.object({
 
 export async function GET(request: Request) {
   try {
-    await requireAdminSession();
+    const session = await requireAdminSession();
+
+    if (!canManageInventoryOperations(session.user.role)) {
+      throw new AuthError(403, "FORBIDDEN", "Insufficient permissions");
+    }
 
     const { searchParams } = new URL(request.url);
     const parsed = querySchema.safeParse({

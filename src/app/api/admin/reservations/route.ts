@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 
+import { canApproveReservations } from "@/modules/auth/domain/admin-permissions";
+import { AuthError } from "@/modules/auth/domain/auth-errors";
 import { requireAdminSession } from "@/modules/auth/features/require-admin-session/require-admin-session";
 import { PrismaReservationRepository } from "@/modules/reservations/adapters/prisma-reservation-repository";
 import { listAdminReservations } from "@/modules/reservations/features/list-admin-reservations/list-admin-reservations";
@@ -7,7 +9,11 @@ import { createErrorResponse } from "@/shared/lib/http/error-response";
 
 export async function GET(request: Request) {
   try {
-    await requireAdminSession();
+    const session = await requireAdminSession();
+
+    if (!canApproveReservations(session.user.role)) {
+      throw new AuthError(403, "FORBIDDEN", "Insufficient permissions");
+    }
 
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status") ?? undefined;

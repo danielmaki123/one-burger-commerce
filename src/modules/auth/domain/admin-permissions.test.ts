@@ -2,10 +2,12 @@ import { describe, expect, it } from "vitest";
 
 import {
   canManageCriticalConfig,
+  canManageInventoryOperations,
   canManageMenu,
   canManageOrderOperations,
   canManageUsers,
   canViewDashboardSummary,
+  canViewOutboxEvents,
 } from "@/modules/auth/domain/admin-permissions";
 import { ADMIN_ROLES } from "@/modules/auth/domain/admin-role";
 
@@ -35,5 +37,17 @@ describe("admin permissions", () => {
     expect(canViewDashboardSummary(ADMIN_ROLES.owner)).toBe(true);
     expect(canViewDashboardSummary(ADMIN_ROLES.manager)).toBe(false);
     expect(canViewDashboardSummary(ADMIN_ROLES.kitchen)).toBe(false);
+  });
+
+  it("lets only owner read outbox events because they carry customer PII", () => {
+    expect(canViewOutboxEvents(ADMIN_ROLES.owner)).toBe(true);
+    expect(canViewOutboxEvents(ADMIN_ROLES.manager)).toBe(false);
+    expect(canViewOutboxEvents(ADMIN_ROLES.kitchen)).toBe(false);
+  });
+
+  it("lets owner and manager run inventory operations", () => {
+    expect(canManageInventoryOperations(ADMIN_ROLES.owner)).toBe(true);
+    expect(canManageInventoryOperations(ADMIN_ROLES.manager)).toBe(true);
+    expect(canManageInventoryOperations(ADMIN_ROLES.kitchen)).toBe(false);
   });
 });

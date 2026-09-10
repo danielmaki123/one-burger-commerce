@@ -47,3 +47,11 @@ export function canViewDailyReports(role: AdminRole) {
 export function canViewInventoryReports(role: AdminRole) {
   return role === ADMIN_ROLES.owner || role === ADMIN_ROLES.manager;
 }
+
+/**
+ * Outbox events carry customer PII (name, phone, address) in their payload,
+ * so they stay restricted to the owner role.
+ */
+export function canViewOutboxEvents(role: AdminRole) {
+  return role === ADMIN_ROLES.owner;
+}
