@@ -5,7 +5,6 @@ import { useState } from "react";
 import { Button } from "@/shared/ui/button";
 import { Badge } from "@/shared/ui/badge";
 import { formatCurrency } from "@/shared/lib/format-currency";
-import mascotConfirmation from "../../../../../public/brand/mascota-confirmacion.png";
 
 type OrderModifier = {
   id: string;
@@ -96,7 +95,7 @@ export default function OrderSuccessView({
               <div className="relative flex w-full items-end justify-center pt-2">
                 <div className="absolute bottom-0 h-24 w-56 rounded-t-full bg-brand/10 sm:h-28 sm:w-72" />
                 <img
-                  src={mascotConfirmation.src}
+                  src="/brand/one-burger-mark.svg"
                   alt=""
                   aria-hidden="true"
                   className="relative z-10 h-auto w-[178px] object-contain drop-shadow-[0_18px_22px_rgba(43,108,150,0.16)] sm:w-[220px]"
