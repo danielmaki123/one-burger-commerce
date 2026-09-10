@@ -104,13 +104,29 @@ export class PrismaOutboxRepository implements OutboxRepository {
     }
 
     const ids = events.map((e: { id: string }) => e.id);
-    await prisma.outboxEvent.updateMany({
-      where: { id: { in: ids } },
-      data: { status: "processing", lockedAt: new Date() },
-    });
+    const lockedAt = new Date();
+    const claimedIds: string[] = [];
+
+    // Claim one event at a time with the status guard inside the WHERE clause:
+    // when two processors pick the same batch, only the one whose UPDATE affects
+    // a row keeps the event, so notifications are not delivered twice.
+    for (const id of ids) {
+      const claimed = await prisma.outboxEvent.updateMany({
+        where: { id, status: "pending" },
+        data: { status: "processing", lockedAt },
+      });
+
+      if (claimed.count === 1) {
+        claimedIds.push(id);
+      }
+    }
+
+    if (claimedIds.length === 0) {
+      return [];
+    }
 
     const locked = await prisma.outboxEvent.findMany({
-      where: { id: { in: ids } },
+      where: { id: { in: claimedIds } },
       orderBy: { createdAt: "desc" },
     });
 

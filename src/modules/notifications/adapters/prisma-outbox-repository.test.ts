@@ -76,10 +76,56 @@ describe("PrismaOutboxRepository", () => {
       }),
     );
     expect(prismaMock.outboxEvent.updateMany).toHaveBeenCalledWith({
-      where: { id: { in: ["evt_new"] } },
+      where: { id: "evt_new", status: "pending" },
       data: { status: "processing", lockedAt: expect.any(Date) },
     });
     expect(result[0]?.id).toBe("evt_new");
+  });
+
+  it("claims each event atomically and skips the ones another processor already took", async () => {
+    const buildEvent = (id: string, status: string) => ({
+      id,
+      eventType: "OrderCreated",
+      aggregateType: "order",
+      aggregateId: `ord_${id}`,
+      status,
+      payload: {},
+      attemptCount: 0,
+      errorMessage: null,
+      lockedAt: null,
+      processedAt: null,
+      createdAt: new Date("2026-06-24T22:17:01.000Z"),
+      updatedAt: new Date("2026-06-24T22:17:01.000Z"),
+    });
+
+    prismaMock.outboxEvent.findMany
+      .mockResolvedValueOnce([
+        buildEvent("evt_won", "pending"),
+        buildEvent("evt_lost", "pending"),
+      ])
+      .mockResolvedValueOnce([buildEvent("evt_won", "processing")]);
+    prismaMock.outboxEvent.updateMany
+      .mockResolvedValueOnce({ count: 1 })
+      .mockResolvedValueOnce({ count: 0 });
+
+    const { PrismaOutboxRepository } = await import("./prisma-outbox-repository");
+    const repository = new PrismaOutboxRepository();
+
+    const result = await repository.lockPendingEvents(2);
+
+    expect(prismaMock.outboxEvent.updateMany).toHaveBeenNthCalledWith(1, {
+      where: { id: "evt_won", status: "pending" },
+      data: { status: "processing", lockedAt: expect.any(Date) },
+    });
+    expect(prismaMock.outboxEvent.updateMany).toHaveBeenNthCalledWith(2, {
+      where: { id: "evt_lost", status: "pending" },
+      data: { status: "processing", lockedAt: expect.any(Date) },
+    });
+    expect(prismaMock.outboxEvent.findMany).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ where: { id: { in: ["evt_won"] } } }),
+    );
+    expect(result.map((event) => event.id)).toEqual(["evt_won"]);
   });
 
   it("applies event type allowlist and minCreatedAt cutoff when locking", async () => {

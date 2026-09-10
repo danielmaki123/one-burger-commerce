@@ -130,8 +130,9 @@ cron externo.
 Si se decide operar sin notificaciones, la operación depende de que alguien
 tenga abierto `/admin/orders`; hay que monitorear la cola de pedidos nuevos.
 
-Pendiente conocido: el dedup del outbox es en memoria y el procesador no es
-seguro con varias réplicas. Mantener `replicas: 1`.
+Pendiente conocido: el dedup del outbox es en memoria. El reclamo de eventos es
+atómico (una sola instancia procesa cada evento), así que mantener
+`replicas: 1` sigue siendo lo recomendado.
 
 ---
 
@@ -159,7 +160,7 @@ seguro con varias réplicas. Mantener `replicas: 1`.
 | Tema | Estado |
 |---|---|
 | Rate limiting | En memoria de proceso y con la IP leída de `x-real-ip` o del **último** hop de `x-forwarded-for`. Si el proxy no escribe esas cabeceras, todos los clientes comparten el bucket `unknown`. No hay store compartido ni bloqueo por cuenta. |
-| Réplicas | `replicas: 1`. El outbox y el dedup no son seguros con más de una. |
+| Réplicas | `replicas: 1`. El outbox reclama cada evento de forma atómica (dos procesadores ya no pueden enviar la misma notificación), pero el dedup y el rate limiting siguen en memoria por proceso, y cada réplica dispararía su propio scheduler. |
 | Observabilidad | Sin error tracking ni alertas externas. Los incidentes se ven en los logs del contenedor. |
 | Login de clientes (OTP) | Sin proveedor real de WhatsApp: `request-otp` responde 503 en producción. No afecta el checkout (no requiere sesión de cliente). |
 | CSP | No se define `Content-Security-Policy` todavía; sí `HSTS`, `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy` y `Permissions-Policy`. |
