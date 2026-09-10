@@ -7,6 +7,7 @@ import {
   framePathForIndex,
   resolveFrameIndex,
   resolveScrollProgress,
+  shouldRevealMenuButton,
 } from "@/modules/landing/domain/landing-frames";
 
 type LandingExperienceProps = {
@@ -22,9 +23,10 @@ type LandingExperienceProps = {
 /**
  * Landing con la hamburguesa que avanza al hacer scroll.
  *
- * Portado del mock aprobado, con dos mejoras: respeta `prefers-reduced-motion`
- * (deja un frame fijo en vez de animar) y precarga la secuencia de forma
- * progresiva para que el scrubbing no se trabe.
+ * Portado del mock aprobado, con tres diferencias deliberadas: el botón MENU se
+ * revela recién al terminar la animación (pedido del owner), `prefers-reduced-motion`
+ * deja un frame fijo y muestra el botón enseguida, y la secuencia se precarga de
+ * forma progresiva para que el scrubbing no se trabe.
  */
 export function LandingExperience({
   menuUrl,
@@ -35,6 +37,7 @@ export function LandingExperience({
   const stageRef = useRef<HTMLElement | null>(null);
   const [frameIndex, setFrameIndex] = useState(0);
   const [hasScrolled, setHasScrolled] = useState(false);
+  const [menuRevealed, setMenuRevealed] = useState(false);
   const preloadedRef = useRef<Set<number>>(new Set());
 
   useEffect(() => {
@@ -44,10 +47,16 @@ export function LandingExperience({
     const prefersReducedMotion =
       typeof window !== "undefined" &&
       window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-    if (prefersReducedMotion) return;
+    if (prefersReducedMotion) {
+      // Sin animación no hay nada que esperar: el botón no puede quedar detrás
+      // de un scroll largo que ya no muestra nada.
+      setMenuRevealed(true);
+      return;
+    }
 
     let ticking = false;
     let lastIndex = -1;
+    let lastRevealed = false;
 
     function preloadAround(index: number) {
       const end = Math.min(LANDING_FRAME_NUMBERS.length - 1, index + preloadAhead);
@@ -72,6 +81,7 @@ export function LandingExperience({
         viewportHeight: window.innerHeight,
       });
       const nextIndex = resolveFrameIndex(progress);
+      const reveal = shouldRevealMenuButton(progress);
 
       if (progress > 0.01) setHasScrolled(true);
 
@@ -79,6 +89,11 @@ export function LandingExperience({
         lastIndex = nextIndex;
         setFrameIndex(nextIndex);
         preloadAround(nextIndex);
+      }
+
+      if (reveal !== lastRevealed) {
+        lastRevealed = reveal;
+        setMenuRevealed(reveal);
       }
     }
 
@@ -128,7 +143,12 @@ export function LandingExperience({
         Deslizá
       </p>
 
-      <a className="landing-menu-button" href={menuUrl} aria-label={menuLabel}>
+      <a
+        className="landing-menu-button"
+        href={menuUrl}
+        aria-label={menuLabel}
+        data-revealed={menuRevealed}
+      >
         {menuLabel}
       </a>
     </div>

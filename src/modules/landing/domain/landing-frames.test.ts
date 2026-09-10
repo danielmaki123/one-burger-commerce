@@ -5,6 +5,7 @@ import {
   framePathForIndex,
   resolveFrameIndex,
   resolveScrollProgress,
+  shouldRevealMenuButton,
 } from "@/modules/landing/domain/landing-frames";
 
 describe("secuencia de frames del landing", () => {
@@ -38,6 +39,28 @@ describe("resolveFrameIndex", () => {
 
   it("no rompe con una secuencia vacia", () => {
     expect(resolveFrameIndex(0.5, 0)).toBe(0);
+  });
+});
+
+describe("shouldRevealMenuButton", () => {
+  it("el boton aparece recien cuando la animacion llega al ultimo frame", () => {
+    expect(shouldRevealMenuButton(0)).toBe(false);
+    expect(shouldRevealMenuButton(0.5)).toBe(false);
+    expect(shouldRevealMenuButton(0.9)).toBe(false);
+    expect(shouldRevealMenuButton(1)).toBe(true);
+  });
+
+  it("se revela en el mismo punto en que se muestra el ultimo frame", () => {
+    const lastFrameProgress =
+      (LANDING_FRAME_NUMBERS.length - 1 - 0.5) / (LANDING_FRAME_NUMBERS.length - 1);
+
+    expect(resolveFrameIndex(lastFrameProgress)).toBe(LANDING_FRAME_NUMBERS.length - 1);
+    expect(shouldRevealMenuButton(lastFrameProgress)).toBe(true);
+    expect(shouldRevealMenuButton(lastFrameProgress - 0.01)).toBe(false);
+  });
+
+  it("no se revela con un progreso invalido", () => {
+    expect(shouldRevealMenuButton(Number.NaN)).toBe(false);
   });
 });
 

@@ -108,22 +108,41 @@ body:has(.landing-shell) {
   font-weight: 950;
   letter-spacing: 0.16em;
   text-decoration: none;
-  transform: translateX(-50%);
-  transition: transform 180ms ease, box-shadow 180ms ease, filter 180ms ease;
+  /* Aparece recién al terminar la animación (data-revealed lo pone el cliente).
+     Solo se oculta con opacidad: `visibility: hidden` lo sacaría del árbol de
+     accesibilidad y dejaría al teclado sin forma de llegar al menú. */
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, 1.25rem);
+  transition:
+    opacity 320ms ease,
+    transform 320ms ease,
+    box-shadow 180ms ease,
+    filter 180ms ease;
 }
 
-.landing-menu-button:hover {
+.landing-menu-button[data-revealed="true"] {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(-50%);
+}
+
+/* Quien navega con teclado no puede quedar encerrado: al enfocar, aparece. */
+.landing-menu-button:focus-visible {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(-50%);
+  outline: 3px solid var(--landing-cream);
+  outline-offset: 5px;
+}
+
+.landing-menu-button[data-revealed="true"]:hover {
   filter: saturate(1.08) brightness(1.04);
   transform: translateX(-50%) translateY(-2px);
   box-shadow:
     0 22px 60px rgb(0 0 0 / 52%),
     0 0 0 10px rgb(255 173 61 / 10%),
     inset 0 1px 0 rgb(255 255 255 / 70%);
-}
-
-.landing-menu-button:focus-visible {
-  outline: 3px solid var(--landing-cream);
-  outline-offset: 5px;
 }
 
 /* Ayuda de scroll, se oculta sola cuando el usuario ya empezó a bajar. */

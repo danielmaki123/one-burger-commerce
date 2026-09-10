@@ -36,6 +36,16 @@ export function resolveFrameIndex(progress: number, frameCount = LANDING_FRAME_N
 }
 
 /**
+ * `true` cuando la animación llegó al final y hay que mostrar el botón MENU.
+ *
+ * Se ata al último frame a propósito: el botón aparece exactamente cuando termina
+ * la animación, no antes.
+ */
+export function shouldRevealMenuButton(progress: number): boolean {
+  return resolveFrameIndex(progress) >= LANDING_FRAME_NUMBERS.length - 1;
+}
+
+/**
  * Progreso del scroll dentro del escenario, de 0 (entra) a 1 (sale).
  *
  * Es la cuenta que hace el mock, pero aislada del DOM para poder probarla.

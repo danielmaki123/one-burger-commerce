@@ -48,7 +48,30 @@ test.describe("apex (reescritura de producción)", () => {
 });
 
 test.describe("landing", () => {
-  test("muestra la animación y el botón MENU", async ({ page }) => {
+  /** Baja todo el escenario, que es donde termina la animación. */
+  async function scrollToEnd(page: import("@playwright/test").Page) {
+    await page.evaluate(() => {
+      const stage = document.getElementById("landing-stage");
+      const scrollable = (stage?.getBoundingClientRect().height ?? 0) - window.innerHeight;
+      window.scrollTo({ top: scrollable, behavior: "instant" });
+    });
+  }
+
+  function menuButton(page: import("@playwright/test").Page) {
+    return page.getByRole("link", { name: "MENU" });
+  }
+
+  /**
+   * El botón se oculta con opacidad (para seguir siendo enfocable), así que
+   * `toBeVisible` de Playwright no sirve: hay que mirar la opacidad real.
+   */
+  function menuOpacity(page: import("@playwright/test").Page) {
+    return menuButton(page).evaluate((element) =>
+      Number(window.getComputedStyle(element).opacity),
+    );
+  }
+
+  test("muestra la animación sin el botón al principio", async ({ page }) => {
     await page.goto("/landing");
 
     const frame = page.locator("#landing-frame");
@@ -58,9 +81,36 @@ test.describe("landing", () => {
     // Sin el header ni el footer del sitio público: es pantalla completa.
     await expect(page.getByRole("link", { name: "One Burger inicio" })).toHaveCount(0);
 
-    const menuButton = page.getByRole("link", { name: "MENU" });
-    await expect(menuButton).toBeVisible();
-    await expect(menuButton).toHaveAttribute("href", /\/menu$/);
+    // El botón existe y apunta a la app de pedidos, pero todavía no se ve.
+    await expect(menuButton(page)).toHaveAttribute("href", /\/menu$/);
+    await expect(menuButton(page)).toHaveAttribute("data-revealed", "false");
+    await expect.poll(() => menuOpacity(page), { message: "todavía no debe verse" }).toBe(0);
+  });
+
+  test("el botón MENU aparece recién al terminar la animación", async ({ page }) => {
+    await page.goto("/landing");
+
+    await expect.poll(() => menuOpacity(page)).toBe(0);
+
+    await scrollToEnd(page);
+
+    await expect(menuButton(page)).toHaveAttribute("data-revealed", "true");
+    await expect.poll(() => menuOpacity(page), { message: "debe aparecer" }).toBe(1);
+  });
+
+  test("el botón se puede alcanzar con el teclado aunque la animación no haya terminado", async ({
+    page,
+  }) => {
+    await page.goto("/landing");
+
+    await expect.poll(() => menuOpacity(page)).toBe(0);
+
+    await page.keyboard.press("Tab");
+
+    await expect(menuButton(page)).toBeFocused();
+    await expect
+      .poll(() => menuOpacity(page), { message: "al enfocar debe aparecer" })
+      .toBe(1);
   });
 
   test("los frames avanzan al hacer scroll", async ({ page }) => {
@@ -70,11 +120,7 @@ test.describe("landing", () => {
     const firstFrame = await frame.getAttribute("src");
 
     // El escenario mide 285vh: bajamos casi todo su recorrido.
-    await page.evaluate(() => {
-      const stage = document.getElementById("landing-stage");
-      const scrollable = (stage?.getBoundingClientRect().height ?? 0) - window.innerHeight;
-      window.scrollTo({ top: scrollable, behavior: "instant" });
-    });
+    await scrollToEnd(page);
 
     await expect
       .poll(async () => frame.getAttribute("src"), {
@@ -85,18 +131,19 @@ test.describe("landing", () => {
     await expect(frame).toHaveAttribute("src", "/landing/frames/burger_0120.webp");
   });
 
-  test("con movimiento reducido deja un frame fijo", async ({ page }) => {
+  test("con movimiento reducido deja un frame fijo y muestra el botón enseguida", async ({
+    page,
+  }) => {
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.goto("/landing");
 
     const frame = page.locator("#landing-frame");
     const firstFrame = await frame.getAttribute("src");
 
-    await page.evaluate(() => {
-      const stage = document.getElementById("landing-stage");
-      const scrollable = (stage?.getBoundingClientRect().height ?? 0) - window.innerHeight;
-      window.scrollTo({ top: scrollable, behavior: "instant" });
-    });
+    // Sin animación no tiene sentido esconder el botón detrás de un scroll largo.
+    await expect.poll(() => menuOpacity(page)).toBe(1);
+
+    await scrollToEnd(page);
 
     await page.waitForTimeout(600);
     expect(await frame.getAttribute("src")).toBe(firstFrame);
@@ -124,8 +171,11 @@ test.describe("landing", () => {
     await page.setViewportSize({ width: 375, height: 812 });
     await page.goto("/landing");
 
-    const button = page.getByRole("link", { name: "MENU" });
-    await expect(button).toBeVisible();
+    const button = menuButton(page);
+    await expect.poll(() => menuOpacity(page)).toBe(0);
+
+    await scrollToEnd(page);
+    await expect.poll(() => menuOpacity(page)).toBe(1);
 
     const buttonBox = await button.boundingBox();
     expect(buttonBox).not.toBeNull();
