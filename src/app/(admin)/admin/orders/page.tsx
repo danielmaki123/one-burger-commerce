@@ -6,6 +6,7 @@ import { ClipboardList, ShoppingBag, SlidersHorizontal, Table2, Truck } from "lu
 
 import { formatCurrency } from "@/shared/lib/format-currency";
 import { getAdminOrderStatusLabel } from "@/shared/lib/admin-status-labels";
+import { useCurrencyFormat } from "@/shared/lib/business-settings";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/shared/ui/tabs";
@@ -161,6 +162,7 @@ export default function AdminOrdersPage() {
   const [filtersOpen, setFiltersOpen] = useState(false);
 
   const [olderOpenCount, setOlderOpenCount] = useState<number | null>(null);
+  const currency = useCurrencyFormat();
 
   const range = useMemo<{ from?: string; to?: string }>(() => {
     if (view === "today") {
@@ -319,7 +321,7 @@ export default function AdminOrdersPage() {
           </p>
         </div>
         <p className="text-right text-base font-bold tabular-nums text-foreground">
-          {formatCurrency(order.total)}
+          {formatCurrency(order.total, currency)}
         </p>
         <div className="col-span-2 flex items-center justify-between gap-3">
           <span className="text-xs text-muted-foreground tabular-nums">

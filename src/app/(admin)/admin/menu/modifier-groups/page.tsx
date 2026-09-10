@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 
 import { Button } from "@/shared/ui/button";
+import { useCurrencyFormat } from "@/shared/lib/business-settings";
 import {
   AdminEmptyState,
   AdminPageHeader,
@@ -39,6 +40,7 @@ export default function ModifierGroupsPage() {
   const [loading, setLoading] = React.useState(true);
   const [loadError, setLoadError] = React.useState<string | null>(null);
   const [reloadKey, setReloadKey] = React.useState(0);
+  const currency = useCurrencyFormat();
 
   React.useEffect(() => {
     let cancelled = false;
@@ -159,7 +161,7 @@ export default function ModifierGroupsPage() {
                 {group.options.length > 0 ? (
                   <div className="col-span-full mt-2 flex flex-wrap gap-1.5">
                     {visibleOptions.map((option) => {
-                      const delta = formatOptionPriceDelta(option.priceDelta);
+                      const delta = formatOptionPriceDelta(option.priceDelta, currency);
                       return (
                         <span
                           key={option.id}

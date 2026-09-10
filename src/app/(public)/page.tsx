@@ -4,6 +4,14 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { formatBusinessHoursSummary } from "@/modules/business-settings/domain/business-hours-format";
+import { businessInitials } from "@/modules/business-settings/domain/brand-initials";
+import { formatPhoneForDisplay } from "@/modules/business-settings/domain/format-phone";
+import {
+  useBusinessSettings,
+  useCurrencyFormat,
+  type BusinessSettingsValue,
+} from "@/shared/lib/business-settings";
 import { formatCurrency } from "@/shared/lib/format-currency";
 import { getPublicStartingPrice } from "@/shared/lib/public-product-pricing";
 import {
@@ -55,51 +63,53 @@ type HomeQuickAction = {
   external?: boolean;
 };
 
-const WHATSAPP_URL = "https://wa.me/50588770888";
-const CONTACT = {
-  address: "Retiro en restaurante",
-  hours: "Lun – Dom · 12:00 – 22:00",
-  whatsapp: "+505 8877 0888",
-  tagline: "Burgers preparadas al momento para llevar.",
-};
+/**
+ * Accesos rápidos de la home. El enlace de contacto sale de la configuración
+ * del negocio, no de un número escrito acá.
+ */
+function homeQuickActions(whatsappUrl: string | null): HomeQuickAction[] {
+  return [
+    {
+      href: "/menu",
+      label: "Menú",
+      helper: "Ver carta",
+      icon: (
+        <>
+          <path d="M4 7h16" />
+          <path d="M7 12h10" />
+          <path d="M9 17h6" />
+        </>
+      ),
+    },
+    {
+      href: "/cart",
+      label: "Carrito",
+      helper: "Confirmar pedido",
+      icon: (
+        <>
+          <circle cx="8" cy="21" r="1" />
+          <circle cx="19" cy="21" r="1" />
+          <path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12" />
+        </>
+      ),
+    },
+    {
+      href: whatsappUrl ?? "/menu",
+      label: "Contacto",
+      helper: "WhatsApp",
+      external: whatsappUrl !== null,
+      icon: (
+        <>
+          <path d="M21 11.5a8.38 8.38 0 0 1-8.5 8.5 8.5 8.5 0 0 1-3.8-.9L3 21l1.9-5.7a8.5 8.5 0 0 1-.9-3.8A8.38 8.38 0 0 1 12.5 3 8.38 8.38 0 0 1 21 11.5Z" />
+        </>
+      ),
+    },
+  ];
+}
 
-const HOME_QUICK_ACTIONS: HomeQuickAction[] = [
-  {
-    href: "/menu",
-    label: "Menú",
-    helper: "Ver carta",
-    icon: (
-      <>
-        <path d="M4 7h16" />
-        <path d="M7 12h10" />
-        <path d="M9 17h6" />
-      </>
-    ),
-  },
-  {
-    href: "/cart",
-    label: "Carrito",
-    helper: "Confirmar pedido",
-    icon: (
-      <>
-        <circle cx="8" cy="21" r="1" />
-        <circle cx="19" cy="21" r="1" />
-        <path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12" />
-      </>
-    ),
-  },
-  {
-    href: WHATSAPP_URL,
-    label: "Contacto",
-    helper: "WhatsApp",
-    external: true,
-    icon: (
-      <>
-        <path d="M21 11.5a8.38 8.38 0 0 1-8.5 8.5 8.5 8.5 0 0 1-3.8-.9L3 21l1.9-5.7a8.5 8.5 0 0 1-.9-3.8A8.38 8.38 0 0 1 12.5 3 8.38 8.38 0 0 1 21 11.5Z" />
-      </>
-    ),
-  },
-] as const;
+function whatsappUrlFor(settings: BusinessSettingsValue): string | null {
+  return settings.whatsapp ? `https://wa.me/${settings.whatsapp}` : null;
+}
 
 function primaryImageUrl(images: ProductImage[] | undefined): string | null {
   if (!images || images.length === 0) return null;
@@ -119,11 +129,11 @@ function isUsableProduct(product: Product): boolean {
   return product.availability.isActive && product.availability.isAvailable;
 }
 
-function badgeLabel(type: MarketingBlock["type"]): string {
+function badgeLabel(type: MarketingBlock["type"], businessName: string): string {
   if (type === "event") return "Evento";
   if (type === "combo") return "Combo";
   if (type === "featured") return "Destacado";
-  if (type === "info") return "One Burger";
+  if (type === "info") return businessName;
   return "Promo";
 }
 
@@ -167,6 +177,7 @@ function HeroCta({ block }: { block: MarketingBlock }) {
 }
 
 function HeroSlide({ block }: { block: MarketingBlock }) {
+  const settings = useBusinessSettings();
   const [imageFailed, setImageFailed] = useState(false);
   const hasImage = Boolean(block.imageUrl) && !imageFailed;
 
@@ -187,7 +198,7 @@ function HeroSlide({ block }: { block: MarketingBlock }) {
 
         <div className="absolute inset-0 flex flex-col justify-between p-5 sm:p-7">
           <span className="inline-flex w-fit rounded-full bg-terracotta px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-white">
-            {badgeLabel(block.type)}
+            {badgeLabel(block.type, settings.name)}
           </span>
 
           <div className="space-y-3">
@@ -211,6 +222,12 @@ function HeroSlide({ block }: { block: MarketingBlock }) {
 }
 
 export default function PublicHomePage() {
+  const settings = useBusinessSettings();
+  const currency = useCurrencyFormat();
+  const whatsappUrl = whatsappUrlFor(settings);
+  const phoneDisplay = formatPhoneForDisplay(settings.phone);
+  const hoursSummary = formatBusinessHoursSummary(settings.businessHours);
+
   const [marketingBlocks, setMarketingBlocks] = useState<MarketingBlock[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
@@ -290,7 +307,7 @@ export default function PublicHomePage() {
   );
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(120%_80%_at_50%_-10%,rgba(43,108,150,0.07),transparent_55%),linear-gradient(180deg,#fcfaf6_0%,#f4f2ec_100%)]">
+    <div className="brand-canvas min-h-screen">
       <div className={getHomePageShellClassName()}>
         {/* Header */}
         <header className="flex items-center justify-between gap-4">
@@ -298,10 +315,10 @@ export default function PublicHomePage() {
             className="text-lg font-semibold text-ink-green"
             style={{ fontFamily: "var(--font-heading)" }}
           >
-            One Burger
+            {settings.name}
           </p>
           <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-brand text-base font-bold text-brand-foreground">
-            OB
+            {businessInitials(settings.name)}
           </span>
         </header>
 
@@ -462,7 +479,7 @@ export default function PublicHomePage() {
                       </p>
                       <div className="flex items-center justify-between">
                         <span className="text-sm font-bold text-brand">
-                          {formatCurrency(getPublicStartingPrice(product))}
+                          {formatCurrency(getPublicStartingPrice(product), currency)}
                         </span>
                         <span
                           aria-hidden="true"
@@ -503,7 +520,7 @@ export default function PublicHomePage() {
             </h2>
           </div>
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-            {HOME_QUICK_ACTIONS.map((action) => (
+            {homeQuickActions(whatsappUrl).map((action) => (
               <QuickAccess
                 key={action.label}
                 href={action.href}
@@ -520,13 +537,13 @@ export default function PublicHomePage() {
         <footer className="mt-1 rounded-[24px] border border-border bg-card/70 p-5">
           <div className="flex items-center gap-3">
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand text-sm font-bold text-brand-foreground">
-              OB
+              {businessInitials(settings.name)}
             </span>
             <p
               className="text-base font-semibold text-ink-green"
               style={{ fontFamily: "var(--font-heading)" }}
             >
-              One Burger
+              {settings.name}
             </p>
           </div>
 
@@ -535,34 +552,42 @@ export default function PublicHomePage() {
               <dt className="text-xs font-semibold uppercase tracking-wider text-brand">
                 Dirección
               </dt>
-              <dd className="mt-1 text-muted-foreground">{CONTACT.address}</dd>
+              <dd className="mt-1 text-muted-foreground">
+                {[settings.addressLine, settings.city].filter(Boolean).join(", ") || "—"}
+              </dd>
             </div>
             <div>
               <dt className="text-xs font-semibold uppercase tracking-wider text-brand">
                 Horario
               </dt>
-              <dd className="mt-1 text-muted-foreground">{CONTACT.hours}</dd>
+              <dd className="mt-1 text-muted-foreground">{hoursSummary}</dd>
             </div>
             <div>
               <dt className="text-xs font-semibold uppercase tracking-wider text-brand">
                 WhatsApp
               </dt>
               <dd className="mt-1">
-                <a
-                  href={WHATSAPP_URL}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-muted-foreground transition-colors hover:text-foreground"
-                >
-                  {CONTACT.whatsapp}
-                </a>
+                {whatsappUrl ? (
+                  <a
+                    href={whatsappUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-muted-foreground transition-colors hover:text-foreground"
+                  >
+                    {phoneDisplay}
+                  </a>
+                ) : (
+                  <span className="text-muted-foreground">—</span>
+                )}
               </dd>
             </div>
           </dl>
 
-          <p className="mt-4 text-center text-xs italic text-muted-foreground">
-            {CONTACT.tagline}
-          </p>
+          {settings.tagline ? (
+            <p className="mt-4 text-center text-xs italic text-muted-foreground">
+              {settings.tagline}
+            </p>
+          ) : null}
         </footer>
       </div>
     </div>

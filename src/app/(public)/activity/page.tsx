@@ -20,6 +20,7 @@ import {
   type DeviceOrderRef,
 } from "@/shared/lib/device-orders";
 import { formatCurrency } from "@/shared/lib/format-currency";
+import { useCurrencyFormat } from "@/shared/lib/business-settings";
 import { syncTrackedOrderToDeviceOrders } from "@/shared/lib/order-tracking-sync";
 import { Button } from "@/shared/ui/button";
 import { StatusProgress } from "@/shared/ui/status-progress";
@@ -332,6 +333,7 @@ export function OrderHistoryCard({
 }) {
   const progress = getOrderStatusProgress(order.status);
   const latestText = order.lastCheckedAt ?? order.updatedAt;
+  const currency = useCurrencyFormat();
   const meta =
     order.type === "table"
       ? formatHistoryMeta(latestText, [
@@ -373,7 +375,7 @@ export function OrderHistoryCard({
 
         <div className="flex items-center justify-between gap-4">
           <p className="text-2xl font-semibold tabular-nums text-foreground">
-            {formatCurrency(order.total)}
+            {formatCurrency(order.total, currency)}
           </p>
           <button
             type="button"
@@ -398,6 +400,7 @@ export function OrderDetailView({
 }) {
   const progress = getOrderStatusProgress(order.status);
   const latestText = order.lastCheckedAt ?? order.updatedAt;
+  const currency = useCurrencyFormat();
 
   return (
     <section className="space-y-5">
@@ -428,28 +431,28 @@ export function OrderDetailView({
       </DetailSection>
       <DetailCard title="Resumen del pedido">
         {typeof order.subtotal === "number" ? (
-          <CompactFact label="Subtotal" value={formatCurrency(order.subtotal)} />
+          <CompactFact label="Subtotal" value={formatCurrency(order.subtotal, currency)} />
         ) : null}
         {typeof order.discount === "number" && order.discount > 0 ? (
-          <CompactFact label="Descuento" value={`-${formatCurrency(order.discount)}`} />
+          <CompactFact label="Descuento" value={`-${formatCurrency(order.discount, currency)}`} />
         ) : null}
         {typeof order.packagingAmount === "number" ? (
-          <CompactFact label="Empaque" value={formatCurrency(order.packagingAmount)} />
+          <CompactFact label="Empaque" value={formatCurrency(order.packagingAmount, currency)} />
         ) : null}
         {typeof order.deliveryFeeAmount === "number" ? (
-          <CompactFact label="Envío" value={formatCurrency(order.deliveryFeeAmount)} />
+          <CompactFact label="Envío" value={formatCurrency(order.deliveryFeeAmount, currency)} />
         ) : null}
         {typeof order.tipAmount === "number" ? (
           <CompactFact
             label="Propina"
             value={
               order.tipAmount > 0
-                ? `${formatCurrency(order.tipAmount)}${order.tipRate ? ` (${order.tipRate}%)` : ""}`
+                ? `${formatCurrency(order.tipAmount, currency)}${order.tipRate ? ` (${order.tipRate}%)` : ""}`
                 : "No agregada"
             }
           />
         ) : null}
-        <CompactFact label="Total" value={formatCurrency(order.total)} strong />
+        <CompactFact label="Total" value={formatCurrency(order.total, currency)} strong />
         <CompactFact label="Tipo" value={formatOrderType(order.type)} />
         <CompactFact label="Artículos" value="Detalle completo en seguimiento" />
       </DetailCard>

@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { getAdminOrderStatusLabel } from "@/shared/lib/admin-status-labels";
+import { useCurrencyFormat } from "@/shared/lib/business-settings";
 import { formatCurrency } from "@/shared/lib/format-currency";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
@@ -155,6 +156,7 @@ export default function AdminOrderDetailPage() {
   const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [reviewMode, setReviewMode] = useState<ReviewMode>(null);
+  const currency = useCurrencyFormat();
   const isCancelling = nextStatus === "cancelled";
 
   const loadOrder = useCallback(async () => {
@@ -412,12 +414,12 @@ export default function AdminOrderDetailPage() {
                     {item.quantity}x {item.productName}
                   </p>
                   <p className="text-sm font-semibold text-foreground">
-                    {formatCurrency(item.lineTotal)}
+                    {formatCurrency(item.lineTotal, currency)}
                   </p>
                 </div>
                 {item.packagingTotalAmount > 0 ? (
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Empaque: {formatCurrency(item.packagingUnitAmount)} x {item.packagingQuantity} = {formatCurrency(item.packagingTotalAmount)}
+                    Empaque: {formatCurrency(item.packagingUnitAmount, currency)} x {item.packagingQuantity} = {formatCurrency(item.packagingTotalAmount, currency)}
                   </p>
                 ) : null}
                 {item.modifiers && item.modifiers.length > 0 ? (
@@ -425,7 +427,7 @@ export default function AdminOrderDetailPage() {
                     {item.modifiers.map((mod) => (
                       <li key={mod.id}>
                         {mod.name}
-                        {mod.priceDelta > 0 ? ` (+${formatCurrency(mod.priceDelta)})` : ""}
+                        {mod.priceDelta > 0 ? ` (+${formatCurrency(mod.priceDelta, currency)})` : ""}
                       </li>
                     ))}
                   </ul>
@@ -441,33 +443,33 @@ export default function AdminOrderDetailPage() {
             <div className="space-y-1 border-t border-border p-4 text-sm">
               <div className="flex justify-between text-muted-foreground">
                 <span>Subtotal</span>
-                <span>{formatCurrency(order.subtotal)}</span>
+                <span>{formatCurrency(order.subtotal, currency)}</span>
               </div>
               <div className="flex justify-between text-muted-foreground">
                 <span>Descuento</span>
-                <span>-{formatCurrency(order.discount)}</span>
+                <span>-{formatCurrency(order.discount, currency)}</span>
               </div>
               <div className="flex justify-between text-muted-foreground">
                 <span>Empaque</span>
-                <span>{formatCurrency(order.packagingAmount)}</span>
+                <span>{formatCurrency(order.packagingAmount, currency)}</span>
               </div>
               {order.type === "delivery" ? (
                 <div className="flex justify-between text-muted-foreground">
                   <span>Envío</span>
-                  <span>{formatCurrency(order.deliveryFeeAmount)}</span>
+                  <span>{formatCurrency(order.deliveryFeeAmount, currency)}</span>
                 </div>
               ) : null}
               <div className="flex justify-between text-muted-foreground">
                 <span>Propina</span>
                 <span>
                   {order.tipAmount > 0
-                    ? `${formatCurrency(order.tipAmount)}${order.tipRate ? ` (${order.tipRate}%)` : ""}`
-                    : formatCurrency(0)}
+                    ? `${formatCurrency(order.tipAmount, currency)}${order.tipRate ? ` (${order.tipRate}%)` : ""}`
+                    : formatCurrency(0, currency)}
                 </span>
               </div>
               <div className="flex justify-between pt-1 text-base font-bold text-foreground">
                 <span>Total</span>
-                <span>{formatCurrency(order.total)}</span>
+                <span>{formatCurrency(order.total, currency)}</span>
               </div>
             </div>
           </section>

@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 
 import { useCart } from "@/shared/lib/cart";
+import { useCurrencyFormat } from "@/shared/lib/business-settings";
 import { formatCurrency } from "@/shared/lib/format-currency";
 import { getPublicStartingPrice } from "@/shared/lib/public-product-pricing";
 import { Button } from "@/shared/ui/button";
@@ -113,6 +114,7 @@ export default function ProductDetailPage() {
   const { productId } = useParams();
   const router = useRouter();
   const { addItem, items } = useCart();
+  const currency = useCurrencyFormat();
 
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
@@ -390,7 +392,7 @@ export default function ProductDetailPage() {
                   Desde
                 </p>
                 <p className="text-[1.25rem] font-semibold leading-none text-foreground">
-                  {formatCurrency(getPublicStartingPrice(product))}
+                  {formatCurrency(getPublicStartingPrice(product), currency)}
                 </p>
               </div>
             </div>
@@ -503,7 +505,7 @@ export default function ProductDetailPage() {
                             </div>
 
                             <div className="shrink-0 text-sm font-semibold">
-                              {formatModifierOptionPrice(opt.priceDelta)}
+                              {formatModifierOptionPrice(opt.priceDelta, currency)}
                             </div>
                           </label>
                         );
@@ -609,7 +611,7 @@ export default function ProductDetailPage() {
                 Total estimado
               </p>
               <p className="text-2xl font-semibold text-foreground">
-                {formatCurrency(calculateTotalPrice())}
+                {formatCurrency(calculateTotalPrice(), currency)}
               </p>
             </div>
             <div className="text-right text-sm text-muted-foreground">
@@ -670,7 +672,7 @@ export default function ProductDetailPage() {
               onClick={handleAddToCart}
               disabled={!isConfigValid}
             >
-              Agregar al carrito • {formatCurrency(calculateTotalPrice())}
+              Agregar al carrito • {formatCurrency(calculateTotalPrice(), currency)}
             </Button>
           )}
         </div>

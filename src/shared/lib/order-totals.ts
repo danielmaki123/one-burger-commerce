@@ -1,4 +1,11 @@
-export const DEFAULT_TIP_RATE = 10;
+import { DEFAULT_BUSINESS_SETTINGS } from "@/modules/business-settings/domain/business-settings-defaults";
+
+/**
+ * Respaldo del porcentaje de propina. Sale del módulo de defaults del negocio,
+ * que es la única fuente de verdad: el valor real lo inyecta el caso de uso
+ * desde la configuración guardada.
+ */
+export const DEFAULT_TIP_RATE = DEFAULT_BUSINESS_SETTINGS.tipRate;
 
 export function roundCurrency(amount: number): number {
   return Math.round((amount + Number.EPSILON) * 100) / 100;

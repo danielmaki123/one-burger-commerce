@@ -1,4 +1,4 @@
-import { formatCurrency } from "@/shared/lib/format-currency";
+import { formatCurrency, type CurrencyFormat } from "@/shared/lib/format-currency";
 
 export type ModifierRule = {
   isRequired: boolean;
@@ -30,8 +30,11 @@ export function describeModifierRule(rule: ModifierRule): string {
 }
 
 // R2: recargos siempre con el helper único de moneda.
-export function formatOptionPriceDelta(priceDelta: number): string | null {
+export function formatOptionPriceDelta(
+  priceDelta: number,
+  format: CurrencyFormat,
+): string | null {
   if (!Number.isFinite(priceDelta) || priceDelta === 0) return null;
   const sign = priceDelta > 0 ? "+" : "-";
-  return `${sign}${formatCurrency(Math.abs(priceDelta))}`;
+  return `${sign}${formatCurrency(Math.abs(priceDelta), format)}`;
 }

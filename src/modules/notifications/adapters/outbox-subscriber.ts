@@ -1,4 +1,6 @@
 import { subscribe } from "@/infrastructure/events/event-bus";
+import { PrismaBusinessSettingsRepository } from "@/modules/business-settings/adapters/prisma-business-settings-repository";
+import { loadBusinessSettings } from "@/modules/business-settings/features/get-public-business-settings/get-public-business-settings";
 import { buildOrderCreatedNotificationPayload } from "@/modules/notifications/domain/order-created-notification";
 import { PrismaOutboxRepository } from "./prisma-outbox-repository";
 
@@ -11,11 +13,19 @@ export function registerOutboxEventBusHandlers() {
   const repository = new PrismaOutboxRepository();
 
   subscribe("OrderCreated", async ({ order }: { order: Parameters<typeof buildOrderCreatedNotificationPayload>[0] }) => {
+    // El ticket de cocina usa el nombre y la moneda configurados, no literales.
+    const settings = await loadBusinessSettings({
+      repository: new PrismaBusinessSettingsRepository(),
+    });
+
     await repository.createEvent({
       eventType: "OrderCreated",
       aggregateType: "order",
       aggregateId: order.id,
-      payload: buildOrderCreatedNotificationPayload(order),
+      payload: buildOrderCreatedNotificationPayload(order, {
+        businessName: settings.name,
+        currency: { symbol: settings.currencySymbol, locale: settings.locale },
+      }),
     });
   });
 

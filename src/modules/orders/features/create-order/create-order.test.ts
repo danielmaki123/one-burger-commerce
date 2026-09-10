@@ -115,6 +115,45 @@ describe("createOrder", () => {
     expect(result.data.items[0].packagingTotalAmount).toBe(20);
   });
 
+  it("no aplica propina cuando la configuración del negocio la tiene apagada", async () => {
+    const repository = createRepository();
+    seedProduct(repository, { packagingFeeAmount: 10 });
+
+    const result = await createOrder(
+      {
+        type: "pickup",
+        customerName: "Juan Perez",
+        customerWhatsapp: "+50588887777",
+        items: [{ productId: "prod_01", quantity: 1, modifierOptionIds: [] }],
+        tipOptIn: true,
+      },
+      { repository, tipPolicy: { enabled: false, rate: 10 } },
+    );
+
+    expect(result.data.tipAmount).toBe(0);
+    expect(result.data.tipRate).toBeNull();
+  });
+
+  it("usa el porcentaje de propina configurado en vez del 10 % por defecto", async () => {
+    const repository = createRepository();
+    seedProduct(repository, { packagingFeeAmount: 10 });
+
+    const result = await createOrder(
+      {
+        type: "pickup",
+        customerName: "Juan Perez",
+        customerWhatsapp: "+50588887777",
+        items: [{ productId: "prod_01", quantity: 1, modifierOptionIds: [] }],
+        tipOptIn: true,
+      },
+      { repository, tipPolicy: { enabled: true, rate: 15 } },
+    );
+
+    expect(result.data.subtotal).toBe(100);
+    expect(result.data.tipAmount).toBe(15);
+    expect(result.data.tipRate).toBe(15);
+  });
+
   it("snapshots baseFee = 0 as authoritative delivery fee", async () => {
     const repository = createRepository();
     seedProduct(repository);

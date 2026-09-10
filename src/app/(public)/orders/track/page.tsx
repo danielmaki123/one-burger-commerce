@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { formatCurrency } from "@/shared/lib/format-currency";
+import { useCurrencyFormat } from "@/shared/lib/business-settings";
 import { syncTrackedOrderToDeviceOrders } from "@/shared/lib/order-tracking-sync";
 import { Button } from "@/shared/ui/button";
 import { Card, CardContent } from "@/shared/ui/card";
@@ -40,6 +41,7 @@ export default function OrderTrackingPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [tracking, setTracking] = useState<TrackingResponse["data"] | null>(null);
+  const currency = useCurrencyFormat();
 
   const canSubmit = useMemo(
     () => orderNumber.trim().length > 0 && trackingWhatsapp.trim().length > 0 && !loading,
@@ -153,27 +155,27 @@ export default function OrderTrackingPage() {
               </div>
               <div>
                 <p className="text-muted-foreground">Subtotal</p>
-                <p className="font-semibold text-foreground">{formatCurrency(tracking.subtotal)}</p>
+                <p className="font-semibold text-foreground">{formatCurrency(tracking.subtotal, currency)}</p>
               </div>
               <div>
                 <p className="text-muted-foreground">Empaque</p>
-                <p className="font-semibold text-foreground">{formatCurrency(tracking.packagingAmount)}</p>
+                <p className="font-semibold text-foreground">{formatCurrency(tracking.packagingAmount, currency)}</p>
               </div>
               <div>
                 <p className="text-muted-foreground">Propina</p>
                 <p className="font-semibold text-foreground">
                   {tracking.tipAmount > 0
-                    ? `${formatCurrency(tracking.tipAmount)}${tracking.tipRate ? ` (${tracking.tipRate}%)` : ""}`
+                    ? `${formatCurrency(tracking.tipAmount, currency)}${tracking.tipRate ? ` (${tracking.tipRate}%)` : ""}`
                     : "No agregada"}
                 </p>
               </div>
               <div>
                 <p className="text-muted-foreground">Envío</p>
-                <p className="font-semibold text-foreground">{formatCurrency(tracking.deliveryFeeAmount)}</p>
+                <p className="font-semibold text-foreground">{formatCurrency(tracking.deliveryFeeAmount, currency)}</p>
               </div>
               <div>
                 <p className="text-muted-foreground">Total</p>
-                <p className="font-semibold text-foreground">{formatCurrency(tracking.total)}</p>
+                <p className="font-semibold text-foreground">{formatCurrency(tracking.total, currency)}</p>
               </div>
             </div>
 

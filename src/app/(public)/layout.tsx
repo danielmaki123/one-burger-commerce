@@ -5,6 +5,14 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { CartProvider, useCart } from "@/shared/lib/cart";
+import {
+  useBusinessSettings,
+  useCurrencyFormat,
+  type BusinessSettingsValue,
+} from "@/shared/lib/business-settings";
+import { formatBusinessHoursSummary } from "@/modules/business-settings/domain/business-hours-format";
+import { businessInitials } from "@/modules/business-settings/domain/brand-initials";
+import { formatPhoneForDisplay } from "@/modules/business-settings/domain/format-phone";
 import { formatCurrency } from "@/shared/lib/format-currency";
 import { PwaUpdateGate } from "@/shared/pwa/pwa-update-gate";
 import { Badge } from "@/shared/ui/badge";
@@ -18,8 +26,40 @@ import {
   shouldRenderPublicMobileBottomNav,
 } from "./public-layout-helpers";
 
+/** Isotipo del header: el logo configurado o, si no hay, las iniciales del nombre. */
+function BrandMark({
+  settings,
+  className,
+}: {
+  settings: BusinessSettingsValue;
+  className?: string;
+}) {
+  if (settings.logoMarkUrl) {
+    return (
+      <img
+        src={settings.logoMarkUrl}
+        alt=""
+        aria-hidden="true"
+        className={`shrink-0 rounded-xl object-cover ${className ?? "h-9 w-9 md:h-10 md:w-10"}`}
+      />
+    );
+  }
+
+  return (
+    <span
+      aria-hidden="true"
+      className={`flex shrink-0 items-center justify-center rounded-xl bg-brand text-sm font-bold text-brand-foreground ${
+        className ?? "h-9 w-9 md:h-10 md:w-10"
+      }`}
+    >
+      {businessInitials(settings.name)}
+    </span>
+  );
+}
+
 function Header() {
   const { items } = useCart();
+  const settings = useBusinessSettings();
   const pathname = usePathname();
   const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
 
@@ -45,17 +85,15 @@ function Header() {
         <Link
           href="/"
           className="flex min-w-0 items-center gap-2 text-ink-green md:gap-3"
-          aria-label="One Burger inicio"
+          aria-label={`${settings.name} inicio`}
         >
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand text-sm font-bold text-brand-foreground md:h-10 md:w-10">
-            OB
-          </span>
+          <BrandMark settings={settings} />
           <span className="flex min-w-0 flex-col leading-none">
             <span
               className="truncate text-base font-semibold tracking-[-0.01em] md:text-xl"
               style={{ fontFamily: "var(--font-heading)" }}
             >
-              One Burger
+              {settings.name}
             </span>
             <span className="mt-1 hidden text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground sm:inline">
               Pickup
@@ -105,6 +143,7 @@ function Header() {
 
 function CartStickyBar() {
   const { items, subtotal } = useCart();
+  const currency = useCurrencyFormat();
   const pathname = usePathname();
   const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
   const isProductDetailRoute = /^\/menu\/[^/]+$/.test(pathname);
@@ -121,7 +160,7 @@ function CartStickyBar() {
             Ver carrito
           </span>
           <span className="text-lg font-semibold">
-            {formatCurrency(subtotal)}
+            {formatCurrency(subtotal, currency)}
           </span>
         </div>
       </Link>
@@ -130,18 +169,27 @@ function CartStickyBar() {
 }
 
 function Footer() {
+  const settings = useBusinessSettings();
+  const phoneDisplay = formatPhoneForDisplay(settings.phone);
+  const hoursSummary = formatBusinessHoursSummary(settings.businessHours);
+  const contactHref = settings.phone ? `tel:${settings.phone}` : "/menu";
+
   return (
     <footer className={getPublicFooterClassName()}>
       <div className="mx-auto max-w-6xl px-4 pb-[calc(6.5rem+env(safe-area-inset-bottom))] pt-3 md:px-6 md:py-10">
         <div className={getPublicMobileInfoFooterClassName()}>
           <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-            <a href="tel:+50588770888" className="font-semibold text-foreground">
+            <a href={contactHref} className="font-semibold text-foreground">
               WhatsApp
             </a>
             <span aria-hidden="true">·</span>
-            <span>Lun - Dom 12:00 - 22:00</span>
-            <span aria-hidden="true">·</span>
-            <span>Jinotepe</span>
+            <span>{hoursSummary}</span>
+            {settings.city ? (
+              <>
+                <span aria-hidden="true">·</span>
+                <span>{settings.city}</span>
+              </>
+            ) : null}
           </div>
         </div>
 
@@ -151,11 +199,11 @@ function Footer() {
               className="text-lg font-semibold text-ink-green"
               style={{ fontFamily: "var(--font-heading)" }}
             >
-              One Burger
+              {settings.name}
             </p>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Burgers y pedidos para llevar.
-            </p>
+            {settings.tagline ? (
+              <p className="mt-2 text-sm text-muted-foreground">{settings.tagline}</p>
+            ) : null}
           </div>
 
           <nav className="flex flex-col gap-2">
@@ -169,7 +217,7 @@ function Footer() {
               Menú
             </Link>
             <Link
-              href="tel:+50588770888"
+              href={contactHref}
               className="text-sm text-muted-foreground transition-colors hover:text-foreground"
             >
               Contacto
@@ -181,15 +229,16 @@ function Footer() {
               Contacto
             </p>
             <div className="mt-2 space-y-1 text-sm text-muted-foreground">
-              <p>+505 8877 0888</p>
-              <p>@oneburger</p>
-              <p>Lun - Dom, 12:00 - 22:00</p>
+              {phoneDisplay ? <p>{phoneDisplay}</p> : null}
+              {settings.instagram ? <p>@{settings.instagram}</p> : null}
+              <p>{hoursSummary}</p>
             </div>
           </div>
         </div>
 
         <div className="mt-8 border-t border-border pt-6 text-center text-xs text-muted-foreground">
-          One Burger - pedidos para llevar
+          {settings.name}
+          {settings.tagline ? ` - ${settings.tagline}` : ""}
         </div>
       </div>
     </footer>

@@ -10,6 +10,7 @@ import {
   type DeviceOrderRef,
 } from "@/shared/lib/device-orders";
 import { formatCurrency } from "@/shared/lib/format-currency";
+import { useCurrencyFormat } from "@/shared/lib/business-settings";
 import { syncTrackedOrderToDeviceOrders } from "@/shared/lib/order-tracking-sync";
 import { Button } from "@/shared/ui/button";
 import { Card, CardContent } from "@/shared/ui/card";
@@ -223,6 +224,7 @@ export default function DeviceOrdersPage() {
 
 function OrderCard({ order }: { order: DeviceOrderRef }) {
   const router = useRouter();
+  const currency = useCurrencyFormat();
   return (
     <Card className="border-border">
       <CardContent className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
@@ -233,7 +235,7 @@ function OrderCard({ order }: { order: DeviceOrderRef }) {
           {order.stale ? <p className="text-xs text-amber-700">Desactualizado</p> : null}
         </div>
         <div className="flex items-center gap-3">
-          <p className="text-sm font-semibold text-foreground">{formatCurrency(order.total)}</p>
+          <p className="text-sm font-semibold text-foreground">{formatCurrency(order.total, currency)}</p>
           <Button
             variant="outline"
             className="rounded-xl"

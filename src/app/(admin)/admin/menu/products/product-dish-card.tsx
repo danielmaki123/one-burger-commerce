@@ -4,6 +4,7 @@ import Link from "next/link";
 import { LoaderCircle } from "lucide-react";
 import * as React from "react";
 
+import { useCurrencyFormat } from "@/shared/lib/business-settings";
 import { formatCurrency } from "@/shared/lib/format-currency";
 import { patchAdminProduct, type AdminProduct } from "./product-list-helpers";
 
@@ -15,6 +16,7 @@ type ProductDishCardProps = {
 export default function ProductDishCard({ product, onUpdated }: ProductDishCardProps) {
   const [isSavingAvailability, setIsSavingAvailability] = React.useState(false);
   const [feedback, setFeedback] = React.useState<string | null>(null);
+  const currency = useCurrencyFormat();
   const isAvailable = product.availability.isAvailable;
 
   const toggleAvailability = async () => {
@@ -76,7 +78,7 @@ export default function ProductDishCard({ product, onUpdated }: ProductDishCardP
             {product.name}
           </h3>
           <p className="text-sm font-semibold tabular-nums text-foreground">
-            {formatCurrency(product.basePrice)}
+            {formatCurrency(product.basePrice, currency)}
           </p>
         </div>
       </Link>

@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { DEFAULT_CURRENCY_FORMAT } from "@/shared/lib/format-currency";
+
 import {
   describeModifierRule,
   formatOptionPriceDelta,
@@ -31,8 +33,8 @@ describe("modifier group helpers", () => {
   });
 
   it("formatea recargos con C$ y signo", () => {
-    expect(formatOptionPriceDelta(25)).toBe("+C$25.00");
-    expect(formatOptionPriceDelta(-15.5)).toBe("-C$15.50");
-    expect(formatOptionPriceDelta(0)).toBeNull();
+    expect(formatOptionPriceDelta(25, DEFAULT_CURRENCY_FORMAT)).toBe("+C$25.00");
+    expect(formatOptionPriceDelta(-15.5, DEFAULT_CURRENCY_FORMAT)).toBe("-C$15.50");
+    expect(formatOptionPriceDelta(0, DEFAULT_CURRENCY_FORMAT)).toBeNull();
   });
 });

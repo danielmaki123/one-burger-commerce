@@ -4,55 +4,59 @@
 
 :root {
   color-scheme: light;
-  /* ── Casa Antigua visual system v2 — white + soft cream + Italian blue ── */
-  --brand: #2b6c96;            /* Italian/Mediterranean blue — primary UI */
-  --brand-strong: #22597e;     /* deeper blue — hover/active */
-  --brand-foreground: #f7fafc; /* cool near-white on blue */
-  --terracotta: #b85f3a;       /* limited accent — promos / special only */
-  --ink-green: #12351f;        /* brand wordmark only (not principal UI) */
+  /* ── Tokens del sistema visual ──
+     `--brand`, `--accent`, `--background`, `--foreground` y `--card` los
+     sobrescribe el layout raíz con la configuración del negocio
+     (`/admin/settings`). Los valores de acá son el respaldo y coinciden con los
+     defaults del dominio. Las variantes derivadas usan `color-mix()`. */
+  --brand: #2b6c96;            /* azul principal */
+  --brand-strong: color-mix(in srgb, var(--brand) 84%, black); /* hover/active */
+  --brand-foreground: #f7fafc; /* casi blanco sobre el azul */
+  --terracotta: #b85f3a;       /* acento limitado — promos / especiales */
+  --ink-green: #12351f;        /* solo el wordmark de marca */
   --ink-green-foreground: #f4efe6;
-  --cream: #f2ece0;            /* soft secondary surface */
-  --gold: #c8a96a;             /* rare highlight */
-  --coal: #16212a;             /* darkest text — warm blue-charcoal */
+  --cream: #f2ece0;            /* superficie secundaria suave */
+  --gold: #c8a96a;             /* highlight poco frecuente */
+  --coal: #16212a;             /* texto más oscuro */
 
-  /* ── Semantic tokens (white canvas, blue primary) ── */
-  --background: #fbf9f5;       /* warm white canvas (much less beige) */
-  --foreground: #23303a;       /* warm blue-charcoal text */
-  --card: #ffffff;             /* clean white surface */
-  --card-foreground: #23303a;
-  --popover: #ffffff;
-  --popover-foreground: #23303a;
+  /* ── Tokens semánticos ── */
+  --background: #fbf9f5;       /* lienzo blanco cálido */
+  --foreground: #23303a;       /* texto carbón azulado */
+  --card: #ffffff;             /* superficie limpia */
+  --card-foreground: var(--foreground);
+  --popover: var(--card);
+  --popover-foreground: var(--foreground);
   --primary: var(--brand);
   --primary-foreground: var(--brand-foreground);
-  --secondary: #f1ece2;        /* soft cream */
-  --secondary-foreground: #22597e; /* blue text on secondary */
+  --secondary: #f1ece2;        /* crema suave */
+  --secondary-foreground: var(--brand-strong);
   --muted: #eef0f2;
-  --muted-foreground: #5b6670; /* warm blue-gray — ≥4.5:1 */
-  --accent: #eaf1f6;           /* light blue tint */
-  --accent-foreground: #22597e;
+  --muted-foreground: #5b6670; /* gris azulado — ≥4.5:1 */
+  --accent: #eaf1f6;           /* tinte azul claro */
+  --accent-foreground: var(--brand-strong);
   --destructive: oklch(0.577 0.245 27.325);
-  --border: #e4e2dc;           /* subtle warm-gray border */
-  --input: #e4e2dc;
+  --border: #e4e2dc;           /* borde gris cálido sutil */
+  --input: var(--border);
   --ring: var(--brand);
-  --chart-1: var(--brand);       /* Italian blue */
-  --chart-2: var(--terracotta);  /* terracotta */
-  --chart-3: var(--gold);        /* gold */
-  --chart-4: #4f8a68;            /* soft Mediterranean green */
-  --chart-5: #7f95a3;            /* muted blue-gray */
+  --chart-1: var(--brand);
+  --chart-2: var(--terracotta);
+  --chart-3: var(--gold);
+  --chart-4: #4f8a68;          /* verde mediterráneo suave */
+  --chart-5: #7f95a3;          /* gris azulado apagado */
   --success: #e8f3ea;
   --success-foreground: #1f5c3f;
-  --success-strong: var(--chart-4);   /* reuse existing soft Mediterranean green */
+  --success-strong: var(--chart-4);
   --warning: #f7ecd6;
   --warning-foreground: #7a5518;
-  --warning-strong: var(--gold);      /* reuse existing gold accent */
+  --warning-strong: var(--gold);
   --danger: #f7e4dc;
   --danger-foreground: #8a3220;
-  --danger-strong: #b8422b;           /* keeps --terracotta reserved for promo use */
-  /* Admin v2 — vocabulario de estados sólidos (legible a contraluz del salón) */
-  --status-nueva: #2b6c96;      /* = brand: recién ingresada, pide confirmación */
+  --danger-strong: #b8422b;    /* mantiene --terracotta reservado a promos */
+  /* Admin — vocabulario de estados sólidos (legible a contraluz del salón) */
+  --status-nueva: var(--brand); /* recién ingresada, pide confirmación */
   --status-preparando: #b5701c; /* ámbar oscuro: en cocina */
   --status-lista: #1f7a4d;      /* verde profundo: lista para servir */
-  --status-cerrada: #5b6670;    /* = muted-foreground: pagada/cerrada */
+  --status-cerrada: var(--muted-foreground); /* pagada/cerrada */
   --status-alerta: #b23c2a;     /* requiere atención ya */
   --radius: 0.625rem;
   --sidebar: oklch(0.985 0 0);
@@ -67,10 +71,18 @@
 
 body {
   min-height: 100vh;
+  /* El tinte radial sale del color de marca configurado, no de un valor fijo. */
   background:
-    radial-gradient(125% 85% at 50% -12%, rgba(43, 108, 150, 0.08), transparent 58%),
-    linear-gradient(180deg, #fcfaf6 0%, #f3f1ea 100%);
+    radial-gradient(125% 85% at 50% -12%, color-mix(in srgb, var(--brand) 8%, transparent), transparent 58%),
+    linear-gradient(180deg, var(--background) 0%, color-mix(in srgb, var(--background) 96%, black) 100%);
   color: var(--foreground);
+}
+
+/* Lienzo de la home: mismo criterio, con un tinte de marca más suave. */
+.brand-canvas {
+  background:
+    radial-gradient(120% 80% at 50% -10%, color-mix(in srgb, var(--brand) 7%, transparent), transparent 55%),
+    linear-gradient(180deg, var(--background) 0%, color-mix(in srgb, var(--background) 95%, black) 100%);
 }
 
 @theme inline {

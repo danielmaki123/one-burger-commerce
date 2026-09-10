@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 
+import { useCurrencyFormat } from "@/shared/lib/business-settings";
 import { formatCurrency } from "@/shared/lib/format-currency";
 import { Button } from "@/shared/ui/button";
 import { Card, CardContent } from "@/shared/ui/card";
@@ -15,6 +16,7 @@ export function CartSummaryCard({
   packagingAmount: number;
 }) {
   const router = useRouter();
+  const currency = useCurrencyFormat();
 
   return (
     <Card className={publicCartScaleClasses.summaryCard}>
@@ -30,13 +32,13 @@ export function CartSummaryCard({
           <div className="flex items-center justify-between text-sm text-muted-foreground">
             <span>Subtotal</span>
             <span className="font-semibold text-foreground">
-              {formatCurrency(subtotal)}
+              {formatCurrency(subtotal, currency)}
             </span>
           </div>
           <div className="flex items-center justify-between text-sm text-muted-foreground">
             <span>Empaque</span>
             <span className="font-medium text-foreground">
-              {formatCurrency(packagingAmount)}
+              {formatCurrency(packagingAmount, currency)}
             </span>
           </div>
           <div className="flex items-center justify-between text-sm text-muted-foreground">
@@ -56,7 +58,7 @@ export function CartSummaryCard({
               Total estimado
             </p>
             <p className="text-2xl font-semibold tracking-[-0.02em] text-foreground">
-              {formatCurrency(subtotal + packagingAmount)}
+              {formatCurrency(subtotal + packagingAmount, currency)}
             </p>
           </div>
         </div>

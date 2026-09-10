@@ -96,10 +96,36 @@ productos: es el primer pendiente de contenido.
   siembra exactamente los valores que hoy están hardcodeados, para que el deploy no
   cambie nada. El seed local deriva de los defaults (no los copia) y un test de contrato
   falla si la migración y los defaults se desincronizan.
-  - **Todavía ninguna superficie lee la configuración**: los datos siguen hardcodeados
-    en el sitio público hasta la fase 2. La fila existe pero nadie la consume.
   - Ojo: el DDL de la migración se verificó contra el que genera
     `prisma migrate diff` (el job `migrations` del CI falla ante cualquier drift).
+- **Fase 2/6 cerrada — el sitio público ya lee la configuración.** Ninguna superficie
+  pública escribe ya el nombre, el contacto, los horarios, la moneda, la propina ni el
+  copy de pago a mano:
+  - `src/app/layout.tsx` pasa a `force-dynamic` (la config vive en la base y el build de
+    la imagen no tiene `DATABASE_URL`), resuelve `generateMetadata()` desde la config y
+    aplica color y tipografía como tokens CSS inline en `<html>`. `public/manifest.webmanifest`
+    estático se reemplazó por `src/app/manifest.ts`.
+  - `globals.css`: los colores derivados usan `color-mix()` sobre `--brand`/`--background`
+    y el degradado del `body` sale del color de marca configurado (adiós a los `rgba(43,108,150,…)`).
+  - Header/footer/home/checkout/confirmación/404, el shell del admin y el ticket de
+    notificaciones usan `useBusinessSettings()` / la config del servidor.
+  - **Propina**: el servidor es la fuente de verdad. `POST /api/orders` inyecta la
+    política configurada en `createOrder` (con la propina apagada no se aplica aunque el
+    cliente la pida) y el checkout toma el porcentaje y el on/off de la config.
+  - **Moneda**: `formatCurrency(valor, { symbol, locale })`, con el default saliendo del
+    módulo de defaults (no hay `C$` literal). Los componentes públicos pasan el formato
+    configurado.
+  - **Verificado en el camino real**: Postgres 17 local + migraciones + seed + `next start`
+    y la suite E2E completa **11/11 en verde**. Se comprobó además que cambiar la fila
+    (nombre, color, propina) se refleja en la siguiente carga **sin redeploy**.
+  - Cambios visibles deliberados (unificaciones de duplicados, todo editable desde la
+    config): el `<title>` pasa de `One Burger Commerce` a `One Burger` (sale de `name`);
+    el tagline del footer se unifica en uno solo; el bloque de contacto del footer usa el
+    resumen único de horario (`Lun - Dom 12:00 - 22:00`); la descripción del manifest usa
+    el tagline. **Nada de esto cambia el branding visible salvo esos textos.**
+  - Bug que solo apareció en la verificación real: el helper de tokens CSS se exportaba
+    desde un módulo `"use client"` y el layout de servidor no podía llamarlo (500 en todas
+    las páginas). Se movió al dominio y hay un test de contrato que lo impide.
 
 ## 3. Infraestructura y secretos
 
@@ -121,7 +147,7 @@ productos: es el primer pendiente de contenido.
 | 4 | **Borrar el servicio duplicado huérfano `oneburguer-web`** (responde 502) | Agente | Evita confundir futuros deploys. |
 | 5 | **Endurecimiento técnico**: scrypt más fuerte con rehash al login, CSP, extraer componentes exportados de las páginas (hoy `next build --webpack` falla) | Agente | No bloquea. |
 | 6 | **Cerrar puertos innecesarios** de otros servicios del servidor (`capostgres` 5455, `postimage` 8585) | Daniel | No es de One Burger, pero están expuestos a internet. |
-| 7 | **Personalización / quitar hardcodeo** (nombre, colores, logo, contacto, horarios, dirección) | En curso | Aprobada el 2026-09-10; brief y decisiones en `ops/tasks/TASK-whitelabel-branding.md`. **Fase 1/6 cerrada** (núcleo de settings). Siguiente: fase 2 (aplicar la config en el sitio público sin cambiar lo visible). |
+| 7 | **Personalización / quitar hardcodeo** (nombre, colores, logo, contacto, horarios, dirección) | En curso | Aprobada el 2026-09-10; brief y decisiones en `ops/tasks/TASK-whitelabel-branding.md`. **Fases 1 y 2 cerradas** (núcleo + sitio público leyendo la config). Siguiente: fase 3 (`/admin/settings` para editar sin tocar la base a mano). Pendiente de decisión: las opciones de hora de retiro (`19:30`–`21:00`) siguen siendo una lista fija; hacerlas configurables requiere un campo nuevo. |
 
 ## 5. Cómo continuar
 

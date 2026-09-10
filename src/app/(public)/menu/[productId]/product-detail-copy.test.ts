@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { DEFAULT_CURRENCY_FORMAT } from "@/shared/lib/format-currency";
+
 import {
   findPublicProductById,
   formatModifierOptionPrice,
@@ -33,7 +35,7 @@ describe("product-detail-copy", () => {
   });
 
   it("usa un único precio visible por opción", () => {
-    expect(formatModifierOptionPrice(425)).toBe("+C$425.00");
-    expect(formatModifierOptionPrice(0)).toBe("C$0.00");
+    expect(formatModifierOptionPrice(425, DEFAULT_CURRENCY_FORMAT)).toBe("+C$425.00");
+    expect(formatModifierOptionPrice(0, DEFAULT_CURRENCY_FORMAT)).toBe("C$0.00");
   });
 });

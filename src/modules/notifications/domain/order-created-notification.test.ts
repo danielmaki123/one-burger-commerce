@@ -129,6 +129,19 @@ describe("order created notification helpers", () => {
     expect(message).toContain("https://wa.me/50588888888");
   });
 
+  it("usa el nombre y la moneda configurados en el negocio", () => {
+    const payload = buildOrderCreatedNotificationPayload(createOrder(), {
+      businessName: "Burger Nick",
+      currency: { symbol: "US$", locale: "en-US" },
+    });
+    const message = formatOrderCreatedTelegramMessage(payload);
+
+    expect(message).toContain("🛎️ NUEVA ORDEN - BURGER NICK");
+    expect(message).toContain("Subtotal: US$2,194.95");
+    expect(message).toContain("TOTAL: US$2,579.45");
+    expect(message).not.toContain("ONE BURGER");
+  });
+
   it("marks omitted tip clearly when the customer removes it", () => {
     const payload = buildOrderCreatedNotificationPayload(
       createOrder({

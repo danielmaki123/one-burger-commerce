@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useCurrencyFormat } from "@/shared/lib/business-settings";
 import { formatCurrency } from "@/shared/lib/format-currency";
 import type { CartItem } from "@/shared/lib/cart";
 import { Button } from "@/shared/ui/button";
@@ -30,6 +31,7 @@ export function CartLineCard({
   onRemove: () => void;
 }) {
   const [imageFailed, setImageFailed] = useState(false);
+  const currency = useCurrencyFormat();
   const hasImage = Boolean(item.imageUrl) && !imageFailed;
   const modifiersLabel =
     item.modifiers && item.modifiers.length > 0
@@ -68,7 +70,7 @@ export function CartLineCard({
 
             <div className="flex shrink-0 flex-col items-end gap-2">
               <span className="shrink-0 text-[0.95rem] font-bold leading-5 text-foreground">
-                {formatCurrency(item.lineTotal)}
+                {formatCurrency(item.lineTotal, currency)}
               </span>
               <Button
                 size="sm"

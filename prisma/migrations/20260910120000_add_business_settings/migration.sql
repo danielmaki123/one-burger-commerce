@@ -52,7 +52,7 @@ INSERT INTO "BusinessSettings" (
     "name",
     "tagline",
     "description",
-    "logoMarkUrl",
+    "faviconUrl",
     "primaryColor",
     "accentColor",
     "backgroundColor",

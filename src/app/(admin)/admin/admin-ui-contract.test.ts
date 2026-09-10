@@ -497,13 +497,13 @@ describe("admin ui contracts", () => {
 
     expect(detailSource).toContain('label="Precio base (C$)"');
     expect(detailSource).toContain('label="Empaque por unidad (C$)"');
-    expect(detailSource).toContain("formatCurrency(formData.basePrice)");
+    expect(detailSource).toContain("formatCurrency(formData.basePrice, currency)");
     expect(detailSource).not.toContain("${formData.basePrice}");
     expect(detailSource).not.toContain("${formData.packagingFeeAmount");
-    expect(dishSource).toContain("formatCurrency(product.basePrice)");
+    expect(dishSource).toContain("formatCurrency(product.basePrice, currency)");
     expect(modifierListSource).toContain("formatOptionPriceDelta");
     expect(modifierListSource).not.toContain("${opt.priceDelta}");
-    expect(modifierHelperSource).toContain("formatCurrency(Math.abs(priceDelta))");
+    expect(modifierHelperSource).toContain("formatCurrency(Math.abs(priceDelta), format)");
     expect(modifierDetailSource).toContain('label={index === 0 ? "Recargo (C$)" : undefined}');
   });
 

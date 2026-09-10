@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import { Button } from "@/shared/ui/button";
 import { Badge } from "@/shared/ui/badge";
+import { useBusinessSettings, useCurrencyFormat } from "@/shared/lib/business-settings";
 import { formatCurrency } from "@/shared/lib/format-currency";
 
 type OrderModifier = {
@@ -78,24 +79,27 @@ export default function OrderSuccessView({
   const itemCountLabel =
     itemCount === 1 ? "1 producto" : `${itemCount} productos`;
   const statusLabel = formatPublicOrderStatus(order.status);
+  const settings = useBusinessSettings();
+  const currency = useCurrencyFormat();
+  const brandMark = settings.logoMarkUrl ?? settings.faviconUrl;
 
   return (
-    <div className="min-h-dvh bg-[radial-gradient(120%_80%_at_50%_-10%,rgba(43,108,150,0.06),transparent_50%),linear-gradient(180deg,#fdfbf7_0%,#f4f2ec_100%)] text-foreground">
+    <div className="brand-canvas min-h-dvh text-foreground">
       <main className="mx-auto flex min-h-dvh w-full max-w-xl flex-col px-5 pb-28 pt-6 sm:max-w-2xl sm:px-8 sm:pb-16 sm:pt-10">
         <p
           className="text-center text-3xl font-semibold text-ink-green"
           style={{ fontFamily: "var(--font-heading)" }}
         >
-          One Burger
+          {settings.name}
         </p>
 
         <section className="mt-7 text-center">
           <div className="mx-auto flex max-w-md flex-col items-center">
-            {!hideMascot ? (
+            {!hideMascot && brandMark ? (
               <div className="relative flex w-full items-end justify-center pt-2">
                 <div className="absolute bottom-0 h-24 w-56 rounded-t-full bg-brand/10 sm:h-28 sm:w-72" />
                 <img
-                  src="/brand/one-burger-mark.svg"
+                  src={brandMark}
                   alt=""
                   aria-hidden="true"
                   className="relative z-10 h-auto w-[178px] object-contain drop-shadow-[0_18px_22px_rgba(43,108,150,0.16)] sm:w-[220px]"
@@ -118,7 +122,7 @@ export default function OrderSuccessView({
               ¡Pedido confirmado!
             </h1>
             <p className="mt-3 max-w-sm text-center text-base leading-6 text-muted-foreground sm:text-lg">
-              Tu orden ya está en One Burger.
+              Tu orden ya está en {settings.name}.
             </p>
 
             <Badge
@@ -151,38 +155,43 @@ export default function OrderSuccessView({
             <SummaryRow label="Número de pedido" value={order.orderNumber} />
             <SummaryRow label="Tipo" value={formatOrderType(order.type)} />
             <SummaryRow label="Artículos" value={itemCountLabel} />
-            <SummaryRow label="Subtotal" value={formatCurrency(order.subtotal)} />
+            <SummaryRow label="Subtotal" value={formatCurrency(order.subtotal, currency)} />
             {order.discount > 0 ? (
-              <SummaryRow label="Descuento" value={`-${formatCurrency(order.discount)}`} />
+              <SummaryRow
+                label="Descuento"
+                value={`-${formatCurrency(order.discount, currency)}`}
+              />
             ) : null}
-            <SummaryRow label="Empaque" value={formatCurrency(order.packagingAmount)} />
+            <SummaryRow label="Empaque" value={formatCurrency(order.packagingAmount, currency)} />
             {order.type === "delivery" ? (
-              <SummaryRow label="Envío" value={formatCurrency(order.deliveryFeeAmount)} />
+              <SummaryRow
+                label="Envío"
+                value={formatCurrency(order.deliveryFeeAmount, currency)}
+              />
             ) : null}
             <SummaryRow
               label="Propina"
               value={
                 order.tipAmount > 0
-                  ? `${formatCurrency(order.tipAmount)}${order.tipRate ? ` (${order.tipRate}%)` : ""}`
+                  ? `${formatCurrency(order.tipAmount, currency)}${order.tipRate ? ` (${order.tipRate}%)` : ""}`
                   : "No agregada"
               }
             />
             <div className="flex items-end justify-between gap-4 border-t border-border pt-4">
               <span className="text-xl font-semibold text-foreground">Total</span>
               <span className="text-2xl font-semibold tabular-nums text-foreground">
-                {formatCurrency(order.total)}
+                {formatCurrency(order.total, currency)}
               </span>
             </div>
           </div>
         </section>
 
         <div className="mx-auto mt-7 max-w-sm space-y-1 text-center text-sm leading-6 text-muted-foreground">
-          <p className="font-semibold text-foreground">
-            Pagás en el local al retirar tu pedido.
-          </p>
-          <p>No se cobra nada online.</p>
+          {settings.paymentInstructions ? (
+            <p className="font-semibold text-foreground">{settings.paymentInstructions}</p>
+          ) : null}
           <p>Te enviaremos actualizaciones sobre tu pedido.</p>
-          <p>Gracias por elegir One Burger.</p>
+          <p>Gracias por elegir {settings.name}.</p>
         </div>
       </main>
     </div>

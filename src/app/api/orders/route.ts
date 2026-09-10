@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { PrismaBusinessSettingsRepository } from "@/modules/business-settings/adapters/prisma-business-settings-repository";
+import { loadBusinessSettings } from "@/modules/business-settings/features/get-public-business-settings/get-public-business-settings";
 import { registerOutboxEventBusHandlers } from "@/modules/notifications/adapters/outbox-subscriber";
 import { PrismaOrderRepository } from "@/modules/orders/adapters/prisma-order-repository";
 import { createOrder } from "@/modules/orders/features/create-order/create-order";
@@ -80,7 +82,16 @@ export async function POST(request: Request) {
     }
 
     const repository = new PrismaOrderRepository();
-    const result = await createOrder(parsed.data, { repository });
+    // La propina es fuente de verdad del servidor: sale de la configuración del
+    // negocio, nunca del monto que manda el cliente. Si la configuración no se
+    // puede leer se usan los defaults en vez de tumbar el pedido.
+    const settings = await loadBusinessSettings({
+      repository: new PrismaBusinessSettingsRepository(),
+    });
+    const result = await createOrder(parsed.data, {
+      repository,
+      tipPolicy: { enabled: settings.tipEnabled, rate: settings.tipRate },
+    });
     return NextResponse.json(result, { status: 201 });
   } catch (error) {
     return createErrorResponse(error);

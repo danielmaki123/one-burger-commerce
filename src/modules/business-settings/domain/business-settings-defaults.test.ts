@@ -39,6 +39,14 @@ describe("defaults de la configuración del negocio", () => {
     );
   });
 
+  it("arranca sin logos propios: el header usa las iniciales y el favicon el asset actual", () => {
+    expect(DEFAULT_BUSINESS_SETTINGS.logoUrl).toBeNull();
+    expect(DEFAULT_BUSINESS_SETTINGS.logoMarkUrl).toBeNull();
+    expect(DEFAULT_BUSINESS_SETTINGS.faviconUrl).toBe("/brand/one-burger-mark.svg");
+    expect(DEFAULT_BUSINESS_SETTINGS.addressLine).toBe("Retiro en restaurante");
+    expect(DEFAULT_BUSINESS_SETTINGS.city).toBe("Jinotepe");
+  });
+
   it("abre todos los días de 12:00 a 22:00 como el horario que hoy muestra el sitio", () => {
     expect(Object.keys(DEFAULT_BUSINESS_HOURS).sort()).toEqual([...WEEKDAY_KEYS].sort());
 

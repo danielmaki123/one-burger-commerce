@@ -7,6 +7,7 @@ import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/shared/ui/card";
 import { formatCurrency } from "@/shared/lib/format-currency";
+import { useCurrencyFormat } from "@/shared/lib/business-settings";
 
 interface Category {
   id: string;
@@ -37,6 +38,7 @@ export default function ProductFormPage() {
   const [saving, setSaving] = React.useState(false);
   const [archiving, setArchiving] = React.useState(false);
   const [actionError, setActionError] = React.useState<string | null>(null);
+  const currency = useCurrencyFormat();
 
   const [formData, setFormData] = React.useState({
     name: "",
@@ -491,12 +493,12 @@ export default function ProductFormPage() {
                   <div className="p-4 space-y-1">
                     <div className="flex justify-between items-start">
                       <p className="font-bold text-base leading-tight">{formData.name || "Nombre del producto"}</p>
-                      <p className="font-bold text-foreground text-sm">{formatCurrency(formData.basePrice)}</p>
+                      <p className="font-bold text-foreground text-sm">{formatCurrency(formData.basePrice, currency)}</p>
                     </div>
                     <p className="text-[10px] text-muted-foreground line-clamp-2">{formData.description || "Descripción del producto..."}</p>
                     {formData.packagingFeeAmount > 0 ? (
                       <p className="text-[10px] font-medium text-muted-foreground">
-                        Empaque por unidad: {formatCurrency(formData.packagingFeeAmount)}
+                        Empaque por unidad: {formatCurrency(formData.packagingFeeAmount, currency)}
                       </p>
                     ) : null}
                     <div className="pt-2">

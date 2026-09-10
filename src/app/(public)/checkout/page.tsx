@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 
 import { useCart, type CartItem } from "@/shared/lib/cart";
 import { upsertDeviceOrder } from "@/shared/lib/device-orders";
+import { formatTodayHours } from "@/modules/business-settings/domain/business-hours-format";
+import { useBusinessSettings, useCurrencyFormat } from "@/shared/lib/business-settings";
 import { formatCurrency } from "@/shared/lib/format-currency";
 import { calculateOrderTotals } from "@/shared/lib/order-totals";
 import { Button } from "@/shared/ui/button";
@@ -127,6 +129,7 @@ function getCheckoutPlaceholderLabel(productName: string) {
 }
 
 function CheckoutOrderLine({ item }: { item: CartItem }) {
+  const currency = useCurrencyFormat();
   const [imageFailed, setImageFailed] = useState(false);
   const hasImage = Boolean(item.imageUrl) && !imageFailed;
 
@@ -162,7 +165,7 @@ function CheckoutOrderLine({ item }: { item: CartItem }) {
               </p>
             </div>
             <span className="shrink-0 text-sm font-bold text-foreground">
-              {formatCurrency(item.lineTotal)}
+              {formatCurrency(item.lineTotal, currency)}
             </span>
           </div>
         </div>
@@ -172,7 +175,7 @@ function CheckoutOrderLine({ item }: { item: CartItem }) {
 }
 
 const PICKUP_TIME_OPTIONS = [
-  { value: "asap", label: "Lo antes posible · ~25 min" },
+  { value: "asap", label: "Lo antes posible" },
   { value: "19:30", label: "7:30 p. m." },
   { value: "20:00", label: "8:00 p. m." },
   { value: "20:30", label: "8:30 p. m." },
@@ -208,6 +211,10 @@ export function CheckoutPickupPanel({
   submitting: boolean;
   disabled: boolean;
 }) {
+  const settings = useBusinessSettings();
+  const todayHours = formatTodayHours(settings.businessHours, new Date(), settings.timezone);
+  const leadMinutes = settings.pickupLeadMinutes;
+
   return (
     <div className="space-y-4">
       <header className="space-y-1">
@@ -242,7 +249,7 @@ export function CheckoutPickupPanel({
         </div>
         <div className="space-y-2">
           <label className="text-sm font-medium text-foreground">
-            Hora de retiro <span className="text-xs font-normal text-muted-foreground">· hoy de 12:00 a 22:00</span>
+            Hora de retiro <span className="text-xs font-normal text-muted-foreground">· {todayHours}</span>
           </label>
           <div className="flex flex-wrap gap-2">
             {PICKUP_TIME_OPTIONS.map((option) => {
@@ -260,7 +267,9 @@ export function CheckoutPickupPanel({
                         : "border-border bg-card"
                   }`}
                 >
-                  {option.label}
+                  {option.value === "asap" && leadMinutes > 0
+                    ? `${option.label} · ~${leadMinutes} min`
+                    : option.label}
                 </button>
               );
             })}
@@ -396,6 +405,8 @@ export function CheckoutTablePanel({
 
 export default function CheckoutPage() {
   const router = useRouter();
+  const settings = useBusinessSettings();
+  const currency = useCurrencyFormat();
   const { items, subtotal, clearCart } = useCart();
   const cartItemCount = useMemo(
     () => items.reduce((sum, item) => sum + item.quantity, 0),
@@ -403,6 +414,9 @@ export default function CheckoutPage() {
   );
 
   const orderType: OrderType = "pickup";
+  // La propina configurada manda: si está apagada, el checkbox no se muestra.
+  const tipEnabled = settings.tipEnabled;
+  const tipRate = settings.tipRate;
   const [tipOptIn, setTipOptIn] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -430,10 +444,11 @@ export default function CheckoutPage() {
         discount: 0,
         deliveryFeeAmount: estimatedDeliveryFee,
         items: packagingItems,
-        tipOptIn,
+        tipOptIn: tipOptIn && tipEnabled,
         orderType,
+        tipRate,
       }),
-    [orderType, packagingItems, subtotal, tipOptIn],
+    [orderType, packagingItems, subtotal, tipOptIn, tipEnabled, tipRate],
   );
   const tipPreviewAmount = useMemo(
     () =>
@@ -444,8 +459,9 @@ export default function CheckoutPage() {
         items: packagingItems,
         tipOptIn: true,
         orderType,
+        tipRate,
       }).tipAmount,
-    [estimatedDeliveryFee, orderType, packagingItems, subtotal],
+    [estimatedDeliveryFee, orderType, packagingItems, subtotal, tipRate],
   );
 
   const handleInputChange = (
@@ -642,7 +658,7 @@ export default function CheckoutPage() {
                 customerWhatsapp={formData.customerWhatsapp}
                 pickupTime={formData.pickupTime}
                 pickupNotes={formData.pickupNotes}
-                totalLabel={formatCurrency(estimatedTotals.total)}
+                totalLabel={formatCurrency(estimatedTotals.total, currency)}
                 cartItemCount={cartItemCount}
                 itemLine={items[0]?.productName ?? ""}
                 itemMeta={`${items[0]?.quantity ?? 0}x${items[0]?.modifiers?.length ? ` · ${items[0]?.modifiers?.map((modifier) => modifier.optionName).join(", ")}` : ""}`}
@@ -680,49 +696,53 @@ export default function CheckoutPage() {
                   ))}
                 </div>
 
-                <div className="rounded-[24px] border border-border bg-cream/50 p-4">
-                  <Checkbox
-                    checked={tipOptIn}
-                    onChange={(event) => setTipOptIn(event.target.checked)}
-                    label={`Agregar propina del 10% (${formatCurrency(tipPreviewAmount)})`}
-                  />
-                  <p className="mt-2 text-[11px] leading-5 text-muted-foreground">
-                    Es opcional. Si no la marcás, no se cobra propina.
-                  </p>
-                </div>
+                {tipEnabled ? (
+                  <div className="rounded-[24px] border border-border bg-cream/50 p-4">
+                    <Checkbox
+                      checked={tipOptIn}
+                      onChange={(event) => setTipOptIn(event.target.checked)}
+                      label={`Agregar propina del ${tipRate}% (${formatCurrency(tipPreviewAmount, currency)})`}
+                    />
+                    <p className="mt-2 text-[11px] leading-5 text-muted-foreground">
+                      Es opcional. Si no la marcás, no se cobra propina.
+                    </p>
+                  </div>
+                ) : null}
 
                 <div className="space-y-3 rounded-[24px] border border-border bg-cream/50 p-5">
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Subtotal</span>
                     <span className="font-semibold text-foreground">
-                      {formatCurrency(subtotal)}
+                      {formatCurrency(subtotal, currency)}
                     </span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Empaque</span>
                     <span className="font-semibold text-foreground">
-                      {formatCurrency(estimatedTotals.packagingAmount)}
+                      {formatCurrency(estimatedTotals.packagingAmount, currency)}
                     </span>
                   </div>
                   {estimatedTotals.tipAmount > 0 ? (
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">
-                        Propina ({estimatedTotals.tipRate ?? 10}%)
+                        Propina ({estimatedTotals.tipRate ?? tipRate}%)
                       </span>
                       <span className="font-semibold text-foreground">
-                        {formatCurrency(estimatedTotals.tipAmount)}
+                        {formatCurrency(estimatedTotals.tipAmount, currency)}
                       </span>
                     </div>
                   ) : null}
                   <div className="flex justify-between border-t border-border pt-3 text-lg font-bold text-brand">
                     <span>Total a pagar</span>
-                    <span>{formatCurrency(estimatedTotals.total)}</span>
+                    <span>{formatCurrency(estimatedTotals.total, currency)}</span>
                   </div>
                 </div>
 
-                <p className="text-[11px] leading-5 text-foreground">
-                  Pagás en el local al retirar tu pedido. No se cobra nada online.
-                </p>
+                {settings.paymentInstructions ? (
+                  <p className="text-[11px] leading-5 text-foreground">
+                    {settings.paymentInstructions}
+                  </p>
+                ) : null}
                 <p className="text-[11px] leading-5 text-muted-foreground">
                   Listo para confirmar ✓
                 </p>
@@ -745,7 +765,7 @@ export default function CheckoutPage() {
               >
                 {isSubmitting
                   ? "Procesando..."
-                  : `Confirmar pedido • ${formatCurrency(estimatedTotals.total)}`}
+                  : `Confirmar pedido • ${formatCurrency(estimatedTotals.total, currency)}`}
               </Button>
               {ctaHelperText ? (
                 <p className="text-sm text-foreground">
@@ -762,7 +782,7 @@ export default function CheckoutPage() {
           <div className="flex items-center justify-between text-sm text-foreground">
             <span>Total a pagar</span>
             <span className="font-bold text-foreground">
-              {formatCurrency(estimatedTotals.total)}
+              {formatCurrency(estimatedTotals.total, currency)}
             </span>
           </div>
           <Button
@@ -772,7 +792,7 @@ export default function CheckoutPage() {
           >
             {isSubmitting
               ? "Procesando..."
-              : `Confirmar pedido • ${formatCurrency(estimatedTotals.total)}`}
+              : `Confirmar pedido • ${formatCurrency(estimatedTotals.total, currency)}`}
           </Button>
           {ctaHelperText ? (
             <p className="text-center text-sm text-foreground">

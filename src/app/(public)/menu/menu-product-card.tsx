@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 
+import { useCurrencyFormat } from "@/shared/lib/business-settings";
 import { formatCurrency } from "@/shared/lib/format-currency";
 import { getPublicStartingPrice } from "@/shared/lib/public-product-pricing";
 import { Card, CardContent } from "@/shared/ui/card";
@@ -59,6 +60,7 @@ export function MenuProductCard({
   className?: string;
 }) {
   const [imageFailed, setImageFailed] = useState(false);
+  const currency = useCurrencyFormat();
   const hasPrimaryImage = Boolean(product.images?.[0]?.url) && !imageFailed;
   const actionCopy = getMenuProductActionCopy(product);
 
@@ -89,7 +91,7 @@ export function MenuProductCard({
 
             <div className="flex items-center justify-between gap-2">
               <span className="text-sm font-bold leading-none text-foreground">
-                {formatCurrency(getPublicStartingPrice(product))}
+                {formatCurrency(getPublicStartingPrice(product), currency)}
               </span>
               <span
                 aria-hidden="true"

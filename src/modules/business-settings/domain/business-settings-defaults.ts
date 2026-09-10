@@ -35,8 +35,10 @@ export const DEFAULT_BUSINESS_SETTINGS: BusinessSettingsDefaults = {
   tagline: "Burgers preparadas al momento para llevar.",
   description: "Menu and pickup ordering platform for One Burger.",
   logoUrl: null,
-  logoMarkUrl: "/brand/one-burger-mark.svg",
-  faviconUrl: null,
+  // Sin isotipo configurado el header muestra las iniciales del nombre, que es
+  // lo que hace hoy el sitio. Cuando el owner suba su logo, se usa ese.
+  logoMarkUrl: null,
+  faviconUrl: "/brand/one-burger-mark.svg",
   ogImageUrl: null,
   primaryColor: "#2b6c96",
   accentColor: "#eaf1f6",

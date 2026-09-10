@@ -5,6 +5,8 @@ import { usePathname } from "next/navigation";
 import * as React from "react";
 
 import { isAdminRole } from "@/modules/auth/domain/admin-role";
+import { businessInitials } from "@/modules/business-settings/domain/brand-initials";
+import { useBusinessSettings } from "@/shared/lib/business-settings";
 
 import {
   ADMIN_SECONDARY_NAV_ITEMS,
@@ -20,6 +22,7 @@ import AdminSessionControls, {
 
 export default function AdminShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const settings = useBusinessSettings();
   const isLoginRoute = pathname === "/admin/login";
   const [session, setSession] = React.useState<AdminSessionState>({
     status: "loading",
@@ -92,11 +95,11 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
             className="flex min-h-11 items-center gap-3 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
           >
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand text-sm font-bold text-brand-foreground shadow-sm">
-              OB
+              {businessInitials(settings.name)}
             </span>
             <span className="min-w-0">
               <span className="block font-heading text-base font-bold tracking-tight text-foreground">
-                One Burger
+                {settings.name}
               </span>
               <span className="block text-xs font-medium text-muted-foreground">
                 Admin operativo

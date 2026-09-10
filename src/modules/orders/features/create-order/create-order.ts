@@ -1,4 +1,5 @@
 import { publish } from "@/infrastructure/events/event-bus";
+import { DEFAULT_BUSINESS_SETTINGS } from "@/modules/business-settings/domain/business-settings-defaults";
 import { maskWhatsapp } from "@/modules/customers/domain/mask-whatsapp";
 import { findOrCreateCustomer } from "@/modules/customers/features/find-or-create-customer/find-or-create-customer";
 import { OrderError } from "@/modules/orders/domain/order-errors";
@@ -46,6 +47,10 @@ export async function createOrder(
     repository,
     resolveCustomerId = findOrCreateCustomer,
     orderLookupTokenGenerator = generateOrderLookupToken,
+    tipPolicy = {
+      enabled: DEFAULT_BUSINESS_SETTINGS.tipEnabled,
+      rate: DEFAULT_BUSINESS_SETTINGS.tipRate,
+    },
   }: {
     repository: OrderRepository;
     resolveCustomerId?: (input: {
@@ -53,6 +58,12 @@ export async function createOrder(
       whatsappNormalized: string;
     }) => Promise<string | null>;
     orderLookupTokenGenerator?: () => string;
+    /**
+     * Propina configurada en `/admin/settings`. El servidor es la fuente de
+     * verdad: el porcentaje del cliente nunca se acepta, y con la propina
+     * apagada no se aplica aunque el checkout la pida.
+     */
+    tipPolicy?: { enabled: boolean; rate: number };
   },
 ) {
   // Basic validation
@@ -276,8 +287,9 @@ export async function createOrder(
     discount,
     deliveryFeeAmount,
     items: itemDetails,
-    tipOptIn: input.tipOptIn ?? false,
+    tipOptIn: (input.tipOptIn ?? false) && tipPolicy.enabled,
     orderType: input.type,
+    tipRate: tipPolicy.rate,
   });
 
   // Generate order number
