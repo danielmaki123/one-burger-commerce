@@ -1,15 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const orderFindManyMock = vi.fn();
-const reservationFindManyMock = vi.fn();
 
 vi.mock("@/infrastructure/database/prisma", () => ({
   getPrismaClient: () => ({
     order: {
       findMany: orderFindManyMock,
-    },
-    reservation: {
-      findMany: reservationFindManyMock,
     },
   }),
 }));
@@ -25,7 +21,7 @@ describe("getAdminOverviewPerformance", () => {
     vi.resetAllMocks();
   });
 
-  it("aggregates first terminal transitions, snapshots and reservations across current and previous ranges", async () => {
+  it("aggregates first terminal transitions and product snapshots across current and previous ranges", async () => {
     orderFindManyMock.mockResolvedValueOnce([
       {
         id: "current-delivery",
@@ -92,12 +88,6 @@ describe("getAdminOverviewPerformance", () => {
         ],
       },
     ]);
-    reservationFindManyMock.mockResolvedValueOnce([
-      { status: "requested", date: "2026-07-21", createdAt: new Date("2026-07-18T10:00:00.000Z") },
-      { status: "approved", date: "2026-07-22", createdAt: new Date("2026-07-22T11:00:00.000Z") },
-      { status: "rejected", date: "2026-07-20", createdAt: new Date("2026-07-19T11:00:00.000Z") },
-      { status: "seated", date: "2026-07-14", createdAt: new Date("2026-07-13T11:00:00.000Z") },
-    ]);
     const now = new Date("2026-07-22T18:30:00.000Z");
 
     const result = await getAdminOverviewPerformance("7d", "all", now);
@@ -106,7 +96,6 @@ describe("getAdminOverviewPerformance", () => {
       completedOrderValue: { current: 100, previous: 50, changePercent: 100 },
       completedOrderCount: { current: 1, previous: 1, changePercent: 0 },
       averageTicket: { current: 100, previous: 50, changePercent: 100 },
-      activeReservations: { current: 1, previous: 1, changePercent: 0 },
     });
     expect(result.data.series).toHaveLength(7);
     expect(result.data.series.filter((point) => point.completedOrderCount > 0)).toEqual([
@@ -122,18 +111,6 @@ describe("getAdminOverviewPerformance", () => {
       label: "07-16",
       completedOrderValue: 0,
       completedOrderCount: 0,
-    });
-    expect(result.data.reservations).toEqual({
-      requestsReceived: 3,
-      active: 1,
-      byStatus: {
-        requested: 1,
-        approved: 1,
-        rejected: 1,
-        seated: 0,
-        cancelled: 0,
-        no_show: 0,
-      },
     });
     expect(result.data.topProducts).toEqual([
       {
@@ -202,25 +179,10 @@ describe("getAdminOverviewPerformance", () => {
         },
       },
     });
-    expect(reservationFindManyMock).toHaveBeenCalledWith({
-      where: {
-        OR: [
-          { date: { gte: "2026-07-09", lt: "2026-07-23" } },
-          {
-            createdAt: {
-              gte: new Date("2026-07-16T06:00:00.000Z"),
-              lt: new Date("2026-07-23T06:00:00.000Z"),
-            },
-          },
-        ],
-      },
-      select: { status: true, date: true, createdAt: true },
-    });
   });
 
   it("uses the selected permitted channel without broadening to table", async () => {
     orderFindManyMock.mockResolvedValueOnce([]);
-    reservationFindManyMock.mockResolvedValueOnce([]);
 
     const result = await getAdminOverviewPerformance(
       "today",

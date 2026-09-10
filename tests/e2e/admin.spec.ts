@@ -68,6 +68,19 @@ test.describe("admin operations", () => {
     await expect(page).toHaveURL(/\/admin\/orders$/);
   });
 
+  test("owner dashboard and navigation stay inside the pickup MVP", async ({ page }) => {
+    await loginAsOwner(page);
+
+    await page.goto("/admin");
+    await expect(page.getByRole("heading", { name: "Resumen" })).toBeVisible();
+    await expect(page.getByText("Reservas del período")).toHaveCount(0);
+    await expect(page.getByText("Reservas hoy")).toHaveCount(0);
+    await expect(
+      page.getByRole("button", { name: "Delivery", exact: true }),
+    ).toHaveCount(0);
+    await expect(page.getByRole("link", { name: /Inventario/ })).toHaveCount(0);
+  });
+
   test("removed admin table routes redirect to orders", async ({ page }) => {
     await loginAsOwner(page);
 

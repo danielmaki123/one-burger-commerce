@@ -1,26 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  isAdminOverviewOperationsPayload,
-  isAdminOverviewPerformancePayload,
-} from "./admin-overview-payload";
+import { isAdminOverviewPerformancePayload } from "./admin-overview-payload";
 import { runAdminOverviewRequest } from "./admin-overview-request";
-
-function validOperationsPayload() {
-  return {
-    data: {
-      openOrders: 3,
-      ordersPendingAction: 2,
-      reservationsToday: 4,
-      reservationsPendingAction: 1,
-    },
-    meta: {
-      generatedAt: "2026-07-22T15:00:00.000Z",
-      timeZone: "America/Managua",
-      localDate: "2026-07-22",
-    },
-  };
-}
 
 function validPerformancePayload() {
   return {
@@ -29,7 +10,6 @@ function validPerformancePayload() {
         completedOrderValue: { current: 500, previous: 400, changePercent: 25 },
         completedOrderCount: { current: 5, previous: 4, changePercent: 25 },
         averageTicket: { current: 100, previous: 100, changePercent: 0 },
-        activeReservations: { current: 2, previous: 1, changePercent: 100 },
       },
       series: [
         {
@@ -39,18 +19,6 @@ function validPerformancePayload() {
           completedOrderCount: 5,
         },
       ],
-      reservations: {
-        requestsReceived: 3,
-        active: 2,
-        byStatus: {
-          requested: 1,
-          approved: 1,
-          rejected: 0,
-          seated: 1,
-          cancelled: 0,
-          no_show: 0,
-        },
-      },
       topProducts: [
         {
           productId: "product-1",
@@ -84,46 +52,6 @@ function validPerformancePayload() {
 }
 
 describe("admin overview payload validation", () => {
-  it("rejects a 200 operations payload with empty or partial data/meta", () => {
-    expect(isAdminOverviewOperationsPayload({ data: {} })).toBe(false);
-    expect(
-      isAdminOverviewOperationsPayload({
-        ...validOperationsPayload(),
-        data: { openOrders: 3 },
-      }),
-    ).toBe(false);
-    expect(
-      isAdminOverviewOperationsPayload({
-        data: validOperationsPayload().data,
-        meta: { generatedAt: "2026-07-22T15:00:00.000Z" },
-      }),
-    ).toBe(false);
-  });
-
-  it("accepts the complete operations response and rejects non-finite counts", () => {
-    expect(isAdminOverviewOperationsPayload(validOperationsPayload())).toBe(true);
-    expect(
-      isAdminOverviewOperationsPayload({
-        ...validOperationsPayload(),
-        data: { ...validOperationsPayload().data, openOrders: Number.POSITIVE_INFINITY },
-      }),
-    ).toBe(false);
-  });
-
-  it.each([
-    ["empty local date", "localDate", ""],
-    ["impossible local date", "localDate", "2026-02-31"],
-    ["invalid generated timestamp", "generatedAt", "not-a-timestamp"],
-    ["unexpected timezone", "timeZone", "UTC"],
-  ])("rejects operations metadata with %s", (_case, field, value) => {
-    expect(
-      isAdminOverviewOperationsPayload({
-        ...validOperationsPayload(),
-        meta: { ...validOperationsPayload().meta, [field]: value },
-      }),
-    ).toBe(false);
-  });
-
   it.each([
     ["empty data", { data: {} }],
     [
@@ -146,16 +74,6 @@ describe("admin overview payload validation", () => {
         data: {
           ...validPerformancePayload().data,
           series: [{ key: "2026-07-22", label: "22 jul" }],
-        },
-      },
-    ],
-    [
-      "partial reservations",
-      {
-        ...validPerformancePayload(),
-        data: {
-          ...validPerformancePayload().data,
-          reservations: { requestsReceived: 3, active: 2 },
         },
       },
     ],
@@ -213,10 +131,6 @@ describe("admin overview payload validation", () => {
     ["completedOrderCount", "current", 1.5],
     ["completedOrderCount", "previous", -1],
     ["completedOrderCount", "previous", 1.5],
-    ["activeReservations", "current", -1],
-    ["activeReservations", "current", 1.5],
-    ["activeReservations", "previous", -1],
-    ["activeReservations", "previous", 1.5],
   ] as const)(
     "rejects %s.%s when the count comparison value is %s",
     (metricKey, comparisonKey, invalidValue) => {
@@ -261,10 +175,6 @@ describe("admin overview payload validation", () => {
     ["completedOrderCount", "current", 1.5],
     ["completedOrderCount", "previous", -1],
     ["completedOrderCount", "previous", 1.5],
-    ["activeReservations", "current", -1],
-    ["activeReservations", "current", 1.5],
-    ["activeReservations", "previous", -1],
-    ["activeReservations", "previous", 1.5],
   ] as const)(
     "isolates invalid %s.%s=%s to the performance onError callback",
     async (metricKey, comparisonKey, invalidValue) => {
@@ -273,30 +183,18 @@ describe("admin overview payload validation", () => {
         ...performancePayload.data.metrics[metricKey],
         [comparisonKey]: invalidValue,
       };
-      const operationsEvents: string[] = [];
       const performanceEvents: string[] = [];
       const signal = new AbortController().signal;
 
-      await Promise.all([
-        runAdminOverviewRequest({
-          signal,
-          request: async () => Response.json(validOperationsPayload()),
-          isPayload: isAdminOverviewOperationsPayload,
-          onData: () => operationsEvents.push("data"),
-          onError: () => operationsEvents.push("error"),
-          onRedirect: () => operationsEvents.push("redirect"),
-        }),
-        runAdminOverviewRequest({
-          signal,
-          request: async () => Response.json(performancePayload),
-          isPayload: isAdminOverviewPerformancePayload,
-          onData: () => performanceEvents.push("data"),
-          onError: () => performanceEvents.push("error"),
-          onRedirect: () => performanceEvents.push("redirect"),
-        }),
-      ]);
+      await runAdminOverviewRequest({
+        signal,
+        request: async () => Response.json(performancePayload),
+        isPayload: isAdminOverviewPerformancePayload,
+        onData: () => performanceEvents.push("data"),
+        onError: () => performanceEvents.push("error"),
+        onRedirect: () => performanceEvents.push("redirect"),
+      });
 
-      expect(operationsEvents).toEqual(["data"]);
       expect(performanceEvents).toEqual(["error"]);
     },
   );
@@ -389,77 +287,4 @@ describe("admin overview payload validation", () => {
     },
   );
 
-  it.each([
-    [
-      "operations",
-      {
-        ...validOperationsPayload(),
-        meta: { ...validOperationsPayload().meta, localDate: "2026-02-31" },
-      },
-      validPerformancePayload(),
-      isAdminOverviewOperationsPayload,
-      isAdminOverviewPerformancePayload,
-    ],
-    [
-      "performance",
-      validOperationsPayload(),
-      (() => {
-        const payload = validPerformancePayload();
-        return {
-          ...payload,
-          meta: {
-            ...payload.meta,
-            ranges: {
-              ...payload.meta.ranges,
-              current: {
-                ...payload.meta.ranges.current,
-                utcEnd: payload.meta.ranges.current.utcStart,
-              },
-            },
-          },
-        };
-      })(),
-      isAdminOverviewOperationsPayload,
-      isAdminOverviewPerformancePayload,
-    ],
-  ] as const)(
-    "routes an invalid 200 %s payload to only its module error callback",
-    async (
-      invalidModule,
-      operationsPayload,
-      performancePayload,
-      operationsValidator,
-      performanceValidator,
-    ) => {
-      const operationsEvents: string[] = [];
-      const performanceEvents: string[] = [];
-      const signal = new AbortController().signal;
-
-      await Promise.all([
-        runAdminOverviewRequest({
-          signal,
-          request: async () => Response.json(operationsPayload),
-          isPayload: operationsValidator,
-          onData: () => operationsEvents.push("data"),
-          onError: () => operationsEvents.push("error"),
-          onRedirect: () => operationsEvents.push("redirect"),
-        }),
-        runAdminOverviewRequest({
-          signal,
-          request: async () => Response.json(performancePayload),
-          isPayload: performanceValidator,
-          onData: () => performanceEvents.push("data"),
-          onError: () => performanceEvents.push("error"),
-          onRedirect: () => performanceEvents.push("redirect"),
-        }),
-      ]);
-
-      expect(operationsEvents).toEqual([
-        invalidModule === "operations" ? "error" : "data",
-      ]);
-      expect(performanceEvents).toEqual([
-        invalidModule === "performance" ? "error" : "data",
-      ]);
-    },
-  );
 });

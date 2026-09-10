@@ -3,8 +3,6 @@
 import {
   AlertTriangle,
   Banknote,
-  CalendarCheck2,
-  CalendarClock,
   CheckCircle2,
   Clock3,
   PackageSearch,
@@ -20,7 +18,6 @@ import type {
   OverviewPerformanceData,
   OverviewPeriod,
 } from "@/modules/dashboard/domain/admin-overview.types";
-import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";
 
 import { AdminEmptyState, AdminPageHeader } from "./admin-operational-ui";
@@ -34,10 +31,6 @@ import {
 import { isAdminOverviewPerformancePayload } from "./admin-overview-payload";
 import { runAdminOverviewRequest } from "./admin-overview-request";
 import { AdminOverviewTrendChart } from "./admin-overview-trend-chart";
-import {
-  ADMIN_RESERVATION_STATUS_META,
-  ADMIN_RESERVATION_STATUS_ORDER,
-} from "../reservations/reservation-status-ui";
 
 type PerformanceMetricKey = keyof OverviewPerformanceData["metrics"];
 
@@ -67,12 +60,6 @@ const PERFORMANCE_KPI_DEFINITIONS: Array<{
     format: "currency",
     icon: ReceiptText,
   },
-  {
-    metricKey: "activeReservations",
-    title: "Reservas vigentes",
-    format: "integer",
-    icon: CalendarCheck2,
-  },
 ];
 
 const PERIOD_OPTIONS: Array<{ value: OverviewPeriod; label: string }> = [
@@ -82,9 +69,9 @@ const PERIOD_OPTIONS: Array<{ value: OverviewPeriod; label: string }> = [
   { value: "month", label: "Este mes" },
 ];
 
+// El MVP es solo retiro: el canal queda fijo y no se ofrece delivery.
 const CHANNEL_OPTIONS: Array<{ value: OverviewChannel; label: string }> = [
   { value: "all", label: "Todos" },
-  { value: "delivery", label: "Delivery" },
   { value: "pickup", label: "Retiro" },
 ];
 
@@ -106,7 +93,6 @@ type TurnoOrderSummary = { status: string; createdAt: string };
 type TurnoState = {
   ventasHoy: number | null;
   ventasDelta: number | null;
-  reservasVigentes: number | null;
   ordenesAbiertas: number | null;
   ordenesNuevas: number | null;
   ordenesTardadas: number | null;
@@ -217,7 +203,6 @@ export default function AdminOverviewClient() {
   const [turno, setTurno] = React.useState<TurnoState>({
     ventasHoy: null,
     ventasDelta: null,
-    reservasVigentes: null,
     ordenesAbiertas: null,
     ordenesNuevas: null,
     ordenesTardadas: null,
@@ -239,7 +224,6 @@ export default function AdminOverviewClient() {
             ...prev,
             ventasHoy: metrics?.completedOrderValue.current ?? 0,
             ventasDelta: metrics?.completedOrderValue.changePercent ?? null,
-            reservasVigentes: payload.data?.reservations.active ?? 0,
           }));
         }
       } catch {
@@ -302,19 +286,6 @@ export default function AdminOverviewClient() {
       detail: "Revisá qué las está atrasando",
     });
   }
-  if ((turno.reservasVigentes ?? 0) > 0) {
-    // Reservations are outside the pickup MVP scope: `/admin/reservations`
-    // redirects to `/admin/orders`, so this counter stays informational and
-    // must not link to a redirecting route.
-    attentionItems.push({
-      key: "reservas",
-      href: "/admin/orders",
-      icon: CalendarClock,
-      title: `${turno.reservasVigentes} reserva${turno.reservasVigentes === 1 ? "" : "s"} vigente${turno.reservasVigentes === 1 ? "" : "s"} hoy`,
-      detail: "Módulo de reservas fuera del alcance actual de la operación",
-    });
-  }
-
   const performanceData = performance?.data;
   const performancePeriodRange = performance
     ? formatOverviewPeriodRange(
@@ -327,17 +298,12 @@ export default function AdminOverviewClient() {
     1,
     ...topProducts.map((product) => product.units),
   );
-  const hasCurrentReservations = performanceData
-    ? Object.values(performanceData.reservations.byStatus).some(
-        (count) => count > 0,
-      )
-    : false;
 
   return (
     <div className="min-w-0 space-y-5 md:space-y-6">
       <AdminPageHeader
         title="Resumen"
-        description="Rendimiento de órdenes de Delivery y Retiro, junto con reservas del período seleccionado."
+        description="Rendimiento de los pedidos para retirar en el período seleccionado."
       />
 
       <section
@@ -358,7 +324,7 @@ export default function AdminOverviewClient() {
           </p>
         </div>
 
-        <div className="grid grid-cols-3 divide-x divide-border border-b border-border">
+        <div className="grid grid-cols-2 divide-x divide-border border-b border-border">
           <div className="px-3 py-3 text-center sm:text-left sm:px-4">
             <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Órdenes activas</p>
             <p className="mt-0.5 text-xl font-bold tabular-nums text-foreground">
@@ -369,12 +335,6 @@ export default function AdminOverviewClient() {
             <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Nuevas</p>
             <p className="mt-0.5 text-xl font-bold tabular-nums text-foreground">
               {turno.ordenesNuevas === null ? "…" : turno.ordenesNuevas}
-            </p>
-          </div>
-          <div className="px-3 py-3 text-center sm:text-left sm:px-4">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Reservas hoy</p>
-            <p className="mt-0.5 text-xl font-bold tabular-nums text-foreground">
-              {turno.reservasVigentes === null ? "…" : turno.reservasVigentes}
             </p>
           </div>
         </div>
@@ -557,84 +517,6 @@ export default function AdminOverviewClient() {
               periodLabel={performancePeriodRange}
             />
 
-            <div className="grid min-w-0 gap-5 lg:grid-cols-2">
-              <section
-                aria-labelledby="overview-reservations-title"
-                className="min-w-0 rounded-2xl border border-border bg-card p-4 shadow-sm md:p-5"
-              >
-                <div>
-                  <h3
-                    id="overview-reservations-title"
-                    className="font-heading text-lg font-bold text-foreground"
-                  >
-                    Reservas del período
-                  </h3>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Solicitudes recibidas y estado actual de las reservas.
-                  </p>
-                </div>
-
-                <dl className="mt-4 grid gap-3 sm:grid-cols-2">
-                  <div className="rounded-xl border border-border bg-background p-3">
-                    <dt className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                      Solicitudes recibidas
-                    </dt>
-                    <dd className="mt-1 text-2xl font-bold tabular-nums text-foreground">
-                      {formatOverviewInteger(
-                        performanceData.reservations.requestsReceived,
-                      )}
-                    </dd>
-                  </div>
-                  <div className="rounded-xl border border-border bg-background p-3">
-                    <dt className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                      Reservas vigentes
-                    </dt>
-                    <dd className="mt-1 text-2xl font-bold tabular-nums text-foreground">
-                      {formatOverviewInteger(performanceData.reservations.active)}
-                    </dd>
-                  </div>
-                </dl>
-
-                {hasCurrentReservations ? (
-                  <ul
-                    aria-label="Reservas por estado actual"
-                    className="mt-4 divide-y divide-border rounded-xl border border-border"
-                  >
-                    {ADMIN_RESERVATION_STATUS_ORDER.map((status) => (
-                      <li
-                        key={status}
-                        className="flex min-h-11 items-center justify-between gap-3 px-3 py-2 text-sm"
-                      >
-                        <span className="font-medium text-foreground">
-                          {ADMIN_RESERVATION_STATUS_META[status].label}
-                        </span>
-                        <Badge
-                          variant={ADMIN_RESERVATION_STATUS_META[status].variant}
-                          className="tabular-nums"
-                        >
-                          {formatOverviewInteger(
-                            performanceData.reservations.byStatus[status],
-                          )}
-                        </Badge>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <div className="mt-4">
-                    <AdminEmptyState
-                      title="Sin reservas en este período"
-                      description="Todavía no existen reservas con fecha de servicio dentro del período seleccionado."
-                      icon={
-                        <CalendarClock
-                          className="h-5 w-5"
-                          strokeWidth={2}
-                          aria-hidden="true"
-                        />
-                      }
-                    />
-                  </div>
-                )}
-              </section>
 
               <section
                 aria-labelledby="overview-products-title"
@@ -715,8 +597,6 @@ export default function AdminOverviewClient() {
                   </div>
                 )}
               </section>
-            </div>
-
             <p role="status" className="sr-only">
               Datos de rendimiento cargados.
             </p>

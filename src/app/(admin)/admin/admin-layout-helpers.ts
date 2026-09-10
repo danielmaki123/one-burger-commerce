@@ -1,7 +1,6 @@
 import {
   ClipboardList,
   LayoutDashboard,
-  Package,
   UtensilsCrossed,
   Users,
   type LucideIcon,
@@ -38,11 +37,9 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
   },
 ];
 
-// Módulos fuera del foco operativo de esta fase. Siguen vivos y accesibles,
-// pero se muestran de forma secundaria (no en la navegación principal).
-export const ADMIN_SECONDARY_NAV_ITEMS: AdminNavItem[] = [
-  { href: "/admin/inventory", label: "Inventario", description: "Stock y alertas", icon: Package },
-];
+// Módulos fuera del MVP (reservas, mesas, delivery, inventario): sus páginas
+// siguen en el repositorio pero no se ofrecen en la navegación del admin.
+export const ADMIN_SECONDARY_NAV_ITEMS: AdminNavItem[] = [];
 
 export const ADMIN_NAV_ITEMS = ADMIN_NAV_GROUPS.flatMap((group) => group.items);
 

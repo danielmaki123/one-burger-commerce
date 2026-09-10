@@ -6,7 +6,6 @@ import {
 import {
   buildOverviewBucketKeys,
   buildOverviewRanges,
-  formatManaguaDate,
   OVERVIEW_TIME_ZONE,
 } from "@/modules/dashboard/domain/admin-overview-periods";
 import type {
@@ -38,63 +37,40 @@ export async function getAdminOverviewPerformance(
   const ranges = buildOverviewRanges(period, now);
   const buckets = buildOverviewBucketKeys(ranges);
   const terminalStatuses = [...COMPLETED_ORDER_STATUSES];
-  const reservationExclusiveEnd = formatManaguaDate(ranges.current.utcEnd);
 
-  const [orders, reservations] = await Promise.all([
-    prisma.order.findMany({
-      where: {
-        type:
-          channel === "all" ? { in: ["delivery", "pickup"] } : channel,
-        status: { in: terminalStatuses },
-        statusHistory: {
-          some: {
-            status: { in: terminalStatuses },
-            createdAt: {
-              gte: ranges.previous.utcStart,
-              lt: ranges.current.utcEnd,
-            },
+  const orders = await prisma.order.findMany({
+    where: {
+      type: channel === "all" ? { in: ["delivery", "pickup"] } : channel,
+      status: { in: terminalStatuses },
+      statusHistory: {
+        some: {
+          status: { in: terminalStatuses },
+          createdAt: {
+            gte: ranges.previous.utcStart,
+            lt: ranges.current.utcEnd,
           },
         },
       },
-      select: {
-        id: true,
-        type: true,
-        status: true,
-        total: true,
-        statusHistory: {
-          where: { status: { in: terminalStatuses } },
-          select: { status: true, createdAt: true },
-        },
-        items: {
-          select: {
-            productId: true,
-            productName: true,
-            quantity: true,
-            lineTotal: true,
-          },
+    },
+    select: {
+      id: true,
+      type: true,
+      status: true,
+      total: true,
+      statusHistory: {
+        where: { status: { in: terminalStatuses } },
+        select: { status: true, createdAt: true },
+      },
+      items: {
+        select: {
+          productId: true,
+          productName: true,
+          quantity: true,
+          lineTotal: true,
         },
       },
-    }),
-    prisma.reservation.findMany({
-      where: {
-        OR: [
-          {
-            date: {
-              gte: ranges.previous.localStartDate,
-              lt: reservationExclusiveEnd,
-            },
-          },
-          {
-            createdAt: {
-              gte: ranges.current.utcStart,
-              lt: ranges.current.utcEnd,
-            },
-          },
-        ],
-      },
-      select: { status: true, date: true, createdAt: true },
-    }),
-  ]);
+    },
+  });
 
   const data = aggregateOverviewPerformance({
     channel,
@@ -112,11 +88,6 @@ export async function getAdminOverviewPerformance(
         quantity: item.quantity,
         lineTotal: toNumber(item.lineTotal),
       })),
-    })),
-    reservations: reservations.map((reservation) => ({
-      status: reservation.status,
-      serviceDate: reservation.date,
-      createdAt: reservation.createdAt,
     })),
   });
 

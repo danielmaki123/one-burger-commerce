@@ -42,7 +42,8 @@ export type TrackedReservation = {
 
 type RefreshActivityParams = {
   orders: DeviceOrderRef[];
-  reservations: DeviceReservationRef[];
+  // Reservations are outside the pickup MVP scope: callers may omit them.
+  reservations?: DeviceReservationRef[];
   trackingWhatsapp: string;
 };
 
@@ -52,17 +53,18 @@ type RefreshActivityDependencies = {
     order: DeviceOrderRef,
     whatsapp?: string,
   ) => Promise<TrackedOrder>;
-  trackReservation: (
+  syncOrder: (tracked: TrackedOrder, checkedAt: string) => void;
+  markOrderStale: (orderNumber: string, stale: boolean) => void;
+  // Reservation hooks are only required when reservations are passed in.
+  trackReservation?: (
     reservation: DeviceReservationRef,
   ) => Promise<TrackedReservation>;
-  syncOrder: (tracked: TrackedOrder, checkedAt: string) => void;
-  syncReservation: (
+  syncReservation?: (
     tracked: TrackedReservation,
     reservationLookupToken: string,
     checkedAt: string,
   ) => void;
-  markOrderStale: (orderNumber: string, stale: boolean) => void;
-  markReservationStale: (
+  markReservationStale?: (
     reservation: DeviceReservationRef,
     stale: boolean,
   ) => void;
@@ -150,7 +152,7 @@ export async function refreshActivity(
   const activeOrders = params.orders.filter((order) =>
     ACTIVE_ORDER_STATUS.has(order.status),
   );
-  const activeTrackableReservations = params.reservations.filter(
+  const activeTrackableReservations = (params.reservations ?? []).filter(
     (reservation) =>
       ACTIVE_RESERVATION_STATUS.has(reservation.status) &&
       Boolean(
@@ -177,19 +179,24 @@ export async function refreshActivity(
     const reservationLookupToken = reservation.reservationLookupToken;
     if (!reservationNumber || !reservationLookupToken) continue;
 
+    const { trackReservation, syncReservation, markReservationStale } = deps;
+    if (!trackReservation || !syncReservation || !markReservationStale) {
+      continue;
+    }
+
     attemptedReservationCount += 1;
 
     try {
-      const tracked = await deps.trackReservation(reservation);
+      const tracked = await trackReservation(reservation);
       if (didReservationChange(reservation, tracked)) {
         changedCount += 1;
       } else {
         unchangedCount += 1;
       }
-      deps.syncReservation(tracked, reservationLookupToken, checkedAt);
+      syncReservation(tracked, reservationLookupToken, checkedAt);
     } catch {
       failedCount += 1;
-      deps.markReservationStale(reservation, true);
+      markReservationStale(reservation, true);
     }
   }
 

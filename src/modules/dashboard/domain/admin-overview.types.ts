@@ -2,7 +2,6 @@ import type {
   OrderStatus,
   OrderType,
 } from "@/modules/orders/domain/order.types";
-import type { ReservationStatus } from "@/modules/reservations/domain/reservation.types";
 
 export type OverviewPeriod = "today" | "7d" | "30d" | "month";
 
@@ -54,18 +53,11 @@ export type OverviewOrderPerformanceInput = {
   items: OverviewOrderItemInput[];
 };
 
-export type OverviewReservationPerformanceInput = {
-  status: ReservationStatus;
-  serviceDate: string;
-  createdAt: Date | string;
-};
-
 export type AggregateOverviewInput = {
   channel: OverviewChannel;
   ranges: OverviewRanges;
   buckets: OverviewBucket[];
   orders: OverviewOrderPerformanceInput[];
-  reservations: OverviewReservationPerformanceInput[];
 };
 
 export type OverviewMetricComparison = {
@@ -88,38 +80,14 @@ export type OverviewTopProduct = {
   completedOrderValue: number;
 };
 
-export type OverviewReservationSummary = {
-  requestsReceived: number;
-  active: number;
-  byStatus: Record<ReservationStatus, number>;
-};
-
 export type OverviewPerformanceData = {
   metrics: {
     completedOrderValue: OverviewMetricComparison;
     completedOrderCount: OverviewMetricComparison;
     averageTicket: OverviewMetricComparison;
-    activeReservations: OverviewMetricComparison;
   };
   series: OverviewSeriesPoint[];
-  reservations: OverviewReservationSummary;
   topProducts: OverviewTopProduct[];
-};
-
-export type AdminOverviewOperationsData = {
-  openOrders: number;
-  ordersPendingAction: number;
-  reservationsToday: number;
-  reservationsPendingAction: number;
-};
-
-export type AdminOverviewOperationsResponse = {
-  data: AdminOverviewOperationsData;
-  meta: {
-    generatedAt: string;
-    timeZone: string;
-    localDate: string;
-  };
 };
 
 export type OverviewJsonRange = {

@@ -142,8 +142,11 @@ describe("admin ui contracts", () => {
     const overviewSource = readAdminFile("_components/admin-overview-client.tsx");
     expect(overviewSource).toContain('title="Resumen"');
     expect(overviewSource).toContain(
-      'description="Rendimiento de órdenes de Delivery y Retiro, junto con reservas del período seleccionado."',
+      'description="Rendimiento de los pedidos para retirar en el período seleccionado."',
     );
+    expect(overviewSource).not.toContain("Reservas del período");
+    expect(overviewSource).not.toContain("Reservas hoy");
+    expect(overviewSource).not.toContain('label: "Delivery"');
     expect(overviewSource).not.toContain("Estado actual de la operación");
     expect(overviewSource).not.toContain("Ahora");
     expect(overviewSource).not.toContain("Accesos directos");
@@ -212,7 +215,7 @@ describe("admin ui contracts", () => {
     expect(overviewSource).toContain("motion-reduce:transition-none");
   });
 
-  it("renders the performance contract with four kpis and accessible data modules", () => {
+  it("renders the pickup performance contract with three kpis and accessible data modules", () => {
     const overviewSource = readAdminFile("_components/admin-overview-client.tsx");
     const trendPath = path.join(
       adminDir,
@@ -224,17 +227,17 @@ describe("admin ui contracts", () => {
     )?.[1];
 
     expect(kpiDefinitions).toBeDefined();
-    expect(kpiDefinitions?.match(/metricKey:/g)).toHaveLength(4);
+    expect(kpiDefinitions?.match(/metricKey:/g)).toHaveLength(3);
     expect(overviewSource).toContain('title: "Valor de órdenes completadas"');
     expect(overviewSource).toContain('title: "Órdenes completadas"');
     expect(overviewSource).toContain('title: "Ticket promedio"');
-    expect(overviewSource).toContain('title: "Reservas vigentes"');
+    expect(overviewSource).not.toContain('title: "Reservas vigentes"');
     expect(overviewSource).toContain("No equivale a pagos liquidados");
     expect(overviewSource).toContain("formatOverviewDelta(");
     expect(overviewSource).toContain("formatOverviewPeriodRange(");
     expect(overviewSource).toContain("<AdminOverviewTrendChart");
-    expect(overviewSource).toContain("ADMIN_RESERVATION_STATUS_ORDER.map");
-    expect(overviewSource).toContain("ADMIN_RESERVATION_STATUS_META[status].label");
+    expect(overviewSource).not.toContain("ADMIN_RESERVATION_STATUS_ORDER.map");
+    expect(overviewSource).not.toContain("reservations");
     expect(overviewSource).toContain("topProducts.slice(0, 5)");
     expect(overviewSource).toContain(
       'formatOverviewCount(product.units, "unidad", "unidades")',

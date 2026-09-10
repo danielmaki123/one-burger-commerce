@@ -81,7 +81,6 @@ describe("aggregateOverviewPerformance", () => {
       channel: "all",
       ranges,
       buckets: buildOverviewBucketKeys(ranges),
-      reservations: [],
       orders: [
         order({
           id: "delivery-current",

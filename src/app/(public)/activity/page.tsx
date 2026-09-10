@@ -6,16 +6,12 @@ import { useRouter } from "next/navigation";
 
 import {
   getOrderStatusProgress,
-  getReservationStatusProgress,
   ORDER_PROGRESS_STEPS,
-  RESERVATION_PROGRESS_STEPS,
 } from "@/shared/lib/activity-status";
 import {
   ACTIVE_ORDER_STATUS,
-  ACTIVE_RESERVATION_STATUS,
   refreshActivity,
   type TrackedOrder,
-  type TrackedReservation,
 } from "@/shared/lib/activity-refresh";
 import {
   clearDeviceOrders,
@@ -23,20 +19,13 @@ import {
   readDeviceOrders,
   type DeviceOrderRef,
 } from "@/shared/lib/device-orders";
-import {
-  clearDeviceReservations,
-  markDeviceReservationStale,
-  readDeviceReservations,
-  type DeviceReservationRef,
-} from "@/shared/lib/device-reservations";
 import { formatCurrency } from "@/shared/lib/format-currency";
 import { syncTrackedOrderToDeviceOrders } from "@/shared/lib/order-tracking-sync";
-import { syncTrackedReservationToDeviceReservations } from "@/shared/lib/reservation-tracking-sync";
 import { Button } from "@/shared/ui/button";
 import { StatusProgress } from "@/shared/ui/status-progress";
 import { useOrderTrackingSession } from "../_components/order-tracking-session";
 
-type ActivityTab = "orders" | "reservations";
+type ActivityTab = "orders";
 
 function splitByStatus<T extends { status: string }>(items: T[], activeStatuses: Set<string>) {
   const active: T[] = [];
@@ -72,81 +61,44 @@ function formatHistoryMeta(value: string, parts: string[]) {
   return ["Hoy", ...parts].join(" · ");
 }
 
-function reservationKey(reservation: DeviceReservationRef) {
-  return [
-    reservation.reservationNumber ?? "",
-    reservation.createdAt ?? "",
-    reservation.date,
-    reservation.time,
-    reservation.partySize,
-    reservation.tableLabel ?? "",
-  ].join("|");
-}
-
-function getReservationDateTime(reservation: DeviceReservationRef) {
-  return reservation.updatedAt ?? reservation.createdAt ?? `${reservation.date}T${reservation.time}:00.000Z`;
-}
-
 export default function CustomerActivityPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<ActivityTab>("orders");
   const [orders, setOrders] = useState<DeviceOrderRef[]>([]);
-  const [reservations, setReservations] = useState<DeviceReservationRef[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [refreshFeedback, setRefreshFeedback] = useState<string | null>(null);
   const [selectedOrderNumber, setSelectedOrderNumber] = useState<string | null>(null);
-  const [selectedReservationKey, setSelectedReservationKey] = useState<string | null>(null);
   const { trackingWhatsapp } = useOrderTrackingSession();
 
   useEffect(() => {
     const tab = new URLSearchParams(window.location.search).get("tab");
-    if (tab === "reservations") setActiveTab("reservations");
     if (tab === "orders") setActiveTab("orders");
     setOrders(readDeviceOrders().orders);
-    setReservations(readDeviceReservations().reservations);
   }, []);
 
   const orderSections = useMemo(() => splitByStatus(orders, ACTIVE_ORDER_STATUS), [orders]);
-  const reservationSections = useMemo(
-    () => splitByStatus(reservations, ACTIVE_RESERVATION_STATUS),
-    [reservations],
-  );
 
   const selectedOrder = useMemo(
     () => orders.find((order) => order.orderNumber === selectedOrderNumber) ?? null,
     [orders, selectedOrderNumber],
   );
-  const selectedReservation = useMemo(
-    () =>
-      reservations.find((reservation) => reservationKey(reservation) === selectedReservationKey) ??
-      null,
-    [reservations, selectedReservationKey],
-  );
 
   const lastUpdateText = useMemo(() => {
-    const timestamps = [
-      ...orders.map((order) => order.lastCheckedAt ?? order.updatedAt),
-      ...reservations.map((reservation) => reservation.lastCheckedAt ?? reservation.updatedAt),
-    ]
+    const timestamps = orders
+      .map((order) => order.lastCheckedAt ?? order.updatedAt)
       .map((value) => (value ? new Date(value).getTime() : Number.NaN))
       .filter(Number.isFinite);
 
     if (timestamps.length === 0) return "Sin actividad guardada";
     return `Actualizado ${formatActivityDateTime(new Date(Math.max(...timestamps)).toISOString())}`;
-  }, [orders, reservations]);
+  }, [orders]);
 
-  const hasRefreshableActivity =
-    orderSections.active.length > 0 ||
-    reservationSections.active.some((reservation) =>
-      Boolean(reservation.reservationNumber && reservation.reservationLookupToken),
-    );
+  const hasRefreshableActivity = orderSections.active.length > 0;
 
   function handleTabChange(tab: ActivityTab) {
     setActiveTab(tab);
     setSelectedOrderNumber(null);
-    setSelectedReservationKey(null);
-    const nextUrl = tab === "orders" ? "/activity?tab=orders" : "/activity?tab=reservations";
-    window.history.replaceState(null, "", nextUrl);
+    window.history.replaceState(null, "", "/activity?tab=orders");
   }
 
   async function trackOrder(order: DeviceOrderRef, whatsapp?: string): Promise<TrackedOrder> {
@@ -172,22 +124,6 @@ export default function CustomerActivityPage() {
     return responsePayload.data;
   }
 
-  async function trackReservation(reservation: DeviceReservationRef): Promise<TrackedReservation> {
-    const response = await fetch("/api/reservations/track", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        reservationNumber: reservation.reservationNumber,
-        reservationLookupToken: reservation.reservationLookupToken,
-      }),
-    });
-
-    if (!response.ok) throw new Error("RESERVATION_TRACK_FAILED");
-
-    const payload = (await response.json()) as { data: TrackedReservation };
-    return payload.data;
-  }
-
   async function handleRefreshClick() {
     if (!hasRefreshableActivity || isRefreshing) return;
 
@@ -196,27 +132,17 @@ export default function CustomerActivityPage() {
     const result = await refreshActivity(
       {
         orders,
-        reservations,
         trackingWhatsapp: trackingWhatsapp.trim(),
       },
       {
         getCheckedAt: () => new Date().toISOString(),
         markOrderStale: (orderNumber, stale) => markDeviceOrderStale(orderNumber, stale),
-        markReservationStale: (reservation, stale) =>
-          markDeviceReservationStale(reservation, stale),
         syncOrder: (tracked, checkedAt) => syncTrackedOrderToDeviceOrders(tracked, { checkedAt }),
-        syncReservation: (tracked, reservationLookupToken, checkedAt) =>
-          syncTrackedReservationToDeviceReservations(tracked, {
-            reservationLookupToken,
-            checkedAt,
-          }),
         trackOrder,
-        trackReservation,
       },
     );
 
     setOrders(readDeviceOrders().orders);
-    setReservations(readDeviceReservations().reservations);
     setRefreshFeedback(
       result.needsWhatsappPrompt
         ? "Algunas actividades necesitan consulta manual para actualizarse."
@@ -232,30 +158,12 @@ export default function CustomerActivityPage() {
     setRefreshFeedback("Quitamos los pedidos guardados en este dispositivo.");
   }
 
-  function handleClearReservations() {
-    clearDeviceReservations();
-    setReservations([]);
-    setSelectedReservationKey(null);
-    setRefreshFeedback("Quitamos las reservas guardadas en este dispositivo.");
-  }
-
   if (selectedOrder) {
     return (
       <HistoryShell>
         <OrderDetailView
           order={selectedOrder}
           onBack={() => setSelectedOrderNumber(null)}
-        />
-      </HistoryShell>
-    );
-  }
-
-  if (selectedReservation) {
-    return (
-      <HistoryShell>
-        <ReservationDetailView
-          reservation={selectedReservation}
-          onBack={() => setSelectedReservationKey(null)}
         />
       </HistoryShell>
     );
@@ -273,7 +181,7 @@ export default function CustomerActivityPage() {
               Historial
             </h1>
             <p className="max-w-xl text-sm leading-6 text-foreground">
-              Revisá tus pedidos y reservas recientes.
+              Revisá tus pedidos recientes.
             </p>
           </div>
 
@@ -307,18 +215,12 @@ export default function CustomerActivityPage() {
         </div>
 
         <div className="rounded-[22px] border border-border bg-card/70 p-1 shadow-[0_18px_45px_-38px_rgba(41,37,36,0.55)]">
-          <div className="grid grid-cols-2 gap-1">
+          <div className="grid grid-cols-1 gap-1">
             <TabButton
               isActive={activeTab === "orders"}
               onClick={() => handleTabChange("orders")}
             >
               Pedidos
-            </TabButton>
-            <TabButton
-              isActive={activeTab === "reservations"}
-              onClick={() => handleTabChange("reservations")}
-            >
-              Reservas
             </TabButton>
           </div>
         </div>
@@ -360,41 +262,6 @@ export default function CustomerActivityPage() {
             onClick={handleClearOrders}
           >
             Quitar pedidos de este dispositivo
-          </ClearLocalButton>
-        </section>
-      ) : null}
-
-      {activeTab === "reservations" ? (
-        <section className="space-y-5">
-          <SectionHeading title="Reservas próximas" />
-          {reservations.length === 0 ? (
-            <EmptyState
-              title="Aún no tenés reservas"
-              description="Tus próximas reservas aparecerán aquí."
-              actionLabel="Reservar mesa"
-              onAction={() => router.push("/reservations")}
-            />
-          ) : (
-            <div className="space-y-4">
-              {[...reservationSections.active, ...reservationSections.history].map((reservation) => (
-                <ReservationHistoryCard
-                  key={reservationKey(reservation)}
-                  reservation={reservation}
-                  onOpen={() => setSelectedReservationKey(reservationKey(reservation))}
-                />
-              ))}
-            </div>
-          )}
-          <HistoryFooterAction
-            label="¿No ves una reserva?"
-            actionLabel="Reservar mesa"
-            onClick={() => router.push("/reservations")}
-          />
-          <ClearLocalButton
-            disabled={reservations.length === 0}
-            onClick={handleClearReservations}
-          >
-            Quitar reservas de este dispositivo
           </ClearLocalButton>
         </section>
       ) : null}
@@ -521,51 +388,6 @@ export function OrderHistoryCard({
   );
 }
 
-export function ReservationHistoryCard({
-  reservation,
-  onOpen,
-}: {
-  reservation: DeviceReservationRef;
-  onOpen: () => void;
-}) {
-  const progress = getReservationStatusProgress(reservation.status);
-
-  return (
-    <div className="rounded-[28px] border border-border bg-card/92 px-5 py-5 shadow-[0_24px_55px_-46px_rgba(41,37,36,0.6)]">
-      <div className="space-y-5">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0 space-y-2">
-            <p
-              className="text-[2rem] font-semibold leading-none tracking-tight text-ink-green"
-              style={{ fontFamily: "var(--font-heading)" }}
-            >
-              {reservation.reservationNumber ?? "Reserva"}
-            </p>
-            <p className="text-sm text-muted-foreground">
-              Hoy · {reservation.tableLabel ?? "Terraza · Mesa 12"}
-            </p>
-          </div>
-          <span className="rounded-full bg-amber-100 px-4 py-2 text-xs font-semibold uppercase tracking-[0.06em] text-amber-800">
-            {progress.label}
-          </span>
-        </div>
-
-        <p className="text-lg text-foreground">Reserva · {reservation.partySize} personas</p>
-        <MiniSteps mode={progress.label === "Completada" ? "done" : "active"} />
-
-        <div className="flex items-center justify-end">
-          <button
-            type="button"
-            onClick={onOpen}
-            className="rounded-full bg-sky-100 px-5 py-3 text-base font-semibold text-brand"
-          >
-            Volver a pedir
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 export function OrderDetailView({
   order,
@@ -638,61 +460,6 @@ export function OrderDetailView({
   );
 }
 
-export function ReservationDetailView({
-  reservation,
-  onBack,
-}: {
-  reservation: DeviceReservationRef;
-  onBack: () => void;
-}) {
-  const progress = getReservationStatusProgress(reservation.status);
-
-  return (
-    <section className="space-y-5">
-      <BackButton onClick={onBack} />
-      <DetailHeader
-        title={reservation.reservationNumber ?? "Reserva guardada"}
-        eyebrow="Mesa en restaurante"
-        badge={
-          <StatusBadge
-            label={progress.label}
-            tone={progress.tone}
-            isTerminalNegative={progress.isTerminalNegative}
-          />
-        }
-      />
-      <DetailCard>
-        <CompactFact label="Fecha" value={reservation.date} />
-        <CompactFact label="Hora" value={reservation.time} />
-        <CompactFact label="Personas" value={`${reservation.partySize} personas`} />
-        <CompactFact label="Tipo" value={reservation.tableLabel ?? "Mesa por confirmar"} />
-      </DetailCard>
-      <DetailSection title="Estado de la reserva">
-        <StatusProgress
-          steps={RESERVATION_PROGRESS_STEPS}
-          currentIndex={progress.stepIndex}
-          statusLabel={progress.label}
-          tone={progress.tone}
-          isTerminalNegative={progress.isTerminalNegative}
-        />
-      </DetailSection>
-      <DetailCard title="Detalles de la reserva">
-        <CompactFact label="Área / mesa" value={reservation.tableLabel ?? "Por confirmar"} />
-        <CompactFact label="Código de reserva" value={reservation.reservationNumber ?? "Pendiente"} strong />
-        <CompactFact
-          label="Última actualización"
-          value={formatActivityDateTime(getReservationDateTime(reservation))}
-        />
-      </DetailCard>
-      <div className="rounded-[22px] border border-emerald-100 bg-emerald-50/70 px-4 py-3 text-sm leading-6 text-emerald-900">
-        Te enviaremos un recordatorio antes de tu reserva.
-      </div>
-      <Button className="h-12 w-full rounded-2xl text-base" onClick={onBack}>
-        Volver al historial
-      </Button>
-    </section>
-  );
-}
 
 function DetailHeader({
   title,

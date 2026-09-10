@@ -1,7 +1,6 @@
 import { z } from "zod";
 
 import type {
-  AdminOverviewOperationsResponse,
   AdminOverviewPerformanceResponse,
 } from "@/modules/dashboard/domain/admin-overview.types";
 
@@ -100,27 +99,12 @@ const jsonRangeSchema = z.object({
   }
 });
 
-const operationsPayloadSchema = z.object({
-  data: z.object({
-    openOrders: countSchema,
-    ordersPendingAction: countSchema,
-    reservationsToday: countSchema,
-    reservationsPendingAction: countSchema,
-  }),
-  meta: z.object({
-    generatedAt: utcTimestampSchema,
-    timeZone: z.literal("America/Managua"),
-    localDate: localDateSchema,
-  }),
-});
-
 const performancePayloadSchema = z.object({
   data: z.object({
     metrics: z.object({
       completedOrderValue: metricComparisonSchema,
       completedOrderCount: countComparisonSchema,
       averageTicket: metricComparisonSchema,
-      activeReservations: countComparisonSchema,
     }),
     series: z.array(
       z.object({
@@ -130,18 +114,6 @@ const performancePayloadSchema = z.object({
         completedOrderCount: countSchema,
       }),
     ),
-    reservations: z.object({
-      requestsReceived: countSchema,
-      active: countSchema,
-      byStatus: z.object({
-        requested: countSchema,
-        approved: countSchema,
-        rejected: countSchema,
-        seated: countSchema,
-        cancelled: countSchema,
-        no_show: countSchema,
-      }),
-    }),
     topProducts: z.array(
       z.object({
         productId: z.string(),
@@ -162,12 +134,6 @@ const performancePayloadSchema = z.object({
     }),
   }),
 });
-
-export function isAdminOverviewOperationsPayload(
-  value: unknown,
-): value is AdminOverviewOperationsResponse {
-  return operationsPayloadSchema.safeParse(value).success;
-}
 
 export function isAdminOverviewPerformancePayload(
   value: unknown,

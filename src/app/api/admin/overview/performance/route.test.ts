@@ -22,7 +22,6 @@ const responsePayload = {
       completedOrderValue: { current: 100, previous: 50, changePercent: 100 },
       completedOrderCount: { current: 1, previous: 1, changePercent: 0 },
       averageTicket: { current: 100, previous: 50, changePercent: 100 },
-      activeReservations: { current: 2, previous: 1, changePercent: 100 },
     },
     series: [
       {
@@ -32,18 +31,6 @@ const responsePayload = {
         completedOrderCount: 1,
       },
     ],
-    reservations: {
-      requestsReceived: 3,
-      active: 2,
-      byStatus: {
-        requested: 1,
-        approved: 1,
-        rejected: 0,
-        seated: 1,
-        cancelled: 0,
-        no_show: 0,
-      },
-    },
     topProducts: [
       {
         productId: "product-1",

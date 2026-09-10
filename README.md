@@ -19,7 +19,9 @@ MVP para pedidos de One Burger: menu publico, carrito, checkout **solo para reti
 - Propina: opcional, desmarcada por defecto, 10 % si el cliente la agrega.
 
 Fuera del MVP: reservas, mesas, delivery, inventario, reportes avanzados y pagos online.
-Ese codigo sigue en el repositorio pero no forma parte de la navegacion principal; ver `ops/production-readiness.md`.
+Ese codigo sigue en el repositorio, pero **no se ofrece en la UI ni en las APIs publicas**:
+las paginas de admin de esos modulos quedan solo accesibles por URL y las APIs de reservas,
+mesas y zonas de delivery fueron retiradas. Ver `ops/production-readiness.md`.
 
 ## Validacion
 

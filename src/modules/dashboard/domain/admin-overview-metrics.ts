@@ -1,5 +1,4 @@
 import type { OrderStatus } from "@/modules/orders/domain/order.types";
-import type { ReservationStatus } from "@/modules/reservations/domain/reservation.types";
 
 import type {
   AggregateOverviewInput,
@@ -15,20 +14,6 @@ export const COMPLETED_ORDER_STATUSES: readonly OrderStatus[] = [
   "picked_up",
   "served",
   "closed",
-];
-
-const ACTIVE_RESERVATION_STATUSES: readonly ReservationStatus[] = [
-  "approved",
-  "seated",
-];
-
-const RESERVATION_STATUSES: readonly ReservationStatus[] = [
-  "requested",
-  "approved",
-  "rejected",
-  "seated",
-  "cancelled",
-  "no_show",
 ];
 
 export function calculateChangePercent(
@@ -69,12 +54,6 @@ function isWithinUtcRange(date: Date, range: OverviewRange): boolean {
   return date >= range.utcStart && date < range.utcEnd;
 }
 
-function isWithinLocalRange(localDate: string, range: OverviewRange): boolean {
-  return (
-    localDate >= range.localStartDate && localDate <= range.localEndDate
-  );
-}
-
 function buildComparison(
   current: number,
   previous: number,
@@ -84,12 +63,6 @@ function buildComparison(
     previous,
     changePercent: calculateChangePercent(current, previous),
   };
-}
-
-function emptyReservationCounts(): Record<ReservationStatus, number> {
-  return Object.fromEntries(
-    RESERVATION_STATUSES.map((status) => [status, 0]),
-  ) as Record<ReservationStatus, number>;
 }
 
 export function aggregateOverviewPerformance(
@@ -186,49 +159,13 @@ export function aggregateOverviewPerformance(
       left.productId.localeCompare(right.productId),
   );
 
-  const reservationCounts = emptyReservationCounts();
-  let requestsReceived = 0;
-  let currentActiveReservations = 0;
-  let previousActiveReservations = 0;
-
-  for (const reservation of input.reservations) {
-    const createdAt = new Date(reservation.createdAt);
-    if (
-      Number.isFinite(createdAt.getTime()) &&
-      isWithinUtcRange(createdAt, input.ranges.current)
-    ) {
-      requestsReceived += 1;
-    }
-
-    if (isWithinLocalRange(reservation.serviceDate, input.ranges.current)) {
-      reservationCounts[reservation.status] += 1;
-      if (ACTIVE_RESERVATION_STATUSES.includes(reservation.status)) {
-        currentActiveReservations += 1;
-      }
-    } else if (
-      isWithinLocalRange(reservation.serviceDate, input.ranges.previous) &&
-      ACTIVE_RESERVATION_STATUSES.includes(reservation.status)
-    ) {
-      previousActiveReservations += 1;
-    }
-  }
-
   return {
     metrics: {
       completedOrderValue: buildComparison(currentValue, previousValue),
       completedOrderCount: buildComparison(currentCount, previousCount),
       averageTicket: buildComparison(currentAverage, previousAverage),
-      activeReservations: buildComparison(
-        currentActiveReservations,
-        previousActiveReservations,
-      ),
     },
     series,
-    reservations: {
-      requestsReceived,
-      active: currentActiveReservations,
-      byStatus: reservationCounts,
-    },
     topProducts,
   };
 }

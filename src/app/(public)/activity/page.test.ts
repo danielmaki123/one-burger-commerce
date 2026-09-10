@@ -5,8 +5,6 @@ import { describe, expect, it, vi } from "vitest";
 import CustomerActivityPage, {
   OrderDetailView,
   OrderHistoryCard,
-  ReservationDetailView,
-  ReservationHistoryCard,
 } from "./page";
 
 vi.mock("next/navigation", () => ({
@@ -23,15 +21,13 @@ vi.mock("../_components/order-tracking-session", () => ({
 }));
 
 describe("public activity page", () => {
-  it("renders the history header, focused tabs and empty orders state", () => {
+  it("renders the order history header, single tab and empty orders state", () => {
     const html = renderToStaticMarkup(createElement(CustomerActivityPage));
 
     expect(html).toContain("Historial");
-    expect(html).toContain(
-      "Revisá tus pedidos y reservas recientes.",
-    );
+    expect(html).toContain("Revisá tus pedidos recientes.");
     expect(html).toContain("Pedidos");
-    expect(html).toContain("Reservas");
+    expect(html).not.toContain("Reservas");
     expect(html).toContain("Pedidos recientes");
     expect(html).toContain("Aún no tenés pedidos");
     expect(html).toContain(
@@ -72,31 +68,6 @@ describe("public activity page", () => {
     expect(html).not.toContain("Ver pedido");
   });
 
-  it("renders a clean reservation detail", () => {
-    const html = renderToStaticMarkup(
-      createElement(ReservationDetailView, {
-        reservation: {
-          reservationNumber: "R-7XK29P",
-          reservationLookupToken: "token",
-          status: "approved",
-          date: "2026-06-15",
-          time: "19:00",
-          partySize: 2,
-          tableLabel: "Mesa 4 · Terraza",
-          updatedAt: "2026-06-15T23:27:00.000Z",
-        },
-        onBack: vi.fn(),
-      }),
-    );
-
-    expect(html).toContain("R-7XK29P");
-    expect(html).toContain("Confirmada");
-    expect(html).toContain("Estado de la reserva");
-    expect(html).toContain("Detalles de la reserva");
-    expect(html).toContain("Volver al historial");
-    expect(html).not.toContain("Ver detalle");
-  });
-
   it("renders order history cards with mock-aligned summary layout", () => {
     const html = renderToStaticMarkup(
       createElement(OrderHistoryCard, {
@@ -125,29 +96,4 @@ describe("public activity page", () => {
     expect(html).not.toContain("›");
   });
 
-  it("renders reservation history cards with compact facts and action", () => {
-    const html = renderToStaticMarkup(
-      createElement(ReservationHistoryCard, {
-        reservation: {
-          reservationNumber: "T-MSRQEQS2",
-          status: "approved",
-          date: "2026-08-24",
-          time: "19:30",
-          partySize: 2,
-          tableLabel: "Terraza · Mesa 12",
-          updatedAt: "2026-08-24T19:30:00.000Z",
-        },
-        onOpen: vi.fn(),
-      }),
-    );
-
-    expect(html).toContain("T-MSRQEQS2");
-    expect(html).toContain("Confirmada");
-    expect(html).toContain("Terraza");
-    expect(html).toContain("Mesa 12");
-    expect(html).toContain("Volver a pedir");
-    expect(html).toContain("mini-steps");
-    expect(html).not.toContain("Personas");
-    expect(html).not.toContain("Mesa / área");
-  });
 });
