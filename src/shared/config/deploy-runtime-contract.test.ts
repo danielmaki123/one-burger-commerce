@@ -86,6 +86,16 @@ describe("deploy runtime contract", () => {
     expect(startScript).toContain("CUSTOMER_OTP_STAGING_SMOKE_MODE");
   });
 
+  it("only bootstraps the first admin when the operator opts in", () => {
+    const startScript = readRepoFile("scripts/start-production.mjs");
+
+    expect(startScript).toContain("BOOTSTRAP_ADMIN_ON_START");
+    expect(startScript).toContain("scripts/bootstrap-admin.ts");
+    // The bootstrap must run before the server starts, after migrations.
+    expect(startScript.indexOf("bootstrapAdminIfRequested()")).toBeGreaterThan(-1);
+    expect(startScript).toContain('BOOTSTRAP_ADMIN_ON_START !== "true"');
+  });
+
   it("verifies the build before publishing a production image", () => {
     const workflow = readRepoFile(".github/workflows/publish-ghcr.yml");
 

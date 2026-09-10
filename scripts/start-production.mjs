@@ -63,7 +63,40 @@ function validateEnvironment() {
   );
 }
 
+/**
+ * One-shot first-admin creation, used only when the operator sets
+ * `BOOTSTRAP_ADMIN_ON_START=true` together with the BOOTSTRAP_ADMIN_* values.
+ * It runs after migrations (the AdminUser table has to exist) and never logs the
+ * password. Remove the flag afterwards: the account persists on its own.
+ */
+function bootstrapAdminIfRequested() {
+  if (process.env.BOOTSTRAP_ADMIN_ON_START !== "true") {
+    return;
+  }
+
+  const email = process.env.BOOTSTRAP_ADMIN_EMAIL?.trim();
+  if (!email || !process.env.BOOTSTRAP_ADMIN_PASSWORD) {
+    console.warn(
+      "[startup] BOOTSTRAP_ADMIN_ON_START=true but BOOTSTRAP_ADMIN_EMAIL/PASSWORD are missing; skipping.",
+    );
+    return;
+  }
+
+  console.log(`[startup] creating/updating the initial admin ${email}...`);
+  const result = run("npx", ["tsx", "scripts/bootstrap-admin.ts"]);
+
+  if (result.status !== 0) {
+    console.error("[startup] initial admin bootstrap failed.");
+    process.exit(result.status ?? 1);
+  }
+
+  console.warn(
+    "[startup] initial admin ready. Remove BOOTSTRAP_ADMIN_ON_START and the BOOTSTRAP_ADMIN_* variables from the service and redeploy.",
+  );
+}
+
 function startServer() {
+  bootstrapAdminIfRequested();
   const startResult = run("npm", ["run", "start"]);
   process.exit(startResult.status ?? 1);
 }
