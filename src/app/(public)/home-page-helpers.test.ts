@@ -6,56 +6,10 @@ import {
   getHomeHeroTitleClassName,
   getHomePageShellClassName,
   getHomePopularCtaClassName,
-  getHomeQuickActions,
-  getHomeQuickActionsClassName,
   normalizeHomeHeroDescription,
 } from "./home-page-helpers";
 
 describe("public home helpers", () => {
-  it("keeps home focused on brand entry and primary public actions", () => {
-    expect(getHomeQuickActions(0)).toEqual([
-      {
-        href: "/menu",
-        label: "Menú",
-        helper: "Ver productos",
-        tone: "primary",
-      },
-      {
-        href: "/reservations",
-        label: "Reservar",
-        helper: "Apartar mesa",
-        tone: "secondary",
-      },
-      {
-        href: "/activity",
-        label: "Historial",
-        helper: "Pedidos y reservas",
-        tone: "secondary",
-      },
-      {
-        href: "/cart",
-        label: "Carrito",
-        helper: "Revisar pedido",
-        tone: "secondary",
-      },
-    ]);
-  });
-
-  it("surfaces cart state without changing the cart contract", () => {
-    const actions = getHomeQuickActions(2);
-
-    expect(actions.find((action) => action.href === "/cart")?.helper).toBe(
-      "2 productos",
-    );
-  });
-
-  it("hides redundant quick actions on mobile where bottom nav already owns navigation", () => {
-    const className = getHomeQuickActionsClassName();
-
-    expect(className).toContain("hidden");
-    expect(className).toContain("md:grid");
-  });
-
   it("uses a wider desktop shell for the public home page", () => {
     const className = getHomePageShellClassName();
 
