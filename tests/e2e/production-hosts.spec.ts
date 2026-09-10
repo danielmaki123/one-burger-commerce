@@ -57,7 +57,7 @@ test.describe("dominios de producción", () => {
     await page.goto("/");
 
     await expect(page.locator("#landing-frame")).toBeVisible();
-    await expect(page.getByRole("link", { name: "MENU" })).toHaveAttribute(
+    await expect(page.getByRole("link", { name: "MENÚ" })).toHaveAttribute(
       "href",
       menuBase!,
     );

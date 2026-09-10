@@ -38,6 +38,7 @@ export function LandingExperience({
   const [frameIndex, setFrameIndex] = useState(0);
   const [hasScrolled, setHasScrolled] = useState(false);
   const [menuRevealed, setMenuRevealed] = useState(false);
+  const [firstFrameReady, setFirstFrameReady] = useState(false);
   const preloadedRef = useRef<Set<number>>(new Set());
 
   useEffect(() => {
@@ -58,15 +59,23 @@ export function LandingExperience({
     let lastIndex = -1;
     let lastRevealed = false;
 
+    function preloadFrame(index: number) {
+      if (preloadedRef.current.has(index)) return;
+      preloadedRef.current.add(index);
+
+      const image = new Image();
+      // Las precargas no pueden competir con la frame que el cliente está
+      // mirando: en datos lentos le robaban el ancho de banda y la primera
+      // imagen tardaba 11 s en aparecer.
+      image.fetchPriority = "low";
+      image.src = framePathForIndex(index);
+    }
+
     function preloadAround(index: number) {
       const end = Math.min(LANDING_FRAME_NUMBERS.length - 1, index + preloadAhead);
 
       for (let i = index; i <= end; i += 1) {
-        if (preloadedRef.current.has(i)) continue;
-        preloadedRef.current.add(i);
-
-        const image = new Image();
-        image.src = framePathForIndex(i);
+        preloadFrame(i);
       }
     }
 
@@ -103,7 +112,25 @@ export function LandingExperience({
       window.requestAnimationFrame(render);
     }
 
-    preloadAround(0);
+    // La precarga arranca recién cuando la primera frame terminó de cargar, así
+    // el ancho de banda inicial es para lo único que el cliente ve.
+    const visibleFrame = document.getElementById("landing-frame") as HTMLImageElement | null;
+
+    if (visibleFrame?.complete) {
+      // Si llegó de caché, `load` ya no se dispara y el póster quedaría encima.
+      setFirstFrameReady(true);
+    }
+
+    const firstFrameReady =
+      visibleFrame && !visibleFrame.complete
+        ? new Promise<void>((resolve) => {
+            visibleFrame.addEventListener("load", () => resolve(), { once: true });
+            visibleFrame.addEventListener("error", () => resolve(), { once: true });
+          })
+        : Promise.resolve();
+
+    void firstFrameReady.then(() => preloadAround(0));
+
     render();
     window.addEventListener("scroll", requestRender, { passive: true });
     window.addEventListener("resize", requestRender);
@@ -124,7 +151,10 @@ export function LandingExperience({
         ref={stageRef}
         aria-label={`Animación de ${brandName}`}
       >
-        <section className="landing-scene">
+        <section className="landing-scene" data-loaded={firstFrameReady}>
+          {/* Póster borroso de la primera frame: se ve al instante mientras la
+              imagen real viaja, así el cliente nunca mira una pantalla negra. */}
+          <div className="landing-poster" aria-hidden="true" />
           <img
             className="landing-frame"
             id="landing-frame"
@@ -135,11 +165,14 @@ export function LandingExperience({
             height={1280}
             fetchPriority="high"
             decoding="async"
+            onLoad={() => setFirstFrameReady(true)}
           />
         </section>
       </main>
 
-      <p className="landing-scroll-hint" data-visible={!hasScrolled}>
+      {/* Ayuda para saber que hay que scrollear. Es decorativa: a un lector de
+          pantalla no le aporta nada, así que queda fuera del árbol. */}
+      <p className="landing-scroll-hint" data-visible={!hasScrolled} aria-hidden="true">
         Deslizá
       </p>
 
@@ -150,6 +183,20 @@ export function LandingExperience({
         data-revealed={menuRevealed}
       >
         {menuLabel}
+        <svg
+          aria-hidden="true"
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="landing-menu-button__arrow"
+        >
+          <path d="M5 12h13" />
+          <path d="m12 5 7 7-7 7" />
+        </svg>
       </a>
     </div>
   );

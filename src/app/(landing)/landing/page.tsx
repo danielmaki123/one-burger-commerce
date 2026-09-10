@@ -25,6 +25,6 @@ export default async function LandingPage() {
   const menuUrl = resolveMenuAppUrl(host) ?? "/menu";
 
   return (
-    <LandingExperience brandName={settings.name} menuUrl={menuUrl} menuLabel="MENU" />
+    <LandingExperience brandName={settings.name} menuUrl={menuUrl} menuLabel="MENÚ" />
   );
 }

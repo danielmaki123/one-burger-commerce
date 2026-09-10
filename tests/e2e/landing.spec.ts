@@ -33,7 +33,7 @@ test.describe("apex (reescritura de producción)", () => {
     await page.goto(`http://${APEX_HOST}:${APEX_PORT}/`);
 
     await expect(page.locator("#landing-frame")).toBeVisible();
-    await expect(page.getByRole("link", { name: "MENU" })).toHaveAttribute(
+    await expect(page.getByRole("link", { name: "MENÚ" })).toHaveAttribute(
       "href",
       `https://menu.${APEX_HOST}`,
     );
@@ -58,7 +58,7 @@ test.describe("landing", () => {
   }
 
   function menuButton(page: import("@playwright/test").Page) {
-    return page.getByRole("link", { name: "MENU" });
+    return page.getByRole("link", { name: "MENÚ" });
   }
 
   /**
@@ -155,8 +155,27 @@ test.describe("landing", () => {
     expect(await frame.getAttribute("src")).toBe(firstFrame);
   });
 
+  test("el póster cubre la espera y se desvanece cuando la frame está lista", async ({
+    page,
+  }) => {
+    // En celular con datos lentos la frame tardaba más de 11 s: sin póster el
+    // cliente miraba una pantalla negra. El póster viaja en el CSS (~1 KB).
+    await page.goto("/landing");
+
+    const poster = page.locator(".landing-poster");
+    const background = await poster.evaluate(
+      (element) => window.getComputedStyle(element).backgroundImage,
+    );
+    expect(background).toContain("data:image/webp;base64,");
+
+    // Con la frame ya cargada (local va rápido), el póster se apaga.
+    await expect(page.locator(".landing-scene")).toHaveAttribute("data-loaded", "true");
+    await expect
+      .poll(() => poster.evaluate((element) => Number(window.getComputedStyle(element).opacity)))
+      .toBe(0);
+  });
+
   test("todos los frames de la secuencia están publicados", async ({ request }) => {
-    // Si un frame faltara, el scrubbing mostraría un hueco.
     const frames = [
       "burger_0045",
       "burger_0069",

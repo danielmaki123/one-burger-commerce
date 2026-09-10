@@ -13,8 +13,14 @@
   --cheese: #f9c94d;
   --landing-cream: #fff2d8;
   --landing-black: #030201;
+  --landing-ink: #1b1007;
+  /* Escala de capas del landing. */
+  --z-frame: 0;
+  --z-hint: 5;
+  --z-cta: 10;
 
   min-height: 100vh;
+  min-height: 100dvh;
   color-scheme: dark;
   background:
     radial-gradient(circle at 50% 55%, rgb(255 173 61 / 16%), transparent 24rem),
@@ -39,6 +45,7 @@ body:has(.landing-shell) {
   top: 0;
   display: grid;
   min-height: 100vh;
+  min-height: 100dvh;
   place-items: center;
   overflow: hidden;
   isolation: isolate;
@@ -70,6 +77,34 @@ body:has(.landing-shell) {
   transform: translateX(-50%);
 }
 
+/* Póster de la primera frame: 24 px embebidos como data URI (~1 KB).
+   En celular con datos lentos la frame real tardaba más de 11 s y el cliente veía
+   negro. Esto viaja con la hoja de estilos, no compite por ancho de banda y se
+   desvanece cuando la imagen real está lista.
+   Se regenera con `node scripts/make-landing-poster.mjs`. */
+.landing-poster {
+  grid-area: 1 / 1;
+  width: min(72vw, 680px);
+  max-width: 100%;
+  max-height: 92vh;
+  aspect-ratio: 9 / 16;
+  background-image: url("data:image/webp;base64,UklGRsQDAABXRUJQVlA4WAoAAAAgAAAAFwAAKgAASUNDUMgBAAAAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADZWUDgg1gEAAPAJAJ0BKhgAKwA+3WKpT6ilI6IqqAEQG4lsAJ0yhHw8gSxdMQNVCA2/XiAev+240ixWZlru/gnd2Q7Eslqo/Ytfuf0O9W5j5Je6BDSGP8/uBy7YJK9IjwAAzinz1t50RN11yUkyriQRGGvTOiZK63e04jMgwU1s4wjOfO9HcyJHQ7byTBaQXrzov/3s3Oo0u4cwnWfgIHvf6+j8xSNUNbevfGrqAVO5wLy29I9FL8w/vA4NmUjxVvdjPKQG4Cz+CLl/vr9BzRxAhFqJ7R2vMmoV2EVyTvqmvZCWg1uwcW12CJ2Gu+0kfJq+Ap0YN9Sy0E6F9UBxe3Ri58ruAZZ4zKAJ9O+Eakp/n4ekkaPa7+7KE9QZw34e1A5N+jRCH77bJ3IRO08lTLqDvkKikUKFIPaB1dUxAOlGdZqtLlTR/x2hlnm2Uz/I5wt42U1uIbzLLPnLQh2//JWefePesOdM3JHhodh75RoG9iJJUP0U2AavKiMXuRY+5eDkDHmC7+2O0mh2Y+0f//NCniwetQ3tQSvldn+vUDsCOK1LWp1KbKxHovfuyFlZ+v5LIHdg+zm0+0Peh8zrY8ajjudKql/r/zqw+dfrnAIdiz18HoGjsYh6vPQYq4AA");
+  background-size: contain;
+  background-position: center;
+  background-repeat: no-repeat;
+  filter: blur(22px) saturate(1.15);
+  transition: opacity 500ms ease;
+}
+
+.landing-scene[data-loaded="true"] .landing-poster {
+  opacity: 0;
+}
+
+/* Frame real y póster comparten celda del grid: superpuestos y centrados. */
+.landing-frame {
+  grid-area: 1 / 1;
+}
+
 .landing-frame {
   width: min(72vw, 680px);
   max-width: 100%;
@@ -83,42 +118,53 @@ body:has(.landing-shell) {
     drop-shadow(0 0 34px rgb(255 173 61 / 18%));
 }
 
+/**
+ * CTA del landing.
+ *
+ * Es una pastilla ámbar sólida a propósito: sobre negro lo que levanta un botón
+ * es el contraste, no la sombra. Sin borde, sin degradado, sin brillo interior y
+ * sin halo — cada una de esas capas era decoración que además se sumaba al
+ * patrón "borde de 1px + sombra ancha", que la guía de diseño prohíbe.
+ * El ámbar hace el trabajo y el texto oscuro da 10:1 de contraste.
+ */
 .landing-menu-button {
   position: fixed;
   left: 50%;
-  bottom: max(1.25rem, env(safe-area-inset-bottom));
-  z-index: 10;
+  bottom: max(1.5rem, calc(env(safe-area-inset-bottom) + 0.75rem));
+  z-index: var(--z-cta);
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  min-width: 9.25rem;
-  min-height: 3.35rem;
-  padding: 0 1.55rem;
-  border: 1px solid rgb(255 242 216 / 38%);
+  gap: 0.6rem;
+  min-height: 3.25rem;
+  padding: 0 1.6rem 0 1.75rem;
+  border: 0;
   border-radius: 999px;
-  color: #1b1007;
-  background:
-    linear-gradient(180deg, rgb(255 255 255 / 68%), rgb(255 255 255 / 0%) 34%),
-    linear-gradient(135deg, var(--cheese), var(--ember));
-  box-shadow:
-    0 18px 48px rgb(0 0 0 / 48%),
-    0 0 0 8px rgb(255 173 61 / 8%),
-    inset 0 1px 0 rgb(255 255 255 / 64%);
-  font-size: 0.98rem;
-  font-weight: 950;
-  letter-spacing: 0.16em;
+  background: var(--ember);
+  color: var(--landing-ink);
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   text-decoration: none;
+  cursor: pointer;
   /* Aparece recién al terminar la animación (data-revealed lo pone el cliente).
      Solo se oculta con opacidad: `visibility: hidden` lo sacaría del árbol de
      accesibilidad y dejaría al teclado sin forma de llegar al menú. */
   opacity: 0;
   pointer-events: none;
-  transform: translate(-50%, 1.25rem);
+  transform: translate(-50%, 0.85rem);
   transition:
-    opacity 320ms ease,
-    transform 320ms ease,
-    box-shadow 180ms ease,
-    filter 180ms ease;
+    opacity 420ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 420ms cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 160ms ease;
+}
+
+.landing-menu-button__arrow {
+  width: 1.1rem;
+  height: 1.1rem;
+  flex-shrink: 0;
+  transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .landing-menu-button[data-revealed="true"] {
@@ -127,36 +173,38 @@ body:has(.landing-shell) {
   transform: translateX(-50%);
 }
 
+.landing-menu-button[data-revealed="true"]:hover {
+  background: var(--cheese);
+}
+
+.landing-menu-button[data-revealed="true"]:hover .landing-menu-button__arrow {
+  transform: translateX(3px);
+}
+
+.landing-menu-button:active {
+  transform: translateX(-50%) scale(0.97);
+}
+
 /* Quien navega con teclado no puede quedar encerrado: al enfocar, aparece. */
 .landing-menu-button:focus-visible {
   opacity: 1;
   pointer-events: auto;
   transform: translateX(-50%);
   outline: 3px solid var(--landing-cream);
-  outline-offset: 5px;
+  outline-offset: 4px;
 }
 
-.landing-menu-button[data-revealed="true"]:hover {
-  filter: saturate(1.08) brightness(1.04);
-  transform: translateX(-50%) translateY(-2px);
-  box-shadow:
-    0 22px 60px rgb(0 0 0 / 52%),
-    0 0 0 10px rgb(255 173 61 / 10%),
-    inset 0 1px 0 rgb(255 255 255 / 70%);
-}
-
-/* Ayuda de scroll, se oculta sola cuando el usuario ya empezó a bajar. */
+/* Ayuda de scroll: aparece al entrar y se va cuando el usuario ya bajó. */
 .landing-scroll-hint {
   position: fixed;
   left: 50%;
-  bottom: max(5.5rem, calc(env(safe-area-inset-bottom) + 5.5rem));
-  z-index: 10;
+  bottom: max(6.5rem, calc(env(safe-area-inset-bottom) + 6.5rem));
+  z-index: var(--z-hint);
   transform: translateX(-50%);
-  color: rgb(255 242 216 / 55%);
-  font-size: 0.7rem;
-  letter-spacing: 0.28em;
-  text-transform: uppercase;
-  transition: opacity 300ms ease;
+  color: rgb(255 242 216 / 62%);
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  transition: opacity 400ms ease;
   pointer-events: none;
 }
 
@@ -178,16 +226,13 @@ body:has(.landing-shell) {
     bottom: 12vh;
     width: min(84vw, 420px);
   }
-
-  .landing-menu-button {
-    min-width: 8.5rem;
-    min-height: 3.1rem;
-  }
 }
 
-/* Sin movimiento: se muestra un frame fijo y el botón sigue funcionando. */
+/* Sin movimiento: el botón aparece al instante y sin transición. */
 @media (prefers-reduced-motion: reduce) {
-  .landing-menu-button {
+  .landing-menu-button,
+  .landing-menu-button__arrow,
+  .landing-scroll-hint {
     transition: none;
   }
 }
