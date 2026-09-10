@@ -15,6 +15,7 @@
     "test:e2e": "playwright test",
     "test:e2e:prod": "playwright test tests/e2e/production-smoke.spec.ts",
     "test:e2e:prod:full": "playwright test tests/e2e",
+    "test:e2e:prod:hosts": "playwright test tests/e2e/production-hosts.spec.ts",
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",

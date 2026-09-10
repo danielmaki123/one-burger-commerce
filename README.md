@@ -25,6 +25,13 @@ Un solo build sirve tres hosts; el ruteo se decide por el host de la request
 clasificación: siguen sirviendo la app de pedidos tal cual, así que el entorno
 local y la suite E2E no dependen de los subdominios.
 
+Verificación de los tres dominios (solo lectura, se salta sola si `BASE_URL` no
+es el dominio de marca):
+
+```bash
+BASE_URL=https://oneburgernic.com npm run test:e2e:prod:hosts
+```
+
 ## Alcance MVP
 
 - Publico: home, menu, detalle de producto, carrito, checkout pickup, confirmacion y seguimiento del pedido.

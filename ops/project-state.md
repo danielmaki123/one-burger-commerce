@@ -267,6 +267,24 @@ productos: es el primer pendiente de contenido.
   último) y que con `prefers-reduced-motion` el frame queda fijo. Esa parte se agregó al
   verificar antes del deploy, porque ningún test la cubría: los unitarios solo prueban la
   matemática del scroll y el render del servidor. Suite E2E completa: **17/17**.
+- **Verificación de los tres dominios** (`tests/e2e/production-hosts.spec.ts`, solo
+  lectura, `npm run test:e2e:prod:hosts`): comprueba el landing en el apex, las
+  redirecciones a `menu.` y `admin.`, que la app responde en su subdominio y que los frames
+  se sirven sin redirigir. Se salta sola si `BASE_URL` no es el dominio de marca, así que
+  no afecta la suite local.
+  - **Pre-flight contra producción (antes del deploy)**: los 6 casos fallan exactamente en
+    lo que introducen los commits 1 y 2 (el apex todavía devuelve 200 en `/menu`, `/admin`
+    redirige al login del host actual y los frames dan 404). Eso confirma que el arnés mide
+    lo que dice medir; tienen que quedar verdes con el deploy.
+
+### Pendiente inmediato
+
+- **Desplegar los commits del landing y la separación de dominios.** Está todo verificado
+  en local (958 unitarios, E2E 17/17, CI verde en los tres commits) y los subdominios ya
+  existen, pero **falta el OK del owner**: el deploy cambia URLs de producción. Se
+  confirmó con él dos veces y todavía no respondió.
+  - Después del deploy: `BASE_URL=https://oneburgernic.com npm run test:e2e:prod:hosts`
+    y el smoke productivo.
 
 **Arreglo de branding: el logo y los colores no llegaban a toda la app (2026-09-10)**
 
