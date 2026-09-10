@@ -1,6 +1,6 @@
 # Estado del proyecto — One Burger Commerce
 
-> Actualizado: 2026-09-10 · Commit en `main`: `c785446` · Build en producción: `build-20260910-150351`
+> Actualizado: 2026-09-10 · Commit en `main`: `8b022e3` · Build en producción: `build-20260910-170321`
 > Este documento es el punto de entrada para retomar el trabajo. Mantenerlo al día al cerrar cada tarea.
 > Para arrancar en un chat nuevo: `ops/tasks/START-HERE.md`.
 
@@ -169,10 +169,35 @@ productos: es el primer pendiente de contenido.
     requiere un volumen persistente en Easypanel, que es una decisión de infraestructura
     del owner. Hoy los logos se configuran por URL.
 
+**Deploy de la personalización a producción (2026-09-10)**
+
+- Se desplegó `8b022e3` con **una sola llamada a la API del panel**:
+  `services/app/deployService` sobre el servicio que ya existía
+  (`brunobot/oneburguerweb`). **No se creó ni se reconfiguró nada**: no se usó
+  `npm run deploy:easypanel` justamente porque ese script además reescribe
+  `DATABASE_URL`/`APP_ENV`/`NODE_ENV`/`PORT` y crea servicios si un nombre no coincide.
+- Verificado antes de tocar nada (lectura): existe el proyecto `brunobot`, existen
+  `oneburguerweb` (app, GitHub `main`, Dockerfile, 1 réplica) y `oneburguer-postgres`, y
+  `DATABASE_URL` apunta a `brunobot_oneburguer-postgres`. El entorno del servicio conserva
+  `NEXTAUTH_SECRET` y las variables de notificaciones, y ya no tiene `BOOTSTRAP_ADMIN_*`.
+- Producción pasó de `build-20260910-150351` a **`build-20260910-170321`** con
+  `readiness` en `ready`, smoke productivo **4/4** y las cinco rutas públicas en 200.
+- La migración `20260910120000_add_business_settings` corre en el arranque del contenedor:
+  si fallara, el contenedor no arranca y Easypanel no promueve la versión. La versión se
+  promovió, así que quedó aplicada. **No se pudo leer la tabla directamente** porque los
+  logs del servicio no se exponen por la API del panel y no tenemos las credenciales del
+  owner: si se quiere una comprobación directa, correr en la terminal del servicio
+  `psql` o entrar a `/admin/settings`.
+- Producción se ve igual que antes salvo los cambios deliberados ya documentados: el
+  `<title>` es `One Burger` (era `One Burger Commerce`) y el manifiesto del PWA pasó a
+  generarse desde la configuración.
+
 ## 3. Infraestructura y secretos
 
 - `EASYPANEL_URL` y `EASYPANEL_TOKEN`: solo en el entorno de quien ejecuta el deploy (nunca
   en el repo). El token da acceso total al servidor: **rotarlo** si se compartió por chat.
+  ⚠️ El 2026-09-10 el token se pasó por chat para desplegar la personalización:
+  **conviene rotarlo**.
 - Variables obligatorias del servicio: `DATABASE_URL`, `DIRECT_URL`, `APP_ENV=production`,
   `NODE_ENV=production`, `PORT=3000`. El arranque falla si falta alguna.
 - Inventario completo: `ops/production-readiness.md` §1 y `.env.example`.
