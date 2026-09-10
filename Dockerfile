@@ -27,6 +27,9 @@ COPY --from=builder /app/public ./public
 # scripts/start-production.mjs (environment validation + migrations + next start).
 # Without this copy the container exits immediately with MODULE_NOT_FOUND.
 COPY --from=builder /app/scripts ./scripts
+# Ops scripts (first-admin bootstrap, staging seeds) import domain code from
+# src/, so the runtime image has to ship it too or those commands fail.
+COPY --from=builder /app/src ./src
 
 EXPOSE 3000
 

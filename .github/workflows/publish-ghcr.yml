@@ -134,9 +134,40 @@ jobs:
           curl -fsS http://127.0.0.1:3000/api/menu | grep -q '"categories"'
           test "$(curl -fsS -o /dev/null -w '%{http_code}' http://127.0.0.1:3000/menu)" = "200"
 
+      # Guards the image tooling: the ops scripts live in scripts/ but import
+      # from src/, so a missing copy only shows up when they actually run.
+      - name: Assert the first-admin bootstrap works inside the image
+        run: |
+          set -euo pipefail
+          docker rm -f obc-bootstrap >/dev/null 2>&1 || true
+          docker run -d --name obc-bootstrap --network host \
+            -e DATABASE_URL="postgresql://postgres:postgres@127.0.0.1:5432/verify?schema=public" \
+            -e DIRECT_URL="postgresql://postgres:postgres@127.0.0.1:5432/verify?schema=public" \
+            -e APP_ENV=production \
+            -e NODE_ENV=production \
+            -e PORT=3001 \
+            -e BOOTSTRAP_ADMIN_ON_START=true \
+            -e BOOTSTRAP_ADMIN_EMAIL=ci-owner@example.com \
+            -e BOOTSTRAP_ADMIN_PASSWORD=CiPassword12345 \
+            -e BOOTSTRAP_ADMIN_NAME="CI Owner" \
+            -e BOOTSTRAP_ADMIN_ROLE=owner \
+            one-burger-commerce:ci
+          for attempt in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:3001/api/readiness > /dev/null; then
+              break
+            fi
+            sleep 5
+          done
+          test "$(curl -fsS -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:3001/api/auth/admin/login \
+            -H 'Content-Type: application/json' \
+            -d '{"email":"ci-owner@example.com","password":"CiPassword12345"}')" = "200"
+          docker logs obc-bootstrap 2>&1 | grep -q 'initial admin ready'
+
       - name: Container logs
         if: failure()
-        run: docker logs obc || true
+        run: |
+          docker logs obc || true
+          docker logs obc-bootstrap 2>&1 | tail -40 || true
 
   publish:
     needs:

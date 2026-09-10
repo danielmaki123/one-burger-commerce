@@ -58,6 +58,8 @@ describe("deploy runtime contract", () => {
     // must ship that directory or the container dies with MODULE_NOT_FOUND.
     expect(entrypoint).toContain("scripts/");
     expect(dockerfile).toContain("COPY --from=builder /app/scripts ./scripts");
+    // The ops scripts import from src/, so the runner must ship it as well.
+    expect(dockerfile).toContain("COPY --from=builder /app/src ./src");
   });
 
   it("healthchecks the readiness route so an unreachable database is unhealthy", () => {
