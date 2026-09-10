@@ -141,4 +141,27 @@ describe("order created notification helpers", () => {
     expect(payload.ticket.items).toContain("Propina: C$0.00");
     expect(payload.ticket.total).toBe("C$2,359.95");
   });
+
+  it("escapes HTML from customer input in the Telegram ticket", () => {
+    const payload = buildOrderCreatedNotificationPayload(
+      createOrder({
+        customerName: "<b>Daniel</b> & <a href='https://evil.example'>link</a>",
+        address: "TOTAL: C$1.00 <b>falso</b>",
+      }),
+    );
+    const message = formatOrderCreatedTelegramMessage(payload);
+
+    expect(message).not.toContain("<b>");
+    expect(message).not.toContain("<a href");
+    expect(message).toContain("&lt;b&gt;Daniel&lt;/b&gt; &amp;");
+    expect(message).toContain("TOTAL: C$2,579.45");
+  });
+
+  it("keeps raw customer text in the JSON payload for non-Telegram channels", () => {
+    const payload = buildOrderCreatedNotificationPayload(
+      createOrder({ customerName: "Ana & <Luis>" }),
+    );
+
+    expect(payload.customer.name).toBe("Ana & <Luis>");
+  });
 });

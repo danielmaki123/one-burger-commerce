@@ -109,6 +109,19 @@ export function buildOrderCreatedNotificationPayload(
   };
 }
 
+/**
+ * The Telegram sender posts with `parse_mode: "HTML"`, and every field here
+ * comes from customer input (name, notes, address) or from the menu catalog.
+ * Escaping the assembled ticket prevents tag injection that could fake a total
+ * or break the message with a 400 from Telegram.
+ */
+export function escapeTelegramHtml(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
+}
+
 export function formatOrderCreatedTelegramMessage(
   payload: OrderCreatedNotificationPayload,
 ): string {
@@ -144,5 +157,5 @@ export function formatOrderCreatedTelegramMessage(
     "==============================",
   );
 
-  return lines.join("\n");
+  return escapeTelegramHtml(lines.join("\n"));
 }
