@@ -6,6 +6,47 @@ import { expect, test } from "@playwright/test";
  * En producción el apex reescribe `/` a `/landing`; acá se prueba por su ruta
  * directa, que funciona en cualquier host (local incluido).
  */
+
+/**
+ * Camino real de producción: el apex reescribe la raíz al landing.
+ *
+ * El navegador resuelve el dominio de marca contra el server local, así que se
+ * prueba la misma entrada que usa un cliente sin tocar DNS ni desplegar.
+ * Se activa con:
+ *   E2E_APEX_HOST=oneburgernic.com E2E_APEX_PORT=3210 npm run test:e2e
+ */
+const APEX_HOST = process.env.E2E_APEX_HOST;
+const APEX_PORT = process.env.E2E_APEX_PORT ?? "3210";
+
+test.use(
+  APEX_HOST
+    ? { launchOptions: { args: [`--host-resolver-rules=MAP ${APEX_HOST} 127.0.0.1`] } }
+    : {},
+);
+
+test.describe("apex (reescritura de producción)", () => {
+  test.skip(!APEX_HOST, "Se activa con E2E_APEX_HOST en el entorno local.");
+
+  test("la raíz del dominio sirve el landing y el botón apunta al subdominio", async ({
+    page,
+  }) => {
+    await page.goto(`http://${APEX_HOST}:${APEX_PORT}/`);
+
+    await expect(page.locator("#landing-frame")).toBeVisible();
+    await expect(page.getByRole("link", { name: "MENU" })).toHaveAttribute(
+      "href",
+      `https://menu.${APEX_HOST}`,
+    );
+    // Es un rewrite, no un redirect: la URL visible sigue siendo la raíz.
+    expect(new URL(page.url()).pathname).toBe("/");
+  });
+
+  // Las redirecciones entre dominios no se prueban acá: el `request` de Playwright
+  // no usa el resolvedor de hosts del navegador. Su lógica está cubierta en
+  // `src/shared/config/host-routing.test.ts` y `src/proxy.test.ts`, y contra
+  // producción real en `tests/e2e/production-hosts.spec.ts`.
+});
+
 test.describe("landing", () => {
   test("muestra la animación y el botón MENU", async ({ page }) => {
     await page.goto("/landing");
