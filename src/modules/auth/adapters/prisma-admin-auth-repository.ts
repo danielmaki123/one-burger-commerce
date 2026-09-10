@@ -33,6 +33,13 @@ export class PrismaAdminAuthRepository implements AdminAuthRepository {
     return user ? mapUser(user) : null;
   }
 
+  async findUserById(id: string) {
+    const prisma = getPrismaClient();
+    const user = await prisma.adminUser.findUnique({ where: { id } });
+
+    return user ? mapUser(user) : null;
+  }
+
   async createUser(input: {
     name: string;
     email: string;
@@ -57,6 +64,23 @@ export class PrismaAdminAuthRepository implements AdminAuthRepository {
     });
 
     return users.map(mapUser);
+  }
+
+  async updateUserRole(id: string, role: AdminRole) {
+    const prisma = getPrismaClient();
+    const user = await prisma.adminUser.update({
+      where: { id },
+      data: { role },
+    });
+
+    return mapUser(user);
+  }
+
+  async deleteUser(id: string) {
+    const prisma = getPrismaClient();
+    // AdminSession has onDelete: Cascade, so revoking the account also kills
+    // every open session for that user.
+    await prisma.adminUser.delete({ where: { id } });
   }
 
   async createSession(input: {

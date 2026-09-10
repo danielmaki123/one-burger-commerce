@@ -41,10 +41,6 @@ const ROLE_OPTIONS: Array<{ value: AdminRole; label: string; detail: string }> =
 const SELECT_CLASS =
   "h-11 w-full rounded-md border border-border bg-card px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand";
 
-function roleLabel(role: AdminRole) {
-  return ROLE_OPTIONS.find((option) => option.value === role)?.label ?? role;
-}
-
 function getErrorMessage(payload: unknown, fallback: string) {
   if (
     typeof payload === "object" &&
@@ -67,6 +63,7 @@ export default function AdminUsersPage() {
   const [loadError, setLoadError] = React.useState<string | null>(null);
   const [feedback, setFeedback] = React.useState<Feedback | null>(null);
   const [isSaving, setIsSaving] = React.useState(false);
+  const [busyUserId, setBusyUserId] = React.useState<string | null>(null);
   const [formData, setFormData] = React.useState({
     name: "",
     email: "",
@@ -128,6 +125,79 @@ export default function AdminUsersPage() {
       setFeedback({ type: "error", message: "No se pudo crear el usuario. Revisa la conexión." });
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleRoleChange = async (user: AdminUser, role: AdminRole) => {
+    if (role === user.role) return;
+
+    setBusyUserId(user.id);
+    setFeedback(null);
+
+    try {
+      const response = await fetch(`/api/admin/users/${user.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role }),
+      });
+
+      if (!response.ok) {
+        setFeedback({
+          type: "error",
+          message: getErrorMessage(
+            await response.json(),
+            "No se pudo cambiar el rol.",
+          ),
+        });
+        return;
+      }
+
+      setUsers((current) =>
+        current.map((entry) => (entry.id === user.id ? { ...entry, role } : entry)),
+      );
+      setFeedback({ type: "success", message: "Rol actualizado." });
+    } catch {
+      setFeedback({
+        type: "error",
+        message: "No se pudo cambiar el rol. Revisa la conexión.",
+      });
+    } finally {
+      setBusyUserId(null);
+    }
+  };
+
+  const handleRevoke = async (user: AdminUser) => {
+    const confirmed = window.confirm(
+      `¿Revocar el acceso de ${user.name}? Se cierran sus sesiones abiertas.`,
+    );
+
+    if (!confirmed) return;
+
+    setBusyUserId(user.id);
+    setFeedback(null);
+
+    try {
+      const response = await fetch(`/api/admin/users/${user.id}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        setFeedback({
+          type: "error",
+          message: getErrorMessage(await response.json(), "No se pudo revocar el acceso."),
+        });
+        return;
+      }
+
+      setUsers((current) => current.filter((entry) => entry.id !== user.id));
+      setFeedback({ type: "success", message: "Acceso revocado." });
+    } catch {
+      setFeedback({
+        type: "error",
+        message: "No se pudo revocar el acceso. Revisa la conexión.",
+      });
+    } finally {
+      setBusyUserId(null);
     }
   };
 
@@ -194,16 +264,41 @@ export default function AdminUsersPage() {
               {users.map((user) => (
                 <article
                   key={user.id}
-                  className="grid gap-2 px-4 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
+                  className="grid gap-3 px-4 py-3 sm:grid-cols-[minmax(0,1fr)_11rem_auto] sm:items-center"
                 >
                   <div className="min-w-0">
                     <p className="truncate text-sm font-semibold text-foreground">{user.name}</p>
                     <p className="truncate text-xs text-muted-foreground">{user.email}</p>
                   </div>
-                  <span className="inline-flex min-h-8 w-fit items-center gap-2 rounded-full bg-secondary px-3 text-xs font-semibold text-secondary-foreground">
-                    <ShieldCheck aria-hidden="true" className="h-3.5 w-3.5 text-brand" />
-                    {roleLabel(user.role)}
-                  </span>
+                  <label className="grid gap-1 text-xs font-medium text-muted-foreground">
+                    Rol
+                    <select
+                      aria-label={`Rol de ${user.name}`}
+                      value={user.role}
+                      disabled={busyUserId === user.id}
+                      onChange={(event) =>
+                        void handleRoleChange(user, event.target.value as AdminRole)
+                      }
+                      className={`${SELECT_CLASS} min-h-11`}
+                    >
+                      {ROLE_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    aria-label={`Revocar acceso de ${user.name}`}
+                    disabled={busyUserId === user.id}
+                    onClick={() => void handleRevoke(user)}
+                    className="min-h-11 w-full gap-2 sm:w-auto"
+                  >
+                    <ShieldCheck aria-hidden="true" className="h-4 w-4" />
+                    Revocar
+                  </Button>
                 </article>
               ))}
             </div>

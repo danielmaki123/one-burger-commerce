@@ -1,43 +1,15 @@
 import { describe, expect, it } from "vitest";
 
+import { InMemoryAdminAuthRepository } from "@/modules/auth/adapters/in-memory-admin-auth-repository";
 import { ADMIN_ROLES, type AdminRole } from "@/modules/auth/domain/admin-role";
-import type {
-  AdminSessionRecord,
-  AdminUserRecord,
-} from "@/modules/auth/domain/admin-auth.types";
+import type { AdminUserRecord } from "@/modules/auth/domain/admin-auth.types";
 import { AuthError } from "@/modules/auth/domain/auth-errors";
-import type { AdminAuthRepository } from "@/modules/auth/ports/admin-auth-repository";
 import { verifyPassword } from "@/shared/lib/auth/password-hasher";
 
 import { createAdminUser } from "./create-admin-user";
 
-function createRepository(existing: AdminUserRecord[] = []): AdminAuthRepository {
-  const users = [...existing];
-
-  return {
-    async findUserByEmail(email) {
-      return users.find((user) => user.email === email) ?? null;
-    },
-    async createUser(input) {
-      const user = {
-        id: `user_${users.length + 1}`,
-        name: input.name,
-        email: input.email,
-        passwordHash: input.passwordHash,
-        role: input.role,
-      };
-      users.push(user);
-      return user;
-    },
-    async listUsers() {
-      return users;
-    },
-    async createSession() {},
-    async findSessionByTokenHash(): Promise<AdminSessionRecord | null> {
-      return null;
-    },
-    async deleteSessionByTokenHash() {},
-  };
+function createRepository(existing: AdminUserRecord[] = []) {
+  return new InMemoryAdminAuthRepository(existing);
 }
 
 describe("createAdminUser", () => {
