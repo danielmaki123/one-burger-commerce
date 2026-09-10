@@ -1,20 +1,26 @@
 # Estado del proyecto — One Burger Commerce
 
-> Actualizado: 2026-09-10 · Commit en `main`: `2a8477d` · Build en producción: `build-20260910-150351`
+> Actualizado: 2026-09-10 · Commit en `main`: `9c28895` · Build en producción: `build-20260910-150351`
 > Este documento es el punto de entrada para retomar el trabajo. Mantenerlo al día al cerrar cada tarea.
+> Para arrancar en un chat nuevo: `ops/tasks/START-HERE.md`.
 
 ## 1. Qué está vivo hoy
 
 | Cosa | Valor |
 |---|---|
-| Dominio público | **https://oneburgernic.com** (y `https://www.oneburgernic.com`, ambos con certificado) |
+| Dominio público | **https://oneburgernic.com** (canónico) y `https://www.oneburgernic.com` — ambos con certificado |
 | Admin | **https://oneburgernic.com/admin/login** |
-| Cuenta owner | `admin@oneburgernic.com` (la contraseña la tiene Daniel; se creó con el bootstrap del arranque) |
+| Cuenta owner | `admin@oneburgernic.com` (contraseña administrada por Daniel; no está en el repo) |
 | Health / readiness | `GET /api/health` · `GET /api/readiness` (hace `SELECT 1` y responde 503 si la base no responde) |
 | Hosting | Easypanel — panel `http://76.13.250.83:3000`, proyecto `brunobot`, servicio `oneburguerweb` |
 | Base de datos | Postgres 17, servicio `oneburguer-postgres` (sin puerto expuesto), base/usuario `oneburguer` |
 | Imagen | `ghcr.io/danielmaki123/one-burger-commerce` (publicada por CI en cada push a `main`) |
 | Repo | `github.com/danielmaki123/one-burger-commerce`, rama de deploy `main` |
+| DNS | `oneburgernic.com` y `www` → `76.13.250.83` (registros A) |
+
+**Verificación al cierre de esta etapa**: 827 tests unitarios, lint, typecheck y build en
+verde; CI (`verify` + `migrations` + `container` + `publish`) verde; smoke productivo 4/4
+en producción y APIs fuera del MVP devolviendo 404.
 
 **Estado del catálogo:** el owner ya entró al admin y creó la categoría `ONE BURGER`
 (todavía sin subcategorías ni productos). El menú público responde pero está vacío de
@@ -100,7 +106,7 @@ productos: es el primer pendiente de contenido.
 | 4 | **Borrar el servicio duplicado huérfano `oneburguer-web`** (responde 502) | Agente | Evita confundir futuros deploys. |
 | 5 | **Endurecimiento técnico**: scrypt más fuerte con rehash al login, CSP, extraer componentes exportados de las páginas (hoy `next build --webpack` falla) | Agente | No bloquea. |
 | 6 | **Cerrar puertos innecesarios** de otros servicios del servidor (`capostgres` 5455, `postimage` 8585) | Daniel | No es de One Burger, pero están expuestos a internet. |
-| 7 | **Personalización / quitar hardcodeo** (nombre, colores, logo, contacto, horarios, dirección) | Siguiente tarea | Brief listo en `ops/tasks/TASK-whitelabel-branding.md`. |
+| 7 | **Personalización / quitar hardcodeo** (nombre, colores, logo, contacto, horarios, dirección) | Siguiente tarea | **Aprobada el 2026-09-10**; brief y decisiones resueltas en `ops/tasks/TASK-whitelabel-branding.md`. Arranque: `ops/tasks/START-HERE.md`. |
 
 ## 5. Cómo continuar
 

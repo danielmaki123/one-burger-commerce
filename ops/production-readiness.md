@@ -3,9 +3,9 @@
 Documento único de operación para producción. Reemplaza a los runbooks heredados
 de Casa Antigua que viven en `docs/` (esa carpeta no se versiona).
 
-- Alcance del producto: menú público → carrito → checkout **solo retiro** → admin de órdenes, menú y usuarios.
+- Alcance del producto: menú público → carrito → checkout **solo retiro** → admin de órdenes, menú, usuarios y personalización del negocio.
 - Fuera de alcance (código vivo, no visible en la navegación principal): reservas, mesas, delivery, inventario, reportes.
-- Camino de deploy: **Easypanel** (proyecto `oneburguer`, servicios `web` + `postgres`), build desde GitHub `main`.
+- Camino de deploy: **Easypanel** (proyecto `brunobot`, servicio `oneburguerweb`), build desde GitHub `main`.
 
 ---
 
@@ -13,10 +13,11 @@ de Casa Antigua que viven en `docs/` (esa carpeta no se versiona).
 
 - Panel: `http://76.13.250.83:3000`
 - Proyecto / servicio: **`brunobot` / `oneburguerweb`**
-- URL pública: `https://brunobot-oneburguerweb.2jcsgw.easypanel.host` (HTTPS, dominio por defecto de Easypanel)
+- Dominios públicos: **`https://oneburgernic.com`** (apex, canónico) y `https://www.oneburgernic.com` — ambos con certificado Let's Encrypt y sirviendo la app. El dominio por defecto `brunobot-oneburguerweb.2jcsgw.easypanel.host` sigue activo.
+- Admin: `https://oneburgernic.com/admin/login`
 - Base de datos: servicio `oneburguer-postgres` del mismo proyecto; base y usuario `oneburguer`, puerto interno 5432, **sin puerto expuesto**.
-- Redeploy: `POST http://76.13.250.83:3000/api/deploy/<token-del-servicio>` o el botón *Deploy* del panel. El servicio compila desde GitHub `danielmaki123/one-burger-commerce@main`.
-- Verificado: `/api/health` y `/api/readiness` en 200, smoke productivo 4/4, proxy de `/admin` redirigiendo a login.
+- Deploy: `npm run deploy:easypanel` con `EASYPANEL_URL`/`EASYPANEL_TOKEN` (el script fusiona variables y no pisa configuración manual). El **webhook del panel dejó de ser fiable** en esta instalación: usar el script o el botón *Deploy*.
+- Verificado: `/api/health` y `/api/readiness` en 200 en ambos dominios, smoke productivo 4/4, `/admin` redirigiendo a login, `www` con certificado emitido tras agregarlo como dominio del servicio.
 
 ⚠️ **Avisos de esta instalación**
 
@@ -24,6 +25,8 @@ de Casa Antigua que viven en `docs/` (esa carpeta no se versiona).
 - Quedó un servicio **duplicado y huérfano** `oneburguer-web` (responde 502). Conviene borrarlo desde el panel para no confundir deploys.
 - Otros servicios de ese servidor exponen Postgres en puertos públicos (`capostgres` 5455, `postimage` 8585). No es de One Burger, pero conviene cerrarlos.
 - El token del panel da acceso completo al servidor: guardarlo solo en el gestor de secretos y rotarlo si se compartió por chat.
+- **DNS**: `oneburgernic.com` y `www.oneburgernic.com` apuntan a `76.13.250.83`. Si se cambia de servidor, actualizar ambos registros A.
+- **Cuenta owner**: `admin@oneburgernic.com`. La contraseña la administra Daniel (no está en el repo). Para rotarla, volver a correr el bootstrap (§6): es idempotente y pisa la contraseña.
 
 ---
 

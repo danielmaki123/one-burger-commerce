@@ -24,9 +24,10 @@ sin aprobación explícita.
 
 | Documento | Para qué |
 |---|---|
+| `ops/tasks/START-HERE.md` | **Cómo arrancar en un chat nuevo**: prompt listo, orden de lectura y reglas mínimas. |
 | `ops/project-state.md` | Estado real: qué está desplegado, qué se cerró, qué falta, cómo continuar. **Leer primero.** |
 | `ops/production-readiness.md` | Runbook: entorno, deploy, backups, rollback, notificaciones, primer arranque, límites conocidos. |
-| `ops/tasks/*.md` | Briefs de tareas acordadas con el owner. |
+| `ops/tasks/*.md` | Briefs de tareas acordadas con el owner (decisiones ya resueltas). |
 | `README.md` | Alcance y comandos de validación. |
 
 `docs/` y `handoffs/` están en `.gitignore` (material histórico heredado de otro

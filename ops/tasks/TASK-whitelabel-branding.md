@@ -1,6 +1,9 @@
 # TASK: Personalización del negocio (quitar todo el hardcodeo)
 
-**Estado:** brief listo, sin empezar · **Prioridad:** alta (bloquea branding real) · **Estimación:** 5 fases
+**Estado:** **APROBADA por Daniel el 2026-09-10** — lista para ejecutar · **Prioridad:** alta (bloquea branding real) · **Estimación:** 5 fases
+
+> Cómo arrancar esta tarea en un chat nuevo: `ops/tasks/START-HERE.md`.
+> Decisiones ya resueltas en §8: no hace falta volver a preguntarlas.
 
 ## 1. Objetivo
 
@@ -168,16 +171,23 @@ para subir logos en vez de pegar URLs.
 - El PWA cachea assets: al cambiar logo/colores hay que invalidar el service worker
   (ya existe `sw-policy` para decidir qué se cachea).
 
-## 8. Decisiones abiertas (para Daniel)
+## 8. Decisiones (resueltas por Daniel el 2026-09-10)
 
-1. **Logo**: ¿pegás una URL (rápido, como las fotos de productos) o querés subirlo al
-   servidor? Subir requiere un volumen persistente en Easypanel (fase 5).
-2. **Colores**: ¿paleta curada con presets + ajuste fino (recomendado) o color libre?
-3. **Tipografías**: ¿te alcanza elegir entre las dos incluidas o querés sumar otra?
-4. **Horarios**: ¿se usan para **bloquear pedidos fuera de horario** (con mensaje de
-   cerrado) o son solo informativos en el footer? Lo primero agrega regla de negocio.
-5. **Propina**: ¿on/off y % configurables desde el admin (recomendado) o fija en 10 %?
-6. **Modo oscuro**: hoy no existe; propongo dejarlo fuera de esta tarea.
+1. **Logo**: fase 1 con **URL** (como las fotos de productos, no bloquea); **subida al
+   servidor** en fase 5, que requiere agregar un volumen persistente en Easypanel.
+2. **Colores**: **presets curados + ajuste fino** con validación de contraste WCAG AA
+   (avisa si el texto no llega a 4.5:1; no bloquea el guardado).
+3. **Tipografías**: elegir **entre las dos incluidas** (Fraunces para títulos, Inter para
+   texto). No se agregan fuentes externas: el build se mantiene hermético.
+4. **Horarios**: **informativos** (footer y ficha del negocio). Bloquear pedidos fuera de
+   horario **no** entra en esta tarea: si se quiere, va como tarea aparte porque agrega
+   regla de negocio y mensajes nuevos.
+5. **Propina**: **configurable** on/off y porcentaje desde el admin. El cálculo sigue
+   haciéndose en el servidor con ese valor como fuente de verdad.
+6. **Modo oscuro**: fuera de alcance.
+
+Si al implementar aparece una decisión nueva que cambie el alcance, **preguntar antes**:
+no inventar reglas de negocio.
 
 ## 9. Definición de terminado
 
