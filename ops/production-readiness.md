@@ -9,6 +9,25 @@ de Casa Antigua que viven en `docs/` (esa carpeta no se versiona).
 
 ---
 
+## 0. Estado del deploy actual (2026-09-10)
+
+- Panel: `http://76.13.250.83:3000`
+- Proyecto / servicio: **`brunobot` / `oneburguerweb`**
+- URL pública: `https://brunobot-oneburguerweb.2jcsgw.easypanel.host` (HTTPS, dominio por defecto de Easypanel)
+- Base de datos: servicio `oneburguer-postgres` del mismo proyecto; base y usuario `oneburguer`, puerto interno 5432, **sin puerto expuesto**.
+- Redeploy: `POST http://76.13.250.83:3000/api/deploy/<token-del-servicio>` o el botón *Deploy* del panel. El servicio compila desde GitHub `danielmaki123/one-burger-commerce@main`.
+- Verificado: `/api/health` y `/api/readiness` en 200, smoke productivo 4/4, proxy de `/admin` redirigiendo a login.
+
+⚠️ **Avisos de esta instalación**
+
+- El panel es un servidor **compartido** con n8n y con Casa Antigua; el proyecto dedicado `oneburguer` no se pudo crear, así que One Burger vive dentro de `brunobot`. Cualquier servicio nuevo debe crearse con nombres propios (`oneburguer-*`) y no tocar `cacommerce`, `capostgres`, `imagehost` ni `postimage`.
+- Quedó un servicio **duplicado y huérfano** `oneburguer-web` (responde 502). Conviene borrarlo desde el panel para no confundir deploys.
+- Otros servicios de ese servidor exponen Postgres en puertos públicos (`capostgres` 5455, `postimage` 8585). No es de One Burger, pero conviene cerrarlos.
+- El token del panel da acceso completo al servidor: guardarlo solo en el gestor de secretos y rotarlo si se compartió por chat.
+
+---
+
+
 ## 1. Entorno obligatorio
 
 El contenedor **falla al arrancar** si falta cualquiera de estas variables
