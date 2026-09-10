@@ -567,6 +567,76 @@ describe("createOrder", () => {
     expect(result.data.total).toBe(109);
   });
 
+  it("rejects a second concurrent order when the coupon limit is already consumed", async () => {
+    const repository = createRepository();
+    seedProduct(repository);
+    repository.coupons.push({
+      id: "coupon_01",
+      code: "UNICA",
+      type: "percentage",
+      value: 10,
+      isActive: true,
+      usageLimit: 1,
+      usedCount: 0,
+      expiresAt: null,
+    });
+
+    const buildInput = () => ({
+      type: "pickup" as const,
+      customerName: "Juan",
+      customerWhatsapp: "+50588887777",
+      items: [{ productId: "prod_01", quantity: 1, modifierOptionIds: [] }],
+      couponCode: "UNICA",
+    });
+
+    const results = await Promise.allSettled([
+      createOrder(buildInput(), { repository }),
+      createOrder(buildInput(), { repository }),
+    ]);
+
+    const fulfilled = results.filter((result) => result.status === "fulfilled");
+    const rejected = results.filter((result) => result.status === "rejected");
+
+    expect(fulfilled).toHaveLength(1);
+    expect(rejected).toHaveLength(1);
+    expect(repository.coupons[0]?.usedCount).toBe(1);
+  });
+
+  it("returns the coupon slot when the order fails after consuming it", async () => {
+    const repository = createRepository();
+    seedProduct(repository);
+    repository.coupons.push({
+      id: "coupon_01",
+      code: "BIENVENIDA10",
+      type: "percentage",
+      value: 10,
+      isActive: true,
+      usageLimit: 5,
+      usedCount: 0,
+      expiresAt: null,
+    });
+
+    const createOrderSpy = vi
+      .spyOn(repository, "createOrder")
+      .mockRejectedValueOnce(new Error("database down"));
+
+    await expect(
+      createOrder(
+        {
+          type: "pickup",
+          customerName: "Juan",
+          customerWhatsapp: "+50588887777",
+          items: [{ productId: "prod_01", quantity: 1, modifierOptionIds: [] }],
+          couponCode: "BIENVENIDA10",
+        },
+        { repository },
+      ),
+    ).rejects.toThrow("database down");
+
+    expect(repository.coupons[0]?.usedCount).toBe(0);
+    createOrderSpy.mockRestore();
+  });
+
   it("validates table exists and is active", async () => {
     const repository = createRepository();
     seedProduct(repository);

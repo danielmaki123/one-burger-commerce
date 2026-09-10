@@ -121,7 +121,13 @@ export interface OrderRepository {
 
   // Coupon helpers
   findCouponByCode(code: string): Promise<CouponRecord | null>;
-  incrementCouponUsedCount(id: string): Promise<void>;
+  /**
+   * Reserves one use of the coupon. Must be atomic: returns `false` when the
+   * usage limit was already reached, so concurrent orders cannot overspend it.
+   */
+  consumeCouponUsage(id: string, usageLimit: number): Promise<boolean>;
+  /** Returns a previously reserved use after the order failed to persist. */
+  releaseCouponUsage(id: string): Promise<void>;
 
   // Table helper
   findTableById(id: string): Promise<TableRecord | null>;

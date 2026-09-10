@@ -258,9 +258,24 @@ export class InMemoryOrderRepository implements OrderRepository {
     return this.coupons.find((c) => c.code.toUpperCase() === code.toUpperCase()) ?? null;
   }
 
-  async incrementCouponUsedCount(id: string): Promise<void> {
+  async consumeCouponUsage(id: string, usageLimit: number): Promise<boolean> {
     const coupon = this.coupons.find((c) => c.id === id);
-    if (coupon) coupon.usedCount++;
+
+    if (!coupon || coupon.usedCount >= usageLimit) {
+      return false;
+    }
+
+    coupon.usedCount += 1;
+
+    return true;
+  }
+
+  async releaseCouponUsage(id: string): Promise<void> {
+    const coupon = this.coupons.find((c) => c.id === id);
+
+    if (coupon && coupon.usedCount > 0) {
+      coupon.usedCount -= 1;
+    }
   }
 
   async findTableById(id: string): Promise<TableRecord | null> {

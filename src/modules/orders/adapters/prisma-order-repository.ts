@@ -481,11 +481,26 @@ export class PrismaOrderRepository implements OrderRepository {
     };
   }
 
-  async incrementCouponUsedCount(id: string): Promise<void> {
+  async consumeCouponUsage(
+    id: string,
+    usageLimit: number,
+  ): Promise<boolean> {
     const prisma = getPrismaClient();
-    await prisma.coupon.update({
-      where: { id },
+    // Single conditional UPDATE: the WHERE clause is evaluated by the database,
+    // so two concurrent orders can never both pass the limit check.
+    const result = await prisma.coupon.updateMany({
+      where: { id, usedCount: { lt: usageLimit } },
       data: { usedCount: { increment: 1 } },
+    });
+
+    return result.count === 1;
+  }
+
+  async releaseCouponUsage(id: string): Promise<void> {
+    const prisma = getPrismaClient();
+    await prisma.coupon.updateMany({
+      where: { id, usedCount: { gt: 0 } },
+      data: { usedCount: { decrement: 1 } },
     });
   }
 

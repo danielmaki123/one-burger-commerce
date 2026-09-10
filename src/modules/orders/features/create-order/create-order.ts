@@ -231,7 +231,7 @@ export async function createOrder(
   // Apply coupon if provided
   let discount = 0;
   let appliedCouponCode: string | null = null;
-  let appliedCouponId: string | null = null;
+  let consumedCouponId: string | null = null;
 
   if (input.couponCode) {
     const coupon = await repository.findCouponByCode(input.couponCode);
@@ -248,6 +248,19 @@ export async function createOrder(
       throw new OrderError(409, "CONFLICT", "Coupon usage limit reached");
     }
 
+    // Reserve the use atomically before persisting the order: two concurrent
+    // orders can no longer both pass the limit check.
+    const reserved = await repository.consumeCouponUsage(
+      coupon.id,
+      coupon.usageLimit,
+    );
+
+    if (!reserved) {
+      throw new OrderError(409, "CONFLICT", "Coupon usage limit reached");
+    }
+
+    consumedCouponId = coupon.id;
+
     if (coupon.type === "percentage") {
       discount = roundCurrency((subtotal * coupon.value) / 100);
     } else {
@@ -255,7 +268,6 @@ export async function createOrder(
     }
 
     appliedCouponCode = coupon.code;
-    appliedCouponId = coupon.id;
   }
 
   const deliveryFeeAmount = input.type === "delivery" && selectedZone ? selectedZone.baseFee : 0;
@@ -300,41 +312,50 @@ export async function createOrder(
   const orderLookupToken = orderLookupTokenGenerator();
   const orderLookupTokenHash = hashOrderLookupToken(orderLookupToken);
 
-  const order = await repository.createOrder(
-    {
-      type: input.type,
-      customerName,
-      customerWhatsapp: normalizedWhatsapp,
-      customerId,
-      items: input.items,
-      couponCode: appliedCouponCode,
-      address: input.address ?? null,
-      deliveryNotes: input.deliveryNotes ?? null,
-      deliveryFeeStatus,
-      pickupTime: input.pickupTime ? new Date(input.pickupTime) : null,
-      pickupNotes: input.pickupNotes ?? null,
-      tableId: input.tableId ?? null,
-      orderNumber,
-      subtotal,
-      discount,
-      packagingAmount,
-      deliveryFeeAmount,
-      tipAmount,
-      tipRate,
-      total,
-      status,
-      deliveryZoneId: input.deliveryZoneId ?? null,
-      customerLat: input.customerLat ?? null,
-      customerLng: input.customerLng ?? null,
-      geoAccuracy: input.geoAccuracy ?? null,
-      geoCapturedAt: input.geoCapturedAt ? new Date(input.geoCapturedAt) : null,
-      orderLookupTokenHash,
-    },
-    itemDetails,
-  );
+  let order: Awaited<ReturnType<typeof repository.createOrder>>;
 
-  if (appliedCouponId) {
-    await repository.incrementCouponUsedCount(appliedCouponId);
+  try {
+    order = await repository.createOrder(
+      {
+        type: input.type,
+        customerName,
+        customerWhatsapp: normalizedWhatsapp,
+        customerId,
+        items: input.items,
+        couponCode: appliedCouponCode,
+        address: input.address ?? null,
+        deliveryNotes: input.deliveryNotes ?? null,
+        deliveryFeeStatus,
+        pickupTime: input.pickupTime ? new Date(input.pickupTime) : null,
+        pickupNotes: input.pickupNotes ?? null,
+        tableId: input.tableId ?? null,
+        orderNumber,
+        subtotal,
+        discount,
+        packagingAmount,
+        deliveryFeeAmount,
+        tipAmount,
+        tipRate,
+        total,
+        status,
+        deliveryZoneId: input.deliveryZoneId ?? null,
+        customerLat: input.customerLat ?? null,
+        customerLng: input.customerLng ?? null,
+        geoAccuracy: input.geoAccuracy ?? null,
+        geoCapturedAt: input.geoCapturedAt ? new Date(input.geoCapturedAt) : null,
+        orderLookupTokenHash,
+      },
+      itemDetails,
+    );
+  } catch (error) {
+    // Give the coupon slot back: the customer never got an order for it.
+    if (consumedCouponId) {
+      await repository
+        .releaseCouponUsage(consumedCouponId)
+        .catch(() => undefined);
+    }
+
+    throw error;
   }
 
   await publish("OrderCreated", { order });
