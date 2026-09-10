@@ -84,10 +84,65 @@ jobs:
       - name: Fail on schema drift between migrations and schema.prisma
         run: npx prisma migrate diff --from-url "$DATABASE_URL" --to-schema-datamodel prisma/schema.prisma --exit-code
 
+  container:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: verify
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Builds the real image and runs it: a build that compiles but crashes at
+      # startup (missing entrypoint files, failed migrations) fails this job.
+      - name: Build production image
+        run: docker build --build-arg APP_BUILD_VERSION=${{ github.sha }} -t one-burger-commerce:ci .
+
+      - name: Run the container against a real database
+        run: |
+          docker run -d --name obc --network host \
+            -e DATABASE_URL="postgresql://postgres:postgres@127.0.0.1:5432/verify?schema=public" \
+            -e DIRECT_URL="postgresql://postgres:postgres@127.0.0.1:5432/verify?schema=public" \
+            -e APP_ENV=production \
+            -e NODE_ENV=production \
+            -e PORT=3000 \
+            one-burger-commerce:ci
+
+      - name: Assert the app migrates, starts and serves traffic
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:3000/api/readiness > /tmp/readiness.json; then
+              break
+            fi
+            sleep 5
+          done
+          cat /tmp/readiness.json
+          grep -q '"status":"ready"' /tmp/readiness.json
+          curl -fsS http://127.0.0.1:3000/api/health | grep -q 'one-burger-commerce'
+          curl -fsS http://127.0.0.1:3000/api/menu | grep -q '"data"'
+          test "$(curl -fsS -o /dev/null -w '%{http_code}' http://127.0.0.1:3000/menu)" = "200"
+
+      - name: Container logs
+        if: failure()
+        run: docker logs obc || true
+
   publish:
     needs:
       - verify
       - migrations
+      - container
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

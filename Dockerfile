@@ -23,6 +23,10 @@ COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/public ./public
+# The container entrypoint is `npm run start:production`, which runs
+# scripts/start-production.mjs (environment validation + migrations + next start).
+# Without this copy the container exits immediately with MODULE_NOT_FOUND.
+COPY --from=builder /app/scripts ./scripts
 
 EXPOSE 3000
 

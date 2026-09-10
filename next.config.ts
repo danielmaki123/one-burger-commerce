@@ -38,6 +38,9 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  // The production image does not load this file at runtime (it imports from
+  // ./src, which the runner stage does not ship), so this applies to dev and
+  // build only. Strip `X-Powered-By` at the proxy if a deployment needs it.
   poweredByHeader: false,
   agentRules: false,
   env: {

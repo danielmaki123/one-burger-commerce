@@ -47,6 +47,19 @@ describe("deploy runtime contract", () => {
     expect(dockerfile).toMatch(/APP_BUILD_VERSION=/);
   });
 
+  it("copies the production entrypoint script into the runtime image", () => {
+    const dockerfile = readRepoFile("Dockerfile");
+    const packageJson = JSON.parse(readRepoFile("package.json")) as {
+      scripts: Record<string, string>;
+    };
+    const entrypoint = packageJson.scripts["start:production"];
+
+    // `npm run start:production` runs a file from scripts/, so the runner stage
+    // must ship that directory or the container dies with MODULE_NOT_FOUND.
+    expect(entrypoint).toContain("scripts/");
+    expect(dockerfile).toContain("COPY --from=builder /app/scripts ./scripts");
+  });
+
   it("healthchecks the readiness route so an unreachable database is unhealthy", () => {
     const dockerfile = readRepoFile("Dockerfile");
 
