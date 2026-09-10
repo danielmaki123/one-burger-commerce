@@ -88,7 +88,6 @@ describe("admin user lifecycle routes", () => {
       { userId: "user_2", role: "manager" },
       expect.objectContaining({
         actorRole: "owner",
-        actorUserId: "admin_owner",
         repository: expect.anything(),
       }),
     );

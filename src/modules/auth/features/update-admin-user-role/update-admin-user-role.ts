@@ -13,7 +13,6 @@ type UpdateAdminUserRoleInput = {
 type UpdateAdminUserRoleDependencies = {
   repository: AdminAuthRepository;
   actorRole: AdminRole;
-  actorUserId: string;
 };
 
 function toAuthenticatedAdminUser(
@@ -33,10 +32,8 @@ function countOwners(users: AdminUserRecord[]): number {
 
 export async function updateAdminUserRole(
   input: UpdateAdminUserRoleInput,
-  { repository, actorRole, actorUserId }: UpdateAdminUserRoleDependencies,
+  { repository, actorRole }: UpdateAdminUserRoleDependencies,
 ) {
-  void actorUserId;
-
   if (!canManageUsers(actorRole)) {
     throw new AuthError(403, "FORBIDDEN", "Insufficient permissions");
   }

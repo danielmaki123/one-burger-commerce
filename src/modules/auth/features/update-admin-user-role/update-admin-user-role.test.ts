@@ -25,7 +25,7 @@ describe("updateAdminUserRole", () => {
 
     const result = await updateAdminUserRole(
       { userId: "user_2", role: ADMIN_ROLES.manager },
-      { repository, actorRole: ADMIN_ROLES.owner, actorUserId: "user_1" },
+      { repository, actorRole: ADMIN_ROLES.owner },
     );
 
     expect(result.data).toEqual({
@@ -47,7 +47,7 @@ describe("updateAdminUserRole", () => {
 
     const result = await updateAdminUserRole(
       { userId: "user_2", role: ADMIN_ROLES.manager },
-      { repository, actorRole: ADMIN_ROLES.owner, actorUserId: "user_1" },
+      { repository, actorRole: ADMIN_ROLES.owner },
     );
 
     expect(result.data).not.toHaveProperty("passwordHash");
@@ -63,7 +63,7 @@ describe("updateAdminUserRole", () => {
       await expect(
         updateAdminUserRole(
           { userId: "user_2", role: ADMIN_ROLES.owner },
-          { repository, actorRole, actorUserId: "user_9" },
+          { repository, actorRole },
         ),
       ).rejects.toMatchObject({ status: 403, code: "FORBIDDEN" });
     }
@@ -79,7 +79,7 @@ describe("updateAdminUserRole", () => {
     await expect(
       updateAdminUserRole(
         { userId: "missing", role: ADMIN_ROLES.manager },
-        { repository, actorRole: ADMIN_ROLES.owner, actorUserId: "user_1" },
+        { repository, actorRole: ADMIN_ROLES.owner },
       ),
     ).rejects.toMatchObject({ status: 404, code: "NOT_FOUND" });
   });
@@ -92,7 +92,7 @@ describe("updateAdminUserRole", () => {
     await expect(
       updateAdminUserRole(
         { userId: "user_1", role: ADMIN_ROLES.manager },
-        { repository, actorRole: ADMIN_ROLES.owner, actorUserId: "user_1" },
+        { repository, actorRole: ADMIN_ROLES.owner },
       ),
     ).rejects.toMatchObject({ status: 400, code: "BAD_REQUEST" });
 
@@ -109,7 +109,7 @@ describe("updateAdminUserRole", () => {
 
     const result = await updateAdminUserRole(
       { userId: "user_2", role: ADMIN_ROLES.manager },
-      { repository, actorRole: ADMIN_ROLES.owner, actorUserId: "user_1" },
+      { repository, actorRole: ADMIN_ROLES.owner },
     );
 
     expect(result.data.role).toBe(ADMIN_ROLES.manager);
@@ -124,7 +124,7 @@ describe("updateAdminUserRole", () => {
     await expect(
       updateAdminUserRole(
         { userId: "user_2", role: "superadmin" as never },
-        { repository, actorRole: ADMIN_ROLES.owner, actorUserId: "user_1" },
+        { repository, actorRole: ADMIN_ROLES.owner },
       ),
     ).rejects.toMatchObject({ status: 400, code: "BAD_REQUEST" });
   });

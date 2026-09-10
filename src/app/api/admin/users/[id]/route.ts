@@ -35,7 +35,6 @@ export async function PATCH(
       {
         repository,
         actorRole: session.user.role,
-        actorUserId: session.user.id,
       },
     );
 
