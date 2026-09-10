@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 
 import { describe, expect, it } from "vitest";
@@ -10,6 +10,31 @@ function readRepoFile(relativePath: string) {
 }
 
 describe("deploy runtime contract", () => {
+  it("keeps every migration free of a UTF-8 BOM so PostgreSQL can parse it", () => {
+    const migrationsRoot = path.join(repoRoot, "prisma", "migrations");
+    const migrationFiles = readdirSync(migrationsRoot, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) =>
+        path.join(migrationsRoot, entry.name, "migration.sql"),
+      );
+
+    expect(migrationFiles.length).toBeGreaterThan(0);
+
+    for (const migrationFile of migrationFiles) {
+      const bytes = readFileSync(migrationFile);
+
+      // 0xEF 0xBB 0xBF at offset 0 makes Postgres fail with
+      // `syntax error at or near "\u{feff}"` on every fresh database.
+      const hasBom =
+        bytes.length >= 3 &&
+        bytes[0] === 0xef &&
+        bytes[1] === 0xbb &&
+        bytes[2] === 0xbf;
+
+      expect(hasBom, `${migrationFile} starts with a UTF-8 BOM`).toBe(false);
+    }
+  });
+
   it("copies public assets into the runtime image so the PWA files are served", () => {
     const dockerfile = readRepoFile("Dockerfile");
 
