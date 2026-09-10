@@ -131,7 +131,7 @@ jobs:
           cat /tmp/readiness.json
           grep -q '"status":"ready"' /tmp/readiness.json
           curl -fsS http://127.0.0.1:3000/api/health | grep -q 'one-burger-commerce'
-          curl -fsS http://127.0.0.1:3000/api/menu | grep -q '"data"'
+          curl -fsS http://127.0.0.1:3000/api/menu | grep -q '"categories"'
           test "$(curl -fsS -o /dev/null -w '%{http_code}' http://127.0.0.1:3000/menu)" = "200"
 
       - name: Container logs
