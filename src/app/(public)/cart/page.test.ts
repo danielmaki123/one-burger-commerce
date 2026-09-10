@@ -108,8 +108,10 @@ describe("public cart page", () => {
     expect(html).toContain("Subtotal");
     expect(html).toContain("Empaque");
     expect(html).toContain("Total estimado");
-    expect(html).toContain("Se calcula en checkout");
+    expect(html).toContain("Retirás en el local");
+    expect(html).toContain("Al retirar");
     expect(html).not.toContain("Se define en checkout");
+    expect(html).not.toContain("Envío");
     expect(html).not.toContain("Propina");
     expect(html).toContain("Continuar");
     expect(html).toContain("Seguir viendo menú");

@@ -40,8 +40,16 @@ export function CartSummaryCard({
             </span>
           </div>
           <div className="flex items-center justify-between text-sm text-muted-foreground">
-            <span>Envío</span>
-            <span className="font-medium text-foreground">Se calcula en checkout</span>
+            <span>Entrega</span>
+            <span className="font-medium text-foreground">
+              Retirás en el local
+            </span>
+          </div>
+          <div className="flex items-center justify-between text-sm text-muted-foreground">
+            <span>Pago</span>
+            <span className="font-medium text-foreground">
+              Al retirar
+            </span>
           </div>
           <div className="flex items-end justify-between gap-3 border-t border-border pt-3">
             <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
