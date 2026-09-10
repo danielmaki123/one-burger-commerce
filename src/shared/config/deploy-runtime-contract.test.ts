@@ -110,6 +110,17 @@ describe("deploy runtime contract", () => {
     expect(workflow).toMatch(/publish:[\s\S]*needs:[\s\S]*verify/);
   });
 
+  it("guarda la salida en un archivo antes de grep para no morir por SIGPIPE", () => {
+    const workflow = readRepoFile(".github/workflows/publish-ghcr.yml");
+
+    // `set -o pipefail` + `productor | grep -q`: grep corta al encontrar la
+    // coincidencia, el productor recibe SIGPIPE y el paso falla con 141 aunque
+    // la aserción haya dado bien. Ya pasó en el job `container`.
+    expect(workflow).not.toMatch(/curl[^\n]*\|\s*grep/);
+    expect(workflow).not.toMatch(/docker logs[^\n]*\|\s*grep/);
+    expect(workflow).toContain("grep -q 'initial admin ready' /tmp/bootstrap.log");
+  });
+
   it("ships security headers for every response", () => {
     const nextConfig = readRepoFile("next.config.ts");
 

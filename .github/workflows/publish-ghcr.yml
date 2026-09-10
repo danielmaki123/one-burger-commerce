@@ -130,8 +130,13 @@ jobs:
           done
           cat /tmp/readiness.json
           grep -q '"status":"ready"' /tmp/readiness.json
-          curl -fsS http://127.0.0.1:3000/api/health | grep -q 'one-burger-commerce'
-          curl -fsS http://127.0.0.1:3000/api/menu | grep -q '"categories"'
+          # Se guarda la respuesta en un archivo antes de buscar: con `pipefail`,
+          # un `| grep -q` que corta temprano le manda SIGPIPE al productor y el
+          # paso falla con 141 aunque la aserción haya dado bien.
+          curl -fsS http://127.0.0.1:3000/api/health > /tmp/health.json
+          grep -q 'one-burger-commerce' /tmp/health.json
+          curl -fsS http://127.0.0.1:3000/api/menu > /tmp/menu.json
+          grep -q '"categories"' /tmp/menu.json
           test "$(curl -fsS -o /dev/null -w '%{http_code}' http://127.0.0.1:3000/menu)" = "200"
 
       # Guards the image tooling: the ops scripts live in scripts/ but import
@@ -161,7 +166,10 @@ jobs:
           test "$(curl -fsS -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:3001/api/auth/admin/login \
             -H 'Content-Type: application/json' \
             -d '{"email":"ci-owner@example.com","password":"CiPassword12345"}')" = "200"
-          docker logs obc-bootstrap 2>&1 | grep -q 'initial admin ready'
+          # Mismo motivo que arriba: sin el pipe, `pipefail` no puede dispararse
+          # por un SIGPIPE cuando grep encuentra la línea y corta.
+          docker logs obc-bootstrap > /tmp/bootstrap.log 2>&1
+          grep -q 'initial admin ready' /tmp/bootstrap.log
 
       - name: Container logs
         if: failure()
