@@ -264,7 +264,7 @@ export async function createOrder(
     discount,
     deliveryFeeAmount,
     items: itemDetails,
-    tipOptIn: input.tipOptIn ?? input.type !== "table",
+    tipOptIn: input.tipOptIn ?? false,
     orderType: input.type,
   });
 

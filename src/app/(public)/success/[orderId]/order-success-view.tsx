@@ -177,6 +177,10 @@ export default function OrderSuccessView({
         </section>
 
         <div className="mx-auto mt-7 max-w-sm space-y-1 text-center text-sm leading-6 text-muted-foreground">
+          <p className="font-semibold text-foreground">
+            Pagás en el local al retirar tu pedido.
+          </p>
+          <p>No se cobra nada online.</p>
           <p>Te enviaremos actualizaciones sobre tu pedido.</p>
           <p>Gracias por elegir One Burger.</p>
         </div>

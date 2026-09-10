@@ -9,6 +9,7 @@ import { formatCurrency } from "@/shared/lib/format-currency";
 import { calculateOrderTotals } from "@/shared/lib/order-totals";
 import { Button } from "@/shared/ui/button";
 import { Card, CardContent } from "@/shared/ui/card";
+import { Checkbox } from "@/shared/ui/checkbox";
 import { Input } from "@/shared/ui/input";
 import { WhatsAppInput } from "@/shared/ui/whatsapp-input";
 import {
@@ -402,7 +403,7 @@ export default function CheckoutPage() {
   );
 
   const orderType: OrderType = "pickup";
-  const tipOptIn = true;
+  const [tipOptIn, setTipOptIn] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
@@ -431,6 +432,18 @@ export default function CheckoutPage() {
         orderType,
       }),
     [orderType, packagingItems, subtotal, tipOptIn],
+  );
+  const tipPreviewAmount = useMemo(
+    () =>
+      calculateOrderTotals({
+        subtotal,
+        discount: 0,
+        deliveryFeeAmount: estimatedDeliveryFee,
+        items: packagingItems,
+        tipOptIn: true,
+        orderType,
+      }).tipAmount,
+    [estimatedDeliveryFee, orderType, packagingItems, subtotal],
   );
 
   const handleInputChange = (
@@ -665,6 +678,17 @@ export default function CheckoutPage() {
                   ))}
                 </div>
 
+                <div className="rounded-[24px] border border-border bg-cream/50 p-4">
+                  <Checkbox
+                    checked={tipOptIn}
+                    onChange={(event) => setTipOptIn(event.target.checked)}
+                    label={`Agregar propina del 10% (${formatCurrency(tipPreviewAmount)})`}
+                  />
+                  <p className="mt-2 text-[11px] leading-5 text-muted-foreground">
+                    Es opcional. Si no la marcás, no se cobra propina.
+                  </p>
+                </div>
+
                 <div className="space-y-3 rounded-[24px] border border-border bg-cream/50 p-5">
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Subtotal</span>
@@ -678,6 +702,16 @@ export default function CheckoutPage() {
                       {formatCurrency(estimatedTotals.packagingAmount)}
                     </span>
                   </div>
+                  {estimatedTotals.tipAmount > 0 ? (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">
+                        Propina ({estimatedTotals.tipRate ?? 10}%)
+                      </span>
+                      <span className="font-semibold text-foreground">
+                        {formatCurrency(estimatedTotals.tipAmount)}
+                      </span>
+                    </div>
+                  ) : null}
                   <div className="flex justify-between border-t border-border pt-3 text-lg font-bold text-brand">
                     <span>Total a pagar</span>
                     <span>{formatCurrency(estimatedTotals.total)}</span>
@@ -685,6 +719,9 @@ export default function CheckoutPage() {
                 </div>
 
                 <p className="text-[11px] leading-5 text-foreground">
+                  Pagás en el local al retirar tu pedido. No se cobra nada online.
+                </p>
+                <p className="text-[11px] leading-5 text-muted-foreground">
                   Listo para confirmar ✓
                 </p>
               </CardContent>

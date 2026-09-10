@@ -77,9 +77,9 @@ describe("createOrder", () => {
     expect(result.data.status).toBe("new");
     expect(result.data.subtotal).toBe(200);
     expect(result.data.packagingAmount).toBe(0);
-    expect(result.data.tipAmount).toBe(20);
-    expect(result.data.tipRate).toBe(10);
-    expect(result.data.total).toBe(270);
+    expect(result.data.tipAmount).toBe(0);
+    expect(result.data.tipRate).toBeNull();
+    expect(result.data.total).toBe(250);
     expect(result.data.deliveryFeeAmount).toBe(50);
     expect(result.data.deliveryFeeStatus).toBe("pending_manual_validation");
     expect(result.meta.sourceOfTruth).toBe("backend");
@@ -138,8 +138,8 @@ describe("createOrder", () => {
     expect(result.data.type).toBe("delivery");
     expect(result.data.subtotal).toBe(200);
     expect(result.data.deliveryFeeAmount).toBe(0);
-    expect(result.data.tipAmount).toBe(20);
-    expect(result.data.total).toBe(220);
+    expect(result.data.tipAmount).toBe(0);
+    expect(result.data.total).toBe(200);
     expect(result.data.deliveryFeeStatus).toBe("pending_manual_validation");
   });
 
@@ -208,8 +208,8 @@ describe("createOrder", () => {
     expect(result.data.geoAccuracy).toBe(12.5);
     expect(result.data.geoCapturedAt).toBe("2026-06-08T12:00:00.000Z");
     expect(result.data.deliveryFeeAmount).toBe(50);
-    expect(result.data.tipAmount).toBe(10);
-    expect(result.data.total).toBe(160);
+    expect(result.data.tipAmount).toBe(0);
+    expect(result.data.total).toBe(150);
   });
 
   it("sets deliveryFeeStatus to null for pickup orders", async () => {
@@ -230,7 +230,7 @@ describe("createOrder", () => {
     expect(result.data.deliveryFeeAmount).toBe(0);
   });
 
-  it("allows removing the default tip for pickup orders", async () => {
+  it("does not apply a tip when the customer does not opt in", async () => {
     const repository = createRepository();
     seedProduct(repository, { packagingFeeAmount: 5 });
 
@@ -240,7 +240,6 @@ describe("createOrder", () => {
         customerName: "Juan Perez",
         customerWhatsapp: "+50588887777",
         items: [{ productId: "prod_01", quantity: 2, modifierOptionIds: [] }],
-        tipOptIn: false,
       },
       { repository },
     );
@@ -249,6 +248,26 @@ describe("createOrder", () => {
     expect(result.data.tipAmount).toBe(0);
     expect(result.data.tipRate).toBeNull();
     expect(result.data.total).toBe(210);
+  });
+
+  it("applies the 10% tip only when the customer explicitly opts in", async () => {
+    const repository = createRepository();
+    seedProduct(repository, { packagingFeeAmount: 5 });
+
+    const result = await createOrder(
+      {
+        type: "pickup",
+        customerName: "Juan Perez",
+        customerWhatsapp: "+50588887777",
+        items: [{ productId: "prod_01", quantity: 2, modifierOptionIds: [] }],
+        tipOptIn: true,
+      },
+      { repository },
+    );
+
+    expect(result.data.tipAmount).toBe(20);
+    expect(result.data.tipRate).toBe(10);
+    expect(result.data.total).toBe(230);
   });
 
   it("sets deliveryFeeStatus to null for table orders", async () => {
@@ -439,8 +458,8 @@ describe("createOrder", () => {
     expect(result.data.customerLat).toBeNull();
     expect(result.data.customerLng).toBeNull();
     expect(result.data.deliveryFeeAmount).toBe(50);
-    expect(result.data.tipAmount).toBe(10);
-    expect(result.data.total).toBe(160);
+    expect(result.data.tipAmount).toBe(0);
+    expect(result.data.total).toBe(150);
   });
 
   it("rejects delivery with non-existent zone", async () => {
