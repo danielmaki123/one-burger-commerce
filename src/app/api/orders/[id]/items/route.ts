@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { canManageOrderOperations } from "@/modules/auth/domain/admin-permissions";
+import { AuthError } from "@/modules/auth/domain/auth-errors";
+import { requireAdminSession } from "@/modules/auth/features/require-admin-session/require-admin-session";
 import { PrismaOrderRepository } from "@/modules/orders/adapters/prisma-order-repository";
 import { addTableOrderItems } from "@/modules/orders/features/add-table-order-items/add-table-order-items";
 import { createErrorResponse } from "@/shared/lib/http/error-response";
@@ -18,6 +21,14 @@ const itemsSchema = z.object({
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    // Table ordering is outside the pickup MVP scope, so this mutation stays
+    // behind an authenticated staff session instead of being publicly writable.
+    const session = await requireAdminSession();
+
+    if (!canManageOrderOperations(session.user.role)) {
+      throw new AuthError(403, "FORBIDDEN", "Insufficient permissions");
+    }
+
     const { id } = await params;
     const payload = await request.json().catch(() => ({}));
     const parsed = itemsSchema.safeParse(payload);
