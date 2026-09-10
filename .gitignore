@@ -54,3 +54,9 @@ skills-lock.json
 /public/brand/mascota-*.png
 /public/images/
 /sql/
+
+# Carpeta de trabajo del owner (frames del video, fotos, mockups). Al repo solo
+# entra la secuencia curada del landing, en /public/landing/frames/.
+/one burger/
+# Export crudo de los 120 frames (11.5 MB): el landing usa 37.
+/public/burger-scroll-frames/

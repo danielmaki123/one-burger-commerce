@@ -219,6 +219,27 @@ productos: es el primer pendiente de contenido.
   `getHomeQuickActions`, que además seguía listando "Reservar" e "Historial" (fuera del
   MVP). Commit `f430fff`.
 
+**Dominios y landing (tarea nueva, 2026-09-10)**
+
+- **Commit 1 — el apex muestra el landing.** `oneburgernic.com` y `www` sirven una
+  experiencia a pantalla completa con la animación de scroll del mock aprobado
+  (`one burger/frames-scroll-hamburguesa - Copy`): 37 frames que avanzan según el scroll y
+  un botón MENU que lleva a `https://menu.oneburgernic.com`.
+  - `src/shared/config/host-routing.ts` clasifica el host (marca / menu / admin / otros) y
+    decide la ruta; es puro y tiene tests. El proxy solo lo traduce a Next.
+  - El landing es un **rewrite** de `/` (no un redirect): la URL visible sigue siendo la
+    raíz. También queda accesible en `/landing` para probarlo en cualquier entorno.
+  - `localhost`, las IPs y el host de Easypanel no se clasifican: el entorno local y la
+    suite E2E siguen sirviendo la app de pedidos sin cambios.
+  - Se respeta `prefers-reduced-motion` (deja un frame fijo) y la secuencia se precarga de
+    forma progresiva; el mock original no hacía ninguna de las dos cosas.
+  - Frames: al repo entra la secuencia curada de 37 (3.26 MB) en `public/landing/frames/`.
+    El export crudo de 120 (11.5 MB) y la carpeta de trabajo `one burger/` quedan en
+    `.gitignore`. El mock usa 37 de los 120: cambiar a la secuencia completa (más suave)
+    es cambiar una constante en `src/modules/landing/domain/landing-frames.ts`.
+  - Los subdominios `menu.` y `admin.` ya resuelven por DNS y responden con HTTPS (los creó
+    Daniel antes de este trabajo).
+
 **Arreglo de branding: el logo y los colores no llegaban a toda la app (2026-09-10)**
 
 Dos bugs de la fase 2 que solo aparecen usando el producto, reportados por el owner:

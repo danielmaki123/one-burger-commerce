@@ -10,6 +10,21 @@ MVP para pedidos de One Burger: menu publico, carrito, checkout **solo para reti
 - Vitest
 - ESLint
 
+## Dominios
+
+Un solo build sirve tres hosts; el ruteo se decide por el host de la request
+(`src/shared/config/host-routing.ts`, puro y con tests):
+
+| Host | Qué sirve |
+|---|---|
+| `oneburgernic.com` (y `www`) | Landing a pantalla completa con la animación de scroll y el botón MENU |
+| `menu.oneburgernic.com` | App de pedidos (home, menú, carrito, checkout, seguimiento) |
+| `admin.oneburgernic.com` | Panel de admin (redirige su raíz a `/admin`) |
+
+`localhost`, las IPs y el host por defecto de Easypanel quedan fuera de la
+clasificación: siguen sirviendo la app de pedidos tal cual, así que el entorno
+local y la suite E2E no dependen de los subdominios.
+
 ## Alcance MVP
 
 - Publico: home, menu, detalle de producto, carrito, checkout pickup, confirmacion y seguimiento del pedido.

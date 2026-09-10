@@ -1,0 +1,136 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+
+import {
+  LANDING_FRAME_NUMBERS,
+  framePathForIndex,
+  resolveFrameIndex,
+  resolveScrollProgress,
+} from "@/modules/landing/domain/landing-frames";
+
+type LandingExperienceProps = {
+  /** A dónde lleva el botón: la app de pedidos. */
+  menuUrl: string;
+  menuLabel: string;
+  /** Para lectores de pantalla y buscadores; no cambia el diseño del mock. */
+  brandName: string;
+  /** Cuántos frames precargar por delante del actual. */
+  preloadAhead?: number;
+};
+
+/**
+ * Landing con la hamburguesa que avanza al hacer scroll.
+ *
+ * Portado del mock aprobado, con dos mejoras: respeta `prefers-reduced-motion`
+ * (deja un frame fijo en vez de animar) y precarga la secuencia de forma
+ * progresiva para que el scrubbing no se trabe.
+ */
+export function LandingExperience({
+  menuUrl,
+  menuLabel,
+  brandName,
+  preloadAhead = 8,
+}: LandingExperienceProps) {
+  const stageRef = useRef<HTMLElement | null>(null);
+  const [frameIndex, setFrameIndex] = useState(0);
+  const [hasScrolled, setHasScrolled] = useState(false);
+  const preloadedRef = useRef<Set<number>>(new Set());
+
+  useEffect(() => {
+    const stage = stageRef.current;
+    if (!stage) return;
+
+    const prefersReducedMotion =
+      typeof window !== "undefined" &&
+      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    if (prefersReducedMotion) return;
+
+    let ticking = false;
+    let lastIndex = -1;
+
+    function preloadAround(index: number) {
+      const end = Math.min(LANDING_FRAME_NUMBERS.length - 1, index + preloadAhead);
+
+      for (let i = index; i <= end; i += 1) {
+        if (preloadedRef.current.has(i)) continue;
+        preloadedRef.current.add(i);
+
+        const image = new Image();
+        image.src = framePathForIndex(i);
+      }
+    }
+
+    function render() {
+      ticking = false;
+      if (!stage) return;
+
+      const rect = stage.getBoundingClientRect();
+      const progress = resolveScrollProgress({
+        stageTop: rect.top,
+        stageHeight: rect.height,
+        viewportHeight: window.innerHeight,
+      });
+      const nextIndex = resolveFrameIndex(progress);
+
+      if (progress > 0.01) setHasScrolled(true);
+
+      if (nextIndex !== lastIndex) {
+        lastIndex = nextIndex;
+        setFrameIndex(nextIndex);
+        preloadAround(nextIndex);
+      }
+    }
+
+    function requestRender() {
+      if (ticking) return;
+      ticking = true;
+      window.requestAnimationFrame(render);
+    }
+
+    preloadAround(0);
+    render();
+    window.addEventListener("scroll", requestRender, { passive: true });
+    window.addEventListener("resize", requestRender);
+
+    return () => {
+      window.removeEventListener("scroll", requestRender);
+      window.removeEventListener("resize", requestRender);
+    };
+  }, [preloadAhead]);
+
+  return (
+    <div className="landing-shell">
+      <h1 className="sr-only">{brandName}</h1>
+
+      <main
+        className="landing-stage"
+        id="landing-stage"
+        ref={stageRef}
+        aria-label={`Animación de ${brandName}`}
+      >
+        <section className="landing-scene">
+          <img
+            className="landing-frame"
+            id="landing-frame"
+            src={framePathForIndex(frameIndex)}
+            alt=""
+            aria-hidden="true"
+            width={720}
+            height={1280}
+            fetchPriority="high"
+            decoding="async"
+          />
+        </section>
+      </main>
+
+      <p className="landing-scroll-hint" data-visible={!hasScrolled}>
+        Deslizá
+      </p>
+
+      <a className="landing-menu-button" href={menuUrl} aria-label={menuLabel}>
+        {menuLabel}
+      </a>
+    </div>
+  );
+}

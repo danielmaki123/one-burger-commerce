@@ -162,4 +162,72 @@ describe("proxy admin auth guard", () => {
     expect(response.status).toBe(200);
     expect(getAdminSessionMock).not.toHaveBeenCalled();
   });
+
+  it("sirve el landing en la raiz del dominio de marca sin redirigir", async () => {
+    const request = new NextRequest("https://oneburgernic.com/", {
+      headers: {
+        host: "oneburgernic.com",
+        "x-forwarded-host": "oneburgernic.com",
+      },
+    });
+
+    const response = await proxy(request);
+
+    // Rewrite, no redirect: la URL que ve el cliente sigue siendo la raiz.
+    expect(response.status).toBe(200);
+    expect(response.headers.get("x-middleware-rewrite")).toBe(
+      "https://oneburgernic.com/landing",
+    );
+    expect(response.headers.get("location")).toBeNull();
+  });
+
+  it("tambien sirve el landing en www", async () => {
+    const request = new NextRequest("https://www.oneburgernic.com/", {
+      headers: {
+        host: "www.oneburgernic.com",
+        "x-forwarded-host": "www.oneburgernic.com",
+      },
+    });
+
+    const response = await proxy(request);
+
+    expect(response.headers.get("x-middleware-rewrite")).toBe(
+      "https://www.oneburgernic.com/landing",
+    );
+  });
+
+  it("deja la app de pedidos tal cual en local y en el host de menu", async () => {
+    for (const host of ["localhost:3210", "menu.oneburgernic.com"]) {
+      const request = new NextRequest(`http://${host}/`, { headers: { host } });
+
+      const response = await proxy(request);
+
+      expect(response.status).toBe(200);
+      expect(response.headers.get("x-middleware-rewrite")).toBeNull();
+      expect(response.headers.get("location")).toBeNull();
+    }
+  });
+
+  it("no reescribe otras rutas del dominio de marca", async () => {
+    const request = new NextRequest("https://oneburgernic.com/menu", {
+      headers: {
+        host: "oneburgernic.com",
+        "x-forwarded-host": "oneburgernic.com",
+      },
+    });
+
+    const response = await proxy(request);
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("x-middleware-rewrite")).toBeNull();
+  });
+
+  it("permite entrar al landing por su ruta directa en cualquier host", async () => {
+    const request = new NextRequest("http://localhost:3210/landing");
+
+    const response = await proxy(request);
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("x-middleware-rewrite")).toBeNull();
+  });
 });

@@ -5,36 +5,16 @@ import { PrismaAdminAuthRepository } from "@/modules/auth/adapters/prisma-admin-
 import { AuthError } from "@/modules/auth/domain/auth-errors";
 import { ADMIN_SESSION_COOKIE_NAME } from "@/modules/auth/domain/session-cookie";
 import { getAdminSession } from "@/modules/auth/features/get-admin-session/get-admin-session";
+import {
+  normalizeHost,
+  resolveHostRoute,
+} from "@/shared/config/host-routing";
 
 /**
- * Hosts whose root path belongs to the admin app.
- *
- * Any subdomain starting with `admin.` is treated as an admin host, optionally
- * extended through the `ADMIN_HOSTS` env var (comma separated). No brand host is
- * hardcoded, so the same build works for every deployment domain.
+ * El producto vive en tres hosts del mismo build: el apex muestra el landing,
+ * `menu.*` la app de pedidos y `admin.*` el panel. Toda la decisión está en
+ * `resolveHostRoute` (puro y con tests); acá solo se traduce a Next.
  */
-const ADMIN_HOST_LABEL = "admin";
-
-export function getConfiguredAdminHosts(): Set<string> {
-  return new Set(
-    (process.env.ADMIN_HOSTS ?? "")
-      .split(",")
-      .map((host) => normalizeHost(host))
-      .filter((host): host is string => Boolean(host)),
-  );
-}
-
-export function isAdminHost(host: string | null): boolean {
-  if (!host) {
-    return false;
-  }
-
-  if (getConfiguredAdminHosts().has(host)) {
-    return true;
-  }
-
-  return host.split(".")[0] === ADMIN_HOST_LABEL;
-}
 
 function redirectToAdminLogin(request: NextRequest) {
   const loginUrl = new URL("/admin/login", request.url);
@@ -43,24 +23,11 @@ function redirectToAdminLogin(request: NextRequest) {
   return response;
 }
 
-function redirectToAdminHome(request: NextRequest) {
-  const adminUrl = new URL("/admin", request.url);
-  return NextResponse.redirect(adminUrl);
-}
-
-function normalizeHost(host: string | null): string | null {
-  if (!host) {
-    return null;
-  }
-
-  return host.split(",")[0]?.trim().toLowerCase().replace(/:\d+$/, "") ?? null;
-}
-
-function getRequestHost(request: NextRequest): string {
+function getRequestHost(request: NextRequest): string | null {
   return (
     normalizeHost(request.headers.get("x-forwarded-host")) ??
     normalizeHost(request.headers.get("host")) ??
-    request.nextUrl.hostname.toLowerCase()
+    normalizeHost(request.nextUrl.hostname)
   );
 }
 
@@ -71,8 +38,20 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  if (pathname === "/" && isAdminHost(getRequestHost(request))) {
-    return redirectToAdminHome(request);
+  const host = getRequestHost(request);
+
+  // El apex sirve el landing; el host admin lleva su raíz a /admin.
+  const hostRoute = resolveHostRoute({ host, pathname });
+  if (hostRoute.action === "rewrite") {
+    const url = request.nextUrl.clone();
+    url.pathname = hostRoute.pathname;
+    return NextResponse.rewrite(url);
+  }
+
+  if (hostRoute.action === "redirect") {
+    const url = request.nextUrl.clone();
+    url.pathname = hostRoute.pathname;
+    return NextResponse.redirect(url);
   }
 
   if (pathname.startsWith("/admin")) {
@@ -100,6 +79,9 @@ export async function proxy(request: NextRequest) {
   return NextResponse.next();
 }
 
+/** Se exporta para poder clasificar hosts desde otros puntos del build. */
+export { classifyHost, isAdminHost } from "@/shared/config/host-routing";
+
 export const config = {
-  matcher: ["/", "/admin/:path*", "/admin"],
+  matcher: ["/", "/landing", "/admin/:path*", "/admin"],
 };
