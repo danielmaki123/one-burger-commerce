@@ -164,6 +164,7 @@ seguro con varias réplicas. Mantener `replicas: 1`.
 | Login de clientes (OTP) | Sin proveedor real de WhatsApp: `request-otp` responde 503 en producción. No afecta el checkout (no requiere sesión de cliente). |
 | CSP | No se define `Content-Security-Policy` todavía; sí `HSTS`, `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy` y `Permissions-Policy`. |
 | Módulos fuera de alcance | Reservas, mesas, delivery, inventario y reportes siguen vivos por URL/API, con `Inventario` en la navegación secundaria del admin. Decisión pendiente del owner: eliminarlos o mantenerlos. |
+| Build con webpack | `next build --webpack` falla la validación de exports de página (varias páginas exportan componentes y helpers además del default). Turbopack —el camino de build del Dockerfile y del CI— no aplica esa validación, así que hoy no bloquea. Extraer esos componentes a módulos propios antes de cambiar de bundler o de subir de versión mayor de Next. |
 
 ---
 
