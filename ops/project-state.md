@@ -262,6 +262,12 @@ productos: es el primer pendiente de contenido.
   | `admin.*` | 307 → `/admin` | 307 → `menu.*` | guard de sesión |
   | local / IP | app de pedidos (200) | 200 | guard de sesión |
 
+- **Cobertura E2E del landing** (`tests/e2e/landing.spec.ts`): además del HTML del servidor,
+  se verifica en un navegador real que **los frames avanzan al hacer scroll** (llega al
+  último) y que con `prefers-reduced-motion` el frame queda fijo. Esa parte se agregó al
+  verificar antes del deploy, porque ningún test la cubría: los unitarios solo prueban la
+  matemática del scroll y el render del servidor. Suite E2E completa: **17/17**.
+
 **Arreglo de branding: el logo y los colores no llegaban a toda la app (2026-09-10)**
 
 Dos bugs de la fase 2 que solo aparecen usando el producto, reportados por el owner:
