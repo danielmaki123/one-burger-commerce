@@ -606,6 +606,39 @@ describe("createOrder", () => {
     expect(result.data.total).toBe(109);
   });
 
+  it("guarda si el retiro fue programado por el cliente o es lo antes posible", async () => {
+    const repository = createRepository();
+    seedProduct(repository);
+
+    const programado = await createOrder(
+      {
+        type: "pickup",
+        customerName: "Juan",
+        customerWhatsapp: "+50588887777",
+        items: [{ productId: "prod_01", quantity: 1, modifierOptionIds: [] }],
+        pickupTime: new Date("2026-09-11T20:00:00-06:00").toISOString(),
+        pickupScheduled: true,
+      },
+      { repository },
+    );
+    expect(programado.data.pickupScheduled).toBe(true);
+    expect(programado.data.pickupTime).toBe(
+      new Date("2026-09-11T20:00:00-06:00").toISOString(),
+    );
+
+    const sinProgramar = await createOrder(
+      {
+        type: "pickup",
+        customerName: "Ana",
+        customerWhatsapp: "+50588887778",
+        items: [{ productId: "prod_01", quantity: 1, modifierOptionIds: [] }],
+        pickupTime: new Date("2026-09-11T19:35:00-06:00").toISOString(),
+      },
+      { repository },
+    );
+    expect(sinProgramar.data.pickupScheduled).toBe(false);
+  });
+
   it("rejects a second concurrent order when the coupon limit is already consumed", async () => {
     const repository = createRepository();
     seedProduct(repository);

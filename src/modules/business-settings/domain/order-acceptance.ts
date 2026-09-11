@@ -23,7 +23,15 @@ export type OrderRejectionReason =
   | "pickup-time-in-past";
 
 export type OrderAcceptance =
-  | { accepted: true }
+  | {
+      accepted: true;
+      /**
+       * La hora de retiro que se validó. Si el cliente no programó nada, es
+       * "ahora + tiempo de preparación" calculado con el reloj del servidor: así el
+       * pedido siempre queda con una hora concreta y la cocina sabe para cuándo es.
+       */
+      pickupTime: Date;
+    }
   | { accepted: false; reason: OrderRejectionReason; message: string };
 
 const FALLBACK_MESSAGES: Record<OrderRejectionReason, string> = {
@@ -87,5 +95,5 @@ export function resolveOrderAcceptance(input: {
     return reject("closed", true);
   }
 
-  return { accepted: true };
+  return { accepted: true, pickupTime: effective };
 }

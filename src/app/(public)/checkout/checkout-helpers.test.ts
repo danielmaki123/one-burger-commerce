@@ -4,7 +4,22 @@ import {
   extractCheckoutErrorMessage,
   formatPickupTimeIso,
   formatPublicOrderStatus,
+  readAcceptanceReason,
 } from "./checkout-helpers";
+
+describe("readAcceptanceReason", () => {
+  it("lee el motivo del rechazo operativo", () => {
+    expect(
+      readAcceptanceReason({ error: { fields: { acceptance: "pickup-time-in-past" } } }),
+    ).toBe("pickup-time-in-past");
+  });
+
+  it("devuelve null cuando no es un rechazo operativo", () => {
+    expect(readAcceptanceReason({ error: { fields: { customerName: "x" } } })).toBeNull();
+    expect(readAcceptanceReason(null)).toBeNull();
+    expect(readAcceptanceReason("texto")).toBeNull();
+  });
+});
 
 describe("formatPickupTimeIso", () => {
   it("convierte HH:mm a un ISO válido de hoy", () => {

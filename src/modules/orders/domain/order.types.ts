@@ -80,6 +80,8 @@ export type OrderRecord = {
   deliveryNotes?: string | null;
   deliveryFeeStatus?: DeliveryFeeStatus | null;
   pickupTime?: string | null;
+  /** Si el cliente programó el retiro; sin programar es "lo antes posible". */
+  pickupScheduled?: boolean;
   pickupNotes?: string | null;
   tableId?: string | null;
   couponCode?: string | null;
@@ -110,6 +112,8 @@ export type PublicOrderDetail = {
   updatedAt: string;
   deliveryFeeStatus?: DeliveryFeeStatus | null;
   pickupTime?: string | null;
+  /** Si el cliente programó el retiro; sin programar es "lo antes posible". */
+  pickupScheduled?: boolean;
   pickupNotes?: string | null;
   tableId?: string | null;
   couponCode?: string | null;

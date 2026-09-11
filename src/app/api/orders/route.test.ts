@@ -51,6 +51,66 @@ describe("POST /api/orders", () => {
     vi.useRealTimers();
   });
 
+  it("completa la hora de retiro cuando el cliente no programa el pedido", async () => {
+    createOrderMock.mockResolvedValueOnce({
+      data: { id: "order_01", type: "pickup" },
+      meta: { sourceOfTruth: "backend" },
+    });
+
+    const { POST } = await import("./route");
+    const response = await POST(
+      new Request("http://localhost/api/orders", {
+        method: "POST",
+        body: JSON.stringify({
+          type: "pickup",
+          customerName: "Daniel",
+          customerWhatsapp: "+50588887777",
+          items: [{ productId: "prod_01", quantity: 1 }],
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(201);
+    // El reloj del servidor, no el del cliente: si el cliente mandara su propia hora
+    // "lo antes posible", un formulario lento la volvería una hora del pasado.
+    expect(createOrderMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        pickupTime: new Date(PINNED_NOW.getTime() + 25 * 60_000).toISOString(),
+        pickupScheduled: false,
+      }),
+      expect.any(Object),
+    );
+  });
+
+  it("marca el pedido como programado cuando el cliente elige la hora", async () => {
+    createOrderMock.mockResolvedValueOnce({
+      data: { id: "order_01", type: "pickup" },
+      meta: { sourceOfTruth: "backend" },
+    });
+
+    const { POST } = await import("./route");
+    await POST(
+      new Request("http://localhost/api/orders", {
+        method: "POST",
+        body: JSON.stringify({
+          type: "pickup",
+          customerName: "Daniel",
+          customerWhatsapp: "+50588887777",
+          items: [{ productId: "prod_01", quantity: 1 }],
+          pickupTime: "2026-09-11T20:30:00-06:00",
+        }),
+      }),
+    );
+
+    expect(createOrderMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        pickupTime: new Date("2026-09-11T20:30:00-06:00").toISOString(),
+        pickupScheduled: true,
+      }),
+      expect.any(Object),
+    );
+  });
+
   it("rechaza el pedido si el negocio no está aceptando pedidos", async () => {
     loadBusinessSettingsMock.mockResolvedValue(
       createDefaultBusinessSettingsRecord({ isAcceptingOrders: false }),

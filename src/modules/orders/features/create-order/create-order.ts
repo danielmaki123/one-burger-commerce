@@ -31,6 +31,8 @@ export type CreateOrderRequest = {
   deliveryFeeStatus?: DeliveryFeeStatus | null;
   tipOptIn?: boolean;
   pickupTime?: string | null;
+  /** Si el cliente programó el retiro; `false` = lo antes posible. */
+  pickupScheduled?: boolean;
   pickupNotes?: string | null;
   tableId?: string | null;
   qrToken?: string | null;
@@ -339,6 +341,7 @@ export async function createOrder(
         deliveryNotes: input.deliveryNotes ?? null,
         deliveryFeeStatus,
         pickupTime: input.pickupTime ? new Date(input.pickupTime) : null,
+        pickupScheduled: input.pickupScheduled ?? false,
         pickupNotes: input.pickupNotes ?? null,
         tableId: input.tableId ?? null,
         orderNumber,

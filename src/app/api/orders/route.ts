@@ -120,10 +120,21 @@ export async function POST(request: Request) {
       });
     }
 
-    const result = await createOrder(parsed.data, {
-      repository,
-      tipPolicy: { enabled: settings.tipEnabled, rate: settings.tipRate },
-    });
+    const result = await createOrder(
+      {
+        ...parsed.data,
+        // El servidor guarda siempre una hora concreta: la que eligió el cliente o
+        // "ahora + preparación" con el reloj del servidor. `pickupScheduled` lo deriva
+        // el servidor de si vino una hora, así el cliente no puede declararse programado
+        // sin haber elegido nada.
+        pickupTime: acceptance.pickupTime.toISOString(),
+        pickupScheduled: pickupTime !== null,
+      },
+      {
+        repository,
+        tipPolicy: { enabled: settings.tipEnabled, rate: settings.tipRate },
+      },
+    );
     return NextResponse.json(result, { status: 201 });
   } catch (error) {
     return createErrorResponse(error);

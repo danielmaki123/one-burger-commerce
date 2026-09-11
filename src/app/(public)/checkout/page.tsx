@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { formatTodayHours } from "@/modules/business-settings/domain/business-hours-format";
 import {
   buildPickupSlots,
-  formatSlotLabel,
   soonestPickupTime,
   type PickupSlot,
 } from "@/modules/business-settings/domain/pickup-slots";
@@ -26,7 +25,9 @@ import {
   extractCheckoutErrorMessage,
   formatPickupTimeIso,
   formatPublicOrderStatus,
+  readAcceptanceReason,
 } from "./checkout-helpers";
+import { PickupScheduleField } from "./pickup-schedule-field";
 import {
   getPublicCheckoutMobileActionClassName,
   publicCheckoutScaleClasses,
@@ -56,7 +57,6 @@ const ORDER_TYPE = "pickup";
 const FIELD_IDS = {
   customerName: "checkout-customer-name",
   customerWhatsapp: "checkout-customer-whatsapp",
-  pickupTime: "checkout-pickup-time",
   items: "checkout-error",
 } as const;
 
@@ -115,24 +115,24 @@ export default function CheckoutPage() {
     });
   }, [now, settings.businessHours, settings.timezone, settings.pickupLeadMinutes]);
 
-  /**
-   * Si el local está cerrado o ya no quedan turnos del día, el pedido **no se bloquea**
-   * (bloquearlo es una decisión de producto aparte y necesita validación en el servidor):
-   * se avisa y se ofrece la hora calculada más próxima.
-   */
-  const pickupOptions: PickupSlot[] = useMemo(() => {
-    if (!pickupSlots) return [];
+  /** Turnos que ofrece el local hoy. Programar es opcional: sin elegir nada, el pedido
+   *  se prepara apenas llega. */
+  const pickupOptions: PickupSlot[] = useMemo(
+    () => (pickupSlots?.available ? pickupSlots.slots : []),
+    [pickupSlots],
+  );
 
-    if (pickupSlots.available) return pickupSlots.slots;
+  /** Hora que mostrará "lo antes posible". El servidor recalcula la suya al recibir el
+   *  pedido, así que esto es solo para que el cliente sepa qué esperar. */
+  const asapPickupTime = useMemo(() => {
+    if (!now) return "";
 
-    const fallback = soonestPickupTime({
-      now: now ?? new Date(),
+    return soonestPickupTime({
+      now,
       timezone: settings.timezone,
       pickupLeadMinutes: settings.pickupLeadMinutes,
     });
-
-    return [{ value: fallback, label: formatSlotLabel(fallback), isSoonest: true }];
-  }, [pickupSlots, now, settings.timezone, settings.pickupLeadMinutes]);
+  }, [now, settings.timezone, settings.pickupLeadMinutes]);
 
   const pickupClosed = pickupSlots !== null && !pickupSlots.available;
   /**
@@ -147,15 +147,6 @@ export default function CheckoutPage() {
       ? "Está fuera del horario de atención. Volvé cuando abramos."
       : "Por ahora no estamos aceptando pedidos.");
   const todayHours = formatTodayHours(settings.businessHours, new Date(), settings.timezone);
-
-  // Preselecciona el primer turno apenas se conocen los del día.
-  useEffect(() => {
-    if (pickupOptions.length === 0) return;
-
-    setFormData((prev) =>
-      prev.pickupTime ? prev : { ...prev, pickupTime: pickupOptions[0].value },
-    );
-  }, [pickupOptions]);
 
   useEffect(() => {
     if (submitError) errorRef.current?.focus();
@@ -211,12 +202,9 @@ export default function CheckoutPage() {
     if (!formData.customerWhatsapp.trim()) {
       return { field: "customerWhatsapp", message: "Falta completar WhatsApp." };
     }
-    if (!formData.pickupTime.trim()) {
-      return { field: "pickupTime", message: "Elegí la hora de retiro." };
-    }
-    if (!formatPickupTimeIso(formData.pickupTime)) {
-      return { field: "pickupTime", message: "Revisá la hora de retiro." };
-    }
+    // La hora de retiro es opcional: vacío es "lo antes posible" y lo resuelve el
+    // servidor con su reloj. No se valida porque los valores solo pueden salir de los
+    // turnos que ofrece el propio control.
 
     return null;
   };
@@ -250,6 +238,9 @@ export default function CheckoutPage() {
         })),
       };
 
+      // Sin hora = sin programar. No se manda nada y el servidor completa con
+      // "ahora + preparación" usando su reloj, así un formulario lento no convierte
+      // la hora en una del pasado.
       const pickupTime = formatPickupTimeIso(formData.pickupTime);
       if (pickupTime) payload.pickupTime = pickupTime;
       if (formData.pickupNotes.trim()) payload.pickupNotes = formData.pickupNotes.trim();
@@ -296,6 +287,13 @@ export default function CheckoutPage() {
       } else {
         const errorPayload = await res.json().catch(() => null);
         setSubmitError(extractCheckoutErrorMessage(errorPayload));
+
+        // Si la hora programada quedó vieja mientras el cliente llenaba el formulario,
+        // se vuelve a "lo antes posible" en vez de dejarlo reintentando con una hora
+        // que el servidor ya no va a aceptar.
+        if (readAcceptanceReason(errorPayload) === "pickup-time-in-past") {
+          setFormData((prev) => ({ ...prev, pickupTime: "" }));
+        }
       }
     } catch {
       setSubmitError("No pudimos confirmar el pedido. Intentá de nuevo.");
@@ -361,12 +359,7 @@ export default function CheckoutPage() {
               />
 
               <div className="space-y-2">
-                <p className="text-sm font-medium text-foreground">
-                  Hora de retiro{" "}
-                  <span className="text-xs font-normal text-muted-foreground">
-                    · {todayHours}
-                  </span>
-                </p>
+                <p className="text-sm font-medium text-foreground">Hora de retiro</p>
                 {orderingBlocked ? (
                   <p
                     role="status"
@@ -374,38 +367,17 @@ export default function CheckoutPage() {
                   >
                     {orderingBlockedMessage}
                   </p>
-                ) : pickupOptions.length > 0 ? (
-                  <div
-                    id={FIELD_IDS.pickupTime}
-                    tabIndex={-1}
-                    className="flex flex-wrap gap-2 focus:outline-none"
-                  >
-                    {pickupOptions.map((option) => (
-                      <button
-                        key={option.value}
-                        type="button"
-                        onClick={() =>
-                          handleInputChange({
-                            target: { name: "pickupTime", value: option.value },
-                          } as React.ChangeEvent<HTMLInputElement>)
-                        }
-                        aria-pressed={formData.pickupTime === option.value}
-                        className={`min-h-11 rounded-full border px-3 py-2 text-sm ${
-                          formData.pickupTime === option.value
-                            ? "border-brand bg-accent font-semibold text-foreground"
-                            : "border-border bg-card text-foreground"
-                        }`}
-                      >
-                        {option.isSoonest
-                          ? `Lo antes posible · ${option.label}`
-                          : option.label}
-                      </button>
-                    ))}
-                  </div>
-                ) : null}
-                {fieldError?.field === "pickupTime" ? (
-                  <p className="text-xs font-medium text-red-500">{fieldError.message}</p>
-                ) : null}
+                ) : (
+                  <PickupScheduleField
+                    scheduledTime={formData.pickupTime}
+                    onSelect={(value) =>
+                      setFormData((prev) => ({ ...prev, pickupTime: value }))
+                    }
+                    asapValue={asapPickupTime}
+                    options={pickupOptions}
+                    todayHours={todayHours}
+                  />
+                )}
               </div>
 
               <div className="space-y-2">

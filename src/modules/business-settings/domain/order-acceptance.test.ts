@@ -33,16 +33,30 @@ const base = {
 };
 
 describe("resolveOrderAcceptance", () => {
-  it("acepta un pedido dentro del horario", () => {
-    expect(
-      resolveOrderAcceptance({ ...base, pickupTime: managua("2026-09-11", "20:00") }),
-    ).toEqual({ accepted: true });
+  it("acepta un pedido dentro del horario y devuelve la hora que validó", () => {
+    const pickupTime = managua("2026-09-11", "20:00");
+
+    expect(resolveOrderAcceptance({ ...base, pickupTime })).toEqual({
+      accepted: true,
+      pickupTime,
+    });
   });
 
   it("acepta la hora exacta de cierre", () => {
     expect(
       resolveOrderAcceptance({ ...base, pickupTime: managua("2026-09-11", "22:00") }),
-    ).toEqual({ accepted: true });
+    ).toMatchObject({ accepted: true });
+  });
+
+  it("sin hora de retiro devuelve lo antes posible para que la cocina vea una hora", () => {
+    // Sin programar: el servidor completa con ahora + preparación, con su propio reloj,
+    // así el pedido nunca queda con una hora vieja calculada por el cliente.
+    const result = resolveOrderAcceptance({ ...base, pickupTime: null });
+
+    expect(result).toEqual({
+      accepted: true,
+      pickupTime: new Date(base.now.getTime() + 25 * 60_000),
+    });
   });
 
   it("rechaza si el negocio no está aceptando pedidos", () => {
@@ -157,7 +171,7 @@ describe("resolveOrderAcceptance", () => {
       pickupTime: managua("2026-09-12", "13:00"),
     });
 
-    expect(result).toEqual({ accepted: true });
+    expect(result).toMatchObject({ accepted: true });
   });
 
   it("rechaza el sábado a las 12:00 cuando el sábado abre a las 13:00", () => {

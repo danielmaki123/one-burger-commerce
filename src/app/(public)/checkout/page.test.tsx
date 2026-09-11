@@ -168,15 +168,15 @@ describe("checkout sin redundancias", () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
-  it("preselecciona el primer turno de retiro calculado", async () => {
+  it("arranca sin programar el retiro", async () => {
     mockCart = { items: twoItems, subtotal: 380, clearCart: vi.fn() };
 
     render(<CheckoutPage />);
 
     await waitFor(() => {
-      const soonest = screen.getByRole("button", { name: /^Lo antes posible · / });
-      expect(soonest.getAttribute("aria-pressed")).toBe("true");
+      expect(screen.getByText(/^Lo antes posible · listo ~/)).toBeTruthy();
     });
+    expect(screen.queryByRole("radio")).toBeNull();
   });
 
   it("bloquea el pedido cuando el negocio no está aceptando pedidos", () => {
@@ -219,26 +219,10 @@ describe("checkout sin redundancias", () => {
     ).toHaveLength(1);
   });
 
-  it("envía el pedido con el turno preseleccionado", async () => {
+  it("sin programar no manda hora de retiro: la calcula el servidor", async () => {
     const user = userEvent.setup();
     mockCart = { items: twoItems, subtotal: 380, clearCart: vi.fn() };
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => ({
-          data: {
-            id: "order-1",
-            orderNumber: "OB-1",
-            type: "pickup",
-            status: "new",
-            total: 380,
-            subtotal: 380,
-            orderLookupToken: "token-1",
-          },
-        }),
-      }),
-    );
+    stubOrderResponse();
 
     render(<CheckoutPage />);
     await user.type(screen.getByLabelText("Nombre completo"), "Cliente E2E");
@@ -252,8 +236,55 @@ describe("checkout sin redundancias", () => {
     );
     expect(body.customerName).toBe("Cliente E2E");
     expect(body.type).toBe("pickup");
-    expect(typeof body.pickupTime).toBe("string");
-    expect(Number.isNaN(new Date(body.pickupTime).getTime())).toBe(false);
+    // Mandar una hora calculada por el cliente la volvería una hora del pasado si el
+    // formulario tarda: por eso "sin programar" es simplemente no mandarla.
+    expect(body.pickupTime).toBeUndefined();
     await waitFor(() => expect(push).toHaveBeenCalledWith("/success/order-1?token=token-1"));
   });
+
+  it("programar una hora la manda en el pedido", async () => {
+    const user = userEvent.setup();
+    mockCart = { items: twoItems, subtotal: 380, clearCart: vi.fn() };
+    stubOrderResponse();
+
+    render(<CheckoutPage />);
+
+    // El control arranca mostrando el estado, no escondido.
+    expect(screen.getByText(/^Lo antes posible · listo ~/)).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: /Lo antes posible · listo/ }));
+    await user.click(screen.getByRole("radio", { name: "8:00 p. m." }));
+
+    await user.type(screen.getByLabelText("Nombre completo"), "Cliente E2E");
+    await user.type(screen.getByLabelText("WhatsApp"), "88887777");
+    await user.click(confirmButtons()[0]);
+
+    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
+
+    const body = JSON.parse(
+      (vi.mocked(fetch).mock.calls[0][1] as RequestInit).body as string,
+    );
+    const scheduled = new Date(body.pickupTime);
+    expect(scheduled.getHours()).toBe(20);
+    expect(scheduled.getMinutes()).toBe(0);
+  });
 });
+
+function stubOrderResponse() {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        data: {
+          id: "order-1",
+          orderNumber: "OB-1",
+          type: "pickup",
+          status: "new",
+          total: 380,
+          subtotal: 380,
+          orderLookupToken: "token-1",
+        },
+      }),
+    }),
+  );
+}

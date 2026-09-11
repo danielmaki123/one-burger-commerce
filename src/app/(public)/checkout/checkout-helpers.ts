@@ -37,6 +37,21 @@ export function formatPublicOrderStatus(status: string): string {
 }
 
 /**
+ * Motivo del rechazo operativo, si la respuesta fue uno. Lo escribe el servidor en
+ * `fields.acceptance` para que el cliente pueda reaccionar sin parsear el mensaje.
+ */
+export function readAcceptanceReason(payload: unknown): string | null {
+  if (!payload || typeof payload !== "object") return null;
+
+  const error = (payload as Record<string, unknown>).error as
+    | Record<string, unknown>
+    | undefined;
+  const fields = error?.fields as Record<string, unknown> | undefined;
+
+  return typeof fields?.acceptance === "string" ? fields.acceptance : null;
+}
+
+/**
  * Traduce el error de `POST /api/orders` a un mensaje para el cliente.
  *
  * Solo cubre lo que este checkout puede provocar: entrega y mesa están fuera del MVP,
@@ -52,7 +67,7 @@ export function extractCheckoutErrorMessage(payload: unknown): string {
 
   // Rechazo operativo (local cerrado o negocio sin aceptar pedidos): el mensaje lo
   // escribe el servidor desde la configuración, así que se muestra tal cual.
-  if (typeof fields?.acceptance === "string" && typeof error?.message === "string") {
+  if (readAcceptanceReason(payload) && typeof error?.message === "string") {
     return error.message;
   }
 

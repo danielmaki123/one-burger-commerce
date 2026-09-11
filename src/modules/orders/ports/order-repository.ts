@@ -26,6 +26,8 @@ export type CreateOrderInput = {
   deliveryFeeStatus?: DeliveryFeeStatus | null;
   tipOptIn?: boolean;
   pickupTime?: Date | null;
+  /** Si el cliente programó el retiro; sin programar es "lo antes posible". */
+  pickupScheduled?: boolean;
   pickupNotes?: string | null;
   tableId?: string | null;
   deliveryZoneId?: string | null;

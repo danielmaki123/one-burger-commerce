@@ -326,6 +326,10 @@ model Order {
   deliveryFeeStatus String?            @default("pending_manual_validation")
   deliveryFeeAmount Decimal            @db.Decimal(10, 2) @default(0)
   pickupTime        DateTime?
+  /// Si el cliente programó el retiro. `false` = lo antes posible: el servidor guarda
+  /// igual una `pickupTime` concreta (ahora + preparación) para que la cocina sepa para
+  /// cuándo es, pero la distinción se conserva para poder marcarlo en el admin.
+  pickupScheduled   Boolean            @default(false)
   pickupNotes       String?
   tableId           String?
   couponId          String?
@@ -353,6 +357,7 @@ model Order {
   @@index([type])
   @@index([status])
   @@index([createdAt])
+  @@index([pickupTime])
   @@index([tableId])
   @@index([couponId])
   @@index([customerId])
