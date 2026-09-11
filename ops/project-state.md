@@ -1,6 +1,6 @@
 # Estado del proyecto — One Burger Commerce
 
-> Actualizado: 2026-09-11 · Commit en `main`: `ca474c8` · Build en producción: `build-20260911-154014`
+> Actualizado: 2026-09-11 · Commit en `main`: `b207593` · Build en producción: `build-20260911-154014`
 > Este documento es el punto de entrada para retomar el trabajo. Mantenerlo al día al cerrar cada tarea.
 > Para arrancar en un chat nuevo: `ops/tasks/START-HERE.md`.
 
@@ -543,6 +543,66 @@ Desplegado `ca474c8` como `build-20260911-154014`. Horarios reales del negocio a
 del deploy: 12:00–22:00 todos los días, `America/Managua`, `pickupLeadMinutes` 25,
 "Aceptando pedidos" encendido, `closedMessage` configurado.
 
+### Retiro opcional y programable (2026-09-11)
+
+Commits `6f85a3c`, `c101f82` y `b207593`. **Falta desplegar** (incluye una migración).
+
+Antes el cliente **tenía que** elegir una hora de una fila de chips, con el primer turno
+preseleccionado. Si está en el local y manda la orden, eso es fricción sin sentido.
+
+- **El retiro es opcional.** Por defecto el pedido es "lo antes posible". El control
+  colapsado **muestra el estado** ("Lo antes posible · listo ~7:35 p. m.") en vez de
+  esconderlo detrás de un botón genérico: si no, el cliente que no programa no sabe
+  cuándo va a estar su comida.
+- **Programar es una acción aparte**: al desplegar aparecen "Lo antes posible" y los
+  turnos del local, calculados desde ahora + `pickupLeadMinutes`. Radios nativos con
+  estilos del sistema.
+- **Sin programar, el cliente no manda la hora.** Si mandara "ahora + preparación"
+  calculado al cargar la página, un formulario lento la convertiría en una hora del
+  pasado y el servidor la rechazaría. La completa el servidor con su reloj y la guarda,
+  así la cocina siempre tiene para cuándo es. `pickupScheduled` se deriva de si vino una
+  hora: el cliente no puede declararse programado sin haber elegido nada.
+- **Una sola regla para bloquear.** El checkout evalúa la misma `resolveOrderAcceptance`
+  que el servidor. Antes se bloqueaba cuando no quedaban turnos de la grilla, que es más
+  estricto que la regla real: con cierre a las 22:00 y 25 min de preparación, a las 21:20
+  ya no hay turnos pero el pedido entra 21:45 y el servidor lo acepta.
+- **Si la hora programada queda vieja** mientras el cliente llena el formulario, el
+  checkout vuelve solo a "lo antes posible".
+
+### La hora de retiro ahora se ve en toda la cadena (2026-09-11)
+
+Commit `c101f82`. Era el hallazgo de fondo: la hora se validaba, se guardaba y
+**desaparecía**. El ticket de cocina armaba su línea de retiro como
+`pickupNotes ?? "Retiro en <negocio>"`, así que una nota del cliente la tapaba; ningún
+componente del admin leía `pickupTime`; y el cliente tampoco la veía en su confirmación.
+
+- **Ticket de cocina**: línea `RETIRO:` propia, con la hora en la zona del negocio, y
+  distingue "Programado para las 8:00 p. m." de "Lo antes posible (~7:35 p. m.)". Las
+  notas del cliente siguen en su línea `INFO:`.
+- **Bandeja y detalle del admin**: "Retiro 8:00 p. m. · Programado" (o
+  "Retiro ~8:00 p. m. · Lo antes posible").
+- **Confirmación del cliente**: fila "Hora de retiro", con `~` cuando es estimada.
+
+**El semáforo se mide contra la hora prometida, no contra la antigüedad del pedido.** La
+regla anterior pintaba de rojo cualquier pedido abierto hace más de 20 minutos
+(`ADMIN_ORDER_LATE_MINUTES`, ahora borrada): uno programado para las 21:00 aparecía en
+rojo a las 19:20, con una hora de margen. Un aviso que grita cuando no pasa nada deja de
+significar algo. Ahora: **verde** hasta la hora, **naranja** desde que se pasa, **rojo**
+a los 15 minutos. Los colores son tokens propios (`--pickup-on-time/past/late`), no los
+del estado del pedido: un pedido puede estar "listo" e ir tarde contra lo que se prometió.
+
+Verificado: 1069 unitarios (28 nuevos, con jsdom de la bandeja y del detalle), lint,
+typecheck, build y `security:secrets` en verde. E2E completo: **27 pasaron, 7 salteados,
+0 fallos**, incluido un test de punta a punta que programa una hora en el checkout y
+comprueba que el pedido aparezca como "Programado" en la bandeja del admin.
+
+**Tres cosas que solo aparecieron al correr el E2E en un navegador real** (commit
+`b207593`): el checkout era más estricto que el servidor al bloquear; el nombre accesible
+del botón salía pegado ("RetiroLo antes posible…") porque dos spans de bloque no dejan
+espacio en el texto; y el radio con `sr-only` no era clickeable, así que el arnés no podía
+tocarlo (ahora cubre la tarjeta con opacidad 0: sigue siendo nativo y además se puede
+automatizar).
+
 ## 3. Infraestructura y secretos
 
 - `EASYPANEL_URL` y `EASYPANEL_TOKEN`: solo en el entorno de quien ejecuta el deploy (nunca
@@ -568,6 +628,8 @@ del deploy: 12:00–22:00 todos los días, `America/Managua`, `pickupLeadMinutes
 | 7 | **Personalización / quitar hardcodeo** (nombre, colores, logo, contacto, horarios, dirección) | **Cerrada (fases 1-4 y 6)** | Aprobada el 2026-09-10; brief en `ops/tasks/TASK-whitelabel-branding.md`. Sitio público, `/admin/settings`, apariencia con presets y contrato anti-hardcode, todo en `main` con CI verde. La **fase 5 (subida de logos)** se descartó: necesita un volumen persistente en Easypanel. Quedó **una excepción**: los turnos de retiro siguen hardcodeados y se trasladaron a la tarea #8. |
 | 8 | **Checkout sin redundancias** (textos y botones repetidos) | **Cerrada y desplegada** | `ops/tasks/TASK-checkout-ux.md`. Cuatro commits (`2832a93`…`aba4156`), en producción como `build-20260911-145656`. El checkout pasó de 807 a 476 líneas, un solo resumen compartido con el carrito, un solo CTA visible por viewport y los turnos de retiro calculados desde la configuración. |
 | 9 | **Validar el estado operativo en el servidor** | **Cerrada y desplegada** | Commits `3a67c37` y `ca474c8`, en producción como `build-20260911-154014`. `isAcceptingOrders` ya corta pedidos de verdad (antes no lo leía nadie) y la hora de retiro se valida contra el horario del día. Incluye el horario demo del seed y el límite de login del arnés E2E. |
+| 10 | **Retiro opcional y programable + la hora visible en toda la cadena** | **Cerrada, sin desplegar** | Commits `6f85a3c`, `c101f82` y `b207593`. Incluye **una migración** (`pickupScheduled`). El retiro es opcional, la hora la resuelve el servidor, el ticket de cocina y el admin la muestran, y el semáforo va contra la hora prometida. Ver el detalle arriba. |
+| 11 | **Pedidos programados de días futuros** | Agente | Hoy el checkout solo ofrece turnos de hoy. Un pedido programado para mañana se puede crear por API y el admin lo muestra, pero la UI no lo ofrece. Decidir si el negocio quiere pedidos anticipados. |
 
 ## 5. Cómo continuar
 
@@ -580,6 +642,10 @@ npm run test && npm run lint && npm run typecheck && npm run build
 
 # 3. Entorno local completo (Postgres + seed + server) para E2E
 docker compose up -d
+# ⚠️ `npm run build` NO regenera el cliente de Prisma (el Dockerfile y CI sí lo hacen).
+# Después de tocar `schema.prisma` hay que correr `npx prisma generate` o el build
+# compila bien y el runtime falla con "Unknown argument".
+npx prisma generate
 DATABASE_URL="postgresql://postgres:postgres@127.0.0.1:5432/oneburger?schema=public" npx prisma migrate deploy
 DATABASE_URL="postgresql://postgres:postgres@127.0.0.1:5432/oneburger?schema=public" npx tsx prisma/seed.ts
 # (ojo: el puerto 3000 de esta máquina lo ocupa un servicio VPN; usar 3210)
