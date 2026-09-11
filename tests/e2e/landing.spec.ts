@@ -76,7 +76,7 @@ test.describe("landing", () => {
 
     const frame = page.locator("#landing-frame");
     await expect(frame).toBeVisible();
-    await expect(frame).toHaveAttribute("src", "/landing/frames/burger_0045.webp");
+    await expect(frame).toHaveAttribute("src", "/landing/frames/burger_0045.webp?v=1");
 
     // Sin el header ni el footer del sitio público: es pantalla completa.
     await expect(page.getByRole("link", { name: "One Burger inicio" })).toHaveCount(0);
@@ -134,7 +134,7 @@ test.describe("landing", () => {
       })
       .not.toBe(firstFrame);
 
-    await expect(frame).toHaveAttribute("src", "/landing/frames/burger_0120.webp");
+    await expect(frame).toHaveAttribute("src", "/landing/frames/burger_0120.webp?v=1");
   });
 
   test("con movimiento reducido deja un frame fijo y muestra el botón enseguida", async ({

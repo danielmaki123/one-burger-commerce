@@ -13,6 +13,15 @@ export const LANDING_FRAME_NUMBERS: number[] = [
 
 const FRAME_DIRECTORY = "/landing/frames";
 
+/**
+ * Versión de la secuencia.
+ *
+ * Los frames se cachean un año en el navegador (`immutable`, ver `next.config.ts`),
+ * así que la URL lleva esta versión: **subila cuando cambie el contenido de algún
+ * frame**, si no el navegador va a seguir mostrando el viejo.
+ */
+export const LANDING_FRAMES_VERSION = "1";
+
 function frameFileName(frameNumber: number): string {
   return `burger_${String(frameNumber).padStart(4, "0")}.webp`;
 }
@@ -24,7 +33,7 @@ export function framePathForIndex(index: number): string {
     LANDING_FRAME_NUMBERS.length - 1,
   );
 
-  return `${FRAME_DIRECTORY}/${frameFileName(LANDING_FRAME_NUMBERS[safeIndex])}`;
+  return `${FRAME_DIRECTORY}/${frameFileName(LANDING_FRAME_NUMBERS[safeIndex])}?v=${LANDING_FRAMES_VERSION}`;
 }
 
 /** Frame que corresponde a un progreso de scroll entre 0 y 1. */

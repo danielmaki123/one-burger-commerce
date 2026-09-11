@@ -18,9 +18,9 @@ describe("secuencia de frames del landing", () => {
     expect(LANDING_FRAME_NUMBERS.slice(-2)).toEqual([119, 120]);
   });
 
-  it("arma la ruta publica con el numero rellenado a cuatro digitos", () => {
-    expect(framePathForIndex(0)).toBe("/landing/frames/burger_0045.webp");
-    expect(framePathForIndex(36)).toBe("/landing/frames/burger_0120.webp");
+  it("arma la ruta publica con el numero a cuatro digitos y la version de cache", () => {
+    expect(framePathForIndex(0)).toBe("/landing/frames/burger_0045.webp?v=1");
+    expect(framePathForIndex(36)).toBe("/landing/frames/burger_0120.webp?v=1");
   });
 });
 

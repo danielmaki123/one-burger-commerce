@@ -70,6 +70,20 @@ const nextConfig: NextConfig = {
           },
         ],
       },
+      {
+        // Los frames del landing pesan 3,26 MB. Next sirve lo que está en
+        // `public/` con `max-age=0` y un ETag derivado de la fecha del archivo,
+        // así que **cada deploy obligaba a todos los clientes a bajarlos de
+        // nuevo**. Con un año de caché inmutable solo se bajan una vez; si algún
+        // frame cambia, se sube `LANDING_FRAMES_VERSION` y la URL cambia.
+        source: "/landing/frames/:path*",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=31536000, immutable",
+          },
+        ],
+      },
     ];
   },
 };
