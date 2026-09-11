@@ -203,6 +203,76 @@ body {
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/* ── Escala del mock "Artisanal Appetite" (T1.3) ──
+   Tamaño, interlineado, peso y tracking de cada paso tal como los declara su
+   `DESIGN.md`, en `rem` y nunca en `px` para que el zoom del navegador y el
+   tamaño de fuente del usuario sigan funcionando (el mock bloquea el zoom: eso
+   no se copia). Los pasos `-lg` son la variante de escritorio y se usan con un
+   prefijo de breakpoint (`text-display lg:text-display-lg`), porque el mock solo
+   define la versión mobile.
+   Única desviación, a propósito: su `label-sm` de 10 px entra como 12 px, que es
+   el piso legible en un teléfono real. */
+@theme inline {
+  --text-display: 1.875rem;
+  --text-display--line-height: 2.375rem;
+  --text-display--font-weight: 800;
+  --text-display--letter-spacing: -0.02em;
+  --text-display-lg: 2.5rem;
+  --text-display-lg--line-height: 3rem;
+  --text-display-lg--font-weight: 800;
+  --text-display-lg--letter-spacing: -0.03em;
+  --text-headline: 1.375rem;
+  --text-headline--line-height: 1.75rem;
+  --text-headline--font-weight: 700;
+  --text-headline--letter-spacing: -0.01em;
+  --text-headline-lg: 1.75rem;
+  --text-headline-lg--line-height: 2.25rem;
+  --text-headline-lg--font-weight: 700;
+  --text-headline-lg--letter-spacing: -0.02em;
+  --text-headline-md: 1.25rem;
+  --text-headline-md--line-height: 1.625rem;
+  --text-headline-md--font-weight: 700;
+  --text-headline-md--letter-spacing: -0.01em;
+  --text-title: 1.0625rem;
+  --text-title--line-height: 1.375rem;
+  --text-title--font-weight: 700;
+  --text-title-sm: 0.9375rem;
+  --text-title-sm--line-height: 1.25rem;
+  --text-title-sm--font-weight: 600;
+  --text-body: 1rem;
+  --text-body--line-height: 1.5rem;
+  --text-body--font-weight: 400;
+  --text-body-sm: 0.875rem;
+  --text-body-sm--line-height: 1.25rem;
+  --text-body-sm--font-weight: 400;
+  --text-caption: 0.75rem;
+  --text-caption--line-height: 1rem;
+  --text-caption--font-weight: 400;
+  --text-label: 0.875rem;
+  --text-label--line-height: 1.125rem;
+  --text-label--font-weight: 700;
+  --text-label--letter-spacing: 0.01em;
+  --text-label-sm: 0.75rem;
+  --text-label-sm--line-height: 1rem;
+  --text-label-sm--font-weight: 600;
+  --text-label-sm--letter-spacing: 0.02em;
+  --text-label-xs: 0.75rem;
+  --text-label-xs--line-height: 1rem;
+  --text-label-xs--font-weight: 700;
+  --text-label-xs--letter-spacing: 0.04em;
+
+  /* Curvaturas del mock: las tarjetas usan 16 px y los paneles 24 px. No se toca
+     la cadena `--radius-*` global para no re-vestir el admin, que no está en el mock. */
+  --radius-card: 1rem;
+  --radius-panel: 1.5rem;
+
+  /* Elevaciones del mock, teñidas con el color configurado (`--brand`) para que
+     sigan la apariencia que el owner elige en `/admin/settings`. */
+  --shadow-card: 0 4px 16px -2px color-mix(in srgb, var(--brand) 8%, transparent);
+  --shadow-raised: 0 6px 20px -4px color-mix(in srgb, var(--brand) 14%, transparent);
+  --shadow-float: 0 12px 32px -6px color-mix(in srgb, var(--brand) 22%, transparent);
+}
+
 .dark {
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);

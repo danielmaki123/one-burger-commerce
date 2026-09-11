@@ -683,8 +683,8 @@ test que falla, después el preset.
   cosa que sus propias pantallas no logran porque usan blanco de 12 px sobre naranja (3,59:1).
 - **Sin datos hardcodeados**: es un preset más; el owner lo aplica desde `/admin/settings` y puede
   cambiar cualquier color. El default del sitio no cambia.
-- Pendiente dentro de T1: **T1.2** (Plus Jakarta Sans como tercera tipografía, decisión D-A) y
-  **T1.3** (escala tipográfica, radios y sombras del mock mapeados a tokens de `globals.css`).
+- Pendiente dentro de T1: **T1.2** (Plus Jakarta Sans como tercera tipografía, decisión D-A). **T1.3
+  cerrada** (ver abajo).
 - **Verificado en el camino real** (Postgres 17 local + migraciones + seed + `next start -p 3210` con
   el build que sirve el preset): **E2E completo 28 pasaron, 7 salteados, 0 fallos**. Se sumó un caso
   nuevo, "la paleta del mock se aplica como preset y se ve en la vista previa (375 px)", que entra al
@@ -692,6 +692,40 @@ test que falla, después el preset.
   (`--brand` `#d32f2f`, `--background` `#faf1d6`, `--card` `#fffdf9`), comprueba que el botón cumple
   el mínimo táctil de 44 px y que **sin guardar el sitio publicado no cambia**. El test **tiene
   dientes**: con una expectativa falsa a propósito falla mostrando `Received: "#d32f2f"`.
+
+### Adopción del mock · T1.3: escala tipográfica, radios y sombras como tokens (2026-09-12)
+
+Segundo incremento de T1, también con TDD, y el que cierra la capa de diseño: **la escala del mock
+existe una sola vez**, en `globals.css`, y las pantallas de T2-T7 la consumen.
+
+- **Test rojo**: se agregó a `business-settings-style.test.ts` el bloque "tokens del mock (escala
+  tipográfica, radios y sombras)", que parsea los bloques `@theme` de `globals.css`. Falló como debía
+  antes de tocar el CSS: 5 casos en rojo (`falta --text-display`, `expected undefined to be '1rem'`,
+  `falta --shadow-card`). Después, el mismo camino para los consumidores:
+  `home-page-helpers.test.ts` en rojo (`getHomeBrandNameClassName is not a function`).
+- **Verde**: los **13 pasos tipográficos** del `DESIGN.md` del mock (display 30/38/800 en celular y
+  40/48/800 en escritorio, headline, title, body, caption y label) con su interlineado, su peso y su
+  tracking, en `rem` y **nunca en `px`** —el mock bloquea el zoom en sus 7 pantallas y eso no se
+  copia—; las curvaturas de tarjeta (16 px) y panel (24 px); y las **tres elevaciones** del mock,
+  teñidas con `color-mix()` sobre `--brand` para que sigan el color que el owner elige en
+  `/admin/settings` en vez de un gris fijo.
+- **Una desviación, a propósito y documentada**: su `label-sm` de 10 px entra como 12 px. Es el piso
+  legible en un teléfono real, y el audit ya lista el texto diminuto del mock entre los defectos que
+  no se arrastran.
+- **Primer consumidor real** (y lo que hace que los tokens no sean código muerto): el título del hero
+  de la home pasó de tres tamaños sueltos (`text-3xl`, `sm:text-[2.25rem]`, `lg:text-[2.5rem]`) a
+  `text-display lg:text-display-lg`, y el nombre del negocio del encabezado a `text-headline`. En el
+  camino, ese nombre pasó de `<p>` a `<h1>`: la home **no tenía ningún h1**, así que la página no
+  tenía título para un lector de pantalla ni para un buscador.
+- **Verificado en el camino real** (Postgres 17 local + migraciones + seed + `next start -p 3210` con
+  el build que sirve los tokens): **E2E completo 33 pasaron, 7 salteados, 0 fallos** (antes 28; los 5
+  nuevos son `tests/e2e/design-tokens.spec.ts`). Ese spec **mide en el navegador real** los dos anchos
+  que exige el repo: a 375 px el paso display da 30 px/38 px/800 y a 1280 px la variante `-lg` da
+  40 px/48 px/800, con su tracking; además comprueba que las sombras se resuelven con el color
+  configurado (si `--brand` no llegara, `color-mix()` daría transparente) y que las curvaturas son
+  16/24 px.
+- **No se re-viste el admin**: las curvaturas nuevas son tokens aparte (`rounded-card`,
+  `rounded-panel`) y no se tocó la cadena `--radius-*` global, que el mock no cubre.
 
 ## 3. Infraestructura y secretos
 
@@ -719,7 +753,7 @@ test que falla, después el preset.
 | 8 | **Checkout sin redundancias** (textos y botones repetidos) | **Cerrada y desplegada** | `ops/tasks/TASK-checkout-ux.md`. Cuatro commits (`2832a93`…`aba4156`), en producción como `build-20260911-145656`. El checkout pasó de 807 a 476 líneas, un solo resumen compartido con el carrito, un solo CTA visible por viewport y los turnos de retiro calculados desde la configuración. |
 | 9 | **Validar el estado operativo en el servidor** | **Cerrada y desplegada** | Commits `3a67c37` y `ca474c8`, en producción como `build-20260911-154014`. `isAcceptingOrders` ya corta pedidos de verdad (antes no lo leía nadie) y la hora de retiro se valida contra el horario del día. Incluye el horario demo del seed y el límite de login del arnés E2E. |
 | 10 | **Retiro opcional y programable + la hora visible en toda la cadena** | **Cerrada y desplegada** | Commits `6f85a3c`, `c101f82`, `b207593` y `abc2183`, en producción como `build-20260911-191047`. Incluye **una migración** (`pickupScheduled`). El retiro es opcional, la hora la resuelve el servidor, el ticket de cocina y el admin la muestran, y el semáforo va contra la hora prometida. Ver el detalle arriba. |
-| 11 | **Adopción del mock completo (rediseño de la UI pública)** | **En ejecución · ola 1, T1.1 cerrada** | [`ops/tasks/TASK-mock-adoption.md`](tasks/TASK-mock-adoption.md). Plan **aprobado** el 2026-09-12 (D-A tipografía: Plus Jakarta Sans como tercera opción · D-B ola 2 completa **sin reseñas ni delivery** · D-C orden: tokens primero y después las pantallas en el orden del mock). **Reglas del programa**: ningún control decorativo (implementado con API/estado y test, o eliminado con motivo), nada hardcodeado, la paleta como preset que pasa el test de contraste, TDD por tarea, y verificación a 375 px **y 1280 px** (el mock no tiene escritorio). **Ola 1**: T1 tokens (T1.1 paleta ✅, T1.2 tipografía, T1.3 escala/radios/sombras) · T2 home · T3 menú · T4 producto · T5 carrito+checkout (absorbe `TASK-checkout-v2`) · T6 confirmación · T7 seguimiento e historial. **Ola 2** (aprobada): T8 multi-sucursal, T9 promos, T10 favoritos (**bloqueada**: necesita login de cliente real; el OTP da 503), T11 método de pago, T12 vuelto, T13 PIN de retiro. Evidencia del mock: [`ops/audit-checkout-mock.md`](audit-checkout-mock.md). |
+| 11 | **Adopción del mock completo (rediseño de la UI pública)** | **En ejecución · ola 1, T1.1 y T1.3 cerradas** | [`ops/tasks/TASK-mock-adoption.md`](tasks/TASK-mock-adoption.md). Plan **aprobado** el 2026-09-12 (D-A tipografía: Plus Jakarta Sans como tercera opción · D-B ola 2 completa **sin reseñas ni delivery** · D-C orden: tokens primero y después las pantallas en el orden del mock). **Reglas del programa**: ningún control decorativo (implementado con API/estado y test, o eliminado con motivo), nada hardcodeado, la paleta como preset que pasa el test de contraste, TDD por tarea, y verificación a 375 px **y 1280 px** (el mock no tiene escritorio). **Ola 1**: T1 tokens (T1.1 paleta ✅, T1.3 escala/radios/sombras ✅, T1.2 tipografía) · T2 home · T3 menú · T4 producto · T5 carrito+checkout (absorbe `TASK-checkout-v2`) · T6 confirmación · T7 seguimiento e historial. **Ola 2** (aprobada): T8 multi-sucursal, T9 promos, T10 favoritos (**bloqueada**: necesita login de cliente real; el OTP da 503), T11 método de pago, T12 vuelto, T13 PIN de retiro. Evidencia del mock: [`ops/audit-checkout-mock.md`](audit-checkout-mock.md). |
 
 ## 5. Cómo continuar
 

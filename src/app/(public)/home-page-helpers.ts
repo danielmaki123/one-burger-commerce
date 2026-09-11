@@ -11,7 +11,14 @@ export function getHomeHeroLoadingClassName() {
 }
 
 export function getHomeHeroTitleClassName() {
-  return "max-w-full break-words text-3xl font-semibold leading-[1.05] text-white sm:max-w-[16ch] sm:text-[2.25rem] lg:text-[2.5rem]";
+  // Escala del mock (T1.3): 30 px en celular y 40 px en escritorio, con su
+  // interlineado y su peso. Antes eran tres tamaños sueltos en la clase.
+  return "max-w-full break-words text-display text-white sm:max-w-[16ch] lg:text-display-lg";
+}
+
+/** Nombre del negocio en el encabezado: paso `headline` de la escala del mock. */
+export function getHomeBrandNameClassName() {
+  return "text-headline text-ink-green";
 }
 
 export function normalizeHomeHeroDescription(description: string) {

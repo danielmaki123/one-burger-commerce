@@ -1,7 +1,7 @@
 # TASK: Adopción del mock completo (programa de UI)
 
 **Estado:** plan **aprobado** (D-A, D-B y D-C resueltas el 2026-09-12) · **en ejecución**: T1.1
-(paleta del mock como preset) cerrada · **Fecha:** 2026-09-12 · **Origen:** pedido del owner sobre
+(paleta del mock como preset) y T1.3 (escala, radios y sombras como tokens) cerradas · **Fecha:** 2026-09-12 · **Origen:** pedido del owner sobre
 `stitch_full_pwa_builder/` ("copiar los órdenes, los colores, todos; los botones que no tengamos API
 se valorarán para implementar y que no queden solo como texto; mantener el orden; TDD por fase, por
 tarea").

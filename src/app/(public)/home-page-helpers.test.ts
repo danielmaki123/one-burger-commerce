@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  getHomeBrandNameClassName,
   getHomeHeroFrameClassName,
   getHomeHeroLoadingClassName,
   getHomeHeroTitleClassName,
@@ -34,15 +35,25 @@ describe("public home helpers", () => {
     expect(loadingClassName).not.toContain("aspect-[4/5]");
   });
 
-  it("keeps the home hero title within the approved heading band", () => {
+  it("el título del hero usa la escala del mock, no tamaños sueltos", () => {
     const className = getHomeHeroTitleClassName();
 
-    expect(className).toContain("text-3xl");
-    expect(className).toContain("sm:text-[2.25rem]");
-    expect(className).toContain("lg:text-[2.5rem]");
-    expect(className).not.toContain("sm:text-4xl");
+    // T1.3: los tamaños pasaron a ser tokens (30 px mobile / 40 px escritorio,
+    // peso 800 y su interlineado), así que ya no hay valores arbitrarios acá.
+    expect(className).toContain("text-display");
+    expect(className).toContain("lg:text-display-lg");
+    expect(className).not.toMatch(/text-\[\d/);
+    expect(className).not.toContain("font-semibold");
     expect(className).toContain("max-w-full");
     expect(className).toContain("break-words");
+  });
+
+  it("el nombre del negocio en el encabezado usa el paso headline del mock", () => {
+    const className = getHomeBrandNameClassName();
+
+    expect(className).toContain("text-headline");
+    expect(className).toContain("text-ink-green");
+    expect(className).not.toContain("font-semibold");
   });
 
   it("uses a tactile plus CTA size for home popular cards", () => {

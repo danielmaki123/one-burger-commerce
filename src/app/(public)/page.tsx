@@ -14,6 +14,7 @@ import {
 import { formatCurrency } from "@/shared/lib/format-currency";
 import { getPublicStartingPrice } from "@/shared/lib/public-product-pricing";
 import {
+  getHomeBrandNameClassName,
   getHomeHeroFrameClassName,
   getHomeHeroLoadingClassName,
   getHomeHeroTitleClassName,
@@ -258,12 +259,12 @@ export default function PublicHomePage() {
       <div className={getHomePageShellClassName()}>
         {/* Header */}
         <header className="flex items-center justify-between gap-4">
-          <p
-            className="text-lg font-semibold text-ink-green"
+          <h1
+            className={getHomeBrandNameClassName()}
             style={{ fontFamily: "var(--font-heading)" }}
           >
             {settings.name}
-          </p>
+          </h1>
           <BrandMark
             brand={settings}
             className="h-12 w-12 shrink-0 rounded-2xl object-cover"
