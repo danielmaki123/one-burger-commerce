@@ -2,6 +2,7 @@
 
 import React from "react";
 import { cleanup, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockBack = vi.fn();
@@ -153,5 +154,59 @@ describe("ProductDetailPage", () => {
     expect(container.innerHTML).toContain("inline-flex flex-col items-start gap-1");
     expect(container.innerHTML).toContain("text-[1.25rem] font-semibold leading-none text-foreground");
     expect(container.innerHTML).not.toContain("rounded-[24px] border border-brand/30 bg-brand/10 px-4 py-3 text-right");
+  });
+
+  it("pone la cantidad antes de las opciones, como el mock", async () => {
+    const { container } = render(React.createElement(ProductDetailPage));
+
+    await screen.findByText("Cóctel de la casa");
+
+    const html = container.innerHTML;
+    const quantityIndex = html.indexOf("Cantidad");
+    const optionsIndex = html.indexOf("Sangrias");
+
+    // El mock ordena: título, descripción, cantidad, opciones, notas, CTA.
+    expect(quantityIndex).toBeGreaterThan(-1);
+    expect(optionsIndex).toBeGreaterThan(-1);
+    expect(quantityIndex).toBeLessThan(optionsIndex);
+  });
+
+  it("el CTA fijo lleva el importe y la cantidad lo multiplica", async () => {
+    const user = userEvent.setup();
+    render(React.createElement(ProductDetailPage));
+
+    await screen.findByText("Cóctel de la casa");
+
+    const submit = screen.getByRole("button", { name: /Agregar al carrito/ }) as HTMLButtonElement;
+    // El grupo obligatorio arranca con su primera opción elegida (igual que el
+    // mock), así que el CTA está listo y muestra el importe de esa opción.
+    expect(submit.disabled).toBe(false);
+    expect(submit.textContent).toContain("C$185.00");
+
+    // Elegir la otra opción mueve el importe del CTA fijo, sin recargar nada.
+    await user.click(screen.getByRole("radio", { name: /Sangría de 1\/2 Litro/ }));
+    expect(submit.textContent).toContain("C$425.00");
+
+    // Y la cantidad lo multiplica.
+    await user.click(screen.getByRole("button", { name: "Aumentar cantidad" }));
+    expect(submit.textContent).toContain("C$850.00");
+  });
+
+  it("las notas, la cantidad y las opciones se pueden usar con teclado y con lector de pantalla", async () => {
+    const { container } = render(React.createElement(ProductDetailPage));
+
+    await screen.findByText("Cóctel de la casa");
+
+    // El placeholder no es una etiqueta: el campo necesita la suya.
+    expect(screen.getByLabelText("Notas especiales")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Reducir cantidad" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Aumentar cantidad" })).toBeTruthy();
+
+    // El input real está oculto para el ojo: el anillo de foco tiene que verse en
+    // la tarjeta, o el teclado navega a ciegas (defecto medido en el mock).
+    const option = screen.getByRole("radio", { name: /Sangría Personal/ });
+    const card = option.closest("label") as HTMLElement;
+    expect(card.innerHTML).toContain("peer-focus-visible:ring-2");
+    expect(container.innerHTML).toContain("peer-focus-visible:ring-2");
   });
 });

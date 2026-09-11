@@ -826,6 +826,33 @@ categorías → grilla de 2 columnas → precio); lo que faltaba era que sus con
   obligatorias no tiene botón que agregue; el riel filtra; el buscador filtra y no hay scroll
   horizontal. A **1280 px** las tarjetas se reparten en fila, con el mismo ancho y sin scroll.
 
+### Adopción del mock · T4: la pantalla del producto en el orden del mock (2026-09-12)
+
+Tercera pantalla de la ola 1. La pantalla ya tenía cantidad, modificadores con delta, notas y CTA fijo
+con importe; lo que faltaba era **el orden del mock** y dos huecos de accesibilidad.
+
+- **Test rojo**: `menu/[productId]/page.test.ts` sumó 3 casos y falló como debía: el orden
+  (`expected 7345 to be less than 3178` — la cantidad estaba después de las opciones), la etiqueta de
+  las notas (`Unable to find a label with the text of: Notas especiales`) y el anillo de foco
+  (`peer-focus-visible:ring-2`).
+- **El orden del mock**: título y descripción → **cantidad** → opciones → notas → CTA fijo. La cantidad
+  estaba al final, después de las notas; ahora va donde el mock la pone.
+- **Dos huecos de accesibilidad cerrados**: el campo de notas tenía un `<h2>` al lado pero **ninguna
+  etiqueta asociada** (el placeholder no es una etiqueta), y los modificadores usan un input oculto con
+  una tarjeta visual que **no mostraba el foco del teclado** — el mismo defecto que el audit le mide al
+  mock ("controles no alcanzables con teclado"). Ahora la nota tiene su `label` y la tarjeta del
+  modificador enciende el anillo con `peer-focus-visible:`.
+- **Lo que ya estaba bien y queda cubierto por tests**: el CTA fijo con el importe (que cambia al
+  elegir otra opción y se multiplica por la cantidad), el grupo obligatorio que **arranca con su primera
+  opción elegida** (igual que el mock, así el CTA nunca queda muerto) y la cantidad anunciada con
+  `aria-live`.
+- **Verificado en el camino real** (Postgres 17 local + `next start -p 3210` con el build nuevo):
+  **E2E completo 52 pasaron, 7 salteados, 0 fallos** (antes 47). `tests/e2e/public-product.spec.ts`
+  comprueba a 375 px que el CTA mide ≥44 px, que el importe se multiplica con la cantidad, que la barra
+  queda **fija** al scrollear, que la cantidad va antes de las notas (posición real en pantalla), que
+  el pedido llega al carrito con sus notas y que no hay scroll horizontal; y a 1280 px que el CTA no se
+  estira a lo ancho de la pantalla.
+
 ## 3. Infraestructura y secretos
 
 - `EASYPANEL_URL` y `EASYPANEL_TOKEN`: solo en el entorno de quien ejecuta el deploy (nunca
@@ -852,7 +879,7 @@ categorías → grilla de 2 columnas → precio); lo que faltaba era que sus con
 | 8 | **Checkout sin redundancias** (textos y botones repetidos) | **Cerrada y desplegada** | `ops/tasks/TASK-checkout-ux.md`. Cuatro commits (`2832a93`…`aba4156`), en producción como `build-20260911-145656`. El checkout pasó de 807 a 476 líneas, un solo resumen compartido con el carrito, un solo CTA visible por viewport y los turnos de retiro calculados desde la configuración. |
 | 9 | **Validar el estado operativo en el servidor** | **Cerrada y desplegada** | Commits `3a67c37` y `ca474c8`, en producción como `build-20260911-154014`. `isAcceptingOrders` ya corta pedidos de verdad (antes no lo leía nadie) y la hora de retiro se valida contra el horario del día. Incluye el horario demo del seed y el límite de login del arnés E2E. |
 | 10 | **Retiro opcional y programable + la hora visible en toda la cadena** | **Cerrada y desplegada** | Commits `6f85a3c`, `c101f82`, `b207593` y `abc2183`, en producción como `build-20260911-191047`. Incluye **una migración** (`pickupScheduled`). El retiro es opcional, la hora la resuelve el servidor, el ticket de cocina y el admin la muestran, y el semáforo va contra la hora prometida. Ver el detalle arriba. |
-| 11 | **Adopción del mock completo (rediseño de la UI pública)** | **En ejecución · ola 1: T1 (tokens), T2 (home) y T3 (menú) cerradas** | [`ops/tasks/TASK-mock-adoption.md`](tasks/TASK-mock-adoption.md). Plan **aprobado** el 2026-09-12 (D-A tipografía: Plus Jakarta Sans como tercera opción · D-B ola 2 completa **sin reseñas ni delivery** · D-C orden: tokens primero y después las pantallas en el orden del mock). **Reglas del programa**: ningún control decorativo (implementado con API/estado y test, o eliminado con motivo), nada hardcodeado, la paleta como preset que pasa el test de contraste, TDD por tarea, y verificación a 375 px **y 1280 px** (el mock no tiene escritorio). **Ola 1**: T1 tokens **cerrada** ✅ · T2 home **cerrada** ✅ · T3 menú **cerrada** ✅ · **sigue T4 producto** · T5 carrito+checkout (absorbe `TASK-checkout-v2`) · T6 confirmación · T7 seguimiento e historial. **Ola 2** (aprobada): T8 multi-sucursal, T9 promos, T10 favoritos (**bloqueada**: necesita login de cliente real; el OTP da 503), T11 método de pago, T12 vuelto, T13 PIN de retiro. Evidencia del mock: [`ops/audit-checkout-mock.md`](audit-checkout-mock.md). |
+| 11 | **Adopción del mock completo (rediseño de la UI pública)** | **En ejecución · ola 1: T1 (tokens), T2 (home), T3 (menú) y T4 (producto) cerradas** | [`ops/tasks/TASK-mock-adoption.md`](tasks/TASK-mock-adoption.md). Plan **aprobado** el 2026-09-12 (D-A tipografía: Plus Jakarta Sans como tercera opción · D-B ola 2 completa **sin reseñas ni delivery** · D-C orden: tokens primero y después las pantallas en el orden del mock). **Reglas del programa**: ningún control decorativo (implementado con API/estado y test, o eliminado con motivo), nada hardcodeado, la paleta como preset que pasa el test de contraste, TDD por tarea, y verificación a 375 px **y 1280 px** (el mock no tiene escritorio). **Ola 1**: T1 tokens **cerrada** ✅ · T2 home **cerrada** ✅ · T3 menú **cerrada** ✅ · T4 producto **cerrada** ✅ · **sigue T3.1 (color por categoría) y T5 carrito+checkout** (absorbe `TASK-checkout-v2`) · T6 confirmación · T7 seguimiento e historial. **Ola 2** (aprobada): T8 multi-sucursal, T9 promos, T10 favoritos (**bloqueada**: necesita login de cliente real; el OTP da 503), T11 método de pago, T12 vuelto, T13 PIN de retiro. Evidencia del mock: [`ops/audit-checkout-mock.md`](audit-checkout-mock.md). |
 
 ## 5. Cómo continuar
 
