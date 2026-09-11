@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -150,6 +150,39 @@ describe("AdminSettingsClientPage", () => {
 
     expect(body.primaryColor).toBe("#a8321f");
     expect(body.accentColor).toBe("#f7e6e0");
+  });
+
+  it("ofrece las tres tipografías con su nombre real y previsualiza la elegida", async () => {
+    const user = userEvent.setup();
+    render(<AdminSettingsClientPage initialSettings={initialSettings()} />);
+
+    const heading = screen.getByLabelText("Tipografía de títulos") as HTMLSelectElement;
+    const body = screen.getByLabelText("Tipografía de texto") as HTMLSelectElement;
+    const expected = [
+      { value: "fraunces", label: "Fraunces" },
+      { value: "inter", label: "Inter" },
+      { value: "jakarta", label: "Plus Jakarta Sans" },
+    ];
+
+    for (const select of [heading, body]) {
+      expect(
+        Array.from(select.options).map((option) => ({
+          value: option.value,
+          label: option.textContent,
+        })),
+      ).toEqual(expected);
+    }
+
+    await user.selectOptions(heading, "jakarta");
+
+    // La vista previa tiene que mostrar la tipografía elegida: con una lista
+    // fija de dos, la tercera se veía como Inter.
+    const preview = screen.getByLabelText("Vista previa");
+    const brandName = within(preview).getByText("One Burger");
+    expect(brandName.style.fontFamily).toBe("var(--font-jakarta)");
+
+    await user.selectOptions(body, "jakarta");
+    expect(screen.getByLabelText("Vista previa")).toBeTruthy();
   });
 
   it("avisa del contraste bajo sin bloquear el guardado", async () => {

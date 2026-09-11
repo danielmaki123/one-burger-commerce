@@ -10,6 +10,7 @@ import {
 import { COLOR_PRESETS } from "@/modules/business-settings/domain/color-presets";
 import {
   FONT_CHOICES,
+  FONT_LABELS,
   WEEKDAY_KEYS,
   type BusinessHours,
   type WeekdayKey,
@@ -823,7 +824,7 @@ export default function AdminSettingsClientPage({
           >
             {FONT_CHOICES.map((font) => (
               <option key={font} value={font}>
-                {font === "fraunces" ? "Fraunces" : "Inter"}
+                {FONT_LABELS[font]}
               </option>
             ))}
           </select>
@@ -845,7 +846,7 @@ export default function AdminSettingsClientPage({
           >
             {FONT_CHOICES.map((font) => (
               <option key={font} value={font}>
-                {font === "fraunces" ? "Fraunces" : "Inter"}
+                {FONT_LABELS[font]}
               </option>
             ))}
           </select>
@@ -918,8 +919,9 @@ function PreviewCard({ draft }: { draft: BusinessSettingsDraft }) {
             className="font-semibold"
             style={{
               color: draft.foregroundColor,
-              fontFamily:
-                draft.headingFont === "fraunces" ? "var(--font-fraunces)" : "var(--font-inter)",
+              // Se deriva de la elección: con un ternario, la tercera
+              // tipografía se previsualizaba como Inter.
+              fontFamily: `var(--font-${draft.headingFont})`,
             }}
           >
             {draft.name || "Nombre del negocio"}

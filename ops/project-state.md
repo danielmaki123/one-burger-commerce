@@ -683,8 +683,7 @@ test que falla, después el preset.
   cosa que sus propias pantallas no logran porque usan blanco de 12 px sobre naranja (3,59:1).
 - **Sin datos hardcodeados**: es un preset más; el owner lo aplica desde `/admin/settings` y puede
   cambiar cualquier color. El default del sitio no cambia.
-- Pendiente dentro de T1: **T1.2** (Plus Jakarta Sans como tercera tipografía, decisión D-A). **T1.3
-  cerrada** (ver abajo).
+- **T1 completa**: T1.2 y T1.3 se cerraron después (ver abajo).
 - **Verificado en el camino real** (Postgres 17 local + migraciones + seed + `next start -p 3210` con
   el build que sirve el preset): **E2E completo 28 pasaron, 7 salteados, 0 fallos**. Se sumó un caso
   nuevo, "la paleta del mock se aplica como preset y se ve en la vista previa (375 px)", que entra al
@@ -727,6 +726,38 @@ existe una sola vez**, en `globals.css`, y las pantallas de T2-T7 la consumen.
 - **No se re-viste el admin**: las curvaturas nuevas son tokens aparte (`rounded-card`,
   `rounded-panel`) y no se tocó la cadena `--radius-*` global, que el mock no cubre.
 
+### Adopción del mock · T1.2: Plus Jakarta Sans como tercera tipografía (2026-09-12)
+
+Tercer y último incremento de T1 (**T1 cerrada**: la capa de diseño ya está completa). Decisión D-A:
+la tipografía del mock entra como **opción nueva**, no reemplaza a Fraunces ni a Inter.
+
+- **Test rojo**: `business-settings.schema.test.ts` — "acepta las tres tipografías del build y rechaza
+  una que no existe" falló como debía (`BusinessSettingsError: ... errores de validación` al pedir
+  `jakarta`); `settings-client.test.tsx` en rojo en "ofrece las tres tipografías con su nombre real y
+  previsualiza la elegida"; y el contrato del layout en rojo (`expected ... to match /className=\{fontVariables\}/`).
+- **Verde**: `jakarta` entra en `FONT_CHOICES`, con sus **dos pesos reales** (400 y 700) en
+  `src/app/fonts/plus-jakarta-sans-{regular,bold}.ttf` (63 KB cada uno, SIL OFL) y la variable
+  `--font-jakarta` en el layout raíz. El `font-weight: 800` de la escala del mock resuelve a 700, que
+  es el peso que el diseño usa.
+- **Dos bugs latentes que aparecieron al agregar la tercera opción** (los dos por listas fijas de dos):
+  el desplegable del admin mostraba `font === "fraunces" ? "Fraunces" : "Inter"`, así que la tercera
+  opción se llamaba "Inter"; y la vista previa usaba el mismo ternario, así que la tercera se
+  previsualizaba con la tipografía equivocada. Ahora los nombres salen de `FONT_LABELS` y la vista
+  previa deriva `var(--font-<elección>)`.
+- **El layout ya no elige tipografías a mano**: los `localFont` viven en un objeto
+  `satisfies Record<FontChoice, ...>` y el `<html>` recibe todas las variables derivadas. Antes el
+  `className` nombraba dos; agregar una tercera y olvidarla ahí dejaba la variable sin definir y el
+  navegador caía a la del sistema **sin ningún error**. El `satisfies` hace que el compilador frene
+  si `FONT_CHOICES` crece sin su fuente.
+- **El contrato tiene dientes** (comprobado): renombrando `plus-jakarta-sans-bold.ttf` el test falla
+  con `falta src/app/fonts/plus-jakarta-sans-bold.ttf`; el archivo se restauró después.
+- **Verificado en el camino real** (mismo Postgres + build servido en `next start -p 3210`, con la
+  CSS servida comprobada: `font-family:jakarta`): **E2E completo 34 pasaron, 7 salteados, 0 fallos**
+  (antes 33). El caso nuevo entra al admin a 375 px, comprueba que el desplegable ofrece las tres con
+  su nombre real, elige una, y **mide en el navegador real** que la vista previa usa esa familia y que
+  `document.fonts.check('700 16px ...')` es `true` —o sea que la fuente se descargó de verdad, no que
+  la variable exista—; y que **sin guardar** el sitio publicado conserva la suya.
+
 ## 3. Infraestructura y secretos
 
 - `EASYPANEL_URL` y `EASYPANEL_TOKEN`: solo en el entorno de quien ejecuta el deploy (nunca
@@ -753,7 +784,7 @@ existe una sola vez**, en `globals.css`, y las pantallas de T2-T7 la consumen.
 | 8 | **Checkout sin redundancias** (textos y botones repetidos) | **Cerrada y desplegada** | `ops/tasks/TASK-checkout-ux.md`. Cuatro commits (`2832a93`…`aba4156`), en producción como `build-20260911-145656`. El checkout pasó de 807 a 476 líneas, un solo resumen compartido con el carrito, un solo CTA visible por viewport y los turnos de retiro calculados desde la configuración. |
 | 9 | **Validar el estado operativo en el servidor** | **Cerrada y desplegada** | Commits `3a67c37` y `ca474c8`, en producción como `build-20260911-154014`. `isAcceptingOrders` ya corta pedidos de verdad (antes no lo leía nadie) y la hora de retiro se valida contra el horario del día. Incluye el horario demo del seed y el límite de login del arnés E2E. |
 | 10 | **Retiro opcional y programable + la hora visible en toda la cadena** | **Cerrada y desplegada** | Commits `6f85a3c`, `c101f82`, `b207593` y `abc2183`, en producción como `build-20260911-191047`. Incluye **una migración** (`pickupScheduled`). El retiro es opcional, la hora la resuelve el servidor, el ticket de cocina y el admin la muestran, y el semáforo va contra la hora prometida. Ver el detalle arriba. |
-| 11 | **Adopción del mock completo (rediseño de la UI pública)** | **En ejecución · ola 1, T1.1 y T1.3 cerradas** | [`ops/tasks/TASK-mock-adoption.md`](tasks/TASK-mock-adoption.md). Plan **aprobado** el 2026-09-12 (D-A tipografía: Plus Jakarta Sans como tercera opción · D-B ola 2 completa **sin reseñas ni delivery** · D-C orden: tokens primero y después las pantallas en el orden del mock). **Reglas del programa**: ningún control decorativo (implementado con API/estado y test, o eliminado con motivo), nada hardcodeado, la paleta como preset que pasa el test de contraste, TDD por tarea, y verificación a 375 px **y 1280 px** (el mock no tiene escritorio). **Ola 1**: T1 tokens (T1.1 paleta ✅, T1.3 escala/radios/sombras ✅, T1.2 tipografía) · T2 home · T3 menú · T4 producto · T5 carrito+checkout (absorbe `TASK-checkout-v2`) · T6 confirmación · T7 seguimiento e historial. **Ola 2** (aprobada): T8 multi-sucursal, T9 promos, T10 favoritos (**bloqueada**: necesita login de cliente real; el OTP da 503), T11 método de pago, T12 vuelto, T13 PIN de retiro. Evidencia del mock: [`ops/audit-checkout-mock.md`](audit-checkout-mock.md). |
+| 11 | **Adopción del mock completo (rediseño de la UI pública)** | **En ejecución · ola 1, T1 (tokens) cerrada** | [`ops/tasks/TASK-mock-adoption.md`](tasks/TASK-mock-adoption.md). Plan **aprobado** el 2026-09-12 (D-A tipografía: Plus Jakarta Sans como tercera opción · D-B ola 2 completa **sin reseñas ni delivery** · D-C orden: tokens primero y después las pantallas en el orden del mock). **Reglas del programa**: ningún control decorativo (implementado con API/estado y test, o eliminado con motivo), nada hardcodeado, la paleta como preset que pasa el test de contraste, TDD por tarea, y verificación a 375 px **y 1280 px** (el mock no tiene escritorio). **Ola 1**: T1 tokens **cerrada** (T1.1 paleta ✅, T1.3 escala/radios/sombras ✅, T1.2 Plus Jakarta Sans ✅) · **sigue T2 home** · T3 menú · T4 producto · T5 carrito+checkout (absorbe `TASK-checkout-v2`) · T6 confirmación · T7 seguimiento e historial. **Ola 2** (aprobada): T8 multi-sucursal, T9 promos, T10 favoritos (**bloqueada**: necesita login de cliente real; el OTP da 503), T11 método de pago, T12 vuelto, T13 PIN de retiro. Evidencia del mock: [`ops/audit-checkout-mock.md`](audit-checkout-mock.md). |
 
 ## 5. Cómo continuar
 

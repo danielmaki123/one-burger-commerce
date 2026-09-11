@@ -1,10 +1,14 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 
 import { describe, expect, it } from "vitest";
 
 import { DEFAULT_BUSINESS_SETTINGS } from "@/modules/business-settings/domain/business-settings-defaults";
 import { businessSettingsStyleVariables } from "@/modules/business-settings/domain/business-settings-style";
+import {
+  FONT_CHOICES,
+  type FontChoice,
+} from "@/modules/business-settings/domain/business-settings.types";
 
 describe("businessSettingsStyleVariables", () => {
   it("traduce la configuración a tokens CSS", () => {
@@ -40,6 +44,66 @@ describe("businessSettingsStyleVariables", () => {
     // desde un módulo con "use client", Next falla en tiempo de render con
     // "Attempted to call businessSettingsStyleVariables() from the server".
     expect(source.startsWith('"use client"') || source.startsWith("'use client'")).toBe(false);
+  });
+
+  it("traduce la tipografía elegida sin depender de una lista fija", () => {
+    // Con dos opciones alcanzaba un ternario; con tres, cualquier lista fija
+    // manda al usuario a otra tipografía sin avisar.
+    for (const font of FONT_CHOICES) {
+      const variables = businessSettingsStyleVariables({
+        ...DEFAULT_BUSINESS_SETTINGS,
+        headingFont: font,
+        bodyFont: font,
+      }) as Record<string, string>;
+
+      expect(variables["--font-heading"]).toBe(`var(--font-${font})`);
+      expect(variables["--font-body"]).toBe(`var(--font-${font})`);
+    }
+  });
+});
+
+/**
+ * T1.2 — toda tipografía que el admin ofrece tiene que existir en el build.
+ *
+ * `localFont` no carga nada si el archivo no está, y la variable CSS queda sin
+ * definir: el navegador cae a la tipografía del sistema sin ningún error. Este
+ * test es el que impide que eso pase desapercibido.
+ */
+const FONT_ASSETS: Record<FontChoice, string> = {
+  fraunces: "fraunces",
+  inter: "inter",
+  jakarta: "plus-jakarta-sans",
+};
+
+describe("tipografías elegibles", () => {
+  const layout = readFileSync(path.resolve(__dirname, "../../../app/layout.tsx"), "utf8");
+  const fontFiles = readdirSync(path.resolve(__dirname, "../../../app/fonts"));
+
+  it("cada opción del admin tiene sus dos pesos en el build", () => {
+    for (const choice of FONT_CHOICES) {
+      const base = FONT_ASSETS[choice];
+      expect(fontFiles, `falta src/app/fonts/${base}-regular.ttf`).toContain(
+        `${base}-regular.ttf`,
+      );
+      expect(fontFiles, `falta src/app/fonts/${base}-bold.ttf`).toContain(`${base}-bold.ttf`);
+    }
+  });
+
+  it("cada opción declara su variable CSS en el layout raíz", () => {
+    for (const choice of FONT_CHOICES) {
+      expect(layout, `falta --font-${choice} en layout.tsx`).toContain(
+        `variable: "--font-${choice}"`,
+      );
+      expect(layout, `${FONT_ASSETS[choice]} no se carga en layout.tsx`).toContain(
+        `${FONT_ASSETS[choice]}-regular.ttf`,
+      );
+    }
+  });
+
+  it("el layout aplica todas las variables al documento, sin elegir a mano", () => {
+    // Si el className nombra las tipografías una por una, agregar la tercera y
+    // olvidarse de la lista deja la variable sin definir en el navegador.
+    expect(layout).toMatch(/className=\{fontVariables\}/);
   });
 });
 

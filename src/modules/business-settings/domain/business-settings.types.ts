@@ -27,9 +27,21 @@ export type BusinessHours = Record<WeekdayKey, BusinessHoursDay>;
 export type BusinessHoursPatch = Partial<BusinessHours>;
 
 /** Solo las tipografías incluidas en el build: no se agregan fuentes externas. */
-export const FONT_CHOICES = ["fraunces", "inter"] as const;
+export const FONT_CHOICES = ["fraunces", "inter", "jakarta"] as const;
 
 export type FontChoice = (typeof FONT_CHOICES)[number];
+
+/**
+ * Nombre con el que cada tipografía se muestra en el admin. Vive acá y no en la
+ * pantalla para que las dos listas (títulos y texto) y la vista previa usen la
+ * misma fuente de verdad: con una lista fija, la tercera opción se mostraba con
+ * el nombre de otra.
+ */
+export const FONT_LABELS: Record<FontChoice, string> = {
+  fraunces: "Fraunces",
+  inter: "Inter",
+  jakarta: "Plus Jakarta Sans",
+};
 
 export const HEX_COLOR_PATTERN = /^#[0-9a-f]{6}$/;
 export const TIME_OF_DAY_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;

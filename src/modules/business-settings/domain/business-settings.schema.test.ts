@@ -137,6 +137,21 @@ describe("validación de la configuración del negocio", () => {
     });
   });
 
+  it("acepta las tres tipografías del build y rechaza una que no existe", () => {
+    // T1.2: Plus Jakarta Sans entra como tercera opción (decisión D-A), sin
+    // reemplazar a las dos que ya estaban.
+    expect(parseBusinessSettingsPatch({ headingFont: "jakarta" })).toEqual({
+      headingFont: "jakarta",
+    });
+    expect(parseBusinessSettingsPatch({ bodyFont: "jakarta" })).toEqual({ bodyFont: "jakarta" });
+    expect(parseBusinessSettingsPatch({ headingFont: "fraunces", bodyFont: "inter" })).toEqual({
+      headingFont: "fraunces",
+      bodyFont: "inter",
+    });
+    expectFieldError({ headingFont: "comic-sans" }, "headingFont");
+    expectFieldError({ bodyFont: "plus-jakarta-sans" }, "bodyFont");
+  });
+
   it("exige un nombre no vacío y descarta claves desconocidas", () => {
     expectFieldError({ name: "   " }, "name");
     expect(parseBusinessSettingsPatch({ name: "One Burger", id: "otro", hackeado: true })).toEqual({

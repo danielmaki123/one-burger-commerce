@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { loginAsOwner } from "./helpers";
+
 /**
  * T1.3 — la escala del mock tiene que llegar al navegador de verdad.
  *
@@ -106,5 +108,60 @@ test.describe("curvaturas y elevaciones del mock", () => {
       expect(boxShadow, `${utility} no se aplicó`).not.toBe("none");
       expect(boxShadow, `${utility} no se tiñó`).toMatch(/rgba?\(/);
     }
+  });
+});
+
+/**
+ * T1.2 — Plus Jakarta Sans entra como tercera tipografía (decisión D-A), sin
+ * reemplazar a las dos que ya estaban.
+ */
+test.describe("tipografías elegibles", () => {
+  test("la tercera tipografía se aplica en la vista previa y trae sus archivos", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 375, height: 812 });
+    await loginAsOwner(page);
+    await page.goto("/admin/settings");
+
+    const headingSelect = page.getByLabel("Tipografía de títulos");
+    await expect(headingSelect.locator("option")).toHaveText([
+      "Fraunces",
+      "Inter",
+      "Plus Jakarta Sans",
+    ]);
+
+    // Se elige la que NO está guardada, así el final del test comprueba que una
+    // vista previa sin guardar no toca el sitio publicado.
+    const saved = await headingSelect.inputValue();
+    const picked = saved === "jakarta" ? "fraunces" : "jakarta";
+    await headingSelect.selectOption(picked);
+
+    const preview = page.locator('[aria-label="Vista previa"]');
+    const businessName = await page.getByLabel("Nombre *").inputValue();
+    const brandName = preview.getByText(businessName, { exact: true });
+
+    const family = await brandName.evaluate((element) =>
+      window.getComputedStyle(element).fontFamily.toLowerCase(),
+    );
+    // `next/font` nombra la familia como la variable CSS: `--font-jakarta` da
+    // `jakarta`. Si la elección no llegara, acá quedaría la tipografía anterior.
+    expect(family).toContain(picked);
+
+    // No basta con que la variable exista: la tipografía tiene que estar
+    // descargada. `document.fonts.check` es la única forma de saberlo.
+    const loaded = await page.evaluate(async (fontFamily) => {
+      const first = fontFamily.split(",")[0].replace(/["']/g, "").trim();
+      await document.fonts.ready;
+      return document.fonts.check(`700 16px "${first}"`);
+    }, family);
+    expect(loaded, `la tipografía elegida (${family}) no está cargada`).toBe(true);
+
+    // Sin guardar, el sitio publicado sigue con la suya.
+    await page.goto("/");
+    const publicFamily = await page
+      .getByRole("heading", { level: 1 })
+      .first()
+      .evaluate((element) => window.getComputedStyle(element).fontFamily.toLowerCase());
+    expect(publicFamily).not.toContain(picked);
   });
 });

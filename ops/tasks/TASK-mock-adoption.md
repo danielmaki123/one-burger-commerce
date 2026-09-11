@@ -1,7 +1,7 @@
 # TASK: Adopción del mock completo (programa de UI)
 
-**Estado:** plan **aprobado** (D-A, D-B y D-C resueltas el 2026-09-12) · **en ejecución**: T1.1
-(paleta del mock como preset) y T1.3 (escala, radios y sombras como tokens) cerradas · **Fecha:** 2026-09-12 · **Origen:** pedido del owner sobre
+**Estado:** plan **aprobado** (D-A, D-B y D-C resueltas el 2026-09-12) · **en ejecución**: **T1 (tokens)
+cerrada** —T1.1 paleta, T1.3 escala/radios/sombras y T1.2 Plus Jakarta Sans—; sigue **T2 (home)** · **Fecha:** 2026-09-12 · **Origen:** pedido del owner sobre
 `stitch_full_pwa_builder/` ("copiar los órdenes, los colores, todos; los botones que no tengamos API
 se valorarán para implementar y que no queden solo como texto; mantener el orden; TDD por fase, por
 tarea").
@@ -134,7 +134,7 @@ Una tarea por commit (o un commit por fase dentro de la tarea). **El orden es el
 |---|---|---|---|
 | **T1** | **Tokens** (tres commits) | | |
 | T1.1 | Paleta del mock como preset, con **sus colores reales** y el test de contraste vigente | `color-contrast.test.ts` (incluye el caso "todos los presets son legibles") | No |
-| T1.2 | **Plus Jakarta Sans** como **tercera opción** de `/admin/settings` (decisión D-A) | `business-settings.schema.test.ts` (acepta la fuente nueva) · `business-settings-style.test.ts` | No |
+| T1.2 | **Plus Jakarta Sans** como **tercera opción** de `/admin/settings` (decisión D-A) — **cerrada**: 400 y 700 en `src/app/fonts/plus-jakarta-sans-{regular,bold}.ttf`, `--font-jakarta`, y las dos listas fijas de dos que mandaban la tercera opción a Inter, corregidas | `business-settings.schema.test.ts` (acepta la fuente nueva) · `business-settings-style.test.ts` · `settings-client.test.tsx` | No |
 | T1.3 | Escala tipográfica, radios y sombras del mock mapeados a tokens de `globals.css` | `business-settings-style.test.ts` | No |
 | **T2** | **Home** (`/`): estado abierto, estimado de retiro, destacado, categorías, info del local y contacto | `app/(public)/page.test.ts` · `home-page-helpers.test.ts` | No |
 | **T3** | **Menú** (`/menu`): buscador que filtra, riel de categorías, grilla de 2 columnas, "+" de ≥44 px con aviso `aria-live` | `menu/page.test.tsx` | No |
