@@ -7,15 +7,15 @@ ningún contexto de conversación previa**. Todo lo necesario está versionado e
 
 > Trabajás en `one-burger-commerce` (Next.js 16 + Prisma + Postgres, deploy en Easypanel).
 > Antes de escribir código leé, en este orden: `AGENTS.md`, `ops/project-state.md`,
-> `ops/production-readiness.md` y `ops/tasks/TASK-checkout-ux.md`.
-> La tarea a ejecutar es **TASK-checkout-ux**: eliminar las redundancias de texto y de
-> botones del carrito y del checkout, y generar los turnos de retiro desde la configuración
-> en vez de tenerlos escritos en el código. El inventario medido, el rediseño y las fases
-> están en el brief.
-> Trabajá con **TDD** (test que falla primero), en español, con commits propios y la
-> validación mínima (`npm run test`, `lint`, `typecheck`, `build`) antes de cerrar cada fase.
-> La verificación de "un solo botón visible" va en navegador real (Playwright) a 375 px y
-> 1280 px, no en HTML estático.
+> `ops/production-readiness.md` y `ops/tasks/TASK-checkout-v2.md`.
+> La tarea es la **mejora del checkout**: ejecutá las fases aprobadas de ese brief, en orden,
+> una por commit. El brief lista las decisiones que hay que preguntar antes de las fases 4 y 5.
+> **TDD siempre**: escribí primero el test que falla, corrélo y confirmá el rojo antes de
+> implementar. Nada de código antes del test.
+> Trabajá en español, con commits propios, y validá con `npm run test`, `lint`, `typecheck`,
+> `build` y `security:secrets` antes de cerrar cada fase. Si tocás `schema.prisma`, corré
+> `npx prisma generate` (el build local no lo regenera).
+> Lo visual se verifica en navegador real (Playwright) a 375 px y 1280 px, no en HTML estático.
 > Al terminar cada fase: actualizá `ops/project-state.md`, hacé push a `main` y confirmá que
 > el CI quedó verde. **No despliegues a producción sin pedir confirmación.**
 
@@ -26,11 +26,16 @@ ningún contexto de conversación previa**. Todo lo necesario está versionado e
 | 1 | `AGENTS.md` | Reglas de trabajo: alcance, arquitectura DDD, TDD, validación, git/CI, deploy, idioma, prohibiciones |
 | 2 | `ops/project-state.md` | Qué está desplegado hoy, qué se cerró, qué falta, cómo levantar el entorno local |
 | 3 | `ops/production-readiness.md` | Runbook: entorno, deploy, backups, rollback, notificaciones, primer arranque, límites conocidos |
-| 4 | `ops/tasks/TASK-checkout-ux.md` | La tarea a ejecutar: inventario medido de redundancias, rediseño, fases, criterio de aceptación |
+| 4 | `ops/tasks/TASK-checkout-v2.md` | La tarea a ejecutar: qué falta del checkout, el análisis del mock, fases y criterios de aceptación |
 | 5 | `README.md` · `.env.example` | Alcance del MVP y variables de entorno |
 
 Tareas ya cerradas, por si hace falta el contexto de una decisión:
-`ops/tasks/TASK-whitelabel-branding.md` (personalización del negocio).
+`ops/tasks/TASK-whitelabel-branding.md` (personalización del negocio) y
+`ops/tasks/TASK-checkout-ux.md` (redundancias de texto y botones).
+
+`mockup/confirmar pedido.txt` es una **guía del owner** para el checkout: está sin versionar a
+propósito (el `.gitignore` excluye su carpeta de trabajo) y **no es fuente de verdad del
+cálculo**. Su análisis está en `TASK-checkout-v2.md` §3.
 
 ## Estado en una línea
 
