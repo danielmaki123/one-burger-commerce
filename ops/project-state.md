@@ -1,6 +1,6 @@
 # Estado del proyecto — One Burger Commerce
 
-> Actualizado: 2026-09-10 · Commit en `main`: `bb2a7ca` · Build en producción: `build-20260910-234250`
+> Actualizado: 2026-09-11 · Commit en `main`: `d6e4512` · Build en producción: `build-20260911-140759`
 > Este documento es el punto de entrada para retomar el trabajo. Mantenerlo al día al cerrar cada tarea.
 > Para arrancar en un chat nuevo: `ops/tasks/START-HERE.md`.
 
@@ -8,8 +8,9 @@
 
 | Cosa | Valor |
 |---|---|
-| Dominio público | **https://oneburgernic.com** (canónico) y `https://www.oneburgernic.com` — ambos con certificado |
-| Admin | **https://oneburgernic.com/admin/login** |
+| Dominio público | **https://oneburgernic.com** (canónico) y `https://www.oneburgernic.com` — ambos con certificado. El apex y `www` sirven **solo el landing** |
+| App de pedidos | **https://menu.oneburgernic.com** |
+| Admin | **https://admin.oneburgernic.com** (la sesión está atada al host: hay que iniciar sesión en el host del panel, no en el apex) |
 | Cuenta owner | `admin@oneburgernic.com` (contraseña administrada por Daniel; no está en el repo) |
 | Health / readiness | `GET /api/health` · `GET /api/readiness` (hace `SELECT 1` y responde 503 si la base no responde) |
 | Hosting | Easypanel — panel `http://76.13.250.83:3000`, proyecto `brunobot`, servicio `oneburguerweb` |
@@ -355,8 +356,31 @@ herramienta de diagnóstico):
 
 Bajar la resolución no tiene margen: los frames ya están 1:1 con el slot de escritorio
 (680 px) y por debajo de retina en celular. La única reducción segura es a igual tamaño y
-menor calidad (**−21 % de peso con 1 % de diferencia**). Las dos palancas quedan **sin
-aplicar**, a la espera de decisión del owner.
+menor calidad (**−21 % de peso con 1 % de diferencia**).
+
+**Decisión del owner: no aplicar ninguna de las dos.** El JS del landing (4 KB) no vale una
+reescritura, y el peso de los frames se deja como está. Las dos palancas quedan medidas y
+documentadas por si se retoman.
+
+### Deploy del caché de frames (2026-09-11)
+
+Desplegado `d6e4512` como `build-20260911-140759` (`deployService` sobre el servicio
+existente, sin tocar configuración).
+
+El commit de caché (`e1224fe`) estaba en `main` desde el día anterior pero **no desplegado**:
+el sitio seguía respondiendo `Cache-Control: public, max-age=0` en los frames, así que cada
+visita revalidaba frame por frame contra el servidor (un viaje de ida y vuelta antes de
+poder dibujar cada imagen). Ahora responde:
+
+```
+Cache-Control: public, max-age=31536000, immutable
+```
+
+Esa es la palanca que sí se cobró y no cuesta código: en visitas repetidas los 3,45 MB de
+frames salen del caché de disco en vez de revalidarse. Es además la única que no toca ni el
+JavaScript ni los assets.
+
+Verificado: `4/4` smoke, `6/6` dominios, `health` ok y `readiness` 200.
 
 **Arreglo de branding: el logo y los colores no llegaban a toda la app (2026-09-10)**
 
