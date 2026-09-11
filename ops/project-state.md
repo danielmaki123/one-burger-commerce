@@ -433,7 +433,8 @@ al logo; ningún HTML público trae los colores viejos; smoke 4/4.
 | 4 | **Borrar el servicio duplicado huérfano `oneburguer-web`** (responde 502) | Agente | Evita confundir futuros deploys. |
 | 5 | **Endurecimiento técnico**: scrypt más fuerte con rehash al login, CSP, extraer componentes exportados de las páginas (hoy `next build --webpack` falla) | Agente | No bloquea. |
 | 6 | **Cerrar puertos innecesarios** de otros servicios del servidor (`capostgres` 5455, `postimage` 8585) | Daniel | No es de One Burger, pero están expuestos a internet. |
-| 7 | **Personalización / quitar hardcodeo** (nombre, colores, logo, contacto, horarios, dirección) | **Cerrada (fases 1-4 y 6)** | Aprobada el 2026-09-10; brief en `ops/tasks/TASK-whitelabel-branding.md`. Sitio público, `/admin/settings`, apariencia con presets y contrato anti-hardcode, todo en `main` con CI verde. Queda la **fase 5 (subida de logos)**, opcional y con decisión de infraestructura pendiente: necesita un volumen persistente en Easypanel. |
+| 7 | **Personalización / quitar hardcodeo** (nombre, colores, logo, contacto, horarios, dirección) | **Cerrada (fases 1-4 y 6)** | Aprobada el 2026-09-10; brief en `ops/tasks/TASK-whitelabel-branding.md`. Sitio público, `/admin/settings`, apariencia con presets y contrato anti-hardcode, todo en `main` con CI verde. La **fase 5 (subida de logos)** se descartó: necesita un volumen persistente en Easypanel. Quedó **una excepción**: los turnos de retiro siguen hardcodeados y se trasladaron a la tarea #8. |
+| 8 | **Checkout sin redundancias** (textos y botones repetidos) | **Brief listo, esperando aprobación** | `ops/tasks/TASK-checkout-ux.md`. Medido: el checkout renderiza `Confirmá tu pedido` 2 veces, `Total a pagar` 3 veces y 3 botones `Confirmar pedido`, de los cuales **2 quedan visibles a la vez** en cualquier viewport. Incluye los turnos de retiro generados desde la configuración. |
 
 ## 5. Cómo continuar
 
@@ -452,8 +453,12 @@ DATABASE_URL="postgresql://postgres:postgres@127.0.0.1:5432/oneburger?schema=pub
 DATABASE_URL="..." APP_ENV=production NODE_ENV=production npx next start -p 3210
 BASE_URL=http://127.0.0.1:3210 E2E_ALLOW_MUTATIONS=true npm run test:e2e:prod:full
 
-# 4. Deploy (el webhook del panel no es fiable en esta instalación)
-EASYPANEL_URL=... EASYPANEL_TOKEN=... npm run deploy:easypanel
+# 4. Deploy — ⚠️ NO usar `npm run deploy:easypanel`: fusiona variables y puede crear
+#    servicios. El deploy es UNA llamada a deployService sobre el servicio que ya existe:
+#    POST {EASYPANEL_URL}/api/rpc/services/app/deployService
+#    body {"json":{"projectName":"brunobot","serviceName":"oneburguerweb","forceRebuild":true}}
+#    (tarda varios minutos; el POST puede cortar por timeout mientras el build sigue)
+#    Verificar después: commit.sha vía services/app/inspectService + el sitio real.
 
 # 5. Verificación en producción (solo lectura)
 BASE_URL=https://oneburgernic.com npm run test:e2e:prod

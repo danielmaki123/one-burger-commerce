@@ -1,6 +1,11 @@
 # TASK: Personalización del negocio (quitar todo el hardcodeo)
 
-**Estado:** **APROBADA por Daniel el 2026-09-10** — lista para ejecutar · **Prioridad:** alta (bloquea branding real) · **Estimación:** 5 fases
+**Estado:** **CERRADA** (fases 1-4 y 6 desplegadas; la fase 5, subida de assets, quedó
+descartada por decisión del owner: requiere un volumen persistente) · **Prioridad:** alta
+
+> Quedó **una excepción conocida**: los turnos de retiro siguen escritos en el código. No se
+> arregló acá y se trasladó a `ops/tasks/TASK-checkout-ux.md` §4, junto con el resto de la
+> limpieza del checkout.
 
 > Cómo arrancar esta tarea en un chat nuevo: `ops/tasks/START-HERE.md`.
 > Decisiones ya resueltas en §8: no hace falta volver a preguntarlas.
@@ -29,7 +34,7 @@ estado actual (producción no debe cambiar al desplegar esta tarea).
 | `src/shared/config/app-metadata.ts` | `serviceName` / `description` del producto |
 | `src/app/(public)/page.tsx` | 6 menciones de marca en el hero y accesos rápidos |
 | `src/app/(public)/success/[orderId]/order-success-view.tsx` | "Gracias por elegir One Burger.", copy de pago |
-| `src/app/(public)/checkout/page.tsx` | "Pagás en el local al retirar tu pedido", opciones de hora de retiro (`asap`/"19:30"), etiqueta y 10 % de propina |
+| `src/app/(public)/checkout/page.tsx` | "Pagás en el local al retirar tu pedido", opciones de hora de retiro (`asap`/"19:30"), etiqueta y 10 % de propina — **los turnos de retiro quedaron sin arreglar**: ver `TASK-checkout-ux.md` §4 |
 | `src/app/not-found-content.ts` | Copy de marca del 404 |
 | `src/shared/lib/order-totals.ts` | `DEFAULT_TIP_RATE = 10` |
 | `src/shared/lib/format-currency.ts` | Símbolo `C$` y locale `es-NI` |
