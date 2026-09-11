@@ -1,6 +1,6 @@
 # Estado del proyecto — One Burger Commerce
 
-> Actualizado: 2026-09-11 · Commit en `main`: `abc2183` · Build en producción: `build-20260911-191047`
+> Actualizado: 2026-09-12 · Último deploy a producción: `build-20260911-191047` (commit `abc2183`)
 > Este documento es el punto de entrada para retomar el trabajo. Mantenerlo al día al cerrar cada tarea.
 > Para arrancar en un chat nuevo: `ops/tasks/START-HERE.md`.
 
@@ -644,7 +644,7 @@ programado y verlo en el admin) se verificó en local contra un Postgres real.
 | 8 | **Checkout sin redundancias** (textos y botones repetidos) | **Cerrada y desplegada** | `ops/tasks/TASK-checkout-ux.md`. Cuatro commits (`2832a93`…`aba4156`), en producción como `build-20260911-145656`. El checkout pasó de 807 a 476 líneas, un solo resumen compartido con el carrito, un solo CTA visible por viewport y los turnos de retiro calculados desde la configuración. |
 | 9 | **Validar el estado operativo en el servidor** | **Cerrada y desplegada** | Commits `3a67c37` y `ca474c8`, en producción como `build-20260911-154014`. `isAcceptingOrders` ya corta pedidos de verdad (antes no lo leía nadie) y la hora de retiro se valida contra el horario del día. Incluye el horario demo del seed y el límite de login del arnés E2E. |
 | 10 | **Retiro opcional y programable + la hora visible en toda la cadena** | **Cerrada y desplegada** | Commits `6f85a3c`, `c101f82`, `b207593` y `abc2183`, en producción como `build-20260911-191047`. Incluye **una migración** (`pickupScheduled`). El retiro es opcional, la hora la resuelve el servidor, el ticket de cocina y el admin la muestran, y el semáforo va contra la hora prometida. Ver el detalle arriba. |
-| 11 | **Mejora del checkout (v2)** | **Brief listo, sin empezar** | `ops/tasks/TASK-checkout-v2.md`. Absorbe el análisis del mock del owner (`mockup/confirmar pedido.txt`, que **no es fuente de verdad del cálculo**) y los pendientes del área: rango de preparación mín–máx, el campo de preparación explicado con vista previa, presets de propina (cambio de contrato, requiere decisión), pedidos para días futuros (requiere decisión) y el prefijo `+505` que quedó hardcodeado. **Tres decisiones que hay que preguntar antes de las fases 4 y 5.** |
+| 11 | **Mejora del checkout (v2)** | **Replanificada: fase 0 abierta (auditoría del mock)** | `ops/tasks/TASK-checkout-v2.md`. **Cambio de plan (2026-09-12): el owner entrega un mock completo y la tarea arranca auditándolo**, no implementando. La fase 0 (§5 del brief) es un inventario completo del mock medido en navegador real a 375 px y 1280 px, cada elemento clasificado (aplica / aplica con cambio / fuera de alcance / bug del mock) y separado lo que toca contrato (API, schema, migración, zod) de lo que es UI/copy; el entregable es `ops/audit-checkout-mock.md` y **no se escribe código de producto hasta que el owner apruebe el plan resultante**. Las fases de implementación (rangos mín–máx, el campo de preparación explicado con vista previa, presets de propina, días futuros, prefijo `+505` y edición por ítem) quedan **candidatas** hasta entonces. Las **tres decisiones** (días futuros, presets de propina, qué hacer con `mockup/`) se preguntan todas juntas al cerrar la auditoría. |
 
 ## 5. Cómo continuar
 

@@ -8,9 +8,14 @@ ningún contexto de conversación previa**. Todo lo necesario está versionado e
 > Trabajás en `one-burger-commerce` (Next.js 16 + Prisma + Postgres, deploy en Easypanel).
 > Antes de escribir código leé, en este orden: `AGENTS.md`, `ops/project-state.md`,
 > `ops/production-readiness.md` y `ops/tasks/TASK-checkout-v2.md`.
-> La tarea es la **mejora del checkout**: ejecutá las fases aprobadas de ese brief, en orden,
-> una por commit. El brief lista las decisiones que hay que preguntar antes de las fases 4 y 5.
-> **TDD siempre**: escribí primero el test que falla, corrélo y confirmá el rojo antes de
+> La tarea es la **mejora del checkout (v2)**. **La primera fase es una auditoría completa del mock
+> completo del owner** (§5 de ese brief): inventario de todos los elementos, medido en navegador real
+> a 375 px y 1280 px, cada uno clasificado (aplica / aplica con cambio / fuera de alcance / bug del
+> mock), con lo que toca contrato separado de lo que es UI/copy. El entregable es
+> `ops/audit-checkout-mock.md` y **no se escribe código de producto hasta que el owner apruebe el
+> plan resultante**. Las decisiones de §6 se preguntan todas juntas al cerrar la auditoría.
+> A partir de ahí, las fases de implementación candidatas de §7 van **en orden, una por commit**,
+> con **TDD siempre**: escribí primero el test que falla, corrélo y confirmá el rojo antes de
 > implementar. Nada de código antes del test.
 > Trabajá en español, con commits propios, y validá con `npm run test`, `lint`, `typecheck`,
 > `build` y `security:secrets` antes de cerrar cada fase. Si tocás `schema.prisma`, corré
@@ -26,16 +31,17 @@ ningún contexto de conversación previa**. Todo lo necesario está versionado e
 | 1 | `AGENTS.md` | Reglas de trabajo: alcance, arquitectura DDD, TDD, validación, git/CI, deploy, idioma, prohibiciones |
 | 2 | `ops/project-state.md` | Qué está desplegado hoy, qué se cerró, qué falta, cómo levantar el entorno local |
 | 3 | `ops/production-readiness.md` | Runbook: entorno, deploy, backups, rollback, notificaciones, primer arranque, límites conocidos |
-| 4 | `ops/tasks/TASK-checkout-v2.md` | La tarea a ejecutar: qué falta del checkout, el análisis del mock, fases y criterios de aceptación |
+| 4 | `ops/tasks/TASK-checkout-v2.md` | La tarea a ejecutar: la **fase 0 es auditar el mock completo** del owner y proponer el plan; las fases de implementación de §7 son candidatas hasta que cierre esa auditoría |
 | 5 | `README.md` · `.env.example` | Alcance del MVP y variables de entorno |
 
 Tareas ya cerradas, por si hace falta el contexto de una decisión:
 `ops/tasks/TASK-whitelabel-branding.md` (personalización del negocio) y
 `ops/tasks/TASK-checkout-ux.md` (redundancias de texto y botones).
 
-`mockup/confirmar pedido.txt` es una **guía del owner** para el checkout: está sin versionar a
-propósito (el `.gitignore` excluye su carpeta de trabajo) y **no es fuente de verdad del
-cálculo**. Su análisis está en `TASK-checkout-v2.md` §3.
+Los mockups del owner (`mockup/`: el `confirmar pedido.txt` previo y el **mock completo** que está
+terminando) son **material de diseño, no fuente de verdad** del cálculo ni del alcance: están sin
+versionar a propósito (esa carpeta es su espacio de trabajo) y **no se commitean**. Lo que sí se
+versiona es la auditoría: `ops/audit-checkout-mock.md`, que es la fase 0 de `TASK-checkout-v2.md` §5.
 
 ## Estado en una línea
 
