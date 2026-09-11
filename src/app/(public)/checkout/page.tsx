@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { formatTodayHours } from "@/modules/business-settings/domain/business-hours-format";
+import { resolveOrderAcceptance } from "@/modules/business-settings/domain/order-acceptance";
 import {
   buildPickupSlots,
   soonestPickupTime,
@@ -134,18 +135,49 @@ export default function CheckoutPage() {
     });
   }, [now, settings.timezone, settings.pickupLeadMinutes]);
 
-  const pickupClosed = pickupSlots !== null && !pickupSlots.available;
+  
+
+  const scheduledPickupDate = useMemo(() => {
+    if (!formData.pickupTime) return null;
+
+    const iso = formatPickupTimeIso(formData.pickupTime);
+    return iso ? new Date(iso) : null;
+  }, [formData.pickupTime]);
+
   /**
-   * El servidor rechaza el pedido en estos dos casos, así que el checkout no ofrece
-   * un botón que va a fallar. Es un bloqueo distinto al de "faltan datos": acá el
-   * cliente no puede hacer nada para destrabarlo.
+   * La misma regla que aplica el servidor, evaluada con el reloj del cliente.
+   *
+   * Antes el checkout se bloqueaba cuando no quedaban turnos de la grilla, que es más
+   * estricto que la regla real: con cierre a las 22:00 y 25 min de preparación, a las
+   * 21:20 ya no hay turnos pero el pedido entra 21:45 y el servidor lo acepta. La
+   * decisión que vale sigue siendo la del servidor; esto es para no ofrecer un botón
+   * que va a fallar.
    */
-  const orderingBlocked = !settings.isAcceptingOrders || pickupClosed;
+  const acceptance = useMemo(() => {
+    if (!now) return null;
+
+    return resolveOrderAcceptance({
+      isAcceptingOrders: settings.isAcceptingOrders,
+      closedMessage: settings.closedMessage,
+      businessHours: settings.businessHours,
+      timezone: settings.timezone,
+      pickupLeadMinutes: settings.pickupLeadMinutes,
+      now,
+      pickupTime: scheduledPickupDate,
+    });
+  }, [
+    now,
+    settings.isAcceptingOrders,
+    settings.closedMessage,
+    settings.businessHours,
+    settings.timezone,
+    settings.pickupLeadMinutes,
+    scheduledPickupDate,
+  ]);
+
+  const orderingBlocked = acceptance !== null && !acceptance.accepted;
   const orderingBlockedMessage =
-    settings.closedMessage?.trim() ||
-    (settings.isAcceptingOrders
-      ? "Está fuera del horario de atención. Volvé cuando abramos."
-      : "Por ahora no estamos aceptando pedidos.");
+    acceptance && !acceptance.accepted ? acceptance.message : "";
   const todayHours = formatTodayHours(settings.businessHours, new Date(), settings.timezone);
 
   useEffect(() => {

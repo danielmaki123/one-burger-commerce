@@ -33,14 +33,51 @@ test.describe("checkout sin redundancias", () => {
     await expect(page.getByText("Pagás en el local al retirar tu pedido.")).toHaveCount(1);
   });
 
-  test("los turnos de retiro salen de la configuración", async ({ page }) => {
+  test("el retiro arranca sin programar y se puede programar", async ({ page }) => {
     await openCheckoutWithOneProduct(page);
 
-    // "Lo antes posible" ya no es una opción aparte que manda una hora fija: es el
-    // primer turno calculado, con su hora real.
-    const soonest = page.getByRole("button", { name: /^Lo antes posible · \d/ });
-    await expect(soonest).toBeVisible();
-    await expect(soonest).toHaveAttribute("aria-pressed", "true");
+    // Por defecto no se programa nada, y el control muestra el estado en vez de esconderlo.
+    const schedule = page.getByRole("button", { name: /^Retiro Lo antes posible · listo ~/ });
+    await expect(schedule).toBeVisible();
+    await expect(page.getByRole("radio")).toHaveCount(0);
+
+    await schedule.click();
+    await expect(page.getByRole("radio", { name: "Lo antes posible" })).toBeChecked();
+
+    // Los turnos son los del horario configurado, calculados desde ahora + preparación.
+    const slots = page.getByRole("radio");
+    const slotCount = await slots.count();
+    test.skip(slotCount < 2, "El local demo no tiene turnos disponibles a esta hora.");
+
+    await slots.nth(slotCount - 1).click();
+    // Al elegir, el control colapsa y muestra la hora elegida.
+    await expect(page.getByRole("radio")).toHaveCount(0);
+    await expect(
+      page.getByRole("button", { name: /^Retiro programado \d/ }),
+    ).toBeVisible();
+  });
+
+  test("el pedido programado llega al admin como programado", async ({ page }) => {
+    await openCheckoutWithOneProduct(page);
+
+    await page.getByRole("button", { name: /^Retiro Lo antes posible · listo ~/ }).click();
+    const slots = page.getByRole("radio");
+    const slotCount = await slots.count();
+    test.skip(slotCount < 2, "El local demo no tiene turnos disponibles a esta hora.");
+    await slots.nth(slotCount - 1).click();
+
+    await page.locator('input[name="customerName"]').fill("Cliente Programado");
+    await page.locator('input[name="customerWhatsapp"]').fill("88887777");
+    await confirmButton(page).click();
+    await expect(page).toHaveURL(/\/success\/.+/);
+
+    // El cliente ve para cuándo es.
+    await expect(page.getByText("Hora de retiro")).toBeVisible();
+
+    // Y la cocina lo ve marcado como programado, con su semáforo.
+    await loginAsOwner(page);
+    await page.goto("/admin/orders");
+    await expect(page.getByText(/^Retiro \d.* · Programado$/).first()).toBeVisible();
   });
 
   test("el botón no arranca deshabilitado y señala el campo que falta", async ({ page }) => {

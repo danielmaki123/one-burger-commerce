@@ -135,6 +135,33 @@ describe("resolveOrderAcceptance", () => {
     expect(result.reason).toBe("closed");
   });
 
+  it("lo antes posible se evalúa contra el día del retiro, no contra hoy", () => {
+    // 23:50 + 25 min = 00:15 del sábado. El horario que manda es el del sábado, y como
+    // ese día abre a las 12:00, las 00:15 quedan fuera: se rechaza.
+    const result = resolveOrderAcceptance({
+      ...base,
+      now: managua("2026-09-11", "23:50"),
+      pickupTime: null,
+    });
+
+    expect(result.accepted).toBe(false);
+    if (result.accepted) return;
+    expect(result.reason).toBe("closed");
+  });
+
+  it("lo antes posible entra justo antes del cierre", () => {
+    // 21:30 + 25 min = 21:55, todavía dentro del horario.
+    const result = resolveOrderAcceptance({
+      ...base,
+      now: managua("2026-09-11", "21:30"),
+      pickupTime: null,
+    });
+
+    expect(result.accepted).toBe(true);
+    if (!result.accepted) return;
+    expect(result.pickupTime).toEqual(managua("2026-09-11", "21:55"));
+  });
+
   it("rechaza un horario incoherente en vez de aceptar cualquier cosa", () => {
     const result = resolveOrderAcceptance({
       ...base,

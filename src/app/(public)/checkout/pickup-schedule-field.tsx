@@ -60,7 +60,7 @@ export function PickupScheduleField({
         <span className="min-w-0 flex-1">
           <span className="block text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
             {isScheduled ? "Retiro programado" : "Retiro"}
-          </span>
+          </span>{" "}
           <span className="block truncate text-sm font-semibold text-foreground">
             {isScheduled
               ? formatSlotLabel(scheduledTime)
@@ -122,11 +122,17 @@ function ScheduleOption({
   onSelect: () => void;
 }) {
   return (
-    <label className="flex min-h-12 cursor-pointer items-center gap-3 rounded-xl border border-border bg-card px-3.5 py-2 text-sm transition-colors hover:border-brand/60 has-[:checked]:border-brand has-[:checked]:bg-accent has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand has-[:focus-visible]:ring-offset-2 has-[:focus-visible]:ring-offset-background">
+    <label className="relative flex min-h-12 cursor-pointer items-center gap-3 rounded-xl border border-border bg-card px-3.5 py-2 text-sm transition-colors hover:border-brand/60 has-[:checked]:border-brand has-[:checked]:bg-accent has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand has-[:focus-visible]:ring-offset-2 has-[:focus-visible]:ring-offset-background">
+      {/*
+        El input cubre la tarjeta con opacidad 0 en vez de `sr-only`: sigue siendo un
+        radio nativo (teclado y lector de pantalla gratis) pero además es clickeable y
+        automatizable. Con `sr-only` queda sin caja, así que las herramientas no pueden
+        tocarlo y el arnés termina clickeando la etiqueta de costado.
+      */}
       <input
         type="radio"
         name={name}
-        className="sr-only"
+        className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
         checked={checked}
         onChange={onSelect}
       />

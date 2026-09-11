@@ -203,6 +203,21 @@ describe("checkout sin redundancias", () => {
     expect(screen.queryByRole("button", { name: /^Lo antes posible/ })).toBeNull();
   });
 
+  it("con el local por cerrar todavía se puede pedir lo antes posible", () => {
+    // 21:20 con cierre 22:00 y 25 min de preparación: ya no quedan turnos de la grilla,
+    // pero el pedido entra 21:45, dentro del horario. Bloquearlo era el checkout siendo
+    // más estricto que el servidor.
+    vi.setSystemTime(new Date("2026-09-11T21:20:00-06:00"));
+    mockCart = { items: twoItems, subtotal: 380, clearCart: vi.fn() };
+
+    render(<CheckoutPage />);
+
+    for (const button of confirmButtons()) {
+      expect(button.hasAttribute("disabled")).toBe(false);
+    }
+    expect(screen.getByText(/^Lo antes posible · listo ~9:45 p\. m\./)).toBeTruthy();
+  });
+
   it("bloquea el pedido cuando ya no quedan turnos hoy", () => {
     // Después del cierre (22:00): no hay turno posible, a diferencia de las 03:00,
     // donde el local todavía no abrió pero se puede pedir para la hora de apertura.

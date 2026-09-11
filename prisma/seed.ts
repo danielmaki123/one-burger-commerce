@@ -47,9 +47,13 @@ async function main() {
   // pero el horario demo tiene que aplicarse también al re-sembrar: si no, una base
   // ya sembrada conserva el horario real y los E2E de pedido vuelven a depender de la
   // hora a la que se corran.
+  //
+  // El tiempo de preparación en 0 es parte de lo mismo: con el horario abierto hasta
+  // las 23:59, cualquier valor mayor que 0 deja una franja al final del día en la que
+  // el servidor rechaza los pedidos lo antes posible.
   await prisma.businessSettings.update({
     where: { id: DEFAULT_BUSINESS_SETTINGS.id },
-    data: { businessHours: demoHours },
+    data: { businessHours: demoHours, pickupLeadMinutes: 0 },
   });
 
   // Categories
