@@ -121,6 +121,46 @@ test.describe("admin operations", () => {
     }
   });
 
+  test("la paleta del mock se aplica como preset y se ve en la vista previa (375 px)", async ({
+    page,
+  }) => {
+    await loginAsOwner(page);
+    await page.setViewportSize({ width: 375, height: 812 });
+
+    await page.goto("/admin/settings");
+    await expect(
+      page.getByRole("heading", { name: "Personalización del negocio" }),
+    ).toBeVisible();
+
+    const preview = page.locator('[aria-label="Vista previa"]');
+    const previewVar = async (name: string) =>
+      preview.evaluate(
+        (el, variable) => getComputedStyle(el).getPropertyValue(variable).trim(),
+        name,
+      );
+
+    const preset = page.getByRole("button", { name: "Pimienta", exact: true });
+    await expect(preset).toBeVisible();
+    await expect(preset).toHaveAttribute("aria-pressed", "false");
+
+    // El preset cumple el mínimo táctil del repo; los botones equivalentes del mock miden 24 px.
+    const box = await preset.boundingBox();
+    expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
+
+    const brandBefore = await previewVar("--brand");
+    await preset.click();
+
+    await expect(preset).toHaveAttribute("aria-pressed", "true");
+    // Los colores del mock, leídos del navegador real sobre la vista previa en vivo.
+    expect(brandBefore).not.toBe("#d32f2f");
+    expect(await previewVar("--brand")).toBe("#d32f2f");
+    expect(await previewVar("--background")).toBe("#faf1d6");
+    expect(await previewVar("--card")).toBe("#fffdf9");
+
+    // Es una vista previa: mientras el owner no guarde, el sitio publicado no cambia.
+    await expect(page.getByText("Cambios guardados ✓")).toHaveCount(0);
+  });
+
   test("a manager cannot reach the business settings", async ({ page }) => {
     await loginAsOwner(page);
 

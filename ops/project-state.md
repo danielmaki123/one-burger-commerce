@@ -685,6 +685,13 @@ test que falla, después el preset.
   cambiar cualquier color. El default del sitio no cambia.
 - Pendiente dentro de T1: **T1.2** (Plus Jakarta Sans como tercera tipografía, decisión D-A) y
   **T1.3** (escala tipográfica, radios y sombras del mock mapeados a tokens de `globals.css`).
+- **Verificado en el camino real** (Postgres 17 local + migraciones + seed + `next start -p 3210` con
+  el build que sirve el preset): **E2E completo 28 pasaron, 7 salteados, 0 fallos**. Se sumó un caso
+  nuevo, "la paleta del mock se aplica como preset y se ve en la vista previa (375 px)", que entra al
+  admin, toca el preset y lee los colores del **navegador real** sobre la vista previa en vivo
+  (`--brand` `#d32f2f`, `--background` `#faf1d6`, `--card` `#fffdf9`), comprueba que el botón cumple
+  el mínimo táctil de 44 px y que **sin guardar el sitio publicado no cambia**. El test **tiene
+  dientes**: con una expectativa falsa a propósito falla mostrando `Received: "#d32f2f"`.
 
 ## 3. Infraestructura y secretos
 
