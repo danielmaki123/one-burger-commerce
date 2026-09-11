@@ -4,9 +4,11 @@ import type { BusinessHours } from "@/modules/business-settings/domain/business-
 
 import {
   buildPickupSlots,
+  formatPickupRangeLabel,
   formatSlotLabel,
   MAX_PICKUP_SLOTS,
   PICKUP_SLOT_MINUTES,
+  pickupRangeEnd,
   soonestPickupTime,
 } from "./pickup-slots";
 
@@ -34,6 +36,64 @@ const base = {
   timezone: "America/Managua",
   pickupLeadMinutes: 25,
 };
+
+describe("rango de preparación (T5)", () => {
+  it("con máximo, promete un rango entre el mínimo y el fin", () => {
+    expect(
+      formatPickupRangeLabel({
+        pickupTime: "13:40",
+        pickupLeadMinutes: 20,
+        pickupMaxMinutes: 40,
+      }),
+    ).toBe("listo entre 1:40 p. m. y 2:00 p. m.");
+  });
+
+  it("sin máximo devuelve el instante de siempre", () => {
+    expect(
+      formatPickupRangeLabel({
+        pickupTime: "13:40",
+        pickupLeadMinutes: 20,
+        pickupMaxMinutes: null,
+      }),
+    ).toBe("listo ~1:40 p. m.");
+    expect(
+      formatPickupRangeLabel({
+        pickupTime: "13:40",
+        pickupLeadMinutes: 20,
+        pickupMaxMinutes: undefined,
+      }),
+    ).toBe("listo ~1:40 p. m.");
+  });
+
+  it("un máximo que no agrega tiempo no inventa un rango", () => {
+    expect(
+      formatPickupRangeLabel({
+        pickupTime: "13:40",
+        pickupLeadMinutes: 20,
+        pickupMaxMinutes: 20,
+      }),
+    ).toBe("listo ~1:40 p. m.");
+  });
+
+  it("el fin del rango puede cruzar la medianoche sin romper", () => {
+    expect(
+      pickupRangeEnd({ pickupTime: "23:50", pickupLeadMinutes: 10, pickupMaxMinutes: 30 }),
+    ).toBe("00:10");
+    expect(
+      formatPickupRangeLabel({
+        pickupTime: "23:50",
+        pickupLeadMinutes: 10,
+        pickupMaxMinutes: 30,
+      }),
+    ).toBe("listo entre 11:50 p. m. y 12:10 a. m.");
+  });
+
+  it("sin máximo no hay fin de rango que mostrar", () => {
+    expect(
+      pickupRangeEnd({ pickupTime: "13:40", pickupLeadMinutes: 20, pickupMaxMinutes: null }),
+    ).toBeNull();
+  });
+});
 
 describe("buildPickupSlots", () => {
   it("no ofrece turnos si el local está cerrado hoy", () => {

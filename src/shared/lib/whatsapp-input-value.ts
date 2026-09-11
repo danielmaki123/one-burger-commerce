@@ -17,8 +17,29 @@ export const WHATSAPP_PREFIX_OPTIONS: WhatsappPrefixOption[] = [
   { value: "+52", label: "+52", placeholder: "5512345678", minDigits: 10, maxDigits: 10 },
 ];
 
+/** Respaldo cuando el negocio todavía no cargó su teléfono. */
 export const WHATSAPP_DEFAULT_PREFIX = "+505";
 export const WHATSAPP_OTHER_PREFIX_VALUE = "OTHER";
+
+/**
+ * Prefijo que se muestra por defecto en el campo de WhatsApp (T5).
+ *
+ * Sale del teléfono del negocio, no de un literal: en una plataforma whitelabel el
+ * código de país es un dato del negocio, igual que la moneda o el horario. Si el
+ * código no está en la lista conocida se toman los primeros dígitos.
+ */
+export function resolveWhatsappDefaultPrefix(phone: string | null | undefined): string {
+  const digits = sanitizeWhatsappDigits(phone ?? "");
+  if (!digits) return WHATSAPP_DEFAULT_PREFIX;
+
+  const known = [...WHATSAPP_PREFIX_OPTIONS]
+    .sort((a, b) => b.value.length - a.value.length)
+    .find((option) => digits.startsWith(option.value.replace(/\D/g, "")));
+
+  if (known) return known.value;
+
+  return `+${digits.slice(0, 3)}`;
+}
 
 export function sanitizeWhatsappDigits(raw: string): string {
   return raw.replace(/\D/g, "").slice(0, 15);
@@ -73,7 +94,10 @@ export function isCompleteWhatsappInput(prefix: string, localNumber: string): bo
   return fullDigits.length >= 8 && fullDigits.length <= 15;
 }
 
-export function parseWhatsappValue(value: string): {
+export function parseWhatsappValue(
+  value: string,
+  defaultPrefix: string = WHATSAPP_DEFAULT_PREFIX,
+): {
   prefix: string;
   localNumber: string;
   isOtherPrefix: boolean;
@@ -82,7 +106,7 @@ export function parseWhatsappValue(value: string): {
   const digits = sanitizeWhatsappDigits(trimmed);
 
   if (!digits) {
-    return { prefix: WHATSAPP_DEFAULT_PREFIX, localNumber: "", isOtherPrefix: false };
+    return { prefix: defaultPrefix, localNumber: "", isOtherPrefix: false };
   }
 
   const knownPrefix = [...WHATSAPP_PREFIX_OPTIONS]

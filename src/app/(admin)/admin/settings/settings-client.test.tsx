@@ -185,6 +185,33 @@ describe("AdminSettingsClientPage", () => {
     expect(screen.getByLabelText("Vista previa")).toBeTruthy();
   });
 
+  it("manda el rango de preparación y lo vacía a null (T5)", async () => {
+    const user = userEvent.setup();
+    render(<AdminSettingsClientPage initialSettings={initialSettings()} />);
+
+    const maxInput = screen.getByLabelText(/Máximo del rango/);
+    // Sin rango configurado el campo arranca vacío, no en 0.
+    expect(inputValue(maxInput)).toBe("");
+
+    await user.type(maxInput, "40");
+    await user.click(screen.getByRole("button", { name: "Guardar cambios" }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+
+    const withRange = JSON.parse(
+      String((fetchMock.mock.calls[0] as [string, RequestInit])[1].body),
+    ) as Record<string, unknown>;
+    expect(withRange.pickupMaxMinutes).toBe(40);
+
+    await user.clear(screen.getByLabelText(/Máximo del rango/));
+    await user.click(screen.getByRole("button", { name: "Guardar cambios" }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+
+    const withoutRange = JSON.parse(
+      String((fetchMock.mock.calls[1] as [string, RequestInit])[1].body),
+    ) as Record<string, unknown>;
+    expect(withoutRange.pickupMaxMinutes).toBeNull();
+  });
+
   it("avisa del contraste bajo sin bloquear el guardado", async () => {
     const user = userEvent.setup();
     render(<AdminSettingsClientPage initialSettings={initialSettings()} />);

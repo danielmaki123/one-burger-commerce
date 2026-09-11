@@ -2,6 +2,8 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
+import { BusinessSettingsProvider, FALLBACK_BUSINESS_SETTINGS } from "@/shared/lib/business-settings";
+
 import OrderSuccessView from "./order-success-view";
 
 describe("order success view", () => {
@@ -52,6 +54,28 @@ describe("order success view", () => {
     const html = renderWith(pickupOrder({ pickupTime: null }));
 
     expect(html).not.toContain("Hora de retiro");
+  });
+
+  it("con rango configurado le promete una franja, no un instante (T5)", () => {
+    // 20:35 con 20 min de preparación y 40 de máximo: la franja es 20:35–20:55.
+    const html = renderToStaticMarkup(
+      createElement(BusinessSettingsProvider, {
+        settings: {
+          ...FALLBACK_BUSINESS_SETTINGS,
+          pickupLeadMinutes: 20,
+          pickupMaxMinutes: 40,
+        },
+        children: createElement(OrderSuccessView, {
+          order: pickupOrder({
+            pickupTime: "2026-09-12T02:35:00.000Z",
+            pickupScheduled: false,
+          }) as never,
+        }),
+      }),
+    );
+
+    expect(html).toContain("Hora de retiro");
+    expect(html).toContain("entre 8:35 p. m. y 8:55 p. m.");
   });
 
   it("renders a minimal success screen instead of a receipt", () => {

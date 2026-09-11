@@ -55,6 +55,34 @@ describe("updateBusinessSettings", () => {
     });
   });
 
+  it("compara el máximo contra el mínimo guardado cuando solo llega el máximo (T5)", async () => {
+    const repository = new InMemoryBusinessSettingsRepository();
+
+    await updateBusinessSettings({ pickupLeadMinutes: 30 }, { repository });
+
+    await expect(
+      updateBusinessSettings({ pickupMaxMinutes: 20 }, { repository }),
+    ).rejects.toMatchObject({
+      status: 422,
+      fields: { pickupMaxMinutes: expect.any(String) },
+    });
+    // No se guardó nada a medias.
+    expect(repository.record?.pickupMaxMinutes).toBeNull();
+  });
+
+  it("acepta el rango cuando el máximo alcanza al mínimo y guarda null para sacarlo (T5)", async () => {
+    const repository = new InMemoryBusinessSettingsRepository();
+
+    const withRange = await updateBusinessSettings(
+      { pickupLeadMinutes: 20, pickupMaxMinutes: 40 },
+      { repository },
+    );
+    expect(withRange.pickupMaxMinutes).toBe(40);
+
+    const withoutRange = await updateBusinessSettings({ pickupMaxMinutes: null }, { repository });
+    expect(withoutRange.pickupMaxMinutes).toBeNull();
+  });
+
   it("fusiona los horarios día por día en vez de reemplazar la semana entera", async () => {
     const repository = new InMemoryBusinessSettingsRepository();
 

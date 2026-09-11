@@ -10,7 +10,8 @@ import {
   type DeviceOrderRef,
 } from "@/shared/lib/device-orders";
 import { formatCurrency } from "@/shared/lib/format-currency";
-import { useCurrencyFormat } from "@/shared/lib/business-settings";
+import { useBusinessSettings, useCurrencyFormat } from "@/shared/lib/business-settings";
+import { resolveWhatsappDefaultPrefix } from "@/shared/lib/whatsapp-input-value";
 import { syncTrackedOrderToDeviceOrders } from "@/shared/lib/order-tracking-sync";
 import { Button } from "@/shared/ui/button";
 import { Card, CardContent } from "@/shared/ui/card";
@@ -57,6 +58,7 @@ function splitOrders(orders: DeviceOrderRef[]) {
 
 export default function DeviceOrdersPage() {
   const router = useRouter();
+  const settings = useBusinessSettings();
   const [orders, setOrders] = useState<DeviceOrderRef[]>([]);
   const [whatsappInput, setWhatsappInput] = useState("");
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -167,6 +169,7 @@ export default function DeviceOrdersPage() {
               <WhatsAppInput
                 value={whatsappInput}
                 onChange={setWhatsappInput}
+                defaultPrefix={resolveWhatsappDefaultPrefix(settings.phone)}
                 className="flex-1"
               />
               <Button type="submit" className="rounded-xl">Actualizar</Button>

@@ -92,6 +92,50 @@ export function formatSlotLabel(value: string): string {
 export const SOONEST_PICKUP_STEP_MINUTES = 5;
 
 /**
+ * Fin del rango de preparación (T5).
+ *
+ * El negocio puede configurar un máximo además del mínimo: el cliente no espera
+ * "un instante exacto" que la cocina puede fallar, sino una franja. La hora que se
+ * **guarda** sigue siendo el mínimo; esto es copy para el cliente.
+ *
+ * `null` cuando no hay máximo configurado o cuando no agrega tiempo real.
+ */
+export function pickupRangeEnd(input: {
+  /** Hora mínima en `HH:mm` (lo que se guarda como hora de retiro). */
+  pickupTime: string;
+  pickupLeadMinutes: number;
+  pickupMaxMinutes: number | null | undefined;
+}): string | null {
+  const start = parseTimeOfDay(input.pickupTime);
+  if (start === null || input.pickupMaxMinutes === null || input.pickupMaxMinutes === undefined) {
+    return null;
+  }
+
+  const extra = Math.trunc(input.pickupMaxMinutes) - Math.trunc(input.pickupLeadMinutes);
+  if (extra <= 0) return null;
+
+  // El rango puede cruzar la medianoche (un local que cierra tarde).
+  return toTimeOfDay((start + extra) % (24 * 60));
+}
+
+/**
+ * Copy del retiro: `listo entre 1:40 p. m. y 2:00 p. m.` con máximo configurado,
+ * o `listo ~1:40 p. m.` sin él.
+ */
+export function formatPickupRangeLabel(input: {
+  pickupTime: string;
+  pickupLeadMinutes: number;
+  pickupMaxMinutes: number | null | undefined;
+}): string {
+  const start = formatSlotLabel(input.pickupTime);
+  const end = pickupRangeEnd(input);
+
+  return end === null
+    ? `listo ~${start}`
+    : `listo entre ${start} y ${formatSlotLabel(end)}`;
+}
+
+/**
  * "Lo antes posible" cuando el local está cerrado o ya no quedan turnos del día.
  *
  * El checkout nunca bloquea un pedido por horario (eso es una decisión de producto

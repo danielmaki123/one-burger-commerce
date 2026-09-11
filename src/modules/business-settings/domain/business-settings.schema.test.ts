@@ -97,6 +97,24 @@ describe("validación de la configuración del negocio", () => {
     expectFieldError({ pickupLeadMinutes: 12.5 }, "pickupLeadMinutes");
   });
 
+  it("acota el rango de preparación y no acepta un máximo menor que el mínimo (T5)", () => {
+    expect(parseBusinessSettingsPatch({ pickupMaxMinutes: 40 })).toEqual({
+      pickupMaxMinutes: 40,
+    });
+    expect(
+      parseBusinessSettingsPatch({ pickupLeadMinutes: 20, pickupMaxMinutes: 20 }),
+    ).toEqual({ pickupLeadMinutes: 20, pickupMaxMinutes: 20 });
+    // Vacío = sin rango: vuelve al comportamiento de un solo instante.
+    expect(parseBusinessSettingsPatch({ pickupMaxMinutes: null })).toEqual({
+      pickupMaxMinutes: null,
+    });
+    expectFieldError({ pickupMaxMinutes: 241 }, "pickupMaxMinutes");
+    expectFieldError({ pickupMaxMinutes: -1 }, "pickupMaxMinutes");
+    expectFieldError({ pickupMaxMinutes: 12.5 }, "pickupMaxMinutes");
+    // Comparado contra el mínimo que viene en el mismo payload.
+    expectFieldError({ pickupLeadMinutes: 30, pickupMaxMinutes: 20 }, "pickupMaxMinutes");
+  });
+
   it("acota la propina entre 0 y 100 y exige entero", () => {
     expect(parseBusinessSettingsPatch({ tipRate: 0, tipEnabled: false })).toEqual({
       tipRate: 0,

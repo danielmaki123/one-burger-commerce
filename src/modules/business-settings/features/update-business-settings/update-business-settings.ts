@@ -1,5 +1,6 @@
 import { mergeBusinessHours } from "@/modules/business-settings/domain/business-hours";
 import { createDefaultBusinessSettingsRecord } from "@/modules/business-settings/domain/business-settings-defaults";
+import { BusinessSettingsError } from "@/modules/business-settings/domain/business-settings-errors";
 import { parseBusinessSettingsPatch } from "@/modules/business-settings/domain/business-settings.schema";
 import type {
   BusinessSettingsPatch,
@@ -26,6 +27,22 @@ export async function updateBusinessSettings(
 ): Promise<BusinessSettingsRecord> {
   const patch = parseBusinessSettingsPatch(input);
   const current = (await repository.get()) ?? createDefaultBusinessSettingsRecord();
+
+  // El rango de preparación no puede terminar antes de empezar. El esquema ya
+  // valida los dos números cuando vienen juntos en el payload; acá se completa el
+  // caso de mandar uno solo, comparando contra lo guardado (T5).
+  const nextLead = patch.pickupLeadMinutes ?? current.pickupLeadMinutes;
+  const nextMax =
+    patch.pickupMaxMinutes !== undefined ? patch.pickupMaxMinutes : current.pickupMaxMinutes;
+
+  if (nextMax !== null && nextMax < nextLead) {
+    throw new BusinessSettingsError(
+      422,
+      "VALIDATION_ERROR",
+      "La configuración del negocio tiene errores de validación",
+      { pickupMaxMinutes: "Tiene que ser mayor o igual que los minutos de preparación" },
+    );
+  }
 
   const { businessHours, ...rest } = patch;
 

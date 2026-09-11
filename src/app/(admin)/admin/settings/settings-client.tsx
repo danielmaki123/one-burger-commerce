@@ -93,6 +93,7 @@ export function toSettingsPayload(draft: BusinessSettingsDraft) {
     currencySymbol: draft.currencySymbol,
     locale: draft.locale,
     pickupLeadMinutes: draft.pickupLeadMinutes,
+    pickupMaxMinutes: draft.pickupMaxMinutes,
     paymentInstructions: draft.paymentInstructions,
     tipEnabled: draft.tipEnabled,
     tipRate: draft.tipRate,
@@ -583,7 +584,7 @@ export default function AdminSettingsClientPage({
         <SettingsField
           id="settings-pickup-lead"
           label="Minutos de preparación"
-          hint="Entre 0 y 180."
+          hint="Cuánto tardás como mínimo desde que entra el pedido hasta que está listo. Define el primer turno de retiro y hasta qué hora se puede pedir: con 25, la última orden entra 25 minutos antes del cierre."
           error={fieldErrors.pickupLeadMinutes}
           onReset={() => resetField("pickupLeadMinutes")}
         >
@@ -595,6 +596,29 @@ export default function AdminSettingsClientPage({
             value={String(draft.pickupLeadMinutes)}
             onChange={(event) =>
               setField("pickupLeadMinutes", Number(event.target.value || 0))
+            }
+          />
+        </SettingsField>
+
+        <SettingsField
+          id="settings-pickup-max"
+          label="Máximo del rango (opcional)"
+          hint="Si lo completás, el cliente ve “listo entre X y Y” en vez de una hora exacta. Tiene que ser mayor o igual que los minutos de preparación; vacío = una sola hora."
+          error={fieldErrors.pickupMaxMinutes}
+          onReset={() => resetField("pickupMaxMinutes")}
+        >
+          <Input
+            id="settings-pickup-max"
+            type="number"
+            min={0}
+            max={240}
+            value={draft.pickupMaxMinutes === null ? "" : String(draft.pickupMaxMinutes)}
+            placeholder="Sin rango"
+            onChange={(event) =>
+              setField(
+                "pickupMaxMinutes",
+                event.target.value.trim() === "" ? null : Number(event.target.value),
+              )
             }
           />
         </SettingsField>

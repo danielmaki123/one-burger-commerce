@@ -24,6 +24,8 @@ type WhatsAppInputProps = {
   disabled?: boolean;
   required?: boolean;
   className?: string;
+  /** Prefijo que se muestra sin número: sale del teléfono del negocio (T5). */
+  defaultPrefix?: string;
 };
 
 const DEFAULT_HELP_TEXT = "Elegí el prefijo si tu número no es de Nicaragua.";
@@ -39,8 +41,12 @@ export function WhatsAppInput({
   disabled = false,
   required = false,
   className = "",
+  defaultPrefix = WHATSAPP_DEFAULT_PREFIX,
 }: WhatsAppInputProps) {
-  const initial = React.useMemo(() => parseWhatsappValue(value), [value]);
+  const initial = React.useMemo(
+    () => parseWhatsappValue(value, defaultPrefix),
+    [value, defaultPrefix],
+  );
   const [selectedPrefix, setSelectedPrefix] = React.useState(
     initial.isOtherPrefix ? WHATSAPP_OTHER_PREFIX_VALUE : initial.prefix,
   );
@@ -51,17 +57,16 @@ export function WhatsAppInput({
 
   React.useEffect(() => {
     if (!value) return;
-    const parsed = parseWhatsappValue(value);
+    const parsed = parseWhatsappValue(value, defaultPrefix);
     setSelectedPrefix(parsed.isOtherPrefix ? WHATSAPP_OTHER_PREFIX_VALUE : parsed.prefix);
     setManualPrefix(parsed.isOtherPrefix ? parsed.prefix : "+");
     setLocalNumber(parsed.localNumber);
-  }, [value]);
+  }, [value, defaultPrefix]);
 
   const effectivePrefix =
     selectedPrefix === WHATSAPP_OTHER_PREFIX_VALUE ? manualPrefix : selectedPrefix;
   const activeOption = findWhatsappPrefixOption(effectivePrefix);
-  const placeholder =
-    activeOption?.placeholder ?? (effectivePrefix === WHATSAPP_DEFAULT_PREFIX ? "86791327" : "Número");
+  const placeholder = activeOption?.placeholder ?? "Número";
   const inputId = id ?? name ?? "customerWhatsapp";
 
   function emit(nextPrefix: string, nextLocalNumber: string) {

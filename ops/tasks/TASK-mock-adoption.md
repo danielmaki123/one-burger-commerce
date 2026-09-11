@@ -1,8 +1,8 @@
 # TASK: Adopción del mock completo (programa de UI)
 
 **Estado:** plan **aprobado** (D-A, D-B y D-C resueltas el 2026-09-12) · **en ejecución**: **T1 (tokens),
-T2 (home), T3 (menú), T3.1 (color por categoría) y T4 (producto) cerradas**; sigue
-**T5 (carrito + checkout)** · **Fecha:** 2026-09-12 · **Origen:** pedido del owner sobre
+T2 (home), T3 (menú), T3.1 (color por categoría), T4 (producto) y T5 (carrito + checkout) cerradas**;
+sigue **T6 (confirmación)** · **Fecha:** 2026-09-12 · **Origen:** pedido del owner sobre
 `stitch_full_pwa_builder/` ("copiar los órdenes, los colores, todos; los botones que no tengamos API
 se valorarán para implementar y que no queden solo como texto; mantener el orden; TDD por fase, por
 tarea").
@@ -141,7 +141,7 @@ Una tarea por commit (o un commit por fase dentro de la tarea). **El orden es el
 | **T3** | **Menú** (`/menu`): buscador que filtra, riel de categorías con foto, grilla de 2 columnas, "+" de ≥44 px con aviso `aria-live` — **cerrada**: el "+" agrega de verdad cuando el producto no obliga a elegir (compartido con la home en `src/shared/lib/product-quick-add.ts`); con opciones obligatorias no se dibuja y la tarjeta lleva a elegirlas. **No se adopta** el color por categoría ni los rótulos fijos del mock: no existen en el modelo (candidato a campo de categoría) | `menu/page.test.tsx` · `menu-product-card.test.tsx` · `menu-page-helpers.test.ts` | No |
 | **T4** | **Producto** (`/menu/[productId]`): cantidad, modificadores como tarjetas con delta, notas, CTA fijo con importe — **cerrada**: cantidad primero (orden del mock), nota con `label` propio y anillo de foco visible en las tarjetas de modificador (los dos huecos de accesibilidad que el mock tiene) | `menu/[productId]/page.test.ts` | No |
 | **T3.1** | **Color por categoría** (pedido del owner el 2026-09-12) — **cerrada**: `Category.color` con migración, validación `#rrggbb` en la API, campo con vista previa y aviso de contraste en `/admin/menu`, y las tarjetas del menú teñidas con el texto más legible de los dos de la casa. `null` = diseño del sistema | `category-color.test.ts` · `menu-product-card.test.tsx` · `categories/[id]/route.test.ts` | **Sí** (migración `add_category_color`) |
-| **T5** | **Carrito + checkout** (absorbe `TASK-checkout-v2`): rango de preparación, dirección del local, resumen, edición por ítem, propina opt-in, nombre/WhatsApp, hora de retiro | `business-settings.schema.test.ts` → `pickupMaxMinutes`; después `pickup-slots.test.ts` → formato del rango | **Sí** (migración) |
+| **T5** | **Carrito + checkout** (absorbe `TASK-checkout-v2`) — **cerrada** en sus fases 1, 3, 6 y 7: `pickupMaxMinutes` con migración y validación cruzada, franja "listo entre X y Y" en checkout y confirmación (la hora guardada sigue siendo el mínimo), dirección del local en el punto de retiro, prefijo de WhatsApp derivado del teléfono del negocio y edición por ítem del carrito verificada. **Queda pendiente** la vista previa de turnos de la fase 2 y las decisiones D1/D2 | `business-settings.schema.test.ts` → `pickupMaxMinutes`; `pickup-slots.test.ts` → rango; `checkout/page.test.tsx`; `settings-client.test.tsx` | **Sí** (migración `add_pickup_max_minutes`) |
 | **T6** | **Confirmación** (`/success`): código de retiro, rango estimado, resumen, enlaces a seguimiento y menú | `order-success-view.test.ts` | No |
 | **T7** | **Seguimiento e historial** (`/orders`, `/activity`): timeline de 4 pasos, buscador que filtra, "Pedir nuevamente", "Recibo" | `orders/orders-page-helpers.test.ts` · `activity/page.test.ts` | No |
 

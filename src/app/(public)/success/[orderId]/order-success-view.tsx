@@ -48,17 +48,34 @@ export type OrderSuccessData = {
 /**
  * Hora de retiro para el cliente. Sin programar se muestra con `~` para que se lea como
  * estimación y no como una hora reservada.
+ *
+ * Con un máximo configurado (T5) se promete una **franja** en vez de un instante: el
+ * rango arranca en la hora prometida y termina en la diferencia entre el máximo y el
+ * mínimo de preparación.
  */
 function formatPickupForCustomer(
   order: OrderSuccessData,
   timeZone: string,
+  pickupLeadMinutes: number,
+  pickupMaxMinutes: number | null,
 ): string | null {
   if (order.type !== "pickup" || !order.pickupTime) return null;
 
   const time = formatTimeInTimeZone(order.pickupTime, timeZone);
   if (!time) return null;
 
-  return order.pickupScheduled ? time : `~${time}`;
+  if (order.pickupScheduled) return time;
+
+  const extraMinutes =
+    pickupMaxMinutes === null ? 0 : Math.trunc(pickupMaxMinutes) - Math.trunc(pickupLeadMinutes);
+  if (extraMinutes <= 0) return `~${time}`;
+
+  const endIso = new Date(
+    new Date(order.pickupTime).getTime() + extraMinutes * 60_000,
+  ).toISOString();
+  const end = formatTimeInTimeZone(endIso, timeZone);
+
+  return end ? `entre ${time} y ${end}` : `~${time}`;
 }
 
 function formatOrderType(type: string): string {
@@ -105,7 +122,12 @@ export default function OrderSuccessView({
   // Logo completo; si todavía no hay ninguno configurado se mantiene el asset de
   // respaldo que ya se mostraba acá como mascota.
   const brandMark = resolveBrandImageUrl(settings, "full") ?? resolveFaviconUrl(settings);
-  const pickupLabel = formatPickupForCustomer(order, settings.timezone);
+  const pickupLabel = formatPickupForCustomer(
+    order,
+    settings.timezone,
+    settings.pickupLeadMinutes,
+    settings.pickupMaxMinutes,
+  );
 
   return (
     <div className="brand-canvas min-h-dvh text-foreground">

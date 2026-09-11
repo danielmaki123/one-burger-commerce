@@ -65,6 +65,8 @@ export const DEFAULT_BUSINESS_SETTINGS: BusinessSettingsDefaults = {
   currencySymbol: "C$",
   locale: "es-NI",
   pickupLeadMinutes: 25,
+  // Sin rango por defecto: el checkout sigue prometiendo un instante concreto.
+  pickupMaxMinutes: null,
   paymentInstructions: "Pagás en el local al retirar tu pedido. No se cobra nada online.",
   tipEnabled: true,
   tipRate: 10,

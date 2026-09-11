@@ -575,6 +575,8 @@ model BusinessSettings {
   currencySymbol       String   @default("C$")
   locale               String   @default("es-NI")
   pickupLeadMinutes    Int      @default(25)
+  /// Máximo del rango de preparación (`null` = se promete un instante, no un rango).
+  pickupMaxMinutes     Int?
   paymentInstructions  String?  @default("Pagás en el local al retirar tu pedido. No se cobra nada online.")
   tipEnabled           Boolean  @default(true)
   tipRate              Int      @default(10)

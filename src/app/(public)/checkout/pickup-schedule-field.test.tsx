@@ -90,4 +90,16 @@ describe("PickupScheduleField", () => {
     expect(screen.getAllByRole("radio")).toHaveLength(1);
     expect(checked(screen.getByRole("radio", { name: /Lo antes posible/ }))).toBe(true);
   });
+
+  it("con rango configurado promete una franja en vez de un instante (T5)", async () => {
+    const user = userEvent.setup();
+    renderField({ pickupLeadMinutes: 15, pickupMaxMinutes: 35 });
+
+    expect(
+      screen.getByText("Lo antes posible · listo entre 11:35 a. m. y 11:55 a. m."),
+    ).toBeTruthy();
+
+    await user.click(screen.getByRole("button", { expanded: false }));
+    expect(screen.getByText("listo entre 11:35 a. m. y 11:55 a. m.")).toBeTruthy();
+  });
 });

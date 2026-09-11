@@ -179,6 +179,49 @@ describe("checkout sin redundancias", () => {
     expect(screen.queryByRole("radio")).toBeNull();
   });
 
+  it("con rango configurado promete una franja y muestra dónde se retira (T5)", async () => {
+    mockCart = { items: twoItems, subtotal: 380, clearCart: vi.fn() };
+
+    render(
+      <BusinessSettingsProvider
+        settings={{
+          ...FALLBACK_BUSINESS_SETTINGS,
+          pickupLeadMinutes: 15,
+          pickupMaxMinutes: 35,
+          addressLine: "Frente al parque central",
+          city: "Jinotepe",
+          mapsUrl: "https://maps.test/one-burger",
+        }}
+      >
+        <CheckoutPage />
+      </BusinessSettingsProvider>,
+    );
+
+    // El cliente ve una franja, no un instante que la cocina puede fallar.
+    expect(await screen.findByText(/^Lo antes posible · listo entre /)).toBeTruthy();
+    // Y dónde se retira, con el enlace al mapa configurado.
+    expect(screen.getByText("Frente al parque central, Jinotepe")).toBeTruthy();
+    expect(screen.getByRole("link", { name: /Cómo llegar/ })).toHaveProperty(
+      "href",
+      "https://maps.test/one-burger",
+    );
+  });
+
+  it("sin dirección configurada no inventa la fila del punto de retiro (T5)", async () => {
+    mockCart = { items: twoItems, subtotal: 380, clearCart: vi.fn() };
+
+    render(
+      <BusinessSettingsProvider
+        settings={{ ...FALLBACK_BUSINESS_SETTINGS, addressLine: null, city: null, addressReference: null }}
+      >
+        <CheckoutPage />
+      </BusinessSettingsProvider>,
+    );
+
+    await screen.findByText(/^Lo antes posible · listo /);
+    expect(screen.queryByText("Retirás en")).toBeNull();
+  });
+
   it("bloquea el pedido cuando el negocio no está aceptando pedidos", () => {
     mockCart = { items: twoItems, subtotal: 380, clearCart: vi.fn() };
 

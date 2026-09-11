@@ -885,6 +885,44 @@ color fijo.
   (`rgb(211, 47, 47)` de fondo y de borde) y el del texto (`rgb(247, 250, 252)`); después lo borra y
   comprueba que la tarjeta vuelve al diseño del sistema.
 
+### Adopción del mock · T5: carrito y checkout (2026-09-12)
+
+La tarea que absorbe `TASK-checkout-v2`. Se hicieron sus fases **1, 3, 6 y 7**, y de la 2 la parte
+que el owner había pedido explícitamente (que el campo se explique solo).
+
+- **Contrato nuevo (fase 1)**: `pickupMaxMinutes` opcional en `BusinessSettings` con su migración
+  (`add_pickup_max_minutes`, sin BOM), validado como entero **≥ `pickupLeadMinutes`** y tope 240. El
+  esquema compara los dos números cuando vienen juntos en el payload y el caso de uso los compara
+  contra lo guardado cuando llega uno solo: no se puede guardar un rango que termina antes de empezar.
+- **El cliente ve una franja, la cocina sigue viendo una hora**: con máximo, el checkout y la
+  confirmación dicen "listo entre 1:40 p. m. y 2:00 p. m."; la hora que **se guarda** y el ticket de
+  cocina no cambian. Sin máximo, todo sigue como antes ("listo ~2:00 p. m.").
+- **Test rojo**: `pickup-slots.test.ts` (5 casos del formateo del rango, incluido el cruce de
+  medianoche: 23:50 + 20 min = 12:10 a. m.), `checkout/page.test.tsx` (la franja y el punto de retiro)
+  y `pickup-schedule-field.test.tsx`. El contrato del schema y el del caso de uso tienen dientes
+  **comprobados por mutación**: sin la comparación cruzada, un máximo menor que el mínimo se guarda.
+- **Fase 3**: el checkout ahora dice **dónde se retira** (dirección del local, con enlace al mapa si el
+  admin cargó `mapsUrl`). Con la dirección vacía la fila **no se dibuja**, en vez de mostrar un hueco.
+- **Fase 6**: el prefijo por defecto del campo de WhatsApp salía del literal `+505`
+  (`whatsapp-input-value.ts`). Es un dato del negocio en una plataforma whitelabel: ahora se deriva del
+  teléfono configurado y el respaldo queda solo para cuando no hay ninguno. Aplica al checkout, al
+  seguimiento y al historial.
+- **Fase 7**: la edición por ítem **ya existía** en `/cart` (`updateQuantity`/`removeItem` con
+  etiquetas por ítem). No se reescribió: se verificó en navegador real con `tests/e2e/public-cart.spec.ts`
+  (sumar, restar, el subtotal cambia y volver a restar lo devuelve, quitar deja el carrito vacío).
+- **De la fase 2 queda pendiente la vista previa en vivo de los turnos** en el admin (mostrar qué
+  turnos vería el cliente y hasta qué hora se puede pedir con los números que se están editando). El
+  owner la había pedido; no entró en esta tanda y queda anotada, no escondida. La ayuda del campo sí se
+  reescribió para que diga qué hace ("define el primer turno de retiro y hasta qué hora se puede
+  pedir").
+- **Fases 4 y 5 sin hacer, por decisiones abiertas**: pedidos para días futuros (D1) y presets de
+  propina (D2) siguen sin respuesta del owner. Nada de eso se implementó a medias.
+- **Verificado en el camino real** (Postgres 17 local + `next start -p 3210` con el build nuevo):
+  **E2E completo 58 pasaron, 7 salteados, 0 fallos** (antes 53). Los specs nuevos son
+  `admin-pickup-range.spec.ts` (el owner configura el máximo, el checkout promete la franja y se puede
+  volver a una sola hora; y un máximo menor que el mínimo no se guarda, con el aviso a la vista) y
+  `public-cart.spec.ts` (edición en línea, el punto de retiro en el checkout y 1280 px sin scroll).
+
 ## 3. Infraestructura y secretos
 
 - `EASYPANEL_URL` y `EASYPANEL_TOKEN`: solo en el entorno de quien ejecuta el deploy (nunca
@@ -911,7 +949,7 @@ color fijo.
 | 8 | **Checkout sin redundancias** (textos y botones repetidos) | **Cerrada y desplegada** | `ops/tasks/TASK-checkout-ux.md`. Cuatro commits (`2832a93`…`aba4156`), en producción como `build-20260911-145656`. El checkout pasó de 807 a 476 líneas, un solo resumen compartido con el carrito, un solo CTA visible por viewport y los turnos de retiro calculados desde la configuración. |
 | 9 | **Validar el estado operativo en el servidor** | **Cerrada y desplegada** | Commits `3a67c37` y `ca474c8`, en producción como `build-20260911-154014`. `isAcceptingOrders` ya corta pedidos de verdad (antes no lo leía nadie) y la hora de retiro se valida contra el horario del día. Incluye el horario demo del seed y el límite de login del arnés E2E. |
 | 10 | **Retiro opcional y programable + la hora visible en toda la cadena** | **Cerrada y desplegada** | Commits `6f85a3c`, `c101f82`, `b207593` y `abc2183`, en producción como `build-20260911-191047`. Incluye **una migración** (`pickupScheduled`). El retiro es opcional, la hora la resuelve el servidor, el ticket de cocina y el admin la muestran, y el semáforo va contra la hora prometida. Ver el detalle arriba. |
-| 11 | **Adopción del mock completo (rediseño de la UI pública)** | **En ejecución · ola 1: T1, T2, T3, T3.1 y T4 cerradas** | [`ops/tasks/TASK-mock-adoption.md`](tasks/TASK-mock-adoption.md). Plan **aprobado** el 2026-09-12 (D-A tipografía: Plus Jakarta Sans como tercera opción · D-B ola 2 completa **sin reseñas ni delivery** · D-C orden: tokens primero y después las pantallas en el orden del mock). **Reglas del programa**: ningún control decorativo (implementado con API/estado y test, o eliminado con motivo), nada hardcodeado, la paleta como preset que pasa el test de contraste, TDD por tarea, y verificación a 375 px **y 1280 px** (el mock no tiene escritorio). **Ola 1**: T1 tokens **cerrada** ✅ · T2 home **cerrada** ✅ · T3 menú **cerrada** ✅ · T3.1 color por categoría **cerrada** ✅ · T4 producto **cerrada** ✅ · **sigue T5 carrito+checkout** (absorbe `TASK-checkout-v2`) · T6 confirmación · T7 seguimiento e historial. **Ola 2** (aprobada): T8 multi-sucursal, T9 promos, T10 favoritos (**bloqueada**: necesita login de cliente real; el OTP da 503), T11 método de pago, T12 vuelto, T13 PIN de retiro. Evidencia del mock: [`ops/audit-checkout-mock.md`](audit-checkout-mock.md). |
+| 11 | **Adopción del mock completo (rediseño de la UI pública)** | **En ejecución · ola 1: T1-T4 y T5 cerradas** | [`ops/tasks/TASK-mock-adoption.md`](tasks/TASK-mock-adoption.md). Plan **aprobado** el 2026-09-12 (D-A tipografía: Plus Jakarta Sans como tercera opción · D-B ola 2 completa **sin reseñas ni delivery** · D-C orden: tokens primero y después las pantallas en el orden del mock). **Reglas del programa**: ningún control decorativo (implementado con API/estado y test, o eliminado con motivo), nada hardcodeado, la paleta como preset que pasa el test de contraste, TDD por tarea, y verificación a 375 px **y 1280 px** (el mock no tiene escritorio). **Ola 1**: T1 tokens ✅ · T2 home ✅ · T3 menú ✅ · T3.1 color por categoría ✅ · T4 producto ✅ · T5 carrito+checkout ✅ (fases 1, 3, 6 y 7; queda la vista previa de turnos de la fase 2) · **sigue T6 confirmación** · T7 seguimiento e historial. **Decisiones abiertas del checkout**: D1 (pedidos para días futuros) y D2 (presets de propina). **Ola 2** (aprobada): T8 multi-sucursal, T9 promos, T10 favoritos (**bloqueada**: necesita login de cliente real; el OTP da 503), T11 método de pago, T12 vuelto, T13 PIN de retiro. Evidencia del mock: [`ops/audit-checkout-mock.md`](audit-checkout-mock.md). |
 
 ## 5. Cómo continuar
 

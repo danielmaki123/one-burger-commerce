@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { formatCurrency } from "@/shared/lib/format-currency";
-import { useCurrencyFormat } from "@/shared/lib/business-settings";
+import { useBusinessSettings, useCurrencyFormat } from "@/shared/lib/business-settings";
+import { resolveWhatsappDefaultPrefix } from "@/shared/lib/whatsapp-input-value";
 import { syncTrackedOrderToDeviceOrders } from "@/shared/lib/order-tracking-sync";
 import { Button } from "@/shared/ui/button";
 import { Card, CardContent } from "@/shared/ui/card";
@@ -42,6 +43,7 @@ export default function OrderTrackingPage() {
   const [error, setError] = useState<string | null>(null);
   const [tracking, setTracking] = useState<TrackingResponse["data"] | null>(null);
   const currency = useCurrencyFormat();
+  const settings = useBusinessSettings();
 
   const canSubmit = useMemo(
     () => orderNumber.trim().length > 0 && trackingWhatsapp.trim().length > 0 && !loading,
@@ -124,6 +126,7 @@ export default function OrderTrackingPage() {
                 id="customerWhatsapp"
                 value={trackingWhatsapp}
                 onChange={setTrackingWhatsapp}
+                defaultPrefix={resolveWhatsappDefaultPrefix(settings.phone)}
               />
               <p className="text-xs text-muted-foreground">Usá el mismo WhatsApp que ingresaste al hacer el pedido.</p>
             </div>

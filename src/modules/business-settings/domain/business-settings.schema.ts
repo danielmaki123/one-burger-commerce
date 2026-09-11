@@ -197,6 +197,17 @@ export const businessSettingsPatchSchema = z.object({
     .min(0, "No puede ser negativo")
     .max(180, "Como máximo 180 minutos")
     .optional(),
+  /**
+   * Hasta cuántos minutos puede esperar el cliente (T5). Vacío o `null` = sin
+   * rango: el checkout sigue prometiendo un instante, como antes.
+   */
+  pickupMaxMinutes: z
+    .number()
+    .int("Tiene que ser un número entero de minutos")
+    .min(0, "No puede ser negativo")
+    .max(240, "Como máximo 240 minutos")
+    .nullable()
+    .optional(),
   paymentInstructions: optionalText(400).optional(),
   tipEnabled: z.boolean().optional(),
   tipRate: z
@@ -207,6 +218,21 @@ export const businessSettingsPatchSchema = z.object({
     .optional(),
   isAcceptingOrders: z.boolean().optional(),
   closedMessage: optionalText(300).optional(),
+}).superRefine((patch, ctx) => {
+  // El rango de preparación no puede terminar antes de empezar. Solo se puede
+  // comprobar acá si el payload trae los dos números: cuando llega uno solo, el
+  // caso de uso lo compara contra lo guardado.
+  if (
+    typeof patch.pickupMaxMinutes === "number" &&
+    typeof patch.pickupLeadMinutes === "number" &&
+    patch.pickupMaxMinutes < patch.pickupLeadMinutes
+  ) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["pickupMaxMinutes"],
+      message: "Tiene que ser mayor o igual que los minutos de preparación",
+    });
+  }
 });
 
 /**

@@ -3,6 +3,7 @@
 import React, { useId, useState } from "react";
 
 import {
+  formatPickupRangeLabel,
   formatSlotLabel,
   type PickupSlot,
 } from "@/modules/business-settings/domain/pickup-slots";
@@ -23,6 +24,8 @@ export const ASAP_OPTION_LABEL = "Lo antes posible";
 export function PickupScheduleField({
   scheduledTime,
   asapValue,
+  pickupLeadMinutes = 0,
+  pickupMaxMinutes = null,
   options,
   todayHours,
   onSelect,
@@ -31,6 +34,9 @@ export function PickupScheduleField({
   scheduledTime: string;
   /** La hora calculada para "lo antes posible", solo para mostrarla. */
   asapValue: string;
+  /** Mínimo y máximo de preparación: con máximo se promete una franja (T5). */
+  pickupLeadMinutes?: number;
+  pickupMaxMinutes?: number | null;
   options: PickupSlot[];
   todayHours: string;
   onSelect: (value: string) => void;
@@ -38,7 +44,9 @@ export function PickupScheduleField({
   const [isOpen, setIsOpen] = useState(false);
   const panelId = useId();
   const isScheduled = scheduledTime !== "";
-  const asapLabel = asapValue ? formatSlotLabel(asapValue) : "";
+  const asapHint = asapValue
+    ? formatPickupRangeLabel({ pickupTime: asapValue, pickupLeadMinutes, pickupMaxMinutes })
+    : "";
 
   function select(value: string) {
     onSelect(value);
@@ -64,7 +72,7 @@ export function PickupScheduleField({
           <span className="block truncate text-sm font-semibold text-foreground">
             {isScheduled
               ? formatSlotLabel(scheduledTime)
-              : `${ASAP_OPTION_LABEL}${asapLabel ? ` · listo ~${asapLabel}` : ""}`}
+              : `${ASAP_OPTION_LABEL}${asapHint ? ` · ${asapHint}` : ""}`}
           </span>
         </span>
         <ChevronIcon
@@ -90,7 +98,7 @@ export function PickupScheduleField({
               checked={!isScheduled}
               onSelect={() => select("")}
               title={ASAP_OPTION_LABEL}
-              hint={asapLabel ? `listo ~${asapLabel}` : undefined}
+              hint={asapHint || undefined}
             />
             {options.map((option) => (
               <ScheduleOption

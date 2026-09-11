@@ -29,6 +29,7 @@ import {
   readAcceptanceReason,
 } from "./checkout-helpers";
 import { PickupScheduleField } from "./pickup-schedule-field";
+import { resolveWhatsappDefaultPrefix } from "@/shared/lib/whatsapp-input-value";
 import {
   getPublicCheckoutMobileActionClassName,
   publicCheckoutScaleClasses,
@@ -179,6 +180,17 @@ export default function CheckoutPage() {
   const orderingBlockedMessage =
     acceptance && !acceptance.accepted ? acceptance.message : "";
   const todayHours = formatTodayHours(settings.businessHours, new Date(), settings.timezone);
+
+  /**
+   * Dónde se retira (T5). Sale de `/admin/settings`: si el negocio no cargó
+   * dirección, la fila no se dibuja en vez de mostrar un hueco.
+   */
+  const pickupAddress = [settings.addressLine, settings.addressReference, settings.city]
+    .filter(Boolean)
+    .join(", ");
+
+  // El prefijo del WhatsApp sale del teléfono del negocio (T5), no de un literal.
+  const defaultWhatsappPrefix = resolveWhatsappDefaultPrefix(settings.phone);
 
   useEffect(() => {
     if (submitError) errorRef.current?.focus();
@@ -380,6 +392,7 @@ export default function CheckoutPage() {
                 id={FIELD_IDS.customerWhatsapp}
                 name="customerWhatsapp"
                 value={formData.customerWhatsapp}
+                defaultPrefix={defaultWhatsappPrefix}
                 onChange={(value) =>
                   handleInputChange({
                     target: { name: "customerWhatsapp", value },
@@ -406,11 +419,35 @@ export default function CheckoutPage() {
                       setFormData((prev) => ({ ...prev, pickupTime: value }))
                     }
                     asapValue={asapPickupTime}
+                    pickupLeadMinutes={settings.pickupLeadMinutes}
+                    pickupMaxMinutes={settings.pickupMaxMinutes}
                     options={pickupOptions}
                     todayHours={todayHours}
                   />
                 )}
               </div>
+
+              {pickupAddress ? (
+                <div className="flex items-start gap-3 rounded-2xl border border-border bg-card px-4 py-3">
+                  <span aria-hidden="true" className="text-base text-brand">
+                    📍
+                  </span>
+                  <div className="min-w-0 flex-1 text-sm">
+                    <p className="font-medium text-foreground">Retirás en</p>
+                    <p className="text-muted-foreground">{pickupAddress}</p>
+                  </div>
+                  {settings.mapsUrl ? (
+                    <a
+                      href={settings.mapsUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex min-h-11 shrink-0 items-center rounded-xl px-2 text-sm font-semibold text-brand"
+                    >
+                      Cómo llegar
+                    </a>
+                  ) : null}
+                </div>
+              ) : null}
 
               <div className="space-y-2">
                 <Input

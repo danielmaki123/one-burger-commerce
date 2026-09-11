@@ -90,6 +90,8 @@ export type BusinessSettingsRecord = {
   currencySymbol: string;
   locale: string;
   pickupLeadMinutes: number;
+  /** Máximo del rango de preparación; `null` = se promete un instante, no un rango. */
+  pickupMaxMinutes: number | null;
   paymentInstructions: string | null;
   tipEnabled: boolean;
   tipRate: number;
