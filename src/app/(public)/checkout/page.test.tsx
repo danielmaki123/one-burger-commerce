@@ -5,8 +5,18 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { CartItem } from "@/shared/lib/cart";
+import {
+  BusinessSettingsProvider,
+  FALLBACK_BUSINESS_SETTINGS,
+} from "@/shared/lib/business-settings";
 
 import CheckoutPage from "./page";
+
+/**
+ * Reloj fijo: viernes 19:00 en Managua, dentro del horario por defecto (12:00-22:00).
+ * El estado operativo haría que los tests dependieran de la hora a la que se corran.
+ */
+const PINNED_NOW = new Date("2026-09-11T19:00:00-06:00");
 
 const push = vi.fn();
 
@@ -61,10 +71,13 @@ describe("checkout sin redundancias", () => {
   afterEach(() => {
     cleanup();
     vi.unstubAllGlobals();
+    vi.useRealTimers();
   });
 
   beforeEach(() => {
     push.mockReset();
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(PINNED_NOW);
     mockCart = { items: [], subtotal: 0, clearCart: vi.fn() };
     vi.stubGlobal("fetch", vi.fn());
   });
@@ -164,6 +177,46 @@ describe("checkout sin redundancias", () => {
       const soonest = screen.getByRole("button", { name: /^Lo antes posible · / });
       expect(soonest.getAttribute("aria-pressed")).toBe("true");
     });
+  });
+
+  it("bloquea el pedido cuando el negocio no está aceptando pedidos", () => {
+    mockCart = { items: twoItems, subtotal: 380, clearCart: vi.fn() };
+
+    render(
+      <BusinessSettingsProvider
+        settings={{
+          ...FALLBACK_BUSINESS_SETTINGS,
+          isAcceptingOrders: false,
+          closedMessage: "Cerrado por hoy, volvemos mañana.",
+        }}
+      >
+        <CheckoutPage />
+      </BusinessSettingsProvider>,
+    );
+
+    for (const button of confirmButtons()) {
+      expect(button.hasAttribute("disabled")).toBe(true);
+    }
+    // Un solo aviso, y con el texto que configuró el negocio.
+    expect(screen.getAllByText("Cerrado por hoy, volvemos mañana.")).toHaveLength(1);
+    // No se ofrecen turnos que no se pueden usar.
+    expect(screen.queryByRole("button", { name: /^Lo antes posible/ })).toBeNull();
+  });
+
+  it("bloquea el pedido cuando ya no quedan turnos hoy", () => {
+    // Después del cierre (22:00): no hay turno posible, a diferencia de las 03:00,
+    // donde el local todavía no abrió pero se puede pedir para la hora de apertura.
+    vi.setSystemTime(new Date("2026-09-11T23:00:00-06:00"));
+    mockCart = { items: twoItems, subtotal: 380, clearCart: vi.fn() };
+
+    render(<CheckoutPage />);
+
+    for (const button of confirmButtons()) {
+      expect(button.hasAttribute("disabled")).toBe(true);
+    }
+    expect(
+      screen.getAllByText(FALLBACK_BUSINESS_SETTINGS.closedMessage as string),
+    ).toHaveLength(1);
   });
 
   it("envía el pedido con el turno preseleccionado", async () => {

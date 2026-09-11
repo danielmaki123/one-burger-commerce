@@ -135,6 +135,17 @@ export default function CheckoutPage() {
   }, [pickupSlots, now, settings.timezone, settings.pickupLeadMinutes]);
 
   const pickupClosed = pickupSlots !== null && !pickupSlots.available;
+  /**
+   * El servidor rechaza el pedido en estos dos casos, así que el checkout no ofrece
+   * un botón que va a fallar. Es un bloqueo distinto al de "faltan datos": acá el
+   * cliente no puede hacer nada para destrabarlo.
+   */
+  const orderingBlocked = !settings.isAcceptingOrders || pickupClosed;
+  const orderingBlockedMessage =
+    settings.closedMessage?.trim() ||
+    (settings.isAcceptingOrders
+      ? "Está fuera del horario de atención. Volvé cuando abramos."
+      : "Por ahora no estamos aceptando pedidos.");
   const todayHours = formatTodayHours(settings.businessHours, new Date(), settings.timezone);
 
   // Preselecciona el primer turno apenas se conocen los del día.
@@ -356,7 +367,14 @@ export default function CheckoutPage() {
                     · {todayHours}
                   </span>
                 </p>
-                {pickupOptions.length > 0 ? (
+                {orderingBlocked ? (
+                  <p
+                    role="status"
+                    className="rounded-2xl border border-border bg-cream/60 p-3 text-sm leading-5 text-foreground"
+                  >
+                    {orderingBlockedMessage}
+                  </p>
+                ) : pickupOptions.length > 0 ? (
                   <div
                     id={FIELD_IDS.pickupTime}
                     tabIndex={-1}
@@ -384,11 +402,6 @@ export default function CheckoutPage() {
                       </button>
                     ))}
                   </div>
-                ) : null}
-                {pickupClosed && settings.closedMessage ? (
-                  <p className="text-xs leading-5 text-muted-foreground">
-                    {settings.closedMessage}
-                  </p>
                 ) : null}
                 {fieldError?.field === "pickupTime" ? (
                   <p className="text-xs font-medium text-red-500">{fieldError.message}</p>
@@ -447,7 +460,7 @@ export default function CheckoutPage() {
               <Button
                 className={publicCheckoutScaleClasses.primaryCta}
                 onClick={handlePlaceOrder}
-                disabled={isSubmitting}
+                disabled={isSubmitting || orderingBlocked}
               >
                 {confirmLabel}
               </Button>
@@ -463,7 +476,7 @@ export default function CheckoutPage() {
           <Button
             className={publicCheckoutScaleClasses.primaryCta}
             onClick={handlePlaceOrder}
-            disabled={isSubmitting}
+            disabled={isSubmitting || orderingBlocked}
           >
             {confirmLabel}
           </Button>

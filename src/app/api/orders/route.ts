@@ -2,9 +2,11 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { PrismaBusinessSettingsRepository } from "@/modules/business-settings/adapters/prisma-business-settings-repository";
+import { resolveOrderAcceptance } from "@/modules/business-settings/domain/order-acceptance";
 import { loadBusinessSettings } from "@/modules/business-settings/features/get-public-business-settings/get-public-business-settings";
 import { registerOutboxEventBusHandlers } from "@/modules/notifications/adapters/outbox-subscriber";
 import { PrismaOrderRepository } from "@/modules/orders/adapters/prisma-order-repository";
+import { OrderError } from "@/modules/orders/domain/order-errors";
 import { createOrder } from "@/modules/orders/features/create-order/create-order";
 import { createErrorResponse } from "@/shared/lib/http/error-response";
 import {
@@ -88,6 +90,36 @@ export async function POST(request: Request) {
     const settings = await loadBusinessSettings({
       repository: new PrismaBusinessSettingsRepository(),
     });
+
+    // El estado operativo también es fuente de verdad del servidor: si el negocio no
+    // está aceptando pedidos, o el local está cerrado a la hora pedida, el pedido se
+    // rechaza aunque el cliente insista. Antes `isAcceptingOrders` no lo leía nadie.
+    const requestedPickupTime = parsed.data.pickupTime
+      ? new Date(parsed.data.pickupTime)
+      : null;
+    // Una fecha inválida ya la rechaza `createOrder` con 400; acá se evalúa como "sin
+    // hora" para que el gate operativo se aplique igual y no haya forma de saltearlo.
+    const pickupTime =
+      requestedPickupTime && !Number.isNaN(requestedPickupTime.getTime())
+        ? requestedPickupTime
+        : null;
+
+    const acceptance = resolveOrderAcceptance({
+      isAcceptingOrders: settings.isAcceptingOrders,
+      closedMessage: settings.closedMessage,
+      businessHours: settings.businessHours,
+      timezone: settings.timezone,
+      pickupLeadMinutes: settings.pickupLeadMinutes,
+      now: new Date(),
+      pickupTime,
+    });
+
+    if (!acceptance.accepted) {
+      throw new OrderError(409, "CONFLICT", acceptance.message, {
+        acceptance: acceptance.reason,
+      });
+    }
+
     const result = await createOrder(parsed.data, {
       repository,
       tipPolicy: { enabled: settings.tipEnabled, rate: settings.tipRate },

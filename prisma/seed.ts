@@ -22,12 +22,24 @@ async function main() {
 
   // Configuración del negocio: los valores salen del módulo de defaults, no se
   // copian acá (una sola fuente de verdad para el branding).
+  //
+  // Excepción: el horario se abre de 00:00 a 23:59 **solo en local/demo**. El seed
+  // nunca corre en producción, y con el horario real (12:00-22:00) el servidor
+  // rechaza los pedidos fuera de esa franja: los E2E de creación de pedido pasarían
+  // o fallarían según la hora a la que se corran.
+  const demoHours = Object.fromEntries(
+    Object.entries(DEFAULT_BUSINESS_SETTINGS.businessHours).map(([weekday, day]) => [
+      weekday,
+      { ...day, open: "00:00", close: "23:59" },
+    ]),
+  ) as unknown as Prisma.InputJsonValue;
+
   await prisma.businessSettings.upsert({
     where: { id: DEFAULT_BUSINESS_SETTINGS.id },
     update: {},
     create: {
       ...DEFAULT_BUSINESS_SETTINGS,
-      businessHours: DEFAULT_BUSINESS_SETTINGS.businessHours as unknown as Prisma.InputJsonValue,
+      businessHours: demoHours,
     },
   });
 

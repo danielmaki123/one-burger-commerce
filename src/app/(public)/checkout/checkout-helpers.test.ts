@@ -41,6 +41,18 @@ describe("extractCheckoutErrorMessage", () => {
     );
   });
 
+  it("muestra el motivo configurado cuando el servidor rechaza por estado operativo", () => {
+    expect(
+      extractCheckoutErrorMessage({
+        error: {
+          code: "CONFLICT",
+          message: "Estamos cerrados. Podés mirar el menú y volver cuando abramos.",
+          fields: { acceptance: "closed" },
+        },
+      }),
+    ).toBe("Estamos cerrados. Podés mirar el menú y volver cuando abramos.");
+  });
+
   it("no menciona entrega ni mesa: fuera del MVP", () => {
     const message = extractCheckoutErrorMessage({
       error: { fields: { address: "x", deliveryZoneId: "x", tableId: "x" } },

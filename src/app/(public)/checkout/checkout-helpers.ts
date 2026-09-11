@@ -50,6 +50,12 @@ export function extractCheckoutErrorMessage(payload: unknown): string {
   const error = asRecord.error as Record<string, unknown> | undefined;
   const fields = error?.fields as Record<string, unknown> | undefined;
 
+  // Rechazo operativo (local cerrado o negocio sin aceptar pedidos): el mensaje lo
+  // escribe el servidor desde la configuración, así que se muestra tal cual.
+  if (typeof fields?.acceptance === "string" && typeof error?.message === "string") {
+    return error.message;
+  }
+
   if (fields?.customerName) return "Falta completar nombre.";
   if (fields?.customerWhatsapp) return "Falta completar WhatsApp.";
   if (fields?.pickupTime) return "Revisá la hora de retiro.";

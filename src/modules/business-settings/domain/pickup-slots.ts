@@ -35,7 +35,8 @@ export type PickupSlotsResult =
       reason: "closed" | "no-slots-left";
     };
 
-function parseTimeOfDay(value: string): number | null {
+/** `19:30` → 1170 minutos desde la medianoche. `null` si no es una hora válida. */
+export function parseTimeOfDay(value: string): number | null {
   if (!TIME_OF_DAY_PATTERN.test(value)) return null;
 
   const [hours, minutes] = value.split(":");
