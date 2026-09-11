@@ -7,6 +7,67 @@ import {
   formatOrderCreatedTelegramMessage,
 } from "./order-created-notification";
 
+describe("el ticket dice para cuándo es el retiro", () => {
+  const pickupOrder = (overrides?: Partial<OrderRecord>) =>
+    createOrder({ type: "pickup", pickupTime: "2026-09-12T02:00:00.000Z", ...overrides });
+
+  it("marca los pedidos programados con su hora", () => {
+    const payload = buildOrderCreatedNotificationPayload(
+      pickupOrder({ pickupScheduled: true, pickupNotes: null }),
+    );
+
+    expect(payload.customer.pickup).toBe("Programado para las 8:00 p. m.");
+    expect(formatOrderCreatedTelegramMessage(payload)).toContain(
+      "RETIRO: Programado para las 8:00 p. m.",
+    );
+  });
+
+  it("marca los pedidos sin programar como lo antes posible, con la hora estimada", () => {
+    const payload = buildOrderCreatedNotificationPayload(
+      pickupOrder({ pickupScheduled: false }),
+    );
+
+    expect(payload.customer.pickup).toBe("Lo antes posible (~8:00 p. m.)");
+    expect(formatOrderCreatedTelegramMessage(payload)).toContain(
+      "RETIRO: Lo antes posible (~8:00 p. m.)",
+    );
+  });
+
+  it("usa la zona horaria del negocio, no la del servidor", () => {
+    const payload = buildOrderCreatedNotificationPayload(
+      pickupOrder({ pickupScheduled: true }),
+      { timeZone: "Europe/Madrid" },
+    );
+
+    expect(payload.customer.pickup).toBe("Programado para las 4:00 a. m.");
+  });
+
+  it("no inventa una línea de retiro en un pedido sin hora", () => {
+    const payload = buildOrderCreatedNotificationPayload(
+      pickupOrder({ pickupTime: null }),
+    );
+
+    expect(payload.customer.pickup).toBeNull();
+    expect(formatOrderCreatedTelegramMessage(payload)).not.toContain("RETIRO:");
+  });
+
+  it("no agrega la línea de retiro en pedidos que no son de retiro", () => {
+    const payload = buildOrderCreatedNotificationPayload(createOrder());
+
+    expect(payload.customer.pickup).toBeNull();
+    expect(formatOrderCreatedTelegramMessage(payload)).not.toContain("RETIRO:");
+  });
+
+  it("sigue mostrando las notas del cliente", () => {
+    const payload = buildOrderCreatedNotificationPayload(
+      pickupOrder({ pickupScheduled: true, pickupNotes: "Paso en carro gris" }),
+    );
+
+    expect(payload.customer.address).toBe("Paso en carro gris");
+    expect(formatOrderCreatedTelegramMessage(payload)).toContain("INFO: Paso en carro gris");
+  });
+});
+
 function createOrder(overrides?: Partial<OrderRecord>): OrderRecord {
   return {
     id: "ord_internal_01",

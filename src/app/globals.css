@@ -58,6 +58,10 @@
   --status-lista: #1f7a4d;      /* verde profundo: lista para servir */
   --status-cerrada: var(--muted-foreground); /* pagada/cerrada */
   --status-alerta: #b23c2a;     /* requiere atención ya */
+  /* Admin — semáforo del retiro prometido (no confundir con el estado del pedido) */
+  --pickup-on-time: #1f7a4d;    /* todavía no es la hora */
+  --pickup-past: #b5701c;       /* pasó la hora, con margen */
+  --pickup-late: #b23c2a;       /* muy tardado */
   --radius: 0.625rem;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
@@ -164,6 +168,9 @@ body {
   --color-status-lista: var(--status-lista);
   --color-status-cerrada: var(--status-cerrada);
   --color-status-alerta: var(--status-alerta);
+  --color-pickup-on-time: var(--pickup-on-time);
+  --color-pickup-past: var(--pickup-past);
+  --color-pickup-late: var(--pickup-late);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);

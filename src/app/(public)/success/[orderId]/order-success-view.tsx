@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Button } from "@/shared/ui/button";
 import { Badge } from "@/shared/ui/badge";
 import { resolveBrandImageUrl, resolveFaviconUrl } from "@/modules/business-settings/domain/brand-assets";
+import { formatTimeInTimeZone } from "@/modules/business-settings/domain/format-time-in-timezone";
 import { useBusinessSettings, useCurrencyFormat } from "@/shared/lib/business-settings";
 import { formatCurrency } from "@/shared/lib/format-currency";
 
@@ -39,7 +40,26 @@ export type OrderSuccessData = {
   tipRate?: number | null;
   customerName: string;
   items: OrderItem[];
+  pickupTime?: string | null;
+  /** Si el cliente programó el retiro; sin programar es "lo antes posible". */
+  pickupScheduled?: boolean;
 };
+
+/**
+ * Hora de retiro para el cliente. Sin programar se muestra con `~` para que se lea como
+ * estimación y no como una hora reservada.
+ */
+function formatPickupForCustomer(
+  order: OrderSuccessData,
+  timeZone: string,
+): string | null {
+  if (order.type !== "pickup" || !order.pickupTime) return null;
+
+  const time = formatTimeInTimeZone(order.pickupTime, timeZone);
+  if (!time) return null;
+
+  return order.pickupScheduled ? time : `~${time}`;
+}
 
 function formatOrderType(type: string): string {
   if (type === "delivery") return "Delivery";
@@ -78,13 +98,14 @@ export default function OrderSuccessView({
   const [hideMascot, setHideMascot] = useState(false);
   const itemCount = order.items.reduce((total, item) => total + item.quantity, 0);
   const itemCountLabel =
-    itemCount === 1 ? "1 producto" : `${itemCount} productos`;
+  itemCount === 1 ? "1 producto" : `${itemCount} productos`;
   const statusLabel = formatPublicOrderStatus(order.status);
   const settings = useBusinessSettings();
   const currency = useCurrencyFormat();
   // Logo completo; si todavía no hay ninguno configurado se mantiene el asset de
   // respaldo que ya se mostraba acá como mascota.
   const brandMark = resolveBrandImageUrl(settings, "full") ?? resolveFaviconUrl(settings);
+  const pickupLabel = formatPickupForCustomer(order, settings.timezone);
 
   return (
     <div className="brand-canvas min-h-dvh text-foreground">
@@ -158,6 +179,9 @@ export default function OrderSuccessView({
             <SummaryRow label="Número de pedido" value={order.orderNumber} />
             <SummaryRow label="Tipo" value={formatOrderType(order.type)} />
             <SummaryRow label="Artículos" value={itemCountLabel} />
+            {pickupLabel ? (
+              <SummaryRow label="Hora de retiro" value={pickupLabel} />
+            ) : null}
             <SummaryRow label="Subtotal" value={formatCurrency(order.subtotal, currency)} />
             {order.discount > 0 ? (
               <SummaryRow

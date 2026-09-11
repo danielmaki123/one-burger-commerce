@@ -42,6 +42,9 @@ type OrderPayload = {
     items: OrderItem[];
     createdAt: string;
     updatedAt?: string;
+    pickupTime?: string | null;
+    /** Si el cliente programó el retiro; sin programar es "lo antes posible". */
+    pickupScheduled?: boolean;
   };
 };
 

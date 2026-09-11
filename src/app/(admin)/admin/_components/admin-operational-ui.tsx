@@ -2,6 +2,8 @@
 
 import type { ReactNode } from "react";
 
+import type { AdminPickupTiming } from "./admin-pickup-timing";
+
 type AdminMetricItem = {
   label: string;
   value: ReactNode;
@@ -190,8 +192,6 @@ export function getAdminReservationSolidStatus(status: string): AdminStatusSolid
   return "cerrada";
 }
 
-export const ADMIN_ORDER_LATE_MINUTES = 20;
-
 // "hace N min" / "hace H h MM" para tickets del turno.
 export function formatAdminElapsed(createdAt: string, nowMs: number): string {
   const minutes = Math.max(0, Math.floor((nowMs - new Date(createdAt).getTime()) / 60000));
@@ -244,6 +244,37 @@ export function AdminStatusPill({
       className={`inline-flex w-fit items-center rounded-full border px-2.5 py-1 text-xs font-semibold ${pillToneClasses[tone]} ${className}`}
     >
       {children}
+    </span>
+  );
+}
+
+const pickupTimingClasses: Record<"on-time" | "past" | "late", string> = {
+  "on-time": "bg-pickup-on-time/12 text-pickup-on-time",
+  past: "bg-pickup-past/15 text-pickup-past",
+  late: "bg-pickup-late/15 text-pickup-late",
+};
+
+/**
+ * Cuánto falta (o cuánto se pasó) respecto de la hora de retiro prometida.
+ *
+ * Verde dentro del tiempo, naranja pasado, rojo muy tardado. Los colores son tokens
+ * propios (`--pickup-*`) y no los del estado del pedido: un pedido puede estar "listo"
+ * y aun así ir tarde contra la hora que le prometimos al cliente.
+ */
+export function AdminPickupTimingChip({
+  timing,
+  className = "",
+}: {
+  timing: AdminPickupTiming;
+  className?: string;
+}) {
+  if (timing.state === "done" || timing.state === "unknown") return null;
+
+  return (
+    <span
+      className={`inline-flex w-fit items-center rounded-full px-2.5 py-1 text-xs font-bold tabular-nums ${pickupTimingClasses[timing.state]} ${className}`}
+    >
+      {timing.deltaLabel}
     </span>
   );
 }

@@ -6,19 +6,23 @@ import { ClipboardList, ShoppingBag, SlidersHorizontal, Table2, Truck } from "lu
 
 import { formatCurrency } from "@/shared/lib/format-currency";
 import { getAdminOrderStatusLabel } from "@/shared/lib/admin-status-labels";
-import { useCurrencyFormat } from "@/shared/lib/business-settings";
+import { useBusinessSettings, useCurrencyFormat } from "@/shared/lib/business-settings";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/shared/ui/tabs";
 import {
-  ADMIN_ORDER_LATE_MINUTES,
   AdminCompactToolbar,
   AdminEmptyState,
   AdminPageHeader,
+  AdminPickupTimingChip,
   AdminStatusSolid,
   formatAdminElapsed,
   getAdminOrderSolidStatus,
 } from "../_components/admin-operational-ui";
+import {
+  describeAdminPickup,
+  resolveAdminPickupTiming,
+} from "../_components/admin-pickup-timing";
 
 type OrderType = "delivery" | "pickup" | "table";
 type OrderStatus =
@@ -44,6 +48,9 @@ type OrderSummary = {
   customerWhatsapp: string;
   total: number;
   createdAt: string;
+  pickupTime?: string | null;
+  /** Si el cliente programó el retiro; si no, es "lo antes posible". */
+  pickupScheduled?: boolean;
 };
 
 type AdminOrdersResponse = {
@@ -163,6 +170,7 @@ export default function AdminOrdersPage() {
 
   const [olderOpenCount, setOlderOpenCount] = useState<number | null>(null);
   const currency = useCurrencyFormat();
+  const { timezone: timeZone } = useBusinessSettings();
 
   const range = useMemo<{ from?: string; to?: string }>(() => {
     if (view === "today") {
@@ -296,9 +304,18 @@ export default function AdminOrdersPage() {
     const { label: typeLabel, Icon } = orderTypePresentation(order.type);
     const elapsed = formatAdminElapsed(order.createdAt, nowMs);
     const isNew = order.status === "new";
-    const isLate =
-      OPEN_STATUSES.has(order.status) &&
-      nowMs - new Date(order.createdAt).getTime() >= ADMIN_ORDER_LATE_MINUTES * 60000;
+    // El semáforo va contra la hora prometida, no contra la antigüedad del pedido: un
+    // pedido programado para más tarde no puede estar en rojo por haber entrado temprano.
+    const timing = resolveAdminPickupTiming({
+      pickupTime: order.pickupTime,
+      status: order.status,
+      nowMs,
+    });
+    const pickupLabel = describeAdminPickup({
+      pickupTime: order.pickupTime,
+      pickupScheduled: order.pickupScheduled,
+      timeZone,
+    });
 
     return (
       <Link
@@ -315,17 +332,24 @@ export default function AdminOrdersPage() {
           <p className="mt-0.5 truncate text-xs font-medium text-muted-foreground">
             <Icon className="mr-1 inline h-3.5 w-3.5 align-[-2px] text-brand" strokeWidth={2} aria-hidden="true" />
             {typeLabel} · {order.customerName} ·{" "}
-            <span className={`font-mono font-semibold ${isLate ? "text-status-alerta" : ""}`}>
-              {elapsed}
-            </span>
+            <span className="font-mono font-semibold">{elapsed}</span>
           </p>
         </div>
         <p className="text-right text-base font-bold tabular-nums text-foreground">
           {formatCurrency(order.total, currency)}
         </p>
-        <div className="col-span-2 flex items-center justify-between gap-3">
-          <span className="text-xs text-muted-foreground tabular-nums">
-            Recibida {formatOrderTime(order.createdAt)}
+        <div className="col-span-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+          <span className="flex min-w-0 flex-wrap items-center gap-2">
+            {pickupLabel ? (
+              <span className="text-xs font-semibold text-foreground tabular-nums">
+                {pickupLabel}
+              </span>
+            ) : (
+              <span className="text-xs text-muted-foreground tabular-nums">
+                Recibida {formatOrderTime(order.createdAt)}
+              </span>
+            )}
+            <AdminPickupTimingChip timing={timing} />
           </span>
           <AdminStatusSolid status={getAdminOrderSolidStatus(order.status)}>
             {getAdminOrderStatusLabel(order.status)}

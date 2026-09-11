@@ -5,6 +5,55 @@ import { describe, expect, it } from "vitest";
 import OrderSuccessView from "./order-success-view";
 
 describe("order success view", () => {
+  function pickupOrder(overrides: Record<string, unknown> = {}) {
+    return {
+      orderNumber: "P-MQ71QBQ1",
+      type: "pickup" as const,
+      status: "new" as const,
+      customerName: "Daniel",
+      subtotal: 380,
+      discount: 0,
+      packagingAmount: 0,
+      deliveryFeeAmount: 0,
+      tipAmount: 0,
+      tipRate: null,
+      total: 380,
+      items: [],
+      ...overrides,
+    };
+  }
+
+  function renderWith(order: Record<string, unknown>) {
+    return renderToStaticMarkup(
+      createElement(OrderSuccessView, { order: order as never }),
+    );
+  }
+
+  it("le dice al cliente para cuándo es su retiro programado", () => {
+    const html = renderWith(
+      pickupOrder({ pickupTime: "2026-09-12T02:30:00.000Z", pickupScheduled: true }),
+    );
+
+    expect(html).toContain("Hora de retiro");
+    expect(html).toContain("8:30 p. m.");
+    expect(html).not.toContain("~8:30 p. m.");
+  });
+
+  it("marca el retiro sin programar como lo antes posible", () => {
+    const html = renderWith(
+      pickupOrder({ pickupTime: "2026-09-12T02:35:00.000Z", pickupScheduled: false }),
+    );
+
+    expect(html).toContain("Hora de retiro");
+    expect(html).toContain("~8:35 p. m.");
+  });
+
+  it("no inventa una hora de retiro si el pedido no la tiene", () => {
+    const html = renderWith(pickupOrder({ pickupTime: null }));
+
+    expect(html).not.toContain("Hora de retiro");
+  });
+
   it("renders a minimal success screen instead of a receipt", () => {
     const html = renderToStaticMarkup(
       createElement(OrderSuccessView, {

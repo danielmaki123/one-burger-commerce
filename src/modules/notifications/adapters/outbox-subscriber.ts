@@ -25,6 +25,7 @@ export function registerOutboxEventBusHandlers() {
       payload: buildOrderCreatedNotificationPayload(order, {
         businessName: settings.name,
         currency: { symbol: settings.currencySymbol, locale: settings.locale },
+        timeZone: settings.timezone,
       }),
     });
   });

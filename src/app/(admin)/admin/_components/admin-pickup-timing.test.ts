@@ -1,6 +1,32 @@
 import { describe, expect, it } from "vitest";
 
-import { resolveAdminPickupTiming } from "./admin-pickup-timing";
+import { describeAdminPickup, resolveAdminPickupTiming } from "./admin-pickup-timing";
+
+describe("describeAdminPickup", () => {
+  const due = "2026-09-12T02:00:00.000Z"; // 8:00 p. m. en Managua
+
+  it("distingue un pedido programado de uno lo antes posible", () => {
+    expect(
+      describeAdminPickup({ pickupTime: due, pickupScheduled: true, timeZone: "America/Managua" }),
+    ).toBe("Retiro 8:00 p. m. · Programado");
+    expect(
+      describeAdminPickup({
+        pickupTime: due,
+        pickupScheduled: false,
+        timeZone: "America/Managua",
+      }),
+    ).toBe("Retiro ~8:00 p. m. · Lo antes posible");
+  });
+
+  it("no inventa nada si el pedido no tiene hora", () => {
+    expect(
+      describeAdminPickup({ pickupTime: null, timeZone: "America/Managua" }),
+    ).toBeNull();
+    expect(
+      describeAdminPickup({ pickupTime: "no-es-fecha", timeZone: "America/Managua" }),
+    ).toBeNull();
+  });
+});
 
 const due = "2026-09-11T20:00:00-06:00";
 

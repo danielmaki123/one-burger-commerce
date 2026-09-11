@@ -1,4 +1,5 @@
 import { DEFAULT_BUSINESS_SETTINGS } from "@/modules/business-settings/domain/business-settings-defaults";
+import { formatTimeInTimeZone } from "@/modules/business-settings/domain/format-time-in-timezone";
 import type { OrderRecord } from "@/modules/orders/domain/order.types";
 import {
   DEFAULT_CURRENCY_FORMAT,
@@ -10,6 +11,8 @@ import {
 export type OrderNotificationBranding = {
   businessName: string;
   currency: CurrencyFormat;
+  /** Zona horaria del negocio, para mostrar la hora de retiro como la ve el local. */
+  timeZone: string;
 };
 
 /**
@@ -20,6 +23,7 @@ function resolveBranding(branding?: Partial<OrderNotificationBranding>): OrderNo
   return {
     businessName: branding?.businessName ?? DEFAULT_BUSINESS_SETTINGS.name,
     currency: branding?.currency ?? DEFAULT_CURRENCY_FORMAT,
+    timeZone: branding?.timeZone ?? DEFAULT_BUSINESS_SETTINGS.timezone,
   };
 }
 
@@ -28,6 +32,8 @@ type OrderCreatedNotificationCustomer = {
   phone: string;
   type: string;
   address: string;
+  /** Para cuándo es el retiro. `null` en pedidos que no son de retiro o sin hora. */
+  pickup: string | null;
 };
 
 type OrderCreatedNotificationTicket = {
@@ -63,6 +69,23 @@ function buildCustomerAddress(order: OrderRecord, businessName: string): string 
   }
 
   return order.tableId ? `Mesa ${order.tableId}` : "Mesa";
+}
+
+/**
+ * Para cuándo es el retiro, tal como lo necesita la cocina.
+ *
+ * Se distingue "programado" de "lo antes posible" a propósito: no es lo mismo un pedido
+ * que hay que empezar ya que uno que el cliente viene a buscar en dos horas.
+ */
+function buildPickupLine(order: OrderRecord, timeZone: string): string | null {
+  if (order.type !== "pickup" || !order.pickupTime) return null;
+
+  const time = formatTimeInTimeZone(order.pickupTime, timeZone);
+  if (!time) return null;
+
+  return order.pickupScheduled
+    ? `Programado para las ${time}`
+    : `Lo antes posible (~${time})`;
 }
 
 function formatOrderLine(
@@ -130,6 +153,7 @@ export function buildOrderCreatedNotificationPayload(
       phone: order.customerWhatsapp,
       type: formatOrderType(order.type),
       address: buildCustomerAddress(order, branding.businessName),
+      pickup: buildPickupLine(order, branding.timeZone),
     },
     ticket: {
       items: detailLines.join("\n"),
@@ -176,6 +200,11 @@ export function formatOrderCreatedTelegramMessage(
   if (customerType === "DELIVERY") {
     lines.push(`DIR: ${payload.customer.address}`);
   } else {
+    // El retiro va en su propia línea: antes la hora se perdía porque la línea de
+    // info la ocupaban las notas del cliente.
+    if (payload.customer?.pickup) {
+      lines.push(`RETIRO: ${payload.customer.pickup}`);
+    }
     lines.push(`INFO: ${payload.customer.address}`);
   }
 

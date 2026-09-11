@@ -5,16 +5,21 @@ import { useParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { getAdminOrderStatusLabel } from "@/shared/lib/admin-status-labels";
-import { useCurrencyFormat } from "@/shared/lib/business-settings";
+import { useBusinessSettings, useCurrencyFormat } from "@/shared/lib/business-settings";
 import { formatCurrency } from "@/shared/lib/format-currency";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 
 import {
+  AdminPickupTimingChip,
   AdminStatusSolid,
   formatAdminElapsed,
   getAdminOrderSolidStatus,
 } from "../../_components/admin-operational-ui";
+import {
+  describeAdminPickup,
+  resolveAdminPickupTiming,
+} from "../../_components/admin-pickup-timing";
 
 type OrderType = "delivery" | "pickup" | "table";
 type OrderStatus =
@@ -76,6 +81,10 @@ type OrderDetail = {
   customerLng?: number | null;
   geoAccuracy?: number | null;
   geoCapturedAt?: string | null;
+  pickupTime?: string | null;
+  /** Si el cliente programó el retiro; sin programar es "lo antes posible". */
+  pickupScheduled?: boolean;
+  pickupNotes?: string | null;
 };
 
 type GetOrderResponse = {
@@ -157,6 +166,7 @@ export default function AdminOrderDetailPage() {
   const [submitting, setSubmitting] = useState(false);
   const [reviewMode, setReviewMode] = useState<ReviewMode>(null);
   const currency = useCurrencyFormat();
+  const { timezone: timeZone } = useBusinessSettings();
   const isCancelling = nextStatus === "cancelled";
 
   const loadOrder = useCallback(async () => {
@@ -308,6 +318,22 @@ export default function AdminOrderDetailPage() {
     );
   }
 
+  // La hora prometida y su semáforo: mismo criterio que la bandeja de órdenes.
+  const pickupLabel = order
+    ? describeAdminPickup({
+        pickupTime: order.pickupTime,
+        pickupScheduled: order.pickupScheduled,
+        timeZone,
+      })
+    : null;
+  const pickupTiming = order
+    ? resolveAdminPickupTiming({
+        pickupTime: order.pickupTime,
+        status: order.status,
+        nowMs,
+      })
+    : null;
+
   return (
     <div className="space-y-6 pb-40 md:pb-6">
       <Link
@@ -351,6 +377,17 @@ export default function AdminOrderDetailPage() {
                 {formatAdminElapsed(order.createdAt, nowMs)}
               </span>
             </p>
+
+            {pickupLabel || (pickupTiming && pickupTiming.state !== "done" && pickupTiming.state !== "unknown") ? (
+              <div className="flex flex-wrap items-center gap-2 rounded-lg bg-accent/60 px-3 py-2">
+                {pickupLabel ? (
+                  <span className="text-sm font-semibold text-foreground tabular-nums">
+                    {pickupLabel}
+                  </span>
+                ) : null}
+                {pickupTiming ? <AdminPickupTimingChip timing={pickupTiming} /> : null}
+              </div>
+            ) : null}
 
             {order.status === "cancelled" ? (
               <p className="rounded-lg bg-danger px-3 py-2 text-sm font-medium text-danger-foreground">

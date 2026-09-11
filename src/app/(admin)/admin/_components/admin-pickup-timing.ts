@@ -1,3 +1,5 @@
+import { formatTimeInTimeZone } from "@/modules/business-settings/domain/format-time-in-timezone";
+
 /**
  * Semáforo de la bandeja de órdenes.
  *
@@ -62,4 +64,25 @@ export function resolveAdminPickupTiming(input: {
     minutesFromDue: -minutes,
     deltaLabel: minutes < 1 ? "ahora" : `hace ${minutes} min`,
   };
+}
+
+/**
+ * Cómo se lee el retiro en el admin: la hora y si el cliente lo programó.
+ *
+ * La distinción importa en cocina: no es lo mismo un pedido que hay que empezar ya que
+ * uno que el cliente viene a buscar en dos horas.
+ */
+export function describeAdminPickup(input: {
+  pickupTime: string | null | undefined;
+  pickupScheduled?: boolean;
+  timeZone: string;
+}): string | null {
+  if (!input.pickupTime) return null;
+
+  const time = formatTimeInTimeZone(input.pickupTime, input.timeZone);
+  if (!time) return null;
+
+  return input.pickupScheduled
+    ? `Retiro ${time} · Programado`
+    : `Retiro ~${time} · Lo antes posible`;
 }
