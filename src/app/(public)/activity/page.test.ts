@@ -2,6 +2,8 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
+import { CartProvider } from "@/shared/lib/cart";
+
 import CustomerActivityPage, {
   OrderDetailView,
   OrderHistoryCard,
@@ -22,7 +24,10 @@ vi.mock("../_components/order-tracking-session", () => ({
 
 describe("public activity page", () => {
   it("renders the order history header, single tab and empty orders state", () => {
-    const html = renderToStaticMarkup(createElement(CustomerActivityPage));
+    // El historial ahora puede repetir un pedido, así que vive dentro del carrito.
+    const html = renderToStaticMarkup(
+      createElement(CartProvider, { children: createElement(CustomerActivityPage) }),
+    );
 
     expect(html).toContain("Historial");
     expect(html).toContain("Revisá tus pedidos recientes.");
@@ -68,7 +73,7 @@ describe("public activity page", () => {
     expect(html).not.toContain("Ver pedido");
   });
 
-  it("renders order history cards with mock-aligned summary layout", () => {
+  it("la tarjeta del historial muestra datos reales y un timeline con progreso (T7)", () => {
     const html = renderToStaticMarkup(
       createElement(OrderHistoryCard, {
         order: {
@@ -79,8 +84,23 @@ describe("public activity page", () => {
           updatedAt: "2026-08-24T19:30:00.000Z",
           createdAt: "2026-08-24T19:10:00.000Z",
           total: 467.5,
+          pickupTime: "2026-08-24T19:50:00.000Z",
+          pickupScheduled: false,
+          items: [
+            {
+              productId: "seed-prod-01",
+              productName: "Taco de Birria",
+              quantity: 2,
+              unitPrice: 35,
+              packagingUnitAmount: 0,
+              modifierOptionIds: [],
+              modifiers: [],
+              lineTotal: 70,
+            },
+          ],
         },
         onOpen: vi.fn(),
+        onReorder: vi.fn(),
       }),
     );
 
@@ -88,12 +108,43 @@ describe("public activity page", () => {
     expect(html).toContain("Preparando");
     expect(html).toContain("Retiro");
     expect(html).toContain("C$467.50");
-    expect(html).toContain("Volver a pedir");
-    expect(html).toContain("Hoy");
-    expect(html).toContain("mini-steps");
+    // El resumen sale de las líneas guardadas, no de un plato escrito a mano.
+    expect(html).toContain("2 × Taco de Birria");
+    expect(html).not.toContain("Sangría");
+    expect(html).not.toContain("Aperol");
+    // Timeline real, con progreso explícito.
+    expect(html).toContain("Paso 3 de 5");
+    expect(html).toContain("En preparación");
+    // Estimado de retiro, aproximado porque no se programó.
+    expect(html).toContain("Listo ~1:50 p. m.");
+    // Las dos acciones con su nombre real.
+    expect(html).toContain("Ver recibo");
+    expect(html).toContain("Pedir nuevamente");
+    expect(html).not.toContain("Volver a pedir");
     expect(html).not.toContain("Estado y total guardados");
-    expect(html).not.toContain("Abrí el detalle para revisar el seguimiento.");
-    expect(html).not.toContain("›");
   });
 
+  it("un pedido viejo sin líneas no ofrece repetir (T7)", () => {
+    // Los pedidos guardados antes de T7 no tienen ítems: se ven, no se repiten.
+    const html = renderToStaticMarkup(
+      createElement(OrderHistoryCard, {
+        order: {
+          orderNumber: "P-VIEJO1",
+          type: "pickup",
+          status: "closed",
+          statusLabel: "Completada",
+          updatedAt: "2026-08-24T19:30:00.000Z",
+          total: 100,
+        },
+        onOpen: vi.fn(),
+        onReorder: vi.fn(),
+      }),
+    );
+
+    expect(html).toContain("Ver recibo");
+    expect(html).not.toContain("Pedir nuevamente");
+    expect(html).not.toContain("Sangría");
+    // Pedido terminado: el timeline cierra sin paso "en curso".
+    expect(html).toContain("Paso 5 de 5");
+  });
 });

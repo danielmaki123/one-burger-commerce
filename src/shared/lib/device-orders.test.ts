@@ -36,6 +36,69 @@ function makeOrder(overrides?: Partial<DeviceOrderRef>): DeviceOrderRef {
 }
 
 describe("device-orders storage", () => {
+  it("guarda los ítems y la hora de retiro para poder repetir el pedido (T7)", () => {
+    const storage = new MemoryStorage();
+
+    const store = upsertDeviceOrder(
+      makeOrder({
+        pickupTime: "2026-09-12T02:35:00.000Z",
+        pickupScheduled: false,
+        items: [
+          {
+            productId: "seed-prod-01",
+            productName: "Taco de Birria",
+            quantity: 2,
+            unitPrice: 35,
+            packagingUnitAmount: 0,
+            modifierOptionIds: ["opt-1"],
+            modifiers: [{ groupName: "Salsa", optionName: "Picante", priceDelta: 5 }],
+            lineTotal: 75,
+          },
+        ],
+      }),
+      storage,
+    );
+
+    const saved = store.orders[0];
+    expect(saved.items).toHaveLength(1);
+    expect(saved.items![0]).toMatchObject({ productName: "Taco de Birria", quantity: 2 });
+    expect(saved.pickupTime).toBe("2026-09-12T02:35:00.000Z");
+    expect(saved.pickupScheduled).toBe(false);
+  });
+
+  it("un pedido viejo sin ítems sigue leyéndose: se puede ver, no repetir (T7)", () => {
+    const storage = new MemoryStorage();
+    // Lo guardado antes de T7 no tiene `items`: no se descarta el pedido.
+    storage.setItem(
+      getDeviceOrdersKey(),
+      JSON.stringify({
+        version: 1,
+        updatedAt: "2026-05-26T10:00:00.000Z",
+        orders: [makeOrder()],
+      }),
+    );
+
+    const store = readDeviceOrders(storage);
+    expect(store.orders).toHaveLength(1);
+    expect(store.orders[0].items).toBeUndefined();
+  });
+
+  it("descarta los ítems corruptos sin perder el pedido (T7)", () => {
+    const storage = new MemoryStorage();
+    storage.setItem(
+      getDeviceOrdersKey(),
+      JSON.stringify({
+        version: 1,
+        updatedAt: "2026-05-26T10:00:00.000Z",
+        orders: [{ ...makeOrder(), items: [{ productName: 42 }] }],
+      }),
+    );
+
+    const store = readDeviceOrders(storage);
+    expect(store.orders).toHaveLength(1);
+    expect(store.orders[0].items).toBeUndefined();
+  });
+
   it("returns empty store when key does not exist", () => {
     const storage = new MemoryStorage();
     const store = readDeviceOrders(storage);

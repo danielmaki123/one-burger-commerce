@@ -13,7 +13,7 @@ describe("activity status mappings", () => {
     expect(getOrderStatusProgress("confirmed")).toMatchObject({ label: "Aceptada", stepIndex: 1 });
     expect(getOrderStatusProgress("accepted")).toMatchObject({ label: "Aceptada", stepIndex: 1 });
     expect(getOrderStatusProgress("preparing")).toMatchObject({
-      label: "En preparacion",
+      label: "En preparación",
       stepIndex: 2,
     });
     expect(getOrderStatusProgress("ready")).toMatchObject({ label: "Lista", stepIndex: 3 });
@@ -70,7 +70,8 @@ describe("activity status mappings", () => {
     expect(ORDER_PROGRESS_STEPS).toEqual([
       "Recibida",
       "Aceptada",
-      "En preparacion",
+      // Corregido en T7: "preparacion" iba sin tilde y se ve en el timeline.
+      "En preparación",
       "Lista",
       "Completada",
     ]);

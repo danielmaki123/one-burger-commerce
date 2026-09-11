@@ -10,7 +10,7 @@ export type StatusProgressState = {
 export const ORDER_PROGRESS_STEPS = [
   "Recibida",
   "Aceptada",
-  "En preparacion",
+  "En preparación",
   "Lista",
   "Completada",
 ] as const;
@@ -41,7 +41,7 @@ export function getOrderStatusProgress(status: string): StatusProgressState {
   }
 
   if (normalized === "preparing") {
-    return { label: "En preparacion", stepIndex: 2, isTerminalNegative: false, tone: "success" };
+    return { label: "En preparación", stepIndex: 2, isTerminalNegative: false, tone: "success" };
   }
 
   if (normalized === "ready" || normalized === "ready_for_pickup") {

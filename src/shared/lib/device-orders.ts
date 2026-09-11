@@ -1,5 +1,24 @@
 export type DeviceOrderType = "delivery" | "pickup" | "table";
 
+/**
+ * Línea del pedido guardada en el dispositivo (T7).
+ *
+ * Es la forma del ítem del carrito: con esto, "Pedir nuevamente" vuelve a armar
+ * el pedido sin pedirle nada al servidor. Los pedidos guardados antes de T7 no la
+ * tienen, y esos se pueden ver pero no repetir.
+ */
+export type DeviceOrderItemRef = {
+  productId: string;
+  productName: string;
+  quantity: number;
+  unitPrice: number;
+  packagingUnitAmount: number;
+  modifierOptionIds: string[];
+  modifiers: { groupName: string; optionName: string; priceDelta: number }[];
+  notes?: string;
+  lineTotal: number;
+};
+
 export type DeviceOrderRef = {
   orderNumber: string;
   type: DeviceOrderType;
@@ -17,6 +36,12 @@ export type DeviceOrderRef = {
   lastCheckedAt?: string;
   stale?: boolean;
   orderLookupToken?: string;
+  /** Hora de retiro prometida, para mostrar el estimado en el historial. */
+  pickupTime?: string | null;
+  /** `false` = "lo antes posible" (el estimado se muestra como aproximado). */
+  pickupScheduled?: boolean;
+  /** Líneas del pedido, para repetirlo. */
+  items?: DeviceOrderItemRef[];
 };
 
 export type DeviceOrdersStore = {
@@ -49,6 +74,64 @@ function getStorage(storage?: StorageLike): StorageLike | null {
 
 function isValidOrderType(value: unknown): value is DeviceOrderType {
   return value === "delivery" || value === "pickup" || value === "table";
+}
+
+function isValidDeviceOrderItem(value: unknown): value is DeviceOrderItemRef {
+  if (!value || typeof value !== "object") return false;
+  const item = value as Record<string, unknown>;
+
+  if (typeof item.productId !== "string" || item.productId.trim().length === 0) return false;
+  if (typeof item.productName !== "string" || item.productName.trim().length === 0) return false;
+  if (typeof item.quantity !== "number" || !Number.isFinite(item.quantity) || item.quantity <= 0) {
+    return false;
+  }
+  if (typeof item.unitPrice !== "number" || !Number.isFinite(item.unitPrice)) return false;
+  if (typeof item.packagingUnitAmount !== "number") return false;
+  if (typeof item.lineTotal !== "number") return false;
+  if (!Array.isArray(item.modifierOptionIds)) return false;
+  if (!item.modifierOptionIds.every((id) => typeof id === "string")) return false;
+  if (!Array.isArray(item.modifiers)) return false;
+  if (item.notes !== undefined && typeof item.notes !== "string") return false;
+
+  return item.modifiers.every((modifier) => {
+    if (!modifier || typeof modifier !== "object") return false;
+    const option = modifier as Record<string, unknown>;
+    return (
+      typeof option.groupName === "string" &&
+      typeof option.optionName === "string" &&
+      typeof option.priceDelta === "number"
+    );
+  });
+}
+
+/**
+ * Limpia los campos que agregó T7 sin descartar el pedido entero.
+ *
+ * Un pedido guardado antes no tiene ítems (se ve, no se repite), y unos ítems
+ * corruptos se tiran: perder la lista de líneas es mejor que perder el pedido.
+ */
+function sanitizeDeviceOrderExtras(order: DeviceOrderRef): DeviceOrderRef {
+  const sanitized: DeviceOrderRef = { ...order };
+
+  if (order.items !== undefined) {
+    if (Array.isArray(order.items)) {
+      const validItems = order.items.filter(isValidDeviceOrderItem);
+      if (validItems.length > 0) sanitized.items = validItems;
+      else delete sanitized.items;
+    } else {
+      delete sanitized.items;
+    }
+  }
+
+  if (order.pickupTime !== undefined && order.pickupTime !== null && typeof order.pickupTime !== "string") {
+    delete sanitized.pickupTime;
+  }
+
+  if (order.pickupScheduled !== undefined && typeof order.pickupScheduled !== "boolean") {
+    delete sanitized.pickupScheduled;
+  }
+
+  return sanitized;
 }
 
 function isValidDeviceOrderRef(value: unknown): value is DeviceOrderRef {
@@ -119,7 +202,9 @@ export function readDeviceOrders(storage?: StorageLike): DeviceOrdersStore {
       return persistStore(emptyStore(), storage);
     }
 
-    const validOrders = parsed.orders.filter(isValidDeviceOrderRef) as DeviceOrderRef[];
+    const validOrders = parsed.orders
+      .filter(isValidDeviceOrderRef)
+      .map((order) => sanitizeDeviceOrderExtras(order as DeviceOrderRef));
     return persistStore(
       {
         version: STORE_VERSION,
@@ -136,8 +221,9 @@ export function readDeviceOrders(storage?: StorageLike): DeviceOrdersStore {
 
 export function upsertDeviceOrder(order: DeviceOrderRef, storage?: StorageLike): DeviceOrdersStore {
   const current = readDeviceOrders(storage);
+  const sanitized = sanitizeDeviceOrderExtras(order);
   const rest = current.orders.filter((existing) => existing.orderNumber !== order.orderNumber);
-  return persistStore({ ...current, orders: [order, ...rest] }, storage);
+  return persistStore({ ...current, orders: [sanitized, ...rest] }, storage);
 }
 
 export function markDeviceOrderStale(orderNumber: string, stale: boolean, storage?: StorageLike): DeviceOrdersStore {

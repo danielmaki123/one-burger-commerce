@@ -948,6 +948,39 @@ retiro). Faltaba lo que el mock sí muestra y nosotros habíamos dejado a medias
   menú y que "Ver mis pedidos" deja el pedido en el historial del dispositivo; y a 1280 px que las dos
   salidas quedan en la misma fila y sin scroll horizontal.
 
+### Adopción del mock · T7: seguimiento e historial (2026-09-12)
+
+La última pantalla de la ola 1. Acá no había que "copiar el mock" sino **arreglar lo que había quedado
+a medias**: el historial tenía datos inventados y un botón que mentía.
+
+- **Un control que mentía**: el botón decía "Volver a pedir" y lo único que hacía era abrir el detalle.
+  Ahora dice **"Pedir nuevamente"** y vuelve a armar el pedido de verdad: las líneas se guardan con el
+  pedido (`DeviceOrderItemRef`) y se agregan al carrito. Un pedido guardado **antes** de este cambio no
+  tiene líneas: se ve, no se repite, y el botón no se dibuja (mejor eso que un botón inerte).
+- **Datos inventados que salieron**: el resumen de cada tarjeta era un plato escrito a mano
+  ("Sangría · ½ Litro", y "Aperol Spritz" para las mesas), y las mesas mostraban "Terraza · Mesa 12".
+  Ahora el resumen sale de las líneas guardadas (`2 × Taco de Birria`) y la fila de la mesa no inventa
+  un salón ni un número.
+- **El timeline, con lo que el mock no tiene**: el mock dibuja 4 barras sin texto y `aria-hidden`.
+  Nuestro timeline usa los pasos reales del pedido (5: incluye "Completada", porque un pedido de retiro
+  termina cuando se retira), dice **"Paso 3 de 5"**, marca hecho / actual / pendiente, se lee con lector
+  de pantalla y usa tokens (antes eran `emerald-900` y `sky-100` a mano). Un pedido cancelado no se
+  dibuja como progreso hacia adelante.
+- **El buscador del historial filtra de verdad** (el del mock tiene 4 bloques antes y después de
+  buscar): por número de pedido o por plato, sin acentos y sin mayúsculas, con un estado vacío que
+  explica y ofrece "Ver todos".
+- **El estimado de retiro** aparece en la tarjeta ("Listo ~8:35 p. m.", aproximado si no se programó),
+  con la hora que ahora viaja en el pedido guardado.
+- **El recibo**: la tarjeta abre el detalle, que ya existía, con su nombre real ("Ver recibo").
+- **De paso, una tilde**: el paso del timeline decía "En preparacion"; ahora dice "En preparación"
+  (se ve en la pantalla pública).
+- **Verificado en el camino real** (Postgres 17 local + `next start -p 3210` con el build nuevo):
+  **E2E completo 66 pasaron, 7 salteados, 0 fallos** (antes 61). `tests/e2e/public-activity.spec.ts`
+  crea un pedido, entra al historial y a 375 px comprueba que el resumen es el real ("1 × Taco de
+  Birria"), que el progreso dice "Paso 1 de 5", que el estimado está, que **no queda rastro de los
+  platos del mock**, que el buscador filtra (y que "sushi" no encuentra nada), que "Pedir nuevamente"
+  arma el carrito y que "Ver recibo" abre el detalle; a 1280 px, sin scroll horizontal.
+
 ## 3. Infraestructura y secretos
 
 - `EASYPANEL_URL` y `EASYPANEL_TOKEN`: solo en el entorno de quien ejecuta el deploy (nunca
@@ -974,7 +1007,7 @@ retiro). Faltaba lo que el mock sí muestra y nosotros habíamos dejado a medias
 | 8 | **Checkout sin redundancias** (textos y botones repetidos) | **Cerrada y desplegada** | `ops/tasks/TASK-checkout-ux.md`. Cuatro commits (`2832a93`…`aba4156`), en producción como `build-20260911-145656`. El checkout pasó de 807 a 476 líneas, un solo resumen compartido con el carrito, un solo CTA visible por viewport y los turnos de retiro calculados desde la configuración. |
 | 9 | **Validar el estado operativo en el servidor** | **Cerrada y desplegada** | Commits `3a67c37` y `ca474c8`, en producción como `build-20260911-154014`. `isAcceptingOrders` ya corta pedidos de verdad (antes no lo leía nadie) y la hora de retiro se valida contra el horario del día. Incluye el horario demo del seed y el límite de login del arnés E2E. |
 | 10 | **Retiro opcional y programable + la hora visible en toda la cadena** | **Cerrada y desplegada** | Commits `6f85a3c`, `c101f82`, `b207593` y `abc2183`, en producción como `build-20260911-191047`. Incluye **una migración** (`pickupScheduled`). El retiro es opcional, la hora la resuelve el servidor, el ticket de cocina y el admin la muestran, y el semáforo va contra la hora prometida. Ver el detalle arriba. |
-| 11 | **Adopción del mock completo (rediseño de la UI pública)** | **En ejecución · ola 1: T1-T6 cerradas** | [`ops/tasks/TASK-mock-adoption.md`](tasks/TASK-mock-adoption.md). Plan **aprobado** el 2026-09-12 (D-A tipografía: Plus Jakarta Sans como tercera opción · D-B ola 2 completa **sin reseñas ni delivery** · D-C orden: tokens primero y después las pantallas en el orden del mock). **Reglas del programa**: ningún control decorativo (implementado con API/estado y test, o eliminado con motivo), nada hardcodeado, la paleta como preset que pasa el test de contraste, TDD por tarea, y verificación a 375 px **y 1280 px** (el mock no tiene escritorio). **Ola 1**: T1 tokens ✅ · T2 home ✅ · T3 menú ✅ · T3.1 color por categoría ✅ · T4 producto ✅ · T5 carrito+checkout ✅ (fases 1, 3, 6 y 7; queda la vista previa de turnos de la fase 2) · T6 confirmación ✅ · **sigue T7 seguimiento e historial**. **Decisiones abiertas del checkout**: D1 (pedidos para días futuros) y D2 (presets de propina). **Ola 2** (aprobada): T8 multi-sucursal, T9 promos, T10 favoritos (**descartada por el owner**: "mantengamos el login tal cual lo tenemos"; sin cuenta no hay favoritos), T11 método de pago, T12 vuelto, T13 PIN de retiro. Evidencia del mock: [`ops/audit-checkout-mock.md`](audit-checkout-mock.md). |
+| 11 | **Adopción del mock completo (rediseño de la UI pública)** | **En ejecución · ola 1: T1-T7 cerradas** | [`ops/tasks/TASK-mock-adoption.md`](tasks/TASK-mock-adoption.md). Plan **aprobado** el 2026-09-12 (D-A tipografía: Plus Jakarta Sans como tercera opción · D-B ola 2 completa **sin reseñas ni delivery** · D-C orden: tokens primero y después las pantallas en el orden del mock). **Reglas del programa**: ningún control decorativo (implementado con API/estado y test, o eliminado con motivo), nada hardcodeado, la paleta como preset que pasa el test de contraste, TDD por tarea, y verificación a 375 px **y 1280 px** (el mock no tiene escritorio). **Ola 1**: T1 tokens ✅ · T2 home ✅ · T3 menú ✅ · T3.1 color por categoría ✅ · T4 producto ✅ · T5 carrito+checkout ✅ (fases 1, 3, 6 y 7; queda la vista previa de turnos de la fase 2) · T6 confirmación ✅ · T7 seguimiento e historial ✅ · **ola 1 completa: siguen las tareas de la ola 2**. **Decisiones abiertas del checkout**: D1 (pedidos para días futuros) y D2 (presets de propina). **Ola 2** (aprobada): T8 multi-sucursal, T9 promos, T10 favoritos (**descartada por el owner**: "mantengamos el login tal cual lo tenemos"; sin cuenta no hay favoritos), T11 método de pago, T12 vuelto, T13 PIN de retiro. Evidencia del mock: [`ops/audit-checkout-mock.md`](audit-checkout-mock.md). |
 
 ## 5. Cómo continuar
 

@@ -20,11 +20,20 @@ import {
   type DeviceOrderRef,
 } from "@/shared/lib/device-orders";
 import { formatCurrency } from "@/shared/lib/format-currency";
-import { useCurrencyFormat } from "@/shared/lib/business-settings";
+import { useBusinessSettings, useCurrencyFormat } from "@/shared/lib/business-settings";
+import { useCart } from "@/shared/lib/cart";
 import { syncTrackedOrderToDeviceOrders } from "@/shared/lib/order-tracking-sync";
 import { Button } from "@/shared/ui/button";
+import { Input } from "@/shared/ui/input";
 import { StatusProgress } from "@/shared/ui/status-progress";
 import { useOrderTrackingSession } from "../_components/order-tracking-session";
+import {
+  buildOrderTimeline,
+  filterDeviceOrders,
+  formatOrderPickupEstimate,
+  formatTimelineProgress,
+  summarizeOrderItems,
+} from "./activity-page-helpers";
 
 type ActivityTab = "orders";
 
@@ -69,7 +78,11 @@ export default function CustomerActivityPage() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [refreshFeedback, setRefreshFeedback] = useState<string | null>(null);
   const [selectedOrderNumber, setSelectedOrderNumber] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const [reorderFeedback, setReorderFeedback] = useState<string | null>(null);
   const { trackingWhatsapp } = useOrderTrackingSession();
+  const { addItem } = useCart();
+  const settings = useBusinessSettings();
 
   useEffect(() => {
     const tab = new URLSearchParams(window.location.search).get("tab");
@@ -78,6 +91,41 @@ export default function CustomerActivityPage() {
   }, []);
 
   const orderSections = useMemo(() => splitByStatus(orders, ACTIVE_ORDER_STATUS), [orders]);
+
+  /** El buscador del historial: filtra por número de pedido o por plato (T7). */
+  const visibleOrders = useMemo(
+    () => filterDeviceOrders([...orderSections.active, ...orderSections.history], query),
+    [orderSections, query],
+  );
+
+  /**
+   * "Pedir nuevamente": vuelve a armar el pedido con las líneas guardadas.
+   *
+   * Los pedidos guardados antes de T7 no tienen líneas: en esos casos la tarjeta
+   * no ofrece repetir, en vez de un botón que no hace nada.
+   */
+  function handleReorder(order: DeviceOrderRef) {
+    const items = order.items ?? [];
+    if (items.length === 0) return;
+
+    items.forEach((item) => {
+      addItem({
+        productId: item.productId,
+        productName: item.productName,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        packagingUnitAmount: item.packagingUnitAmount,
+        packagingTotalAmount: item.packagingUnitAmount * item.quantity,
+        modifierOptionIds: item.modifierOptionIds,
+        modifiers: item.modifiers,
+        notes: item.notes,
+        lineTotal: item.lineTotal,
+      });
+    });
+
+    setReorderFeedback(`${items.length} ${items.length === 1 ? "plato" : "platos"} agregados al carrito.`);
+    router.push("/cart");
+  }
 
   const selectedOrder = useMemo(
     () => orders.find((order) => order.orderNumber === selectedOrderNumber) ?? null,
@@ -235,6 +283,24 @@ export default function CustomerActivityPage() {
       {activeTab === "orders" ? (
         <section className="space-y-5">
           <SectionHeading title="Pedidos recientes" />
+          {orders.length > 0 ? (
+            <div className="space-y-3">
+              <label className="block">
+                <span className="sr-only">Buscar en el historial</span>
+                <Input
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder="Buscar por número de pedido o plato"
+                  aria-label="Buscar en el historial"
+                />
+              </label>
+              {reorderFeedback ? (
+                <p role="status" className="text-sm text-muted-foreground">
+                  {reorderFeedback}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
           {orders.length === 0 ? (
             <EmptyState
               title="Aún no tenés pedidos"
@@ -242,13 +308,22 @@ export default function CustomerActivityPage() {
               actionLabel="Ver menú"
               onAction={() => router.push("/menu")}
             />
+          ) : visibleOrders.length === 0 ? (
+            <EmptyState
+              title="No encontramos pedidos con esa búsqueda"
+              description="Probá con el número de pedido o con el nombre de un plato."
+              actionLabel="Ver todos"
+              onAction={() => setQuery("")}
+            />
           ) : (
             <div className="space-y-4">
-              {[...orderSections.active, ...orderSections.history].map((order) => (
+              {visibleOrders.map((order) => (
                 <OrderHistoryCard
                   key={order.orderNumber}
                   order={order}
+                  timeZone={settings.timezone}
                   onOpen={() => setSelectedOrderNumber(order.orderNumber)}
+                  onReorder={() => handleReorder(order)}
                 />
               ))}
             </div>
@@ -310,50 +385,35 @@ function SectionHeading({ title }: { title: string }) {
   );
 }
 
-function MiniSteps({
-  mode,
-}: {
-  mode: "active" | "done";
-}) {
-  return (
-    <div className="mini-steps flex gap-4 pt-1" aria-hidden="true">
-      <span className={`h-3 flex-1 rounded-full ${mode === "done" || mode === "active" ? "bg-emerald-900" : "bg-muted"}`} />
-      <span className={`h-3 flex-1 rounded-full ${mode === "done" ? "bg-emerald-900" : mode === "active" ? "bg-brand" : "bg-muted"}`} />
-      <span className={`h-3 flex-1 rounded-full ${mode === "done" ? "bg-emerald-900" : "bg-muted"}`} />
-    </div>
-  );
-}
-
 export function OrderHistoryCard({
   order,
   onOpen,
+  onReorder,
+  timeZone = "America/Managua",
 }: {
   order: DeviceOrderRef;
   onOpen: () => void;
+  onReorder?: () => void;
+  timeZone?: string;
 }) {
   const progress = getOrderStatusProgress(order.status);
   const latestText = order.lastCheckedAt ?? order.updatedAt;
   const currency = useCurrencyFormat();
-  const meta =
-    order.type === "table"
-      ? formatHistoryMeta(latestText, [
-          "Terraza",
-          "Mesa 12",
-        ])
-      : formatHistoryMeta(latestText, [
-          order.type === "pickup" ? "Retiro" : formatOrderType(order.type),
-          formatHistoryTime(latestText),
-        ]);
-  const itemSummary =
-    order.type === "table" ? "Aperol Spritz" : "Sangría · ½ Litro";
-  const cardStatusLabel = progress.label === "En preparacion" ? "Preparando" : progress.label;
+  const meta = formatHistoryMeta(latestText, [
+    order.type === "pickup" ? "Retiro" : formatOrderType(order.type),
+    formatHistoryTime(latestText),
+  ]);
+  // El resumen sale de las líneas guardadas (T7): antes había un plato escrito a mano.
+  const itemSummary = summarizeOrderItems(order.items);
+  const pickupEstimate = formatOrderPickupEstimate(order, timeZone);
+  const cardStatusLabel = progress.label === "En preparación" ? "Preparando" : progress.label;
   const statusClass =
     cardStatusLabel === "Completada"
-      ? "bg-amber-100 text-amber-800"
-      : "bg-sky-100 text-brand";
+      ? "bg-warning text-warning-foreground"
+      : "bg-brand/10 text-brand";
 
   return (
-    <div className="rounded-[28px] border border-border bg-card/92 px-5 py-5 shadow-[0_24px_55px_-46px_rgba(41,37,36,0.6)]">
+    <div className="rounded-[28px] border border-border bg-card/92 px-5 py-5 shadow-card">
       <div className="space-y-5">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 space-y-2">
@@ -370,22 +430,84 @@ export function OrderHistoryCard({
           </span>
         </div>
 
-        <p className="text-lg text-foreground">{itemSummary}</p>
-        <MiniSteps mode={cardStatusLabel === "Completada" ? "done" : "active"} />
+        {itemSummary ? <p className="text-lg text-foreground">{itemSummary}</p> : null}
 
-        <div className="flex items-center justify-between gap-4">
+        <OrderTimeline status={order.status} />
+
+        {pickupEstimate ? (
+          <p className="text-sm text-muted-foreground">{pickupEstimate}</p>
+        ) : null}
+
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-2xl font-semibold tabular-nums text-foreground">
             {formatCurrency(order.total, currency)}
           </p>
-          <button
-            type="button"
-            onClick={onOpen}
-            className="rounded-full bg-sky-100 px-5 py-3 text-base font-semibold text-brand"
-          >
-            Volver a pedir
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              className="min-h-11 rounded-full px-5"
+              onClick={onOpen}
+            >
+              Ver recibo
+            </Button>
+            {onReorder && itemSummary ? (
+              <Button
+                type="button"
+                className="min-h-11 rounded-full px-5"
+                onClick={onReorder}
+              >
+                Pedir nuevamente
+              </Button>
+            ) : null}
+          </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+/**
+ * Timeline del pedido: los pasos reales, con lo hecho, lo actual y lo que falta.
+ *
+ * El mock dibuja 4 barras sin texto y sin semántica; acá cada paso se lee (también
+ * con lector de pantalla) y hay un `Paso N de 5` explícito.
+ */
+export function OrderTimeline({ status }: { status: string }) {
+  const steps = buildOrderTimeline(status);
+  const progressLabel = formatTimelineProgress(status);
+
+  return (
+    <div className="space-y-2">
+      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+        {progressLabel}
+      </p>
+      <ol className="flex flex-wrap gap-x-3 gap-y-1.5">
+        {steps.map((step) => (
+          <li key={step.label} className="flex items-center gap-1.5 text-xs">
+            <span
+              aria-hidden="true"
+              className={`h-2.5 w-2.5 rounded-full ${
+                step.isDone
+                  ? "bg-success-strong"
+                  : step.isCurrent
+                    ? "bg-brand"
+                    : "bg-border"
+              }`}
+            />
+            <span
+              className={
+                step.isDone || step.isCurrent
+                  ? "font-semibold text-foreground"
+                  : "text-muted-foreground"
+              }
+            >
+              {step.label}
+            </span>
+            {step.isCurrent ? <span className="sr-only">(paso actual)</span> : null}
+          </li>
+        ))}
+      </ol>
     </div>
   );
 }

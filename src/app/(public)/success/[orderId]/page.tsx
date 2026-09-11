@@ -15,12 +15,15 @@ type OrderModifier = {
 
 type OrderItem = {
   id: string;
+  productId: string;
   productName: string;
   quantity: number;
+  unitPrice: number;
   packagingUnitAmount: number;
   packagingQuantity: number;
   packagingTotalAmount: number;
   lineTotal: number;
+  notes?: string | null;
   modifiers: OrderModifier[];
 };
 
@@ -150,6 +153,25 @@ export default function OrderSuccessPage() {
       lastCheckedAt: new Date().toISOString(),
       stale: false,
       orderLookupToken: orderLookupToken || existing?.orderLookupToken,
+      // T7: con las líneas guardadas, el historial puede repetir el pedido; con
+      // la hora de retiro, puede mostrar el estimado.
+      pickupTime: order.pickupTime ?? null,
+      pickupScheduled: order.pickupScheduled ?? false,
+      items: order.items.map((item) => ({
+        productId: item.productId,
+        productName: item.productName,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        packagingUnitAmount: item.packagingUnitAmount,
+        modifierOptionIds: item.modifiers.map((modifier) => modifier.modifierOptionId),
+        modifiers: item.modifiers.map((modifier) => ({
+          groupName: "",
+          optionName: modifier.name,
+          priceDelta: modifier.priceDelta,
+        })),
+        notes: item.notes ?? undefined,
+        lineTotal: item.lineTotal,
+      })),
     });
   }, [order, orderLookupToken]);
 
