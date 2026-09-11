@@ -86,8 +86,11 @@ describe("public cart page", () => {
     const html = renderToStaticMarkup(createElement(CartPage));
 
     expect(html).toContain("Tu carrito");
-    expect(html).toContain("2 productos");
-    expect(html).not.toContain("2 items");
+    // Cambio de contrato (TASK-checkout-ux): el contador cuenta unidades, no líneas,
+    // para coincidir con el badge del header. 1 + 2 = 3 productos en 2 líneas.
+    expect(html).toContain("3 productos");
+    expect(html).not.toContain("2 productos");
+    expect(html).not.toContain("3 items");
     expect(html).toContain("Sangría");
     expect(html).toContain("Sangria de 1/2 Litro");
     expect(html).toContain("Aperol Spritz");
@@ -107,13 +110,21 @@ describe("public cart page", () => {
     expect(html).toContain("min-w-4");
     expect(html).toContain("Subtotal");
     expect(html).toContain("Empaque");
-    expect(html).toContain("Total estimado");
-    expect(html).toContain("Retirás en el local");
-    expect(html).toContain("Al retirar");
+    // Cambio de contrato (TASK-checkout-ux): el resumen es el mismo componente que el
+    // del checkout, así que desaparecen "Tu bolsa", "Total estimado" y las dos filas
+    // estáticas de entrega/pago (las reemplaza el aviso de pago configurable).
+    expect(html).toContain("Resumen del pedido");
+    expect(html).toContain("Total a pagar");
+    expect(html).toContain("Pagás en el local al retirar tu pedido.");
+    expect(html).not.toContain("Tu bolsa");
+    expect(html).not.toContain("Total estimado");
+    expect(html).not.toContain("Retirás en el local");
+    expect(html).not.toContain("Al retirar");
     expect(html).not.toContain("Se define en checkout");
     expect(html).not.toContain("Envío");
     expect(html).not.toContain("Propina");
-    expect(html).toContain("Continuar");
-    expect(html).toContain("Seguir viendo menú");
+    expect(html).toContain("Ir a pagar");
+    // "Seguir viendo menú" era redundante con la barra de navegación inferior.
+    expect(html).not.toContain("Seguir viendo menú");
   });
 });

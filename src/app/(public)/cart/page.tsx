@@ -1,18 +1,25 @@
 "use client";
 
 import { useMemo } from "react";
+import { useRouter } from "next/navigation";
 
 import { useCart } from "@/shared/lib/cart";
+import { Button } from "@/shared/ui/button";
 import { Card } from "@/shared/ui/card";
 
+import { formatItemCountLabel, OrderSummaryCard } from "../_components/order-summary-card";
 import { CartLineCard } from "./_components/cart-line-card";
-import { CartSummaryCard } from "./_components/cart-summary-card";
 import { EmptyCartState } from "./_components/empty-cart-state";
 import { publicCartScaleClasses } from "./cart-scale-helpers";
 
 export default function CartPage() {
+  const router = useRouter();
   const { items, subtotal, removeItem, updateQuantity } = useCart();
-  const cartItemCount = items.length;
+  // Unidades, no líneas: es la misma cuenta que muestra el badge del header.
+  const itemCount = useMemo(
+    () => items.reduce((sum, item) => sum + item.quantity, 0),
+    [items],
+  );
   const packagingAmount = useMemo(
     () => items.reduce((sum, item) => sum + item.packagingTotalAmount, 0),
     [items],
@@ -35,7 +42,7 @@ export default function CartPage() {
                 Tu carrito
               </h1>
               <p className="text-sm text-muted-foreground sm:text-base">
-                {cartItemCount} {cartItemCount === 1 ? "producto" : "productos"}
+                {formatItemCountLabel(itemCount)}
               </p>
             </div>
           </header>
@@ -56,10 +63,18 @@ export default function CartPage() {
         </div>
 
         <div className="lg:sticky lg:top-24">
-          <CartSummaryCard
+          <OrderSummaryCard
+            itemCount={itemCount}
             subtotal={subtotal}
             packagingAmount={packagingAmount}
-          />
+          >
+            <Button
+              className={publicCartScaleClasses.summaryPrimaryCta}
+              onClick={() => router.push("/checkout")}
+            >
+              Ir a pagar
+            </Button>
+          </OrderSummaryCard>
         </div>
       </div>
     </div>
