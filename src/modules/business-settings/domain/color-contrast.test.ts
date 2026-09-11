@@ -83,6 +83,22 @@ describe("presets de color", () => {
     });
   });
 
+  it("incluye la paleta del mock completo, con sus colores reales", () => {
+    // Los valores salen del mock medido (`ops/audit-checkout-mock.md`): el rojo del CTA
+    // (#d32f2f), la crema del lienzo (#faf1d6), la tarjeta (#fffdf9), la tinta (#1f1916)
+    // y el borde/acento (#efe2c5). El test siguiente comprueba que además sea legible.
+    const mock = COLOR_PRESETS.find((preset) => preset.id === "pimienta");
+
+    expect(mock, "falta el preset con la paleta del mock").toBeDefined();
+    expect(mock!.colors).toEqual({
+      primaryColor: "#d32f2f",
+      accentColor: "#efe2c5",
+      backgroundColor: "#faf1d6",
+      foregroundColor: "#1f1916",
+      surfaceColor: "#fffdf9",
+    });
+  });
+
   it("ofrece varios presets con id y nombre únicos", () => {
     expect(COLOR_PRESETS.length).toBeGreaterThanOrEqual(4);
 

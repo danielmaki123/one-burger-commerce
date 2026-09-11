@@ -1,7 +1,7 @@
 # TASK: Adopción del mock completo (programa de UI)
 
-**Estado:** plan propuesto · **pendiente**: decisión de tipografía (§7 D-A), OK de la ola 2 (§5) y
-confirmación del orden (§7 D-C) · **Fecha:** 2026-09-12 · **Origen:** pedido del owner sobre
+**Estado:** plan **aprobado** (D-A, D-B y D-C resueltas el 2026-09-12) · **en ejecución**: T1.1
+(paleta del mock como preset) cerrada · **Fecha:** 2026-09-12 · **Origen:** pedido del owner sobre
 `stitch_full_pwa_builder/` ("copiar los órdenes, los colores, todos; los botones que no tengamos API
 se valorarán para implementar y que no queden solo como texto; mantener el orden; TDD por fase, por
 tarea").
@@ -32,7 +32,7 @@ bloqueado en las 7 pantallas, 0 `role`, 0 `aria-live`, 45 fallos de contraste, c
    tipografía, contacto, horarios, moneda y propina salen de `/admin/settings`.
 3. **La paleta entra como preset y pasa el test de contraste.** El mock tiene 45 fallos de contraste
    medidos; donde falle, se ajusta el tono. El preset nuevo tiene que quedar verde en
-   `color-presets.test.ts`.
+   `color-contrast.test.ts` (el caso "todos los presets son legibles", que ya existe).
 4. **TDD por fase y por tarea**: el primer test rojo está en la tabla de cada tarea (§4) y se corre
    **antes** de implementar, con la salida roja en el commit.
 5. **375 px y 1280 px en navegador real.** El mock **no tiene versión de escritorio** (el checkout
@@ -132,7 +132,10 @@ Una tarea por commit (o un commit por fase dentro de la tarea). **El orden es el
 
 | # | Tarea | Primer test rojo | Toca contrato |
 |---|---|---|---|
-| **T1** | **Tokens**: paleta del mock como preset (con contraste corregido) + escala tipográfica, radios y sombras mapeadas a `globals.css` | `color-presets.test.ts` (recorre los presets y falla si alguno es ilegible) | No |
+| **T1** | **Tokens** (tres commits) | | |
+| T1.1 | Paleta del mock como preset, con **sus colores reales** y el test de contraste vigente | `color-contrast.test.ts` (incluye el caso "todos los presets son legibles") | No |
+| T1.2 | **Plus Jakarta Sans** como **tercera opción** de `/admin/settings` (decisión D-A) | `business-settings.schema.test.ts` (acepta la fuente nueva) · `business-settings-style.test.ts` | No |
+| T1.3 | Escala tipográfica, radios y sombras del mock mapeados a tokens de `globals.css` | `business-settings-style.test.ts` | No |
 | **T2** | **Home** (`/`): estado abierto, estimado de retiro, destacado, categorías, info del local y contacto | `app/(public)/page.test.ts` · `home-page-helpers.test.ts` | No |
 | **T3** | **Menú** (`/menu`): buscador que filtra, riel de categorías, grilla de 2 columnas, "+" de ≥44 px con aviso `aria-live` | `menu/page.test.tsx` | No |
 | **T4** | **Producto** (`/menu/[productId]`): cantidad, modificadores como tarjetas con delta, notas, CTA fijo con importe | `menu/[productId]/page.test.ts` | No |
@@ -144,22 +147,30 @@ Reglas de cierre por tarea: `npm run test`, `lint`, `typecheck`, `build`, `secur
 completo a **375 px y 1280 px**. Si la paleta o los tokens cambian, se re-verifica que ninguna
 superficie quede por debajo de AA.
 
-## 5. Ola 2 — necesita contrato nuevo (pendiente de tu OK)
+## 5. Ola 2 — necesita contrato nuevo
 
-Nada de esto entra sin decisión explícita, porque cambia el modelo de datos, la operación o el
-alcance del MVP (`AGENTS.md`):
+**Decisión del owner (2026-09-12): la ola 2 se hace completa, sin reseñas y sin delivery.** Lo que
+sigue, entonces, es el alcance aprobado; las reseñas y el delivery quedan **fuera** (y `AGENTS.md`
+sigue prohibiendo reactivar delivery sin pedido explícito posterior).
 
-| Cosa del mock | Qué implica | Costo |
-|---|---|---|
-| **Segunda sucursal** | `BusinessSettings` es **una sola fila** (`id = "default"`): pasa a multi-local, con horarios, precios y órdenes por local | Alto (migración + operación) |
-| **Delivery** (dirección, zonas, tarifa) | Módulo fuera del MVP, con APIs públicas retiradas a propósito | Alto |
-| **Reseñas** (⭐ 4.9, 480+) | Modelo nuevo + moderación + pantalla | Medio |
-| **Promos** (B2G1) | Motor de promos (hoy solo hay `Coupon` de % o monto fijo) | Medio |
-| **Favoritos** ❤️ | Requiere **cuenta de cliente**: el OTP no tiene proveedor real (503 en producción) | Alto (depende del login) |
-| **Método de pago** (efectivo/tarjeta) | `Order` **no tiene** campo de método de pago | Bajo si se aprueba: migración + campo informativo |
-| **Vuelto** ("pagaré con / cambio") | Dato no autoritativo para la cocina | Bajo, pero **recomiendo no** |
-| **PIN de retiro** | Hoy hay `orderNumber` + `orderLookupToken`; un PIN corto es una columna nueva | Bajo/medio |
-| **Propina "para el repartidor" premarcada** | Contradice `AGENTS.md` (opt-in desmarcada) y el invariante del servidor | **No entra** |
+| # | Cosa del mock | Qué implica | Costo |
+|---|---|---|---|
+| **T8** | **Multi-sucursal** (la más grande) | `BusinessSettings` es **una sola fila** (`id = "default"`): pasa a multi-local, con horario, datos de contacto y órdenes por local, más el selector en el checkout y el admin eligiendo local | **Alto** (migración + admin + operación) |
+| **T9** | **Promos** (B2G1) | Motor de promos: hoy solo hay `Coupon` de % o monto fijo, no combos 2x1 | Medio |
+| **T10** | **Favoritos** ❤️ | ⚠️ **Depende del login de cliente real**: favoritos sin cuenta no existen, y el OTP no tiene proveedor (503 en producción). Antes de T10 hay que decidir el proveedor de WhatsApp | **Alto** (bloqueado por el login) |
+| **T11** | **Método de pago** (efectivo/tarjeta) | `Order` **no tiene** el campo: migración + campo informativo en checkout y ticket | Bajo |
+| **T12** | **Vuelto** ("pagaré con / cambio") | Campo para el monto con el que paga el cliente y cálculo del cambio; sirve en caja, no en cocina | Bajo |
+| **T13** | **PIN de retiro** | Hoy hay `orderNumber` + `orderLookupToken`; el PIN corto es una columna nueva y se dicta en caja | Bajo/medio |
+
+> **Orden y dependencias:** T11-T13 son migraciones chicas e independientes; T8 toca el modelo entero y
+> conviene decidirla con la operación delante (¿el menú y los precios también por local?); T10 está
+> bloqueada hasta que exista login de cliente.
+
+## 5.1 Lo que queda fuera (decidido)
+
+- **Reseñas** (⭐ 4.9): fuera por decisión del owner (requiere modelo, moderación y pantalla).
+- **Delivery**: fuera; el MVP es solo retiro y `AGENTS.md` prohíbe reactivarlo sin pedido explícito.
+- **Propina "para el repartidor" premarcada**: no entra (contradice `AGENTS.md`).
 
 ## 6. Lo que no entra ni con OK
 
@@ -169,13 +180,13 @@ alcance del MVP (`AGENTS.md`):
 - **Textos de otro negocio** (Casa Antigua, sucursales, "repartidor") y **precios/datos** hardcodeados.
 - **Los defectos que no se arrastran** de `ops/audit-checkout-mock.md` §6 (18 puntos con evidencia).
 
-## 7. Decisiones
+## 7. Decisiones · **resueltas el 2026-09-12**
 
-| # | Decisión | Opciones |
+| # | Decisión | Resolución |
 |---|---|---|
-| **D-A** | **Tipografía.** El mock usa una sola familia (Plus Jakarta Sans, 5 pesos). Hoy el build autoaloja Fraunces + Inter (2 pesos cada una) y el owner las elige en `/admin/settings` | **a)** Agregar Plus Jakarta Sans como **tercera opción** de `FONT_CHOICES` (no reemplaza nada; +5 archivos al build) · **b)** Copiar solo la **escala y jerarquía** sobre nuestras fuentes (cero archivos nuevos) · c) Reemplazar las fuentes actuales (pierde el branding configurable) |
-| **D-B** | **Ola 2** | **a)** Solo ola 1 por ahora y la ola 2 se decide de a una · **b)** Ola 2 completa (meses, migraciones, operación) · c) Ola 2 por partes, empezando por lo barato (método de pago, PIN) |
-| **D-C** | **Orden**: interpreto "mantener el orden" como (1) el orden visual del mock dentro de cada pantalla y (2) las tareas en el orden del mock (home → menú → producto → carrito/checkout → confirmación → seguimiento/historial) | Confirmar o corregir (p. ej. empezar por el checkout, que es donde se cierra la venta) |
+| **D-A** | **Tipografía** | **Plus Jakarta Sans como tercera opción** de `FONT_CHOICES` (no reemplaza a Fraunces ni a Inter: el owner sigue eligiendo). Se implementa en T1.2 |
+| **D-B** | **Ola 2** | **Completa, sin reseñas y sin delivery** (§5, tareas T8-T13). ⚠️ **Favoritos (T10) queda bloqueado** hasta que exista login de cliente real: el OTP responde 503 en producción |
+| **D-C** | **Orden** | Confirmado: **tokens primero** y después las pantallas en el orden del mock (T2 → T7) |
 
 ## 8. Cómo se verifica
 

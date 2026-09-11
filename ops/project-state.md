@@ -668,6 +668,24 @@ queda absorbida como la tarea T5. Falta tu decisión sobre la tipografía (D-A),
 (segunda sucursal, delivery, reseñas, promos, favoritos, método de pago, vuelto, PIN) y confirmar el
 orden (D-C).
 
+### Adopción del mock · T1.1: la paleta del mock como preset (2026-09-12)
+
+Primer incremento del programa (`ops/tasks/TASK-mock-adoption.md`, ola 1, T1.1), con TDD: primero el
+test que falla, después el preset.
+
+- **Test rojo**: `color-contrast.test.ts` → "incluye la paleta del mock completo, con sus colores
+  reales". Falló como debía (`falta el preset con la paleta del mock: expected undefined to be
+  defined`) antes de tocar `color-presets.ts`.
+- **Verde**: el preset `pimienta` ("Pimienta") con los **colores reales del mock medido**: primario
+  `#d32f2f` (el rojo del CTA), lienzo `#faf1d6` (la crema), tarjeta `#fffdf9`, tinta `#1f1916` y
+  acento `#efe2c5`. No hubo que corregir ningún tono: **la paleta del mock pasa el control de
+  contraste de nuestro sistema** (el texto del botón da 4,75:1 y el texto sobre el lienzo 15,4:1),
+  cosa que sus propias pantallas no logran porque usan blanco de 12 px sobre naranja (3,59:1).
+- **Sin datos hardcodeados**: es un preset más; el owner lo aplica desde `/admin/settings` y puede
+  cambiar cualquier color. El default del sitio no cambia.
+- Pendiente dentro de T1: **T1.2** (Plus Jakarta Sans como tercera tipografía, decisión D-A) y
+  **T1.3** (escala tipográfica, radios y sombras del mock mapeados a tokens de `globals.css`).
+
 ## 3. Infraestructura y secretos
 
 - `EASYPANEL_URL` y `EASYPANEL_TOKEN`: solo en el entorno de quien ejecuta el deploy (nunca
@@ -694,7 +712,7 @@ orden (D-C).
 | 8 | **Checkout sin redundancias** (textos y botones repetidos) | **Cerrada y desplegada** | `ops/tasks/TASK-checkout-ux.md`. Cuatro commits (`2832a93`…`aba4156`), en producción como `build-20260911-145656`. El checkout pasó de 807 a 476 líneas, un solo resumen compartido con el carrito, un solo CTA visible por viewport y los turnos de retiro calculados desde la configuración. |
 | 9 | **Validar el estado operativo en el servidor** | **Cerrada y desplegada** | Commits `3a67c37` y `ca474c8`, en producción como `build-20260911-154014`. `isAcceptingOrders` ya corta pedidos de verdad (antes no lo leía nadie) y la hora de retiro se valida contra el horario del día. Incluye el horario demo del seed y el límite de login del arnés E2E. |
 | 10 | **Retiro opcional y programable + la hora visible en toda la cadena** | **Cerrada y desplegada** | Commits `6f85a3c`, `c101f82`, `b207593` y `abc2183`, en producción como `build-20260911-191047`. Incluye **una migración** (`pickupScheduled`). El retiro es opcional, la hora la resuelve el servidor, el ticket de cocina y el admin la muestran, y el semáforo va contra la hora prometida. Ver el detalle arriba. |
-| 11 | **Adopción del mock completo (rediseño de la UI pública)** | **Plan propuesto · pendiente D-A/D-B/D-C** | [`ops/tasks/TASK-mock-adoption.md`](tasks/TASK-mock-adoption.md). El owner pidió copiar del mock **el orden, los colores y todos los botones**, con la regla de que lo que no tenga API **se valore para implementar y no quede solo como texto**. El plan lo traduce a: **ningún control decorativo** (implementado + test, o eliminado con motivo), **paleta como preset** que tiene que pasar el test de contraste (el mock tiene 45 fallos medidos), **TDD por tarea** y verificación a 375 px **y 1280 px** (el mock no tiene escritorio). **Ola 1 (7 tareas, con las APIs de hoy)**: T1 tokens · T2 home · T3 menú · T4 producto · T5 carrito+checkout (absorbe `TASK-checkout-v2`) · T6 confirmación · T7 seguimiento e historial. **Ola 2 (requiere contrato nuevo y tu OK)**: segunda sucursal (hoy `BusinessSettings` es una sola fila), delivery, reseñas, promos, favoritos (necesitan cuenta de cliente), método de pago, vuelto y PIN de retiro. Auditar el mock está cerrado: [`ops/audit-checkout-mock.md`](audit-checkout-mock.md). |
+| 11 | **Adopción del mock completo (rediseño de la UI pública)** | **En ejecución · ola 1, T1.1 cerrada** | [`ops/tasks/TASK-mock-adoption.md`](tasks/TASK-mock-adoption.md). Plan **aprobado** el 2026-09-12 (D-A tipografía: Plus Jakarta Sans como tercera opción · D-B ola 2 completa **sin reseñas ni delivery** · D-C orden: tokens primero y después las pantallas en el orden del mock). **Reglas del programa**: ningún control decorativo (implementado con API/estado y test, o eliminado con motivo), nada hardcodeado, la paleta como preset que pasa el test de contraste, TDD por tarea, y verificación a 375 px **y 1280 px** (el mock no tiene escritorio). **Ola 1**: T1 tokens (T1.1 paleta ✅, T1.2 tipografía, T1.3 escala/radios/sombras) · T2 home · T3 menú · T4 producto · T5 carrito+checkout (absorbe `TASK-checkout-v2`) · T6 confirmación · T7 seguimiento e historial. **Ola 2** (aprobada): T8 multi-sucursal, T9 promos, T10 favoritos (**bloqueada**: necesita login de cliente real; el OTP da 503), T11 método de pago, T12 vuelto, T13 PIN de retiro. Evidencia del mock: [`ops/audit-checkout-mock.md`](audit-checkout-mock.md). |
 
 ## 5. Cómo continuar
 

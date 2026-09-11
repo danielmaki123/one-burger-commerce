@@ -28,6 +28,21 @@ export const COLOR_PRESETS: ColorPreset[] = [
     },
   },
   {
+    id: "pimienta",
+    label: "Pimienta",
+    description: "El esquema del mock: rojo pimienta sobre crema cálida.",
+    // Colores tomados del mock medido (`ops/audit-checkout-mock.md`): el rojo del CTA, la
+    // crema del lienzo, la tarjeta, la tinta y el acento. Son los valores reales, sin
+    // corregir: el test de contraste comprueba que igual cumplen AA.
+    colors: {
+      primaryColor: "#d32f2f",
+      accentColor: "#efe2c5",
+      backgroundColor: "#faf1d6",
+      foregroundColor: "#1f1916",
+      surfaceColor: "#fffdf9",
+    },
+  },
+  {
     id: "brasa",
     label: "Brasa",
     description: "Rojo de parrilla sobre lienzo cálido.",
