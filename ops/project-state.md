@@ -470,6 +470,63 @@ Desplegado `1aa7ce9` como `build-20260911-145656` con `deployService` sobre el s
 existente. El panel tarda ~3 minutos y el `inspectService` marca el commit destino antes de
 que el build termine, así que la confirmación real es el `version` de `/api/health`.
 
+### El servidor ahora valida el estado operativo (2026-09-11)
+
+Commit `3a67c37`. **Falta desplegar.**
+
+El hallazgo no era el que yo había anotado como pendiente #9. Revisando el camino del
+pedido encontré que **`isAcceptingOrders` no lo leía nadie**: existe en el schema, en el
+zod, en el repositorio y en `/admin/settings` (hay un toggle "Aceptando pedidos"), pero
+ningún caso de uso ni API lo consultaba. El owner podía apagarlo y los pedidos seguían
+entrando exactamente igual: un control que le mentía.
+
+El segundo agujero, más chico: la hora de retiro se aceptaba con solo ser una fecha
+parseable, así que un POST con las 04:00 de un local que abre a las 12:00 se guardaba.
+
+`business-settings/domain/order-acceptance.ts` es ahora la única fuente de verdad de "se
+puede tomar este pedido", con tres motivos y mensajes en español:
+
+| Motivo | Cuándo |
+|---|---|
+| `not-accepting-orders` | El negocio apagó "Aceptando pedidos" |
+| `closed` | La hora de retiro cae fuera del horario de **ese día** |
+| `pickup-time-in-past` | La hora de retiro ya pasó |
+
+- El horario que manda es el del **día del retiro**, no el de hoy: se puede pedir para el
+  sábado a las 13:00 aunque hoy sea viernes a las 23:00 y el sábado abra más tarde.
+- Sin hora de retiro se evalúa "lo antes posible" (ahora + preparación), así que omitirla
+  no es una forma de saltear el horario.
+- Un horario incoherente (o que cruza la medianoche) cierra el local: mejor rechazar de
+  más que aceptar un pedido a cualquier hora.
+- El mensaje sale de `closedMessage`, el texto que el owner ya configura en el admin.
+- La API responde **409** con `fields.acceptance` para que el checkout distinga un rechazo
+  operativo de un error de datos y muestre el texto del servidor.
+- **Antes de abrir no bloquea**: a las 03:00 se puede pedir para la hora de apertura. Lo que
+  bloquea es que ya no quede ningún turno posible hoy.
+
+El checkout aplica la misma decisión: si el negocio no acepta pedidos o ya no quedan turnos
+hoy, el CTA queda deshabilitado y el motivo se muestra una sola vez, en vez de ofrecer un
+botón que va a fallar. Es un bloqueo distinto al de "faltan datos": acá el cliente no puede
+hacer nada para destrabarlo.
+
+**Dos arreglos de arnés que salieron de esto:**
+
+- Los tests de la ruta y de la página ahora **fijan el reloj** (viernes 19:00 en Managua).
+  Sin eso, el estado operativo los hacía pasar o fallar según la hora a la que se corrieran.
+- El **seed local abre de 00:00 a 23:59** (solo local/demo, nunca corre en producción) y
+  refresca el horario al re-sembrar, porque el `update: {}` del upsert lo preservaba y una
+  base ya sembrada conservaba el horario real.
+- Se descubrió que la suite E2E completa **se pisaba consigo misma**: cada corrida entra al
+  admin ~8 veces y el límite de producción (10/min por IP) hacía fallar el test del manager
+  al correr la suite dos veces seguidas. El server local y `playwright.config.ts` ahora
+  usan `ADMIN_LOGIN_RATE_LIMIT=200`. Verificado con dos corridas consecutivas: 26 pasaron,
+  7 salteados, 0 fallos.
+
+Verificado: 1018 unitarios (34 nuevos), lint, typecheck, build y `security:secrets` en
+verde; E2E completo 26/7/0, incluido el camino bloqueado de punta a punta (el owner apaga
+"Aceptando pedidos" en el admin → el checkout deshabilita el botón → al reactivarlo vuelve
+a andar).
+
 ## 3. Infraestructura y secretos
 
 - `EASYPANEL_URL` y `EASYPANEL_TOKEN`: solo en el entorno de quien ejecuta el deploy (nunca
@@ -494,7 +551,7 @@ que el build termine, así que la confirmación real es el `version` de `/api/he
 | 6 | **Cerrar puertos innecesarios** de otros servicios del servidor (`capostgres` 5455, `postimage` 8585) | Daniel | No es de One Burger, pero están expuestos a internet. |
 | 7 | **Personalización / quitar hardcodeo** (nombre, colores, logo, contacto, horarios, dirección) | **Cerrada (fases 1-4 y 6)** | Aprobada el 2026-09-10; brief en `ops/tasks/TASK-whitelabel-branding.md`. Sitio público, `/admin/settings`, apariencia con presets y contrato anti-hardcode, todo en `main` con CI verde. La **fase 5 (subida de logos)** se descartó: necesita un volumen persistente en Easypanel. Quedó **una excepción**: los turnos de retiro siguen hardcodeados y se trasladaron a la tarea #8. |
 | 8 | **Checkout sin redundancias** (textos y botones repetidos) | **Cerrada y desplegada** | `ops/tasks/TASK-checkout-ux.md`. Cuatro commits (`2832a93`…`aba4156`), en producción como `build-20260911-145656`. El checkout pasó de 807 a 476 líneas, un solo resumen compartido con el carrito, un solo CTA visible por viewport y los turnos de retiro calculados desde la configuración. |
-| 9 | **Validar la hora de retiro en el servidor** | Agente | Hueco abierto: `create-order.ts` acepta cualquier fecha parseable. Si alguien manda las 04:00, la API lo acepta. El checkout tampoco bloquea pedidos con el local cerrado (a propósito, para no cambiar el comportamiento sin decidirlo). Es la continuación natural de la tarea #8. |
+| 9 | **Validar el estado operativo en el servidor** | **Cerrada, sin desplegar** | Commit `3a67c37`. `isAcceptingOrders` ya corta pedidos de verdad (antes no lo leía nadie) y la hora de retiro se valida contra el horario del día. Incluye el horario demo del seed y el límite de login del arnés E2E. |
 
 ## 5. Cómo continuar
 
@@ -510,7 +567,10 @@ docker compose up -d
 DATABASE_URL="postgresql://postgres:postgres@127.0.0.1:5432/oneburger?schema=public" npx prisma migrate deploy
 DATABASE_URL="postgresql://postgres:postgres@127.0.0.1:5432/oneburger?schema=public" npx tsx prisma/seed.ts
 # (ojo: el puerto 3000 de esta máquina lo ocupa un servicio VPN; usar 3210)
-DATABASE_URL="..." APP_ENV=production NODE_ENV=production npx next start -p 3210
+# ADMIN_LOGIN_RATE_LIMIT alto: la suite entra al admin muchas veces y con el límite de
+# producción (10/min por IP) dos corridas seguidas se pisan y el test del manager falla
+# por rate limit en vez de por permisos.
+DATABASE_URL="..." APP_ENV=production NODE_ENV=production ADMIN_LOGIN_RATE_LIMIT=200 npx next start -p 3210
 BASE_URL=http://127.0.0.1:3210 E2E_ALLOW_MUTATIONS=true npm run test:e2e:prod:full
 
 # 4. Deploy — ⚠️ NO usar `npm run deploy:easypanel`: fusiona variables y puede crear

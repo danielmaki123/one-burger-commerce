@@ -40,6 +40,10 @@ export default defineConfig({
           DATABASE_URL: localDatabaseUrl,
           NODE_ENV: process.env.NODE_ENV ?? "development",
           NOTIFICATIONS_DRIVER: process.env.NOTIFICATIONS_DRIVER ?? "dummy",
+          // La suite entra al admin varias veces por corrida; con el límite de
+          // producción (10/min por IP) dos corridas seguidas se pisan y el test del
+          // manager falla por rate limit, no por permisos.
+          ADMIN_LOGIN_RATE_LIMIT: process.env.ADMIN_LOGIN_RATE_LIMIT ?? "200",
           PORT: port,
         },
         url: baseURL,

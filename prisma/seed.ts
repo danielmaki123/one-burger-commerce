@@ -43,6 +43,15 @@ async function main() {
     },
   });
 
+  // El `update: {}` de arriba preserva a propósito lo que el owner haya configurado,
+  // pero el horario demo tiene que aplicarse también al re-sembrar: si no, una base
+  // ya sembrada conserva el horario real y los E2E de pedido vuelven a depender de la
+  // hora a la que se corran.
+  await prisma.businessSettings.update({
+    where: { id: DEFAULT_BUSINESS_SETTINGS.id },
+    data: { businessHours: demoHours },
+  });
+
   // Categories
   const tacos = await prisma.category.upsert({
     where: { slug: "tacos" },

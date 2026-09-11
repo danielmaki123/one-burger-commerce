@@ -1,6 +1,6 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
-import { addSeedProductToCart, mutationsAllowed } from "./helpers";
+import { addSeedProductToCart, loginAsOwner, mutationsAllowed } from "./helpers";
 
 /**
  * Contrato del checkout tras TASK-checkout-ux: cada cosa una sola vez y un solo CTA
@@ -52,6 +52,42 @@ test.describe("checkout sin redundancias", () => {
 
     await expect(page.getByText("Falta completar nombre.")).toHaveCount(1);
     await expect(page.locator('input[name="customerName"]')).toBeFocused();
+  });
+
+  test("el negocio cerrado bloquea el pedido de verdad, no solo en el texto", async ({
+    page,
+  }) => {
+    await openCheckoutWithOneProduct(page);
+    await expect(confirmButton(page)).toBeEnabled();
+
+    await loginAsOwner(page);
+    await page.goto("/admin/settings");
+    const accepting = page.getByRole("checkbox", { name: "Aceptando pedidos" });
+    // El input está estilizado con `appearance-none` y un SVG lo tapa, así que
+    // Playwright no puede clickearlo directo: se clickea la etiqueta, que lo alterna.
+    const acceptingLabel = page.getByText("Aceptando pedidos", { exact: true });
+    await expect(accepting).toBeChecked();
+
+    try {
+      await acceptingLabel.click();
+      await expect(accepting).not.toBeChecked();
+      await page.getByRole("button", { name: "Guardar cambios" }).click();
+      await expect(page.getByText("Cambios guardados ✓")).toBeVisible();
+
+      await page.goto("/checkout");
+      await expect(confirmButton(page)).toBeDisabled();
+      await expect(page.getByRole("status")).toBeVisible();
+      await expect(page.getByRole("button", { name: /^Lo antes posible/ })).toHaveCount(0);
+    } finally {
+      await page.goto("/admin/settings");
+      await page.getByText("Aceptando pedidos", { exact: true }).click();
+      await page.getByRole("button", { name: "Guardar cambios" }).click();
+      await expect(page.getByText("Cambios guardados ✓")).toBeVisible();
+    }
+
+    // Y al reactivarlo, se puede volver a pedir.
+    await page.goto("/checkout");
+    await expect(confirmButton(page)).toBeEnabled();
   });
 
   test("creates a pickup order from checkout", async ({ page }) => {
