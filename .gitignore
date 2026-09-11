@@ -60,3 +60,9 @@ skills-lock.json
 /one burger/
 # Export crudo de los 120 frames (11.5 MB): el landing usa 37.
 /public/burger-scroll-frames/
+
+# Mock de referencia del programa de UI (TASK-mock-adoption): es material de
+# trabajo, no fuente de verdad. Se mide con scripts/audit-checkout-mock*.mjs y lo
+# adoptado queda documentado en ops/audit-checkout-mock.md.
+/mockup/
+/stitch_full_pwa_builder/
