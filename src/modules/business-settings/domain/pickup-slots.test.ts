@@ -7,6 +7,7 @@ import {
   formatSlotLabel,
   MAX_PICKUP_SLOTS,
   PICKUP_SLOT_MINUTES,
+  soonestPickupTime,
 } from "./pickup-slots";
 
 /** `-06:00` es la zona de Managua, que no tiene horario de verano. */
@@ -176,5 +177,48 @@ describe("formatSlotLabel", () => {
     expect(formatSlotLabel("12:00")).toBe("12:00 p. m.");
     expect(formatSlotLabel("00:30")).toBe("12:30 a. m.");
     expect(formatSlotLabel("13:00")).toBe("1:00 p. m.");
+  });
+});
+
+describe("soonestPickupTime", () => {
+  it("suma el tiempo de preparación y redondea hacia arriba", () => {
+    expect(
+      soonestPickupTime({
+        now: managuaAt("19:10"),
+        timezone: "America/Managua",
+        pickupLeadMinutes: 25,
+      }),
+    ).toBe("19:35");
+  });
+
+  it("redondea al siguiente múltiplo del paso", () => {
+    expect(
+      soonestPickupTime({
+        now: managuaAt("19:11"),
+        timezone: "America/Managua",
+        pickupLeadMinutes: 25,
+        stepMinutes: 10,
+      }),
+    ).toBe("19:40");
+  });
+
+  it("sin tiempo de preparación devuelve la hora actual redondeada", () => {
+    expect(
+      soonestPickupTime({
+        now: managuaAt("19:11"),
+        timezone: "America/Managua",
+        pickupLeadMinutes: 0,
+      }),
+    ).toBe("19:15");
+  });
+
+  it("nunca se pasa de la medianoche", () => {
+    expect(
+      soonestPickupTime({
+        now: managuaAt("23:58"),
+        timezone: "America/Managua",
+        pickupLeadMinutes: 25,
+      }),
+    ).toBe("23:55");
   });
 });

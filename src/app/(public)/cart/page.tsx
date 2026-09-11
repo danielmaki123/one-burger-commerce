@@ -7,9 +7,9 @@ import { useCart } from "@/shared/lib/cart";
 import { Button } from "@/shared/ui/button";
 import { Card } from "@/shared/ui/card";
 
+import { EmptyCartState } from "../_components/empty-cart-state";
 import { formatItemCountLabel, OrderSummaryCard } from "../_components/order-summary-card";
 import { CartLineCard } from "./_components/cart-line-card";
-import { EmptyCartState } from "./_components/empty-cart-state";
 import { publicCartScaleClasses } from "./cart-scale-helpers";
 
 export default function CartPage() {

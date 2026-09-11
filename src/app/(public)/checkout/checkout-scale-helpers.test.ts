@@ -12,14 +12,19 @@ describe("checkout-scale-helpers", () => {
     expect(publicCheckoutScaleClasses.pageHeading).not.toContain("sm:text-4xl");
   });
 
-  it("keeps delivery type tabs and primary CTA tactile", () => {
-    expect(publicCheckoutScaleClasses.typeTab).toContain("min-h-14");
+  it("keeps the primary CTA tactile", () => {
     expect(publicCheckoutScaleClasses.primaryCta).toContain("h-14");
+  });
+
+  it("no disfraza el botón deshabilitado de habilitado", () => {
+    // Cambio de contrato (TASK-checkout-ux): el CTA solo se deshabilita mientras envía,
+    // así que no puede anular la señal visual de deshabilitado.
+    expect(publicCheckoutScaleClasses.primaryCta).not.toContain("disabled:opacity-100");
+    expect(publicCheckoutScaleClasses.primaryCta).not.toContain("disabled:bg-brand/55");
   });
 
   it("compacts checkout surfaces without touching the global layout width", () => {
     expect(publicCheckoutScaleClasses.formSection).toContain("rounded-[24px]");
-    expect(publicCheckoutScaleClasses.summaryCard).toContain("rounded-[24px]");
     expect(publicCheckoutScaleClasses.layoutShell).toContain("max-w-6xl");
   });
 

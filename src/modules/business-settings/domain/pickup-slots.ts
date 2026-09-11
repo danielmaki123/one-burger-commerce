@@ -87,6 +87,33 @@ export function formatSlotLabel(value: string): string {
   return `${hours12}:${String(rest).padStart(2, "0")} ${suffix}`;
 }
 
+/** Paso del respaldo "lo antes posible" cuando no hay turnos de la grilla del día. */
+export const SOONEST_PICKUP_STEP_MINUTES = 5;
+
+/**
+ * "Lo antes posible" cuando el local está cerrado o ya no quedan turnos del día.
+ *
+ * El checkout nunca bloquea un pedido por horario (eso es una decisión de producto
+ * aparte: ver `ops/tasks/TASK-checkout-ux.md` §7), así que necesita *alguna* hora
+ * válida que enviar. Se calcula, no se inventa: ahora + tiempo de preparación,
+ * redondeado hacia arriba.
+ */
+export function soonestPickupTime(input: {
+  now: Date;
+  timezone: string;
+  pickupLeadMinutes: number;
+  stepMinutes?: number;
+}): string {
+  const step = Math.max(1, Math.trunc(input.stepMinutes ?? SOONEST_PICKUP_STEP_MINUTES));
+  const minutes = minutesOfDayInTimeZone(input.now, input.timezone);
+  const target = minutes + Math.max(0, input.pickupLeadMinutes);
+  const rounded = Math.ceil(target / step) * step;
+  // Se recorta al último punto del día que cae en la grilla (23:55 con paso de 5).
+  const endOfDay = Math.floor((24 * 60 - 1) / step) * step;
+
+  return toTimeOfDay(Math.min(rounded, endOfDay));
+}
+
 export function buildPickupSlots(input: {
   businessHours: BusinessHours;
   timezone: string;
