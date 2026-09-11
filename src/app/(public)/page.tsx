@@ -13,10 +13,9 @@ import {
 } from "@/shared/lib/business-settings";
 import { formatCurrency } from "@/shared/lib/format-currency";
 import { getPublicStartingPrice } from "@/shared/lib/public-product-pricing";
+import { buildQuickAddCartItem, canQuickAddProduct } from "@/shared/lib/product-quick-add";
 import { getMenuSearchEmptyState } from "./menu/menu-page-helpers";
 import {
-  buildQuickAddCartItem,
-  canQuickAddProduct,
   flattenHomeProducts,
   getHomeBrandNameClassName,
   getHomeHeroFrameClassName,

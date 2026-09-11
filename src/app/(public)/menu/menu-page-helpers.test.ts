@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  getCategoryThumbnailUrl,
   getMenuProductActionCopy,
   getMenuHeaderCountLabel,
   getInitialCategoryId,
@@ -12,6 +13,39 @@ import {
   shouldShowSubcategoryHeading,
   shouldShowSubcategoryNav,
 } from "./menu-page-helpers";
+
+describe("miniatura de categoría (T3)", () => {
+  const available = (url: string) => ({
+    images: [{ url }],
+    availability: { isAvailable: true, isActive: true },
+  });
+
+  it("usa la primera foto de un producto que se puede pedir", () => {
+    // El mock muestra una foto por categoría; acá sale del menú, sin campo nuevo.
+    expect(
+      getCategoryThumbnailUrl({
+        products: [{ images: [], availability: { isAvailable: true, isActive: true } }],
+        subcategories: [{ products: [available("/taco.jpg")] }],
+      }),
+    ).toBe("/taco.jpg");
+  });
+
+  it("se saltea los productos agotados o inactivos", () => {
+    expect(
+      getCategoryThumbnailUrl({
+        products: [
+          { images: [{ url: "/agotado.jpg" }], availability: { isAvailable: false, isActive: true } },
+          { images: [{ url: "/inactivo.jpg" }], availability: { isAvailable: true, isActive: false } },
+        ],
+      }),
+    ).toBeNull();
+  });
+
+  it("sin fotos devuelve null: la categoría se muestra solo con su nombre", () => {
+    expect(getCategoryThumbnailUrl({ products: [available("")] })).toBeNull();
+    expect(getCategoryThumbnailUrl({})).toBeNull();
+  });
+});
 
 describe("menu-page-helpers", () => {
   const categories = [

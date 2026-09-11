@@ -3,8 +3,6 @@ import { describe, expect, it } from "vitest";
 import type { BusinessHours } from "@/modules/business-settings/domain/business-settings.types";
 
 import {
-  buildQuickAddCartItem,
-  canQuickAddProduct,
   flattenHomeProducts,
   getHomeBrandNameClassName,
   getHomeHeroFrameClassName,
@@ -242,78 +240,5 @@ describe("productos de la home (T2)", () => {
     expect(searchHomeProducts(flattened, "achiote").map((item) => item.id)).toEqual(["p2"]);
     expect(searchHomeProducts(flattened, "   ")).toEqual([]);
     expect(searchHomeProducts(flattened, "sushi")).toEqual([]);
-  });
-});
-
-describe("agregar al carrito desde la home (T2)", () => {
-  it("se agrega directo cuando el producto no obliga a elegir nada", () => {
-    expect(canQuickAddProduct({ modifierGroups: [] })).toBe(true);
-    expect(canQuickAddProduct({})).toBe(true);
-    expect(
-      canQuickAddProduct({
-        modifierGroups: [
-          {
-            isRequired: false,
-            minSelections: 0,
-            options: [{ priceDelta: 5, isActive: true }],
-          },
-        ],
-      }),
-    ).toBe(true);
-  });
-
-  it("no se agrega directo cuando hay que elegir", () => {
-    expect(
-      canQuickAddProduct({
-        modifierGroups: [
-          { isRequired: true, minSelections: 0, options: [{ isActive: true }] },
-        ],
-      }),
-    ).toBe(false);
-    expect(
-      canQuickAddProduct({
-        modifierGroups: [
-          { isRequired: false, minSelections: 1, options: [{ isActive: true }] },
-        ],
-      }),
-    ).toBe(false);
-  });
-
-  it("un grupo obligatorio sin opciones activas no bloquea: no habría nada que elegir", () => {
-    expect(
-      canQuickAddProduct({
-        modifierGroups: [
-          { isRequired: true, minSelections: 1, options: [{ isActive: false }] },
-        ],
-      }),
-    ).toBe(true);
-  });
-
-  it("arma la línea del carrito con el precio y el empaque del producto", () => {
-    expect(
-      buildQuickAddCartItem({
-        id: "p1",
-        name: "Taco de Birria",
-        description: null,
-        basePrice: 35,
-        packagingFeeAmount: 5,
-        images: [{ url: "/taco.jpg", alt: "Taco", isPrimary: true }],
-        availability: { isAvailable: true, isActive: true },
-        categoryName: "Tacos",
-        categorySlug: "tacos",
-      }),
-    ).toEqual({
-      productId: "p1",
-      productName: "Taco de Birria",
-      imageUrl: "/taco.jpg",
-      imageAlt: "Taco",
-      quantity: 1,
-      unitPrice: 35,
-      packagingUnitAmount: 5,
-      packagingTotalAmount: 5,
-      modifierOptionIds: [],
-      modifiers: [],
-      lineTotal: 40,
-    });
   });
 });

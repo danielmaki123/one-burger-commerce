@@ -63,6 +63,41 @@ export function hasActiveMarketingBlocks(
   return Array.isArray(blocks) && blocks.length > 0;
 }
 
+type ThumbnailProduct = {
+  images?: { url: string }[] | null;
+  availability?: { isAvailable: boolean; isActive: boolean } | null;
+};
+
+type ThumbnailCategory = {
+  products?: ThumbnailProduct[] | null;
+  subcategories?: { products?: ThumbnailProduct[] | null }[] | null;
+};
+
+/**
+ * Foto de la categoría para el riel (T3).
+ *
+ * El mock le pone una imagen a cada categoría; en nuestro modelo la categoría no
+ * tiene foto propia, así que se usa la del primer producto que se puede pedir. Si
+ * no hay ninguna, el riel muestra solo el nombre: no se inventa un espacio vacío.
+ */
+export function getCategoryThumbnailUrl(category: ThumbnailCategory): string | null {
+  const products = [
+    ...(category.products ?? []),
+    ...(category.subcategories ?? []).flatMap((subcategory) => subcategory.products ?? []),
+  ];
+
+  for (const product of products) {
+    if (product.availability && !(product.availability.isActive && product.availability.isAvailable)) {
+      continue;
+    }
+
+    const url = product.images?.[0]?.url;
+    if (url) return url;
+  }
+
+  return null;
+}
+
 export function getMenuProductActionCopy(product: ProductCardCopyLike) {
   return {
     symbol: "+",

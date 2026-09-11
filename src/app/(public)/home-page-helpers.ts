@@ -1,7 +1,6 @@
 import { formatTodayHours } from "@/modules/business-settings/domain/business-hours-format";
 import type { BusinessHours } from "@/modules/business-settings/domain/business-settings.types";
 import { resolveOrderAcceptance } from "@/modules/business-settings/domain/order-acceptance";
-import type { CartItem } from "@/shared/lib/cart";
 import { normalizeSearchText } from "@/shared/lib/normalize-search-text";
 
 export function getHomePageShellClassName() {
@@ -179,49 +178,4 @@ export function searchHomeProducts(
   return products.filter((product) =>
     normalizeSearchText(`${product.name} ${product.description ?? ""}`).includes(query),
   );
-}
-
-/**
- * ¿Se puede agregar este producto al carrito sin abrir su pantalla?
- *
- * Solo si no hay nada que elegir. El mock tiene un "+" de 24 px que no hace
- * nada; acá el "+" agrega de verdad cuando el producto no tiene opciones
- * obligatorias, y cuando sí las tiene la tarjeta lleva a elegirlas. Un grupo
- * obligatorio sin opciones activas no cuenta: no habría nada que elegir.
- */
-export function canQuickAddProduct(
-  product: Pick<HomeProduct, "modifierGroups">,
-): boolean {
-  return !(product.modifierGroups ?? []).some((group) => {
-    const activeOptions = (group.options ?? []).filter(
-      (option) => option.isActive !== false,
-    );
-    if (activeOptions.length === 0) return false;
-
-    return Boolean(group.isRequired) || (group.minSelections ?? 0) > 0;
-  });
-}
-
-/** Línea del carrito para el agregado rápido: sin modificadores y con el empaque del producto. */
-export function buildQuickAddCartItem(
-  product: HomeProductCardData,
-  quantity = 1,
-): CartItem {
-  const packagingUnitAmount = product.packagingFeeAmount ?? 0;
-  const primaryImage = product.images?.find((image) => image.isPrimary) ?? product.images?.[0];
-  const unitPrice = product.basePrice;
-
-  return {
-    productId: product.id,
-    productName: product.name,
-    imageUrl: primaryImage?.url,
-    imageAlt: primaryImage?.alt ?? product.name,
-    quantity,
-    unitPrice,
-    packagingUnitAmount,
-    packagingTotalAmount: packagingUnitAmount * quantity,
-    modifierOptionIds: [],
-    modifiers: [],
-    lineTotal: unitPrice * quantity + packagingUnitAmount * quantity,
-  };
 }

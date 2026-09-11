@@ -795,6 +795,37 @@ tarjeta, sin copiar lo que no funciona ni lo que no existe.
   modelo ni cuenta), y la barra inferior flotante del mock se reemplaza por la navegación que el sitio
   ya tiene en el layout público.
 
+### Adopción del mock · T3: el menú, con el "+" que agrega de verdad (2026-09-12)
+
+Segunda pantalla de la ola 1. La estructura del menú ya seguía el orden del mock (buscador → riel de
+categorías → grilla de 2 columnas → precio); lo que faltaba era que sus controles **hicieran** algo.
+
+- **Test rojo**: `menu-product-card.test.tsx` se reescribió como prueba de comportamiento (antes
+  afirmaba clases CSS) y falló como debía (`Unable to find an accessible element with the role
+  "button" and name "Agregar Taco de Birria al carrito"`). El helper del riel sumó 3 casos rojos en
+  `menu-page-helpers.test.ts` (`getCategoryThumbnailUrl is not a function`).
+- **El "+" ahora agrega**: el del mock mide **24×24 y no hace nada**; el nuestro mide 44 px, agrega al
+  carrito y se anuncia (`role="status"` → "Agregado al carrito", el aviso que el mock promete y nunca
+  muestra). Cuando el producto exige elegir opciones **no se dibuja un "+"**: la tarjeta entera lleva a
+  la pantalla del producto, así que no queda ningún control que mienta. La tarjeta usa **enlace
+  estirado**: un solo punto de tabulación y el botón por encima.
+- **El agregado rápido es compartido** (T2 lo estrenó en la home): `canQuickAddProduct` y
+  `buildQuickAddCartItem` viven en `src/shared/lib/product-quick-add.ts` con su propio test, y las dos
+  grillas usan lo mismo. Si se duplicaba, la home y el menú podían decidir distinto.
+- **El riel muestra la foto de la categoría** (como el mock). En nuestro modelo la categoría no tiene
+  foto, así que sale de su primer producto pedible; sin fotos, el chip queda solo con el nombre en vez
+  de mostrar un hueco.
+- **Lo que NO se adopta, con motivo**: el mock pinta cada tarjeta con un color por categoría
+  (`#3C882A`, `#4A2D1B`, `#C83E07`…) y le pone un rótulo fijo ("Top #1", "Favorito", "Guarnición").
+  Nuestras categorías no tienen color en el modelo y el copy es del negocio del mock: inventarlos sería
+  decoración sin dato. Si el owner los quiere, es un campo de categoría en el admin (queda anotado como
+  candidato, no como deuda escondida).
+- **Verificado en el camino real** (Postgres 17 local + `next start -p 3210` con el build nuevo):
+  **E2E completo 47 pasaron, 7 salteados, 0 fallos** (antes 42), con `tests/e2e/public-menu.spec.ts`
+  nuevo: a 375 px el "+" mide ≥44 px, agrega y el pedido aparece en `/cart`; el producto con opciones
+  obligatorias no tiene botón que agregue; el riel filtra; el buscador filtra y no hay scroll
+  horizontal. A **1280 px** las tarjetas se reparten en fila, con el mismo ancho y sin scroll.
+
 ## 3. Infraestructura y secretos
 
 - `EASYPANEL_URL` y `EASYPANEL_TOKEN`: solo en el entorno de quien ejecuta el deploy (nunca
@@ -821,7 +852,7 @@ tarjeta, sin copiar lo que no funciona ni lo que no existe.
 | 8 | **Checkout sin redundancias** (textos y botones repetidos) | **Cerrada y desplegada** | `ops/tasks/TASK-checkout-ux.md`. Cuatro commits (`2832a93`…`aba4156`), en producción como `build-20260911-145656`. El checkout pasó de 807 a 476 líneas, un solo resumen compartido con el carrito, un solo CTA visible por viewport y los turnos de retiro calculados desde la configuración. |
 | 9 | **Validar el estado operativo en el servidor** | **Cerrada y desplegada** | Commits `3a67c37` y `ca474c8`, en producción como `build-20260911-154014`. `isAcceptingOrders` ya corta pedidos de verdad (antes no lo leía nadie) y la hora de retiro se valida contra el horario del día. Incluye el horario demo del seed y el límite de login del arnés E2E. |
 | 10 | **Retiro opcional y programable + la hora visible en toda la cadena** | **Cerrada y desplegada** | Commits `6f85a3c`, `c101f82`, `b207593` y `abc2183`, en producción como `build-20260911-191047`. Incluye **una migración** (`pickupScheduled`). El retiro es opcional, la hora la resuelve el servidor, el ticket de cocina y el admin la muestran, y el semáforo va contra la hora prometida. Ver el detalle arriba. |
-| 11 | **Adopción del mock completo (rediseño de la UI pública)** | **En ejecución · ola 1: T1 (tokens) y T2 (home) cerradas** | [`ops/tasks/TASK-mock-adoption.md`](tasks/TASK-mock-adoption.md). Plan **aprobado** el 2026-09-12 (D-A tipografía: Plus Jakarta Sans como tercera opción · D-B ola 2 completa **sin reseñas ni delivery** · D-C orden: tokens primero y después las pantallas en el orden del mock). **Reglas del programa**: ningún control decorativo (implementado con API/estado y test, o eliminado con motivo), nada hardcodeado, la paleta como preset que pasa el test de contraste, TDD por tarea, y verificación a 375 px **y 1280 px** (el mock no tiene escritorio). **Ola 1**: T1 tokens **cerrada** (T1.1 paleta ✅, T1.3 escala/radios/sombras ✅, T1.2 Plus Jakarta Sans ✅) · T2 home **cerrada** ✅ · **sigue T3 menú** · T4 producto · T5 carrito+checkout (absorbe `TASK-checkout-v2`) · T6 confirmación · T7 seguimiento e historial. **Ola 2** (aprobada): T8 multi-sucursal, T9 promos, T10 favoritos (**bloqueada**: necesita login de cliente real; el OTP da 503), T11 método de pago, T12 vuelto, T13 PIN de retiro. Evidencia del mock: [`ops/audit-checkout-mock.md`](audit-checkout-mock.md). |
+| 11 | **Adopción del mock completo (rediseño de la UI pública)** | **En ejecución · ola 1: T1 (tokens), T2 (home) y T3 (menú) cerradas** | [`ops/tasks/TASK-mock-adoption.md`](tasks/TASK-mock-adoption.md). Plan **aprobado** el 2026-09-12 (D-A tipografía: Plus Jakarta Sans como tercera opción · D-B ola 2 completa **sin reseñas ni delivery** · D-C orden: tokens primero y después las pantallas en el orden del mock). **Reglas del programa**: ningún control decorativo (implementado con API/estado y test, o eliminado con motivo), nada hardcodeado, la paleta como preset que pasa el test de contraste, TDD por tarea, y verificación a 375 px **y 1280 px** (el mock no tiene escritorio). **Ola 1**: T1 tokens **cerrada** ✅ · T2 home **cerrada** ✅ · T3 menú **cerrada** ✅ · **sigue T4 producto** · T5 carrito+checkout (absorbe `TASK-checkout-v2`) · T6 confirmación · T7 seguimiento e historial. **Ola 2** (aprobada): T8 multi-sucursal, T9 promos, T10 favoritos (**bloqueada**: necesita login de cliente real; el OTP da 503), T11 método de pago, T12 vuelto, T13 PIN de retiro. Evidencia del mock: [`ops/audit-checkout-mock.md`](audit-checkout-mock.md). |
 
 ## 5. Cómo continuar
 

@@ -1,7 +1,7 @@
 # TASK: Adopción del mock completo (programa de UI)
 
-**Estado:** plan **aprobado** (D-A, D-B y D-C resueltas el 2026-09-12) · **en ejecución**: **T1 (tokens)
-y T2 (home) cerradas**; sigue **T3 (menú)** · **Fecha:** 2026-09-12 · **Origen:** pedido del owner sobre
+**Estado:** plan **aprobado** (D-A, D-B y D-C resueltas el 2026-09-12) · **en ejecución**: **T1 (tokens),
+T2 (home) y T3 (menú) cerradas**; sigue **T4 (producto)** · **Fecha:** 2026-09-12 · **Origen:** pedido del owner sobre
 `stitch_full_pwa_builder/` ("copiar los órdenes, los colores, todos; los botones que no tengamos API
 se valorarán para implementar y que no queden solo como texto; mantener el orden; TDD por fase, por
 tarea").
@@ -137,7 +137,7 @@ Una tarea por commit (o un commit por fase dentro de la tarea). **El orden es el
 | T1.2 | **Plus Jakarta Sans** como **tercera opción** de `/admin/settings` (decisión D-A) — **cerrada**: 400 y 700 en `src/app/fonts/plus-jakarta-sans-{regular,bold}.ttf`, `--font-jakarta`, y las dos listas fijas de dos que mandaban la tercera opción a Inter, corregidas | `business-settings.schema.test.ts` (acepta la fuente nueva) · `business-settings-style.test.ts` · `settings-client.test.tsx` | No |
 | T1.3 | Escala tipográfica, radios y sombras del mock mapeados a tokens de `globals.css` | `business-settings-style.test.ts` | No |
 | **T2** | **Home** (`/`): estado abierto, estimado de retiro, buscador que filtra, destacado, categorías, grilla de productos con "+" que agrega, e info del local con contacto — **cerrada**: el "+" del mock (24 px, muerto) es un botón real de 44 px cuando el producto no obliga a elegir; con opciones obligatorias la tarjeta lleva a elegirlas | `app/(public)/page.test.ts` · `home-page-helpers.test.ts` · `page.dom.test.tsx` | No |
-| **T3** | **Menú** (`/menu`): buscador que filtra, riel de categorías, grilla de 2 columnas, "+" de ≥44 px con aviso `aria-live` | `menu/page.test.tsx` | No |
+| **T3** | **Menú** (`/menu`): buscador que filtra, riel de categorías con foto, grilla de 2 columnas, "+" de ≥44 px con aviso `aria-live` — **cerrada**: el "+" agrega de verdad cuando el producto no obliga a elegir (compartido con la home en `src/shared/lib/product-quick-add.ts`); con opciones obligatorias no se dibuja y la tarjeta lleva a elegirlas. **No se adopta** el color por categoría ni los rótulos fijos del mock: no existen en el modelo (candidato a campo de categoría) | `menu/page.test.tsx` · `menu-product-card.test.tsx` · `menu-page-helpers.test.ts` | No |
 | **T4** | **Producto** (`/menu/[productId]`): cantidad, modificadores como tarjetas con delta, notas, CTA fijo con importe | `menu/[productId]/page.test.ts` | No |
 | **T5** | **Carrito + checkout** (absorbe `TASK-checkout-v2`): rango de preparación, dirección del local, resumen, edición por ítem, propina opt-in, nombre/WhatsApp, hora de retiro | `business-settings.schema.test.ts` → `pickupMaxMinutes`; después `pickup-slots.test.ts` → formato del rango | **Sí** (migración) |
 | **T6** | **Confirmación** (`/success`): código de retiro, rango estimado, resumen, enlaces a seguimiento y menú | `order-success-view.test.ts` | No |

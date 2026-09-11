@@ -4,6 +4,7 @@ import React, { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 import {
+  getCategoryThumbnailUrl,
   getMenuHeaderCountLabel,
   getMenuSearchEmptyState,
   getInitialCategoryId,
@@ -20,8 +21,11 @@ interface Product {
   name: string;
   description: string | null;
   basePrice: number;
+  packagingFeeAmount?: number | null;
   images: { url: string; alt: string | null }[];
+  availability?: { isAvailable: boolean; isActive: boolean } | null;
   modifierGroups?: {
+    isRequired?: boolean | null;
     minSelections?: number | null;
     options?: { priceDelta?: number | null; isActive?: boolean | null }[] | null;
   }[] | null;
@@ -186,6 +190,7 @@ function MenuPageContent() {
           <div className={publicMenuDensityClasses.categoryRail} aria-label="Categorías del menú">
             {categories.map((cat) => {
               const isActive = activeCategory === cat.id;
+              const thumbnail = getCategoryThumbnailUrl(cat);
 
               return (
                 <button
@@ -193,12 +198,21 @@ function MenuPageContent() {
                   type="button"
                   onClick={() => setActiveCategory(cat.id)}
                   aria-pressed={isActive}
-                  className={`${publicMenuDensityClasses.categoryChip} ${
+                  className={`${publicMenuDensityClasses.categoryChip} gap-2 ${
                     isActive
                       ? "border-brand bg-brand text-brand-foreground shadow-sm shadow-brand/25"
                       : "border-border bg-card/92 text-foreground hover:border-brand hover:text-brand"
                   }`}
                 >
+                  {/* El riel del mock lleva la foto de la categoría; si no hay, solo el nombre. */}
+                  {thumbnail ? (
+                    <img
+                      src={thumbnail}
+                      alt=""
+                      aria-hidden="true"
+                      className="h-7 w-7 shrink-0 rounded-full object-cover"
+                    />
+                  ) : null}
                   {cat.name}
                 </button>
               );

@@ -3,9 +3,11 @@
 import React, { useState } from "react";
 import Link from "next/link";
 
+import { useCart } from "@/shared/lib/cart";
 import { useCurrencyFormat } from "@/shared/lib/business-settings";
 import { formatCurrency } from "@/shared/lib/format-currency";
 import { getPublicStartingPrice } from "@/shared/lib/public-product-pricing";
+import { buildQuickAddCartItem, canQuickAddProduct } from "@/shared/lib/product-quick-add";
 import { Card, CardContent } from "@/shared/ui/card";
 import { getMenuProductActionCopy } from "./menu-page-helpers";
 
@@ -14,8 +16,10 @@ export interface PublicMenuProductCardData {
   name: string;
   description: string | null;
   basePrice: number;
+  packagingFeeAmount?: number | null;
   images: { url: string; alt: string | null }[];
   modifierGroups?: {
+    isRequired?: boolean | null;
     minSelections?: number | null;
     options?: { priceDelta?: number | null; isActive?: boolean | null }[] | null;
   }[] | null;
@@ -60,14 +64,31 @@ export function MenuProductCard({
   className?: string;
 }) {
   const [imageFailed, setImageFailed] = useState(false);
+  const [justAdded, setJustAdded] = useState(false);
   const currency = useCurrencyFormat();
+  const { addItem } = useCart();
   const hasPrimaryImage = Boolean(product.images?.[0]?.url) && !imageFailed;
   const actionCopy = getMenuProductActionCopy(product);
+  // El "+" del mock (24 px) no agregaba nada. Acá agrega de verdad cuando el
+  // producto no obliga a elegir; cuando sí, la tarjeta lleva a elegir.
+  const quickAdd = canQuickAddProduct(product);
+
+  function handleQuickAdd() {
+    addItem(buildQuickAddCartItem(product));
+    setJustAdded(true);
+  }
 
   return (
-    <Link href={`/menu/${product.id}`} aria-label={actionCopy.ariaLabel} className={`group block ${className}`}>
-      <Card className="overflow-hidden rounded-[20px] border-border bg-card shadow-[0_10px_24px_rgba(60,40,20,0.08)] transition duration-300 hover:-translate-y-0.5 hover:shadow-[0_16px_36px_rgba(60,40,20,0.14)]">
-        <div className="relative aspect-[1/1.04] overflow-hidden bg-cream">
+    <article className={`group relative block ${className}`}>
+      {/* Enlace estirado: la tarjeta entera lleva al producto, y el "+" queda por encima */}
+      <Link
+        href={`/menu/${product.id}`}
+        aria-label={actionCopy.ariaLabel}
+        className="absolute inset-0 z-0 rounded-[20px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+      />
+
+      <Card className="overflow-hidden rounded-[20px] border-border bg-card shadow-card transition duration-300 group-hover:-translate-y-0.5">
+        <div className="pointer-events-none relative aspect-[1/1.04] overflow-hidden bg-cream">
           {hasPrimaryImage ? (
             <img
               src={product.images[0].url}
@@ -80,29 +101,76 @@ export function MenuProductCard({
           )}
         </div>
 
-        <CardContent className="min-h-16 px-3 py-3.5">
+        <CardContent className="pointer-events-none min-h-16 px-3 py-3.5">
           <div className="space-y-2">
             <h3
-              className="line-clamp-2 text-base font-semibold leading-tight text-foreground"
+              className="line-clamp-2 text-title text-foreground"
               style={{ fontFamily: "var(--font-heading)" }}
             >
               {product.name}
             </h3>
 
             <div className="flex items-center justify-between gap-2">
-              <span className="text-sm font-bold leading-none text-foreground">
+              <span className="text-label leading-none text-foreground">
                 {formatCurrency(getPublicStartingPrice(product), currency)}
               </span>
-              <span
-                aria-hidden="true"
-                className="flex h-8 w-8 items-center justify-center rounded-xl border border-brand/18 bg-sky-50 text-[1.15rem] font-medium leading-none text-brand brand-shadow-soft transition duration-300 group-hover:border-brand/30 group-hover:bg-white"
-              >
-                {actionCopy.symbol}
-              </span>
+              {quickAdd ? (
+                <button
+                  type="button"
+                  onClick={handleQuickAdd}
+                  aria-label={`Agregar ${product.name} al carrito`}
+                  className="pointer-events-auto relative z-10 flex h-11 w-11 items-center justify-center rounded-full bg-brand text-brand-foreground shadow-sm transition active:scale-95"
+                >
+                  <svg
+                    aria-hidden="true"
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.25"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="h-4 w-4"
+                  >
+                    {justAdded ? (
+                      <path d="m5 13 4 4L19 7" />
+                    ) : (
+                      <>
+                        <path d="M5 12h14" />
+                        <path d="M12 5v14" />
+                      </>
+                    )}
+                  </svg>
+                </button>
+              ) : (
+                <span
+                  aria-hidden="true"
+                  className="flex h-11 w-11 items-center justify-center rounded-full border border-border bg-card text-brand"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="h-4 w-4"
+                  >
+                    <path d="m9 6 6 6-6 6" />
+                  </svg>
+                </span>
+              )}
             </div>
           </div>
         </CardContent>
       </Card>
-    </Link>
+
+      {justAdded ? (
+        <span role="status" className="sr-only">
+          Agregado al carrito
+        </span>
+      ) : null}
+    </article>
   );
 }
