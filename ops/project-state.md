@@ -1,6 +1,6 @@
 # Estado del proyecto — One Burger Commerce
 
-> Actualizado: 2026-09-11 · Commit en `main`: `1aa7ce9` · Build en producción: `build-20260911-145656`
+> Actualizado: 2026-09-11 · Commit en `main`: `ca474c8` · Build en producción: `build-20260911-154014`
 > Este documento es el punto de entrada para retomar el trabajo. Mantenerlo al día al cerrar cada tarea.
 > Para arrancar en un chat nuevo: `ops/tasks/START-HERE.md`.
 
@@ -472,7 +472,7 @@ que el build termine, así que la confirmación real es el `version` de `/api/he
 
 ### El servidor ahora valida el estado operativo (2026-09-11)
 
-Commit `3a67c37`. **Falta desplegar.**
+Commits `3a67c37` y `ca474c8`, **desplegados** como `build-20260911-154014`.
 
 El hallazgo no era el que yo había anotado como pendiente #9. Revisando el camino del
 pedido encontré que **`isAcceptingOrders` no lo leía nadie**: existe en el schema, en el
@@ -527,6 +527,22 @@ verde; E2E completo 26/7/0, incluido el camino bloqueado de punta a punta (el ow
 "Aceptando pedidos" en el admin → el checkout deshabilita el botón → al reactivarlo vuelve
 a andar).
 
+Verificado además **en producción** (solo lectura, sin crear ningún pedido):
+
+- El primer turno del checkout es **"Lo antes posible · 12:00 p. m."**, la hora de apertura
+  configurada, y no las 19:30 fijas de antes. Se puede pedir antes de abrir, para la hora
+  de apertura: es a propósito.
+- `POST /api/orders` con una hora de retiro fuera del horario responde **409** con
+  `fields.acceptance: "closed"` y el `closedMessage` del owner. La sonda usó un `productId`
+  inexistente a propósito, así que no podía crear un pedido ni en el peor caso.
+- La lista de órdenes del admin sigue en **0**: no se creó nada.
+
+### Deploy del estado operativo (2026-09-11)
+
+Desplegado `ca474c8` como `build-20260911-154014`. Horarios reales del negocio al momento
+del deploy: 12:00–22:00 todos los días, `America/Managua`, `pickupLeadMinutes` 25,
+"Aceptando pedidos" encendido, `closedMessage` configurado.
+
 ## 3. Infraestructura y secretos
 
 - `EASYPANEL_URL` y `EASYPANEL_TOKEN`: solo en el entorno de quien ejecuta el deploy (nunca
@@ -551,7 +567,7 @@ a andar).
 | 6 | **Cerrar puertos innecesarios** de otros servicios del servidor (`capostgres` 5455, `postimage` 8585) | Daniel | No es de One Burger, pero están expuestos a internet. |
 | 7 | **Personalización / quitar hardcodeo** (nombre, colores, logo, contacto, horarios, dirección) | **Cerrada (fases 1-4 y 6)** | Aprobada el 2026-09-10; brief en `ops/tasks/TASK-whitelabel-branding.md`. Sitio público, `/admin/settings`, apariencia con presets y contrato anti-hardcode, todo en `main` con CI verde. La **fase 5 (subida de logos)** se descartó: necesita un volumen persistente en Easypanel. Quedó **una excepción**: los turnos de retiro siguen hardcodeados y se trasladaron a la tarea #8. |
 | 8 | **Checkout sin redundancias** (textos y botones repetidos) | **Cerrada y desplegada** | `ops/tasks/TASK-checkout-ux.md`. Cuatro commits (`2832a93`…`aba4156`), en producción como `build-20260911-145656`. El checkout pasó de 807 a 476 líneas, un solo resumen compartido con el carrito, un solo CTA visible por viewport y los turnos de retiro calculados desde la configuración. |
-| 9 | **Validar el estado operativo en el servidor** | **Cerrada, sin desplegar** | Commit `3a67c37`. `isAcceptingOrders` ya corta pedidos de verdad (antes no lo leía nadie) y la hora de retiro se valida contra el horario del día. Incluye el horario demo del seed y el límite de login del arnés E2E. |
+| 9 | **Validar el estado operativo en el servidor** | **Cerrada y desplegada** | Commits `3a67c37` y `ca474c8`, en producción como `build-20260911-154014`. `isAcceptingOrders` ya corta pedidos de verdad (antes no lo leía nadie) y la hora de retiro se valida contra el horario del día. Incluye el horario demo del seed y el límite de login del arnés E2E. |
 
 ## 5. Cómo continuar
 
