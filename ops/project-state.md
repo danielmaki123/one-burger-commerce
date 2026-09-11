@@ -618,6 +618,47 @@ existente. La migración `20260911160000_add_order_pickup_scheduled` la validó 
 `migrations` de CI contra un Postgres limpio, y el camino de escritura (crear un pedido
 programado y verlo en el admin) se verificó en local contra un Postgres real.
 
+### Auditoría del mock completo del checkout (2026-09-12)
+
+El owner entregó un **mock completo** (`stitch_full_pwa_builder/`, export de Stitch de la marca "Casa
+Antigua": 7 pantallas + su `DESIGN.md`). En vez de leerlo a ojo se **midió**: se escribió
+`scripts/audit-checkout-mock.mjs`, que abre cada pantalla en **Chromium real a 375×812 y 1280×900** y
+extrae textos, controles con su caja real, objetivos táctiles, contraste WCAG contra el fondo
+efectivo, capas fijas, imágenes rotas, hosts externos, landmarks y ARIA; más dos sondas que **usan**
+los controles para ver si responden. El informe es [`ops/audit-checkout-mock.md`](audit-checkout-mock.md).
+
+Lo que la medición dejó claro:
+
+- **No es nuestro producto.** Es un PWA de **delivery con dos sucursales**, pago en la puerta,
+  propina para el repartidor, favoritos y reseñas. De las 7 pantallas, solo el checkout y la
+  confirmación tocan esta tarea.
+- **No se puede copiar.** Su checkout tiene **0 inputs** (se perdió la sección
+  `Datos de Contacto (Guest Checkout)`: quedó el comentario sin markup) y **0 controles de hora**: no
+  existe el retiro programable. Copiarlo borraría nombre, WhatsApp y hora de retiro, los tres exigidos
+  por el servidor.
+- **No funciona.** En el checkout el CTA no tiene `onclick` y tocar sucursal, método de pago o propina
+  **no cambia nada** (estado visual idéntico antes/después); en la confirmación los 4 enlaces son
+  `href="#"`. La única pantalla funcional es la de personalizar platillo.
+- **No es accesible.** Las 7 pantallas **bloquean el zoom**, hay **0 `role`** y **0 `aria-live`** en
+  todo el mock, hasta **81 "controles falsos"** por pantalla (`<div>` con cursor de mano que no se
+  alcanzan con teclado), 15 de 16 controles del checkout por debajo de 44 px y **45 fallos de
+  contraste verificables**. (Dos aparentes de la confirmación quedaron excluidos: caen sobre
+  degradado y no se pueden afirmar sin la imagen de fondo.)
+- **No cierra sus cuentas ni su design system.** El seguimiento suma C$795 + C$70 + C$78 = **C$943** y
+  muestra **C$858**; y `DESIGN.md` declara 44 colores de los que el checkout usa **10 %**, la home 9 %
+  y el menú 4 % (cada pantalla trae su propio `tailwind.config` inline).
+- **Sin escritorio.** El checkout queda anclado a 448 px y la confirmación no tiene ancho máximo (su
+  CTA mide 1240 px a 1280 px de viewport); la home usa un marco de altura fija de 844 px y a 375×812
+  su barra inferior **queda fuera del viewport**.
+- **Lo que sí aporta:** el **rango de preparación** ("20-30 min", "Listo en aprox. 20-30 min"), el
+  estimado en la confirmación, la **dirección del local** junto al retiro (**fase 3 nueva**) y el
+  patrón de edición por ítem. También sirve de referencia visual para `/menu`, el seguimiento y el
+  historial, que son **otras tareas** (no el checkout).
+
+**No se escribió código de producto**: solo la herramienta de medición y el informe. El mock no se
+commitea (es la carpeta de trabajo del owner). El plan de 7 fases y las 8 decisiones están en
+`TASK-checkout-v2.md` §6-§7, **esperando la respuesta del owner**.
+
 ## 3. Infraestructura y secretos
 
 - `EASYPANEL_URL` y `EASYPANEL_TOKEN`: solo en el entorno de quien ejecuta el deploy (nunca
@@ -644,7 +685,7 @@ programado y verlo en el admin) se verificó en local contra un Postgres real.
 | 8 | **Checkout sin redundancias** (textos y botones repetidos) | **Cerrada y desplegada** | `ops/tasks/TASK-checkout-ux.md`. Cuatro commits (`2832a93`…`aba4156`), en producción como `build-20260911-145656`. El checkout pasó de 807 a 476 líneas, un solo resumen compartido con el carrito, un solo CTA visible por viewport y los turnos de retiro calculados desde la configuración. |
 | 9 | **Validar el estado operativo en el servidor** | **Cerrada y desplegada** | Commits `3a67c37` y `ca474c8`, en producción como `build-20260911-154014`. `isAcceptingOrders` ya corta pedidos de verdad (antes no lo leía nadie) y la hora de retiro se valida contra el horario del día. Incluye el horario demo del seed y el límite de login del arnés E2E. |
 | 10 | **Retiro opcional y programable + la hora visible en toda la cadena** | **Cerrada y desplegada** | Commits `6f85a3c`, `c101f82`, `b207593` y `abc2183`, en producción como `build-20260911-191047`. Incluye **una migración** (`pickupScheduled`). El retiro es opcional, la hora la resuelve el servidor, el ticket de cocina y el admin la muestran, y el semáforo va contra la hora prometida. Ver el detalle arriba. |
-| 11 | **Mejora del checkout (v2)** | **Replanificada: fase 0 abierta (auditoría del mock)** | `ops/tasks/TASK-checkout-v2.md`. **Cambio de plan (2026-09-12): el owner entrega un mock completo y la tarea arranca auditándolo**, no implementando. La fase 0 (§5 del brief) es un inventario completo del mock medido en navegador real a 375 px y 1280 px, cada elemento clasificado (aplica / aplica con cambio / fuera de alcance / bug del mock) y separado lo que toca contrato (API, schema, migración, zod) de lo que es UI/copy; el entregable es `ops/audit-checkout-mock.md` y **no se escribe código de producto hasta que el owner apruebe el plan resultante**. Las fases de implementación (rangos mín–máx, el campo de preparación explicado con vista previa, presets de propina, días futuros, prefijo `+505` y edición por ítem) quedan **candidatas** hasta entonces. Las **tres decisiones** (días futuros, presets de propina, qué hacer con `mockup/`) se preguntan todas juntas al cerrar la auditoría. |
+| 11 | **Mejora del checkout (v2)** | **Fase 0 cerrada (auditoría del mock) · pendiente la aprobación del plan** | `ops/tasks/TASK-checkout-v2.md`. El owner entregó un **mock completo** (`stitch_full_pwa_builder/`, export de Stitch, 7 pantallas) y se auditó entero **midiéndolo en navegador real**: informe en [`ops/audit-checkout-mock.md`](audit-checkout-mock.md). El mock resultó ser un PWA de **delivery de otra marca** y **no es copiable**: su checkout **no tiene un solo input** (se perdió la sección de datos de contacto) ni hora de retiro, **no es funcional** (el CTA no tiene `onclick`; sucursal, pago y propina no responden), **no es accesible** (zoom bloqueado en las 7, 0 `role`, 0 `aria-live`, 45 fallos de contraste), **no cierra sus cuentas** (943 ≠ 858) y **no usa su propio design system**. Lo que sí aporta: el **rango de preparación**, el estimado en la confirmación, la **dirección del local** en el checkout (fase 3 nueva) y el patrón de edición por ítem. El plan (7 fases) y las **8 decisiones D1-D8** esperan la respuesta del owner; **no se escribe código de producto hasta entonces**. |
 
 ## 5. Cómo continuar
 

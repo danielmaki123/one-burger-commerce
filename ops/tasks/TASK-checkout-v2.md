@@ -1,9 +1,10 @@
 # TASK: Mejora del checkout (v2)
 
-**Estado:** replanificada el 2026-09-12 · **Fase 0 (auditoría del mock) es la única abierta** ·
-**Prioridad:** media-alta (es la pantalla donde se cierra la venta) · **Origen:** el **mock completo**
-que entrega el owner + el mock previo `mockup/confirmar pedido.txt` (ver §4) + los pendientes que
-quedaron abiertos tras `TASK-checkout-ux` y `TASK-checkout-mockup`.
+**Estado:** **fase 0 medida** (`ops/audit-checkout-mock.md`) · **pendiente la aprobación del owner**
+sobre el plan de §7 y las decisiones de §6 · **Prioridad:** media-alta (es la pantalla donde se cierra
+la venta) · **Origen:** el **mock completo** que entregó el owner + el mock previo
+`mockup/confirmar pedido.txt` (ver §4) + los pendientes que quedaron abiertos tras
+`TASK-checkout-ux` y `TASK-checkout-mockup`.
 
 > Cómo arrancar en un chat nuevo: pegar el prompt de §12.
 > Antes de codificar leer `AGENTS.md`, `ops/project-state.md` y este archivo completo.
@@ -53,11 +54,23 @@ Auditar primero es más barato que implementar de más y revertir.
 
 ## 4. El mock: qué es y qué se toma
 
-### 4.1 El mock completo (entrada principal de la fase 0)
+### 4.1 El mock completo (entrada de la fase 0, **ya auditado**)
 
-El owner entrega un mock completo del checkout. **Cuando llegue**, se guarda en su carpeta de
-trabajo (`mockup/`, que **no se versiona**; ver §7 fase 5) y se audita según §5. Este brief no
-anticipa su contenido: la fase 0 existe justamente para no adivinar.
+El mock entregado está en `stitch_full_pwa_builder/stitch_full_pwa_builder/` (export de Stitch, marca
+"Casa Antigua", 7 pantallas + su `DESIGN.md`). **No se versiona** (carpeta de trabajo del owner; ver
+§6 D3). Su auditoría completa está en **[`ops/audit-checkout-mock.md`](../audit-checkout-mock.md)** y
+**es la que manda**: resumen de lo que cambia este brief:
+
+- **Es un PWA de delivery con dos sucursales de otra marca**, no una evolución de nuestro checkout.
+  Solo **dos** de sus 7 pantallas tocan esta tarea: el carrito/checkout y la confirmación.
+- **Su checkout no tiene un solo `input`**: nombre y WhatsApp se perdieron en el export (quedó el
+  comentario `Datos de Contacto (Guest Checkout)` sin markup) y **tampoco tiene hora de retiro**.
+  Copiarlo tal cual borraría dos funciones desplegadas.
+- **No es funcional** (el CTA no tiene `onclick`; sucursal, método de pago y propina no responden),
+  **no es accesible** (zoom bloqueado en las 7, 0 `role`, 0 `aria-live`, 45 fallos de contraste),
+  **no cierra sus cuentas** (943 ≠ 858 en el seguimiento) y **no usa su propio design system**.
+- **Lo que sí aporta**: el **rango de preparación** (fase 1), el estimado en la confirmación, el punto
+  de retiro con dirección (fase 3 nueva) y el patrón de edición por ítem (fase 7).
 
 ### 4.2 El mock previo, ya auditado (contexto, no fuente de verdad)
 
@@ -132,36 +145,78 @@ Un documento versionado con:
 
 ### 5.4 Qué significa cerrar la fase 0
 
-1. El informe está en `ops/audit-checkout-mock.md`, con evidencia y no con impresiones.
-2. Cada elemento del mock tiene una clasificación y una fase propuesta (o un descarte con motivo).
-3. El owner aprobó **el plan resultante**, no solo el informe.
-4. `ops/project-state.md` §4 queda actualizado con el plan nuevo.
+1. El informe está en `ops/audit-checkout-mock.md`, con evidencia y no con impresiones. — **hecho**
+   (2026-09-12; los números salen de medir el DOM renderizado, no de leer el HTML a ojo).
+2. Cada elemento del mock tiene una clasificación y una fase propuesta (o un descarte con motivo). —
+   **hecho** (§4, §5 y §7 del informe).
+3. El owner aprobó **el plan resultante**, no solo el informe. — **pendiente**.
+4. `ops/project-state.md` §4 queda actualizado con el plan nuevo. — **hecho**.
 5. Recién entonces se abre la primera fase de implementación.
 
 ### 5.5 Cómo se commitea
 
 Un commit de documentación (`docs(ops): auditar el mock completo del checkout y proponer el plan`).
-**El mock no se commitea**: solo el informe. Si en la auditoría aparece evidencia útil (una captura,
-un número medido), va como texto o tabla dentro del informe, no como binario.
+**El mock no se commitea**: solo el informe y la herramienta de medición. Si en la auditoría aparece
+evidencia útil (una captura, un número medido), va como texto o tabla dentro del informe, no como
+binario.
 
 ## 6. Decisiones que hay que tomar
 
-Se piden **todas juntas, al cerrar la fase 0** (no a mitad de camino, y no antes: la auditoría puede
-agregar o descartar decisiones). Cada una **bloquea** la fase que la necesita.
+Se piden **todas juntas** (no a mitad de camino). Cada una **bloquea** la fase que la necesita; las
+marcadas "por defecto" no bloquean nada si el owner no responde: se implementa la recomendación.
 
 | # | Decisión | Bloquea | Opciones |
 |---|---|---|---|
-| **D1** | ¿Pedidos para **días futuros**? Hoy el checkout solo ofrece turnos de hoy; un pedido para mañana se puede crear por API y el admin lo muestra, pero la UI no lo ofrece. | Fase 3 | **No** (se saltea) · **Sí** (selector de día, turnos por día, el servidor ya valida contra el horario del día elegido, y el admin agrupa o filtra por día: es la fase más grande del plan) |
-| **D2** | ¿**Presets de propina** o una sola tasa? Dejar elegir el porcentaje **es un cambio de contrato**, no de UI: hoy el monto lo calcula el servidor desde `settings.tipRate`. | Fase 4 | **Sí, con lista cerrada** (los presets se configuran en ajustes y el servidor acepta **solo** una tasa de esa lista, calculando siempre el monto — recomendada) · **No** (una sola tasa, como hoy) · Monto libre del cliente (**no recomendada**: rompe el invariante) |
-| **D3** | ¿Se versiona `mockup/`? Hoy la carpeta está afuera del repo por convención (y además figura como *untracked*, no ignorada). | Fase 5 | Ignorarla explícitamente en `.gitignore` · Mover el material a `ops/` con una nota |
+| **D1** | ¿Pedidos para **días futuros**? Hoy el checkout solo ofrece turnos de hoy; un pedido para mañana se puede crear por API y el admin lo muestra, pero la UI no lo ofrece. | Fase 4 | **No** (se saltea — recomendada) · **Sí** (selector de día, turnos por día, el servidor ya valida contra el horario del día elegido, y el admin agrupa o filtra por día: es la fase más grande del plan) |
+| **D2** | ¿**Presets de propina** o una sola tasa? Dejar elegir el porcentaje **es un cambio de contrato**, no de UI: hoy el monto lo calcula el servidor desde `settings.tipRate`. | Fase 5 | **Sí, con lista cerrada** (los presets se configuran en ajustes y el servidor acepta **solo** una tasa de esa lista, calculando siempre el monto — recomendada) · **No** (una sola tasa, como hoy) · Monto libre del cliente (**no recomendada**: rompe el invariante) |
+| **D3** | ¿Se versionan `mockup/` y `stitch_full_pwa_builder/`? Hoy las dos figuran como *untracked*, no ignoradas. | Fase 6 | **Ignorarlas** explícitamente en `.gitignore` (recomendada: son carpetas de trabajo) · Mover el material a `ops/` con una nota |
+| **D4** | ¿**Upselling** "¿Algo más para acompañar?" en el carrito/checkout (el mock lo trae)? | Fase 7 | **No en el checkout** (recomendada: contradice el "un solo resumen" de `TASK-checkout-ux`) · Sí, pero en `/cart` |
+| **D5** | ¿**PIN de retiro** en la confirmación (el mock muestra "4821 · díctalo en caja")? | — | **No** por ahora (recomendada: mostrar el número de pedido) · Sí, un PIN real (**migración**) |
+| **D6** | ¿La **paleta del mock** (crimson + crema) como preset de apariencia? | — | **Sí** (recomendada: es un preset más en `color-presets.ts`, con sus avisos de contraste; no cambia el default) · No |
+| **D7** | ¿**Método de pago** (efectivo / tarjeta) en el checkout? | — | **No** por ahora (recomendada: se cobra en caja y el dato no aporta a la cocina) · Sí (**persistir** el dato) |
+| **D8** | ¿**Calculadora de vuelto** ("pagaré con… / cambio")? | — | **No** (recomendada: dato no autoritativo, sin uso en la operación) · Sí (**contrato**) |
 
-La propina sigue **opcional y desmarcada por defecto** (`AGENTS.md`), con D2 o sin D2: el mock
-previo la prendía en 15 % y eso no se copia.
+La propina sigue **opcional y desmarcada por defecto** (`AGENTS.md`), con D2 o sin D2: el mock la
+trae **premarcada al 10 % y "para el repartidor"**, y eso no se copia.
 
-## 7. Fases de implementación · **candidatas hasta que cierre la fase 0**
+## 7. Fases de implementación · **plan propuesto por la auditoría, pendiente de aprobación**
 
 El orden es por relación impacto/costo: primero lo barato y seguro, después lo que depende de una
-decisión. La auditoría (§5) puede confirmar, recortar o reordenar esta lista.
+decisión. La auditoría confirmó las fases 1 y 2, agregó la 3 y dejó la edición por ítem al final.
+
+### Protocolo TDD de cada fase · **no negociable**
+
+`AGENTS.md` lo exige y este brief lo repite porque es donde más fácil se saltea: **ningún cambio
+funcional se escribe antes de que exista un test rojo**. El orden, por fase, es siempre el mismo:
+
+1. **Escribir el test que falla** (el "primer test" de la tabla de abajo).
+2. **Correrlo y confirmar el rojo**: `npm test -- <archivo>` y pegar la salida en el commit. El rojo
+   tiene que fallar **por la razón que se está implementando**, no por un import roto o un tipo mal.
+3. **Implementar lo mínimo** para el verde.
+4. **Refactorizar** con los tests verdes.
+5. **Cerrar**: `npm run test`, `lint`, `typecheck`, `build` y `security:secrets`. Si se tocó UI
+   pública o de admin, además el E2E (`BASE_URL=… npm run test:e2e:prod:full`) y la verificación a
+   **375 px** en navegador real.
+
+Los dobles de test implementan el **puerto completo**: si un puerto suma un método, el adaptador en
+memoria lo implementa también (el compilador lo obliga).
+
+| Fase | Primer test (rojo) | Qué tiene que verificar |
+|---|---|---|
+| 1 | `business-settings/domain/business-settings.schema.test.ts` | `pickupMaxMinutes`: entero, **≥ `pickupLeadMinutes`**, tope 240, y error por campo cuando es menor |
+| 1 | `business-settings/domain/pickup-slots.test.ts` | El formateo del rango ("listo entre 1:40 y 2:00 p. m."); **sin máximo devuelve el instante de hoy** |
+| 1 | `checkout/page.test.tsx` · `success/[orderId]/order-success-view.test.ts` | El rango aparece en checkout y confirmación; sin máximo, no |
+| 1 | `admin/settings/settings-client.test.tsx` | El campo nuevo viaja en el payload |
+| 1 | `business-settings/business-settings-migration-contract.test.ts` | La migración y los defaults no se desincronizan (si `pickupMaxMinutes` tiene default) |
+| 2 | `admin/settings/settings-client.test.tsx` | La ayuda dice qué hace el campo y la vista previa muestra los turnos y "última orden" |
+| 3 | `checkout/page.test.tsx` | Muestra la dirección configurada; **con la dirección vacía no muestra la fila** |
+| 4 | `business-settings/domain/pickup-slots.test.ts` · `orders/features/create-order/create-order.test.ts` | Turnos del día elegido y validación contra el horario de **ese** día |
+| 5 | `orders/features/create-order/create-order.test.ts` · `business-settings.schema.test.ts` | El servidor rechaza una tasa fuera de la lista y **sigue calculando el monto** |
+| 6 | `shared/lib/whatsapp-input-value.test.ts` | El prefijo por defecto sale de la configuración, no del literal `+505` |
+| 7 | `app/(public)/cart/page.test.ts` | Edición en línea reutilizando `updateQuantity`/`removeItem` |
+
+Para lo visual y de flujo, el test que manda es el E2E (`tests/e2e/public-order.spec.ts`), en
+navegador real: un test de HTML estático no ve el CSS.
 
 ### Fase 1 — Rango de preparación (mín–máx)
 
@@ -188,32 +243,45 @@ Pedido explícito del owner: hoy la etiqueta dice "Minutos de preparación" y la
   configuración que se está editando, mostrar los turnos que vería el cliente y hasta qué hora se
   puede pedir. Es lo que hoy falta: escribís 25 y no ves que eso significa "última orden 21:35".
 
-### Fase 3 — Pedidos para días futuros · **depende de D1**
+### Fase 3 — El punto de retiro en el checkout · **nueva, la propone la auditoría**
+
+El mock muestra, junto al retiro, la **dirección del local** y su horario en la tarjeta de sucursal.
+Nuestro checkout muestra el horario ("El local atiende …") pero **no dónde se retira**, y el cliente
+que hizo el pedido desde el celular no tiene ahí la referencia.
+
+- Mostrar, en el control de retiro, la **dirección configurada** (sale de `/admin/settings`:
+  `addressLine`, `city`, `addressReference`) y, si hay `mapsUrl`, el enlace al mapa.
+- Sin contrato nuevo: son datos que ya existen y ya se leen en el público.
+- **TDD:** el copy con dirección vacía (no mostrar la fila) va primero.
+
+### Fase 4 — Pedidos para días futuros · **depende de D1**
 
 Si el negocio los quiere: selector de día en el control de retiro, turnos calculados por día, el
 servidor ya valida contra el horario del día elegido (no hace falta cambiarlo), y el admin agrupa o
 filtra por día. Es la fase más grande; si la respuesta es no, se saltea.
 
-### Fase 4 — Presets de propina · **depende de D2**
+### Fase 5 — Presets de propina · **depende de D2**
 
 - Los presets se configuran en ajustes; el servidor acepta **solo** una tasa de esa lista y sigue
   calculando el monto. Así se mantiene el invariante "el monto nunca viene del cliente".
+- **Ojo con la base:** el mock calcula 10 % de subtotal + empaque (C$78 sobre 780) y nuestro servidor
+  calcula 10 % de subtotal − descuento (C$71). Manda el servidor.
 - **TDD:** primero la validación de la tasa contra la lista; después el payload y la UI.
 
-### Fase 5 — Deuda menor del área · **incluye D3**
+### Fase 6 — Deuda menor del área · **incluye D3**
 
 - **El prefijo de WhatsApp por defecto está fijo en `+505`**
   (`src/shared/lib/whatsapp-input-value.ts:20`). Para una plataforma whitelabel es un dato del
   negocio escrito en el código, igual que lo eran el teléfono y la moneda. Derivarlo del teléfono
   del negocio o hacerlo configurable.
-- Resolver D3 (qué hacer con `mockup/`).
+- Resolver D3 (qué hacer con `mockup/` y `stitch_full_pwa_builder/`).
 
-### Fase 6 — Opcional, solo si se quiere
+### Fase 7 — Opcional, solo si se quiere · **incluye D4**
 
-**Editar por ítem desde el resumen.** Vale únicamente si es **edición en línea** (paso de cantidad y
-quitar dentro del resumen, reutilizando `updateQuantity`/`removeItem` del carrito). Como link a
-`/cart` duplica el botón "Editar carrito" que ya existe. Contra: el resumen del checkout se parecería
-al carrito.
+**Editar por ítem desde el resumen** (el mock lo hace: cantidad y quitar dentro de su carrito). Vale
+únicamente si es **edición en línea**, reutilizando `updateQuantity`/`removeItem`. **Recomendación de
+la auditoría: en `/cart`, no en el checkout** — dentro del checkout contradice el "un solo resumen" y
+el CTA único por viewport que dejó `TASK-checkout-ux`.
 
 ## 8. Fuera de alcance (no hacer sin pedido explícito)
 
@@ -233,17 +301,17 @@ al carrito.
 
 ## 9. Criterios de aceptación
 
-**De la fase 0 (auditoría):**
+**De la fase 0 (auditoría) — cerrada el 2026-09-12 salvo la aprobación:**
 
 1. Existe `ops/audit-checkout-mock.md` con el inventario **completo** del mock, medido en navegador
-   real a 375 px y 1280 px.
+   real a 375 px y 1280 px. ✔
 2. Cada elemento está clasificado (aplica / aplica con cambio / fuera de alcance / bug del mock) y
-   tiene fase propuesta o descarte con motivo.
-3. Está explícito qué toca contrato (API, schema, migración, zod) y qué es solo UI/copy.
-4. El owner aprobó el plan resultante.
-5. **No se escribió código de producto** antes de este cierre.
+   tiene fase propuesta o descarte con motivo. ✔
+3. Está explícito qué toca contrato (API, schema, migración, zod) y qué es solo UI/copy. ✔
+4. El owner aprobó el plan resultante. **⏳ pendiente**
+5. **No se escribió código de producto** antes de este cierre. ✔ (solo la herramienta de medición)
 
-**De la implementación (se confirman contra la auditoría):**
+**De la implementación (plan de §7):**
 
 6. En `/admin/settings` se puede poner el mínimo y el máximo de preparación, y **se ve el efecto
    antes de guardar** (los turnos resultantes y hasta qué hora se puede pedir).
@@ -252,22 +320,30 @@ al carrito.
 8. La hora guardada y la que ve la cocina **siguen siendo el mínimo**: el semáforo del admin no
    cambia de comportamiento.
 9. Un máximo menor que el mínimo se rechaza con mensaje por campo.
-10. Si se aprueba D2: el servidor rechaza una tasa que no esté en la lista configurada, y el monto
+10. El checkout muestra la **dirección del local** cuando está configurada, y no muestra la fila si
+    está vacía.
+11. Si se aprueba D2: el servidor rechaza una tasa que no esté en la lista configurada, y el monto
     sigue calculándose en el servidor.
 
 ## 10. Riesgos
 
-- **Auditar el mock como si fuera la especificación.** Es el riesgo central de esta replanificación:
-  un mock completo se siente como un plano y no lo es. La auditoría clasifica; no copia.
+- **Auditar el mock como si fuera la especificación.** Es el riesgo central de esta replanificación, y
+  la auditoría lo confirmó: el mock es un PWA de delivery de otra marca, no funciona (el CTA del
+  checkout no tiene `onclick`), no cierra sus cuentas (943 ≠ 858) y no usa su propio design system.
+  La auditoría clasifica; no copia.
+- **Perder lo que ya está desplegado.** El checkout del mock **no tiene nombre, ni WhatsApp, ni hora
+  de retiro**: copiarlo borraría tres cosas que hoy funcionan. Todo lo que se adopte se suma a lo que
+  ya está, y el E2E tiene que seguir en verde.
 - **Configurarse el local sin poder tomar pedidos.** Ya pasó con `isAcceptingOrders`: un control que
   el owner cree que hace algo y no lo hace. La validación cruzada (máx ≥ mín) y la vista previa son
   la red que hace seguros estos campos.
 - **El rango como excusa.** Prometer "entre 1:40 y 2:00" y entregar 2:20 sigue siendo incumplir. El
   rango no reemplaza al semáforo del admin, que es el que avisa.
-- **Agregar lo que el MVP no tiene.** El mock empuja a sumar pago, envío y prioridad. Cada una es una
-  promesa al cliente que hoy no se puede cumplir.
-- **Que la auditoría se vuelva un documento de deseos.** Se cierra con clasificación y fase por
-  elemento (§5.4), no con una lista de ideas.
+- **Agregar lo que el MVP no tiene.** El mock empuja a sumar pago, envío, prioridad, sucursales,
+  favoritos y reseñas. Cada una es una promesa al cliente que hoy no se puede cumplir (o un contrato
+  nuevo). Están todas en §6 (D4-D8) y en el informe §7.
+- **Que la auditoría se vuelva un documento de deseos.** Se cerró con clasificación y fase por
+  elemento (§5.4), no con una lista de ideas: cada descarte tiene su motivo y cada adopción su fase.
 
 ## 11. Cómo verificar
 
@@ -294,17 +370,16 @@ BASE_URL=http://127.0.0.1:3210 E2E_ALLOW_MUTATIONS=true npm run test:e2e:prod:fu
 > Trabajás en `one-burger-commerce` (Next.js 16 + Prisma + Postgres, deploy en Easypanel).
 > Antes de escribir código leé, en este orden: `AGENTS.md`, `ops/project-state.md`,
 > `ops/production-readiness.md` y `ops/tasks/TASK-checkout-v2.md`.
-> La tarea es la **mejora del checkout (v2)**. **La primera fase es una auditoría completa del mock
-> completo del owner** (`ops/tasks/TASK-checkout-v2.md` §5): inventario de todos los elementos,
-> medidos en navegador real a 375 px y 1280 px, cada uno clasificado (aplica / aplica con cambio /
-> fuera de alcance / bug del mock), con lo que toca contrato (API, schema, migración, zod) separado
-> de lo que es UI/copy. El entregable es `ops/audit-checkout-mock.md` y **no se escribe código de
-> producto hasta que el owner apruebe el plan resultante**.
-> Las decisiones de §6 (días futuros, presets de propina y qué hacer con `mockup/`) se preguntan
-> **todas juntas al cerrar la auditoría**, antes de las fases que bloquean.
-> A partir de ahí, las fases de implementación candidatas de §7 se ejecutan **en orden, una por
-> commit**, con **TDD siempre**: escribí primero el test que falla, corrélo y confirmá el rojo antes
-> de implementar. Nada de código antes del test.
+> La tarea es la **mejora del checkout (v2)**. **La fase 0 (auditoría del mock) ya está hecha**:
+> el informe es `ops/audit-checkout-mock.md` y el plan propuesto está en §7 de ese brief.
+> **No escribas código de producto hasta que el owner apruebe el plan y responda las decisiones D1-D8
+> de §6.** Con esa aprobación, ejecutá las fases de §7 **en orden, una por commit**, con **TDD
+> siempre**: escribí primero el test que falla, corrélo y confirmá el rojo antes de implementar. Nada
+> de código antes del test.
+> Ojo con dos cosas que el mock NO tiene y no se pueden perder: **nombre y WhatsApp** del cliente y
+> la **hora de retiro opcional/programable** (con su gate operativo).
+> Si hace falta re-medir el mock, la herramienta es `node scripts/audit-checkout-mock.mjs` (navegador
+> real a 375 px y 1280 px; el JSON queda en `test-results/mock-audit/`).
 > Trabajá en español, con commits propios, y validá con `npm run test`, `lint`, `typecheck`, `build`
 > y `security:secrets` antes de cerrar cada fase. Si tocás `schema.prisma`, corré
 > `npx prisma generate` (el build local no lo regenera).
