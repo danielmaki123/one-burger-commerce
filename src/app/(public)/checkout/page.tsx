@@ -456,12 +456,10 @@ export default function CheckoutPage() {
         </aside>
       </div>
 
+      {/* Un solo CTA visible por viewport: acá el de móvil, arriba el de escritorio.
+          Sin fila de total aparte: el importe ya viaja en la etiqueta del botón. */}
       <div className={getPublicCheckoutMobileActionClassName()}>
-        <div className="mx-auto w-full max-w-2xl space-y-1.5">
-          <div className="flex items-center justify-between text-sm text-foreground">
-            <span>Total a pagar</span>
-            <span className="font-bold text-foreground">{totalLabel}</span>
-          </div>
+        <div className="mx-auto w-full max-w-2xl">
           <Button
             className={publicCheckoutScaleClasses.primaryCta}
             onClick={handlePlaceOrder}

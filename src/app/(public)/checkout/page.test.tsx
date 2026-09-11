@@ -86,8 +86,10 @@ describe("checkout sin redundancias", () => {
     expect(countMatches(html, "Resumen del pedido")).toBe(1);
     expect(countMatches(html, "Subtotal")).toBe(1);
     expect(countMatches(html, "Empaque")).toBe(1);
-    // Total y CTA: uno por viewport, nunca dos visibles a la vez.
-    expect(countMatches(html, "Total a pagar")).toBe(2);
+    // El total, una sola vez: el importe del CTA no repite la fila "Total a pagar".
+    expect(countMatches(html, "Total a pagar")).toBe(1);
+    // En el DOM hay un CTA por viewport; visible queda uno solo (lo verifica el E2E,
+    // que es el único que puede evaluar el CSS).
     expect(confirmButtons()).toHaveLength(2);
 
     // Lo que se fue con la limpieza.
