@@ -323,6 +323,41 @@ Verificado en producción: `6/6` dominios, `4/4` smoke y `8/8` landing (más 1 s
 - Con `prefers-reduced-motion` no hay animación que esperar, así que el botón se muestra
   enseguida en vez de esconderse detrás de un scroll largo que ya no muestra nada.
 
+### El JavaScript del landing: medido, y no es lo que parecía (2026-09-10)
+
+El owner pidió "sacar el JavaScript del landing" porque la carga se siente lenta. Se midió
+antes de tocar nada, con una página de prueba **sin un solo componente de cliente**
+(`/landing-lite`, borrada después) y con `scripts/experiment-landing-js.mjs` bloqueando el
+JS desde el navegador:
+
+| medición | resultado |
+|---|---|
+| chunks que carga `/landing` | 70 + 42 + 8 + 5 + 4 = **129 KB** |
+| chunks que carga `/landing-lite` (cero componentes de cliente) | **125 KB** (idénticos menos uno de 4 KB) |
+| primera frame en 4G lento **con** JS | 11,4 – 14,4 s |
+| primera frame en 4G lento **con el JS bloqueado** | 8,9 s |
+
+Conclusión: de los 135 KB de JavaScript del landing, **solo 4 KB son del landing**. Los
+129 KB restantes son el runtime del App Router de Next, que se descarga en toda la app
+(incluido `/menu`) y no se puede quitar desde el código de la página: aun con cero
+componentes de cliente, Next sigue hidratando el árbol. La única forma real de sacarlos
+es **servir el landing como HTML estático fuera de la app**.
+
+Los frames también se midieron (`scripts/experiment-frames-weight.mjs`, commiteado como
+herramienta de diagnóstico):
+
+| variante | KB/frame | 37 frames | diferencia de pixeles |
+|---|---|---|---|
+| actual 720 | 93 | 3,45 MB | — |
+| 720 q0.6 | 73 | 2,69 MB | 1,0 % |
+| 540 q0.65 | 50 | 1,86 MB | 1,2 % |
+| 480 q0.55 | 39 | 1,43 MB | 1,4 % |
+
+Bajar la resolución no tiene margen: los frames ya están 1:1 con el slot de escritorio
+(680 px) y por debajo de retina en celular. La única reducción segura es a igual tamaño y
+menor calidad (**−21 % de peso con 1 % de diferencia**). Las dos palancas quedan **sin
+aplicar**, a la espera de decisión del owner.
+
 **Arreglo de branding: el logo y los colores no llegaban a toda la app (2026-09-10)**
 
 Dos bugs de la fase 2 que solo aparecen usando el producto, reportados por el owner:

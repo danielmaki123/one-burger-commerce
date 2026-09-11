@@ -65,14 +65,20 @@
   carga. El cliente ya no mira negro. También secuencié la precarga y la marqué
   `fetchpriority="low"`.
 - **Lo que queda pendiente y es la causa de fondo**: el landing no debería pagar
-  135 KB de JavaScript para hacer scroll sobre 37 imágenes. Las opciones, en orden de
-  impacto:
-  1. **Animación dirigida por CSS** (`animation-timeline: scroll()` con 37 keyframes):
-     elimina el componente cliente entero. Ojo con Firefox, que todavía no lo soporta.
-  2. **Script vanilla mínimo** en vez de un componente React para el scroll.
-  3. **`preload: false` en Fraunces** o convertirlo a woff2: son 81 KB del camino
-     crítico. No lo hice porque el sitio de pedidos sí usa Fraunces y perdería la
-     precarga de sus títulos.
+  135 KB de JavaScript para hacer scroll sobre 37 imágenes.
+- **Corrección medida (2026-09-10), después de la auditoría**: la opción 1 que figuraba
+  acá ("animación dirigida por CSS para eliminar el componente cliente") **no sirve**.
+  Se montó una página de prueba con **cero componentes de cliente** (`/landing-lite`) y
+  el navegador siguió descargando **125 KB de los 129 KB** de chunks: son el runtime del
+  App Router de Next, que se paga en toda la app, no en el landing. El componente cliente
+  del landing son **4 KB**. Las opciones 1 y 2, por lo tanto, no cambian nada medible.
+  La única forma real de sacar esos 129 KB es **servir el landing como HTML estático
+  fuera de la app** (con el costo de que un archivo estático no puede leer la
+  configuración del negocio desde la base, salvo con un endpoint público mínimo).
+  Bloqueando el JS desde el navegador, la primera frame en 4G lento pasa de 11,4 s a
+  8,9 s: ese es el techo de la mejora.
+- **Sobre las fuentes** (opción 3): siguen en 81 KB del camino crítico, sin tocar, porque
+  el sitio de pedidos sí usa Fraunces.
 - **Ver `$impeccable optimize`.**
 
 ### [P1] El botón MENU acumulaba cuatro tells de IA — corregido
