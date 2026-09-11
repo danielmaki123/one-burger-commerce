@@ -6,6 +6,10 @@ import { ArrowRightLeft, ChevronDown, ChevronRight, Plus } from "lucide-react";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import {
+  categoryColorContrastWarning,
+  resolveCategoryCardColors,
+} from "@/modules/menu/domain/category-color";
+import {
   AdminEmptyState,
   AdminPageHeader,
 } from "../../_components/admin-operational-ui";
@@ -23,6 +27,8 @@ type EditForm = {
   slug: string;
   sortOrder: number;
   isActive: boolean;
+  /** Color de la carta pública en hex; vacío = sin color (T3.1). */
+  color: string;
 };
 
 type SheetTarget =
@@ -33,7 +39,7 @@ type SheetTarget =
 
 type Feedback = { type: "success" | "error"; message: string };
 
-const emptyForm: EditForm = { name: "", slug: "", sortOrder: 0, isActive: true };
+const emptyForm: EditForm = { name: "", slug: "", sortOrder: 0, isActive: true, color: "" };
 
 const SELECT_CLASS =
   "h-11 w-full rounded-md border border-border bg-card px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand";
@@ -128,6 +134,7 @@ export default function CategoriesPage() {
         slug: category.slug,
         sortOrder: category.sortOrder,
         isActive: category.isActive,
+        color: category.color ?? "",
       });
     } else if (target.kind === "subcategory") {
       const { subcategory } = target;
@@ -136,6 +143,7 @@ export default function CategoriesPage() {
         slug: subcategory.slug,
         sortOrder: subcategory.sortOrder,
         isActive: subcategory.isActive,
+        color: "",
       });
     } else {
       setEditFormData(emptyForm);
@@ -163,6 +171,7 @@ export default function CategoriesPage() {
             slug: editFormData.slug,
             sortOrder: editFormData.sortOrder,
             isActive: true,
+            color: editFormData.color.trim() || null,
           }),
         });
       } else if (sheetTarget.kind === "new-subcategory") {
@@ -181,7 +190,10 @@ export default function CategoriesPage() {
         response = await fetch(`/api/admin/menu/categories/${sheetTarget.category.id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(editFormData),
+          body: JSON.stringify({
+            ...editFormData,
+            color: editFormData.color.trim() || null,
+          }),
         });
       } else {
         response = await fetch(`/api/admin/menu/subcategories/${sheetTarget.subcategory.id}`, {
@@ -311,6 +323,10 @@ export default function CategoriesPage() {
   const totalProducts = categories.reduce((sum, category) => sum + countCategoryProducts(category), 0);
   const attentionItems = React.useMemo(() => findCategoryAttention(categories), [categories]);
   const moveDestination = categories.find((category) => category.id === moveDestinationId);
+
+  // Color de la categoría que se está editando (T3.1): vista previa y aviso.
+  const cardColors = resolveCategoryCardColors(editFormData.color);
+  const colorWarning = categoryColorContrastWarning(editFormData.color);
 
   const sheetTitle =
     sheetTarget?.kind === "new-category"
@@ -643,7 +659,13 @@ export default function CategoriesPage() {
               <Button
                 type="button"
                 className="min-h-11 flex-1"
-                disabled={isSaving || !editFormData.name.trim() || !editFormData.slug.trim()}
+                disabled={
+                  isSaving ||
+                  !editFormData.name.trim() ||
+                  !editFormData.slug.trim() ||
+                  // Un color a medio escribir no se manda: el aviso ya está en el campo.
+                  (editFormData.color.trim().length > 0 && cardColors === null)
+                }
                 onClick={() => void handleSave()}
               >
                 {isSaving ? "Guardando…" : "Guardar"}
@@ -692,6 +714,45 @@ export default function CategoriesPage() {
             <p className="-mt-2 text-xs text-muted-foreground">
               El slug se usa en la URL del menú público.
             </p>
+            {sheetTarget?.kind === "category" || sheetTarget?.kind === "new-category" ? (
+              <div className="grid gap-2 rounded-xl border border-border bg-secondary/40 p-3">
+                <Input
+                  label="Color de la categoría (opcional)"
+                  placeholder="#d32f2f"
+                  value={editFormData.color}
+                  onChange={(event) =>
+                    setEditFormData((current) => ({ ...current, color: event.target.value }))
+                  }
+                />
+                <p className="text-xs text-muted-foreground">
+                  Tiñe las tarjetas de esta categoría en la carta pública. Vacío = diseño del
+                  sistema.
+                </p>
+                {editFormData.color.trim() ? (
+                  <div
+                    className="flex items-center justify-between gap-3 rounded-lg px-3 py-2 text-sm font-semibold"
+                    style={{
+                      backgroundColor: cardColors?.backgroundColor ?? editFormData.color.trim(),
+                      color: cardColors?.foregroundColor,
+                    }}
+                  >
+                    <span>{editFormData.name || "Nombre de la categoría"}</span>
+                    <span className="text-xs opacity-80">Así se lee el texto</span>
+                  </div>
+                ) : null}
+                {colorWarning ? (
+                  <p role="status" className="text-xs font-medium text-warning-foreground">
+                    Ojo: con este color el texto de la tarjeta queda en {colorWarning.ratio}:1 y hace
+                    falta {colorWarning.required}:1. Se puede guardar, pero puede leerse mal.
+                  </p>
+                ) : null}
+                {editFormData.color.trim() && !cardColors ? (
+                  <p role="alert" className="text-xs font-medium text-danger-foreground">
+                    Usá un color en formato #rrggbb (por ejemplo #d32f2f).
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
             {sheetTarget?.kind === "category" || sheetTarget?.kind === "subcategory" ? (
               <label className="grid gap-1.5 text-sm font-medium text-foreground">
                 Estado

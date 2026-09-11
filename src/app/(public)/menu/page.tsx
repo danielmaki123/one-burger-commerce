@@ -4,6 +4,7 @@ import React, { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 import {
+  findCategoryOfProduct,
   getCategoryThumbnailUrl,
   getMenuHeaderCountLabel,
   getMenuSearchEmptyState,
@@ -18,6 +19,7 @@ import { MenuProductCard } from "./menu-product-card";
 
 interface Product {
   id: string;
+  categoryId: string;
   name: string;
   description: string | null;
   basePrice: number;
@@ -42,6 +44,7 @@ interface Category {
   id: string;
   name: string;
   slug: string;
+  color: string | null;
   products: Product[];
   subcategories?: Subcategory[];
 }
@@ -230,6 +233,7 @@ function MenuPageContent() {
                   <MenuProductCard
                     key={product.id}
                     product={product}
+                    category={findCategoryOfProduct(categories, product)}
                     className={publicMenuDensityClasses.productRailItem}
                   />
                 ))}
@@ -285,6 +289,7 @@ function MenuPageContent() {
                     <MenuProductCard
                       key={product.id}
                       product={product}
+                      category={activeCat ? { name: activeCat.name, color: activeCat.color } : null}
                       className={publicMenuDensityClasses.productRailItem}
                     />
                   ))}
@@ -306,6 +311,7 @@ function MenuPageContent() {
                     <MenuProductCard
                       key={product.id}
                       product={product}
+                      category={activeCat ? { name: activeCat.name, color: activeCat.color } : null}
                       className={publicMenuDensityClasses.productRailItem}
                     />
                   ))}

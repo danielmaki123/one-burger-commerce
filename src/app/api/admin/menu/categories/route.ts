@@ -13,6 +13,13 @@ const categorySchema = z.object({
   slug: z.string().min(1),
   sortOrder: z.number().int().min(0).default(0),
   isActive: z.boolean().default(true),
+  // Color de la carta pública (T3.1). Opcional: sin color, la categoría usa el
+  // diseño del sistema.
+  color: z
+    .string()
+    .regex(/^#[0-9a-fA-F]{6}$/, "Usá un color en formato #rrggbb")
+    .nullable()
+    .optional(),
 });
 
 export async function GET() {

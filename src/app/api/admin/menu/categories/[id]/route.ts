@@ -12,6 +12,12 @@ const updateCategorySchema = z.object({
   slug: z.string().min(1).optional(),
   sortOrder: z.number().int().min(0).optional(),
   isActive: z.boolean().optional(),
+  // `null` borra el color de la categoría (T3.1).
+  color: z
+    .string()
+    .regex(/^#[0-9a-fA-F]{6}$/, "Usá un color en formato #rrggbb")
+    .nullable()
+    .optional(),
 });
 
 export async function PATCH(

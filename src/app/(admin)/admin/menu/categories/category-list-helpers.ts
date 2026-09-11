@@ -14,6 +14,8 @@ export type AdminCategory = {
   slug: string;
   isActive: boolean;
   sortOrder: number;
+  /** Color de la categoría en la carta pública; `null` = diseño del sistema (T3.1). */
+  color: string | null;
   subcategories: AdminSubcategory[];
 };
 

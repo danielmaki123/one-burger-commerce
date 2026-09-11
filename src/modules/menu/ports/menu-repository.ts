@@ -27,6 +27,7 @@ export interface MenuRepository {
     slug: string;
     sortOrder: number;
     isActive: boolean;
+    color?: string | null;
   }): Promise<CategoryRecord>;
   updateCategory(
     id: string,
@@ -35,6 +36,7 @@ export interface MenuRepository {
       slug?: string;
       sortOrder?: number;
       isActive?: boolean;
+      color?: string | null;
     },
   ): Promise<CategoryRecord>;
   findCategoryById(id: string): Promise<CategoryRecord | null>;

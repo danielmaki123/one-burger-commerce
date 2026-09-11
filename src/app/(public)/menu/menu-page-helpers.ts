@@ -105,6 +105,28 @@ export function getMenuProductActionCopy(product: ProductCardCopyLike) {
   };
 }
 
+type CategoryColorLookup = {
+  id: string;
+  name: string;
+  color: string | null;
+};
+
+/**
+ * Categoría de un producto, para pintar su tarjeta (T3.1).
+ *
+ * Hace falta en los resultados de búsqueda, donde conviven productos de varias
+ * categorías: sin esto, la tarjeta perdería el color que sí tiene en su sección.
+ */
+export function findCategoryOfProduct(
+  categories: CategoryColorLookup[],
+  product: { categoryId: string },
+): { name: string; color: string | null } | null {
+  const category = categories.find((item) => item.id === product.categoryId);
+  if (!category) return null;
+
+  return { name: category.name, color: category.color };
+}
+
 export function getMenuHeaderCountLabel({
   categoryCount,
   isSearching,

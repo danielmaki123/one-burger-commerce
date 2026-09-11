@@ -14,6 +14,7 @@ function buildCategory(overrides: Partial<AdminCategory> = {}): AdminCategory {
     slug: "vinos",
     isActive: true,
     sortOrder: 0,
+    color: null,
     subcategories: [],
     ...overrides,
   };

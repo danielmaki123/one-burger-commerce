@@ -1,3 +1,4 @@
+import { normalizeCategoryColor } from "@/modules/menu/domain/category-color";
 import { MenuError } from "@/modules/menu/domain/menu-errors";
 import type { CategoryRecord } from "@/modules/menu/domain/menu.types";
 import type { MenuRepository } from "@/modules/menu/ports/menu-repository";
@@ -7,6 +8,8 @@ type UpdateCategoryInput = {
   slug?: string;
   sortOrder?: number;
   isActive?: boolean;
+  /** `null` borra el color: la categoría vuelve al diseño del sistema. */
+  color?: string | null;
 };
 
 type UpdateCategoryDependencies = {
@@ -35,6 +38,8 @@ export async function updateCategory(
     ...(input.slug !== undefined ? { slug: input.slug.trim() } : {}),
     ...(input.sortOrder !== undefined ? { sortOrder: input.sortOrder } : {}),
     ...(input.isActive !== undefined ? { isActive: input.isActive } : {}),
+    // Un hex inválido se guarda como "sin color" en vez de romper la carta.
+    ...(input.color !== undefined ? { color: normalizeCategoryColor(input.color) } : {}),
   });
 
   return {

@@ -12,6 +12,7 @@ describe("getPublicMenu", () => {
       slug: "maki-maki",
       sortOrder: 0,
       isActive: true,
+      color: null,
       subcategories: [],
       products: [],
     });

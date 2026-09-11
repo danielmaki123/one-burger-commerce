@@ -112,6 +112,8 @@ export type CategoryRecord = {
   slug: string;
   sortOrder: number;
   isActive: boolean;
+  /** Color de la carta pública (`#rrggbb`) o `null` si el owner no eligió ninguno. */
+  color: string | null;
   subcategories?: SubcategoryRecord[];
   products?: ProductRecord[];
 };
@@ -121,6 +123,8 @@ export type PublicMenuCategory = {
   name: string;
   slug: string;
   sortOrder: number;
+  /** Color elegido por el owner para las tarjetas de esta categoría. */
+  color: string | null;
   subcategories: {
     id: string;
     name: string;

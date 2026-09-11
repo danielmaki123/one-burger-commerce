@@ -37,11 +37,14 @@ function CartProbe() {
   return <p>Carrito: {items.length}</p>;
 }
 
-function renderCard(product: PublicMenuProductCardData) {
+function renderCard(
+  product: PublicMenuProductCardData,
+  category: { name: string; color: string | null } | null = null,
+) {
   return render(
     <CartProvider>
       <CartProbe />
-      <MenuProductCard product={product} />
+      <MenuProductCard product={product} category={category} />
     </CartProvider>,
   );
 }
@@ -88,5 +91,33 @@ describe("tarjeta de producto del menú (T3)", () => {
       "pathname",
       "/menu/seed-prod-03",
     );
+  });
+
+  it("pinta la tarjeta con el color de la categoría y el texto más legible (T3.1)", () => {
+    renderCard(ADDABLE, { name: "Tacos", color: "#d32f2f" });
+
+    const article = screen.getByRole("link", { name: "Ver Taco de Birria" })
+      .closest("article") as HTMLElement;
+    const name = within(article).getByText("Taco de Birria");
+    const card = article.querySelector("div[style]") as HTMLElement;
+
+    // Sobre el rojo del mock el texto claro da 4,75:1; el oscuro, 3,48:1.
+    expect(card.style.backgroundColor).toBe("rgb(211, 47, 47)");
+    expect(name.style.color).toBe("rgb(247, 250, 252)");
+
+    // El botón se invierte para seguir siendo legible sobre el color.
+    const button = screen.getByRole("button", { name: "Agregar Taco de Birria al carrito" });
+    expect(button.style.backgroundColor).toBe("rgb(247, 250, 252)");
+    expect(button.style.color).toBe("rgb(211, 47, 47)");
+  });
+
+  it("sin color de categoría la tarjeta queda con el diseño del sistema", () => {
+    renderCard(ADDABLE, { name: "Tacos", color: null });
+
+    const article = screen.getByRole("link", { name: "Ver Taco de Birria" })
+      .closest("article") as HTMLElement;
+
+    expect(article.innerHTML).not.toContain("background-color");
+    expect(article.innerHTML).not.toContain("rgb(211, 47, 47)");
   });
 });

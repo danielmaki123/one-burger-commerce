@@ -1,3 +1,4 @@
+import { normalizeCategoryColor } from "@/modules/menu/domain/category-color";
 import { MenuError } from "@/modules/menu/domain/menu-errors";
 import type { CategoryRecord } from "@/modules/menu/domain/menu.types";
 import type { MenuRepository } from "@/modules/menu/ports/menu-repository";
@@ -7,6 +8,7 @@ type CreateCategoryInput = {
   slug: string;
   sortOrder: number;
   isActive: boolean;
+  color?: string | null;
 };
 
 type CreateCategoryDependencies = {
@@ -35,6 +37,7 @@ export async function createCategory(
     slug: input.slug.trim(),
     sortOrder: input.sortOrder ?? 0,
     isActive: input.isActive ?? true,
+    color: normalizeCategoryColor(input.color),
   });
 
   return {

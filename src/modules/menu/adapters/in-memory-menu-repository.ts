@@ -29,6 +29,7 @@ export class InMemoryMenuRepository implements MenuRepository {
         name: category.name,
         slug: category.slug,
         sortOrder: category.sortOrder,
+        color: category.color,
         subcategories: (category.subcategories ?? [])
           .filter((s) => s.isActive)
           .map((sub) => ({
@@ -77,10 +78,12 @@ export class InMemoryMenuRepository implements MenuRepository {
     slug: string;
     sortOrder: number;
     isActive: boolean;
+    color?: string | null;
   }): Promise<CategoryRecord> {
     const category: CategoryRecord = {
       id: `cat_${this.categories.length + 1}`,
       ...input,
+      color: input.color ?? null,
       subcategories: [],
     };
     this.categories.push(category);
@@ -94,6 +97,7 @@ export class InMemoryMenuRepository implements MenuRepository {
       slug?: string;
       sortOrder?: number;
       isActive?: boolean;
+      color?: string | null;
     },
   ): Promise<CategoryRecord> {
     const category = this.categories.find((c) => c.id === id);

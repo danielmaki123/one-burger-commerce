@@ -12,6 +12,7 @@ describe("validateMarketingBlockInput", () => {
       slug: "oculta",
       sortOrder: 0,
       isActive: false,
+      color: null,
       subcategories: [],
       products: [],
     });

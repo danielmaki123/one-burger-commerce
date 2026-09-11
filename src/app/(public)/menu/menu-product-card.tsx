@@ -9,6 +9,7 @@ import { formatCurrency } from "@/shared/lib/format-currency";
 import { getPublicStartingPrice } from "@/shared/lib/public-product-pricing";
 import { buildQuickAddCartItem, canQuickAddProduct } from "@/shared/lib/product-quick-add";
 import { Card, CardContent } from "@/shared/ui/card";
+import { resolveCategoryCardColors } from "@/modules/menu/domain/category-color";
 import { getMenuProductActionCopy } from "./menu-page-helpers";
 
 export interface PublicMenuProductCardData {
@@ -58,9 +59,12 @@ function PhotoPlaceholder({ productName }: { productName: string }) {
 
 export function MenuProductCard({
   product,
+  category = null,
   className = "",
 }: {
   product: PublicMenuProductCardData;
+  /** Categoría del producto: de acá sale el color de la tarjeta (T3.1). */
+  category?: { name: string; color: string | null } | null;
   className?: string;
 }) {
   const [imageFailed, setImageFailed] = useState(false);
@@ -72,6 +76,8 @@ export function MenuProductCard({
   // El "+" del mock (24 px) no agregaba nada. Acá agrega de verdad cuando el
   // producto no obliga a elegir; cuando sí, la tarjeta lleva a elegir.
   const quickAdd = canQuickAddProduct(product);
+  // Color de la categoría elegido en el admin, con el texto más legible encima.
+  const colors = resolveCategoryCardColors(category?.color);
 
   function handleQuickAdd() {
     addItem(buildQuickAddCartItem(product));
@@ -87,7 +93,14 @@ export function MenuProductCard({
         className="absolute inset-0 z-0 rounded-[20px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
       />
 
-      <Card className="overflow-hidden rounded-[20px] border-border bg-card shadow-card transition duration-300 group-hover:-translate-y-0.5">
+      <Card
+        className="overflow-hidden rounded-[20px] border-border bg-card shadow-card transition duration-300 group-hover:-translate-y-0.5"
+        style={
+          colors
+            ? { backgroundColor: colors.backgroundColor, borderColor: colors.backgroundColor }
+            : undefined
+        }
+      >
         <div className="pointer-events-none relative aspect-[1/1.04] overflow-hidden bg-cream">
           {hasPrimaryImage ? (
             <img
@@ -104,14 +117,20 @@ export function MenuProductCard({
         <CardContent className="pointer-events-none min-h-16 px-3 py-3.5">
           <div className="space-y-2">
             <h3
-              className="line-clamp-2 text-title text-foreground"
-              style={{ fontFamily: "var(--font-heading)" }}
+              className="line-clamp-2 text-title"
+              style={{
+                fontFamily: "var(--font-heading)",
+                color: colors?.foregroundColor,
+              }}
             >
               {product.name}
             </h3>
 
             <div className="flex items-center justify-between gap-2">
-              <span className="text-label leading-none text-foreground">
+              <span
+                className="text-label leading-none"
+                style={{ color: colors?.foregroundColor }}
+              >
                 {formatCurrency(getPublicStartingPrice(product), currency)}
               </span>
               {quickAdd ? (
@@ -120,6 +139,14 @@ export function MenuProductCard({
                   onClick={handleQuickAdd}
                   aria-label={`Agregar ${product.name} al carrito`}
                   className="pointer-events-auto relative z-10 flex h-11 w-11 items-center justify-center rounded-full bg-brand text-brand-foreground shadow-sm transition active:scale-95"
+                  style={
+                    colors
+                      ? {
+                          backgroundColor: colors.foregroundColor,
+                          color: colors.backgroundColor,
+                        }
+                      : undefined
+                  }
                 >
                   <svg
                     aria-hidden="true"

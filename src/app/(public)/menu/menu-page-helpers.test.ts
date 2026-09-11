@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  findCategoryOfProduct,
   getCategoryThumbnailUrl,
   getMenuProductActionCopy,
   getMenuHeaderCountLabel,
@@ -13,6 +14,23 @@ import {
   shouldShowSubcategoryHeading,
   shouldShowSubcategoryNav,
 } from "./menu-page-helpers";
+
+describe("color por categoría (T3.1)", () => {
+  it("encuentra la categoría de un producto, para pintar su tarjeta en los resultados", () => {
+    // En los resultados de búsqueda conviven productos de varias categorías: sin
+    // esto, la tarjeta perdería el color que sí tiene en su categoría.
+    const categories = [
+      { id: "c1", name: "Tacos", slug: "tacos", color: "#d32f2f" },
+      { id: "c2", name: "Bebidas", slug: "bebidas", color: null },
+    ];
+
+    expect(findCategoryOfProduct(categories, { categoryId: "c2" })).toEqual({
+      name: "Bebidas",
+      color: null,
+    });
+    expect(findCategoryOfProduct(categories, { categoryId: "c9" })).toBeNull();
+  });
+});
 
 describe("miniatura de categoría (T3)", () => {
   const available = (url: string) => ({

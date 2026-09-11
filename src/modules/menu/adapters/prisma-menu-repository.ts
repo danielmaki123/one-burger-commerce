@@ -153,6 +153,7 @@ function mapCategory(category: {
   slug: string;
   sortOrder: number;
   isActive: boolean;
+  color: string | null;
 }): CategoryRecord {
   return {
     id: category.id,
@@ -160,6 +161,7 @@ function mapCategory(category: {
     slug: category.slug,
     sortOrder: category.sortOrder,
     isActive: category.isActive,
+    color: category.color,
   };
 }
 
@@ -268,6 +270,7 @@ export class PrismaMenuRepository implements MenuRepository {
       name: string;
       slug: string;
       sortOrder: number;
+      color: string | null;
       subcategories: Array<{
         id: string;
         name: string;
@@ -281,6 +284,7 @@ export class PrismaMenuRepository implements MenuRepository {
       name: category.name,
       slug: category.slug,
       sortOrder: category.sortOrder,
+      color: category.color,
       subcategories: category.subcategories.map((sub: {
         id: string;
         name: string;
@@ -340,6 +344,7 @@ export class PrismaMenuRepository implements MenuRepository {
       slug: string;
       sortOrder: number;
       isActive: boolean;
+      color: string | null;
       subcategories: Array<{
         id: string;
         categoryId: string;
@@ -362,6 +367,7 @@ export class PrismaMenuRepository implements MenuRepository {
     slug: string;
     sortOrder: number;
     isActive: boolean;
+    color?: string | null;
   }): Promise<CategoryRecord> {
     const prisma = getPrismaClient();
     const category = await prisma.category.create({
@@ -377,6 +383,7 @@ export class PrismaMenuRepository implements MenuRepository {
       slug?: string;
       sortOrder?: number;
       isActive?: boolean;
+      color?: string | null;
     },
   ): Promise<CategoryRecord> {
     const prisma = getPrismaClient();

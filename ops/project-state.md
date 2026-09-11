@@ -853,6 +853,38 @@ con importe; lo que faltaba era **el orden del mock** y dos huecos de accesibili
   el pedido llega al carrito con sus notas y que no hay scroll horizontal; y a 1280 px que el CTA no se
   estira a lo ancho de la pantalla.
 
+### Adopción del mock · T3.1: color por categoría (2026-09-12)
+
+Pedido del owner al cerrar T4 ("color por categoría: sí"). El mock pinta cada tarjeta del menú con el
+color de su categoría; eso necesitaba **un dato que no existía**, así que entra por el admin y no como
+color fijo.
+
+- **Contrato nuevo**: `Category.color` (opcional) con migración `add_category_color` (sin BOM, la
+  verifica el test que ya existía) y validación `#rrggbb` en la API (crear y editar). El color vacío o
+  `null` significa "sin color": la tarjeta vuelve al diseño del sistema.
+- **Test rojo**: `src/modules/menu/domain/category-color.test.ts` (10 casos) falló como debía
+  (`Cannot find package '@/modules/menu/domain/category-color'`); después, el caso del tinte en
+  `menu-product-card.test.tsx` (`expected '' to be 'rgb(211, 47, 47)'`) y el del helper de la búsqueda.
+  El contrato de la API tiene dientes comprobados por mutación: sin la validación `#rrggbb`, un color
+  inválido pasa y el caso de uso revienta con 500 en vez de 400.
+- **El texto encima lo elige el sistema, no el owner**: de los dos textos de la casa (oscuro `#1f1916`,
+  claro `#f7fafc`) se usa el que más contraste da sobre el color elegido, y el admin **avisa** cuando ni
+  el mejor llega a AA (mismo criterio que la paleta de apariencia: avisa, no bloquea). Sobre el rojo del
+  mock el texto claro da 4,75:1; sobre el gris medio `#808080` el mejor posible es 4,4:1, así que ahí
+  avisa. Un color a medio escribir no se puede guardar.
+- **Dónde se ve**: en las tarjetas del menú (sección y resultados de búsqueda: los resultados llevan el
+  color de *su* categoría, no el de la categoría abierta) y en la vista previa del admin. El botón de
+  agregar rápido se invierte para seguir siendo legible sobre el color.
+- **Un contrato que ya existía atajó un atajo**: la vista previa del admin llevaba un `C$` de ejemplo y
+  `anti-hardcode-contract.test.ts` la marcó. Se sacó el importe: el preview muestra el color y el texto,
+  no datos del negocio.
+- **Verificado en el camino real** (Postgres 17 local + `next start -p 3210` con el build nuevo):
+  **E2E completo 53 pasaron, 7 salteados, 0 fallos** (antes 52). `tests/e2e/admin-category-color.spec.ts`
+  recorre el camino entero en el navegador: el owner escribe un color inválido (guardar deshabilitado y
+  aviso), escribe `#d32f2f`, guarda, y en `/menu` mide el color **calculado** de la tarjeta
+  (`rgb(211, 47, 47)` de fondo y de borde) y el del texto (`rgb(247, 250, 252)`); después lo borra y
+  comprueba que la tarjeta vuelve al diseño del sistema.
+
 ## 3. Infraestructura y secretos
 
 - `EASYPANEL_URL` y `EASYPANEL_TOKEN`: solo en el entorno de quien ejecuta el deploy (nunca
@@ -879,7 +911,7 @@ con importe; lo que faltaba era **el orden del mock** y dos huecos de accesibili
 | 8 | **Checkout sin redundancias** (textos y botones repetidos) | **Cerrada y desplegada** | `ops/tasks/TASK-checkout-ux.md`. Cuatro commits (`2832a93`…`aba4156`), en producción como `build-20260911-145656`. El checkout pasó de 807 a 476 líneas, un solo resumen compartido con el carrito, un solo CTA visible por viewport y los turnos de retiro calculados desde la configuración. |
 | 9 | **Validar el estado operativo en el servidor** | **Cerrada y desplegada** | Commits `3a67c37` y `ca474c8`, en producción como `build-20260911-154014`. `isAcceptingOrders` ya corta pedidos de verdad (antes no lo leía nadie) y la hora de retiro se valida contra el horario del día. Incluye el horario demo del seed y el límite de login del arnés E2E. |
 | 10 | **Retiro opcional y programable + la hora visible en toda la cadena** | **Cerrada y desplegada** | Commits `6f85a3c`, `c101f82`, `b207593` y `abc2183`, en producción como `build-20260911-191047`. Incluye **una migración** (`pickupScheduled`). El retiro es opcional, la hora la resuelve el servidor, el ticket de cocina y el admin la muestran, y el semáforo va contra la hora prometida. Ver el detalle arriba. |
-| 11 | **Adopción del mock completo (rediseño de la UI pública)** | **En ejecución · ola 1: T1 (tokens), T2 (home), T3 (menú) y T4 (producto) cerradas** | [`ops/tasks/TASK-mock-adoption.md`](tasks/TASK-mock-adoption.md). Plan **aprobado** el 2026-09-12 (D-A tipografía: Plus Jakarta Sans como tercera opción · D-B ola 2 completa **sin reseñas ni delivery** · D-C orden: tokens primero y después las pantallas en el orden del mock). **Reglas del programa**: ningún control decorativo (implementado con API/estado y test, o eliminado con motivo), nada hardcodeado, la paleta como preset que pasa el test de contraste, TDD por tarea, y verificación a 375 px **y 1280 px** (el mock no tiene escritorio). **Ola 1**: T1 tokens **cerrada** ✅ · T2 home **cerrada** ✅ · T3 menú **cerrada** ✅ · T4 producto **cerrada** ✅ · **sigue T3.1 (color por categoría) y T5 carrito+checkout** (absorbe `TASK-checkout-v2`) · T6 confirmación · T7 seguimiento e historial. **Ola 2** (aprobada): T8 multi-sucursal, T9 promos, T10 favoritos (**bloqueada**: necesita login de cliente real; el OTP da 503), T11 método de pago, T12 vuelto, T13 PIN de retiro. Evidencia del mock: [`ops/audit-checkout-mock.md`](audit-checkout-mock.md). |
+| 11 | **Adopción del mock completo (rediseño de la UI pública)** | **En ejecución · ola 1: T1, T2, T3, T3.1 y T4 cerradas** | [`ops/tasks/TASK-mock-adoption.md`](tasks/TASK-mock-adoption.md). Plan **aprobado** el 2026-09-12 (D-A tipografía: Plus Jakarta Sans como tercera opción · D-B ola 2 completa **sin reseñas ni delivery** · D-C orden: tokens primero y después las pantallas en el orden del mock). **Reglas del programa**: ningún control decorativo (implementado con API/estado y test, o eliminado con motivo), nada hardcodeado, la paleta como preset que pasa el test de contraste, TDD por tarea, y verificación a 375 px **y 1280 px** (el mock no tiene escritorio). **Ola 1**: T1 tokens **cerrada** ✅ · T2 home **cerrada** ✅ · T3 menú **cerrada** ✅ · T3.1 color por categoría **cerrada** ✅ · T4 producto **cerrada** ✅ · **sigue T5 carrito+checkout** (absorbe `TASK-checkout-v2`) · T6 confirmación · T7 seguimiento e historial. **Ola 2** (aprobada): T8 multi-sucursal, T9 promos, T10 favoritos (**bloqueada**: necesita login de cliente real; el OTP da 503), T11 método de pago, T12 vuelto, T13 PIN de retiro. Evidencia del mock: [`ops/audit-checkout-mock.md`](audit-checkout-mock.md). |
 
 ## 5. Cómo continuar
 
