@@ -105,12 +105,14 @@ function formatPublicOrderStatus(status: string): string {
 type OrderSuccessViewProps = {
   order: OrderSuccessData;
   onViewActivity?: () => void;
+  /** Volver a la carta: la segunda salida que muestra el mock (T6). */
   onOrderAgain?: () => void;
 };
 
 export default function OrderSuccessView({
   order,
   onViewActivity,
+  onOrderAgain,
 }: OrderSuccessViewProps) {
   const [hideMascot, setHideMascot] = useState(false);
   const itemCount = order.items.reduce((total, item) => total + item.quantity, 0);
@@ -184,13 +186,22 @@ export default function OrderSuccessView({
           </div>
         </section>
 
-        <div className="mt-7">
+        <div className="mt-7 grid gap-3 sm:grid-cols-2">
           <Button
             className="h-14 w-full rounded-2xl bg-brand text-base font-semibold text-brand-foreground brand-shadow-cta hover:bg-brand-strong"
             onClick={onViewActivity}
           >
             Ver mis pedidos
           </Button>
+          {onOrderAgain ? (
+            <Button
+              variant="outline"
+              className="h-14 w-full rounded-2xl text-base font-semibold"
+              onClick={onOrderAgain}
+            >
+              Volver a la carta
+            </Button>
+          ) : null}
         </div>
 
         <section className="mt-7 rounded-3xl bg-card/92 p-5 shadow-[0_18px_38px_-30px_rgba(60,40,20,0.55)] ring-1 ring-border sm:p-6">

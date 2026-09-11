@@ -56,6 +56,31 @@ describe("order success view", () => {
     expect(html).not.toContain("Hora de retiro");
   });
 
+  it("ofrece las dos salidas del mock: seguir el pedido y volver a la carta (T6)", () => {
+    // `onOrderAgain` estaba declarado y el page lo pasaba, pero la vista no lo
+    // usaba: el enlace "Volver a la Carta" del mock no existía.
+    const html = renderToStaticMarkup(
+      createElement(OrderSuccessView, {
+        order: pickupOrder({ orderNumber: "D-MQ71QBQ1" }) as never,
+        onViewActivity: () => {},
+        onOrderAgain: () => {},
+      }),
+    );
+
+    expect(html).toContain("Ver mis pedidos");
+    expect(html).toContain("Volver a la carta");
+    // Y una sola confirmación: el mock repite el mensaje en dos bloques.
+    expect(html.match(/¡Pedido confirmado!/g)).toHaveLength(1);
+    expect(html).toContain("D-MQ71QBQ1");
+  });
+
+  it("no deja enlaces muertos como los del mock (T6)", () => {
+    const html = renderWith(pickupOrder({ pickupTime: null }));
+
+    // El mock tiene 4 `<a href="#">` en su confirmación.
+    expect(html).not.toContain('href="#"');
+  });
+
   it("con rango configurado le promete una franja, no un instante (T5)", () => {
     // 20:35 con 20 min de preparación y 40 de máximo: la franja es 20:35–20:55.
     const html = renderToStaticMarkup(
