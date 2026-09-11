@@ -1,7 +1,21 @@
 # TASK: Checkout sin redundancias (carrito → checkout)
 
-**Estado:** **BORRADOR — a la espera de aprobación de Daniel** · **Prioridad:** alta (es la
-pantalla donde se pierde la venta) · **Estimación:** 4 fases
+**Estado:** **EJECUTADA el 2026-09-11** — cuatro commits (`2832a93`, `31457fd`, `9023b6f`,
+`aba4156`), **pendiente de deploy** · **Prioridad:** alta (era la pantalla donde se pierde
+la venta)
+
+> Resultado real, con las dos diferencias respecto de lo planeado:
+>
+> 1. **El total aparece una sola vez, no dos.** El plan decía "una vez por viewport", pero
+>    en móvil la tarjeta del resumen y la barra fija quedaban visibles a la vez y el total
+>    se veía duplicado. Se quitó la fila de total de la barra: el importe ya viaja en la
+>    etiqueta del botón (`Confirmar pedido • C$380.00`).
+> 2. **La verificación es más simple de lo previsto.** `getByRole` de Playwright ignora lo
+>    que está oculto por CSS, así que "un solo botón visible" se afirma directo con
+>    `toHaveCount(1)`; no hizo falta contar visibles. El plan pedía un test de conteo.
+>
+> Los tests nuevos se verificaron mutando el código a propósito: con dos CTA visibles a la
+> vez fallan los dos (escritorio y 375 px) con "Expected: 1, Received: 2".
 
 > Cómo arrancar esta tarea en un chat nuevo: pegar el prompt de §9.
 > Antes de codificar leer `AGENTS.md`, `ops/project-state.md` y este archivo completo.

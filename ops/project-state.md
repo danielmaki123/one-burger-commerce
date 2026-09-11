@@ -1,6 +1,6 @@
 # Estado del proyecto — One Burger Commerce
 
-> Actualizado: 2026-09-11 · Commit en `main`: `d6e4512` · Build en producción: `build-20260911-140759`
+> Actualizado: 2026-09-11 · Commit en `main`: `aba4156` · Build en producción: `build-20260911-140759` (el checkout nuevo **todavía no está desplegado**)
 > Este documento es el punto de entrada para retomar el trabajo. Mantenerlo al día al cerrar cada tarea.
 > Para arrancar en un chat nuevo: `ops/tasks/START-HERE.md`.
 
@@ -411,6 +411,54 @@ Verificado en producción (`build-20260910-174113`): las cinco superficies muest
 configurado y ninguna muestra ya las iniciales; el favicon y el apple-touch-icon apuntan
 al logo; ningún HTML público trae los colores viejos; smoke 4/4.
 
+### Checkout sin redundancias (2026-09-11)
+
+Ejecutada `ops/tasks/TASK-checkout-ux.md` en cuatro commits (`2832a93`, `31457fd`, `9023b6f`,
+`aba4156`). **Falta desplegar.**
+
+Lo que se midió antes de tocar nada, renderizando el checkout con dos productos:
+
+| Texto | Veces | Ahora |
+|---|---|---|
+| `Confirmá tu pedido` | 2 | 1 |
+| `Tu pedido` (encabezado) | 2 | 1 (`Resumen del pedido`) |
+| `Total a pagar` | 3 | 1 |
+| Botones `Confirmar pedido` | 3 (**2 visibles a la vez**) | 1 visible por viewport |
+| `Subtotal` / `Empaque` / `Listo para confirmar` | 2 cada uno | 1 cada uno / eliminado |
+
+- **Un solo resumen.** Carrito y checkout comparten `OrderSummaryCard`
+  (`(public)/_components/order-summary-card.tsx`). Desaparecen "Tu bolsa", "Tu pedido" y
+  "Total estimado": ahora los tres son "Resumen del pedido".
+- **Un solo CTA visible por viewport.** En el DOM quedan dos (uno por viewport, `hidden
+  lg:block` y `lg:hidden`); visible, exactamente uno. En móvil además se quitó la fila de
+  total de la barra fija porque el importe ya viaja en la etiqueta del botón: el total se
+  veía dos veces.
+- **El CTA nunca arranca deshabilitado.** El defecto era peor de lo que parecía: la clase
+  `disabled:opacity-100` **anulaba la señal visual de deshabilitado**, así que el botón
+  ámbar parecía activo y no respondía, con el mismo mensaje repetido 2 o 3 veces. Ahora al
+  tocar se marca el campo, se lo enfoca y hay **un** mensaje junto al campo.
+- **El contador cuenta unidades** en carrito y checkout, que es lo que ya contaba el badge
+  del header. Antes el carrito contaba líneas: dos productos de 3 unidades daban "2
+  productos" en un lado y "6 items" en el otro.
+- **Turnos de retiro calculados.** `business-settings/domain/pickup-slots.ts` los deriva de
+  `businessHours` + `pickupLeadMinutes`. "Lo antes posible" muestra la hora real; antes era
+  una opción aparte que mandaba las 19:30 fijas, o sea mentía. Era la excepción conocida que
+  `TASK-whitelabel-branding` había inventariado y nunca arregló.
+- **Código muerto borrado**: `CheckoutTablePanel` (85 líneas, nunca se renderizaba),
+  `getGeoErrorMessage` (19 líneas, geolocalización de delivery) y `checkoutSubtitle`. Vivían
+  solo por sus tests; los tests se fueron con ellos. `checkout/page.tsx` bajó de **807 a 476
+  líneas**.
+- **Una decisión que conviene revisar**: el checkout **sigue sin bloquear pedidos por
+  horario**. Si el local está cerrado avisa con `closedMessage` y ofrece la hora calculada
+  más próxima, pero deja confirmar. Bloquear es una decisión de producto aparte y necesita
+  validación en el servidor: `create-order.ts` solo verifica que la fecha sea parseable, no
+  que caiga dentro del horario. Queda anotado abajo.
+
+Verificado en local contra el build de producción: **25 E2E pasaron, 7 salteados, 0 fallos**
+(6 del checkout, con el mismo chequeo a 375 px), 1000 unitarios, lint, typecheck, build y
+`security:secrets` en verde. Los tests nuevos **tienen dientes**: reintroduciendo el bug a
+propósito, el test de escritorio y el de 375 px fallan los dos con "Expected: 1, Received: 2".
+
 ## 3. Infraestructura y secretos
 
 - `EASYPANEL_URL` y `EASYPANEL_TOKEN`: solo en el entorno de quien ejecuta el deploy (nunca
@@ -434,7 +482,8 @@ al logo; ningún HTML público trae los colores viejos; smoke 4/4.
 | 5 | **Endurecimiento técnico**: scrypt más fuerte con rehash al login, CSP, extraer componentes exportados de las páginas (hoy `next build --webpack` falla) | Agente | No bloquea. |
 | 6 | **Cerrar puertos innecesarios** de otros servicios del servidor (`capostgres` 5455, `postimage` 8585) | Daniel | No es de One Burger, pero están expuestos a internet. |
 | 7 | **Personalización / quitar hardcodeo** (nombre, colores, logo, contacto, horarios, dirección) | **Cerrada (fases 1-4 y 6)** | Aprobada el 2026-09-10; brief en `ops/tasks/TASK-whitelabel-branding.md`. Sitio público, `/admin/settings`, apariencia con presets y contrato anti-hardcode, todo en `main` con CI verde. La **fase 5 (subida de logos)** se descartó: necesita un volumen persistente en Easypanel. Quedó **una excepción**: los turnos de retiro siguen hardcodeados y se trasladaron a la tarea #8. |
-| 8 | **Checkout sin redundancias** (textos y botones repetidos) | **Brief listo, esperando aprobación** | `ops/tasks/TASK-checkout-ux.md`. Medido: el checkout renderiza `Confirmá tu pedido` 2 veces, `Total a pagar` 3 veces y 3 botones `Confirmar pedido`, de los cuales **2 quedan visibles a la vez** en cualquier viewport. Incluye los turnos de retiro generados desde la configuración. |
+| 8 | **Checkout sin redundancias** (textos y botones repetidos) | **Cerrada, sin desplegar** | `ops/tasks/TASK-checkout-ux.md`. Cuatro commits (`2832a93`…`aba4156`). El checkout pasó de 807 a 476 líneas, un solo resumen compartido con el carrito, un solo CTA visible por viewport y los turnos de retiro calculados desde la configuración. Verificado en local: 25 E2E y 1000 unitarios en verde. |
+| 9 | **Validar la hora de retiro en el servidor** | Agente | Hueco abierto: `create-order.ts` acepta cualquier fecha parseable. Si alguien manda las 04:00, la API lo acepta. El checkout tampoco bloquea pedidos con el local cerrado (a propósito, para no cambiar el comportamiento sin decidirlo). Es la continuación natural de la tarea #8. |
 
 ## 5. Cómo continuar
 
