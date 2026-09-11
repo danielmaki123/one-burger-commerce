@@ -1,0 +1,135 @@
+import { getWeekdayInTimeZone } from "@/modules/business-settings/domain/business-hours-format";
+import { TIME_OF_DAY_PATTERN } from "@/modules/business-settings/domain/business-settings.types";
+import type { BusinessHours } from "@/modules/business-settings/domain/business-settings.types";
+
+/**
+ * Turnos de retiro derivados de la configuración del negocio.
+ *
+ * Antes esta lista estaba escrita a mano en el checkout (`19:30`, `20:00`, `20:30`,
+ * `21:00`) y la opción "lo antes posible" en realidad mandaba las 19:30 fijas. Acá
+ * los turnos salen de `businessHours` + `pickupLeadMinutes`, así que un negocio que
+ * abre a otra hora o cierra otro día no necesita tocar código.
+ */
+
+/** Cada cuántos minutos se ofrece un turno. */
+export const PICKUP_SLOT_MINUTES = 30;
+
+/** Cuántos turnos se ofrecen como máximo (los más próximos primero). */
+export const MAX_PICKUP_SLOTS = 5;
+
+/** La opción "lo antes posible" es el primer turno, no una hora aparte. */
+export type PickupSlot = {
+  /** Hora en `HH:mm`, en la zona horaria del negocio. */
+  value: string;
+  /** Etiqueta en 12 horas lista para mostrar: `7:30 p. m.`. */
+  label: string;
+  /** Solo el primero: es el que corresponde a "lo antes posible". */
+  isSoonest: boolean;
+};
+
+export type PickupSlotsResult =
+  | { available: true; slots: PickupSlot[] }
+  | {
+      available: false;
+      /** `closed`: hoy no abre. `no-slots-left`: abre, pero ya no llega el tiempo. */
+      reason: "closed" | "no-slots-left";
+    };
+
+function parseTimeOfDay(value: string): number | null {
+  if (!TIME_OF_DAY_PATTERN.test(value)) return null;
+
+  const [hours, minutes] = value.split(":");
+  return Number(hours) * 60 + Number(minutes);
+}
+
+function toTimeOfDay(minutes: number): string {
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+
+  return `${String(hours).padStart(2, "0")}:${String(rest).padStart(2, "0")}`;
+}
+
+/**
+ * Minutos transcurridos desde la medianoche **en la zona del negocio**, que es la
+ * que decide si el local está abierto. Una zona inválida cae a UTC en vez de romper
+ * el checkout.
+ */
+export function minutesOfDayInTimeZone(date: Date, timeZone: string): number {
+  try {
+    const parts = new Intl.DateTimeFormat("en-US", {
+      timeZone,
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    }).formatToParts(date);
+
+    const hours = Number(parts.find((part) => part.type === "hour")?.value ?? "");
+    const minutes = Number(parts.find((part) => part.type === "minute")?.value ?? "");
+
+    if (Number.isFinite(hours) && Number.isFinite(minutes)) {
+      return hours * 60 + minutes;
+    }
+  } catch {
+    // Zona horaria inválida: se sigue con UTC.
+  }
+
+  return date.getUTCHours() * 60 + date.getUTCMinutes();
+}
+
+/** `19:30` → `7:30 p. m.` */
+export function formatSlotLabel(value: string): string {
+  const minutes = parseTimeOfDay(value) ?? 0;
+  const hours24 = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  const hours12 = hours24 % 12 === 0 ? 12 : hours24 % 12;
+  const suffix = hours24 < 12 ? "a. m." : "p. m.";
+
+  return `${hours12}:${String(rest).padStart(2, "0")} ${suffix}`;
+}
+
+export function buildPickupSlots(input: {
+  businessHours: BusinessHours;
+  timezone: string;
+  pickupLeadMinutes: number;
+  now: Date;
+  slotMinutes?: number;
+  maxSlots?: number;
+}): PickupSlotsResult {
+  const today = input.businessHours[getWeekdayInTimeZone(input.now, input.timezone)];
+
+  if (!today || today.closed) {
+    return { available: false, reason: "closed" };
+  }
+
+  const open = parseTimeOfDay(today.open);
+  const close = parseTimeOfDay(today.close);
+
+  // Un horario incoherente (o que cruza la medianoche) se trata como cerrado en vez
+  // de ofrecer turnos inventados.
+  if (open === null || close === null || close <= open) {
+    return { available: false, reason: "closed" };
+  }
+
+  const slotMinutes = Math.max(1, Math.trunc(input.slotMinutes ?? PICKUP_SLOT_MINUTES));
+  const maxSlots = Math.max(1, Math.trunc(input.maxSlots ?? MAX_PICKUP_SLOTS));
+  const nowMinutes = minutesOfDayInTimeZone(input.now, input.timezone);
+  const earliest = Math.max(open, nowMinutes + Math.max(0, input.pickupLeadMinutes));
+
+  // Los turnos se alinean con la apertura, no con una grilla absoluta: si el local
+  // abre a las 12:15, los turnos son 12:15, 12:45, …
+  const steps = Math.ceil((earliest - open) / slotMinutes);
+  let cursor = open + steps * slotMinutes;
+
+  const slots: PickupSlot[] = [];
+  while (cursor < close && slots.length < maxSlots) {
+    const value = toTimeOfDay(cursor);
+    slots.push({ value, label: formatSlotLabel(value), isSoonest: slots.length === 0 });
+    cursor += slotMinutes;
+  }
+
+  if (slots.length === 0) {
+    return { available: false, reason: "no-slots-left" };
+  }
+
+  return { available: true, slots };
+}
