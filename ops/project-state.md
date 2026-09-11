@@ -655,9 +655,18 @@ Lo que la medición dejó claro:
   patrón de edición por ítem. También sirve de referencia visual para `/menu`, el seguimiento y el
   historial, que son **otras tareas** (no el checkout).
 
-**No se escribió código de producto**: solo la herramienta de medición y el informe. El mock no se
-commitea (es la carpeta de trabajo del owner). El plan de 7 fases y las 8 decisiones están en
-`TASK-checkout-v2.md` §6-§7, **esperando la respuesta del owner**.
+**No se escribió código de producto**: solo las herramientas de medición y el informe. El mock no se
+commitea (es la carpeta de trabajo del owner).
+
+El owner pidió después **adoptar el mock**: copiar su orden, sus colores y todos sus botones, con la
+regla de que lo que no tenga API se valore para implementar y **no quede solo como texto**. Eso está
+traducido a un programa con 5 reglas (ningún control decorativo, nada hardcodeado, la paleta como
+preset que pasa el test de contraste, TDD por tarea, y 375 px + 1280 px porque el mock no tiene
+escritorio), una **matriz de adopción** (mock → nuestro control → API/estado → test) y **7 tareas en
+el orden del mock**: [`ops/tasks/TASK-mock-adoption.md`](tasks/TASK-mock-adoption.md). `TASK-checkout-v2`
+queda absorbida como la tarea T5. Falta tu decisión sobre la tipografía (D-A), sobre la ola 2
+(segunda sucursal, delivery, reseñas, promos, favoritos, método de pago, vuelto, PIN) y confirmar el
+orden (D-C).
 
 ## 3. Infraestructura y secretos
 
@@ -685,7 +694,7 @@ commitea (es la carpeta de trabajo del owner). El plan de 7 fases y las 8 decisi
 | 8 | **Checkout sin redundancias** (textos y botones repetidos) | **Cerrada y desplegada** | `ops/tasks/TASK-checkout-ux.md`. Cuatro commits (`2832a93`…`aba4156`), en producción como `build-20260911-145656`. El checkout pasó de 807 a 476 líneas, un solo resumen compartido con el carrito, un solo CTA visible por viewport y los turnos de retiro calculados desde la configuración. |
 | 9 | **Validar el estado operativo en el servidor** | **Cerrada y desplegada** | Commits `3a67c37` y `ca474c8`, en producción como `build-20260911-154014`. `isAcceptingOrders` ya corta pedidos de verdad (antes no lo leía nadie) y la hora de retiro se valida contra el horario del día. Incluye el horario demo del seed y el límite de login del arnés E2E. |
 | 10 | **Retiro opcional y programable + la hora visible en toda la cadena** | **Cerrada y desplegada** | Commits `6f85a3c`, `c101f82`, `b207593` y `abc2183`, en producción como `build-20260911-191047`. Incluye **una migración** (`pickupScheduled`). El retiro es opcional, la hora la resuelve el servidor, el ticket de cocina y el admin la muestran, y el semáforo va contra la hora prometida. Ver el detalle arriba. |
-| 11 | **Mejora del checkout (v2)** | **Fase 0 cerrada (auditoría del mock) · pendiente la aprobación del plan** | `ops/tasks/TASK-checkout-v2.md`. El owner entregó un **mock completo** (`stitch_full_pwa_builder/`, export de Stitch, 7 pantallas) y se auditó entero **midiéndolo en navegador real**: informe en [`ops/audit-checkout-mock.md`](audit-checkout-mock.md). El mock resultó ser un PWA de **delivery de otra marca** y **no es copiable**: su checkout **no tiene un solo input** (se perdió la sección de datos de contacto) ni hora de retiro, **no es funcional** (el CTA no tiene `onclick`; sucursal, pago y propina no responden), **no es accesible** (zoom bloqueado en las 7, 0 `role`, 0 `aria-live`, 45 fallos de contraste), **no cierra sus cuentas** (943 ≠ 858) y **no usa su propio design system**. Lo que sí aporta: el **rango de preparación**, el estimado en la confirmación, la **dirección del local** en el checkout (fase 3 nueva) y el patrón de edición por ítem. El plan (7 fases) y las **8 decisiones D1-D8** esperan la respuesta del owner; **no se escribe código de producto hasta entonces**. |
+| 11 | **Adopción del mock completo (rediseño de la UI pública)** | **Plan propuesto · pendiente D-A/D-B/D-C** | [`ops/tasks/TASK-mock-adoption.md`](tasks/TASK-mock-adoption.md). El owner pidió copiar del mock **el orden, los colores y todos los botones**, con la regla de que lo que no tenga API **se valore para implementar y no quede solo como texto**. El plan lo traduce a: **ningún control decorativo** (implementado + test, o eliminado con motivo), **paleta como preset** que tiene que pasar el test de contraste (el mock tiene 45 fallos medidos), **TDD por tarea** y verificación a 375 px **y 1280 px** (el mock no tiene escritorio). **Ola 1 (7 tareas, con las APIs de hoy)**: T1 tokens · T2 home · T3 menú · T4 producto · T5 carrito+checkout (absorbe `TASK-checkout-v2`) · T6 confirmación · T7 seguimiento e historial. **Ola 2 (requiere contrato nuevo y tu OK)**: segunda sucursal (hoy `BusinessSettings` es una sola fila), delivery, reseñas, promos, favoritos (necesitan cuenta de cliente), método de pago, vuelto y PIN de retiro. Auditar el mock está cerrado: [`ops/audit-checkout-mock.md`](audit-checkout-mock.md). |
 
 ## 5. Cómo continuar
 

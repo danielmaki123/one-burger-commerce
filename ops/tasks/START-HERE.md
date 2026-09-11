@@ -7,15 +7,15 @@ ningún contexto de conversación previa**. Todo lo necesario está versionado e
 
 > Trabajás en `one-burger-commerce` (Next.js 16 + Prisma + Postgres, deploy en Easypanel).
 > Antes de escribir código leé, en este orden: `AGENTS.md`, `ops/project-state.md`,
-> `ops/production-readiness.md` y `ops/tasks/TASK-checkout-v2.md`.
-> La tarea es la **mejora del checkout (v2)**. **La fase 0 (auditoría del mock completo del owner) ya
-> está hecha**: el informe es `ops/audit-checkout-mock.md` y el plan propuesto, en §7 del brief.
-> **No escribas código de producto hasta que el owner apruebe ese plan y responda las decisiones
-> D1-D8 de §6.** Con esa aprobación, las fases de §7 van **en orden, una por commit**, con **TDD
-> siempre**: escribí primero el test que falla, corrélo y confirmá el rojo antes de implementar. Nada
-> de código antes del test.
-> El protocolo TDD y **el primer test rojo de cada fase** están en §7 del brief: no se implementa
-> ninguna fase sin haberlo visto fallar por la razón correcta.
+> `ops/production-readiness.md`, `ops/audit-checkout-mock.md` y **`ops/tasks/TASK-mock-adoption.md`**.
+> La tarea es la **adopción del mock completo** (rediseño de la UI pública): se copian **el orden
+> visual, los colores y los componentes** del mock, **no** su comportamiento (medido: no funciona) ni
+> sus dependencias (CDN) ni sus defectos de accesibilidad (zoom bloqueado, 0 `role`, 45 fallos de
+> contraste). **Regla dura: ningún control decorativo** — cada control queda implementado con su
+> API/estado y **cubierto por un test**, o se elimina con el motivo escrito.
+> El plan está en tareas (§4 del brief) en el **orden del mock**; `TASK-checkout-v2.md` es la tarea T5.
+> **TDD por fase y por tarea**: escribí primero el test que falla, corrélo y confirmá el rojo por la
+> razón correcta antes de implementar. Nada de código antes del test.
 > Ojo con dos cosas que el mock NO tiene y no se pueden perder: **nombre y WhatsApp** del cliente y
 > la **hora de retiro opcional/programable**.
 > Trabajá en español, con commits propios, y validá con `npm run test`, `lint`, `typecheck`,
@@ -32,9 +32,10 @@ ningún contexto de conversación previa**. Todo lo necesario está versionado e
 | 1 | `AGENTS.md` | Reglas de trabajo: alcance, arquitectura DDD, TDD, validación, git/CI, deploy, idioma, prohibiciones |
 | 2 | `ops/project-state.md` | Qué está desplegado hoy, qué se cerró, qué falta, cómo levantar el entorno local |
 | 3 | `ops/production-readiness.md` | Runbook: entorno, deploy, backups, rollback, notificaciones, primer arranque, límites conocidos |
-| 4 | `ops/tasks/TASK-checkout-v2.md` | La tarea a ejecutar: **la fase 0 (auditoría del mock) ya está cerrada**; el plan propuesto y las decisiones D1-D8 están en §6-§7, pendientes de la aprobación del owner |
-| 5 | `ops/audit-checkout-mock.md` | La auditoría medida del mock completo: inventario y clasificación por elemento, lo que se descarta con motivo y el plan propuesto |
-| 6 | `README.md` · `.env.example` | Alcance del MVP y variables de entorno |
+| 4 | `ops/audit-checkout-mock.md` | La auditoría medida del mock: inventario y clasificación por elemento, lo que se descarta con motivo y los 18 defectos que no se arrastran |
+| 5 | `ops/tasks/TASK-mock-adoption.md` | **El plan vigente**: adopción del mock (reglas, matriz de adopción, ola 1 en 7 tareas, ola 2 pendiente de OK y decisiones) |
+| 6 | `ops/tasks/TASK-checkout-v2.md` | El detalle de la tarea **T5 (carrito + checkout)** del programa, con su protocolo TDD por fase |
+| 7 | `README.md` · `.env.example` | Alcance del MVP y variables de entorno |
 
 Tareas ya cerradas, por si hace falta el contexto de una decisión:
 `ops/tasks/TASK-whitelabel-branding.md` (personalización del negocio) y

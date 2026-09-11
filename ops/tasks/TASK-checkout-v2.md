@@ -1,5 +1,11 @@
 # TASK: Mejora del checkout (v2)
 
+> ⚠️ **Absorbida por [`TASK-mock-adoption.md`](TASK-mock-adoption.md)**, el programa de adopción del
+> mock completo: este brief pasa a ser la tarea **T5 (carrito + checkout)** de su ola 1. El plan
+> vigente, las reglas (ningún control decorativo, paleta como preset con contraste, TDD por tarea) y
+> las decisiones están en ese documento; lo de acá sigue valiendo como detalle de la tarea del
+> checkout.
+
 **Estado:** **fase 0 medida** (`ops/audit-checkout-mock.md`) · **pendiente la aprobación del owner**
 sobre el plan de §7 y las decisiones de §6 · **Prioridad:** media-alta (es la pantalla donde se cierra
 la venta) · **Origen:** el **mock completo** que entregó el owner + el mock previo
