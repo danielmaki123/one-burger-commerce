@@ -1,3 +1,5 @@
+import { normalizeSearchText } from "@/shared/lib/normalize-search-text";
+
 type CategoryLike = {
   id: string;
   slug: string;
@@ -82,14 +84,6 @@ export function getMenuHeaderCountLabel({
   }
 
   return categoryCount === 1 ? "1 categoría" : `${categoryCount} categorías`;
-}
-
-function normalizeSearchText(value: string) {
-  return value
-    .trim()
-    .normalize("NFD")
-    .replace(/\p{Diacritic}/gu, "")
-    .toLocaleLowerCase("es-NI");
 }
 
 export function searchPublicMenuProducts<TProduct extends SearchableMenuProduct>(

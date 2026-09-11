@@ -758,6 +758,43 @@ la tipografía del mock entra como **opción nueva**, no reemplaza a Fraunces ni
   `document.fonts.check('700 16px ...')` es `true` —o sea que la fuente se descargó de verdad, no que
   la variable exista—; y que **sin guardar** el sitio publicado conserva la suya.
 
+### Adopción del mock · T2: la home en el orden del mock (2026-09-12)
+
+Primer pantalla de la ola 1. Se adoptó el **orden** del mock (de arriba hacia abajo: estado del
+local → buscador → categorías → destacado → productos → información del restaurante) y su anatomía de
+tarjeta, sin copiar lo que no funciona ni lo que no existe.
+
+- **Test rojo**: `home-page-helpers.test.ts` sumó 15 casos (estado operativo, estimado de retiro,
+  aplanado del menú, búsqueda y agregado rápido) que fallaron como debían
+  (`TypeError: resolveHomeOpenState is not a function`). Después, `page.dom.test.tsx` (jsdom) cubre la
+  pantalla armada: productos, chips, buscador, agregado al carrito e información del local.
+- **Estado del local**: usa **la misma regla que el servidor** (`resolveOrderAcceptance`), así que el
+  cartel no puede decir "Abierto" mientras el checkout rechaza el pedido. Con los pedidos pausados
+  muestra el mensaje del negocio; fuera del horario, el horario de hoy. Se calcula **en el cliente**
+  (con el reloj del servidor sería la hora del build).
+- **Estimado de retiro**: sale de `pickupLeadMinutes` ("Retiro: ~25 min"); sin tiempo configurado dice
+  "lo antes posible" en vez de prometer una espera que no existe. T5 lo extiende al rango mín-máx.
+- **Buscador real**: filtra el menú ya cargado con el **mismo criterio que el del menú**
+  (`normalizeSearchText` se movió a `src/shared/lib/` para que no haya dos normalizaciones distintas),
+  muestra cuántas coincidencias hay y, sin resultados, explica y ofrece limpiar.
+- **El "+" ahora agrega de verdad**: el mock tiene un "+" de 24 px que no hace nada; acá agrega al
+  carrito cuando el producto **no obliga a elegir** nada, mide 44 px y se anuncia (`role="status"`).
+  Cuando el producto sí exige opciones, la tarjeta entera lleva a elegirlas y el "+" no se dibuja:
+  ningún control que mienta. La tarjeta usa enlace estirado, así que hay **un solo** punto de tabulación.
+- **Chips de categoría**: el mock rotula a mano ("Top #1", "Favorito", "Guarnición"); acá el chip sale
+  de los datos (la categoría del producto), porque ese copy es del negocio del mock.
+- **Información del restaurante**: dirección, horario y teléfono de `/admin/settings`, con "Cómo
+  llegar" (la URL de mapas del admin, o una búsqueda armada con la dirección, o nada: nunca un botón
+  muerto) y "Llamar" (`tel:`). El pie viejo de la home repetía dirección y horario: se retiró.
+- **Verificado en el camino real** (Postgres 17 local + `next start -p 3210` con el build nuevo):
+  **E2E completo 42 pasaron, 7 salteados, 0 fallos** (antes 34). El spec nuevo
+  `tests/e2e/public-home.spec.ts` mide a 375 px (estado, estimado, enlaces, "+" de ≥44 px, buscador,
+  agregar al carrito y verlo en `/cart`, sin scroll horizontal) y a **1280 px** (grilla de 4 columnas
+  en una sola fila, sin scroll horizontal), porque el mock **no tiene escritorio**.
+- **Pendiente dentro de la home**: los ❤️ favoritos y las ⭐ reseñas del mock son de la ola 2 (no hay
+  modelo ni cuenta), y la barra inferior flotante del mock se reemplaza por la navegación que el sitio
+  ya tiene en el layout público.
+
 ## 3. Infraestructura y secretos
 
 - `EASYPANEL_URL` y `EASYPANEL_TOKEN`: solo en el entorno de quien ejecuta el deploy (nunca
@@ -784,7 +821,7 @@ la tipografía del mock entra como **opción nueva**, no reemplaza a Fraunces ni
 | 8 | **Checkout sin redundancias** (textos y botones repetidos) | **Cerrada y desplegada** | `ops/tasks/TASK-checkout-ux.md`. Cuatro commits (`2832a93`…`aba4156`), en producción como `build-20260911-145656`. El checkout pasó de 807 a 476 líneas, un solo resumen compartido con el carrito, un solo CTA visible por viewport y los turnos de retiro calculados desde la configuración. |
 | 9 | **Validar el estado operativo en el servidor** | **Cerrada y desplegada** | Commits `3a67c37` y `ca474c8`, en producción como `build-20260911-154014`. `isAcceptingOrders` ya corta pedidos de verdad (antes no lo leía nadie) y la hora de retiro se valida contra el horario del día. Incluye el horario demo del seed y el límite de login del arnés E2E. |
 | 10 | **Retiro opcional y programable + la hora visible en toda la cadena** | **Cerrada y desplegada** | Commits `6f85a3c`, `c101f82`, `b207593` y `abc2183`, en producción como `build-20260911-191047`. Incluye **una migración** (`pickupScheduled`). El retiro es opcional, la hora la resuelve el servidor, el ticket de cocina y el admin la muestran, y el semáforo va contra la hora prometida. Ver el detalle arriba. |
-| 11 | **Adopción del mock completo (rediseño de la UI pública)** | **En ejecución · ola 1, T1 (tokens) cerrada** | [`ops/tasks/TASK-mock-adoption.md`](tasks/TASK-mock-adoption.md). Plan **aprobado** el 2026-09-12 (D-A tipografía: Plus Jakarta Sans como tercera opción · D-B ola 2 completa **sin reseñas ni delivery** · D-C orden: tokens primero y después las pantallas en el orden del mock). **Reglas del programa**: ningún control decorativo (implementado con API/estado y test, o eliminado con motivo), nada hardcodeado, la paleta como preset que pasa el test de contraste, TDD por tarea, y verificación a 375 px **y 1280 px** (el mock no tiene escritorio). **Ola 1**: T1 tokens **cerrada** (T1.1 paleta ✅, T1.3 escala/radios/sombras ✅, T1.2 Plus Jakarta Sans ✅) · **sigue T2 home** · T3 menú · T4 producto · T5 carrito+checkout (absorbe `TASK-checkout-v2`) · T6 confirmación · T7 seguimiento e historial. **Ola 2** (aprobada): T8 multi-sucursal, T9 promos, T10 favoritos (**bloqueada**: necesita login de cliente real; el OTP da 503), T11 método de pago, T12 vuelto, T13 PIN de retiro. Evidencia del mock: [`ops/audit-checkout-mock.md`](audit-checkout-mock.md). |
+| 11 | **Adopción del mock completo (rediseño de la UI pública)** | **En ejecución · ola 1: T1 (tokens) y T2 (home) cerradas** | [`ops/tasks/TASK-mock-adoption.md`](tasks/TASK-mock-adoption.md). Plan **aprobado** el 2026-09-12 (D-A tipografía: Plus Jakarta Sans como tercera opción · D-B ola 2 completa **sin reseñas ni delivery** · D-C orden: tokens primero y después las pantallas en el orden del mock). **Reglas del programa**: ningún control decorativo (implementado con API/estado y test, o eliminado con motivo), nada hardcodeado, la paleta como preset que pasa el test de contraste, TDD por tarea, y verificación a 375 px **y 1280 px** (el mock no tiene escritorio). **Ola 1**: T1 tokens **cerrada** (T1.1 paleta ✅, T1.3 escala/radios/sombras ✅, T1.2 Plus Jakarta Sans ✅) · T2 home **cerrada** ✅ · **sigue T3 menú** · T4 producto · T5 carrito+checkout (absorbe `TASK-checkout-v2`) · T6 confirmación · T7 seguimiento e historial. **Ola 2** (aprobada): T8 multi-sucursal, T9 promos, T10 favoritos (**bloqueada**: necesita login de cliente real; el OTP da 503), T11 método de pago, T12 vuelto, T13 PIN de retiro. Evidencia del mock: [`ops/audit-checkout-mock.md`](audit-checkout-mock.md). |
 
 ## 5. Cómo continuar
 

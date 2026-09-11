@@ -4,8 +4,8 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { formatBusinessHoursSummary } from "@/modules/business-settings/domain/business-hours-format";
-import { BrandMark } from "@/shared/ui/brand-mark";
 import { formatPhoneForDisplay } from "@/modules/business-settings/domain/format-phone";
+import { useCart } from "@/shared/lib/cart";
 import {
   useBusinessSettings,
   useCurrencyFormat,
@@ -13,14 +13,22 @@ import {
 } from "@/shared/lib/business-settings";
 import { formatCurrency } from "@/shared/lib/format-currency";
 import { getPublicStartingPrice } from "@/shared/lib/public-product-pricing";
+import { getMenuSearchEmptyState } from "./menu/menu-page-helpers";
 import {
+  buildQuickAddCartItem,
+  canQuickAddProduct,
+  flattenHomeProducts,
   getHomeBrandNameClassName,
   getHomeHeroFrameClassName,
   getHomeHeroLoadingClassName,
   getHomeHeroTitleClassName,
   getHomePageShellClassName,
-  getHomePopularCtaClassName,
+  getHomePickupEstimateLabel,
   normalizeHomeHeroDescription,
+  resolveHomeOpenState,
+  searchHomeProducts,
+  type HomeCategory,
+  type HomeProductCardData,
 } from "./home-page-helpers";
 
 type MarketingBlock = {
@@ -34,47 +42,16 @@ type MarketingBlock = {
   ctaHref: string | null;
 };
 
-type ProductImage = { url: string; alt: string | null; isPrimary?: boolean };
-type Product = {
-  id: string;
-  name: string;
-  basePrice: number;
-  images: ProductImage[];
-  modifierGroups?: {
-    minSelections?: number;
-    options?: { priceDelta?: number; isActive?: boolean }[];
-  }[];
-  availability?: { isAvailable: boolean; isActive: boolean };
-};
-type Subcategory = { id: string; products: Product[] };
-type Category = {
-  id: string;
-  name: string;
-  slug: string;
-  products: Product[];
-  subcategories?: Subcategory[];
-};
+const POPULAR_PRODUCTS_LIMIT = 4;
 
 function whatsappUrlFor(settings: BusinessSettingsValue): string | null {
   return settings.whatsapp ? `https://wa.me/${settings.whatsapp}` : null;
 }
 
-function primaryImageUrl(images: ProductImage[] | undefined): string | null {
+function primaryImageUrl(images: HomeProductCardData["images"] | undefined): string | null {
   if (!images || images.length === 0) return null;
   const primary = images.find((image) => image.isPrimary);
   return (primary ?? images[0]).url;
-}
-
-function categoryProducts(category: Category): Product[] {
-  return [
-    ...(category.products || []),
-    ...(category.subcategories || []).flatMap((sub) => sub.products || []),
-  ];
-}
-
-function isUsableProduct(product: Product): boolean {
-  if (!product.availability) return true;
-  return product.availability.isActive && product.availability.isAvailable;
 }
 
 function badgeLabel(type: MarketingBlock["type"], businessName: string): string {
@@ -83,6 +60,27 @@ function badgeLabel(type: MarketingBlock["type"], businessName: string): string 
   if (type === "featured") return "Destacado";
   if (type === "info") return businessName;
   return "Promo";
+}
+
+/**
+ * Enlace de "Cómo llegar".
+ *
+ * Se prefiere la URL que el negocio cargó en `/admin/settings`; si no la cargó
+ * pero hay dirección, se arma una búsqueda de mapas con esa dirección. Nunca se
+ * dibuja un botón que no lleve a ningún lado.
+ */
+function directionsHref(settings: BusinessSettingsValue): string | null {
+  if (settings.mapsUrl) return settings.mapsUrl;
+
+  if (settings.latitude !== null && settings.longitude !== null) {
+    return `https://www.google.com/maps/search/?api=1&query=${settings.latitude},${settings.longitude}`;
+  }
+
+  const address = [settings.addressLine, settings.addressReference, settings.city]
+    .filter(Boolean)
+    .join(", ");
+
+  return address ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}` : null;
 }
 
 function HeroCta({ block }: { block: MarketingBlock }) {
@@ -108,7 +106,7 @@ function HeroCta({ block }: { block: MarketingBlock }) {
     </>
   );
   const className =
-    "inline-flex w-fit items-center gap-1.5 rounded-full bg-brand px-5 py-2.5 text-sm font-semibold text-brand-foreground shadow-sm transition active:scale-95";
+    "inline-flex min-h-11 w-fit items-center gap-1.5 rounded-full bg-brand px-5 text-label text-brand-foreground shadow-sm transition active:scale-95";
 
   if (block.ctaType === "url") {
     return (
@@ -145,7 +143,7 @@ function HeroSlide({ block }: { block: MarketingBlock }) {
         <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(13,11,8,0.45)_0%,rgba(13,11,8,0.05)_38%,rgba(13,11,8,0.78)_100%)]" />
 
         <div className="absolute inset-0 flex flex-col justify-between p-5 sm:p-7">
-          <span className="inline-flex w-fit rounded-full bg-terracotta px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-white">
+          <span className="inline-flex w-fit rounded-full bg-terracotta px-3 py-1 text-label-xs uppercase text-white">
             {badgeLabel(block.type, settings.name)}
           </span>
 
@@ -157,7 +155,7 @@ function HeroSlide({ block }: { block: MarketingBlock }) {
               {block.title}
             </h2>
             {block.description ? (
-              <p className="max-w-full break-words text-sm leading-5 text-white/85 sm:max-w-[34ch]">
+              <p className="max-w-full break-words text-body-sm text-white/85 sm:max-w-[34ch]">
                 {normalizeHomeHeroDescription(block.description)}
               </p>
             ) : null}
@@ -169,17 +167,154 @@ function HeroSlide({ block }: { block: MarketingBlock }) {
   );
 }
 
+/** Tarjeta de producto de la grilla: mismo orden que el mock (chip, foto, nombre, precio, "+"). */
+function HomeProductCard({ product }: { product: HomeProductCardData }) {
+  const currency = useCurrencyFormat();
+  const { addItem } = useCart();
+  const [imageFailed, setImageFailed] = useState(false);
+  const [justAdded, setJustAdded] = useState(false);
+  const thumb = primaryImageUrl(product.images);
+  const hasImage = Boolean(thumb) && !imageFailed;
+  const quickAdd = canQuickAddProduct(product);
+
+  function handleQuickAdd() {
+    addItem(buildQuickAddCartItem(product));
+    setJustAdded(true);
+  }
+
+  return (
+    <article className="group relative flex min-h-44 flex-col overflow-hidden rounded-card border border-border bg-card shadow-card">
+      {/* Enlace estirado: toda la tarjeta lleva al producto, y el "+" queda por encima */}
+      <Link
+        href={`/menu/${product.id}`}
+        aria-label={`Ver ${product.name}`}
+        className="absolute inset-0 z-0 rounded-card focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+      />
+
+      <div className="pointer-events-none relative aspect-[4/3] w-full overflow-hidden bg-cream">
+        {hasImage ? (
+          <img
+            src={thumb ?? undefined}
+            alt={product.name}
+            className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+            onError={() => setImageFailed(true)}
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center brand-photo text-brand/40">
+            <svg
+              aria-hidden="true"
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-8 w-8"
+            >
+              <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
+              <circle cx="9" cy="9" r="2" />
+              <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
+            </svg>
+          </div>
+        )}
+        {/* El chip sale de los datos: la categoría del producto, no un rótulo fijo. */}
+        <span className="absolute left-2 top-2 rounded-full bg-card/92 px-2 py-0.5 text-label-xs uppercase text-foreground shadow-sm">
+          {product.categoryName}
+        </span>
+      </div>
+
+      <div className="pointer-events-none relative flex flex-1 flex-col justify-between gap-1.5 p-3">
+        <div className="space-y-0.5">
+          <p
+            className="line-clamp-1 text-title-sm text-foreground"
+            style={{ fontFamily: "var(--font-heading)" }}
+          >
+            {product.name}
+          </p>
+          {product.description ? (
+            <p className="line-clamp-1 text-caption text-muted-foreground">
+              {product.description}
+            </p>
+          ) : null}
+        </div>
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-label text-brand">
+            {formatCurrency(getPublicStartingPrice(product), currency)}
+          </span>
+          {quickAdd ? (
+            <button
+              type="button"
+              onClick={handleQuickAdd}
+              aria-label={`Agregar ${product.name} al carrito`}
+              className="pointer-events-auto relative z-10 flex h-11 w-11 items-center justify-center rounded-full bg-brand text-brand-foreground transition active:scale-95"
+            >
+              <svg
+                aria-hidden="true"
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.25"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="h-4 w-4"
+              >
+                {justAdded ? (
+                  <path d="m5 13 4 4L19 7" />
+                ) : (
+                  <>
+                    <path d="M5 12h14" />
+                    <path d="M12 5v14" />
+                  </>
+                )}
+              </svg>
+            </button>
+          ) : (
+            // Hay que elegir opciones: la tarjeta entera lleva a la pantalla del producto.
+            <span
+              aria-hidden="true"
+              className="flex h-11 w-11 items-center justify-center rounded-full border border-border bg-card text-brand"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="h-4 w-4"
+              >
+                <path d="m9 6 6 6-6 6" />
+              </svg>
+            </span>
+          )}
+        </div>
+      </div>
+
+      {justAdded ? (
+        <span role="status" className="sr-only">
+          Agregado al carrito
+        </span>
+      ) : null}
+    </article>
+  );
+}
+
 export default function PublicHomePage() {
   const settings = useBusinessSettings();
-  const currency = useCurrencyFormat();
   const whatsappUrl = whatsappUrlFor(settings);
   const phoneDisplay = formatPhoneForDisplay(settings.phone);
   const hoursSummary = formatBusinessHoursSummary(settings.businessHours);
+  const directions = directionsHref(settings);
 
   const [marketingBlocks, setMarketingBlocks] = useState<MarketingBlock[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
+  const [categories, setCategories] = useState<HomeCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [query, setQuery] = useState("");
+  const [now, setNow] = useState<Date | null>(null);
 
   const trackRef = useRef<HTMLDivElement | null>(null);
   const activeIndexRef = useRef(0);
@@ -204,6 +339,37 @@ export default function PublicHomePage() {
 
     void fetchHome();
   }, []);
+
+  /**
+   * El estado operativo se calcula con el reloj del cliente y recién en el
+   * cliente: en el servidor la hora sería la del build y el cartel mentiría.
+   */
+  useEffect(() => {
+    setNow(new Date());
+  }, []);
+
+  const openState = useMemo(
+    () =>
+      resolveHomeOpenState({
+        isAcceptingOrders: settings.isAcceptingOrders,
+        closedMessage: settings.closedMessage,
+        businessHours: settings.businessHours,
+        timezone: settings.timezone,
+        pickupLeadMinutes: settings.pickupLeadMinutes,
+        now: now ?? new Date(0),
+      }),
+    [now, settings],
+  );
+
+  const products = useMemo(() => flattenHomeProducts(categories), [categories]);
+  const popularProducts = useMemo(
+    () => products.slice(0, POPULAR_PRODUCTS_LIMIT),
+    [products],
+  );
+  const searchResults = useMemo(() => searchHomeProducts(products, query), [products, query]);
+  const isSearching = query.trim().length > 0;
+  const visibleProducts = isSearching ? searchResults : popularProducts;
+  const emptyState = getMenuSearchEmptyState(query);
 
   const heroCount = marketingBlocks.length;
 
@@ -236,41 +402,91 @@ export default function PublicHomePage() {
     return () => window.clearInterval(id);
   }, [heroCount]);
 
-  const popularProducts = useMemo(() => {
-    const seen = new Set<string>();
-    const collected: Product[] = [];
-    for (const category of categories) {
-      for (const product of categoryProducts(category)) {
-        if (!isUsableProduct(product) || seen.has(product.id)) continue;
-        seen.add(product.id);
-        collected.push(product);
-        if (collected.length >= 4) return collected;
-      }
-    }
-    return collected;
-  }, [categories]);
-
   const visibleCategories = categories.filter(
-    (category) => categoryProducts(category).length > 0,
+    (category) =>
+      (category.products?.length ?? 0) > 0 ||
+      (category.subcategories ?? []).some((sub) => (sub.products?.length ?? 0) > 0),
   );
 
   return (
     <div className="brand-canvas min-h-screen">
       <div className={getHomePageShellClassName()}>
-        {/* Header */}
-        <header className="flex items-center justify-between gap-4">
-          <h1
-            className={getHomeBrandNameClassName()}
-            style={{ fontFamily: "var(--font-heading)" }}
-          >
-            {settings.name}
-          </h1>
-          <BrandMark
-            brand={settings}
-            className="h-12 w-12 shrink-0 rounded-2xl object-cover"
-            fallbackClassName="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-brand text-base font-bold text-brand-foreground"
-          />
+        {/* Header: la marca vive en el encabezado del sitio; acá va el estado del local */}
+        <header className="flex flex-wrap items-end justify-between gap-3">
+          <div className="space-y-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1
+                className={getHomeBrandNameClassName()}
+                style={{ fontFamily: "var(--font-heading)" }}
+              >
+                {settings.name}
+              </h1>
+              <span
+                className={`inline-flex min-h-6 items-center gap-1.5 rounded-full px-2.5 text-label-xs uppercase ${
+                  openState.isOpen
+                    ? "bg-success text-success-foreground"
+                    : "bg-danger text-danger-foreground"
+                }`}
+              >
+                <span aria-hidden="true">●</span>
+                {openState.label}
+              </span>
+            </div>
+            <p className="text-caption text-muted-foreground">
+              {openState.detail}
+              {settings.city ? (
+                <>
+                  <span aria-hidden="true"> · </span>
+                  <span aria-hidden="true">📍</span> {settings.city}
+                </>
+              ) : null}
+              <span aria-hidden="true"> · </span>
+              {getHomePickupEstimateLabel({ pickupLeadMinutes: settings.pickupLeadMinutes })}
+            </p>
+          </div>
         </header>
+
+        {/* Buscador: filtra el menú que ya está cargado, igual que el del menú */}
+        <form
+          role="search"
+          className="relative flex items-center"
+          onSubmit={(event) => event.preventDefault()}
+        >
+          <label htmlFor="home-search" className="sr-only">
+            Buscar en el menú
+          </label>
+          <span aria-hidden="true" className="absolute left-4 text-muted-foreground">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              className="h-4 w-4"
+            >
+              <circle cx="11" cy="11" r="7" />
+              <path d="m20 20-3.5-3.5" />
+            </svg>
+          </span>
+          <input
+            id="home-search"
+            type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder={`Buscar en ${settings.name}...`}
+            className="min-h-11 w-full rounded-full border border-border bg-card pl-11 pr-24 text-body-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+          />
+          {isSearching ? (
+            <button
+              type="button"
+              onClick={() => setQuery("")}
+              className="absolute right-2 min-h-9 rounded-full px-3 text-caption font-semibold text-brand"
+            >
+              Limpiar
+            </button>
+          ) : null}
+        </form>
 
         {/* Hero carousel */}
         {heroCount > 0 ? (
@@ -311,29 +527,28 @@ export default function PublicHomePage() {
         {visibleCategories.length > 0 ? (
           <section className="space-y-3">
             <div className="flex items-center justify-between">
-              <h2
-                className="text-xl font-semibold text-foreground"
-                style={{ fontFamily: "var(--font-heading)" }}
-              >
+              <h2 className="text-headline-md text-foreground" style={{ fontFamily: "var(--font-heading)" }}>
                 Categorías
               </h2>
               <Link
                 href="/menu"
-                className="text-sm font-semibold text-brand transition hover:text-brand-strong"
+                className="text-body-sm font-semibold text-brand transition hover:text-brand-strong"
               >
                 Ver menú
               </Link>
             </div>
             <div className="flex gap-3 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {visibleCategories.map((category) => {
-                const thumb = primaryImageUrl(categoryProducts(category)[0]?.images);
+                const thumb = primaryImageUrl(
+                  flattenHomeProducts([category])[0]?.images,
+                );
                 return (
                   <Link
                     key={category.id}
                     href={`/menu?category=${encodeURIComponent(category.slug)}`}
                     className="group flex w-[84px] shrink-0 flex-col items-center gap-2"
                   >
-                    <div className="h-[72px] w-[72px] overflow-hidden rounded-2xl border border-border bg-cream shadow-sm">
+                    <div className="h-[72px] w-[72px] overflow-hidden rounded-panel border border-border bg-cream shadow-card">
                       {thumb ? (
                         <img
                           src={thumb}
@@ -360,7 +575,7 @@ export default function PublicHomePage() {
                         </div>
                       )}
                     </div>
-                    <span className="line-clamp-1 text-center text-xs font-medium text-foreground">
+                    <span className="line-clamp-1 text-center text-label-sm text-foreground">
                       {category.name}
                     </span>
                   </Link>
@@ -370,153 +585,134 @@ export default function PublicHomePage() {
           </section>
         ) : null}
 
-        {/* Populares */}
-        {popularProducts.length > 0 ? (
+        {/* Productos: los populares del menú, o los resultados de la búsqueda */}
+        {visibleProducts.length > 0 ? (
           <section className="space-y-3">
             <div className="flex items-center justify-between">
-              <h2
-                className="text-xl font-semibold text-foreground"
-                style={{ fontFamily: "var(--font-heading)" }}
-              >
-                Populares
-              </h2>
+              <div>
+                <h2
+                  className="text-headline-md text-foreground"
+                  style={{ fontFamily: "var(--font-heading)" }}
+                >
+                  {isSearching ? "Resultados" : "Populares"}
+                </h2>
+                <p className="text-caption text-muted-foreground">
+                  {isSearching
+                    ? `${searchResults.length} ${searchResults.length === 1 ? "coincidencia" : "coincidencias"} para “${query.trim()}”`
+                    : "Lo más pedido del menú"}
+                </p>
+              </div>
               <Link
                 href="/menu"
-                className="text-sm font-semibold text-brand transition hover:text-brand-strong"
+                className="text-body-sm font-semibold text-brand transition hover:text-brand-strong"
               >
                 Ver más
               </Link>
             </div>
-            <div className="flex gap-3 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              {popularProducts.map((product) => {
-                const thumb = primaryImageUrl(product.images);
-                return (
-                  <Link
-                    key={product.id}
-                    href={`/menu/${product.id}`}
-                    className="group flex w-[150px] shrink-0 flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition hover:-translate-y-0.5"
-                  >
-                    <div className="relative aspect-[4/3] w-full overflow-hidden bg-cream">
-                      {thumb ? (
-                        <img
-                          src={thumb}
-                          alt={product.name}
-                          className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
-                        />
-                      ) : (
-                        <div className="flex h-full w-full items-center justify-center text-brand/35">
-                          <svg
-                            aria-hidden="true"
-                            xmlns="http://www.w3.org/2000/svg"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="1.6"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            className="h-8 w-8"
-                          >
-                            <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
-                            <circle cx="9" cy="9" r="2" />
-                            <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
-                          </svg>
-                        </div>
-                      )}
-                    </div>
-                    <div className="space-y-1.5 p-3">
-                      <p className="line-clamp-1 text-sm font-semibold text-foreground">
-                        {product.name}
-                      </p>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-bold text-brand">
-                          {formatCurrency(getPublicStartingPrice(product), currency)}
-                        </span>
-                        <span
-                          aria-hidden="true"
-                          className={getHomePopularCtaClassName()}
-                        >
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2.25"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            className="h-4 w-4"
-                          >
-                            <path d="M5 12h14" />
-                            <path d="M12 5v14" />
-                          </svg>
-                        </span>
-                      </div>
-                    </div>
-                  </Link>
-                );
-              })}
+            {isSearching ? (
+              <p role="status" className="sr-only">
+                {searchResults.length} {searchResults.length === 1 ? "resultado" : "resultados"} para{" "}
+                {query.trim()}
+              </p>
+            ) : null}
+            <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
+              {visibleProducts.map((product) => (
+                <HomeProductCard key={product.id} product={product} />
+              ))}
             </div>
+          </section>
+        ) : isSearching ? (
+          <section className="space-y-1 rounded-card border border-border bg-card p-5 text-center">
+            <p className="text-title-sm text-foreground">{emptyState.title}</p>
+            <p className="text-caption text-muted-foreground">{emptyState.description}</p>
+            <button
+              type="button"
+              onClick={() => setQuery("")}
+              className="mt-2 min-h-11 rounded-full bg-brand px-4 text-label text-brand-foreground"
+            >
+              Limpiar búsqueda
+            </button>
           </section>
         ) : null}
 
-        {/* Footer */}
-        <footer className="mt-1 rounded-[24px] border border-border bg-card/70 p-5">
-          <div className="flex items-center gap-3">
-            <BrandMark
-              brand={settings}
-              variant="full"
-              className="h-10 w-10 shrink-0 rounded-xl object-cover"
-              fallbackClassName="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand text-sm font-bold text-brand-foreground"
-            />
-            <p
-              className="text-base font-semibold text-ink-green"
-              style={{ fontFamily: "var(--font-heading)" }}
-            >
-              {settings.name}
-            </p>
-          </div>
+        {/* Información del restaurante: datos del admin, con enlaces que funcionan */}
+        <section className="space-y-2 pb-2">
+          <h2 className="text-headline-md text-foreground" style={{ fontFamily: "var(--font-heading)" }}>
+            Información del restaurante
+          </h2>
+          <div className="space-y-3 rounded-panel border border-border bg-accent/60 p-4 shadow-card">
+            <div className="flex items-start gap-3">
+              <span
+                aria-hidden="true"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-card text-base text-brand"
+              >
+                📍
+              </span>
+              <div className="flex-1 text-caption">
+                <p className="text-label-sm text-foreground">Retiro en tienda</p>
+                <p className="text-muted-foreground">
+                  {[settings.addressLine, settings.addressReference, settings.city]
+                    .filter(Boolean)
+                    .join(", ") || "—"}
+                </p>
+              </div>
+            </div>
 
-          <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-3">
-            <div>
-              <dt className="text-xs font-semibold uppercase tracking-wider text-brand">
-                Dirección
-              </dt>
-              <dd className="mt-1 text-muted-foreground">
-                {[settings.addressLine, settings.city].filter(Boolean).join(", ") || "—"}
-              </dd>
+            <div className="flex items-start gap-3 border-t border-border pt-3">
+              <span
+                aria-hidden="true"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-card text-base text-brand"
+              >
+                🕒
+              </span>
+              <div className="flex-1 text-caption">
+                <p className="text-label-sm text-foreground">Horario de atención</p>
+                <p className="text-muted-foreground">{hoursSummary}</p>
+                {phoneDisplay ? (
+                  <p className="mt-0.5 text-muted-foreground">Teléfono: {phoneDisplay}</p>
+                ) : null}
+              </div>
             </div>
-            <div>
-              <dt className="text-xs font-semibold uppercase tracking-wider text-brand">
-                Horario
-              </dt>
-              <dd className="mt-1 text-muted-foreground">{hoursSummary}</dd>
-            </div>
-            <div>
-              <dt className="text-xs font-semibold uppercase tracking-wider text-brand">
-                WhatsApp
-              </dt>
-              <dd className="mt-1">
-                {whatsappUrl ? (
+
+            {directions || settings.phone || whatsappUrl ? (
+              <div className="grid grid-cols-2 gap-2 pt-1">
+                {directions ? (
+                  <a
+                    href={directions}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex min-h-11 w-full items-center justify-center gap-1.5 rounded-card border border-border bg-card text-label-sm text-foreground shadow-sm transition active:scale-95"
+                  >
+                    <span aria-hidden="true">🗺️</span> Cómo llegar
+                  </a>
+                ) : null}
+                {settings.phone ? (
+                  <a
+                    href={`tel:${settings.phone}`}
+                    className="flex min-h-11 w-full items-center justify-center gap-1.5 rounded-card bg-brand text-label-sm text-brand-foreground shadow-sm transition active:scale-95"
+                  >
+                    <span aria-hidden="true">📞</span> Llamar
+                  </a>
+                ) : whatsappUrl ? (
                   <a
                     href={whatsappUrl}
                     target="_blank"
                     rel="noreferrer"
-                    className="text-muted-foreground transition-colors hover:text-foreground"
+                    className="flex min-h-11 w-full items-center justify-center gap-1.5 rounded-card bg-brand text-label-sm text-brand-foreground shadow-sm transition active:scale-95"
                   >
-                    {phoneDisplay}
+                    <span aria-hidden="true">💬</span> WhatsApp
                   </a>
-                ) : (
-                  <span className="text-muted-foreground">—</span>
-                )}
-              </dd>
-            </div>
-          </dl>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+        </section>
 
-          {settings.tagline ? (
-            <p className="mt-4 text-center text-xs italic text-muted-foreground">
-              {settings.tagline}
-            </p>
-          ) : null}
-        </footer>
+        {settings.tagline ? (
+          <p className="text-center text-caption italic text-muted-foreground">
+            {settings.tagline}
+          </p>
+        ) : null}
       </div>
     </div>
   );
