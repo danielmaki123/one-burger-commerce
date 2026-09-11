@@ -1,6 +1,6 @@
 # Estado del proyecto — One Burger Commerce
 
-> Actualizado: 2026-09-11 · Commit en `main`: `b207593` · Build en producción: `build-20260911-154014`
+> Actualizado: 2026-09-11 · Commit en `main`: `abc2183` · Build en producción: `build-20260911-191047`
 > Este documento es el punto de entrada para retomar el trabajo. Mantenerlo al día al cerrar cada tarea.
 > Para arrancar en un chat nuevo: `ops/tasks/START-HERE.md`.
 
@@ -545,7 +545,8 @@ del deploy: 12:00–22:00 todos los días, `America/Managua`, `pickupLeadMinutes
 
 ### Retiro opcional y programable (2026-09-11)
 
-Commits `6f85a3c`, `c101f82` y `b207593`. **Falta desplegar** (incluye una migración).
+Commits `6f85a3c`, `c101f82`, `b207593` y `abc2183`, **desplegados** como
+`build-20260911-191047` (incluye la migración `pickupScheduled`).
 
 Antes el cliente **tenía que** elegir una hora de una fila de chips, con el primer turno
 preseleccionado. Si está en el local y manda la orden, eso es fricción sin sentido.
@@ -603,6 +604,20 @@ espacio en el texto; y el radio con `sr-only` no era clickeable, así que el arn
 tocarlo (ahora cubre la tarjeta con opacidad 0: sigue siendo nativo y además se puede
 automatizar).
 
+Verificado además **en producción** (solo lectura, sin confirmar ningún pedido): el
+control colapsado muestra su estado **visible** —`"Lo antes posible · listo ~1:40 p. m."`
+con caja real de 628×20 px, comprobado con `boundingBox` y no solo con el nombre
+accesible—, ofrece 5 turnos, el CTA queda habilitado con su importe, y
+`GET /api/admin/orders` responde 200 (si la columna `pickupScheduled` no existiera, Prisma
+fallaría al mapear y daría 500). Smoke 4/4 y dominios 6/6.
+
+### Deploy del retiro programable (2026-09-11)
+
+Desplegado `abc2183` como `build-20260911-191047` con `deployService` sobre el servicio
+existente. La migración `20260911160000_add_order_pickup_scheduled` la validó antes el job
+`migrations` de CI contra un Postgres limpio, y el camino de escritura (crear un pedido
+programado y verlo en el admin) se verificó en local contra un Postgres real.
+
 ## 3. Infraestructura y secretos
 
 - `EASYPANEL_URL` y `EASYPANEL_TOKEN`: solo en el entorno de quien ejecuta el deploy (nunca
@@ -628,7 +643,7 @@ automatizar).
 | 7 | **Personalización / quitar hardcodeo** (nombre, colores, logo, contacto, horarios, dirección) | **Cerrada (fases 1-4 y 6)** | Aprobada el 2026-09-10; brief en `ops/tasks/TASK-whitelabel-branding.md`. Sitio público, `/admin/settings`, apariencia con presets y contrato anti-hardcode, todo en `main` con CI verde. La **fase 5 (subida de logos)** se descartó: necesita un volumen persistente en Easypanel. Quedó **una excepción**: los turnos de retiro siguen hardcodeados y se trasladaron a la tarea #8. |
 | 8 | **Checkout sin redundancias** (textos y botones repetidos) | **Cerrada y desplegada** | `ops/tasks/TASK-checkout-ux.md`. Cuatro commits (`2832a93`…`aba4156`), en producción como `build-20260911-145656`. El checkout pasó de 807 a 476 líneas, un solo resumen compartido con el carrito, un solo CTA visible por viewport y los turnos de retiro calculados desde la configuración. |
 | 9 | **Validar el estado operativo en el servidor** | **Cerrada y desplegada** | Commits `3a67c37` y `ca474c8`, en producción como `build-20260911-154014`. `isAcceptingOrders` ya corta pedidos de verdad (antes no lo leía nadie) y la hora de retiro se valida contra el horario del día. Incluye el horario demo del seed y el límite de login del arnés E2E. |
-| 10 | **Retiro opcional y programable + la hora visible en toda la cadena** | **Cerrada, sin desplegar** | Commits `6f85a3c`, `c101f82` y `b207593`. Incluye **una migración** (`pickupScheduled`). El retiro es opcional, la hora la resuelve el servidor, el ticket de cocina y el admin la muestran, y el semáforo va contra la hora prometida. Ver el detalle arriba. |
+| 10 | **Retiro opcional y programable + la hora visible en toda la cadena** | **Cerrada y desplegada** | Commits `6f85a3c`, `c101f82`, `b207593` y `abc2183`, en producción como `build-20260911-191047`. Incluye **una migración** (`pickupScheduled`). El retiro es opcional, la hora la resuelve el servidor, el ticket de cocina y el admin la muestran, y el semáforo va contra la hora prometida. Ver el detalle arriba. |
 | 11 | **Pedidos programados de días futuros** | Agente | Hoy el checkout solo ofrece turnos de hoy. Un pedido programado para mañana se puede crear por API y el admin lo muestra, pero la UI no lo ofrece. Decidir si el negocio quiere pedidos anticipados. |
 
 ## 5. Cómo continuar
