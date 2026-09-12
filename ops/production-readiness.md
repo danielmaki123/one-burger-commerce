@@ -185,9 +185,10 @@ atómico (una sola instancia procesa cada evento), así que mantener
 
 ## 6. Primer arranque con datos reales
 
-1. Dominio y SSL: hoy el servicio usa el dominio por defecto de Easypanel
-   (`brunobot-oneburguerweb.2jcsgw.easypanel.host`, HTTPS). Para un dominio propio,
-   crearlo en el panel apuntando al servicio `oneburguerweb` puerto `3000`.
+1. Dominio y SSL: **hecho** (ver §0). Los cuatro hosts están en el panel apuntando al servicio
+   `oneburguerweb:3000`, con certificado. El apex y `www` sirven el landing; `menu.` la app y `admin.`
+   el panel. Si algún día se agrega un host, hay que crear su **entrada de dominio** en el panel: sin
+   ella, el catch-all del proyecto compartido responde el 404 de otra app.
 2. Crear el primer admin (nunca con el seed). El contenedor ya trae `scripts/`, así
    que se puede ejecutar desde la **Terminal del servicio** en Easypanel:
 
@@ -216,6 +217,9 @@ atómico (una sola instancia procesa cada evento), así que mantener
    con otra la rota.
 
 3. Cargar el menú real desde `/admin/menu` (categorías, productos, modificadores, bloques de marketing).
+   **En curso**: el 2026-09-12 producción tenía 2 categorías con 6 productos (4 hamburguesas con C$35
+   de empaque y 2 bebidas). Si el negocio abre más de un local, el catálogo por sucursal se ajusta en
+   `/admin/locations/[id]` (precio propio, agotado, o no venderlo ahí).
 4. Definir de dónde salen las fotos: los productos guardan una URL de imagen externa y **no hay subida de archivos**. `public/images/` no se versiona, así que la imagen desplegada no trae fotos.
 5. Verificar el flujo completo en 375 px: menú → carrito → checkout (hora de retiro) → confirmación → `/admin/orders`.
 
@@ -229,18 +233,43 @@ atómico (una sola instancia procesa cada evento), así que mantener
 | Réplicas | `replicas: 1`. El outbox reclama cada evento de forma atómica (dos procesadores ya no pueden enviar la misma notificación), pero el dedup y el rate limiting siguen en memoria por proceso, y cada réplica dispararía su propio scheduler. |
 | Observabilidad | Sin error tracking ni alertas externas. Los incidentes se ven en los logs del contenedor. |
 | Login de clientes (OTP) | Sin proveedor real de WhatsApp: `request-otp` responde 503 en producción. No afecta el checkout (no requiere sesión de cliente). |
-| CSP | No se define `Content-Security-Policy` todavía; sí `HSTS`, `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy` y `Permissions-Policy` (viajan serializadas en el build, no dependen del config en runtime). |
+| CSP | **Implementada** con un nonce por request (`src/shared/config/content-security-policy.ts` + `src/proxy.ts`) y verificada por `tests/e2e/security-csp.spec.ts` en cada pantalla. Única concesión: `style-src` necesita `'unsafe-inline'` porque React escribe estilos en línea; cerrarlo del todo implica pasar a hojas de estilo. |
 | `X-Powered-By` | La imagen de producción no copia `next.config.ts` (importa de `src/`, que no se incluye en el runner), así que Next responde `X-Powered-By: Next.js`. Es cosmético: se puede quitar con un middleware de Traefik sobre el dominio del servicio. |
 | Módulos fuera de alcance | Reservas, mesas, delivery e inventario siguen en el repositorio pero ya no se ofrecen en la UI ni en las APIs públicas: el Resumen del admin es solo de retiro (sin KPIs ni sección de reservas, sin filtro Delivery), la pestaña Reservas de `/activity` fue retirada, `Inventario` salió de la navegación y se eliminaron `POST /api/reservations`, `/api/reservations/availability`, `/api/reservations/track`, `/api/tables/active` y `/api/delivery-zones`. Las páginas de admin de esos módulos quedan accesibles solo por URL directa. |
-| Build con webpack | `next build --webpack` falla la validación de exports de página (varias páginas exportan componentes y helpers además del default). Turbopack —el camino de build del Dockerfile y del CI— no aplica esa validación, así que hoy no bloquea. Extraer esos componentes a módulos propios antes de cambiar de bundler o de subir de versión mayor de Next. |
+| Build con webpack | **Verificado el 2026-09-12: `npm run build:webpack` compila entero.** La extracción de los componentes y helpers que las páginas exportaban (lo que hacía fallar esa validación) quedó hecha; es el build que **sí** valida los exports de una página, así que conviene correrlo cuando se toca `src/app/**/page.tsx` (Turbopack, el camino del Dockerfile y del CI, no aplica esa validación). |
 
 ---
 
-## 8. Pendientes que requieren acción humana
+## 8. Pendientes operativos (lo que no se puede hacer desde el repositorio)
 
-1. **Backups automáticos + drill de restore** en el servicio PostgreSQL de producción.
-2. **Dominio y SSL** productivos, con el host admin apuntando al servicio `web`.
-3. **Notificaciones**: decidir canal real (Telegram, n8n o WhatsApp) o aceptar operación 100 % panel.
-4. **Datos reales**: menú cargado y estrategia de imágenes de producto.
-5. **Monitoreo externo**: uptime sobre `/api/readiness` y alerta al canal del equipo.
-6. **Revisión de la propina**: hoy es opt-in (desmarcada por defecto) al 10 %. Si el negocio quiere otro porcentaje o un valor sugerido distinto, se cambia en `DEFAULT_TIP_RATE` (`src/shared/lib/order-totals.ts`).
+Los tres primeros son los que más pesan; cada uno con su receta y su verificación.
+
+1. **Backups automáticos + drill de restore** (servicio PostgreSQL de Easypanel).
+   - Panel → servicio `oneburguer-postgres` → *Backups*: activar el programado y fijar retención
+     (mínimo 7 días). Anotar la hora y el destino.
+   - Alternativa manual (si el panel no lo ofrece en esta instalación): *Terminal* del servicio y
+     `pg_dump -U oneburguer -d oneburger -Fc -f /tmp/oneburger-$(date +%F).dump`, y después bajarlo.
+   - **Drill** (una vez y luego cada trimestre): restaurar en una base aislada
+     (`pg_restore -d <base_nueva> --clean --if-exists <archivo>`) y comparar conteos de `Order`,
+     `Product` y `AdminUser` contra producción. Registrar la fecha y el resultado en este archivo.
+   - Sin backup no hay rollback de base: las migraciones no tienen *down* (§4).
+2. **Notificaciones de pedidos a cocina** (§5) — necesitan dos datos que solo tiene el owner: el
+   **bot token** de Telegram y el **chat id** del grupo de cocina (o la URL del webhook de n8n). Con
+   eso: cargar las cuatro variables en el servicio, desplegar y **probar de verdad**: hacer un pedido
+   de prueba y confirmar que llega el mensaje al grupo. Si no llega, revisar
+   `OUTBOX_PROCESSOR_ENABLED` y los logs del contenedor (el outbox reintenta).
+3. **Rotar el token del panel** (`EASYPANEL_TOKEN`): el token da acceso total al servidor y se pasó
+   por chat varias veces el 2026-09-12. Panel → *Settings* → *API tokens*: crear uno nuevo, usarlo y
+   revocar el viejo. Guardarlo solo en el gestor de secretos de quien despliega (nunca en el repo).
+4. **Cerrar puertos innecesarios de servicios ajenos** (`capostgres` 5455, `postimage` 8585, en el
+   panel compartido): no son de One Burger, así que requiere el OK de quien administra esos servicios.
+   Se cierran quitando el *port mapping* en el panel de cada servicio.
+5. **Monitoreo externo**: un uptime que pegue a `GET /api/readiness` (hace `SELECT 1` y responde 503
+   si la base no responde) y avise al canal del equipo.
+6. **Datos reales**: terminar de cargar el menú y definir la estrategia de fotos (§6.3 y §6.4).
+7. **Propina**: ya **no** se cambia en el código ni hace falta tocar `DEFAULT_TIP_RATE`: el porcentaje
+   se edita en `/admin/settings` (configuración del negocio) y el servidor es la fuente de verdad del
+   monto. Solo se toca el código si se quiere cambiar el valor por defecto de una instalación nueva.
+8. **Segunda sucursal** (opcional): el multi-sucursal está implementado y verificado, pero producción
+   hoy tiene un solo local. Crear uno real en `/admin/locations` es la forma de ejercitar el flujo con
+   datos de verdad (menú y precios por local, selector en el checkout, filtro en la bandeja).

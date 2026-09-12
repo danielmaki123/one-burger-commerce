@@ -1867,13 +1867,17 @@ los horarios, pero **no la zona horaria**.
 
 ## 4. Pendientes priorizados
 
+> Los que dependen del owner (backups, notificaciones, puertos, token, monitoreo, datos) tienen su
+> **receta y su verificación** paso a paso en `ops/production-readiness.md` §8, para poder hacerlos sin
+> depender de un agente.
+
 | # | Pendiente | Quién | Nota |
 |---|---|---|---|
 | 1 | **Cargar el menú real** (categorías → productos → precios → fotos) | Daniel | **En curso**: producción ya tiene 2 categorías con 6 productos (4 hamburguesas con C$35 de empaque y 2 bebidas), verificados el 2026-09-12. Falta el resto de la carta y las fotos (son URLs externas: no hay subida de archivos todavía). |
 | 2 | **Notificaciones de pedidos a cocina** | Daniel + agente | Hoy `NOTIFICATIONS_DRIVER=dummy`: un pedido entra y nadie se entera salvo que alguien mire `/admin/orders`. Falta bot token + chat id de Telegram (o webhook n8n), y activar `OUTBOX_PROCESSOR_*`. |
 | 3 | **Backups del Postgres + drill de restore** | Daniel (panel) | No hay backup programado. Es la única red si algo sale mal. |
 | 4 | **Borrar el servicio duplicado huérfano `oneburguer-web`** (responde 502) | Agente | **Ya no existe**: el 2026-09-12 se inspeccionaron los tres proyectos del panel (`brunobot`, `n8n`, `postgres`) y **no hay ningún `oneburguer-web`**; `brunobot` tiene `oneburguerweb` (producción), `oneburguer-postgres`, y los servicios ajenos. No hay nada que borrar. Si vuelve a aparecer, el runbook `ops/easypanel-production.md` (que describe el proyecto abandonado) ya tiene un aviso arriba. |
-| 5 | **Endurecimiento técnico**: scrypt más fuerte con rehash al login, CSP, extraer componentes exportados de las páginas (hoy `next build --webpack` falla) | **Cerrada** | Las tres partes están hechas y verificadas (ver §2, "Endurecimiento técnico"). Queda **una** mejora conocida que no se hizo: `style-src` necesita `'unsafe-inline'` porque React escribe estilos en línea; el día que se quiera cerrar del todo hay que pasar a hojas de estilo. |
+| 5 | **Endurecimiento técnico**: scrypt más fuerte con rehash al login, CSP, extraer componentes exportados de las páginas (entonces `next build --webpack` fallaba) | **Cerrada** | Las tres partes están hechas y verificadas (ver §2, "Endurecimiento técnico"), y el 2026-09-12 se confirmó que `npm run build:webpack` compila entero. Queda **una** mejora conocida que no se hizo: `style-src` necesita `'unsafe-inline'` porque React escribe estilos en línea; el día que se quiera cerrar del todo hay que pasar a hojas de estilo. |
 | 6 | **Cerrar puertos innecesarios** de otros servicios del servidor (`capostgres` 5455, `postimage` 8585) | Daniel | No es de One Burger, pero están expuestos a internet. |
 | 7 | **Personalización / quitar hardcodeo** (nombre, colores, logo, contacto, horarios, dirección) | **Cerrada (fases 1-4 y 6)** | Aprobada el 2026-09-10; brief en `ops/tasks/TASK-whitelabel-branding.md`. Sitio público, `/admin/settings`, apariencia con presets y contrato anti-hardcode, todo en `main` con CI verde. La **fase 5 (subida de logos)** se descartó: necesita un volumen persistente en Easypanel. Quedó **una excepción**: los turnos de retiro siguen hardcodeados y se trasladaron a la tarea #8. |
 | 8 | **Checkout sin redundancias** (textos y botones repetidos) | **Cerrada y desplegada** | `ops/tasks/TASK-checkout-ux.md`. Cuatro commits (`2832a93`…`aba4156`), en producción como `build-20260911-145656`. El checkout pasó de 807 a 476 líneas, un solo resumen compartido con el carrito, un solo CTA visible por viewport y los turnos de retiro calculados desde la configuración. |
