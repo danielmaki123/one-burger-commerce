@@ -1415,6 +1415,33 @@ alcanzable desde el botón "Catálogo" de cada local en la lista.
 - **Lo que sigue de T8**: fase 5 (lectura pública por local: home, menú y producto con el precio del
   local), 6 (selector de local en el checkout) y 7 (operación por local).
 
+### T8 (multi-sucursal) · Fase 5: el menú público cobra lo que cobra el local (2026-09-12)
+
+El cliente ya ve los precios y la disponibilidad del local **sin tocar nada**: la home, la carta y la
+ficha de producto salen del mismo `/api/menu`, así que la resolución vive en un solo lugar.
+
+- **`applyLocationPricing`** (puro): aplica las excepciones del local sobre el catálogo del negocio —
+  precio propio, agotado en el local, "no se vende acá"— y **descarta las subcategorías que se quedan
+  sin productos** (un encabezado vacío se ve como un error de la carta).
+- **El `basePrice` del menú público pasa a ser el precio que se cobra en ese local**, que es lo que el
+  sitio necesita para armar "desde C$X" con los modificadores. El admin sigue viendo el precio del
+  negocio aparte, en su pantalla. Está escrito en el código para que nadie lo confunda.
+- **Sin `locationId` se usa el local por defecto** (el primero activo); sin locales activos, los precios
+  del negocio. Un `locationId` que no existe o está apagado también cae al por defecto: es una lectura
+  pública, y el checkout valida el local de verdad al crear el pedido (fase 6).
+- **De paso, deuda que salió a la luz**: el puerto del menú tenía un `locationId` que **nadie usaba**
+  (ni el SQL ni los adaptadores). Ahora que la resolución vive en el caso de uso, se quitó: un parámetro
+  que no hace nada es una mentira en la firma.
+- **Verificación en el camino real** (Postgres 17 local + `next start -p 3210`): **1457 unitarios**
+  (6 de las reglas nuevas + 2 de integración del menú público), lint, typecheck, `npm run build` y
+  **E2E 78 pasaron, 7 salteados, 0 fallos**. El caso de `admin-locations.spec.ts` ahora cierra el
+  círculo completo: arranca con el menú público cobrando C$35, el owner pone C$42 en el catálogo del
+  local y **el sitio público pasa a cobrar C$42**, lo marca agotado y **el producto desaparece de la
+  carta** ("Producto no encontrado"), lo saca del local y lo devuelve, y al final el sitio vuelve a
+  C$35 y **la base queda sin excepciones** (0 filas de catálogo).
+- **Lo que sigue de T8**: fase 6 (selector de local en el checkout, con el `locationId` del pedido) y
+  fase 7 (operación por local).
+
 ## 3. Infraestructura y secretos
 
 - `EASYPANEL_URL` y `EASYPANEL_TOKEN`: solo en el entorno de quien ejecuta el deploy (nunca

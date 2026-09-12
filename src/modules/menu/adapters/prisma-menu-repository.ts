@@ -202,7 +202,6 @@ function mapMarketingBlock(block: {
 export class PrismaMenuRepository implements MenuRepository {
   async getPublicMenu(params: {
     categorySlug?: string;
-    locationId?: string;
     includeUnavailable?: boolean;
   }): Promise<PublicMenuCategory[]> {
     const prisma = getPrismaClient();

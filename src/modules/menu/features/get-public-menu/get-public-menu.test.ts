@@ -1,7 +1,18 @@
 import { describe, expect, it } from "vitest";
 
+import {
+  InMemoryLocationRepository,
+  createInMemoryLocation,
+} from "@/modules/locations/adapters/in-memory-location-repository";
 import { InMemoryMenuRepository } from "@/modules/menu/adapters/in-memory-menu-repository";
 import { getPublicMenu } from "./get-public-menu";
+
+/** Sin excepciones cargadas: el menú sale con los precios del negocio. */
+function locationRepository() {
+  return new InMemoryLocationRepository([
+    createInMemoryLocation({ id: "loc_principal", name: "Principal" }),
+  ]);
+}
 
 describe("getPublicMenu", () => {
   it("maps active marketing block CTAs to safe public hrefs", async () => {
@@ -66,7 +77,7 @@ describe("getPublicMenu", () => {
       },
     );
 
-    const result = await getPublicMenu({}, { repository });
+    const result = await getPublicMenu({}, { repository, locationRepository: locationRepository() });
 
     expect(result.marketingBlocks).toHaveLength(2);
     expect(result.marketingBlocks[0]).toMatchObject({
@@ -79,5 +90,80 @@ describe("getPublicMenu", () => {
       ctaType: "product",
       ctaHref: "/menu/prod_1",
     });
+  });
+
+  it("el menú público cobra lo que cobra el local (T8)", async () => {
+    const repository = new InMemoryMenuRepository();
+    repository.categories.push({
+      id: "cat_1",
+      name: "Tacos",
+      slug: "tacos",
+      sortOrder: 0,
+      isActive: true,
+      color: null,
+      subcategories: [],
+      products: [],
+    });
+    const product = await repository.createProduct({
+      categoryId: "cat_1",
+      name: "Taco de birria",
+      basePrice: 35,
+      images: [],
+      isAvailable: true,
+      isActive: true,
+    });
+
+    const locationRepository = new InMemoryLocationRepository([
+      createInMemoryLocation({ id: "loc_principal", name: "Principal" }),
+    ]);
+    await locationRepository.upsertLocationProduct({
+      locationId: "loc_principal",
+      productId: product.id,
+      priceOverride: 42,
+      isAvailable: true,
+      isActive: true,
+    });
+
+    const result = await getPublicMenu({}, { repository, locationRepository });
+
+    // El precio del local es el que ve el cliente.
+    expect(result.categories[0].products[0].basePrice).toBe(42);
+  });
+
+  it("un plato que el local no vende no llega al menú público (T8)", async () => {
+    const repository = new InMemoryMenuRepository();
+    repository.categories.push({
+      id: "cat_1",
+      name: "Tacos",
+      slug: "tacos",
+      sortOrder: 0,
+      isActive: true,
+      color: null,
+      subcategories: [],
+      products: [],
+    });
+    const product = await repository.createProduct({
+      categoryId: "cat_1",
+      name: "Taco de birria",
+      basePrice: 35,
+      images: [],
+      isAvailable: true,
+      isActive: true,
+    });
+
+    const locationRepository = new InMemoryLocationRepository([
+      createInMemoryLocation({ id: "loc_principal", name: "Principal" }),
+    ]);
+    await locationRepository.upsertLocationProduct({
+      locationId: "loc_principal",
+      productId: product.id,
+      priceOverride: null,
+      isAvailable: true,
+      isActive: false,
+    });
+
+    const result = await getPublicMenu({}, { repository, locationRepository });
+
+    expect(result.categories[0].products).toEqual([]);
   });
 });

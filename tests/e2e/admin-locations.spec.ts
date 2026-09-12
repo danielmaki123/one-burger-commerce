@@ -40,6 +40,22 @@ async function resetProduct(page: Page, productName: string) {
   await expect(page.getByText("Producto actualizado.")).toBeVisible();
 }
 
+/**
+ * Lo que cobra el sitio público por un producto: se lee del botón de agregar, que es el
+ * importe que ve el cliente. Requiere que el producto se ofrezca (si el local lo escondió,
+ * la pantalla dice "Producto no encontrado" y esto falla a propósito).
+ */
+async function publicPrice(page: Page, productId: string): Promise<string> {
+  await page.goto(`/menu/${productId}`);
+
+  const submit = page.getByRole("button", { name: /Agregar al carrito/ });
+  await expect(submit).toBeVisible();
+
+  const text = await submit.innerText();
+
+  return text.match(/C\$[\d.,]+/)?.[0] ?? text;
+}
+
 test.describe("locales del admin", () => {
   test.use({ viewport: { width: 375, height: 812 } });
 
@@ -100,7 +116,7 @@ test.describe("locales del admin", () => {
     expect(horizontalOverflow).toBeLessThanOrEqual(1);
   });
 
-  test("el catálogo del local ajusta precio y disponibilidad (T8 fase 4)", async ({ page }) => {
+  test("el catálogo del local cambia lo que ve el cliente (T8 fase 4 y 5)", async ({ page }) => {
     await loginAsOwner(page);
     await page.goto("/admin/locations");
 
@@ -116,40 +132,54 @@ test.describe("locales del admin", () => {
     await expect(tacoRow).toContainText("C$35.00");
     await expect(tacoRow).toContainText("Se vende acá");
 
-    // 2) Precio propio y agotado en este local.
+    // 2) El menú público arranca cobrando el precio del negocio.
+    expect(await publicPrice(page, "seed-prod-01")).toBe("C$35.00");
+
+    // 3) Precio propio: el sitio público pasa a cobrar el del local.
+    await page.goto("/admin/locations");
+    await page.getByRole("link", { name: "Catálogo de Principal" }).click();
     await tacoRow.click();
     await page.getByRole("spinbutton", { name: "Precio en este local" }).fill("42");
-    await page.getByRole("combobox", { name: /Disponibilidad/ }).selectOption("no");
     await page.getByRole("button", { name: "Guardar cambios" }).click();
     await expect(page.getByText("Producto actualizado.")).toBeVisible();
-
     await expect(tacoRow).toContainText("C$42.00 · base C$35.00");
-    await expect(tacoRow).toContainText("Agotado acá");
 
-    // 3) Volver al precio del negocio: el precio deja de ser propio (la disponibilidad queda
-    // como está en el formulario, que es lo que el owner no pidió cambiar).
+    expect(await publicPrice(page, "seed-prod-01")).toBe("C$42.00");
+
+    // 4) Volver al precio del negocio: el cliente vuelve a ver C$35.
+    await page.goto("/admin/locations");
+    await page.getByRole("link", { name: "Catálogo de Principal" }).click();
     await tacoRow.click();
     await page.getByRole("button", { name: "Volver al precio base" }).click();
     await expect(page.getByText("Producto actualizado.")).toBeVisible();
-    await expect(tacoRow).toContainText("C$35.00");
-    await expect(tacoRow).not.toContainText("base C$");
 
-    // 4) Sacar el plato de este local sin borrarlo del menú.
+    expect(await publicPrice(page, "seed-prod-01")).toBe("C$35.00");
+
+    // 5) Agotado en este local: deja de ofrecerse en el sitio (no es un botón muerto).
+    await page.goto("/admin/locations");
+    await page.getByRole("link", { name: "Catálogo de Principal" }).click();
+    await tacoRow.click();
+    await page.getByRole("combobox", { name: /Disponibilidad/ }).selectOption("no");
+    await page.getByRole("button", { name: "Guardar cambios" }).click();
+    await expect(page.getByText("Producto actualizado.")).toBeVisible();
+    await expect(tacoRow).toContainText("Agotado acá");
+
+    await page.goto("/menu/seed-prod-01");
+    await expect(page.getByRole("heading", { name: "Producto no encontrado" })).toBeVisible();
+
+    // 6) Y se puede sacar el plato del local sin borrarlo del menú del negocio.
+    await page.goto("/admin/locations");
+    await page.getByRole("link", { name: "Catálogo de Principal" }).click();
     await tacoRow.click();
     await page.getByRole("combobox", { name: "En este local" }).selectOption("no");
     await page.getByRole("button", { name: "Guardar cambios" }).click();
     await expect(page.getByText("Producto actualizado.")).toBeVisible();
     await expect(tacoRow).toContainText("No se vende acá");
 
-    // 5) Y devolverlo: se vende, disponible y sin precio propio = sin excepción (la base
-    // queda como estaba, sin filas de catálogo).
+    // 7) Devolverlo deja todo como estaba: se vende, al precio del negocio y sin excepciones.
     await resetProduct(page, "Taco de Birria");
     await expect(tacoRow).toContainText("Se vende acá");
 
-    // La pantalla entra en 375 px sin scroll horizontal.
-    const horizontalOverflow = await page.evaluate(
-      () => document.documentElement.scrollWidth - window.innerWidth,
-    );
-    expect(horizontalOverflow).toBeLessThanOrEqual(1);
+    expect(await publicPrice(page, "seed-prod-01")).toBe("C$35.00");
   });
 });

@@ -19,7 +19,6 @@ export class InMemoryMenuRepository implements MenuRepository {
 
   async getPublicMenu(_params: {
     categorySlug?: string;
-    locationId?: string;
     includeUnavailable?: boolean;
   }): Promise<PublicMenuCategory[]> {
     return this.categories

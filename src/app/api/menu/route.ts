@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { PrismaLocationRepository } from "@/modules/locations/adapters/prisma-location-repository";
 import { PrismaMenuRepository } from "@/modules/menu/adapters/prisma-menu-repository";
 import { getPublicMenu } from "@/modules/menu/features/get-public-menu/get-public-menu";
 import { createErrorResponse } from "@/shared/lib/http/error-response";
@@ -15,9 +16,11 @@ export async function GET(request: Request) {
     const includeUnavailable = searchParams.get("includeUnavailable") === "true";
 
     const repository = new PrismaMenuRepository();
+    // El menú público cobra lo que cobra el local (T8): sin `locationId` se usa el local
+    // por defecto, así el negocio de un solo local no cambia nada.
     const result = await getPublicMenu(
       { category, locationId, includeUnavailable },
-      { repository },
+      { repository, locationRepository: new PrismaLocationRepository() },
     );
 
     return NextResponse.json(result, {

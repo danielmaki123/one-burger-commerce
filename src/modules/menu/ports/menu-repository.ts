@@ -13,7 +13,6 @@ export interface MenuRepository {
   // Public menu
   getPublicMenu(params: {
     categorySlug?: string;
-    locationId?: string;
     includeUnavailable?: boolean;
   }): Promise<PublicMenuCategory[]>;
   listPublicMarketingBlocks(params: {
