@@ -45,6 +45,19 @@ describe("admin layout helpers", () => {
     expect(items).not.toContainEqual(expect.objectContaining({ href: "/admin/users" }));
   });
 
+  it("solo el owner ve los locales, que son configuración del negocio (T8)", () => {
+    expect(flattenNav("owner")).toContainEqual(
+      expect.objectContaining({ href: "/admin/locations", label: "Locales" }),
+    );
+    // Un manager ve pedidos y menú, pero no la configuración del negocio.
+    expect(flattenNav("manager")).not.toContainEqual(
+      expect.objectContaining({ href: "/admin/locations" }),
+    );
+    expect(flattenNav("kitchen")).not.toContainEqual(
+      expect.objectContaining({ href: "/admin/locations" }),
+    );
+  });
+
   it("lets kitchen see only orders", () => {
     expect(flattenNav("kitchen").map((item) => item.href)).toEqual(["/admin/orders"]);
   });

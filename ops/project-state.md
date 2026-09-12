@@ -1324,6 +1324,34 @@ Con esto el admin ya puede administrar locales **por API**; falta la pantalla (f
   `testTimeout` de vitest (5 s), así que el test se moría justo cuando la espera se resolvía; ahora el
   techo es 20 s y la espera 5 s. Queda escrito en `vitest.config.ts` y `src/test-setup.ts`.
 
+### T8 (multi-sucursal) · Fase 3: la pantalla de locales (2026-09-12) — **cerrada**
+
+El owner ya administra los locales sin tocar la API: `/admin/locations`, en la navegación del admin
+**solo para el owner** (es configuración del negocio, como Personalización y Usuarios).
+
+- **La lista** muestra, por local: nombre, estado (Activo / Apagado), si dejó de recibir pedidos,
+  dirección con ciudad ("Frente al parque, Jinotepe") y **el horario de hoy** con los minutos de
+  preparación. Sin dirección cargada lo dice, no deja el hueco.
+- **El formulario** cubre todo lo del local: nombre, identificador de URL, dirección, ciudad,
+  referencia, enlace al mapa, lat/long, teléfono, WhatsApp, **los siete días de horario** (con
+  "cerrado" por día), minutos de preparación, rango máximo, si acepta pedidos, mensaje de cierre,
+  orden en la lista y estado. Un local nuevo arranca con **el horario que el negocio ya tiene
+  configurado**, no con un horario inventado.
+- **Valida con las mismas reglas del servidor antes de gastar el viaje** (`validateLocationInput`), y
+  el error del servidor se muestra en el campo que corresponde (por ejemplo el identificador repetido).
+- **Borrar pide confirmación** y, cuando la API lo rechaza, muestra el motivo: "El negocio necesita al
+  menos un local" o el del último local activo. No queda un botón que falla en silencio.
+- **`now` se resuelve después de montar** (el resumen de "hoy" no puede diferir entre servidor y
+  cliente), el mismo patrón que la vista previa de turnos.
+- **Verificación en el camino real**: **1404 unitarios** (14 de la pantalla y sus helpers, 22 de la
+  navegación del admin), lint, typecheck, `npm run build` (las tres rutas nuevas en el listado) y
+  **E2E completo 77 pasaron, 7 salteados, 0 fallos**. El caso nuevo entra por la navegación a 375 px,
+  crea un local, comprueba la lista y el identificador repetido, lo borra, verifica que **el último
+  local no se puede borrar** y que la pantalla no scrollea de costado. La base quedó con un solo local,
+  el primario de la migración.
+- **Lo que sigue de T8 (fases 4-7)**: productos y precios por local, lectura pública por local,
+  selector de local en el checkout y operación por local (filtro del admin, confirmación e historial).
+
 ## 3. Infraestructura y secretos
 
 - `EASYPANEL_URL` y `EASYPANEL_TOKEN`: solo en el entorno de quien ejecuta el deploy (nunca
