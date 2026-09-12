@@ -910,11 +910,11 @@ que el owner había pedido explícitamente (que el campo se explique solo).
 - **Fase 7**: la edición por ítem **ya existía** en `/cart` (`updateQuantity`/`removeItem` con
   etiquetas por ítem). No se reescribió: se verificó en navegador real con `tests/e2e/public-cart.spec.ts`
   (sumar, restar, el subtotal cambia y volver a restar lo devuelve, quitar deja el carrito vacío).
-- **De la fase 2 queda pendiente la vista previa en vivo de los turnos** en el admin (mostrar qué
+- **De la fase 2 quedó pendiente la vista previa en vivo de los turnos** en el admin (mostrar qué
   turnos vería el cliente y hasta qué hora se puede pedir con los números que se están editando). El
-  owner la había pedido; no entró en esta tanda y queda anotada, no escondida. La ayuda del campo sí se
-  reescribió para que diga qué hace ("define el primer turno de retiro y hasta qué hora se puede
-  pedir").
+  owner la había pedido; no entró en esta tanda y quedó anotada, no escondida. **Cerrada el
+  2026-09-12**: ver "T5 · Fase 2" más abajo. La ayuda del campo sí se reescribió acá para que diga qué
+  hace ("define el primer turno de retiro y hasta qué hora se puede pedir").
 - **Fases 4 y 5 sin hacer, por decisiones abiertas**: pedidos para días futuros (D1) y presets de
   propina (D2) siguen sin respuesta del owner. Nada de eso se implementó a medias.
 - **Verificado en el camino real** (Postgres 17 local + `next start -p 3210` con el build nuevo):
@@ -1168,6 +1168,35 @@ Con esto el owner crea, edita, apaga y borra promos sin tocar la base: `/admin/p
   que necesita decisión del owner: ¿el menú y los precios son por local, o solo cambian el horario y
   el contacto?
 
+### T5 · Fase 2: el campo de preparación se explica solo (2026-09-12)
+
+Pedido del owner dentro de `TASK-checkout-v2`: escribir "25" en minutos de preparación no decía qué
+significa. La ayuda ya explicaba la regla ("con 25, la última orden entra 25 minutos antes del
+cierre"); lo que faltaba era **verlo**, que es esta fase.
+
+- **Vista previa en vivo en `/admin/settings`** (`pickup-preview.tsx`): con la configuración que está
+  en pantalla —horario, minutos de preparación, máximo del rango y zona horaria— muestra el copy de
+  "lo antes posible" tal como lo ve el cliente, los turnos de hoy y **hasta qué hora entra un pedido
+  hoy** (`21:35` con cierre 22:00 y 25 minutos). No guarda nada: lo dice el propio panel.
+- **No puede mentir**: no reimplementa nada, compone **las mismas funciones que usa el checkout**
+  (`buildPickupSlots`, `soonestPickupTime`, `formatPickupRangeLabel`). El caso de "lo antes posible"
+  usa la hora calculada (ahora + preparación), no el primer turno de la grilla, porque así lo muestra
+  el checkout.
+- **`now` se resuelve después de montar** (inyectable en los tests), por el mismo motivo que en el
+  checkout: en el servidor y en el cliente daría horas distintas y el HTML no coincidiría al hidratar.
+- **Defecto preexistente que apareció al verificar 375 px**: la barra fija de "Guardar cambios" usaba
+  `-mx-4` sobre un `<main>` con `px-3`, así que a 375 px la página se salía 4 px y **scrolleaba de
+  costado**. Se alineó con el padding real del shell (`-mx-3 sm:-mx-4 md:-mx-7`) y el test lo fija
+  (`overflow ≤ 1 px`).
+- **Verificado en el camino real**: **unitarios 1301 en 213 archivos** (antes 1291), lint/typecheck/
+  build/`security:secrets` verdes, **E2E completo 73 pasaron, 7 salteados, 0 fallos** (antes 72). El
+  caso nuevo entra a `/admin/settings` a 375 px, comprueba que el panel está, que la última orden se
+  mueve al cambiar los minutos y que **no se guardó nada** (el valor vuelve al recargar). La
+  configuración local quedó intacta.
+
+**Lo que queda de `TASK-checkout-v2`**: fase 4 (pedidos para días futuros, depende de **D1**) y fase 5
+(presets de propina, depende de **D2**). Las fases 1, 2, 3, 6 y 7 están cerradas.
+
 ## 3. Infraestructura y secretos
 
 - `EASYPANEL_URL` y `EASYPANEL_TOKEN`: solo en el entorno de quien ejecuta el deploy (nunca
@@ -1194,7 +1223,7 @@ Con esto el owner crea, edita, apaga y borra promos sin tocar la base: `/admin/p
 | 8 | **Checkout sin redundancias** (textos y botones repetidos) | **Cerrada y desplegada** | `ops/tasks/TASK-checkout-ux.md`. Cuatro commits (`2832a93`…`aba4156`), en producción como `build-20260911-145656`. El checkout pasó de 807 a 476 líneas, un solo resumen compartido con el carrito, un solo CTA visible por viewport y los turnos de retiro calculados desde la configuración. |
 | 9 | **Validar el estado operativo en el servidor** | **Cerrada y desplegada** | Commits `3a67c37` y `ca474c8`, en producción como `build-20260911-154014`. `isAcceptingOrders` ya corta pedidos de verdad (antes no lo leía nadie) y la hora de retiro se valida contra el horario del día. Incluye el horario demo del seed y el límite de login del arnés E2E. |
 | 10 | **Retiro opcional y programable + la hora visible en toda la cadena** | **Cerrada y desplegada** | Commits `6f85a3c`, `c101f82`, `b207593` y `abc2183`, en producción como `build-20260911-191047`. Incluye **una migración** (`pickupScheduled`). El retiro es opcional, la hora la resuelve el servidor, el ticket de cocina y el admin la muestran, y el semáforo va contra la hora prometida. Ver el detalle arriba. |
-| 11 | **Adopción del mock completo (rediseño de la UI pública)** | **En ejecución · ola 1 completa (T1-T7) y T9, T11, T12 y T13 de la ola 2** | [`ops/tasks/TASK-mock-adoption.md`](tasks/TASK-mock-adoption.md). Plan **aprobado** el 2026-09-12 (D-A tipografía: Plus Jakarta Sans como tercera opción · D-B ola 2 completa **sin reseñas ni delivery** · D-C orden: tokens primero y después las pantallas en el orden del mock). **Reglas del programa**: ningún control decorativo (implementado con API/estado y test, o eliminado con motivo), nada hardcodeado, la paleta como preset que pasa el test de contraste, TDD por tarea, y verificación a 375 px **y 1280 px** (el mock no tiene escritorio). **Ola 1**: T1 tokens ✅ · T2 home ✅ · T3 menú ✅ · T3.1 color por categoría ✅ · T4 producto ✅ · T5 carrito+checkout ✅ (fases 1, 3, 6 y 7; queda la vista previa de turnos de la fase 2) · T6 confirmación ✅ · T7 seguimiento e historial ✅ · **ola 1 completa** · T11 forma de pago ✅ · T12 vuelto ✅ · T13 PIN de retiro ✅ · **T9 promos cerrada**: motor ✅, campo del código en el checkout ✅ y pantalla del admin `/admin/promotions` ✅ · **queda T8 (multi-sucursal)**. **Decisiones abiertas del checkout**: D1 (pedidos para días futuros) y D2 (presets de propina). **Ola 2** (aprobada): T8 multi-sucursal, T9 promos, T10 favoritos (**descartada por el owner**: "mantengamos el login tal cual lo tenemos"; sin cuenta no hay favoritos), T11 método de pago, T12 vuelto, T13 PIN de retiro. Evidencia del mock: [`ops/audit-checkout-mock.md`](audit-checkout-mock.md). |
+| 11 | **Adopción del mock completo (rediseño de la UI pública)** | **En ejecución · ola 1 completa (T1-T7) y T9, T11, T12 y T13 de la ola 2** | [`ops/tasks/TASK-mock-adoption.md`](tasks/TASK-mock-adoption.md). Plan **aprobado** el 2026-09-12 (D-A tipografía: Plus Jakarta Sans como tercera opción · D-B ola 2 completa **sin reseñas ni delivery** · D-C orden: tokens primero y después las pantallas en el orden del mock). **Reglas del programa**: ningún control decorativo (implementado con API/estado y test, o eliminado con motivo), nada hardcodeado, la paleta como preset que pasa el test de contraste, TDD por tarea, y verificación a 375 px **y 1280 px** (el mock no tiene escritorio). **Ola 1**: T1 tokens ✅ · T2 home ✅ · T3 menú ✅ · T3.1 color por categoría ✅ · T4 producto ✅ · T5 carrito+checkout ✅ (fases 1, 2, 3, 6 y 7) · T6 confirmación ✅ · T7 seguimiento e historial ✅ · **ola 1 completa** · T11 forma de pago ✅ · T12 vuelto ✅ · T13 PIN de retiro ✅ · **T9 promos cerrada**: motor ✅, campo del código en el checkout ✅ y pantalla del admin `/admin/promotions` ✅ · **queda T8 (multi-sucursal)**. **Decisiones abiertas del checkout**: D1 (pedidos para días futuros) y D2 (presets de propina). **Ola 2** (aprobada): T8 multi-sucursal, T9 promos, T10 favoritos (**descartada por el owner**: "mantengamos el login tal cual lo tenemos"; sin cuenta no hay favoritos), T11 método de pago, T12 vuelto, T13 PIN de retiro. Evidencia del mock: [`ops/audit-checkout-mock.md`](audit-checkout-mock.md). |
 
 ## 5. Cómo continuar
 

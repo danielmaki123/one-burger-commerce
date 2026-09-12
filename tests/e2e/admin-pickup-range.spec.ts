@@ -62,4 +62,35 @@ test.describe("rango de preparación", () => {
     await page.reload();
     await expect(page.getByLabel(/Máximo del rango/)).toHaveValue(originalMax);
   });
+
+  test("la vista previa dice qué vería el cliente, sin guardar nada (fase 2)", async ({ page }) => {
+    await loginAsOwner(page);
+    await page.goto("/admin/settings");
+
+    // El panel resuelve "ahora" después de montar: si no, el HTML del servidor y el
+    // del cliente no coincidirían al hidratar.
+    const panel = page.getByLabel("Vista previa del retiro");
+    await expect(panel).toBeVisible();
+    await expect(panel).toContainText("Así lo ve el cliente");
+    await expect(panel).toContainText(/Lo antes posible · listo/);
+
+    const lastOrder = panel.locator("strong");
+    await expect(lastOrder).toHaveText(/\d{1,2}:\d{2} [ap]\. m\./);
+
+    // Cambiar los minutos de preparación mueve la última orden: 10 minutos más de
+    // cocina es un pedido menos sobre el cierre.
+    const before = await lastOrder.innerText();
+    await page.getByLabel("Minutos de preparación").fill("60");
+    await expect(lastOrder).not.toHaveText(before);
+
+    // Nada de esto se guardó: al recargar vuelve lo que estaba.
+    await page.reload();
+    await expect(page.getByLabel("Minutos de preparación")).not.toHaveValue("60");
+
+    // Y el panel entra en 375 px sin scroll horizontal.
+    const horizontalOverflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - window.innerWidth,
+    );
+    expect(horizontalOverflow).toBeLessThanOrEqual(1);
+  });
 });

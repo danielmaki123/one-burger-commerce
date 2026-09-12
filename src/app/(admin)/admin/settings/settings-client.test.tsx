@@ -212,6 +212,23 @@ describe("AdminSettingsClientPage", () => {
     expect(withoutRange.pickupMaxMinutes).toBeNull();
   });
 
+  it("la vista previa sigue los minutos que estás escribiendo (fase 2)", async () => {
+    const user = userEvent.setup();
+    render(<AdminSettingsClientPage initialSettings={initialSettings()} />);
+
+    // Con la configuración por defecto (cierre 22:00 y 25 minutos de preparación), la
+    // última orden entra 21:35. Es el dato que hoy no se veía en ningún lado.
+    expect(await screen.findByText("9:35 p. m.")).toBeTruthy();
+
+    const leadInput = screen.getByLabelText("Minutos de preparación");
+    await user.clear(leadInput);
+    await user.type(leadInput, "40");
+
+    // 40 minutos antes del cierre: 21:20. Sin guardar nada.
+    expect(await screen.findByText("9:20 p. m.")).toBeTruthy();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("avisa del contraste bajo sin bloquear el guardado", async () => {
     const user = userEvent.setup();
     render(<AdminSettingsClientPage initialSettings={initialSettings()} />);

@@ -20,6 +20,7 @@ import type { BusinessSettingsValue } from "@/shared/lib/business-settings";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Checkbox } from "@/shared/ui/checkbox";
+import { PickupPreviewPanel } from "./pickup-preview";
 
 /**
  * Vista serializable de la configuración: es lo que viaja del servidor al
@@ -637,6 +638,18 @@ export default function AdminSettingsClientPage({
           />
         </SettingsField>
 
+        {/* Fase 2: la vista previa cierra el círculo de los cuatro campos de arriba
+            (horario, preparación, rango y zona): muestra los turnos y la última orden
+            que vería el cliente con lo que está en pantalla, sin guardar nada. */}
+        <div className="sm:col-span-2">
+          <PickupPreviewPanel
+            businessHours={draft.businessHours}
+            timezone={draft.timezone}
+            pickupLeadMinutes={draft.pickupLeadMinutes}
+            pickupMaxMinutes={draft.pickupMaxMinutes}
+          />
+        </div>
+
         <SettingsField
           id="settings-currency-code"
           label="Moneda (ISO)"
@@ -877,7 +890,10 @@ export default function AdminSettingsClientPage({
         </SettingsField>
       </SettingsSection>
 
-      <div className="sticky bottom-0 -mx-4 border-t border-border bg-card/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
+      {/* La barra sangra hasta los bordes del `<main>` del admin, que tiene px-3 / sm:px-4 /
+          md:px-7. Con -mx-4 como estaba, a 375 px se salía 4 px y la página scrolleaba de
+          costado. */}
+      <div className="sticky bottom-0 -mx-3 border-t border-border bg-card/95 px-3 py-3 backdrop-blur sm:-mx-4 sm:px-4 md:-mx-7 md:px-7">
         {formError ? (
           <p role="alert" className="mb-2 text-sm font-medium text-danger-strong">
             {formError}
