@@ -4,6 +4,7 @@ import { z } from "zod";
 import { canManageOrderOperations } from "@/modules/auth/domain/admin-permissions";
 import { AuthError } from "@/modules/auth/domain/auth-errors";
 import { requireAdminSession } from "@/modules/auth/features/require-admin-session/require-admin-session";
+import { PrismaLocationRepository } from "@/modules/locations/adapters/prisma-location-repository";
 import { PrismaOrderRepository } from "@/modules/orders/adapters/prisma-order-repository";
 import { listAdminOrders } from "@/modules/orders/features/list-admin-orders/list-admin-orders";
 import { createErrorResponse } from "@/shared/lib/http/error-response";
@@ -38,6 +39,8 @@ const querySchema = z.object({
     .refine((value) => value === undefined || !Number.isNaN(Date.parse(value)), {
       message: "Invalid date",
     }),
+  // Local del pedido (T8): cada sucursal ve lo suyo; sin dato, todos.
+  locationId: z.string().optional(),
 });
 
 export async function GET(request: Request) {
@@ -74,7 +77,10 @@ export async function GET(request: Request) {
     }
 
     const repository = new PrismaOrderRepository();
-    const result = await listAdminOrders(parsed.data, { repository });
+    const result = await listAdminOrders(parsed.data, {
+      repository,
+      locationRepository: new PrismaLocationRepository(),
+    });
     return NextResponse.json(result);
   } catch (error) {
     return createErrorResponse(error);

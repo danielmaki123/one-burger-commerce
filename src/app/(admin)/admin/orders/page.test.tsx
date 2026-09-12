@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import AdminOrdersPage from "./page";
@@ -49,6 +50,27 @@ async function renderWith(orders: unknown[]) {
   await waitFor(() => expect(screen.getByText("OB-1")).toBeTruthy());
 
   return view;
+}
+
+/**
+ * Render con locales cargados (T8): el filtro por local solo aparece cuando hay más de uno.
+ */
+async function renderWithLocations(
+  orders: unknown[],
+  locations: Array<{ id: string; name: string; isActive?: boolean }>,
+) {
+  const fetchMock = vi.fn((url: string) =>
+    Promise.resolve({
+      ok: true,
+      json: async () => ({ data: String(url).includes("/api/admin/locations") ? locations : orders }),
+    }),
+  );
+  vi.stubGlobal("fetch", fetchMock);
+
+  const view = render(<AdminOrdersPage />);
+  await waitFor(() => expect(screen.getByText("OB-1")).toBeTruthy());
+
+  return { ...view, fetchMock };
 }
 
 describe("bandeja de órdenes: hora de retiro y semáforo", () => {
@@ -140,5 +162,36 @@ describe("bandeja de órdenes: hora de retiro y semáforo", () => {
     expect(screen.queryByText(/^Retiro ~?\d/)).toBeNull();
     expect(screen.getByText(/^Recibida /)).toBeTruthy();
     expect(timingChip(container, "late")).toBeNull();
+  });
+
+  it("con un solo local no dibuja el filtro por local (T8)", async () => {
+    const user = userEvent.setup();
+    await renderWithLocations([order()], [{ id: "loc_principal", name: "Principal", isActive: true }]);
+
+    // El panel de filtros se abre a propósito: si no, la ausencia no probaría nada.
+    await user.click(screen.getByRole("button", { name: "Mostrar filtros" }));
+
+    expect(screen.queryByLabelText("Local")).toBeNull();
+  });
+
+  it("con varios locales deja filtrar y muestra de qué local es cada pedido (T8)", async () => {
+    const user = userEvent.setup();
+    const { fetchMock } = await renderWithLocations(
+      [order({ locationName: "Norte" })],
+      [
+        { id: "loc_principal", name: "Principal", isActive: true },
+        { id: "loc_norte", name: "Norte", isActive: true },
+      ],
+    );
+
+    // El pedido dice de qué local es.
+    expect(screen.getByText(/· Norte/)).toBeTruthy();
+
+    await user.click(screen.getByRole("button", { name: "Mostrar filtros" }));
+    await user.selectOptions(screen.getByLabelText("Local"), "loc_norte");
+
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("locationId=loc_norte")),
+    );
   });
 });

@@ -4,16 +4,19 @@ import {
   InMemoryLocationRepository,
   createInMemoryLocation,
 } from "@/modules/locations/adapters/in-memory-location-repository";
+import { InMemoryOrderRepository } from "@/modules/orders/adapters/in-memory-order-repository";
 import { deleteLocation } from "@/modules/locations/features/delete-location/delete-location";
+import type { OrderRecord } from "@/modules/orders/domain/order.types";
 
 /**
- * T8 fase 2 — el owner borra un local.
+ * T8 fase 2/7 — borrar un local.
  *
- * Dos reglas que evitan dejar el negocio sin dónde despachar: **no se puede borrar el
- * último local activo** y **no se puede dejar la lista vacía**. Un local apagado sí se
- * puede borrar, pero solo si queda otro activo.
+ * Tres reglas que evitan dejar el negocio sin dónde despachar o perder historia: no se puede
+ * borrar el último local activo, no se puede dejar la lista vacía y **no se puede borrar un
+ * local con pedidos** (la base lo impide con una FK, así que el usuario tiene que recibir el
+ * motivo y no un 500).
  */
-function repository() {
+function locations() {
   return new InMemoryLocationRepository([
     createInMemoryLocation({ id: "loc_principal", name: "Principal" }),
     createInMemoryLocation({ id: "loc_norte", name: "Norte", slug: "norte", sortOrder: 1 }),
@@ -27,48 +30,79 @@ function repository() {
   ]);
 }
 
+function orderFor(locationId: string) {
+  const repository = new InMemoryOrderRepository();
+  repository.orders.push({
+    id: "ord_1",
+    orderNumber: "P-1",
+    type: "pickup",
+    status: "closed",
+    locationId,
+    customerName: "Cliente",
+    customerWhatsapp: "+50588887777",
+    items: [],
+    subtotal: 100,
+    discount: 0,
+    packagingAmount: 0,
+    deliveryFeeAmount: 0,
+    tipAmount: 0,
+    total: 100,
+    createdAt: "2026-09-12T18:00:00.000Z",
+    updatedAt: "2026-09-12T18:00:00.000Z",
+  } satisfies OrderRecord);
+
+  return repository;
+}
+
 describe("deleteLocation", () => {
-  it("borra un local que no es el último", async () => {
-    const repo = repository();
+  it("borra un local que no es el último y no tiene pedidos", async () => {
+    const repository = locations();
 
-    await deleteLocation("loc_norte", { repository: repo });
+    await deleteLocation("loc_norte", { repository, orderRepository: new InMemoryOrderRepository() });
 
-    expect(await repo.findLocationById("loc_norte")).toBeNull();
-    expect(await repo.listLocations()).toHaveLength(2);
+    expect(await repository.findLocationById("loc_norte")).toBeNull();
   });
 
   it("borra un local apagado si queda otro activo", async () => {
-    const repo = repository();
+    const repository = locations();
 
-    await deleteLocation("loc_viejo", { repository: repo });
+    await deleteLocation("loc_viejo", { repository, orderRepository: new InMemoryOrderRepository() });
 
-    expect(await repo.findLocationById("loc_viejo")).toBeNull();
+    expect(await repository.findLocationById("loc_viejo")).toBeNull();
   });
 
   it("no deja borrar el último local activo", async () => {
-    const repo = new InMemoryLocationRepository([
+    const repository = new InMemoryLocationRepository([
       createInMemoryLocation({ id: "loc_principal", name: "Principal" }),
     ]);
 
-    await expect(deleteLocation("loc_principal", { repository: repo })).rejects.toMatchObject({
-      status: 409,
-    });
-    expect(await repo.listLocations()).toHaveLength(1);
+    await expect(
+      deleteLocation("loc_principal", { repository, orderRepository: new InMemoryOrderRepository() }),
+    ).rejects.toMatchObject({ status: 409 });
+    expect(await repository.listLocations()).toHaveLength(1);
   });
 
-  it("tampoco si el único activo está apagado y queda solo él", async () => {
-    const repo = new InMemoryLocationRepository([
-      createInMemoryLocation({ id: "loc_apagado", name: "Apagado", isActive: false }),
-    ]);
+  it("no deja borrar un local con pedidos, y lo dice con el motivo", async () => {
+    // La base lo impide igual (FK `Restrict`), pero un 500 no le sirve a nadie: el owner
+    // tiene que saber que ese local tiene historia y que puede apagarlo en vez de borrarlo.
+    const repository = locations();
 
-    await expect(deleteLocation("loc_apagado", { repository: repo })).rejects.toMatchObject({
-      status: 409,
-    });
+    await expect(
+      deleteLocation("loc_norte", {
+        repository,
+        orderRepository: orderFor("loc_norte"),
+      }),
+    ).rejects.toMatchObject({ status: 409, fields: { id: expect.stringContaining("pedido") } });
+
+    expect(await repository.findLocationById("loc_norte")).not.toBeNull();
   });
 
   it("no encuentra un local que no existe", async () => {
-    await expect(deleteLocation("loc_fantasma", { repository: repository() })).rejects.toMatchObject(
-      { status: 404 },
-    );
+    await expect(
+      deleteLocation("loc_fantasma", {
+        repository: locations(),
+        orderRepository: new InMemoryOrderRepository(),
+      }),
+    ).rejects.toMatchObject({ status: 404 });
   });
 });

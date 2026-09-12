@@ -1479,6 +1479,32 @@ cada sucursal tiene su horario, su preparación, su interruptor y su mensaje de 
 - **Lo que sigue de T8**: fase 7 (operación por local: filtro del admin, confirmación e historial del
   cliente) y sacar el interruptor global de `/admin/settings`.
 
+### T8 (multi-sucursal) · Fase 7, primera parte: la bandeja por local (2026-09-12)
+
+Cada sucursal tiene su cocina y su caja, así que la bandeja de pedidos ahora se puede mirar por local.
+
+- **Filtro por local** en `/admin/orders` (aparece **solo si hay más de un local activo**; con uno
+  solo sería un control decorativo) y **el nombre del local en cada pedido**, resuelto por la API en
+  una sola lectura de locales para toda la lista (no una consulta por pedido). Un pedido de un local
+  borrado queda sin nombre en vez de romper la pantalla.
+- **Bug real que apareció al escribir el E2E, y que valía la pena arreglar**: un local **con pedidos**
+  no se puede borrar (la FK de `Order.locationId` es `Restrict`, a propósito: la historia no se pierde)
+  y eso salía como **500 "Unexpected server error"**. Ahora el caso de uso lo comprueba antes y
+  responde **409** con el motivo: "Este local tiene un pedido: apagalo si no querés ofrecerlo, pero no
+  se puede borrar".
+- **El E2E también obligó a pensar el orden de los pasos**: para poder borrar el local de prueba, el
+  pedido que crea tiene que ir al **principal** (se elige el segundo local, se comprueba que el punto
+  de retiro cambia, y se vuelve al principal antes de confirmar). Un local con pedidos no se puede
+  borrar, y eso es correcto: el test no puede depender de romper esa regla.
+- **Verificación en el camino real**: **1473 unitarios** (3 del listado por local, 5 de borrar un
+  local, 2 de la bandeja con varias sucursales), lint, typecheck, `npm run build` y **E2E 79 pasaron,
+  7 salteados, 0 fallos**. El caso de E2E crea un segundo local, confirma un pedido para el principal y
+  comprueba en la bandeja que **filtrando por el otro local el pedido desaparece y con el suyo vuelve**.
+  La base quedó con un solo local, sin filas de catálogo y sin los pedidos de prueba.
+- **Lo que falta de T8**: el local en el detalle del pedido, en el ticket y en la confirmación y el
+  historial del cliente, y sacar `isAcceptingOrders`/`closedMessage` de `/admin/settings` (hoy son por
+  local y quedan como respaldo cuando no hay ningún local cargado).
+
 ## 3. Infraestructura y secretos
 
 - `EASYPANEL_URL` y `EASYPANEL_TOKEN`: solo en el entorno de quien ejecuta el deploy (nunca

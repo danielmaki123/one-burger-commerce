@@ -209,6 +209,36 @@ test.describe("locales del admin", () => {
       await segundo.check();
       const pickupRow = page.getByText("Retirás en").locator("..");
       await expect(pickupRow).toContainText("Diriamba");
+
+      // El pedido va al local que quede elegido al confirmar: se vuelve al principal para no
+      // dejarle pedidos al local de prueba (un local con pedidos no se puede borrar).
+      await page.getByRole("radio", { name: /Principal/ }).check();
+
+      await page.locator('input[name="customerName"]').fill("Cliente Local E2E");
+      await page.locator('input[name="customerWhatsapp"]').fill("88887777");
+      await page.getByRole("button", { name: /Confirmar pedido/ }).click();
+      await expect(page).toHaveURL(/\/success\/.+/);
+
+      // La bandeja del admin filtra por local (T8 fase 7): el pedido es del principal.
+      // `first()` porque una corrida anterior puede haber dejado otro pedido del mismo cliente.
+      await page.goto("/admin/orders");
+      const orderRow = page
+        .getByRole("link", { name: /Abrir orden/ })
+        .filter({ hasText: "Cliente Local E2E" })
+        .first();
+      await expect(orderRow).toBeVisible();
+      await expect(orderRow).toContainText("Principal");
+
+      await page.getByRole("button", { name: "Mostrar filtros" }).click();
+      const locationFilter = page.getByLabel("Local");
+
+      // Filtrando por el otro local, el pedido no está.
+      await locationFilter.selectOption({ label: NAME });
+      await expect(orderRow).toHaveCount(0);
+
+      // Y con su local, vuelve.
+      await locationFilter.selectOption({ label: "Principal" });
+      await expect(orderRow).toBeVisible();
     } finally {
       await deleteLocationIfPresent(page);
     }

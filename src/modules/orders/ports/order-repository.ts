@@ -66,6 +66,8 @@ export type ListOrdersFilter = {
   status?: string;
   dateFrom?: string;
   dateTo?: string;
+  /** Local del pedido (T8). Cada local ve lo suyo; sin dato, todos. */
+  locationId?: string;
 };
 
 export interface OrderRepository {

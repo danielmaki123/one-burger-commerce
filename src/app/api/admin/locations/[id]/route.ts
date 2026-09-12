@@ -6,6 +6,7 @@ import { requireAdminSession } from "@/modules/auth/features/require-admin-sessi
 import { PrismaLocationRepository } from "@/modules/locations/adapters/prisma-location-repository";
 import { deleteLocation } from "@/modules/locations/features/delete-location/delete-location";
 import { updateLocation } from "@/modules/locations/features/update-location/update-location";
+import { PrismaOrderRepository } from "@/modules/orders/adapters/prisma-order-repository";
 import { createErrorResponse } from "@/shared/lib/http/error-response";
 
 /**
@@ -107,7 +108,12 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
 
     const { id } = await params;
     const repository = new PrismaLocationRepository();
-    const result = await deleteLocation(id, { repository });
+    const result = await deleteLocation(id, {
+      repository,
+      // Un local con pedidos no se puede borrar (FK `Restrict`): se comprueba acá para
+      // responder con el motivo en vez de un 500.
+      orderRepository: new PrismaOrderRepository(),
+    });
 
     return NextResponse.json(result);
   } catch (error) {

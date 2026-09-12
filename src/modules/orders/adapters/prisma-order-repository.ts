@@ -285,6 +285,7 @@ export class PrismaOrderRepository implements OrderRepository {
     const where: {
       type?: OrderRecord["type"];
       status?: OrderRecord["status"];
+      locationId?: string;
       createdAt?: { gte?: Date; lte?: Date };
     } = {};
 
@@ -293,6 +294,10 @@ export class PrismaOrderRepository implements OrderRepository {
     }
     if (filter.status) {
       where.status = filter.status as OrderStatus;
+    }
+    // Filtro por local (T8): la cocina y la caja de cada sucursal ven lo suyo.
+    if (filter.locationId) {
+      where.locationId = filter.locationId;
     }
     if (filter.dateFrom || filter.dateTo) {
       where.createdAt = {};

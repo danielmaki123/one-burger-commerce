@@ -51,6 +51,8 @@ type OrderSummary = {
   pickupTime?: string | null;
   /** Si el cliente programó el retiro; si no, es "lo antes posible". */
   pickupScheduled?: boolean;
+  /** Local del pedido (T8), resuelto por la API. */
+  locationName?: string | null;
 };
 
 type AdminOrdersResponse = {
@@ -167,6 +169,35 @@ export default function AdminOrdersPage() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [locationFilter, setLocationFilter] = useState("all");
+  const [locations, setLocations] = useState<Array<{ id: string; name: string }>>([]);
+
+  // Locales del negocio (T8): con uno solo no hay nada que filtrar y el control no se dibuja.
+  useEffect(() => {
+    let cancelled = false;
+
+    async function fetchLocations() {
+      try {
+        const response = await fetch("/api/admin/locations");
+        if (!response.ok) return;
+
+        const payload = (await response.json()) as {
+          data?: Array<{ id: string; name: string; isActive: boolean }>;
+        };
+        if (!cancelled) {
+          setLocations((payload.data ?? []).filter((location) => location.isActive));
+        }
+      } catch {
+        // Sin locales cargados la lista sigue funcionando: es un filtro, no un requisito.
+      }
+    }
+
+    void fetchLocations();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const [olderOpenCount, setOlderOpenCount] = useState<number | null>(null);
   const currency = useCurrencyFormat();
@@ -195,10 +226,11 @@ export default function AdminOrdersPage() {
     const query = new URLSearchParams();
     if (statusFilter !== "all") query.set("status", statusFilter);
     if (typeFilter !== "all") query.set("type", typeFilter);
+    if (locationFilter !== "all") query.set("locationId", locationFilter);
     if (range.from) query.set("dateFrom", range.from);
     if (range.to) query.set("dateTo", range.to);
     return query.toString();
-  }, [range, statusFilter, typeFilter]);
+  }, [range, statusFilter, typeFilter, locationFilter]);
 
   useEffect(() => {
     async function fetchOrders() {
@@ -333,6 +365,8 @@ export default function AdminOrdersPage() {
             <Icon className="mr-1 inline h-3.5 w-3.5 align-[-2px] text-brand" strokeWidth={2} aria-hidden="true" />
             {typeLabel} · {order.customerName} ·{" "}
             <span className="font-mono font-semibold">{elapsed}</span>
+            {/* De qué local es el pedido (T8): con una sola sucursal no aporta y no se muestra. */}
+            {locations.length > 1 && order.locationName ? ` · ${order.locationName}` : ""}
           </p>
         </div>
         <p className="text-right text-base font-bold tabular-nums text-foreground">
@@ -481,6 +515,32 @@ export default function AdminOrdersPage() {
                 <Tabs className="min-w-0"><TabsList className={CHIP_LIST_CLASS}>{TYPE_FILTERS.map((option) => <TabsTrigger key={option.value} value={option.value} activeValue={typeFilter} onClick={setTypeFilter} className={CHIP_TRIGGER_CLASS}>{option.label}</TabsTrigger>)}</TabsList></Tabs>
               </div>
             </div>
+
+            {/* Filtro por local (T8): con un solo local no se dibuja, sería un control
+                decorativo. Cada sucursal ve lo suyo. */}
+            {locations.length > 1 ? (
+              <div className="min-w-0 space-y-2">
+                <label
+                  htmlFor="orders-location-filter"
+                  className="text-xs font-medium uppercase tracking-wide text-muted-foreground"
+                >
+                  Local
+                </label>
+                <select
+                  id="orders-location-filter"
+                  className="h-11 w-full rounded-md border border-border bg-card px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand sm:max-w-xs"
+                  value={locationFilter}
+                  onChange={(event) => setLocationFilter(event.target.value)}
+                >
+                  <option value="all">Todos los locales</option>
+                  {locations.map((location) => (
+                    <option key={location.id} value={location.id}>
+                      {location.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : null}
           </div>
         ) : null}
       </AdminCompactToolbar>
