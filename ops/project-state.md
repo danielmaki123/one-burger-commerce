@@ -1787,6 +1787,18 @@ mañanas antes de las 12** (el local atiende 12:00–22:00).
   clickearla no cierra el panel porque ya está marcada y no dispara `onChange`. La señal que se usa
   ahora es el aviso del propio control.
 
+### Cuarto deploy del 2026-09-12 (commit `7635a06`) — **verificado**
+
+Lleva el arreglo del callejón sin salida del checkout (control de retiro visible con el local cerrado,
+para poder programar otro día) y los tests de E2E deterministas.
+
+- **Verificación**: `commit.sha` del servicio en `7635a06`; el bundle que sirve el sitio trae el código
+  nuevo (marcador "Hoy no podemos preparar tu pedido"); smoke productivo **4/4**.
+- **El caso exacto, verificado contra el sitio real y solo lectura** (09:1x de Managua, el local abre a
+  las 12): con un producto en el carrito, el checkout **muestra el control de retiro** (antes no se
+  dibujaba), al abrirlo aparece el **selector de día** y los turnos del día. Sin crear ningún pedido.
+- Sin migraciones.
+
 ## 3. Infraestructura y secretos
 
 - `EASYPANEL_URL` y `EASYPANEL_TOKEN`: solo en el entorno de quien ejecuta el deploy (nunca
