@@ -628,7 +628,9 @@ export default function AdminSettingsClientPage({
         <SettingsField
           id="settings-timezone"
           label="Zona horaria"
-          hint="Por ejemplo America/Managua."
+          // El ejemplo es del **formato** (`Region/Ciudad`), a propósito en otra zona: el dato del
+          // negocio vive en la configuración, no en el código (`anti-hardcode-contract`).
+          hint="Formato IANA, por ejemplo America/Bogota."
           error={fieldErrors.timezone}
           onReset={() => resetField("timezone")}
         >

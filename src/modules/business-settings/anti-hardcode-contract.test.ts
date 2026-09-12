@@ -33,6 +33,9 @@ const EXCLUDED_PREFIXES = [
   "src/modules/tables/",
   "src/modules/table-ordering/",
   "src/modules/inventory/",
+  // La UI de reservas del admin (fuera del MVP, solo por URL directa) sigue con su
+  // propia zona horaria fija. Es la contraparte de `src/modules/reservations/`.
+  "src/app/(admin)/admin/reservations/",
 ];
 
 const FORBIDDEN_LITERALS = [
@@ -43,6 +46,18 @@ const FORBIDDEN_LITERALS = [
   DEFAULT_BUSINESS_SETTINGS.currencySymbol,
   "12:00",
   "22:00",
+  /**
+   * La **zona horaria del negocio** y el offset de Managua.
+   *
+   * El 2026-09-12 aparecieron tres lugares con la zona fija (la bandeja del admin, el tablero y el
+   * historial del cliente) mientras el checkout ya usaba la configuración: un negocio en otra zona
+   * veía el turno del día equivocado. La zona vive en `BusinessSettings.timezone` (con
+   * `America/Managua` como **valor por defecto** en el módulo de defaults) y en el código se lee de
+   * ahí. Un ejemplo de la ayuda de un campo no es el dato del negocio: para eso está la lista de
+   * archivos permitidos, no este contrato.
+   */
+  "America/Managua",
+  "-06:00",
 ];
 
 /** Colores del sistema visual viejo: tienen que salir de `--brand`/`--background`. */
@@ -162,6 +177,10 @@ describe("contrato anti-hardcode", () => {
     expect(defaults).toContain(DEFAULT_BUSINESS_SETTINGS.whatsapp!);
     expect(defaults).toContain(DEFAULT_BUSINESS_SETTINGS.instagram!);
     expect(defaults).toContain(DEFAULT_BUSINESS_SETTINGS.currencySymbol);
+    // La zona horaria del negocio también: es un dato editable, y su valor por defecto es lo único
+    // que puede estar escrito. Si alguien la borra de la lista de prohibidos, esto no lo detecta,
+    // pero sí deja claro dónde vive el dato (y el contrato de arriba es el que la persigue).
+    expect(defaults).toContain(DEFAULT_BUSINESS_SETTINGS.timezone);
   });
 
   it("los fondos salen de los tokens: ningun color del sistema viejo escrito a mano", () => {

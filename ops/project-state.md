@@ -1830,6 +1830,25 @@ es justo donde vive la lógica que falló el 2026-09-12 (el apex sin entrada de 
   producto en vez de romper con un `undefined`.
 - Verificación cruzada: contra producción el smoke sigue en **7/7** y los hosts en **6/6**.
 
+### El contrato anti-hardcode también cuida la zona horaria (2026-09-12)
+
+El 2026-09-12 aparecieron **tres** lugares con la zona del negocio fija en el código (la bandeja del
+admin, el tablero y el historial del cliente; ver las secciones de arriba) y nada impedía que volviera
+a pasar: el contrato anti-hardcode perseguía el nombre, el teléfono, las redes, el símbolo de moneda y
+los horarios, pero **no la zona horaria**.
+
+- Ahora `America/Managua` y el offset `-06:00` están en la lista de literales prohibidos. El valor por
+  defecto sigue viviendo en `business-settings-defaults.ts` (el único archivo permitido) y el resto del
+  código lo lee de `BusinessSettings.timezone`.
+- La UI de **reservas** del admin (fuera del MVP, solo por URL directa) queda excluida, igual que su
+  módulo de dominio.
+- El **ejemplo** de la ayuda del campo de zona horaria dejó de ser el dato del negocio: ahora dice
+  "Formato IANA, por ejemplo America/Bogota".
+- **Verificación**: el contrato falló primero (`settings-client.tsx → "America/Managua"`, con el
+  archivo y el literal en el mensaje), se corrigió, y ahora **1548 unitarios** en 242 archivos, lint,
+  typecheck, `npm run build` y `security:secrets` están verdes. Cambio de copy en el admin: entra en el
+  próximo deploy.
+
 ## 3. Infraestructura y secretos
 
 - `EASYPANEL_URL` y `EASYPANEL_TOKEN`: solo en el entorno de quien ejecuta el deploy (nunca
