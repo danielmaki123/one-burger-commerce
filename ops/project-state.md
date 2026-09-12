@@ -9,8 +9,8 @@
 
 | Cosa | Valor |
 |---|---|
-| Dominio público | **https://oneburgernic.com** (canónico), `www.` y `menu.` — los tres sirven la **app de pedidos** (`brunobot/oneburguerweb:3000`), con certificado |
-| App de pedidos | **https://menu.oneburgernic.com** |
+| Dominio público | **`oneburgernic.com`** y **`www.oneburgernic.com`** sirven el **landing** y redirigen las páginas de la app a `menu.`/`admin.` (307). **`menu.oneburgernic.com`** sirve la **app de pedidos** y **`admin.oneburgernic.com`** el panel. Los cuatro con certificado. Verificado el 2026-09-12 |
+| App de pedidos | **https://menu.oneburgernic.com** (el checkout y el menú viven acá) |
 | Admin | **https://admin.oneburgernic.com** (la sesión está atada al host: hay que iniciar sesión en el host del panel, no en el apex) |
 | Cuenta owner | `admin@oneburgernic.com` (contraseña administrada por Daniel; no está en el repo) |
 | Health / readiness | `GET /api/health` · `GET /api/readiness` (hace `SELECT 1` y responde 503 si la base no responde) |
@@ -1798,6 +1798,20 @@ para poder programar otro día) y los tests de E2E deterministas.
   las 12): con un producto en el carrito, el checkout **muestra el control de retiro** (antes no se
   dibujaba), al abrirlo aparece el **selector de día** y los turnos del día. Sin crear ningún pedido.
 - Sin migraciones.
+
+### El smoke productivo cubre las superficies de T8 (2026-09-12)
+
+El smoke de solo lectura contra el sitio real pasó de 4 a **7 checks**: además de health, readiness,
+rutas públicas y login del panel, ahora verifica que
+
+- `/api/locations` traiga el punto de retiro de cada local y **nada del contacto interno**
+  (teléfono y WhatsApp no salen al cliente),
+- el menú público responda **cotizado por local** (`?locationId=`) con el mismo catálogo, y
+- el checkout deje **elegir día de retiro aunque el local esté cerrado ahora** (el callejón sin salida
+  que se arregló hoy), armando el carrito en el navegador sin confirmar nada.
+
+Y la verificación de dominios (`npm run test:e2e:prod:hosts`, 6 checks) entra en la rutina posterior a
+cada deploy: es la que habría cazado el apex sin entrada de dominio.
 
 ## 3. Infraestructura y secretos
 

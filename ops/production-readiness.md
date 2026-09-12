@@ -13,13 +13,15 @@ de Casa Antigua que viven en `docs/` (esa carpeta no se versiona).
 
 - Panel: `http://76.13.250.83:3000`
 - Proyecto / servicio: **`brunobot` / `oneburguerweb`**
-- Dominios públicos: **`https://oneburgernic.com`** (apex, canónico), `https://www.oneburgernic.com`,
-  `https://menu.oneburgernic.com` y `https://admin.oneburgernic.com` — los cuatro con certificado
-  Let's Encrypt y sirviendo la app. El dominio por defecto
-  `brunobot-oneburguerweb.2jcsgw.easypanel.host` sigue activo.
-  ⚠️ **El apex necesita su propia entrada de dominio en el panel**: el 2026-09-12 se encontró sin
-  entrada y devolvía el 404 de otra app (el catch-all del proyecto compartido). Se volvió a crear. Si
-  un dominio devuelve un 404 raro, el primer chequeo es `domains/listDomains`.
+- Dominios públicos (verificado el 2026-09-12): **`https://oneburgernic.com`** (apex, canónico) y
+  `https://www.oneburgernic.com` sirven el **landing** y redirigen las páginas de la app (307) a
+  `menu.`/`admin.`; **`https://menu.oneburgernic.com`** sirve la **app de pedidos** y
+  **`https://admin.oneburgernic.com`** el panel. Los cuatro con certificado Let's Encrypt. El dominio
+  por defecto `brunobot-oneburguerweb.2jcsgw.easypanel.host` sigue activo.
+  Todo esto lo verifica `npm run test:e2e:prod:hosts` (solo lectura) — incluido el landing y las
+  redirecciones. ⚠️ **Cada uno de esos hosts necesita su propia entrada de dominio en el panel**: el
+  2026-09-12 se encontró el apex sin entrada y devolvía el 404 de otra app (el catch-all del proyecto
+  compartido). Si un dominio devuelve un 404 raro, el primer chequeo es `domains/listDomains`.
 - Admin: `https://oneburgernic.com/admin/login`
 - Base de datos: servicio `oneburguer-postgres` del mismo proyecto; base y usuario `oneburguer`, puerto interno 5432, **sin puerto expuesto**.
 - Deploy: **una sola llamada** a `deployService` por API (ver §4). ⚠️ **No usar
@@ -104,8 +106,14 @@ npm run security:secrets
 ### Después del deploy
 
 ```bash
-BASE_URL="https://<dominio>" npm run test:e2e:prod
+BASE_URL="https://<dominio>" npm run test:e2e:prod          # smoke: health, readiness, rutas, login, locales, menú por local, retiro
+BASE_URL="https://<dominio>" npm run test:e2e:prod:hosts    # dominios: landing, redirecciones y host del panel
 ```
+
+Los dos son de **solo lectura**. El de hosts es el que habría cazado el apex sin entrada de dominio
+(2026-09-12), así que va siempre, no solo cuando se toca la infraestructura. El smoke valida además que
+`/api/locations` no exponga el contacto interno del local y que el control de retiro del checkout esté
+disponible aunque el local esté cerrado en ese momento.
 
 El smoke productivo es no mutante y valida `/api/health`, `/api/readiness`
 (que hace un `SELECT 1` real y responde 503 si la base está caída), menú
