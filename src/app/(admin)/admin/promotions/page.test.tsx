@@ -132,10 +132,15 @@ describe("AdminPromotionsPage", () => {
     render(<AdminPromotionsPage />);
 
     await user.click(screen.getByRole("button", { name: "Nueva promo" }));
-    await user.type(screen.getByLabelText("Código"), "tacos2x1");
+    // Foco explícito antes de tipear: la hoja mueve el foco a su primer control y, en un
+    // runner lento, ese movimiento puede llegar **después** del primer carácter y el campo
+    // queda vacío (pasaba en CI: "expected '' to be 'tacos2x1'").
+    const codeInput = screen.getByLabelText("Código") as HTMLInputElement;
+    await user.click(codeInput);
+    await user.type(codeInput, "tacos2x1");
     // Se comprueba que el texto entró antes de seguir: si el tipeo se pierde, el test lo
     // dice **acá** en vez de fallar con un timeout que no explica nada.
-    expect((screen.getByLabelText("Código") as HTMLInputElement).value).toBe("tacos2x1");
+    expect(codeInput.value).toBe("tacos2x1");
     await user.selectOptions(screen.getByLabelText("Tipo"), "bogo");
     await user.type(screen.getByLabelText("Unidades que se llevan"), "1");
     await user.type(screen.getByLabelText("Unidades gratis"), "1");
@@ -225,8 +230,10 @@ describe("AdminPromotionsPage", () => {
     render(<AdminPromotionsPage />);
 
     await user.click(screen.getByRole("button", { name: "Nueva promo" }));
-    await user.type(screen.getByLabelText("Código"), "B2G1");
-    expect((screen.getByLabelText("Código") as HTMLInputElement).value).toBe("B2G1");
+    const codeInput = screen.getByLabelText("Código") as HTMLInputElement;
+    await user.click(codeInput);
+    await user.type(codeInput, "B2G1");
+    expect(codeInput.value).toBe("B2G1");
     await user.click(screen.getByRole("button", { name: "Crear promo" }));
 
     await waitFor(
