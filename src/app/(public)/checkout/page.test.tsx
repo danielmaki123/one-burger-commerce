@@ -541,6 +541,46 @@ describe("checkout sin redundancias", () => {
     expect(fetch).not.toHaveBeenCalledWith("/api/orders", expect.anything());
   });
 
+  /**
+   * Un local cerrado **hoy** no puede ser un callejón sin salida: desde la fase 4 el cliente
+   * puede pedir para otro día, así que el control de retiro tiene que seguir a la vista (antes
+   * se escondía y solo quedaba el mensaje de "fuera de horario", sin forma de elegir un día).
+   */
+  it("con el local cerrado hoy se puede programar para otro día", async () => {
+    const user = userEvent.setup();
+    mockCart = { items: twoItems, subtotal: 360, clearCart: vi.fn() };
+    stubOrderResponse();
+
+    render(
+      <BusinessSettingsProvider
+        settings={{
+          ...FALLBACK_BUSINESS_SETTINGS,
+          // El reloj del test está fijado el viernes 2026-09-11: se cierra ese día.
+          businessHours: {
+            ...FALLBACK_BUSINESS_SETTINGS.businessHours,
+            fri: { open: "12:00", close: "22:00", closed: true },
+          },
+        }}
+      >
+        <CheckoutPage />
+      </BusinessSettingsProvider>,
+    );
+
+    // El control sigue a la vista y explica por qué hoy no se puede.
+    const schedule = await screen.findByRole("button", { name: /^Retiro/ });
+    expect(schedule).toBeTruthy();
+    await user.click(schedule);
+    expect(await screen.findByText(/Hoy no podemos preparar tu pedido/)).toBeTruthy();
+    await waitFor(() => expect(confirmButtons()[0].hasAttribute("disabled")).toBe(true));
+
+    // Se elige mañana (sábado, abierto): el día trae su primer turno y se puede confirmar.
+    fireEvent.change(screen.getByLabelText("Día de retiro"), {
+      target: { value: "2026-09-12" },
+    });
+
+    await waitFor(() => expect(confirmButtons()[0].hasAttribute("disabled")).toBe(false));
+  });
+
   it("con un solo local no dibuja el selector y el retiro sale de ese local (T8)", async () => {
     mockCart = { items: twoItems, subtotal: 360, clearCart: vi.fn() };
     stubLocationsResponse([

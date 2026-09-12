@@ -390,21 +390,41 @@ export default function CheckoutPage() {
       : acceptance && !acceptance.accepted
         ? acceptance.message
         : "";
+
+  /**
+   * Si el bloqueo es "no estamos tomando pedidos" (el local apagado a propósito) no hay nada que
+   * elegir y el control se esconde. Pero si el bloqueo es **por horario** —cerrado ahora, o la
+   * hora elegida ya pasó— el control tiene que seguir a la vista: desde la fase 4 el cliente puede
+   * pedir para otro día, y esconderlo lo dejaba en un callejón sin salida (un local cerrado a las
+   * 8 de la mañana no dejaba programar para la tarde ni para mañana).
+   */
+  const blockedByAcceptance =
+    acceptance !== null && !acceptance.accepted && acceptance.reason === "not-accepting-orders";
   const todayHours = formatTodayHours(pickupSource.businessHours, new Date(), settings.timezone);
   const selectedDayHours = selectedDay
     ? formatDayHours(pickupSource.businessHours, selectedDay)
     : null;
 
   /**
-   * Qué decirle al cliente sobre el día elegido. Hoy se mantiene el copy de siempre
-   * (programar es opcional); para otro día se explica que hay que elegir una hora, porque
-   * sin hora el pedido saldría para hoy.
+   * Hoy no se puede preparar nada: o el local está cerrado, o ya no llega el tiempo antes del
+   * cierre. En los dos casos lo útil es invitar a elegir otro día, no prometer un pedido "apenas
+   * llega" que el local no va a poder hacer.
+   */
+  const todayUnavailable =
+    !isFutureDay && pickupSlots !== null && !pickupSlots.available;
+
+  /**
+   * Qué decirle al cliente sobre el día elegido. Hoy se mantiene el copy de siempre cuando el
+   * local está abierto; para otro día se explica que hay que elegir una hora, porque sin hora el
+   * pedido saldría para hoy.
    */
   const scheduleHint = isFutureDay
     ? selectedDayHours
       ? `El local atiende ${selectedDayHours} ese día. Elegí la hora a la que pasás a retirar.`
       : "Ese día el local no atiende. Elegí otro día."
-    : `El local atiende ${todayHours}. Si no elegís una hora, preparamos tu pedido apenas llega.`;
+    : todayUnavailable
+      ? "Hoy no podemos preparar tu pedido. Elegí un día para programar el retiro."
+      : `El local atiende ${todayHours}. Si no elegís una hora, preparamos tu pedido apenas llega.`;
 
   /**
    * Dónde se retira (T5 y T8). Sale del local elegido —o del único que hay—, y si el negocio
@@ -734,13 +754,10 @@ export default function CheckoutPage() {
 
               <div className="space-y-2">
                 <p className="text-sm font-medium text-foreground">Hora de retiro</p>
-                {/* El control se esconde solo cuando el pedido no se puede hacer por el
-                    negocio o el local (ahí no hay nada que elegir). Si el problema es el
-                    **día** elegido o un plato que ese local no vende, el control se queda:
-                    es donde se cambia de día. */}
-                {orderingBlocked &&
-                !pickupDayUnavailableMessage &&
-                !missingAtLocationMessage ? (
+                {/* El control se esconde solo cuando el local **no está tomando pedidos** (ahí no
+                    hay nada que elegir). Si el problema es el horario, el día elegido o un plato
+                    que ese local no vende, el control se queda: es donde se corrige. */}
+                {blockedByAcceptance && !pickupDayUnavailableMessage && !missingAtLocationMessage ? (
                   <p
                     role="status"
                     className="rounded-2xl border border-border bg-cream/60 p-3 text-sm leading-5 text-foreground"
@@ -764,11 +781,15 @@ export default function CheckoutPage() {
                   />
                 )}
 
-                {/* El motivo por el que no se puede confirmar, aunque el control siga a la
-                    vista para poder corregirlo. */}
-                {pickupDayUnavailableMessage ? (
-                  <p role="status" className="text-sm text-danger-foreground">
-                    {pickupDayUnavailableMessage}
+                {/* El motivo por el que no se puede confirmar, cuando el control sigue a la vista
+                    para poder corregirlo (horario o día elegido). Lo que el local no vende se
+                    explica una sola vez, al lado del carrito. */}
+                {!blockedByAcceptance && orderingBlockedMessage && !missingAtLocationMessage ? (
+                  <p
+                    role="status"
+                    className="rounded-2xl border border-border bg-cream/60 p-3 text-sm leading-5 text-foreground"
+                  >
+                    {orderingBlockedMessage}
                   </p>
                 ) : null}
               </div>

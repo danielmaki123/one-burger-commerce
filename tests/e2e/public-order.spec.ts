@@ -20,6 +20,53 @@ async function openCheckoutWithOneProduct(page: Page) {
   await page.goto("/checkout");
 }
 
+/** El día natural de mañana en la zona del negocio (`YYYY-MM-DD`). */
+function tomorrowInBusinessZone(): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Managua",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date(Date.now() + 24 * 60 * 60 * 1000));
+}
+
+/**
+ * ¿El local ya no puede preparar nada **hoy**? Se lee del propio aviso del control ("Hoy no
+ * podemos preparar tu pedido"), que es la señal que ve el cliente.
+ *
+ * Ojo: `input[name="pickupTimeOption"]` incluye también la opción "Lo antes posible", así que
+ * contar radios no sirve para saber si quedan turnos (con 0 turnos igual hay 1 radio, y
+ * clickearlo no cierra el panel porque ya está marcado y no dispara `onChange`).
+ */
+async function todayUnavailable(page: Page): Promise<boolean> {
+  return (await page.getByText(/Hoy no podemos preparar tu pedido/).count()) > 0;
+}
+
+/**
+ * Elige una hora de retiro programada en el control que ya está abierto.
+ *
+ * Si todavía queda algún turno de hoy se toma el último; si no (los ~25 minutos antes del
+ * cierre, cuando ya no entra ningún pedido hoy), se programa para **mañana** con el selector
+ * de día. Devuelve el día elegido para poder afirmar la etiqueta que corresponde.
+ *
+ * Antes estos tests se **salteaban** cuando no había turnos: con la suite corrida de noche, la
+ * mitad de los casos no se verificaba y el resultado dependía de la hora. Ahora siempre se
+ * programa algo y cada rama afirma lo suyo.
+ */
+async function schedulePickup(page: Page): Promise<"today" | "tomorrow"> {
+  const slots = page.locator('input[name="pickupTimeOption"]');
+
+  if (!(await todayUnavailable(page))) {
+    await slots.last().click();
+    return "today";
+  }
+
+  await page.getByLabel("Día de retiro").fill(tomorrowInBusinessZone());
+  await slots.last().click();
+
+  return "tomorrow";
+}
+
 test.describe("checkout sin redundancias", () => {
   test.skip(!mutationsAllowed, "Order creation is disabled unless E2E_ALLOW_MUTATIONS=true.");
 
@@ -47,25 +94,27 @@ test.describe("checkout sin redundancias", () => {
 
     // Los turnos son los del horario configurado, calculados desde ahora + preparación.
     const slots = page.locator('input[name="pickupTimeOption"]');
-    const slotCount = await slots.count();
-    test.skip(slotCount < 2, "El local demo no tiene turnos disponibles a esta hora.");
 
-    await slots.nth(slotCount - 1).click();
-    // Al elegir, el control colapsa y muestra la hora elegida.
-    await expect(page.locator('input[name="pickupTimeOption"]')).toHaveCount(0);
-    await expect(
-      page.getByRole("button", { name: /^Retiro programado \d/ }),
-    ).toBeVisible();
+    if (!(await todayUnavailable(page))) {
+      await slots.last().click();
+      // Al elegir, el control colapsa y muestra la hora elegida.
+      await expect(page.locator('input[name="pickupTimeOption"]')).toHaveCount(0);
+      await expect(
+        page.getByRole("button", { name: /^Retiro programado \d/ }),
+      ).toBeVisible();
+    } else {
+      // Cierre inminente: hoy ya no entra ningún pedido, así que el control ofrece solo
+      // "lo antes posible" y el selector de día para programar otro día.
+      await expect(slots).toHaveCount(1);
+      await expect(page.getByRole("radio", { name: /^Lo antes posible/ })).toBeChecked();
+    }
   });
 
   test("el pedido programado llega al admin como programado", async ({ page }) => {
     await openCheckoutWithOneProduct(page);
 
     await page.getByRole("button", { name: /^Retiro Lo antes posible · listo ~/ }).click();
-    const slots = page.locator('input[name="pickupTimeOption"]');
-    const slotCount = await slots.count();
-    test.skip(slotCount < 2, "El local demo no tiene turnos disponibles a esta hora.");
-    await slots.nth(slotCount - 1).click();
+    const scheduledDay = await schedulePickup(page);
 
     await page.locator('input[name="customerName"]').fill("Cliente Programado");
     await page.locator('input[name="customerWhatsapp"]').fill("88887777");
@@ -75,10 +124,14 @@ test.describe("checkout sin redundancias", () => {
     // El cliente ve para cuándo es.
     await expect(page.getByText("Hora de retiro")).toBeVisible();
 
-    // Y la cocina lo ve marcado como programado, con su semáforo.
+    // Y la cocina lo ve marcado como programado, con su semáforo (y con el día si quedó para
+    // mañana, que es el caso cuando ya no había turnos de hoy).
     await loginAsOwner(page);
     await page.goto("/admin/orders");
-    await expect(page.getByText(/^Retiro \d.* · Programado$/).first()).toBeVisible();
+    const dayPrefix = scheduledDay === "tomorrow" ? "mañana " : "";
+    await expect(
+      page.getByText(new RegExp(`^Retiro ${dayPrefix}\\d.* · Programado$`)).first(),
+    ).toBeVisible();
   });
 
   /**

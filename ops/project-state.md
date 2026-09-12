@@ -1759,6 +1759,34 @@ Lo que faltaba era la otra mitad de la regla del programa —"ningún control de
 (y que para vaciar está "Quitar"), que quitar deja el estado vacío y que editar una línea no toca a la
 otra. **4 tests nuevos, 1547 en total.**
 
+### El checkout dejaba sin salida al local cerrado (2026-09-12) — **cerrada**
+
+Lo encontré haciendo deterministas dos tests de E2E que se salteaban cerca del cierre. Con la fase 4
+(el cliente ya puede pedir para otro día), el checkout seguía escondiendo el control de retiro cuando
+el bloqueo venía del **horario**: si el local estaba cerrado ahora, al cliente no le quedaba ninguna
+forma de elegir otro día, solo el mensaje de "fuera del horario". En producción eso se ve **todas las
+mañanas antes de las 12** (el local atiende 12:00–22:00).
+
+- El control ahora se esconde **solo** cuando el local no está tomando pedidos a propósito
+  (`acceptance.reason === "not-accepting-orders"`). Si el bloqueo es por horario —o porque la hora
+  elegida ya pasó— el control se queda a la vista, con su selector de día, y el motivo se explica
+  abajo ("Está fuera del horario de atención…").
+- La ayuda del control tampoco miente: cuando hoy ya no se puede preparar nada (cerrado, o el tiempo
+  no llega antes del cierre) dice **"Hoy no podemos preparar tu pedido. Elegí un día para programar el
+  retiro"**, en vez de prometer que se prepara "apenas llega".
+- **Los dos tests de E2E ya no se saltean**: antes hacían `test.skip(slotCount < 2, ...)` y con la
+  suite corrida de noche no verificaban nada (75/9 vs 79/7 según la hora). Ahora, si hoy no quedan
+  turnos, programan para **mañana** con el selector de día y afirman la etiqueta que corresponde; el
+  único salto que queda es el de `mutationsAllowed`, que es por diseño.
+- **Verificación**: **1548 unitarios**, lint, typecheck, `npm run build`, `security:secrets` y **E2E 80
+  pasaron, 7 salteados, 0 fallos**. Y el camino nuevo se verificó **de punta a punta**: se bajó el
+  cierre del local demo a 12 minutos vista en la base local, se corrió el E2E del checkout
+  (**13/13, sin saltos**), se restauró el horario y se volvió a correr la suite completa.
+- **Trampa que encontré en mi propio helper**: `input[name="pickupTimeOption"]` incluye la opción "Lo
+  antes posible", así que contar radios no dice si quedan turnos (con 0 turnos hay 1 radio) y
+  clickearla no cierra el panel porque ya está marcada y no dispara `onChange`. La señal que se usa
+  ahora es el aviso del propio control.
+
 ## 3. Infraestructura y secretos
 
 - `EASYPANEL_URL` y `EASYPANEL_TOKEN`: solo en el entorno de quien ejecuta el deploy (nunca
