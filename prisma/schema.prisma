@@ -342,6 +342,8 @@ model Order {
   tableId           String?
   /// Forma de pago declarada por el cliente (informativa para la caja).
   paymentMethod     PaymentMethod      @default(cash)
+  /// Con cuánto paga el cliente, para calcular el vuelto en la caja (T12).
+  paidWithAmount    Decimal?           @db.Decimal(10, 2)
   couponId          String?
   couponCode        String?
   subtotal          Decimal            @db.Decimal(10, 2)

@@ -161,7 +161,7 @@ sigue prohibiendo reactivar delivery sin pedido explícito posterior).
 | **T9** | **Promos** (B2G1) | Motor de promos: hoy solo hay `Coupon` de % o monto fijo, no combos 2x1 | Medio |
 | **T10** | **Favoritos** ❤️ | ⚠️ **Descartada por decisión del owner (2026-09-12): "mantengamos el login tal cual lo tenemos"**. Los favoritos exigen cuenta de cliente y el login real (OTP) seguiría sin proveedor; el ❤️ del mock no se dibuja | — |
 | **T11** | **Método de pago** (efectivo/tarjeta) — **cerrada**: enum + columna con default en `Order`, selector en el checkout, fila en la confirmación y chip en el detalle del admin. **El E2E cazó que el adaptador de Prisma no guardaba el campo** (los unitarios pasaban por el adaptador en memoria) | `create-order.test.ts` · `checkout/page.test.tsx` · `order-success-view.test.ts` | **Sí** (migración `add_order_payment_method`) |
-| **T12** | **Vuelto** ("pagaré con / cambio") | Campo para el monto con el que paga el cliente y cálculo del cambio; sirve en caja, no en cocina | Bajo |
+| **T12** | **Vuelto** ("pagaré con / cambio") — **cerrada**: `Order.paidWithAmount` opcional (migración), campo solo en efectivo con cambio estimado en vivo y aviso si no alcanza, filas en la confirmación y chip en el detalle del admin. El cambio **se deriva**, no se guarda | `payment-change.test.ts` · `create-order.test.ts` · `checkout/page.test.tsx` | **Sí** (migración `add_order_paid_with_amount`) |
 | **T13** | **PIN de retiro** | Hoy hay `orderNumber` + `orderLookupToken`; el PIN corto es una columna nueva y se dicta en caja | Bajo/medio |
 
 > **Orden y dependencias:** T11-T13 son migraciones chicas e independientes; T8 toca el modelo entero y

@@ -56,6 +56,8 @@ const orderSchema = z.object({
   pickupNotes: z.string().nullable().optional(),
   // Forma de pago declarada (T11): informativa, se cobra en el local.
   paymentMethod: z.enum(["cash", "card"]).nullable().optional(),
+  // Con cuánto paga el cliente, cuando es efectivo (T12).
+  paidWithAmount: z.number().nullable().optional(),
   tableId: z.string().nullable().optional(),
   qrToken: z.string().nullable().optional(),
   deliveryZoneId: z.string().nullable().optional(),

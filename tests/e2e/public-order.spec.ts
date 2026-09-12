@@ -187,6 +187,36 @@ test.describe("checkout sin redundancias", () => {
     await expect(page.getByText("Forma de pago")).toBeVisible();
     await expect(page.getByText("Tarjeta")).toBeVisible();
   });
+
+  test("el vuelto del efectivo se calcula y se ve en la confirmación (T12)", async ({ page }) => {
+    await openCheckoutWithOneProduct(page);
+
+    // El monto solo se pregunta en efectivo (arranca en efectivo).
+    const paidWith = page.getByLabel(/Con cuánto vas a pagar/);
+    await expect(paidWith).toBeVisible();
+
+    // El producto sembrado cuesta C$35; se paga con C$100.
+    await paidWith.fill("100");
+    await expect(page.getByText(/Cambio estimado: C\$65\.00/)).toBeVisible();
+
+    await page.locator('input[name="customerName"]').fill("Cliente Vuelto");
+    await page.locator('input[name="customerWhatsapp"]').fill("88887777");
+    await confirmButton(page).click();
+    await expect(page).toHaveURL(/\/success\/.+/);
+
+    // El cliente ve con cuánto paga y cuánto le van a devolver.
+    await expect(page.getByText("Pagás con")).toBeVisible();
+    await expect(page.getByText("C$100.00")).toBeVisible();
+    await expect(page.getByText("Cambio")).toBeVisible();
+    await expect(page.getByText("C$65.00")).toBeVisible();
+  });
+
+  test("con tarjeta no se pregunta el vuelto (T12)", async ({ page }) => {
+    await openCheckoutWithOneProduct(page);
+
+    await page.getByRole("radio", { name: "Tarjeta" }).check();
+    await expect(page.getByLabel(/Con cuánto vas a pagar/)).toHaveCount(0);
+  });
 });
 
 test.describe("checkout en celular", () => {

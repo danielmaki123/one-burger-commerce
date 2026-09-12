@@ -109,6 +109,13 @@ export type OrderRecord = {
    * viejo o parcial nunca deja la pantalla sin dato.
    */
   paymentMethod?: OrderPaymentMethod;
+  /**
+   * Con cuánto paga el cliente, cuando es efectivo (T12).
+   *
+   * El **cambio no se guarda**: se deriva de este monto y el total, así un total
+   * corregido no deja un vuelto viejo en la caja.
+   */
+  paidWithAmount?: number | null;
   tableId?: string | null;
   couponCode?: string | null;
   deliveryZoneId?: string | null;
@@ -147,6 +154,8 @@ export type PublicOrderDetail = {
    * viejo o parcial nunca deja la pantalla sin dato.
    */
   paymentMethod?: OrderPaymentMethod;
+  /** Con cuánto paga el cliente cuando es efectivo (T12); el vuelto se deriva. */
+  paidWithAmount?: number | null;
   tableId?: string | null;
   couponCode?: string | null;
   deliveryZoneId?: string | null;

@@ -1010,6 +1010,36 @@ pasarela ni cobro online.
   **E2E completo 67 pasaron, 7 salteados, 0 fallos** (antes 66). El caso nuevo elige "Tarjeta" en el
   checkout, confirma el pedido y comprueba que la confirmación muestra "Forma de pago: Tarjeta".
 
+### Ola 2 · T12: el vuelto del efectivo (2026-09-12)
+
+El mock muestra "Pagas C$1.000 · Vuelto" en su historial. Acá el dato entra por el checkout, es
+**opcional** y solo tiene sentido con efectivo: sirve en la caja, no en la cocina (la comanda no
+necesita saber con qué billete paga alguien).
+
+- **Contrato nuevo**: `Order.paidWithAmount` (decimal, opcional) con la migración
+  `add_order_paid_with_amount`. **El cambio no se guarda**: se deriva del monto y el total, así un total
+  corregido no deja un vuelto viejo en la caja.
+- **Validación en el servidor** (dominio `payment-change.ts`): el monto tiene que alcanzar para pagar
+  el total, ser mayor que cero y no ser absurdo — el tope es **relativo al total** (×20) y no un número
+  fijo, porque la moneda la elige el negocio. Con tarjeta, un monto declarado se rechaza con el campo
+  señalado en vez de calcular un vuelto que no existe.
+- **Test rojo**: `payment-change.test.ts` (validación y cálculo), y en `create-order.test.ts` los dos
+  casos de guardado y rechazo. El primer vector del redondeo estaba mal elegido (`500.005` no es
+  representable exacto en binario): se cambió por valores sin ambigüedad, que es lo que el test quería
+  decir.
+- **Dónde se ve**: el checkout pregunta "¿Con cuánto vas a pagar?" solo en efectivo, con el **cambio
+  estimado en vivo** y el aviso si el monto no alcanza; la confirmación agrega "Pagás con" y "Cambio";
+  y el detalle del admin muestra el chip "Paga con C$… · Cambio C$…" para la caja.
+- **Un race del arnés que quedó arreglado**: el helper de `public-activity.spec.ts` navegaba al
+  historial apenas cambiaba la URL de la confirmación, antes de que esa pantalla terminara de leer el
+  pedido y guardarlo en el dispositivo. Pasaba en algunos tests y en otros no (los del historial
+  quedaban sin líneas). Ahora espera al resumen del pedido antes de navegar: el test dejó de depender
+  de la velocidad de la máquina.
+- **Verificado en el camino real** (Postgres 17 local + `next start -p 3210` con el build nuevo):
+  **E2E completo 69 pasaron, 7 salteados, 0 fallos** (antes 67). Dos casos nuevos: pagar C$100 un
+  pedido de C$35 muestra "Cambio estimado C$65.00" y después "Pagás con C$100.00 · Cambio C$65.00"; y
+  con tarjeta el campo del vuelto no se pregunta.
+
 ## 3. Infraestructura y secretos
 
 - `EASYPANEL_URL` y `EASYPANEL_TOKEN`: solo en el entorno de quien ejecuta el deploy (nunca
@@ -1036,7 +1066,7 @@ pasarela ni cobro online.
 | 8 | **Checkout sin redundancias** (textos y botones repetidos) | **Cerrada y desplegada** | `ops/tasks/TASK-checkout-ux.md`. Cuatro commits (`2832a93`…`aba4156`), en producción como `build-20260911-145656`. El checkout pasó de 807 a 476 líneas, un solo resumen compartido con el carrito, un solo CTA visible por viewport y los turnos de retiro calculados desde la configuración. |
 | 9 | **Validar el estado operativo en el servidor** | **Cerrada y desplegada** | Commits `3a67c37` y `ca474c8`, en producción como `build-20260911-154014`. `isAcceptingOrders` ya corta pedidos de verdad (antes no lo leía nadie) y la hora de retiro se valida contra el horario del día. Incluye el horario demo del seed y el límite de login del arnés E2E. |
 | 10 | **Retiro opcional y programable + la hora visible en toda la cadena** | **Cerrada y desplegada** | Commits `6f85a3c`, `c101f82`, `b207593` y `abc2183`, en producción como `build-20260911-191047`. Incluye **una migración** (`pickupScheduled`). El retiro es opcional, la hora la resuelve el servidor, el ticket de cocina y el admin la muestran, y el semáforo va contra la hora prometida. Ver el detalle arriba. |
-| 11 | **Adopción del mock completo (rediseño de la UI pública)** | **En ejecución · ola 1 completa (T1-T7) y T11 de la ola 2** | [`ops/tasks/TASK-mock-adoption.md`](tasks/TASK-mock-adoption.md). Plan **aprobado** el 2026-09-12 (D-A tipografía: Plus Jakarta Sans como tercera opción · D-B ola 2 completa **sin reseñas ni delivery** · D-C orden: tokens primero y después las pantallas en el orden del mock). **Reglas del programa**: ningún control decorativo (implementado con API/estado y test, o eliminado con motivo), nada hardcodeado, la paleta como preset que pasa el test de contraste, TDD por tarea, y verificación a 375 px **y 1280 px** (el mock no tiene escritorio). **Ola 1**: T1 tokens ✅ · T2 home ✅ · T3 menú ✅ · T3.1 color por categoría ✅ · T4 producto ✅ · T5 carrito+checkout ✅ (fases 1, 3, 6 y 7; queda la vista previa de turnos de la fase 2) · T6 confirmación ✅ · T7 seguimiento e historial ✅ · **ola 1 completa** · T11 forma de pago ✅ · **siguen T12 (vuelto), T13 (PIN) y T8 (multi-sucursal)**. **Decisiones abiertas del checkout**: D1 (pedidos para días futuros) y D2 (presets de propina). **Ola 2** (aprobada): T8 multi-sucursal, T9 promos, T10 favoritos (**descartada por el owner**: "mantengamos el login tal cual lo tenemos"; sin cuenta no hay favoritos), T11 método de pago, T12 vuelto, T13 PIN de retiro. Evidencia del mock: [`ops/audit-checkout-mock.md`](audit-checkout-mock.md). |
+| 11 | **Adopción del mock completo (rediseño de la UI pública)** | **En ejecución · ola 1 completa (T1-T7) y T11 de la ola 2** | [`ops/tasks/TASK-mock-adoption.md`](tasks/TASK-mock-adoption.md). Plan **aprobado** el 2026-09-12 (D-A tipografía: Plus Jakarta Sans como tercera opción · D-B ola 2 completa **sin reseñas ni delivery** · D-C orden: tokens primero y después las pantallas en el orden del mock). **Reglas del programa**: ningún control decorativo (implementado con API/estado y test, o eliminado con motivo), nada hardcodeado, la paleta como preset que pasa el test de contraste, TDD por tarea, y verificación a 375 px **y 1280 px** (el mock no tiene escritorio). **Ola 1**: T1 tokens ✅ · T2 home ✅ · T3 menú ✅ · T3.1 color por categoría ✅ · T4 producto ✅ · T5 carrito+checkout ✅ (fases 1, 3, 6 y 7; queda la vista previa de turnos de la fase 2) · T6 confirmación ✅ · T7 seguimiento e historial ✅ · **ola 1 completa** · T11 forma de pago ✅ · T12 vuelto ✅ · **siguen T13 (PIN de retiro) y T8 (multi-sucursal)**. **Decisiones abiertas del checkout**: D1 (pedidos para días futuros) y D2 (presets de propina). **Ola 2** (aprobada): T8 multi-sucursal, T9 promos, T10 favoritos (**descartada por el owner**: "mantengamos el login tal cual lo tenemos"; sin cuenta no hay favoritos), T11 método de pago, T12 vuelto, T13 PIN de retiro. Evidencia del mock: [`ops/audit-checkout-mock.md`](audit-checkout-mock.md). |
 
 ## 5. Cómo continuar
 

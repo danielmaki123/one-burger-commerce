@@ -12,6 +12,7 @@ import {
   PAYMENT_METHOD_LABELS,
   type OrderPaymentMethod,
 } from "@/modules/orders/domain/order.types";
+import { calculateOrderChange } from "@/modules/orders/domain/payment-change";
 
 type OrderModifier = {
   id: string;
@@ -49,6 +50,8 @@ export type OrderSuccessData = {
   pickupScheduled?: boolean;
   /** Forma de pago declarada por el cliente (T11). */
   paymentMethod?: OrderPaymentMethod | null;
+  /** Con cuánto paga el cliente cuando es efectivo (T12). */
+  paidWithAmount?: number | null;
 };
 
 /**
@@ -136,6 +139,11 @@ export default function OrderSuccessView({
     settings.pickupLeadMinutes,
     settings.pickupMaxMinutes,
   );
+
+  /** Vuelto (T12): se deriva del monto y el total, nunca se guarda. */
+  const paidWithAmount = order.paidWithAmount ?? null;
+  const orderChange = calculateOrderChange({ paidWithAmount, total: order.total });
+  const changeLabel = orderChange === null ? null : formatCurrency(orderChange, currency);
 
   return (
     <div className="brand-canvas min-h-dvh text-foreground">
@@ -225,6 +233,13 @@ export default function OrderSuccessView({
             {pickupLabel ? (
               <SummaryRow label="Hora de retiro" value={pickupLabel} />
             ) : null}
+            {paidWithAmount !== null ? (
+              <SummaryRow
+                label="Pagás con"
+                value={formatCurrency(paidWithAmount, currency)}
+              />
+            ) : null}
+            {changeLabel ? <SummaryRow label="Cambio" value={changeLabel} /> : null}
             <SummaryRow label="Subtotal" value={formatCurrency(order.subtotal, currency)} />
             {order.discount > 0 ? (
               <SummaryRow

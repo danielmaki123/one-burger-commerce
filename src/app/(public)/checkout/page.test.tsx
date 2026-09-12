@@ -324,6 +324,43 @@ describe("checkout sin redundancias", () => {
     await waitFor(() => expect(push).toHaveBeenCalledWith("/success/order-1?token=token-1"));
   });
 
+  it("el monto con el que paga solo aparece en efectivo y viaja con el pedido (T12)", async () => {
+    const user = userEvent.setup();
+    mockCart = { items: twoItems, subtotal: 380, clearCart: vi.fn() };
+    stubOrderResponse();
+
+    render(<CheckoutPage />);
+
+    // Con tarjeta no hay vuelto que calcular.
+    await user.click(screen.getByRole("radio", { name: "Tarjeta" }));
+    expect(screen.queryByLabelText(/Con cuánto vas a pagar/)).toBeNull();
+
+    await user.click(screen.getByRole("radio", { name: "Efectivo" }));
+    const paidWith = screen.getByLabelText(/Con cuánto vas a pagar/);
+
+    // El total del carrito de prueba es 380 de subtotal + 20 de empaque = 400.
+    await user.type(paidWith, "430");
+    expect(screen.getByText(/Cambio estimado: C\$30\.00/)).toBeTruthy();
+
+    // Un monto que no alcanza se avisa y no se manda.
+    await user.clear(paidWith);
+    await user.type(paidWith, "100");
+    expect(screen.getByText(/Tiene que alcanzar para pagar el total/)).toBeTruthy();
+
+    await user.clear(paidWith);
+    await user.type(paidWith, "430");
+    await user.type(screen.getByLabelText("Nombre completo"), "Cliente Efectivo");
+    await user.type(screen.getByLabelText("WhatsApp"), "88887777");
+    await user.click(confirmButtons()[0]);
+
+    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
+    const body = JSON.parse(
+      (vi.mocked(fetch).mock.calls[0][1] as RequestInit).body as string,
+    );
+    expect(body.paymentMethod).toBe("cash");
+    expect(body.paidWithAmount).toBe(430);
+  });
+
   it("programar una hora la manda en el pedido", async () => {
     const user = userEvent.setup();
     mockCart = { items: twoItems, subtotal: 380, clearCart: vi.fn() };

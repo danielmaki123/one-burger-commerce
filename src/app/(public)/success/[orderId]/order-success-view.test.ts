@@ -88,6 +88,22 @@ describe("order success view", () => {
     expect(renderWith(pickupOrder({}))).toContain("Efectivo");
   });
 
+  it("con vuelto dice con cuánto paga y cuánto le devuelven (T12)", () => {
+    const html = renderWith(
+      pickupOrder({ paymentMethod: "cash", paidWithAmount: 500, total: 380 }),
+    );
+
+    expect(html).toContain("Pagás con");
+    expect(html).toContain("C$500.00");
+    expect(html).toContain("Cambio");
+    expect(html).toContain("C$120.00");
+
+    // Sin monto declarado no se inventa un vuelto.
+    const sinMonto = renderWith(pickupOrder({ paymentMethod: "cash" }));
+    expect(sinMonto).not.toContain("Pagás con");
+    expect(sinMonto).not.toContain("Cambio");
+  });
+
   it("con rango configurado le promete una franja, no un instante (T5)", () => {
     // 20:35 con 20 min de preparación y 40 de máximo: la franja es 20:35–20:55.
     const html = renderToStaticMarkup(

@@ -94,6 +94,7 @@ export class InMemoryOrderRepository implements OrderRepository {
       pickupScheduled: input.pickupScheduled ?? false,
       pickupNotes: input.pickupNotes ?? null,
       paymentMethod: input.paymentMethod ?? "cash",
+      paidWithAmount: input.paidWithAmount ?? null,
       tableId: input.tableId ?? null,
       couponCode: input.couponCode ?? null,
       subtotal: input.subtotal,

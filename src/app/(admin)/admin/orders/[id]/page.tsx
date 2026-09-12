@@ -13,6 +13,7 @@ import {
   PAYMENT_METHOD_LABELS,
   type OrderPaymentMethod,
 } from "@/modules/orders/domain/order.types";
+import { calculateOrderChange } from "@/modules/orders/domain/payment-change";
 
 import {
   AdminPickupTimingChip,
@@ -91,6 +92,8 @@ type OrderDetail = {
   pickupNotes?: string | null;
   /** Forma de pago declarada por el cliente (T11). */
   paymentMethod?: OrderPaymentMethod | null;
+  /** Con cuánto paga el cliente cuando es efectivo (T12). */
+  paidWithAmount?: number | null;
 };
 
 type GetOrderResponse = {
@@ -339,6 +342,19 @@ export default function AdminOrderDetailPage() {
         nowMs,
       })
     : null;
+  /** Vuelto del efectivo (T12): se deriva del monto y el total que ve la caja. */
+  const orderChange = order
+    ? calculateOrderChange({
+        paidWithAmount: order.paidWithAmount ?? null,
+        total: order.total,
+      })
+    : null;
+  const changeLabel =
+    orderChange === null || orderChange === 0
+      ? orderChange === 0
+        ? "Sin cambio"
+        : null
+      : `Cambio ${formatCurrency(orderChange, currency)}`;
 
   return (
     <div className="space-y-6 pb-40 md:pb-6">
@@ -392,10 +408,16 @@ export default function AdminOrderDetailPage() {
                   </span>
                 ) : null}
                 {pickupTiming ? <AdminPickupTimingChip timing={pickupTiming} /> : null}
-                {/* La caja necesita saber si preparar el vuelto (T11). */}
+                {/* La caja necesita saber si preparar el vuelto (T11 y T12). */}
                 <span className="rounded-full border border-border bg-card px-2.5 py-1 text-xs font-semibold text-foreground">
                   {PAYMENT_METHOD_LABELS[order.paymentMethod ?? "cash"]}
                 </span>
+                {order.paidWithAmount !== null && order.paidWithAmount !== undefined ? (
+                  <span className="rounded-full border border-border bg-card px-2.5 py-1 text-xs font-semibold text-foreground">
+                    Paga con {formatCurrency(order.paidWithAmount, currency)}
+                    {changeLabel ? ` · ${changeLabel}` : ""}
+                  </span>
+                ) : null}
               </div>
             ) : null}
 

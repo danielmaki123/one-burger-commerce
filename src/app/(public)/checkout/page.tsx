@@ -35,6 +35,7 @@ import {
   PAYMENT_METHOD_LABELS,
   type OrderPaymentMethod,
 } from "@/modules/orders/domain/order.types";
+import { calculateOrderChange, validatePaidWithAmount } from "@/modules/orders/domain/payment-change";
 import {
   getPublicCheckoutMobileActionClassName,
   publicCheckoutScaleClasses,
@@ -104,6 +105,8 @@ export default function CheckoutPage() {
     pickupNotes: "",
     // Se cobra en el local: lo más probable es efectivo, y el cliente puede cambiarlo.
     paymentMethod: "cash" as OrderPaymentMethod,
+    // "¿Con cuánto pagás?" (T12): vacío = no lo dijo.
+    paidWithAmount: "",
   });
 
   // El "ahora" se resuelve después de montar: en el servidor y en el cliente daría
@@ -236,6 +239,23 @@ export default function CheckoutPage() {
 
   const totalLabel = formatCurrency(estimatedTotals.total, currency);
 
+  /**
+   * Vuelto (T12): el monto es opcional y solo se ofrece en efectivo. Se valida acá
+   * para avisar antes de mandar, y el servidor lo vuelve a validar contra el total.
+   */
+  const paidWithNumber =
+    formData.paidWithAmount.trim() === "" ? null : Number(formData.paidWithAmount);
+  const paidWithError = validatePaidWithAmount({
+    paidWithAmount:
+      paidWithNumber !== null && Number.isFinite(paidWithNumber) ? paidWithNumber : null,
+    total: estimatedTotals.total,
+    paymentMethod: formData.paymentMethod,
+  });
+  const paidWithChange =
+    paidWithError === null && paidWithNumber !== null
+      ? calculateOrderChange({ paidWithAmount: paidWithNumber, total: estimatedTotals.total })
+      : null;
+
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) => {
@@ -290,6 +310,11 @@ export default function CheckoutPage() {
         // Forma de pago declarada (T11): informativa, se cobra en el local.
         paymentMethod: formData.paymentMethod,
       };
+
+      // El vuelto solo viaja si el cliente dijo con cuánto paga y es efectivo (T12).
+      if (formData.paymentMethod === "cash" && paidWithNumber !== null && !paidWithError) {
+        payload.paidWithAmount = paidWithNumber;
+      }
 
       // Sin hora = sin programar. No se manda nada y el servidor completa con
       // "ahora + preparación" usando su reloj, así un formulario lento no convierte
@@ -494,6 +519,29 @@ export default function CheckoutPage() {
                     );
                   })}
                 </div>
+
+                {formData.paymentMethod === "cash" ? (
+                  <div className="space-y-2 rounded-2xl border border-border bg-card p-3">
+                    <Input
+                      name="paidWithAmount"
+                      label="¿Con cuánto vas a pagar? (opcional)"
+                      inputMode="decimal"
+                      value={formData.paidWithAmount}
+                      onChange={handleInputChange}
+                      placeholder="Ej. 600"
+                      error={paidWithError ?? undefined}
+                    />
+                    {paidWithChange !== null && !paidWithError ? (
+                      <p className="text-xs text-muted-foreground">
+                        Cambio estimado: {formatCurrency(paidWithChange, currency)}
+                      </p>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">
+                        Si lo completás, la caja te prepara el vuelto.
+                      </p>
+                    )}
+                  </div>
+                ) : null}
               </div>
 
               <div className="space-y-2">

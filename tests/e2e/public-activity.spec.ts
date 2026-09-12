@@ -16,6 +16,13 @@ async function createOrderAndOpenHistory(page: Page) {
   await page.locator('input[name="customerWhatsapp"]').fill("88887777");
   await page.getByRole("button", { name: /Confirmar pedido/ }).click();
   await expect(page).toHaveURL(/\/success\/.+/);
+
+  // La confirmación guarda el pedido en el dispositivo **después** de leerlo de la
+  // API: si se navega antes, el historial queda sin las líneas. Se espera al
+  // resumen, que es lo que aparece cuando esa lectura terminó.
+  await expect(page.getByRole("heading", { name: "Resumen del pedido" })).toBeVisible();
+  await expect(page.getByText(/^P-[A-Z0-9]+$/)).toBeVisible();
+
   await page.goto("/activity?tab=orders");
 }
 

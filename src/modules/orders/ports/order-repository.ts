@@ -32,6 +32,8 @@ export type CreateOrderInput = {
   pickupNotes?: string | null;
   /** Forma de pago declarada por el cliente (T11). */
   paymentMethod?: OrderPaymentMethod | null;
+  /** Con cuánto paga el cliente cuando es efectivo (T12). */
+  paidWithAmount?: number | null;
   tableId?: string | null;
   deliveryZoneId?: string | null;
   customerLat?: number | null;

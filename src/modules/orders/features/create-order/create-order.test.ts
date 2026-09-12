@@ -53,6 +53,66 @@ function seedDeliveryZone(repository: InMemoryOrderRepository, overrides?: Parti
 }
 
 describe("createOrder", () => {
+  it("guarda con cuánto paga el cliente cuando es efectivo (T12)", async () => {
+    const repository = createRepository();
+    seedProduct(repository);
+
+    const conVuelto = await createOrder(
+      {
+        type: "pickup",
+        customerName: "Juan Perez",
+        customerWhatsapp: "+50588887777",
+        items: [{ productId: "prod_01", quantity: 2, modifierOptionIds: [] }],
+        paymentMethod: "cash",
+        paidWithAmount: 500,
+      },
+      { repository },
+    );
+    // 2 × 100 = 200 de total, paga con 500.
+    expect(conVuelto.data.paidWithAmount).toBe(500);
+    expect(conVuelto.data.total).toBe(200);
+
+    const sinMonto = await createOrder(
+      {
+        type: "pickup",
+        customerName: "Ana Perez",
+        customerWhatsapp: "+50588887778",
+        items: [{ productId: "prod_01", quantity: 1, modifierOptionIds: [] }],
+        paymentMethod: "cash",
+      },
+      { repository },
+    );
+    expect(sinMonto.data.paidWithAmount).toBeNull();
+  });
+
+  it("rechaza un monto que no alcanza y uno con tarjeta (T12)", async () => {
+    const repository = createRepository();
+    seedProduct(repository);
+
+    const base = {
+      type: "pickup" as const,
+      customerName: "Juan Perez",
+      customerWhatsapp: "+50588887777",
+      items: [{ productId: "prod_01", quantity: 2, modifierOptionIds: [] }],
+    };
+
+    await expect(
+      createOrder({ ...base, paymentMethod: "cash", paidWithAmount: 150 }, { repository }),
+    ).rejects.toMatchObject({
+      status: 400,
+      fields: { paidWithAmount: expect.any(String) },
+    });
+
+    await expect(
+      createOrder({ ...base, paymentMethod: "card", paidWithAmount: 500 }, { repository }),
+    ).rejects.toMatchObject({
+      status: 400,
+      fields: { paidWithAmount: expect.any(String) },
+    });
+
+    expect(repository.orders).toHaveLength(0);
+  });
+
   it("guarda la forma de pago y usa efectivo cuando no la mandan (T11)", async () => {
     const repository = createRepository();
     seedProduct(repository);

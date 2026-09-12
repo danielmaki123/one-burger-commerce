@@ -10,6 +10,7 @@ import {
   type OrderPaymentMethod,
 } from "@/modules/orders/domain/order.types";
 import { getInitialStatus } from "@/modules/orders/domain/order-workflows";
+import { validatePaidWithAmount } from "@/modules/orders/domain/payment-change";
 import {
   generateOrderLookupToken,
   hashOrderLookupToken,
@@ -41,6 +42,8 @@ export type CreateOrderRequest = {
   pickupNotes?: string | null;
   /** Forma de pago declarada por el cliente (T11); sin dato se asume efectivo. */
   paymentMethod?: OrderPaymentMethod | null;
+  /** Con cuánto paga, cuando es efectivo (T12): el vuelto se calcula en la caja. */
+  paidWithAmount?: number | null;
   tableId?: string | null;
   qrToken?: string | null;
   deliveryZoneId?: string | null;
@@ -341,6 +344,23 @@ export async function createOrder(
   const deliveryFeeStatus: DeliveryFeeStatus | null =
     input.type === "delivery" ? "pending_manual_validation" : null;
 
+  // Vuelto (T12): se valida contra el total ya calculado. Se guarda el monto, no el
+  // cambio: así el número que ve la caja sale siempre del total vigente.
+  const paidWithValidation = validatePaidWithAmount({
+    paidWithAmount: input.paidWithAmount ?? null,
+    total,
+    paymentMethod,
+  });
+  if (paidWithValidation) {
+    throw new OrderError(400, "BAD_REQUEST", "Invalid payload", {
+      paidWithAmount: paidWithValidation,
+    });
+  }
+  const paidWithAmount =
+    input.paidWithAmount === undefined || input.paidWithAmount === null
+      ? null
+      : roundCurrency(input.paidWithAmount);
+
   const orderLookupToken = orderLookupTokenGenerator();
   const orderLookupTokenHash = hashOrderLookupToken(orderLookupToken);
 
@@ -362,6 +382,7 @@ export async function createOrder(
         pickupScheduled: input.pickupScheduled ?? false,
         pickupNotes: input.pickupNotes ?? null,
         paymentMethod,
+        paidWithAmount,
         tableId: input.tableId ?? null,
         orderNumber,
         subtotal,
