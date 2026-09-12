@@ -1875,6 +1875,40 @@ que no rige acá.
 - **Verificación**: cambio solo de documentación; lint, typecheck, tests y `security:secrets` verdes.
   Nada que desplegar (los tres commits son `docs`).
 
+### Drill de restore del respaldo: hecho y verificado (2026-09-12)
+
+El respaldo diario estaba configurado pero **nunca probado**: un backup sin restore probado no es un
+backup. El runbook además decía que los archivos producidos no se podían ver por API, así que ni
+siquiera se sabía si el cron estaba escribiendo algo.
+
+Se hizo el drill completo contra el panel real, **sin tocar producción**: crear un Postgres temporal
+(`oneburguer-drill`, imagen `postgres:17`, contraseña al azar), restaurarle el respaldo de las 16:35,
+recién entonces exponer un puerto temporal, leer los conteos con un cliente Prisma desde afuera y
+destruir el servicio.
+
+- **El respaldo sirve**: restauró completo — 32 tablas y **18 migraciones** aplicadas (la última hoy a
+  las 13:06 UTC), con los datos reales: 6 productos y sus precios (DOBLE 305, KIDS BURGER 200, MONSTER
+  FRIES 370, TRIPLE 365, COCA COLA 44.57, COCA ZERO 45), 2 categorías, 6 imágenes, 3 bloques de portada,
+  1 usuario `owner`, 1 `BusinessSettings` y 3 locales. **0 pedidos**: la tienda todavía no recibió ninguno,
+  así que la comparación de pedidos contra producción es 0 = 0.
+- **Los archivos del respaldo sí se ven por API**: `POST /api/rpc/actions/listActions` devuelve, en las
+  acciones de tipo `backup`, el `meta` con `{databaseName, path, storageProviderId}`. Los dos respaldos
+  del 2026-09-12 son `oneburguer/2026-09-12T16:33:20.265Z.sql.gz` y
+  `oneburguer/2026-09-12T16:35:34.905Z.sql.gz`. La afirmación vieja («la API solo expone la
+  configuración») era falsa y quedó corregida en el runbook §3.
+- **Hallazgo que cambia un pendiente**: producción **no tiene un local, tiene tres** (Camino de Oriente,
+  Carretera Masaya y Casa Antigua); los dos primeros tienen nombre y slug que no coinciden (huelen a
+  carga de prueba) y Casa Antigua tiene la ciudad mal escrita (`Jinoteoe`). Queda como pendiente del owner
+  en el runbook §8.8: dejar activo el local real y ordenar el resto. Hoy se puede hacer barato porque no
+  hay pedidos que referencien esos locales.
+- **Trampa del panel documentada**: `services/postgres/destroyService` **no valida el nombre** del
+  servicio —con uno inexistente devuelve `{}` igual—, así que hay que revisar dos veces el `serviceName`
+  y verificar la lista de servicios *después* de destruir. También quedó dicho que el puerto se expone
+  **solo después** del restore y que el temporal tiene una copia de datos reales.
+- **Verificación de la limpieza**: `oneburguer-drill` ya no existe, `oneburguer-postgres` sigue con
+  `exposedPort: 0` y el puerto temporal quedó cerrado; los archivos temporales locales del drill se
+  borraron. Producción no se tocó en ningún momento.
+
 ## 3. Infraestructura y secretos
 
 - `EASYPANEL_URL` y `EASYPANEL_TOKEN`: solo en el entorno de quien ejecuta el deploy (nunca
@@ -1901,7 +1935,7 @@ que no rige acá.
 |---|---|---|---|
 | 1 | **Cargar el menú real** (categorías → productos → precios → fotos) | Daniel | **En curso**: producción ya tiene 2 categorías con 6 productos (4 hamburguesas con C$35 de empaque y 2 bebidas), verificados el 2026-09-12. Falta el resto de la carta y las fotos (son URLs externas: no hay subida de archivos todavía). |
 | 2 | **Notificaciones de pedidos a cocina** | En pausa (decisión del owner, 2026-09-12) | "No telegram por el momento": la operación es 100 % panel. Sigue con `NOTIFICATIONS_DRIVER=dummy`. Para retomarlo: bot token + chat id (§5 y §8.2 del runbook). |
-| 3 | **Backups del Postgres + drill de restore** | **Backup configurado (2026-09-12)**; drill pendiente | Respaldo diario `0 9 * * *` a Local Disk (`/etc/easypanel/backups/oneburguer`) y dos ejecuciones manuales aceptadas por el panel. Falta el **drill de restore** (servicio Postgres temporal) y confirmar el archivo en la UI del panel: la API solo expone la configuración. Ver `ops/production-readiness.md` §3 y §8.1. |
+| 3 | **Backups del Postgres + drill de restore** | **Cerrado (2026-09-12)** | Respaldo diario `0 9 * * *` a Local Disk (`/etc/easypanel/backups/oneburguer`). **Drill de restore hecho y verificado**: el respaldo de las 16:35 restauró completo en un Postgres temporal (32 tablas, 18 migraciones, 6 productos, 2 categorías, 1 owner, 3 locales, 0 pedidos) y el temporal se destruyó después; producción intacta. Los archivos del respaldo **sí** se ven por API (`actions/listActions` → `meta.path`). Receta para repetirlo cada trimestre en `ops/production-readiness.md` §8.1; resultado en §2. |
 | 4 | **Borrar el servicio duplicado huérfano `oneburguer-web`** (responde 502) | Agente | **Ya no existe**: el 2026-09-12 se inspeccionaron los tres proyectos del panel (`brunobot`, `n8n`, `postgres`) y **no hay ningún `oneburguer-web`**; `brunobot` tiene `oneburguerweb` (producción), `oneburguer-postgres`, y los servicios ajenos. No hay nada que borrar. Si vuelve a aparecer, el runbook `ops/easypanel-production.md` (que describe el proyecto abandonado) ya tiene un aviso arriba. |
 | 5 | **Endurecimiento técnico**: scrypt más fuerte con rehash al login, CSP, extraer componentes exportados de las páginas (entonces `next build --webpack` fallaba) | **Cerrada** | Las tres partes están hechas y verificadas (ver §2, "Endurecimiento técnico"), y el 2026-09-12 se confirmó que `npm run build:webpack` compila entero. Queda **una** mejora conocida que no se hizo: `style-src` necesita `'unsafe-inline'` porque React escribe estilos en línea; el día que se quiera cerrar del todo hay que pasar a hojas de estilo. |
 | 6 | **Cerrar puertos innecesarios** de otros servicios del servidor (`capostgres` 5455, `postimage` 8585) | Daniel | No es de One Burger, pero están expuestos a internet. |
@@ -1910,6 +1944,8 @@ que no rige acá.
 | 9 | **Validar el estado operativo en el servidor** | **Cerrada y desplegada** | Commits `3a67c37` y `ca474c8`, en producción como `build-20260911-154014`. `isAcceptingOrders` ya corta pedidos de verdad (antes no lo leía nadie) y la hora de retiro se valida contra el horario del día. Incluye el horario demo del seed y el límite de login del arnés E2E. |
 | 10 | **Retiro opcional y programable + la hora visible en toda la cadena** | **Cerrada y desplegada** | Commits `6f85a3c`, `c101f82`, `b207593` y `abc2183`, en producción como `build-20260911-191047`. Incluye **una migración** (`pickupScheduled`). El retiro es opcional, la hora la resuelve el servidor, el ticket de cocina y el admin la muestran, y el semáforo va contra la hora prometida. Ver el detalle arriba. |
 | 11 | **Adopción del mock completo (rediseño de la UI pública)** | **Cerrada el 2026-09-12** (ola 1 T1-T7 + T3.1; ola 2 T8, T9, T11, T12 y T13). **T10 (favoritos) sigue descartada/bloqueada** por falta de login de cliente real | [`ops/tasks/TASK-mock-adoption.md`](tasks/TASK-mock-adoption.md). Plan **aprobado** el 2026-09-12 (D-A tipografía: Plus Jakarta Sans como tercera opción · D-B ola 2 completa **sin reseñas ni delivery** · D-C orden: tokens primero y después las pantallas en el orden del mock). **Reglas del programa**: ningún control decorativo (implementado con API/estado y test, o eliminado con motivo), nada hardcodeado, la paleta como preset que pasa el test de contraste, TDD por tarea, y verificación a 375 px **y 1280 px** (el mock no tiene escritorio). **Ola 1**: T1 tokens ✅ · T2 home ✅ · T3 menú ✅ · T3.1 color por categoría ✅ · T4 producto ✅ · T5 carrito+checkout ✅ (fases 1, 2, 3, 6 y 7) · T6 confirmación ✅ · T7 seguimiento e historial ✅ · **ola 1 completa** · T11 forma de pago ✅ · T12 vuelto ✅ · T13 PIN de retiro ✅ · **T9 promos cerrada**: motor ✅, campo del código en el checkout ✅ y pantalla del admin `/admin/promotions` ✅ · **T8 (multi-sucursal) cerrada**: alcance **decidido el 2026-09-12 (D-T8) = menú y precios por local**, brief en [`ops/tasks/TASK-multi-location.md`](tasks/TASK-multi-location.md); **fases 1-7 cerradas** (modelo y backfill, API y pantalla de locales, catálogo y precios por local, menú público, selector en el checkout, operación por local, y el local en el detalle, la confirmación y el historial). Queda **un gap declarado**: el footer y el bloque de información de la home siguen mostrando el horario y la dirección de la configuración del negocio, no del local (ver §2, "Fase 7, cierre"). **Decisiones del checkout resueltas el 2026-09-12**: D1 **sí** — **fase 4 cerrada** (pedidos para días futuros, sin límite de días: el tope es el horario del día) y D2 **no** (una sola tasa de propina; la fase 5 queda descartada). **Ola 2** (aprobada): T8 multi-sucursal, T9 promos, T10 favoritos (**descartada por el owner**: "mantengamos el login tal cual lo tenemos"; sin cuenta no hay favoritos), T11 método de pago, T12 vuelto, T13 PIN de retiro. Evidencia del mock: [`ops/audit-checkout-mock.md`](audit-checkout-mock.md). |
+
+| 12 | **Ordenar los locales de producción** | Daniel (decisión) | Producción tiene **3 locales** (Camino de Oriente, Carretera Masaya, Casa Antigua), los tres activos y tomando pedidos; los dos primeros tienen nombre y slug que no coinciden (huelen a carga de prueba) y Casa Antigua tiene la ciudad mal escrita (`Jinoteoe`). Decidir cuál es el local real, desactivar el resto y corregir la ciudad. Es barato ahora porque hay **0 pedidos** que los referencien. Detalle en `ops/production-readiness.md` §8.8. |
 
 ## 5. Cómo continuar
 

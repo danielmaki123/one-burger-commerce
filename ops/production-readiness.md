@@ -133,12 +133,16 @@ Estado actual del repo:
 
 - El contenedor aplica `prisma migrate deploy` al arrancar, con reintentos, **antes** de servir tráfico.
 - CI (`.github/workflows/publish-ghcr.yml`) aplica las migraciones sobre una base vacía y falla si hay drift entre `prisma/migrations` y `prisma/schema.prisma`.
-- **Backup programado: configurado el 2026-09-12.** El servicio `oneburguer-postgres` tiene un respaldo
-  diario en el panel (sección *Backups* del servicio): cron `0 9 * * *`, destino **Local Disk**
-  (`/etc/easypanel/backups`) y carpeta `oneburguer`. Se dispararon dos ejecuciones manuales, aceptadas
-  por el panel; **la verificación del archivo se hace en la UI del panel** (la lista de respaldos
-  generados), porque la API no expone los archivos producidos — solo la configuración
-  (`databaseBackups/listDatabaseBackups`). El **drill de restore sigue pendiente** (§8.1).
+- **Backup programado: configurado y probado el 2026-09-12.** El servicio `oneburguer-postgres` tiene un
+  respaldo diario en el panel (sección *Backups* del servicio): cron `0 9 * * *`, destino **Local Disk**
+  (`/etc/easypanel/backups`) y carpeta `oneburguer`.
+- **Los archivos producidos sí se pueden verificar por API** (el runbook decía que no): cada respaldo
+  queda como una *action* con su ruta, así que `POST /api/rpc/actions/listActions` devuelve
+  `meta = {databaseName, path, storageProviderId}`. Al 2026-09-12 hay dos archivos:
+  `oneburguer/2026-09-12T16:33:20.265Z.sql.gz` y `oneburguer/2026-09-12T16:35:34.905Z.sql.gz`.
+  `databaseBackups/listDatabaseBackups` sigue devolviendo **solo la configuración** (cron, destino,
+  carpeta), que es lo que no alcanza para saber si el respaldo salió bien.
+- **Drill de restore: hecho y verificado el 2026-09-12** — resultado y receta completa en §8.1.
 
 Política recomendada para producción:
 
@@ -247,18 +251,36 @@ atómico (una sola instancia procesa cada evento), así que mantener
 
 ## 8. Pendientes operativos (lo que no se puede hacer desde el repositorio)
 
-Los tres primeros son los que más pesan; cada uno con su receta y su verificación.
+Están ordenados por peso. El drill de restore (1) ya está hecho y verificado; los demás siguen abiertos,
+cada uno con su receta y su verificación.
 
-1. **Drill de restore** (servicio PostgreSQL de Easypanel) — **el backup programado ya está**: diario
-   `0 9 * * *` (hora del servidor del panel; conviene confirmar en la UI que son las 03:00 de Managua),
-   destino Local Disk, carpeta `oneburguer`; y hay dos ejecuciones manuales hechas el 2026-09-12.
-   - **Verificar el archivo**: panel → `oneburguer-postgres` → *Backups*: la lista muestra los respaldos
-     generados con fecha y tamaño. Si no aparece ninguno, el respaldo falló y hay que mirar los logs del
-     servicio (la API del panel solo expone la configuración, no los archivos).
-   - **Drill** (una vez y luego cada trimestre): crear un servicio Postgres **temporal** en el panel
-     (no tocar el de producción), restaurarle el último respaldo y comparar conteos de `Order`,
-     `Product` y `AdminUser` contra producción con `select count(*)`. Registrar la fecha y el resultado
-     acá, y borrar el servicio temporal al terminar.
+1. **Drill de restore** — **hecho y verificado el 2026-09-12**; repetir cada trimestre. Receta completa
+   (una hora, casi toda de espera):
+   1. Crear el Postgres temporal:
+      `services/postgres/createService` con `{projectName, serviceName, databaseName, user, password,
+      image}` (`image: postgres:17`, para igualar producción; la contraseña se genera al azar, **no**
+      reusar la del servicio real). Elegir un `serviceName` obvio (`oneburguer-drill`).
+   2. Restaurar: `databaseBackups/restoreDatabaseBackup` con `{projectName, serviceName, databaseName,
+      path, storageProviderId}`. El `path` y el `storageProviderId` salen del `meta` de la acción de
+      backup (`actions/listActions`, el más reciente con `description: "Backup database"`); el
+      `databaseName` es el del servicio **de destino**. Devuelve `{}` y el trabajo queda como una action
+      nueva (`description: "Restore database"`, tipo `backup`) que hay que ver en estado `done`.
+   3. Verificar de verdad: `services/postgres/exposeService` con `{projectName, serviceName,
+      exposedPort}` **después** del restore (el servicio se reinicia) y leer los conteos con un cliente
+      Postgres desde afuera (`new PrismaClient({ datasourceUrl })` alcanza). Comparar con lo que se sabe
+      de producción y anotar la evidencia.
+   4. Destruir el temporal: `services/postgres/destroyService` con `{projectName, serviceName}` y
+      confirmar con `projects/inspectProject` que quedó la lista de servicios de siempre.
+   ⚠️ Dos cuidados que salieron del drill: `destroyService` **no valida el nombre** (con uno inexistente
+   devuelve `{}` igual, y deja una action "Destroy service" en el historial), así que hay que revisar el
+   `serviceName` dos veces y verificar el estado **después**; y el puerto se expone solo después del
+   restore y se cierra enseguida, porque el temporal tiene una copia de los datos reales.
+   **Resultado del 2026-09-12**: el respaldo de las 16:35 restauró **completo** — 32 tablas, **18
+   migraciones** aplicadas, 6 productos con sus precios reales (DOBLE 305, KIDS BURGER 200, MONSTER
+   FRIES 370, TRIPLE 365, COCA COLA 44.57, COCA ZERO 45), 2 categorías, 6 imágenes de producto, 3
+   bloques de portada, 1 usuario `owner`, 1 `BusinessSettings` y **3 locales**; **0 pedidos**, porque la
+   tienda todavía no recibió ninguno (el drill no puede comparar lo que no existe). Producción quedó
+   intacta (`oneburguer-postgres` con `exposedPort: 0`) y el servicio temporal, borrado.
    - Alternativa manual si hiciera falta: *Terminal* del servicio y
      `pg_dump -U oneburguer -d oneburger -Fc -f /tmp/oneburger-$(date +%F).dump`.
 2. **Notificaciones de pedidos a cocina** (§5) — **en pausa por decisión del owner (2026-09-12): "no
@@ -279,6 +301,17 @@ Los tres primeros son los que más pesan; cada uno con su receta y su verificaci
 7. **Propina**: ya **no** se cambia en el código ni hace falta tocar `DEFAULT_TIP_RATE`: el porcentaje
    se edita en `/admin/settings` (configuración del negocio) y el servidor es la fuente de verdad del
    monto. Solo se toca el código si se quiere cambiar el valor por defecto de una instalación nueva.
-8. **Segunda sucursal** (opcional): el multi-sucursal está implementado y verificado, pero producción
-   hoy tiene un solo local. Crear uno real en `/admin/locations` es la forma de ejercitar el flujo con
-   datos de verdad (menú y precios por local, selector en el checkout, filtro en la bandeja).
+8. **Locales en producción** — corregido el 2026-09-12 con el drill: producción **no** tiene un solo
+   local, tiene **tres**, y ninguno tiene precios propios salvo dos excepciones de catálogo
+   (`LocationProduct` = 2 filas). Los tres están activos y tomando pedidos:
+
+   | Nombre | Slug | Ciudad | Nota |
+   |---|---|---|---|
+   | Camino de Oriente | `one-burger-masaya` | Managua | el nombre y el slug no coinciden: huele a carga de prueba |
+   | Carretera Masaya | `carretera-masaya` | Managua | idem |
+   | Casa Antigua | `casa-antigua-jinotepe` | `Jinoteoe` | **la ciudad está mal escrita** (Jinotepe) |
+
+   Qué hacer (decisión del owner): dejar activo solo el local real y desactivar/borrar los de prueba,
+   corregir la ciudad, y recién entonces usar el multi-sucursal con datos de verdad (menú y precios por
+   local, selector en el checkout, filtro en la bandeja). Ojo: un local con pedidos no se puede borrar
+   sin más (hoy hay 0 pedidos, así que todavía es barato ordenarlo).
