@@ -10,6 +10,11 @@ import { configure } from "@testing-library/dom";
  * una espera legítima tenga más margen; un test que de verdad falla sigue fallando,
  * solo tarda un poco más en decirlo.
  *
+ * Este valor tiene que quedar **por debajo** de `testTimeout` (20 s, en
+ * `vitest.config.ts`): si la espera dura lo mismo que el presupuesto del test, vitest
+ * mata el test antes de que la espera pueda fallar con un mensaje útil, y eso fue
+ * exactamente el segundo redondo de este mismo problema.
+ *
  * Los tests que esperan un resultado **visible** (un aviso, una fila) siguen siendo la
  * forma preferida: esperar un efecto de la UI es más honesto que esperar el mock.
  */

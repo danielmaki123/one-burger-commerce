@@ -10,8 +10,14 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
-    // Margen de espera para los tests de DOM (`findBy*`, `waitFor`): el default de
-    // 1 s no alcanza en un runner de CI cargado. Ver `src/test-setup.ts`.
+    /**
+     * Los tests de DOM (jsdom) con `userEvent` y `fetch` simulado tardan ~0,7 s acá y
+     * **más de 5 s** en un runner de CI cargado; con el default de vitest (5 s) el test
+     * se mata antes de que la espera legítima encuentre el elemento. El techo sube, pero
+     * un test colgado sigue fallando: solo tarda más en decirlo.
+     */
+    testTimeout: 20_000,
+    // Margen de espera para los tests de DOM (`findBy*`, `waitFor`). Ver `src/test-setup.ts`.
     setupFiles: ["./src/test-setup.ts"],
   },
 });
