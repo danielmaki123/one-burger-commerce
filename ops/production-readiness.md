@@ -22,6 +22,9 @@ de Casa Antigua que viven en `docs/` (esa carpeta no se versiona).
   redirecciones. ⚠️ **Cada uno de esos hosts necesita su propia entrada de dominio en el panel**: el
   2026-09-12 se encontró el apex sin entrada y devolvía el 404 de otra app (el catch-all del proyecto
   compartido). Si un dominio devuelve un 404 raro, el primer chequeo es `domains/listDomains`.
+  El **rewrite del apex se puede verificar sin tocar producción**: con `E2E_APEX_HOST` el navegador
+  resuelve el dominio de marca contra el server local y se prueba la misma entrada que usa un cliente
+  (`ops/project-state.md` §5, "Entorno local").
 - Admin: `https://oneburgernic.com/admin/login`
 - Base de datos: servicio `oneburguer-postgres` del mismo proyecto; base y usuario `oneburguer`, puerto interno 5432, **sin puerto expuesto**.
 - Deploy: **una sola llamada** a `deployService` por API (ver §4). ⚠️ **No usar

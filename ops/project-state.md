@@ -1813,6 +1813,23 @@ rutas públicas y login del panel, ahora verifica que
 Y la verificación de dominios (`npm run test:e2e:prod:hosts`, 6 checks) entra en la rutina posterior a
 cada deploy: es la que habría cazado el apex sin entrada de dominio.
 
+### Los 7 saltos de la suite, identificados (2026-09-12)
+
+Los "7 skipped" que se venían reportando eran, en realidad, la **verificación de dominios**: 1 del
+rewrite del apex (`landing.spec.ts`) y 6 de `production-hosts.spec.ts`. Nada de eso corría en local, que
+es justo donde vive la lógica que falló el 2026-09-12 (el apex sin entrada de dominio).
+
+- El rewrite del apex **ahora corre en la rutina local**: con `E2E_APEX_HOST=oneburgernic.com
+  E2E_APEX_PORT=3210` el navegador resuelve el dominio de marca contra el server local y se prueba la
+  misma entrada que usa un cliente. Verificado: la suite local pasó de **82/7** a **84 pasaron / 6
+  salteados / 0 fallos** (el único salto que queda es `production-hosts`, que por diseño necesita el
+  dominio real). Está documentado en §5 y en el runbook.
+- **Bug de mi propio test del smoke**, encontrado al correrlo en local: asumía que el primer producto
+  está en `categories[0].products`, y el seed local los tiene en una **subcategoría** (producción los
+  tiene directos). Ahora aplana categorías y subcategorías antes de mirar, y exige que haya al menos un
+  producto en vez de romper con un `undefined`.
+- Verificación cruzada: contra producción el smoke sigue en **7/7** y los hosts en **6/6**.
+
 ## 3. Infraestructura y secretos
 
 - `EASYPANEL_URL` y `EASYPANEL_TOKEN`: solo en el entorno de quien ejecuta el deploy (nunca
@@ -1833,7 +1850,7 @@ cada deploy: es la que habría cazado el apex sin entrada de dominio.
 
 | # | Pendiente | Quién | Nota |
 |---|---|---|---|
-| 1 | **Cargar el menú real** (categorías → productos → precios → fotos) | Daniel | Empezado: existe la categoría `ONE BURGER` sin productos. Las fotos son URLs externas: no hay subida de archivos todavía. |
+| 1 | **Cargar el menú real** (categorías → productos → precios → fotos) | Daniel | **En curso**: producción ya tiene 2 categorías con 6 productos (4 hamburguesas con C$35 de empaque y 2 bebidas), verificados el 2026-09-12. Falta el resto de la carta y las fotos (son URLs externas: no hay subida de archivos todavía). |
 | 2 | **Notificaciones de pedidos a cocina** | Daniel + agente | Hoy `NOTIFICATIONS_DRIVER=dummy`: un pedido entra y nadie se entera salvo que alguien mire `/admin/orders`. Falta bot token + chat id de Telegram (o webhook n8n), y activar `OUTBOX_PROCESSOR_*`. |
 | 3 | **Backups del Postgres + drill de restore** | Daniel (panel) | No hay backup programado. Es la única red si algo sale mal. |
 | 4 | **Borrar el servicio duplicado huérfano `oneburguer-web`** (responde 502) | Agente | **Ya no existe**: el 2026-09-12 se inspeccionaron los tres proyectos del panel (`brunobot`, `n8n`, `postgres`) y **no hay ningún `oneburguer-web`**; `brunobot` tiene `oneburguerweb` (producción), `oneburguer-postgres`, y los servicios ajenos. No hay nada que borrar. Si vuelve a aparecer, el runbook `ops/easypanel-production.md` (que describe el proyecto abandonado) ya tiene un aviso arriba. |
@@ -1867,7 +1884,13 @@ DATABASE_URL="postgresql://postgres:postgres@127.0.0.1:5432/oneburger?schema=pub
 # producción (10/min por IP) dos corridas seguidas se pisan y el test del manager falla
 # por rate limit en vez de por permisos.
 DATABASE_URL="..." APP_ENV=production NODE_ENV=production ADMIN_LOGIN_RATE_LIMIT=200 npx next start -p 3210
-BASE_URL=http://127.0.0.1:3210 E2E_ALLOW_MUTATIONS=true npm run test:e2e:prod:full
+# E2E_APEX_HOST hace que el navegador resuelva el dominio de marca contra el server local, así
+# que la suite verifica TAMBIÉN el rewrite del apex (el landing en `/` y el botón al subdominio),
+# que es lo que en el suite quedaba salteado. Sale gratis: el server ya está en 3210.
+BASE_URL=http://127.0.0.1:3210 E2E_ALLOW_MUTATIONS=true \
+  E2E_APEX_HOST=oneburgernic.com E2E_APEX_PORT=3210 npm run test:e2e:prod:full
+# (en PowerShell: $env:BASE_URL="http://127.0.0.1:3210"; $env:E2E_ALLOW_MUTATIONS="true";
+#  $env:E2E_APEX_HOST="oneburgernic.com"; $env:E2E_APEX_PORT="3210"; npm run test:e2e:prod:full)
 
 # 4. Deploy — ⚠️ NO usar `npm run deploy:easypanel`: fusiona variables y puede crear
 #    servicios. El deploy es UNA llamada a deployService sobre el servicio que ya existe:
