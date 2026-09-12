@@ -9,7 +9,7 @@
 
 | Cosa | Valor |
 |---|---|
-| Dominio público | **https://oneburgernic.com** (canónico) y `https://www.oneburgernic.com` — ambos con certificado. El apex y `www` sirven **solo el landing** |
+| Dominio público | **https://oneburgernic.com** (canónico), `www.` y `menu.` — los tres sirven la **app de pedidos** (`brunobot/oneburguerweb:3000`), con certificado |
 | App de pedidos | **https://menu.oneburgernic.com** |
 | Admin | **https://admin.oneburgernic.com** (la sesión está atada al host: hay que iniciar sesión en el host del panel, no en el apex) |
 | Cuenta owner | `admin@oneburgernic.com` (contraseña administrada por Daniel; no está en el repo) |
@@ -1720,6 +1720,30 @@ exigía con un `z.literal`), mientras el checkout y el retiro público ya usaban
 - **Lo que queda, a propósito**: `America/Managua` sigue apareciendo como **valor por defecto de la
   configuración** (`business-settings-defaults.ts`, que es donde debe vivir), como ejemplo en la ayuda
   del campo de zona horaria, y en reservas (fuera del MVP y excluido del contrato anti-hardcode).
+
+### Incidente del 2026-09-12: el apex se quedó sin ruta — **resuelto**
+
+Al verificar el tercer deploy, `https://oneburgernic.com` devolvía **404 en todo** mientras `www`,
+`menu` y `admin` respondían 200 (la app estaba sana).
+
+- **Causa exacta**: en el panel **no existía ninguna entrada de dominio para el apex** (solo `www`,
+  `menu` y `admin`, las tres a `brunobot/oneburguerweb:3000`). Sin ruta propia, el tráfico del apex lo
+  agarraba un catch-all y devolvía el 404 de **otra** app (una Laravel, `cacommerce`) — el cuerpo del
+  404 lo delató.
+- **Arreglo**: se creó la entrada `oneburgernic.com` → `brunobot/oneburguerweb:3000` (https, Let's
+  Encrypt) con la misma forma que la de `www`, con la aprobación del owner. Verificado: `/`, `/menu`,
+  `/api/health`, `/api/locations` y `/api/menu` responden 200 en el apex, y el smoke productivo de solo
+  lectura queda **4/4**.
+- **Qué no se sabe**: quién quitó la entrada (no la toca un `deployService`). Queda anotado para
+  revisar el panel si vuelve a pasar; los tres hosts de la app nunca dejaron de servir.
+- **Lección**: cuando un dominio devuelve un 404 con cuerpo HTML raro, mirar **de quién es ese HTML**
+  antes de tocar la app; y `domains/listDomains` es la primera consulta.
+
+### Tercer deploy del 2026-09-12 (commit `c530966`, el mismo código que `d395ede`) — **verificado**
+
+Lleva la zona horaria del negocio en el tablero del admin, el esquema del payload y el historial del
+cliente. Sin migraciones. `commit.sha` del servicio en `c530966`; smoke productivo **4/4** y el apex
+restaurado en el mismo tramo.
 
 ## 3. Infraestructura y secretos
 
