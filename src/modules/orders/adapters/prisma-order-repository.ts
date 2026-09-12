@@ -11,10 +11,12 @@ import type {
   TableRecord,
 } from "@/modules/orders/domain/order.types";
 import type {
+  CouponInput,
   CreateOrderInput,
   ListOrdersFilter,
   OrderRepository,
 } from "@/modules/orders/ports/order-repository";
+import type { CouponType } from "@prisma/client";
 
 function decimalToNumber(d: Decimal): number {
   return Number(d.toString());
@@ -59,6 +61,36 @@ function mapItem(item: {
     notes: item.notes,
     lineTotal: decimalToNumber(item.lineTotal),
     modifiers: item.modifiers.map(mapModifier),
+  };
+}
+
+function mapCoupon(coupon: {
+  id: string;
+  code: string;
+  type: string;
+  value: Decimal;
+  isActive: boolean;
+  usageLimit: number;
+  usedCount: number;
+  expiresAt: Date | null;
+  buyQuantity: number | null;
+  freeQuantity: number | null;
+  scopeType: string | null;
+  scopeId: string | null;
+}): CouponRecord {
+  return {
+    id: coupon.id,
+    code: coupon.code,
+    type: coupon.type as CouponRecord["type"],
+    value: decimalToNumber(coupon.value),
+    isActive: coupon.isActive,
+    usageLimit: coupon.usageLimit,
+    usedCount: coupon.usedCount,
+    expiresAt: coupon.expiresAt ? coupon.expiresAt.toISOString() : null,
+    buyQuantity: coupon.buyQuantity ?? null,
+    freeQuantity: coupon.freeQuantity ?? null,
+    scopeType: coupon.scopeType ?? "all",
+    scopeId: coupon.scopeId ?? null,
   };
 }
 
@@ -483,20 +515,7 @@ export class PrismaOrderRepository implements OrderRepository {
       where: { code: code.toUpperCase() },
     });
     if (!coupon) return null;
-    return {
-      id: coupon.id,
-      code: coupon.code,
-      type: coupon.type as CouponRecord["type"],
-      buyQuantity: coupon.buyQuantity ?? null,
-      freeQuantity: coupon.freeQuantity ?? null,
-      scopeType: coupon.scopeType ?? "all",
-      scopeId: coupon.scopeId ?? null,
-      value: decimalToNumber(coupon.value),
-      isActive: coupon.isActive,
-      usageLimit: coupon.usageLimit,
-      usedCount: coupon.usedCount,
-      expiresAt: coupon.expiresAt ? coupon.expiresAt.toISOString() : null,
-    };
+    return mapCoupon(coupon);
   }
 
   async consumeCouponUsage(
@@ -521,6 +540,69 @@ export class PrismaOrderRepository implements OrderRepository {
       where: { id, usedCount: { gt: 0 } },
       data: { usedCount: { decrement: 1 } },
     });
+  }
+
+  // Administración de promos (T9c)
+  async listCoupons(): Promise<CouponRecord[]> {
+    const prisma = getPrismaClient();
+    const coupons = await prisma.coupon.findMany({ orderBy: { code: "asc" } });
+
+    return coupons.map(mapCoupon);
+  }
+
+  async findCouponById(id: string): Promise<CouponRecord | null> {
+    const prisma = getPrismaClient();
+    const coupon = await prisma.coupon.findUnique({ where: { id } });
+
+    return coupon ? mapCoupon(coupon) : null;
+  }
+
+  async createCoupon(input: CouponInput): Promise<CouponRecord> {
+    const prisma = getPrismaClient();
+    const coupon = await prisma.coupon.create({
+      data: {
+        code: input.code,
+        type: input.type as CouponType,
+        value: input.value,
+        isActive: input.isActive,
+        usageLimit: input.usageLimit,
+        expiresAt: input.expiresAt ? new Date(input.expiresAt) : null,
+        buyQuantity: input.buyQuantity ?? null,
+        freeQuantity: input.freeQuantity ?? null,
+        scopeType: input.scopeType ?? "all",
+        scopeId: input.scopeId ?? null,
+      },
+    });
+
+    return mapCoupon(coupon);
+  }
+
+  async updateCoupon(id: string, input: Partial<CouponInput>): Promise<CouponRecord> {
+    const prisma = getPrismaClient();
+    const coupon = await prisma.coupon.update({
+      where: { id },
+      data: {
+        ...(input.code !== undefined ? { code: input.code } : {}),
+        ...(input.type !== undefined ? { type: input.type as CouponType } : {}),
+        ...(input.value !== undefined ? { value: input.value } : {}),
+        ...(input.isActive !== undefined ? { isActive: input.isActive } : {}),
+        ...(input.usageLimit !== undefined ? { usageLimit: input.usageLimit } : {}),
+        ...(input.expiresAt !== undefined
+          ? { expiresAt: input.expiresAt ? new Date(input.expiresAt) : null }
+          : {}),
+        ...(input.buyQuantity !== undefined ? { buyQuantity: input.buyQuantity } : {}),
+        ...(input.freeQuantity !== undefined ? { freeQuantity: input.freeQuantity } : {}),
+        ...(input.scopeType !== undefined ? { scopeType: input.scopeType } : {}),
+        ...(input.scopeId !== undefined ? { scopeId: input.scopeId } : {}),
+      },
+    });
+
+    return mapCoupon(coupon);
+  }
+
+  async deleteCoupon(id: string): Promise<void> {
+    const prisma = getPrismaClient();
+    await prisma.coupon.delete({ where: { id } });
   }
 
   async findTableById(id: string): Promise<TableRecord | null> {

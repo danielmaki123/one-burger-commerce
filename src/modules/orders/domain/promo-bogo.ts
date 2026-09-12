@@ -23,27 +23,35 @@ export type BogoCouponConfig = {
   scopeId?: string | null;
 };
 
+/** Campo de la promo que puede quedar mal armado. */
+export type BogoConfigField = "buyQuantity" | "freeQuantity" | "scopeType" | "scopeId";
+
 /** Error de configuración de la promo, o `null` si está bien armada. */
-export function validateBogoCouponConfig(coupon: BogoCouponConfig): string | null {
+export type BogoConfigError = { field: BogoConfigField; message: string };
+
+export function validateBogoCouponConfig(coupon: BogoCouponConfig): BogoConfigError | null {
   const buy = coupon.buyQuantity;
   const free = coupon.freeQuantity;
 
   if (!Number.isInteger(buy) || (buy ?? 0) < 1) {
-    return "La promo necesita cuántas unidades hay que llevar";
+    return { field: "buyQuantity", message: "La promo necesita cuántas unidades hay que llevar" };
   }
   if (!Number.isInteger(free) || (free ?? 0) < 1) {
-    return "La promo necesita cuántas unidades salen gratis";
+    return { field: "freeQuantity", message: "La promo necesita cuántas unidades salen gratis" };
   }
   if ((buy ?? 0) + (free ?? 0) > MAX_BOGO_QUANTITY) {
-    return `Entre lo que se lleva y lo que sale gratis no puede pasar de ${MAX_BOGO_QUANTITY} unidades`;
+    return {
+      field: "buyQuantity",
+      message: `Entre lo que se lleva y lo que sale gratis no puede pasar de ${MAX_BOGO_QUANTITY} unidades`,
+    };
   }
 
   const scopeType = (coupon.scopeType ?? "all") as BogoScopeType;
   if (!BOGO_SCOPE_TYPES.includes(scopeType)) {
-    return "El alcance de la promo no es válido";
+    return { field: "scopeType", message: "El alcance de la promo no es válido" };
   }
   if (scopeType !== "all" && !coupon.scopeId) {
-    return "Elegí a qué alcanza la promo";
+    return { field: "scopeId", message: "Elegí a qué alcanza la promo" };
   }
 
   return null;

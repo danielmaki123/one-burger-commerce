@@ -158,15 +158,16 @@ sigue prohibiendo reactivar delivery sin pedido explícito posterior).
 | # | Cosa del mock | Qué implica | Costo |
 |---|---|---|---|
 | **T8** | **Multi-sucursal** (la más grande) | `BusinessSettings` es **una sola fila** (`id = "default"`): pasa a multi-local, con horario, datos de contacto y órdenes por local, más el selector en el checkout y el admin eligiendo local | **Alto** (migración + admin + operación) |
-| **T9** | **Promos por cantidad** (B2G1) — **motor cerrado**: `CouponType.bogo` con `buyQuantity`/`freeQuantity` y alcance (`all`/`category`/`subcategory`/`product`), descuento calculado por el servidor y validación de la config. **Cerrados**: el motor y el campo del código en el checkout (con validación pública, T9b). **Falta**: la pantalla del admin para crear promos (sin eso el owner depende de la base) | `promo-bogo.test.ts` · `create-order.test.ts` | Medio |
+| **T9** | **Promos por cantidad** (B2G1) — **cerrada**: `CouponType.bogo` con `buyQuantity`/`freeQuantity` y alcance (`all`/`category`/`subcategory`/`product`), descuento calculado por el servidor y validación de la config (T9a), el campo del código en el checkout con su validación pública (T9b) y la pantalla del admin `/admin/promotions` para crear, editar, apagar y borrar (T9c), con las mismas reglas por campo que el formulario y el servidor comparten. El owner ya no depende de la base | `promo-bogo.test.ts` · `create-order.test.ts` · `promotion-rules.test.ts` · `page.test.tsx` · `tests/e2e/admin-promotions.spec.ts` | Medio |
 | **T10** | **Favoritos** ❤️ | ⚠️ **Descartada por decisión del owner (2026-09-12): "mantengamos el login tal cual lo tenemos"**. Los favoritos exigen cuenta de cliente y el login real (OTP) seguiría sin proveedor; el ❤️ del mock no se dibuja | — |
 | **T11** | **Método de pago** (efectivo/tarjeta) — **cerrada**: enum + columna con default en `Order`, selector en el checkout, fila en la confirmación y chip en el detalle del admin. **El E2E cazó que el adaptador de Prisma no guardaba el campo** (los unitarios pasaban por el adaptador en memoria) | `create-order.test.ts` · `checkout/page.test.tsx` · `order-success-view.test.ts` | **Sí** (migración `add_order_payment_method`) |
 | **T12** | **Vuelto** ("pagaré con / cambio") — **cerrada**: `Order.paidWithAmount` opcional (migración), campo solo en efectivo con cambio estimado en vivo y aviso si no alcanza, filas en la confirmación y chip en el detalle del admin. El cambio **se deriva**, no se guarda | `payment-change.test.ts` · `create-order.test.ts` · `checkout/page.test.tsx` | **Sí** (migración `add_order_paid_with_amount`) |
 | **T13** | **PIN de retiro** — **cerrada**: `Order.pickupPin` (migración), cuatro dígitos con azar del sistema y generador inyectable. Se muestra en la confirmación, en el historial del dispositivo y en el detalle del admin. **No autoriza, no identifica y no se garantiza único**: es un código para dictar, y así está escrito en el código | `pickup-pin.test.ts` · `create-order.test.ts` · `order-success-view.test.ts` | **Sí** (migración `add_order_pickup_pin`) |
 
-> **Orden y dependencias:** T11-T13 son migraciones chicas e independientes; T8 toca el modelo entero y
-> conviene decidirla con la operación delante (¿el menú y los precios también por local?); T10 está
-> bloqueada hasta que exista login de cliente.
+> **Orden y dependencias:** T9, T11, T12 y T13 están cerradas. Lo único que queda de la ola 2 es **T8
+> (multi-sucursal)**: toca el modelo entero (`BusinessSettings` es una sola fila) y conviene decidirla
+> con la operación delante (¿el menú y los precios también por local, o solo el horario y el
+> contacto?); T10 está bloqueada hasta que exista login de cliente.
 
 ## 5.1 Lo que queda fuera (decidido)
 

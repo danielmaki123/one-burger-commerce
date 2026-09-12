@@ -42,23 +42,33 @@ describe("validateBogoCouponConfig", () => {
   });
 
   it("exige cuántas unidades se llevan y cuántas salen gratis", () => {
-    expect(validateBogoCouponConfig({ ...b2g1, buyQuantity: null })).toContain("llevar");
-    expect(validateBogoCouponConfig({ ...b2g1, buyQuantity: 0 })).toContain("llevar");
-    expect(validateBogoCouponConfig({ ...b2g1, freeQuantity: null })).toContain("gratis");
-    expect(validateBogoCouponConfig({ ...b2g1, freeQuantity: 0 })).toContain("gratis");
+    // El error dice **qué campo** está mal: el formulario del admin lo muestra
+    // debajo del input que corresponde, no en un cartel genérico arriba.
+    const sinLlevar = validateBogoCouponConfig({ ...b2g1, buyQuantity: null });
+    expect(sinLlevar?.field).toBe("buyQuantity");
+    expect(sinLlevar?.message).toContain("llevar");
+    expect(validateBogoCouponConfig({ ...b2g1, buyQuantity: 0 })?.field).toBe("buyQuantity");
+
+    const sinGratis = validateBogoCouponConfig({ ...b2g1, freeQuantity: null });
+    expect(sinGratis?.field).toBe("freeQuantity");
+    expect(sinGratis?.message).toContain("gratis");
+    expect(validateBogoCouponConfig({ ...b2g1, freeQuantity: 0 })?.field).toBe("freeQuantity");
   });
 
   it("no acepta una promo absurda por un error de tipeo", () => {
     expect(
-      validateBogoCouponConfig({ buyQuantity: MAX_BOGO_QUANTITY, freeQuantity: 1 }),
+      validateBogoCouponConfig({ buyQuantity: MAX_BOGO_QUANTITY, freeQuantity: 1 })?.message,
     ).toContain("no puede pasar");
   });
 
   it("si la promo alcanza a algo, tiene que decir a qué", () => {
-    expect(validateBogoCouponConfig({ ...b2g1, scopeType: "category", scopeId: null })).toContain(
-      "alcanza",
-    );
-    expect(validateBogoCouponConfig({ ...b2g1, scopeType: "planeta" })).toContain("alcance");
+    const sinAlcance = validateBogoCouponConfig({ ...b2g1, scopeType: "category", scopeId: null });
+    expect(sinAlcance?.field).toBe("scopeId");
+    expect(sinAlcance?.message).toContain("alcanza");
+
+    const alcanceInvalido = validateBogoCouponConfig({ ...b2g1, scopeType: "planeta" });
+    expect(alcanceInvalido?.field).toBe("scopeType");
+    expect(alcanceInvalido?.message).toContain("alcance");
   });
 });
 

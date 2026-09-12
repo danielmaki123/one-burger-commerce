@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import Link from "next/link";
-import { ArrowUpRight, LayoutList, Megaphone, PackageOpen, SlidersHorizontal } from "lucide-react";
+import { ArrowUpRight, LayoutList, Megaphone, PackageOpen, Percent, SlidersHorizontal } from "lucide-react";
 
 import { PrismaMenuRepository } from "@/modules/menu/adapters/prisma-menu-repository";
 
@@ -33,6 +33,13 @@ const MENU_SECTIONS = [
     description: "Promos, eventos, combos y destacados del menú público.",
     action: "Gestionar hero comercial",
     icon: Megaphone,
+  },
+  {
+    href: "/admin/promotions",
+    label: "Promos con código",
+    description: "Descuentos que el cliente aplica en el checkout con un código.",
+    action: "Gestionar promos",
+    icon: Percent,
   },
 ];
 

@@ -330,7 +330,7 @@ export async function createOrder(
     if (coupon.type === "bogo") {
       const configError = validateBogoCouponConfig(coupon);
       if (configError) {
-        throw new OrderError(409, "CONFLICT", `Coupon is misconfigured: ${configError}`);
+        throw new OrderError(409, "CONFLICT", `Coupon is misconfigured: ${configError.message}`);
       }
       if (!hasEligibleBogoUnits({ items: promoUnits, coupon })) {
         throw new OrderError(409, "CONFLICT", "Coupon does not apply to this order");

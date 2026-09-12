@@ -7,6 +7,7 @@ import type {
   TableRecord,
 } from "@/modules/orders/domain/order.types";
 import type {
+  CouponInput,
   CreateOrderInput,
   ListOrdersFilter,
   OrderRepository,
@@ -284,6 +285,47 @@ export class InMemoryOrderRepository implements OrderRepository {
     if (coupon && coupon.usedCount > 0) {
       coupon.usedCount -= 1;
     }
+  }
+
+  // Administración de promos (T9c)
+  async listCoupons(): Promise<CouponRecord[]> {
+    return [...this.coupons].sort((a, b) => a.code.localeCompare(b.code));
+  }
+
+  async findCouponById(id: string): Promise<CouponRecord | null> {
+    return this.coupons.find((c) => c.id === id) ?? null;
+  }
+
+  async createCoupon(input: CouponInput): Promise<CouponRecord> {
+    const coupon: CouponRecord = {
+      id: `coupon_${this.coupons.length + 1}`,
+      code: input.code,
+      type: input.type,
+      value: input.value,
+      isActive: input.isActive,
+      usageLimit: input.usageLimit,
+      usedCount: 0,
+      expiresAt: input.expiresAt,
+      buyQuantity: input.buyQuantity ?? null,
+      freeQuantity: input.freeQuantity ?? null,
+      scopeType: input.scopeType ?? "all",
+      scopeId: input.scopeId ?? null,
+    };
+
+    this.coupons.push(coupon);
+    return coupon;
+  }
+
+  async updateCoupon(id: string, input: Partial<CouponInput>): Promise<CouponRecord> {
+    const coupon = this.coupons.find((c) => c.id === id);
+    if (!coupon) throw new Error("Coupon not found");
+
+    Object.assign(coupon, input);
+    return coupon;
+  }
+
+  async deleteCoupon(id: string): Promise<void> {
+    this.coupons = this.coupons.filter((coupon) => coupon.id !== id);
   }
 
   async findTableById(id: string): Promise<TableRecord | null> {

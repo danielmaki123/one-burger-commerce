@@ -20,6 +20,14 @@ export function canManageMenu(role: AdminRole) {
   return role === ADMIN_ROLES.owner || role === ADMIN_ROLES.manager;
 }
 
+/**
+ * Las promos cambian lo que el cliente paga y eligen productos del menú, así que
+ * van con el mismo permiso que el menú. Cocina no las toca.
+ */
+export function canManagePromotions(role: AdminRole) {
+  return role === ADMIN_ROLES.owner || role === ADMIN_ROLES.manager;
+}
+
 export function canApproveReservations(role: AdminRole) {
   return role === ADMIN_ROLES.owner;
 }

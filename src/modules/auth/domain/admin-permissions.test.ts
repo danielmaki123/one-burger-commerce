@@ -6,6 +6,7 @@ import {
   canManageInventoryOperations,
   canManageMenu,
   canManageOrderOperations,
+  canManagePromotions,
   canManageUsers,
   canViewDashboardSummary,
   canViewOutboxEvents,
@@ -56,5 +57,12 @@ describe("admin permissions", () => {
     expect(canManageBusinessSettings(ADMIN_ROLES.owner)).toBe(true);
     expect(canManageBusinessSettings(ADMIN_ROLES.manager)).toBe(false);
     expect(canManageBusinessSettings(ADMIN_ROLES.kitchen)).toBe(false);
+  });
+
+  it("lets owner and manager manage promotions", () => {
+    // Una promo toca precios del menú: es trabajo de manager, no de cocina.
+    expect(canManagePromotions(ADMIN_ROLES.owner)).toBe(true);
+    expect(canManagePromotions(ADMIN_ROLES.manager)).toBe(true);
+    expect(canManagePromotions(ADMIN_ROLES.kitchen)).toBe(false);
   });
 });

@@ -15,6 +15,20 @@ export type OrderItemInput = {
   notes?: string | null;
 };
 
+/** Datos editables de una promo (T9c). El `id` y el uso acumulado los maneja el repositorio. */
+export type CouponInput = {
+  code: string;
+  type: CouponRecord["type"];
+  value: number;
+  isActive: boolean;
+  usageLimit: number;
+  expiresAt: string | null;
+  buyQuantity?: number | null;
+  freeQuantity?: number | null;
+  scopeType?: string | null;
+  scopeId?: string | null;
+};
+
 export type CreateOrderInput = {
   type: "delivery" | "pickup" | "table";
   customerName: string;
@@ -137,6 +151,19 @@ export interface OrderRepository {
   consumeCouponUsage(id: string, usageLimit: number): Promise<boolean>;
   /** Returns a previously reserved use after the order failed to persist. */
   releaseCouponUsage(id: string): Promise<void>;
+
+  /**
+   * Administración de promos (T9c).
+   *
+   * Viven en este puerto y no en un módulo aparte porque el cupón es del pedido:
+   * su tabla tiene la relación con `Order`. Si las promos crecen —por ejemplo, si
+   * empiezan a aplicarse solas sin código—, conviene mudarlas a su propio módulo.
+   */
+  listCoupons(): Promise<CouponRecord[]>;
+  findCouponById(id: string): Promise<CouponRecord | null>;
+  createCoupon(input: CouponInput): Promise<CouponRecord>;
+  updateCoupon(id: string, input: Partial<CouponInput>): Promise<CouponRecord>;
+  deleteCoupon(id: string): Promise<void>;
 
   // Table helper
   findTableById(id: string): Promise<TableRecord | null>;

@@ -1124,6 +1124,50 @@ nunca un monto.
 - **Lo que falta para cerrar T9**: la pantalla del admin para crear y editar promos (c). Sigue siendo
   el requisito para que el owner no dependa de tocar la base.
 
+### Ola 2 · T9 (parte 3): la pantalla de promos del admin (2026-09-12) — **T9 cerrada**
+
+Con esto el owner crea, edita, apaga y borra promos sin tocar la base: `/admin/promotions`. El motor
+(parte 1) y el campo del código en el checkout (parte 2) ya estaban; faltaba la puerta de entrada.
+
+- **Cuatro casos de uso con las mismas reglas que muestra el formulario**: `list-promotions`,
+  `create-promotion`, `update-promotion` y `delete-promotion`. Las reglas viven en
+  `domain/promotion-rules.ts` y el formulario del admin las corre **antes** de gastar el viaje; el
+  servidor las vuelve a correr igual, y devuelve **error por campo** (`fields`), que es lo que se
+  muestra debajo del input que corresponde.
+- **Editar no reinicia el uso acumulado**: el uso es historia del negocio, no configuración. Y el
+  guardado es un reemplazo completo, así que cambiar de tipo no deja restos del tipo anterior (un
+  porcentaje no puede quedar con alcance, ni una promo por cantidad con un monto).
+- **El alcance no se puede mentir**: la validación rechaza un alcance en una promo que no sea por
+  cantidad (el descuento de un porcentaje no mira categorías). El formulario esconde ese selector
+  fuera de "Por cantidad" y manda `all` en los demás tipos.
+- **Una fecha sin hora vence al final del día del negocio**: `<input type="date">` manda `2026-12-31`,
+  y guardarlo como 31/12 00:00 UTC haría que la promo dejara de servir a las 18:00 del **30** en
+  Nicaragua. `business-settings/domain/end-of-day.ts` lo convierte al final de ese día en la zona del
+  negocio (con `Intl`, sin librerías, y con ida y vuelta para precargar el formulario). Una zona
+  desconocida cae a UTC en vez de romper el guardado.
+- **El motor se hizo más útil**: `validateBogoCouponConfig` pasó de devolver un texto a devolver
+  `{field, message}`, para que el error caiga en el input correcto (`freeQuantity`, `scopeId`, …) y no
+  siempre en "unidades que se llevan". Es el cambio que destrabó el test rojo de la pantalla.
+- **Permisos**: `canManagePromotions` = owner + manager (una promo toca precios del menú; cocina no).
+- **Hallazgos del camino real** (no de los unitarios):
+  1. **`getByLabel("Código")` matcheaba el `<select>` de Estado** porque su opción decía "Activa — el
+     código funciona": `getByLabel` de Playwright es *substring*, `getByLabelText` de testing-library
+     es exacto. Se cambió el texto de la opción y el E2E usa `{ exact: true }`.
+  2. **El botón de guardar arrancaba deshabilitado sin código**: un botón inerte que no explica nada.
+     Ahora se puede tocar siempre y el error aparece en el campo.
+  3. **El helper de limpieza del E2E no esperaba el fetch de la lista**: una corrida anterior dejaba la
+     promo y la siguiente fallaba por código duplicado. El test espera a que la lista cargue.
+- **Verificado en el camino real** (Postgres 17 local + `next start -p 3210` con el build nuevo):
+  **unitarios 1291 en 211 archivos** (antes 1228), lint/typecheck/build/`security:secrets` verdes, y
+  **E2E completo 72 pasaron, 7 salteados, 0 fallos** (antes 70). El caso nuevo hace el recorrido
+  entero: crea `E2E-2X1` en el admin, la ve listada ("Llevá 2 y pagá 1"), carga 2 × C$35 en el
+  checkout, aplica el código, confirma y comprueba en la confirmación subtotal C$70, descuento
+  **−C$35** y total C$35; después verifica que la lista cuenta "1 uso" y borra la promo. Más una
+  pasada a 375 px de la lista y el formulario. La base local quedó como estaba: sin promos de prueba.
+- **T9 queda cerrada** (motor + checkout + admin). Lo que sigue de la ola 2 es **T8 (multi-sucursal)**,
+  que necesita decisión del owner: ¿el menú y los precios son por local, o solo cambian el horario y
+  el contacto?
+
 ## 3. Infraestructura y secretos
 
 - `EASYPANEL_URL` y `EASYPANEL_TOKEN`: solo en el entorno de quien ejecuta el deploy (nunca
@@ -1150,7 +1194,7 @@ nunca un monto.
 | 8 | **Checkout sin redundancias** (textos y botones repetidos) | **Cerrada y desplegada** | `ops/tasks/TASK-checkout-ux.md`. Cuatro commits (`2832a93`…`aba4156`), en producción como `build-20260911-145656`. El checkout pasó de 807 a 476 líneas, un solo resumen compartido con el carrito, un solo CTA visible por viewport y los turnos de retiro calculados desde la configuración. |
 | 9 | **Validar el estado operativo en el servidor** | **Cerrada y desplegada** | Commits `3a67c37` y `ca474c8`, en producción como `build-20260911-154014`. `isAcceptingOrders` ya corta pedidos de verdad (antes no lo leía nadie) y la hora de retiro se valida contra el horario del día. Incluye el horario demo del seed y el límite de login del arnés E2E. |
 | 10 | **Retiro opcional y programable + la hora visible en toda la cadena** | **Cerrada y desplegada** | Commits `6f85a3c`, `c101f82`, `b207593` y `abc2183`, en producción como `build-20260911-191047`. Incluye **una migración** (`pickupScheduled`). El retiro es opcional, la hora la resuelve el servidor, el ticket de cocina y el admin la muestran, y el semáforo va contra la hora prometida. Ver el detalle arriba. |
-| 11 | **Adopción del mock completo (rediseño de la UI pública)** | **En ejecución · ola 1 completa (T1-T7) y T11 de la ola 2** | [`ops/tasks/TASK-mock-adoption.md`](tasks/TASK-mock-adoption.md). Plan **aprobado** el 2026-09-12 (D-A tipografía: Plus Jakarta Sans como tercera opción · D-B ola 2 completa **sin reseñas ni delivery** · D-C orden: tokens primero y después las pantallas en el orden del mock). **Reglas del programa**: ningún control decorativo (implementado con API/estado y test, o eliminado con motivo), nada hardcodeado, la paleta como preset que pasa el test de contraste, TDD por tarea, y verificación a 375 px **y 1280 px** (el mock no tiene escritorio). **Ola 1**: T1 tokens ✅ · T2 home ✅ · T3 menú ✅ · T3.1 color por categoría ✅ · T4 producto ✅ · T5 carrito+checkout ✅ (fases 1, 3, 6 y 7; queda la vista previa de turnos de la fase 2) · T6 confirmación ✅ · T7 seguimiento e historial ✅ · **ola 1 completa** · T11 forma de pago ✅ · T12 vuelto ✅ · T13 PIN de retiro ✅ · T9 promos: motor y campo del cliente ✅ (falta la pantalla del admin) · **queda T8 (multi-sucursal)**. **Decisiones abiertas del checkout**: D1 (pedidos para días futuros) y D2 (presets de propina). **Ola 2** (aprobada): T8 multi-sucursal, T9 promos, T10 favoritos (**descartada por el owner**: "mantengamos el login tal cual lo tenemos"; sin cuenta no hay favoritos), T11 método de pago, T12 vuelto, T13 PIN de retiro. Evidencia del mock: [`ops/audit-checkout-mock.md`](audit-checkout-mock.md). |
+| 11 | **Adopción del mock completo (rediseño de la UI pública)** | **En ejecución · ola 1 completa (T1-T7) y T9, T11, T12 y T13 de la ola 2** | [`ops/tasks/TASK-mock-adoption.md`](tasks/TASK-mock-adoption.md). Plan **aprobado** el 2026-09-12 (D-A tipografía: Plus Jakarta Sans como tercera opción · D-B ola 2 completa **sin reseñas ni delivery** · D-C orden: tokens primero y después las pantallas en el orden del mock). **Reglas del programa**: ningún control decorativo (implementado con API/estado y test, o eliminado con motivo), nada hardcodeado, la paleta como preset que pasa el test de contraste, TDD por tarea, y verificación a 375 px **y 1280 px** (el mock no tiene escritorio). **Ola 1**: T1 tokens ✅ · T2 home ✅ · T3 menú ✅ · T3.1 color por categoría ✅ · T4 producto ✅ · T5 carrito+checkout ✅ (fases 1, 3, 6 y 7; queda la vista previa de turnos de la fase 2) · T6 confirmación ✅ · T7 seguimiento e historial ✅ · **ola 1 completa** · T11 forma de pago ✅ · T12 vuelto ✅ · T13 PIN de retiro ✅ · **T9 promos cerrada**: motor ✅, campo del código en el checkout ✅ y pantalla del admin `/admin/promotions` ✅ · **queda T8 (multi-sucursal)**. **Decisiones abiertas del checkout**: D1 (pedidos para días futuros) y D2 (presets de propina). **Ola 2** (aprobada): T8 multi-sucursal, T9 promos, T10 favoritos (**descartada por el owner**: "mantengamos el login tal cual lo tenemos"; sin cuenta no hay favoritos), T11 método de pago, T12 vuelto, T13 PIN de retiro. Evidencia del mock: [`ops/audit-checkout-mock.md`](audit-checkout-mock.md). |
 
 ## 5. Cómo continuar
 
