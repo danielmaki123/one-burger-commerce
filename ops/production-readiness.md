@@ -133,7 +133,12 @@ Estado actual del repo:
 
 - El contenedor aplica `prisma migrate deploy` al arrancar, con reintentos, **antes** de servir tráfico.
 - CI (`.github/workflows/publish-ghcr.yml`) aplica las migraciones sobre una base vacía y falla si hay drift entre `prisma/migrations` y `prisma/schema.prisma`.
-- **No hay backups automáticos configurados en el repositorio.** Esto es una acción de infraestructura pendiente (§8).
+- **Backup programado: configurado el 2026-09-12.** El servicio `oneburguer-postgres` tiene un respaldo
+  diario en el panel (sección *Backups* del servicio): cron `0 9 * * *`, destino **Local Disk**
+  (`/etc/easypanel/backups`) y carpeta `oneburguer`. Se dispararon dos ejecuciones manuales, aceptadas
+  por el panel; **la verificación del archivo se hace en la UI del panel** (la lista de respaldos
+  generados), porque la API no expone los archivos producidos — solo la configuración
+  (`databaseBackups/listDatabaseBackups`). El **drill de restore sigue pendiente** (§8.1).
 
 Política recomendada para producción:
 
@@ -244,15 +249,18 @@ atómico (una sola instancia procesa cada evento), así que mantener
 
 Los tres primeros son los que más pesan; cada uno con su receta y su verificación.
 
-1. **Backups automáticos + drill de restore** (servicio PostgreSQL de Easypanel).
-   - Panel → servicio `oneburguer-postgres` → *Backups*: activar el programado y fijar retención
-     (mínimo 7 días). Anotar la hora y el destino.
-   - Alternativa manual (si el panel no lo ofrece en esta instalación): *Terminal* del servicio y
-     `pg_dump -U oneburguer -d oneburger -Fc -f /tmp/oneburger-$(date +%F).dump`, y después bajarlo.
-   - **Drill** (una vez y luego cada trimestre): restaurar en una base aislada
-     (`pg_restore -d <base_nueva> --clean --if-exists <archivo>`) y comparar conteos de `Order`,
-     `Product` y `AdminUser` contra producción. Registrar la fecha y el resultado en este archivo.
-   - Sin backup no hay rollback de base: las migraciones no tienen *down* (§4).
+1. **Drill de restore** (servicio PostgreSQL de Easypanel) — **el backup programado ya está**: diario
+   `0 9 * * *` (hora del servidor del panel; conviene confirmar en la UI que son las 03:00 de Managua),
+   destino Local Disk, carpeta `oneburguer`; y hay dos ejecuciones manuales hechas el 2026-09-12.
+   - **Verificar el archivo**: panel → `oneburguer-postgres` → *Backups*: la lista muestra los respaldos
+     generados con fecha y tamaño. Si no aparece ninguno, el respaldo falló y hay que mirar los logs del
+     servicio (la API del panel solo expone la configuración, no los archivos).
+   - **Drill** (una vez y luego cada trimestre): crear un servicio Postgres **temporal** en el panel
+     (no tocar el de producción), restaurarle el último respaldo y comparar conteos de `Order`,
+     `Product` y `AdminUser` contra producción con `select count(*)`. Registrar la fecha y el resultado
+     acá, y borrar el servicio temporal al terminar.
+   - Alternativa manual si hiciera falta: *Terminal* del servicio y
+     `pg_dump -U oneburguer -d oneburger -Fc -f /tmp/oneburger-$(date +%F).dump`.
 2. **Notificaciones de pedidos a cocina** (§5) — necesitan dos datos que solo tiene el owner: el
    **bot token** de Telegram y el **chat id** del grupo de cocina (o la URL del webhook de n8n). Con
    eso: cargar las cuatro variables en el servicio, desplegar y **probar de verdad**: hacer un pedido
