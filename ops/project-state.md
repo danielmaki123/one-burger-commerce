@@ -1577,13 +1577,36 @@ Decisión **D1 = sí** (2026-09-12), con un ajuste del owner en la sesión: **si
 - **Pendiente declarado**: la bandeja del admin ancla "hoy" a `America/Managua` fijo
   (`orders-page-helpers.ts`), mientras el checkout y el retiro usan la zona de la configuración. En la
   práctica el negocio está en Managua; para una plataforma whitelabel de otra zona hay que mover ese
-  anclaje a `BusinessSettings.timezone`.
+  anclaje a `BusinessSettings.timezone`. — **cerrado el 2026-09-12** (ver abajo).
 - **CI rojo por un test que leía la hora del equipo**: `programar una hora la manda en el pedido`
   afirmaba `new Date(...).getHours()` (20 en esta máquina en UTC-6, 2 en CI en UTC). Además solo era
   cierto con la implementación vieja, que armaba el instante en la zona del navegador. Ahora afirma el
   instante UTC exacto (`fix(test)`, commit `4b204a9`). **Lección**: cuando algo depende de la zona, la
   aserción va contra el instante (UTC), no contra `getHours()`/`toLocaleString()`; y conviene correr
   `TZ=UTC npm run test` antes de pushear.
+
+### Bandeja del admin: "hoy" pasa a ser el día del negocio (2026-09-12) — **cerrada**
+
+Cierra el pendiente que la fase 4 había declarado: la bandeja anclaba "hoy", los rangos de historial y
+la hora de cada pedido a una `America/Managua` **fija** con su offset `-06:00` escrito a mano, mientras
+el checkout y el retiro público ya usaban `BusinessSettings.timezone`. Un negocio en otra zona veía el
+turno del día equivocado.
+
+- Se borraron los helpers locales de la página (`TZ`, `TZ_OFFSET`, `managuaDateString`, `shiftDays`,
+  `startOfDayIso`, `endOfDayIso`, `formatOrderTime`) y ahora se usan los del dominio de turnos, ya
+  probados: `dateInTimeZone`, `addDays`, `pickupInstant` y `formatTimeInTimeZone`, todos con la zona de
+  la configuración. `businessDayRange` reemplaza a los dos helpers de rango y cubre el día **entero**
+  (hasta el último milisegundo, no hasta las 23:59:00).
+- **El compilador ayuda**: `orderBucket` ahora **exige** la `timeZone`. En la primera pasada me olvidé
+  de pasarla en la página y el grupo cayó en silencio al de siempre (lo cazó el E2E de la fase 4, no el
+  typecheck, porque el parámetro era opcional). Con la zona obligatoria, olvidarla no compila.
+- **Verificación**: **1524 unitarios** (4 nuevos, con casos en otra zona horaria para el grupo y para
+  el rango del día), lint, typecheck, `npm run build`, `security:secrets` y **E2E 80 pasaron, 7
+  salteados, 0 fallos**.
+- **Queda la misma clase de hardcodeo en el tablero del admin**: `src/modules/dashboard/domain/admin-overview-periods.ts`
+  (`OVERVIEW_TIME_ZONE = "America/Managua"`), el esquema del payload (`z.literal("America/Managua")`) y
+  el cliente del resumen tienen la zona fija. Es la próxima instancia a resolver cuando se toque el
+  tablero; no se hizo acá para no mezclar dos superficies en un commit.
 
 ## 3. Infraestructura y secretos
 

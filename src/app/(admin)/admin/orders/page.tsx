@@ -7,16 +7,17 @@ import { ClipboardList, ShoppingBag, SlidersHorizontal, Table2, Truck } from "lu
 import { formatCurrency } from "@/shared/lib/format-currency";
 import { getAdminOrderStatusLabel } from "@/shared/lib/admin-status-labels";
 import { useBusinessSettings, useCurrencyFormat } from "@/shared/lib/business-settings";
+import { formatTimeInTimeZone } from "@/modules/business-settings/domain/format-time-in-timezone";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/shared/ui/tabs";
 import {
-  ADMIN_ORDERS_TIME_ZONE,
-  ADMIN_ORDERS_TZ_OFFSET,
   BUCKET_META,
   BUCKET_ORDER,
-  managuaDateString,
+  businessDate,
+  businessDayRange,
   orderBucket,
+  shiftBusinessDays,
   type OrderBucket,
 } from "./orders-page-helpers";
 import {
@@ -95,33 +96,6 @@ const OPEN_STATUSES: ReadonlySet<OrderStatus> = new Set<OrderStatus>([
   "out_for_delivery",
 ]);
 
-// Restaurante fijo en Nicaragua (UTC-6, sin DST). Anclamos "hoy" y los rangos
-// a esa zona para que la vista del día sea correcta sin tocar backend.
-const TZ = ADMIN_ORDERS_TIME_ZONE;
-const TZ_OFFSET = ADMIN_ORDERS_TZ_OFFSET;
-
-function shiftDays(dateStr: string, days: number): string {
-  const base = new Date(`${dateStr}T00:00:00${TZ_OFFSET}`);
-  base.setUTCDate(base.getUTCDate() + days);
-  return managuaDateString(base);
-}
-
-function startOfDayIso(dateStr: string): string {
-  return `${dateStr}T00:00:00.000${TZ_OFFSET}`;
-}
-
-function endOfDayIso(dateStr: string): string {
-  return `${dateStr}T23:59:59.999${TZ_OFFSET}`;
-}
-
-function formatOrderTime(value: string): string {
-  return new Intl.DateTimeFormat("es-NI", {
-    timeZone: TZ,
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(value));
-}
-
 function orderTypePresentation(type: OrderType) {
   if (type === "delivery") return { label: "Delivery", Icon: Truck };
   if (type === "pickup") return { label: "Retiro", Icon: ShoppingBag };
@@ -137,7 +111,9 @@ const CHIP_TRIGGER_CLASS =
   "min-h-11 flex-none whitespace-nowrap rounded-xl border border-border bg-card px-3";
 
 export default function AdminOrdersPage() {
-  const today = useMemo(() => managuaDateString(new Date()), []);
+  const { timezone: timeZone } = useBusinessSettings();
+  // "Hoy" es el día del **negocio**, no el de la máquina que mira el panel.
+  const today = useMemo(() => businessDate(new Date(), timeZone), [timeZone]);
 
   const [orders, setOrders] = useState<OrderSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -183,26 +159,31 @@ export default function AdminOrdersPage() {
 
   const [olderOpenCount, setOlderOpenCount] = useState<number | null>(null);
   const currency = useCurrencyFormat();
-  const { timezone: timeZone } = useBusinessSettings();
 
   const range = useMemo<{ from?: string; to?: string }>(() => {
     if (view === "today") {
-      return { from: startOfDayIso(today), to: endOfDayIso(today) };
+      return businessDayRange(today, timeZone);
     }
     if (historyPreset === "week") {
-      return { from: startOfDayIso(shiftDays(today, -6)), to: endOfDayIso(today) };
+      return {
+        from: businessDayRange(shiftBusinessDays(today, -6), timeZone).from,
+        to: businessDayRange(today, timeZone).to,
+      };
     }
     if (historyPreset === "month") {
-      return { from: startOfDayIso(shiftDays(today, -29)), to: endOfDayIso(today) };
+      return {
+        from: businessDayRange(shiftBusinessDays(today, -29), timeZone).from,
+        to: businessDayRange(today, timeZone).to,
+      };
     }
     if (historyPreset === "all") {
       return {};
     }
     return {
-      from: dateFrom ? startOfDayIso(dateFrom) : undefined,
-      to: dateTo ? endOfDayIso(dateTo) : undefined,
+      from: dateFrom ? businessDayRange(dateFrom, timeZone).from : undefined,
+      to: dateTo ? businessDayRange(dateTo, timeZone).to : undefined,
     };
-  }, [view, historyPreset, dateFrom, dateTo, today]);
+  }, [view, historyPreset, dateFrom, dateTo, today, timeZone]);
 
   const queryString = useMemo(() => {
     const query = new URLSearchParams();
@@ -255,7 +236,9 @@ export default function AdminOrdersPage() {
   useEffect(() => {
     async function fetchOlderOpen() {
       try {
-        const params = new URLSearchParams({ dateTo: endOfDayIso(shiftDays(today, -1)) });
+        const params = new URLSearchParams({
+          dateTo: businessDayRange(shiftBusinessDays(today, -1), timeZone).to ?? "",
+        });
         const response = await fetch(`/api/admin/orders?${params.toString()}`);
         if (!response.ok) return;
         const payload = (await response.json()) as AdminOrdersResponse;
@@ -269,7 +252,7 @@ export default function AdminOrdersPage() {
     }
 
     void fetchOlderOpen();
-  }, [today]);
+  }, [today, timeZone]);
 
   const ordersStatusCounts = {
     total: orders.length,
@@ -306,11 +289,11 @@ export default function AdminOrdersPage() {
       // El día del pedido decide si es trabajo de este turno (fase 4): un retiro
       // programado para otro día va a "Programados" en vez de a "Nuevas".
       buckets
-        .get(orderBucket(order.status, { pickupTime: order.pickupTime, today }))
+        .get(orderBucket(order.status, { pickupTime: order.pickupTime, today, timeZone }))
         ?.push(order);
     }
     return buckets;
-  }, [orders, today]);
+  }, [orders, today, timeZone]);
 
   const STATUS_CHIP_OPTIONS: Array<{ value: string; label: string; count: number }> = [
     { value: "all", label: "Todas", count: ordersStatusCounts.total },
@@ -371,7 +354,7 @@ export default function AdminOrdersPage() {
               </span>
             ) : (
               <span className="text-xs text-muted-foreground tabular-nums">
-                Recibida {formatOrderTime(order.createdAt)}
+                Recibida {formatTimeInTimeZone(order.createdAt, timeZone) ?? "—"}
               </span>
             )}
             <AdminPickupTimingChip timing={timing} />

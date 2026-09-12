@@ -283,7 +283,9 @@ horario del día elegido (no hizo falta cambiarlo), y el admin separa los pedido
   turno de hoy").
 - **Pendiente declarado**: la bandeja del admin ancla "hoy" a `America/Managua` fijo
   (`orders-page-helpers.ts`), mientras el checkout y el retiro usan la zona de la configuración. Para
-  un negocio en otra zona habría que mover ese anclaje a `BusinessSettings.timezone`.
+  un negocio en otra zona habría que mover ese anclaje a `BusinessSettings.timezone`. — **cerrado el
+  2026-09-12**: la bandeja ya usa la zona del negocio (ver `ops/project-state.md`); la misma clase de
+  hardcodeo sigue en el tablero del admin (`admin-overview-periods`).
 
 ### Fase 5 — Presets de propina · **D2 resuelta: NO (2026-09-12) — fase descartada**
 
