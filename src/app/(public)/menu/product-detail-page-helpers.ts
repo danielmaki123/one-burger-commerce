@@ -11,3 +11,15 @@ export const publicProductDetailScaleClasses = {
     "h-11 w-11 rounded-full border border-border bg-card p-0 text-foreground hover:bg-cream",
   primaryCta: "h-14 rounded-[20px] text-base font-semibold",
 } as const;
+
+/**
+ * Cuántos grupos de modificadores tienen opciones de verdad.
+ *
+ * Vivía exportada desde `page.tsx`, y eso rompía `next build --webpack`: Next genera un
+ * tipo por página que exige que el módulo exporte solo lo que él conoce.
+ */
+export function countAvailableSelectionGroups<T extends { options: readonly unknown[] }>(
+  groups: readonly T[],
+): number {
+  return groups.filter((group) => group.options.length > 0).length;
+}

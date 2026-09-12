@@ -4,10 +4,8 @@ import { describe, expect, it, vi } from "vitest";
 
 import { CartProvider } from "@/shared/lib/cart";
 
-import CustomerActivityPage, {
-  OrderDetailView,
-  OrderHistoryCard,
-} from "./page";
+import CustomerActivityPage from "./page";
+import { OrderDetailView, OrderHistoryCard } from "./order-history-views";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({

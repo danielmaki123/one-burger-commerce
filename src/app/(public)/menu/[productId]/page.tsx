@@ -8,7 +8,7 @@ import { useBusinessSettings, useCurrencyFormat } from "@/shared/lib/business-se
 import { formatCurrency } from "@/shared/lib/format-currency";
 import { getPublicStartingPrice } from "@/shared/lib/public-product-pricing";
 import { Button } from "@/shared/ui/button";
-import { publicProductDetailScaleClasses } from "../product-detail-page-helpers";
+import { publicProductDetailScaleClasses, countAvailableSelectionGroups } from "../product-detail-page-helpers";
 import {
   findPublicProductById,
   formatModifierOptionPrice,
@@ -41,10 +41,6 @@ interface Product {
   modifierGroups: ModifierGroup[];
   categoryName?: string;
   subcategoryName?: string;
-}
-
-export function countAvailableSelectionGroups(groups: ModifierGroup[]): number {
-  return groups.filter((group) => group.options.length > 0).length;
 }
 
 function ProductHeroPlaceholder({ name }: { name: string }) {

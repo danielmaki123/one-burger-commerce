@@ -25,8 +25,8 @@ vi.mock("@/shared/lib/cart", () => ({
   }),
 }));
 
-import { countAvailableSelectionGroups } from "./page";
 import ProductDetailPage from "./page";
+import { countAvailableSelectionGroups } from "../product-detail-page-helpers";
 
 describe("countAvailableSelectionGroups", () => {
   it("returns 0 when modifier groups do not offer any real options", () => {

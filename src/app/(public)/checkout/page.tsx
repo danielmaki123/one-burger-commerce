@@ -77,7 +77,12 @@ type CheckoutField = keyof typeof FIELD_IDS;
 
 type FieldError = { field: CheckoutField; message: string } | null;
 
-export function focusCheckoutField(field: CheckoutField): void {
+/**
+ * Lleva el foco al campo que falló. Es interna de la página a propósito: `page.tsx` no
+ * puede exportar nada más que la página (Next genera un tipo que lo exige y
+ * `next build --webpack` falla si no).
+ */
+function focusCheckoutField(field: CheckoutField): void {
   if (typeof document === "undefined") return;
 
   document.getElementById(FIELD_IDS[field])?.focus();
