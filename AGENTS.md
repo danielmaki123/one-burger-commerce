@@ -42,7 +42,11 @@ sin aprobación explícita.
 | `README.md` | Alcance y comandos de validación. |
 
 `docs/` y `handoffs/` están en `.gitignore` (material histórico heredado de otro
-proyecto: **no** son fuente de verdad para este repo).
+proyecto: **no** son fuente de verdad para este repo), igual que los documentos sueltos
+de esa etapa que siguen en el disco (`CODEX.md`, `LINEAR.md`, `ARCHITECTURE.md`,
+`PROJECT_AUDIT_FOR_CODEX.md`, …): describen otra gobernanza (un «orquestador único
+Codex», ramas de otro proyecto) y **no** rigen acá. La única fuente de verdad es este
+archivo + `ops/`.
 
 ## Stack
 
