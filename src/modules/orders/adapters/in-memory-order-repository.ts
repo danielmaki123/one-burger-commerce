@@ -84,6 +84,7 @@ export class InMemoryOrderRepository implements OrderRepository {
       orderNumber: input.orderNumber,
       type: input.type,
       status: input.status as OrderRecord["status"],
+      locationId: input.locationId,
       customerName: input.customerName,
       customerWhatsapp: input.customerWhatsapp,
       customerId: input.customerId ?? null,

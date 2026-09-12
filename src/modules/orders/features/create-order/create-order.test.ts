@@ -1,9 +1,36 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { InMemoryOrderRepository } from "@/modules/orders/adapters/in-memory-order-repository";
+import {
+  InMemoryLocationRepository,
+  createInMemoryLocation,
+} from "@/modules/locations/adapters/in-memory-location-repository";
+import type { LocationRepository } from "@/modules/locations/ports/location-repository";
 
 
-import { createOrder } from "./create-order";
+import { createOrder as createOrderFeature } from "./create-order";
+
+/**
+ * T8: el pedido tiene que saber a qué local va. Todo pedido necesita un local, así que
+ * los tests lo reciben por defecto ("Principal", el mismo que crea la migración) y los
+ * casos de local lo pisan pasando su propio repositorio.
+ */
+function defaultLocationRepository(): LocationRepository {
+  return new InMemoryLocationRepository([
+    createInMemoryLocation({ id: "loc_principal", name: "Principal" }),
+  ]);
+}
+
+type CreateOrderDeps = Parameters<typeof createOrderFeature>[1];
+
+const createOrder = (
+  input: Parameters<typeof createOrderFeature>[0],
+  deps: Omit<CreateOrderDeps, "locationRepository"> & { locationRepository?: LocationRepository },
+) => {
+  const { locationRepository = defaultLocationRepository(), ...rest } = deps;
+
+  return createOrderFeature(input, { ...rest, locationRepository });
+};
 
 function createRepository(): InMemoryOrderRepository {
   return new InMemoryOrderRepository();
@@ -1138,5 +1165,81 @@ describe("createOrder", () => {
       status: 422,
       code: "VALIDATION_ERROR",
     });
+  });
+});
+
+describe("createOrder · el local del pedido (T8)", () => {
+  const segunda = createInMemoryLocation({ id: "loc_segunda", name: "Segunda", sortOrder: 1 });
+
+  function pickupInput(locationId?: string | null) {
+    return {
+      type: "pickup" as const,
+      customerName: "Juan Perez",
+      customerWhatsapp: "+50588887777",
+      items: [{ productId: "prod_01", quantity: 1, modifierOptionIds: [] }],
+      ...(locationId === undefined ? {} : { locationId }),
+    };
+  }
+
+  it("sin local elegido guarda el pedido en el primario", async () => {
+    const repository = createRepository();
+    seedProduct(repository);
+
+    const result = await createOrder(pickupInput(), { repository });
+
+    expect(result.data.locationId).toBe("loc_principal");
+  });
+
+  it("guarda el pedido en el local que pidió el cliente", async () => {
+    const repository = createRepository();
+    seedProduct(repository);
+
+    const result = await createOrder(pickupInput("loc_segunda"), {
+      repository,
+      locationRepository: new InMemoryLocationRepository([
+        createInMemoryLocation({ id: "loc_principal", name: "Principal" }),
+        segunda,
+      ]),
+    });
+
+    expect(result.data.locationId).toBe("loc_segunda");
+  });
+
+  it("un local que no existe se rechaza, no se cae al primario", async () => {
+    const repository = createRepository();
+    seedProduct(repository);
+
+    await expect(
+      createOrder(pickupInput("loc_fantasma"), { repository }),
+    ).rejects.toMatchObject({ status: 409, fields: { locationId: expect.any(String) } });
+  });
+
+  it("un local apagado se rechaza", async () => {
+    const repository = createRepository();
+    seedProduct(repository);
+
+    await expect(
+      createOrder(pickupInput("loc_apagado"), {
+        repository,
+        locationRepository: new InMemoryLocationRepository([
+          createInMemoryLocation({ id: "loc_principal", name: "Principal" }),
+          createInMemoryLocation({ id: "loc_apagado", name: "Apagado", isActive: false }),
+        ]),
+      }),
+    ).rejects.toMatchObject({ status: 409, fields: { locationId: expect.any(String) } });
+  });
+
+  it("sin ningún local activo no se puede pedir", async () => {
+    const repository = createRepository();
+    seedProduct(repository);
+
+    await expect(
+      createOrder(pickupInput(), {
+        repository,
+        locationRepository: new InMemoryLocationRepository([
+          createInMemoryLocation({ id: "loc_apagado", name: "Apagado", isActive: false }),
+        ]),
+      }),
+    ).rejects.toMatchObject({ status: 409, fields: { locationId: expect.any(String) } });
   });
 });

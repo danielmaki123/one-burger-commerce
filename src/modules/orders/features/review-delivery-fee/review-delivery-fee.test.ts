@@ -14,6 +14,7 @@ describe("reviewDeliveryFee", () => {
     repository.orders.push({
       id: "ord_01",
       orderNumber: "D-1",
+      locationId: "loc_principal",
       type: "delivery",
       status: "new",
       customerName: "Juan",
@@ -47,6 +48,7 @@ describe("reviewDeliveryFee", () => {
     repository.orders.push({
       id: "ord_01",
       orderNumber: "D-1",
+      locationId: "loc_principal",
       type: "delivery",
       status: "new",
       customerName: "Juan",
@@ -77,6 +79,7 @@ describe("reviewDeliveryFee", () => {
     repository.orders.push({
       id: "ord_01",
       orderNumber: "D-1",
+      locationId: "loc_principal",
       type: "delivery",
       status: "new",
       customerName: "Juan",
@@ -121,6 +124,7 @@ describe("reviewDeliveryFee", () => {
     repository.orders.push({
       id: "ord_02",
       orderNumber: "P-1",
+      locationId: "loc_principal",
       type: "pickup",
       status: "new",
       customerName: "Ana",
@@ -150,6 +154,7 @@ describe("reviewDeliveryFee", () => {
     repository.orders.push({
       id: "ord_04",
       orderNumber: "D-4",
+      locationId: "loc_principal",
       type: "delivery",
       status: "new",
       customerName: "Luis",
@@ -184,6 +189,7 @@ describe("reviewDeliveryFee", () => {
     repository.orders.push({
       id: "ord_03",
       orderNumber: "D-3",
+      locationId: "loc_principal",
       type: "delivery",
       status: "new",
       customerName: "Pedro",

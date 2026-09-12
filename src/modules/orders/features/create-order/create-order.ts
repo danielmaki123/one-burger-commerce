@@ -15,6 +15,8 @@ import {
   type OrderPaymentMethod,
 } from "@/modules/orders/domain/order.types";
 import { getInitialStatus } from "@/modules/orders/domain/order-workflows";
+import { resolveLocation } from "@/modules/locations/domain/location-rules";
+import type { LocationRepository } from "@/modules/locations/ports/location-repository";
 import { validatePaidWithAmount } from "@/modules/orders/domain/payment-change";
 import {
   generateOrderLookupToken,
@@ -35,6 +37,16 @@ import { normalizeWhatsapp } from "@/shared/lib/normalize-whatsapp";
 function defaultPickupPinGenerator(): string {
   return generatePickupPin((max) => randomInt(max));
 }
+
+/** Mensaje para el cliente cuando el local pedido no sirve (T8). */
+const LOCATION_REJECTION_MESSAGES: Record<
+  "not-found" | "inactive" | "none-active",
+  string
+> = {
+  "not-found": "Ese local de retiro no existe.",
+  inactive: "Ese local no está disponible por ahora.",
+  "none-active": "Por ahora no estamos recibiendo pedidos.",
+};
 
 export type OrderItemRequest = {
   productId: string;
@@ -61,6 +73,11 @@ export type CreateOrderRequest = {
   paymentMethod?: OrderPaymentMethod | null;
   /** Con cuánto paga, cuando es efectivo (T12): el vuelto se calcula en la caja. */
   paidWithAmount?: number | null;
+  /**
+   * Local al que va el pedido (T8). Sin dato se usa el primario (el primero activo por
+   * orden), así el negocio de un solo local sigue funcionando sin que nadie elija nada.
+   */
+  locationId?: string | null;
   tableId?: string | null;
   qrToken?: string | null;
   deliveryZoneId?: string | null;
@@ -74,6 +91,7 @@ export async function createOrder(
   input: CreateOrderRequest,
   {
     repository,
+    locationRepository,
     resolveCustomerId = findOrCreateCustomer,
     orderLookupTokenGenerator = generateOrderLookupToken,
     pickupPinGenerator = defaultPickupPinGenerator,
@@ -83,6 +101,8 @@ export async function createOrder(
     },
   }: {
     repository: OrderRepository;
+    /** Locales del negocio (T8): sin esto no hay a dónde mandar el pedido. */
+    locationRepository: LocationRepository;
     resolveCustomerId?: (input: {
       fullName: string;
       whatsappNormalized: string;
@@ -133,6 +153,21 @@ export async function createOrder(
   const paymentMethod: OrderPaymentMethod = isOrderPaymentMethod(input.paymentMethod)
     ? input.paymentMethod
     : "cash";
+
+  // Local del pedido (T8). Se resuelve **antes** de tocar el cupón o el stock: un local
+  // que no sirve no puede quemar el uso de una promo.
+  const locationResolution = resolveLocation({
+    requestedLocationId: input.locationId,
+    locations: await locationRepository.listLocations(),
+  });
+
+  if (!locationResolution.ok) {
+    throw new OrderError(409, "CONFLICT", "Location is not available", {
+      locationId: LOCATION_REJECTION_MESSAGES[locationResolution.reason],
+    });
+  }
+
+  const locationId = locationResolution.location.id;
 
   // Type-specific validation
   let selectedZone: DeliveryZoneRecord | null = null;
@@ -430,6 +465,7 @@ export async function createOrder(
     order = await repository.createOrder(
       {
         type: input.type,
+        locationId,
         customerName,
         customerWhatsapp: normalizedWhatsapp,
         customerId,

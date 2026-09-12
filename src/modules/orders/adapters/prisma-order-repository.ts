@@ -121,6 +121,7 @@ function mapOrder(order: any): OrderRecord {
         ? null
         : decimalToNumber(order.paidWithAmount),
     pickupPin: order.pickupPin ?? null,
+    locationId: order.locationId,
     tableId: order.tableId,
     couponCode: order.couponCode,
     subtotal: decimalToNumber(order.subtotal),
@@ -194,6 +195,8 @@ export class PrismaOrderRepository implements OrderRepository {
         paymentMethod: input.paymentMethod ?? "cash",
         paidWithAmount: input.paidWithAmount ?? null,
         pickupPin: input.pickupPin ?? null,
+        // T8: el local es obligatorio en la base; el caso de uso lo resuelve antes.
+        locationId: input.locationId,
         tableId: input.tableId ?? null,
         couponCode: input.couponCode ?? null,
         subtotal: input.subtotal,

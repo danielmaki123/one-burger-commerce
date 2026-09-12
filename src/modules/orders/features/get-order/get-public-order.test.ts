@@ -12,6 +12,7 @@ describe("getPublicOrder", () => {
     repository.orders.push({
       id: "ord_1",
       orderNumber: "D-ABC123",
+      locationId: "loc_principal",
       type: "delivery",
       status: "preparing",
       customerName: "Daniel",
@@ -79,6 +80,7 @@ describe("getPublicOrder", () => {
     repository.orders.push({
       id: "ord_1",
       orderNumber: "D-ABC123",
+      locationId: "loc_principal",
       type: "delivery",
       status: "preparing",
       customerName: "Daniel",
@@ -107,6 +109,7 @@ describe("getPublicOrder", () => {
     repository.orders.push({
       id: "ord_1",
       orderNumber: "D-ABC123",
+      locationId: "loc_principal",
       type: "delivery",
       status: "preparing",
       customerName: "Daniel",
@@ -135,6 +138,7 @@ describe("getPublicOrder", () => {
     repository.orders.push({
       id: "ord_1",
       orderNumber: "D-ABC123",
+      locationId: "loc_principal",
       type: "delivery",
       status: "preparing",
       customerName: "Daniel",

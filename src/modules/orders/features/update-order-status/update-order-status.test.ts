@@ -15,6 +15,7 @@ describe("updateOrderStatus", () => {
     repository.orders.push({
       id: "ord_01",
       orderNumber: "D-1",
+      locationId: "loc_principal",
       type: "delivery",
       status: "new",
       customerName: "Juan",
@@ -41,6 +42,7 @@ describe("updateOrderStatus", () => {
     repository.orders.push({
       id: "ord_01",
       orderNumber: "D-1",
+      locationId: "loc_principal",
       type: "delivery",
       status: "new",
       customerName: "Juan",
@@ -70,6 +72,7 @@ describe("updateOrderStatus", () => {
     repository.orders.push({
       id: "ord_01",
       orderNumber: "T-1",
+      locationId: "loc_principal",
       type: "table",
       status: "new",
       customerName: "Juan",
@@ -109,6 +112,7 @@ describe("updateOrderStatus", () => {
     repository.orders.push({
       id: "ord_02",
       orderNumber: "D-2",
+      locationId: "loc_principal",
       type: "delivery",
       status: "preparing",
       customerName: "Ana",
@@ -134,6 +138,7 @@ describe("updateOrderStatus", () => {
     repository.orders.push({
       id: "ord_03",
       orderNumber: "D-3",
+      locationId: "loc_principal",
       type: "delivery",
       status: "new",
       customerName: "Pedro",

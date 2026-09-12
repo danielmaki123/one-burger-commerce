@@ -31,6 +31,8 @@ export type CouponInput = {
 
 export type CreateOrderInput = {
   type: "delivery" | "pickup" | "table";
+  /** Local al que va el pedido (T8); el caso de uso lo resuelve antes de guardar. */
+  locationId: string;
   customerName: string;
   customerWhatsapp: string;
   customerId?: string | null;

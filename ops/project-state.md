@@ -1255,6 +1255,39 @@ que exige que solo exporte lo que él conoce, y tres páginas exportaban de más
 `npm run build`, `npx next build --webpack` y `security:secrets` verdes; **E2E completo 76 pasaron,
 7 salteados, 0 fallos** (antes 73).
 
+### T8 (multi-sucursal) · Fase 1: el modelo de locales (2026-09-12)
+
+Primera fase de la tarea más grande del plan, con el alcance que eligió el owner: **menú y precios por
+local**. El brief con el diseño completo está en [`ops/tasks/TASK-multi-location.md`](tasks/TASK-multi-location.md).
+
+- **Dos tablas nuevas**: `Location` (nombre, slug, orden, dirección, contacto, horario, minutos de
+  preparación, acepta pedidos, mensaje de cerrado) y `LocationProduct` (qué ofrece cada local, con
+  `priceOverride` opcional — `null` = el precio base del producto —, más `isAvailable` e `isActive`).
+  Categorías y subcategorías siguen siendo globales: el menú se organiza igual en todos lados.
+- **`Order.locationId` obligatorio**, con migración en tres pasos: se agrega nullable, se backfillea al
+  local primario y recién ahí se vuelve obligatoria. Agregarla directo como NOT NULL habría fallado con
+  los **229 pedidos** que ya existían. Verificado en la base local: 229 de 229 quedaron con local.
+- **El local primario lo crea la migración**, copiando la operación que hoy vive en `BusinessSettings`
+  (dirección, contacto, horario, preparación, aceptación). El `LEFT JOIN` con una fila fija garantiza
+  que se cree **también en una base nueva sin configuración** (ahí usa los defaults del dominio), que es
+  el caso del job de migraciones de CI. Sin eso, el negocio quedaría sin local y no se podría pedir.
+- **La regla de "qué local atiende" es pura** (`resolveLocation`): sin local elegido se usa el primario
+  (primero activo por orden, desempatando por nombre para que no dependa de cómo los devuelva la base) y
+  un local pedido que no existe o está apagado **se rechaza**, no se cae al primario: caer al primario
+  sería mandar la comida al local equivocado sin avisar.
+- **Sin cambios de comportamiento**: el pedido guarda su local, pero el horario y el gate operativo se
+  siguen leyendo de la configuración. Los datos son los mismos (el primario los heredó), así que el
+  negocio de un solo local no nota nada. El checkout elige local en la fase 6.
+- **El contrato anti-hardcode cazó un atajo mío**: el doble en memoria de locales tenía el horario
+  escrito a mano (`12:00`–`22:00`) y el test lo rechazó; ahora importa los defaults del dominio. Es
+  exactamente para lo que existe ese test.
+- **Verificación**: **1348 unitarios en 218 archivos** (antes 1327 en 216), lint, typecheck, `npm run
+  build`, `security:secrets` verdes y **E2E completo 76 pasaron, 7 salteados, 0 fallos**. `npx prisma
+  migrate dev` quedó sin drift. De paso, `prisma format` alineó `schema.prisma` completo (por eso ese
+  archivo aparece con muchas líneas cambiadas: es formato, no modelo).
+- **Lo que sigue (fases 2-7)**: API y casos de uso de locales, `/admin/locations`, productos por local,
+  lectura pública por local, selector en el checkout y operación por local. Ver el brief.
+
 ## 3. Infraestructura y secretos
 
 - `EASYPANEL_URL` y `EASYPANEL_TOKEN`: solo en el entorno de quien ejecuta el deploy (nunca
@@ -1281,7 +1314,7 @@ que exige que solo exporte lo que él conoce, y tres páginas exportaban de más
 | 8 | **Checkout sin redundancias** (textos y botones repetidos) | **Cerrada y desplegada** | `ops/tasks/TASK-checkout-ux.md`. Cuatro commits (`2832a93`…`aba4156`), en producción como `build-20260911-145656`. El checkout pasó de 807 a 476 líneas, un solo resumen compartido con el carrito, un solo CTA visible por viewport y los turnos de retiro calculados desde la configuración. |
 | 9 | **Validar el estado operativo en el servidor** | **Cerrada y desplegada** | Commits `3a67c37` y `ca474c8`, en producción como `build-20260911-154014`. `isAcceptingOrders` ya corta pedidos de verdad (antes no lo leía nadie) y la hora de retiro se valida contra el horario del día. Incluye el horario demo del seed y el límite de login del arnés E2E. |
 | 10 | **Retiro opcional y programable + la hora visible en toda la cadena** | **Cerrada y desplegada** | Commits `6f85a3c`, `c101f82`, `b207593` y `abc2183`, en producción como `build-20260911-191047`. Incluye **una migración** (`pickupScheduled`). El retiro es opcional, la hora la resuelve el servidor, el ticket de cocina y el admin la muestran, y el semáforo va contra la hora prometida. Ver el detalle arriba. |
-| 11 | **Adopción del mock completo (rediseño de la UI pública)** | **En ejecución · ola 1 completa (T1-T7) y T9, T11, T12 y T13 de la ola 2** | [`ops/tasks/TASK-mock-adoption.md`](tasks/TASK-mock-adoption.md). Plan **aprobado** el 2026-09-12 (D-A tipografía: Plus Jakarta Sans como tercera opción · D-B ola 2 completa **sin reseñas ni delivery** · D-C orden: tokens primero y después las pantallas en el orden del mock). **Reglas del programa**: ningún control decorativo (implementado con API/estado y test, o eliminado con motivo), nada hardcodeado, la paleta como preset que pasa el test de contraste, TDD por tarea, y verificación a 375 px **y 1280 px** (el mock no tiene escritorio). **Ola 1**: T1 tokens ✅ · T2 home ✅ · T3 menú ✅ · T3.1 color por categoría ✅ · T4 producto ✅ · T5 carrito+checkout ✅ (fases 1, 2, 3, 6 y 7) · T6 confirmación ✅ · T7 seguimiento e historial ✅ · **ola 1 completa** · T11 forma de pago ✅ · T12 vuelto ✅ · T13 PIN de retiro ✅ · **T9 promos cerrada**: motor ✅, campo del código en el checkout ✅ y pantalla del admin `/admin/promotions` ✅ · **queda T8 (multi-sucursal)**: alcance **decidido el 2026-09-12 (D-T8) = menú y precios por local**, pendiente de implementar por fases. **Decisiones del checkout resueltas el 2026-09-12**: D1 **sí** (pedidos para días futuros, con selector de día → fase 4 de `TASK-checkout-v2`) y D2 **no** (una sola tasa de propina; la fase 5 queda descartada). **Ola 2** (aprobada): T8 multi-sucursal, T9 promos, T10 favoritos (**descartada por el owner**: "mantengamos el login tal cual lo tenemos"; sin cuenta no hay favoritos), T11 método de pago, T12 vuelto, T13 PIN de retiro. Evidencia del mock: [`ops/audit-checkout-mock.md`](audit-checkout-mock.md). |
+| 11 | **Adopción del mock completo (rediseño de la UI pública)** | **En ejecución · ola 1 completa (T1-T7) y T9, T11, T12 y T13 de la ola 2** | [`ops/tasks/TASK-mock-adoption.md`](tasks/TASK-mock-adoption.md). Plan **aprobado** el 2026-09-12 (D-A tipografía: Plus Jakarta Sans como tercera opción · D-B ola 2 completa **sin reseñas ni delivery** · D-C orden: tokens primero y después las pantallas en el orden del mock). **Reglas del programa**: ningún control decorativo (implementado con API/estado y test, o eliminado con motivo), nada hardcodeado, la paleta como preset que pasa el test de contraste, TDD por tarea, y verificación a 375 px **y 1280 px** (el mock no tiene escritorio). **Ola 1**: T1 tokens ✅ · T2 home ✅ · T3 menú ✅ · T3.1 color por categoría ✅ · T4 producto ✅ · T5 carrito+checkout ✅ (fases 1, 2, 3, 6 y 7) · T6 confirmación ✅ · T7 seguimiento e historial ✅ · **ola 1 completa** · T11 forma de pago ✅ · T12 vuelto ✅ · T13 PIN de retiro ✅ · **T9 promos cerrada**: motor ✅, campo del código en el checkout ✅ y pantalla del admin `/admin/promotions` ✅ · **T8 (multi-sucursal) en ejecución**: alcance **decidido el 2026-09-12 (D-T8) = menú y precios por local**, brief en [`ops/tasks/TASK-multi-location.md`](tasks/TASK-multi-location.md); **fase 1 cerrada** (modelo `Location` + `LocationProduct` + `Order.locationId` con backfill) y quedan las fases 2-7. **Decisiones del checkout resueltas el 2026-09-12**: D1 **sí** (pedidos para días futuros, con selector de día → fase 4 de `TASK-checkout-v2`) y D2 **no** (una sola tasa de propina; la fase 5 queda descartada). **Ola 2** (aprobada): T8 multi-sucursal, T9 promos, T10 favoritos (**descartada por el owner**: "mantengamos el login tal cual lo tenemos"; sin cuenta no hay favoritos), T11 método de pago, T12 vuelto, T13 PIN de retiro. Evidencia del mock: [`ops/audit-checkout-mock.md`](audit-checkout-mock.md). |
 
 ## 5. Cómo continuar
 

@@ -5,6 +5,7 @@ import { PrismaBusinessSettingsRepository } from "@/modules/business-settings/ad
 import { resolveOrderAcceptance } from "@/modules/business-settings/domain/order-acceptance";
 import { loadBusinessSettings } from "@/modules/business-settings/features/get-public-business-settings/get-public-business-settings";
 import { registerOutboxEventBusHandlers } from "@/modules/notifications/adapters/outbox-subscriber";
+import { PrismaLocationRepository } from "@/modules/locations/adapters/prisma-location-repository";
 import { PrismaOrderRepository } from "@/modules/orders/adapters/prisma-order-repository";
 import { OrderError } from "@/modules/orders/domain/order-errors";
 import { createOrder } from "@/modules/orders/features/create-order/create-order";
@@ -101,6 +102,8 @@ export async function POST(request: Request) {
     }
 
     const repository = new PrismaOrderRepository();
+    // Locales del negocio (T8): el pedido va al local elegido o al primario.
+    const locationRepository = new PrismaLocationRepository();
     // La propina es fuente de verdad del servidor: sale de la configuración del
     // negocio, nunca del monto que manda el cliente. Si la configuración no se
     // puede leer se usan los defaults en vez de tumbar el pedido.
@@ -149,6 +152,7 @@ export async function POST(request: Request) {
       },
       {
         repository,
+        locationRepository,
         tipPolicy: { enabled: settings.tipEnabled, rate: settings.tipRate },
       },
     );

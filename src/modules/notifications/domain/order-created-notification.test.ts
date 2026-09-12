@@ -72,6 +72,7 @@ function createOrder(overrides?: Partial<OrderRecord>): OrderRecord {
   return {
     id: "ord_internal_01",
     orderNumber: "D-TEST100",
+    locationId: "loc_principal",
     type: "delivery",
     status: "new",
     customerName: "TASK 100 QA",

@@ -37,6 +37,7 @@ describe("addTableOrderItems", () => {
     repository.orders.push({
       id: "ord_01",
       orderNumber: "T-1",
+      locationId: "loc_principal",
       type: "table",
       status: "accepted",
       customerName: "Juan",
@@ -98,6 +99,7 @@ describe("addTableOrderItems", () => {
     repository.orders.push({
       id: "ord_01",
       orderNumber: "T-1",
+      locationId: "loc_principal",
       type: "table",
       status: "closed",
       customerName: "Juan",
@@ -142,6 +144,7 @@ describe("addTableOrderItems", () => {
     repository.orders.push({
       id: "ord_01",
       orderNumber: "D-1",
+      locationId: "loc_principal",
       type: "delivery",
       status: "new",
       customerName: "Juan",

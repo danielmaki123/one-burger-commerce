@@ -3,8 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
 
@@ -126,52 +126,103 @@ model Subcategory {
 }
 
 model Product {
-  id              String                @id @default(cuid())
-  categoryId      String
-  subcategoryId   String?
-  name            String
-  description     String?
-  basePrice       Decimal               @db.Decimal(10, 2)
-  packagingFeeAmount Decimal?           @db.Decimal(10, 2)
-  sortOrder       Int                   @default(0)
-  isAvailable     Boolean               @default(true)
-  isActive        Boolean               @default(true)
-  createdAt       DateTime              @default(now())
-  updatedAt       DateTime              @updatedAt
-  category        Category              @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  subcategory     Subcategory?          @relation(fields: [subcategoryId], references: [id], onDelete: SetNull)
-  images          ProductImage[]
-  modifierGroups  ProductModifierGroup[]
-  bundleRules     BundleRule[]
+  id                 String                 @id @default(cuid())
+  categoryId         String
+  subcategoryId      String?
+  name               String
+  description        String?
+  basePrice          Decimal                @db.Decimal(10, 2)
+  packagingFeeAmount Decimal?               @db.Decimal(10, 2)
+  sortOrder          Int                    @default(0)
+  isAvailable        Boolean                @default(true)
+  isActive           Boolean                @default(true)
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
+  category           Category               @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  subcategory        Subcategory?           @relation(fields: [subcategoryId], references: [id], onDelete: SetNull)
+  images             ProductImage[]
+  modifierGroups     ProductModifierGroup[]
+  bundleRules        BundleRule[]
+  locations          LocationProduct[]
 
   @@index([categoryId])
   @@index([subcategoryId])
   @@index([isActive])
 }
 
+/// Un local del negocio (T8). Lo que es por local: dónde se retira, contacto, horario,
+/// minutos de preparación y si acepta pedidos. La marca, la moneda y las promos siguen
+/// siendo del negocio entero y viven en `BusinessSettings`.
+model Location {
+  id                String            @id @default(cuid())
+  name              String
+  slug              String            @unique
+  isActive          Boolean           @default(true)
+  /// Orden manual; el primero activo es el local por defecto.
+  sortOrder         Int               @default(0)
+  addressLine       String?
+  city              String?
+  addressReference  String?
+  mapsUrl           String?
+  latitude          Float?
+  longitude         Float?
+  phone             String?
+  whatsapp          String?
+  businessHours     Json
+  pickupLeadMinutes Int               @default(25)
+  /// Máximo del rango de preparación (`null` = se promete un instante, no una franja).
+  pickupMaxMinutes  Int?
+  isAcceptingOrders Boolean           @default(true)
+  closedMessage     String?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  products          LocationProduct[]
+  orders            Order[]
+
+  @@index([isActive, sortOrder])
+}
+
+/// Qué ofrece cada local y a qué precio (T8). Sin fila acá, el producto no se vende en
+/// ese local; `priceOverride` en `null` significa "el precio base del producto".
+model LocationProduct {
+  id            String   @id @default(cuid())
+  locationId    String
+  productId     String
+  priceOverride Decimal? @db.Decimal(10, 2)
+  isAvailable   Boolean  @default(true)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  location      Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  product       Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([locationId, productId])
+  @@index([productId])
+}
+
 model ProductImage {
-  id        String   @id @default(cuid())
+  id        String  @id @default(cuid())
   productId String
   url       String
   alt       String?
-  sortOrder Int      @default(0)
-  isPrimary Boolean  @default(false)
-  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  sortOrder Int     @default(0)
+  isPrimary Boolean @default(false)
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@index([productId])
 }
 
 model ModifierGroup {
-  id          String           @id @default(cuid())
-  name        String
-  isRequired  Boolean          @default(false)
-  minSelections Int            @default(0)
-  maxSelections Int            @default(1)
-  sortOrder   Int              @default(0)
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
-  options     ModifierOption[]
-  products    ProductModifierGroup[]
+  id            String                 @id @default(cuid())
+  name          String
+  isRequired    Boolean                @default(false)
+  minSelections Int                    @default(0)
+  maxSelections Int                    @default(1)
+  sortOrder     Int                    @default(0)
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
+  options       ModifierOption[]
+  products      ProductModifierGroup[]
 }
 
 model ModifierOption {
@@ -230,7 +281,7 @@ enum MenuMarketingBlockCtaType {
 }
 
 model MenuMarketingBlock {
-  id          String                  @id @default(cuid())
+  id          String                    @id @default(cuid())
   type        MenuMarketingBlockType
   title       String
   description String?
@@ -238,12 +289,12 @@ model MenuMarketingBlock {
   ctaLabel    String?
   ctaType     MenuMarketingBlockCtaType @default(none)
   ctaTarget   String?
-  isActive    Boolean                 @default(true)
-  sortOrder   Int                     @default(0)
+  isActive    Boolean                   @default(true)
+  sortOrder   Int                       @default(0)
   startsAt    DateTime?
   endsAt      DateTime?
-  createdAt   DateTime                @default(now())
-  updatedAt   DateTime                @updatedAt
+  createdAt   DateTime                  @default(now())
+  updatedAt   DateTime                  @updatedAt
 
   @@index([isActive])
   @@index([sortOrder])
@@ -297,23 +348,23 @@ model Table {
 }
 
 model Coupon {
-  id        String     @id @default(cuid())
-  code      String     @unique
-  type      CouponType
-  value     Decimal    @db.Decimal(10, 2)
-  isActive  Boolean    @default(true)
-  usageLimit Int       @default(0)
-  usedCount Int        @default(0)
-  expiresAt DateTime?
+  id           String     @id @default(cuid())
+  code         String     @unique
+  type         CouponType
+  value        Decimal    @db.Decimal(10, 2)
+  isActive     Boolean    @default(true)
+  usageLimit   Int        @default(0)
+  usedCount    Int        @default(0)
+  expiresAt    DateTime?
   /// Promo por cantidad (T9): cuántas unidades hay que llevar y cuántas salen gratis.
   buyQuantity  Int?
   freeQuantity Int?
   /// A qué alcanza: `all`, `category`, `subcategory` o `product`, con su id.
-  scopeType    String?  @default("all")
+  scopeType    String?    @default("all")
   scopeId      String?
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
-  orders    Order[]
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  orders       Order[]
 }
 
 model DeliveryZone {
@@ -329,57 +380,62 @@ model DeliveryZone {
 }
 
 model Order {
-  id                String             @id @default(cuid())
-  orderNumber       String             @unique
+  id                   String               @id @default(cuid())
+  orderNumber          String               @unique
+  /// Local al que va el pedido (T8). Obligatorio: la migración backfillea los pedidos
+  /// que ya existían al local primario.
+  locationId           String
   orderLookupTokenHash String?
-  type              OrderType
-  status            OrderStatus        @default(new)
-  customerName      String
-  customerWhatsapp  String
-  customerId        String?
-  address           String?
-  deliveryNotes     String?
-  deliveryFeeStatus String?            @default("pending_manual_validation")
-  deliveryFeeAmount Decimal            @db.Decimal(10, 2) @default(0)
-  pickupTime        DateTime?
+  type                 OrderType
+  status               OrderStatus          @default(new)
+  customerName         String
+  customerWhatsapp     String
+  customerId           String?
+  address              String?
+  deliveryNotes        String?
+  deliveryFeeStatus    String?              @default("pending_manual_validation")
+  deliveryFeeAmount    Decimal              @default(0) @db.Decimal(10, 2)
+  pickupTime           DateTime?
   /// Si el cliente programó el retiro. `false` = lo antes posible: el servidor guarda
   /// igual una `pickupTime` concreta (ahora + preparación) para que la cocina sepa para
   /// cuándo es, pero la distinción se conserva para poder marcarlo en el admin.
-  pickupScheduled   Boolean            @default(false)
-  pickupNotes       String?
-  tableId           String?
+  pickupScheduled      Boolean              @default(false)
+  pickupNotes          String?
+  tableId              String?
   /// Forma de pago declarada por el cliente (informativa para la caja).
-  paymentMethod     PaymentMethod      @default(cash)
+  paymentMethod        PaymentMethod        @default(cash)
   /// Con cuánto paga el cliente, para calcular el vuelto en la caja (T12).
-  paidWithAmount    Decimal?           @db.Decimal(10, 2)
+  paidWithAmount       Decimal?             @db.Decimal(10, 2)
   /// Código corto para dictar en caja (T13). No identifica ni autoriza: eso es
   /// `orderNumber` + `orderLookupTokenHash`.
-  pickupPin         String?
-  couponId          String?
-  couponCode        String?
-  subtotal          Decimal            @db.Decimal(10, 2)
-  discount          Decimal            @db.Decimal(10, 2) @default(0)
-  packagingAmount   Decimal            @db.Decimal(10, 2) @default(0)
-  tipAmount         Decimal            @db.Decimal(10, 2) @default(0)
-  tipRate           Decimal?           @db.Decimal(5, 2)
-  total             Decimal            @db.Decimal(10, 2)
-  deliveryZoneId    String?
-  customerLat       Decimal?           @db.Decimal(10, 8)
-  customerLng       Decimal?           @db.Decimal(10, 8)
-  geoAccuracy       Float?
-  geoCapturedAt     DateTime?
-  createdAt         DateTime           @default(now())
-  updatedAt         DateTime           @updatedAt
-  table             Table?             @relation(fields: [tableId], references: [id], onDelete: SetNull)
-  coupon            Coupon?            @relation(fields: [couponId], references: [id], onDelete: SetNull)
-  customer          Customer?          @relation(fields: [customerId], references: [id], onDelete: SetNull)
-  deliveryZone      DeliveryZone?      @relation(fields: [deliveryZoneId], references: [id], onDelete: SetNull)
-  items             OrderItem[]
-  statusHistory     OrderStatusHistory[]
+  pickupPin            String?
+  couponId             String?
+  couponCode           String?
+  subtotal             Decimal              @db.Decimal(10, 2)
+  discount             Decimal              @default(0) @db.Decimal(10, 2)
+  packagingAmount      Decimal              @default(0) @db.Decimal(10, 2)
+  tipAmount            Decimal              @default(0) @db.Decimal(10, 2)
+  tipRate              Decimal?             @db.Decimal(5, 2)
+  total                Decimal              @db.Decimal(10, 2)
+  deliveryZoneId       String?
+  customerLat          Decimal?             @db.Decimal(10, 8)
+  customerLng          Decimal?             @db.Decimal(10, 8)
+  geoAccuracy          Float?
+  geoCapturedAt        DateTime?
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+  table                Table?               @relation(fields: [tableId], references: [id], onDelete: SetNull)
+  location             Location             @relation(fields: [locationId], references: [id], onDelete: Restrict)
+  coupon               Coupon?              @relation(fields: [couponId], references: [id], onDelete: SetNull)
+  customer             Customer?            @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  deliveryZone         DeliveryZone?        @relation(fields: [deliveryZoneId], references: [id], onDelete: SetNull)
+  items                OrderItem[]
+  statusHistory        OrderStatusHistory[]
 
   @@index([type])
   @@index([status])
   @@index([createdAt])
+  @@index([locationId])
   @@index([pickupTime])
   @@index([tableId])
   @@index([couponId])
@@ -388,33 +444,33 @@ model Order {
 }
 
 model OrderItem {
-  id          String             @id @default(cuid())
-  orderId     String
-  productId   String
-  productName String
-  quantity    Int
-  unitPrice   Decimal            @db.Decimal(10, 2)
-  packagingUnitAmount Decimal    @db.Decimal(10, 2) @default(0)
-  packagingQuantity Int          @default(0)
-  packagingTotalAmount Decimal   @db.Decimal(10, 2) @default(0)
-  notes       String?
-  lineTotal   Decimal            @db.Decimal(10, 2)
-  createdAt   DateTime           @default(now())
-  order       Order              @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  modifiers   OrderItemModifier[]
+  id                   String              @id @default(cuid())
+  orderId              String
+  productId            String
+  productName          String
+  quantity             Int
+  unitPrice            Decimal             @db.Decimal(10, 2)
+  packagingUnitAmount  Decimal             @default(0) @db.Decimal(10, 2)
+  packagingQuantity    Int                 @default(0)
+  packagingTotalAmount Decimal             @default(0) @db.Decimal(10, 2)
+  notes                String?
+  lineTotal            Decimal             @db.Decimal(10, 2)
+  createdAt            DateTime            @default(now())
+  order                Order               @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  modifiers            OrderItemModifier[]
 
   @@index([orderId])
   @@index([productId])
 }
 
 model OrderItemModifier {
-  id                String      @id @default(cuid())
-  orderItemId       String
-  modifierOptionId  String
-  name              String
-  priceDelta        Decimal     @db.Decimal(10, 2)
-  createdAt         DateTime    @default(now())
-  orderItem         OrderItem   @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  id               String    @id @default(cuid())
+  orderItemId      String
+  modifierOptionId String
+  name             String
+  priceDelta       Decimal   @db.Decimal(10, 2)
+  createdAt        DateTime  @default(now())
+  orderItem        OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
 
   @@index([orderItemId])
 }
@@ -441,23 +497,23 @@ enum ReservationStatus {
 }
 
 model Reservation {
-  id               String            @id @default(cuid())
-  status           ReservationStatus @default(requested)
-  customerName     String
-  customerWhatsapp String
-  customerId       String?
-  reservationNumber String?          @unique
+  id                         String            @id @default(cuid())
+  status                     ReservationStatus @default(requested)
+  customerName               String
+  customerWhatsapp           String
+  customerId                 String?
+  reservationNumber          String?           @unique
   reservationLookupTokenHash String?
-  date             String
-  time             String
-  partySize        Int
-  tableId          String
-  tableLabel       String
-  notes            String?
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
-  table            Table             @relation(fields: [tableId], references: [id])
-  customer         Customer?         @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  date                       String
+  time                       String
+  partySize                  Int
+  tableId                    String
+  tableLabel                 String
+  notes                      String?
+  createdAt                  DateTime          @default(now())
+  updatedAt                  DateTime          @updatedAt
+  table                      Table             @relation(fields: [tableId], references: [id])
+  customer                   Customer?         @relation(fields: [customerId], references: [id], onDelete: SetNull)
 
   @@index([status])
   @@index([date])
@@ -473,62 +529,62 @@ enum OutboxStatus {
 }
 
 model InventoryItem {
-  id                  String                   @id @default(cuid())
-  name                String
-  unit                String
-  category            String
-  currentEstimatedStock Decimal                @db.Decimal(10, 3)
-  lowStockThreshold   Decimal                  @db.Decimal(10, 3)
-  isActive            Boolean                  @default(true)
-  locationId          String                   @default("main")
-  createdAt           DateTime                 @default(now())
-  updatedAt           DateTime                 @updatedAt
-  counts              InventoryCount[]
-  wasteRecords        InventoryWasteRecord[]
-  receiveRecords      InventoryReceiveRecord[]
+  id                    String                   @id @default(cuid())
+  name                  String
+  unit                  String
+  category              String
+  currentEstimatedStock Decimal                  @db.Decimal(10, 3)
+  lowStockThreshold     Decimal                  @db.Decimal(10, 3)
+  isActive              Boolean                  @default(true)
+  locationId            String                   @default("main")
+  createdAt             DateTime                 @default(now())
+  updatedAt             DateTime                 @updatedAt
+  counts                InventoryCount[]
+  wasteRecords          InventoryWasteRecord[]
+  receiveRecords        InventoryReceiveRecord[]
 
   @@index([isActive])
   @@index([locationId])
 }
 
 model InventoryCount {
-  id                String        @id @default(cuid())
-  inventoryItemId   String
-  countedQuantity   Decimal       @db.Decimal(10, 3)
-  countedByUserId   String
-  countedAt         DateTime      @default(now())
-  notes             String?
-  createdAt         DateTime      @default(now())
-  inventoryItem     InventoryItem @relation(fields: [inventoryItemId], references: [id], onDelete: Cascade)
+  id              String        @id @default(cuid())
+  inventoryItemId String
+  countedQuantity Decimal       @db.Decimal(10, 3)
+  countedByUserId String
+  countedAt       DateTime      @default(now())
+  notes           String?
+  createdAt       DateTime      @default(now())
+  inventoryItem   InventoryItem @relation(fields: [inventoryItemId], references: [id], onDelete: Cascade)
 
   @@index([inventoryItemId])
   @@index([countedAt])
 }
 
 model InventoryWasteRecord {
-  id              String        @id @default(cuid())
-  inventoryItemId String
-  quantity        Decimal       @db.Decimal(10, 3)
-  reason          String
+  id               String        @id @default(cuid())
+  inventoryItemId  String
+  quantity         Decimal       @db.Decimal(10, 3)
+  reason           String
   reportedByUserId String
-  reportedAt      DateTime      @default(now())
-  notes           String?
-  createdAt       DateTime      @default(now())
-  inventoryItem   InventoryItem @relation(fields: [inventoryItemId], references: [id], onDelete: Cascade)
+  reportedAt       DateTime      @default(now())
+  notes            String?
+  createdAt        DateTime      @default(now())
+  inventoryItem    InventoryItem @relation(fields: [inventoryItemId], references: [id], onDelete: Cascade)
 
   @@index([inventoryItemId])
   @@index([reportedAt])
 }
 
 model InventoryReceiveRecord {
-  id                String        @id @default(cuid())
-  inventoryItemId   String
-  receivedQuantity  Decimal       @db.Decimal(10, 3)
-  receivedByUserId  String
-  receivedAt        DateTime      @default(now())
-  notes             String?
-  createdAt         DateTime      @default(now())
-  inventoryItem     InventoryItem @relation(fields: [inventoryItemId], references: [id], onDelete: Cascade)
+  id               String        @id @default(cuid())
+  inventoryItemId  String
+  receivedQuantity Decimal       @db.Decimal(10, 3)
+  receivedByUserId String
+  receivedAt       DateTime      @default(now())
+  notes            String?
+  createdAt        DateTime      @default(now())
+  inventoryItem    InventoryItem @relation(fields: [inventoryItemId], references: [id], onDelete: Cascade)
 
   @@index([inventoryItemId])
   @@index([receivedAt])
@@ -559,51 +615,51 @@ model OutboxEvent {
 /// Los defaults reproducen lo que hoy está hardcodeado en el sitio público
 /// (ver src/modules/business-settings/domain/business-settings-defaults.ts).
 model BusinessSettings {
-  id                   String   @id @default("default")
+  id                  String   @id @default("default")
   // Identidad
-  name                 String   @default("One Burger")
-  tagline              String?
-  description          String?
-  logoUrl              String?
-  logoMarkUrl          String?
-  faviconUrl           String?
-  ogImageUrl           String?
+  name                String   @default("One Burger")
+  tagline             String?
+  description         String?
+  logoUrl             String?
+  logoMarkUrl         String?
+  faviconUrl          String?
+  ogImageUrl          String?
   // Apariencia
-  primaryColor         String   @default("#2b6c96")
-  accentColor          String   @default("#eaf1f6")
-  backgroundColor      String   @default("#fbf9f5")
-  foregroundColor      String   @default("#23303a")
-  surfaceColor         String   @default("#ffffff")
-  headingFont          String   @default("fraunces")
-  bodyFont             String   @default("inter")
+  primaryColor        String   @default("#2b6c96")
+  accentColor         String   @default("#eaf1f6")
+  backgroundColor     String   @default("#fbf9f5")
+  foregroundColor     String   @default("#23303a")
+  surfaceColor        String   @default("#ffffff")
+  headingFont         String   @default("fraunces")
+  bodyFont            String   @default("inter")
   // Contacto y ubicación
-  phone                String?
-  whatsapp             String?
-  email                String?
-  instagram            String?
-  facebook             String?
-  tiktok               String?
-  addressLine          String?
-  city                 String?
-  addressReference     String?
-  mapsUrl              String?
-  latitude             Float?
-  longitude            Float?
+  phone               String?
+  whatsapp            String?
+  email               String?
+  instagram           String?
+  facebook            String?
+  tiktok              String?
+  addressLine         String?
+  city                String?
+  addressReference    String?
+  mapsUrl             String?
+  latitude            Float?
+  longitude           Float?
   // Operación
-  timezone             String   @default("America/Managua")
-  businessHours        Json
-  currencyCode         String   @default("NIO")
-  currencySymbol       String   @default("C$")
-  locale               String   @default("es-NI")
-  pickupLeadMinutes    Int      @default(25)
+  timezone            String   @default("America/Managua")
+  businessHours       Json
+  currencyCode        String   @default("NIO")
+  currencySymbol      String   @default("C$")
+  locale              String   @default("es-NI")
+  pickupLeadMinutes   Int      @default(25)
   /// Máximo del rango de preparación (`null` = se promete un instante, no un rango).
-  pickupMaxMinutes     Int?
-  paymentInstructions  String?  @default("Pagás en el local al retirar tu pedido. No se cobra nada online.")
-  tipEnabled           Boolean  @default(true)
-  tipRate              Int      @default(10)
-  isAcceptingOrders    Boolean  @default(true)
-  closedMessage        String?  @default("Estamos cerrados. Podés mirar el menú y volver cuando abramos.")
+  pickupMaxMinutes    Int?
+  paymentInstructions String?  @default("Pagás en el local al retirar tu pedido. No se cobra nada online.")
+  tipEnabled          Boolean  @default(true)
+  tipRate             Int      @default(10)
+  isAcceptingOrders   Boolean  @default(true)
+  closedMessage       String?  @default("Estamos cerrados. Podés mirar el menú y volver cuando abramos.")
   // Auditoría
-  updatedAt            DateTime @updatedAt
-  updatedByUserId      String?
+  updatedAt           DateTime @updatedAt
+  updatedByUserId     String?
 }

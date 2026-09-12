@@ -11,6 +11,7 @@ describe("trackOrder", () => {
     repository.orders.push({
       id: "ord_1",
       orderNumber: "D-ABC123",
+      locationId: "loc_principal",
       type: "delivery",
       status: "preparing",
       customerName: "Daniel",
@@ -71,6 +72,7 @@ describe("trackOrder", () => {
     repository.orders.push({
       id: "ord_1",
       orderNumber: "D-ABC123",
+      locationId: "loc_principal",
       type: "delivery",
       status: "new",
       customerName: "Daniel",
@@ -103,6 +105,7 @@ describe("trackOrder", () => {
     repository.orders.push({
       id: "ord_2",
       orderNumber: "P-LOCAL1",
+      locationId: "loc_principal",
       type: "pickup",
       status: "new",
       customerName: "Ana",
@@ -133,6 +136,7 @@ describe("trackOrder", () => {
     repository.orders.push({
       id: "ord_3",
       orderNumber: "D-TOKEN1",
+      locationId: "loc_principal",
       type: "delivery",
       status: "confirmed",
       customerName: "Maria",
@@ -164,6 +168,7 @@ describe("trackOrder", () => {
     repository.orders.push({
       id: "ord_4",
       orderNumber: "D-TOKEN2",
+      locationId: "loc_principal",
       type: "pickup",
       status: "new",
       customerName: "Luis",
@@ -197,6 +202,7 @@ describe("trackOrder", () => {
     repository.orders.push({
       id: "ord_5",
       orderNumber: "D-NOHASH",
+      locationId: "loc_principal",
       type: "pickup",
       status: "new",
       customerName: "Pedro",
@@ -230,6 +236,7 @@ describe("trackOrder", () => {
     repository.orders.push({
       id: "ord_6",
       orderNumber: "D-NOTHING",
+      locationId: "loc_principal",
       type: "pickup",
       status: "new",
       customerName: "Ana",

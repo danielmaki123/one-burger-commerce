@@ -83,6 +83,8 @@ export type OrderRecord = {
   orderNumber: string;
   type: OrderType;
   status: OrderStatus;
+  /** Local al que va el pedido (T8). Obligatorio: la migración backfillea los viejos. */
+  locationId: string;
   customerName: string;
   customerWhatsapp: string;
   customerId?: string | null;
