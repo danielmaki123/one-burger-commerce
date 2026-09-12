@@ -9,20 +9,30 @@ de Casa Antigua que viven en `docs/` (esa carpeta no se versiona).
 
 ---
 
-## 0. Estado del deploy actual (2026-09-10)
+## 0. Estado del deploy actual (2026-09-12)
 
 - Panel: `http://76.13.250.83:3000`
 - Proyecto / servicio: **`brunobot` / `oneburguerweb`**
-- Dominios públicos: **`https://oneburgernic.com`** (apex, canónico) y `https://www.oneburgernic.com` — ambos con certificado Let's Encrypt y sirviendo la app. El dominio por defecto `brunobot-oneburguerweb.2jcsgw.easypanel.host` sigue activo.
+- Dominios públicos: **`https://oneburgernic.com`** (apex, canónico), `https://www.oneburgernic.com`,
+  `https://menu.oneburgernic.com` y `https://admin.oneburgernic.com` — los cuatro con certificado
+  Let's Encrypt y sirviendo la app. El dominio por defecto
+  `brunobot-oneburguerweb.2jcsgw.easypanel.host` sigue activo.
+  ⚠️ **El apex necesita su propia entrada de dominio en el panel**: el 2026-09-12 se encontró sin
+  entrada y devolvía el 404 de otra app (el catch-all del proyecto compartido). Se volvió a crear. Si
+  un dominio devuelve un 404 raro, el primer chequeo es `domains/listDomains`.
 - Admin: `https://oneburgernic.com/admin/login`
 - Base de datos: servicio `oneburguer-postgres` del mismo proyecto; base y usuario `oneburguer`, puerto interno 5432, **sin puerto expuesto**.
-- Deploy: `npm run deploy:easypanel` con `EASYPANEL_URL`/`EASYPANEL_TOKEN` (el script fusiona variables y no pisa configuración manual). El **webhook del panel dejó de ser fiable** en esta instalación: usar el script o el botón *Deploy*.
-- Verificado: `/api/health` y `/api/readiness` en 200 en ambos dominios, smoke productivo 4/4, `/admin` redirigiendo a login, `www` con certificado emitido tras agregarlo como dominio del servicio.
+- Deploy: **una sola llamada** a `deployService` por API (ver §4). ⚠️ **No usar
+  `npm run deploy:easypanel`**: fusiona variables y puede crear servicios. El **webhook del panel no es
+  fiable** en esta instalación.
+- Verificado: `/api/health` y `/api/readiness` en 200 en los cuatro dominios, smoke productivo 4/4,
+  `/admin` redirigiendo a login.
 
 ⚠️ **Avisos de esta instalación**
 
 - El panel es un servidor **compartido** con n8n y con Casa Antigua; el proyecto dedicado `oneburguer` no se pudo crear, así que One Burger vive dentro de `brunobot`. Cualquier servicio nuevo debe crearse con nombres propios (`oneburguer-*`) y no tocar `cacommerce`, `capostgres`, `imagehost` ni `postimage`.
-- Quedó un servicio **duplicado y huérfano** `oneburguer-web` (responde 502). Conviene borrarlo desde el panel para no confundir deploys.
+- El servicio **duplicado y huérfano** `oneburguer-web` **ya no existe**: el 2026-09-12 se revisaron los
+  tres proyectos del panel (`brunobot`, `n8n`, `postgres`) y solo está `oneburguerweb` (producción).
 - Otros servicios de ese servidor exponen Postgres en puertos públicos (`capostgres` 5455, `postimage` 8585). No es de One Burger, pero conviene cerrarlos.
 - El token del panel da acceso completo al servidor: guardarlo solo en el gestor de secretos y rotarlo si se compartió por chat.
 - **DNS**: `oneburgernic.com` y `www.oneburgernic.com` apuntan a `76.13.250.83`. Si se cambia de servidor, actualizar ambos registros A.
@@ -60,26 +70,30 @@ Inventario completo y comentado en `.env.example`.
 
 ## 2. Secuencia de deploy
 
+⚠️ **El deploy es UNA llamada a `deployService`.** No usar `npm run deploy:easypanel` (fusiona
+variables y puede crear servicios) ni los scripts `:preflight`/`:dry-run`, que pertenecen a la
+primera puesta en marcha. El servicio ya existe: solo hay que pedirle un rebuild.
+
 ```bash
-# 1. Preflight: el panel responde, el proyecto destino es correcto (no toca nada)
-EASYPANEL_URL="https://<panel>" EASYPANEL_TOKEN="<token>" npm run deploy:easypanel:preflight
+# 1. Desplegar (el token va por entorno, nunca en el repo)
+curl -sS -X POST "http://76.13.250.83:3000/api/rpc/services/app/deployService" \
+  -H "Authorization: Bearer $EASYPANEL_TOKEN" -H "Content-Type: application/json" \
+  -d '{"json":{"projectName":"brunobot","serviceName":"oneburguerweb","forceRebuild":true}}'
+# Devuelve 200 {} y el build sigue en segundo plano (tarda unos minutos).
 
-# 2. Ver el plan sin crear ni cambiar servicios
-EASYPANEL_POSTGRES_PASSWORD="<16+ chars>" \
-EASYPANEL_URL="https://<panel>" EASYPANEL_TOKEN="<token>" \
-npm run deploy:easypanel:dry-run
-
-# 3. Deploy real
-EASYPANEL_POSTGRES_PASSWORD="<16+ chars>" \
-EASYPANEL_URL="https://<panel>" EASYPANEL_TOKEN="<token>" \
-npm run deploy:easypanel
+# 2. Confirmar qué commit quedó configurado
+curl -sS -X POST "http://76.13.250.83:3000/api/rpc/services/app/inspectService" \
+  -H "Authorization: Bearer $EASYPANEL_TOKEN" -H "Content-Type: application/json" \
+  -d '{"json":{"projectName":"brunobot","serviceName":"oneburguerweb"}}' | grep -o '"sha":"[^"]*"'
 ```
 
-`updateEnv` **fusiona** variables: solo sobrescribe `APP_ENV`, `NODE_ENV`,
-`PORT`, `DATABASE_URL` y `DIRECT_URL`. Cualquier valor que el operador haya
-puesto a mano (Telegram, n8n, outbox, …) se conserva. Los valores por defecto
-`NOTIFICATIONS_DRIVER=dummy` y `TELEGRAM_NOTIFICATIONS_ENABLED=false` solo se
-escriben cuando la clave todavía no existe.
+**Cómo saber que el build nuevo está sirviendo** (el `sha` se actualiza al disparar, no al terminar):
+buscar en el bundle del sitio un texto que solo exista en el commit nuevo, o mirar que una ruta nueva
+responda. Ejemplo usado el 2026-09-12:
+
+```bash
+curl -sS https://oneburgernic.com/checkout | grep -o '/_next/static/[^"]*\.js' | sort -u   # y buscar el marcador en esos chunks
+```
 
 Antes de commitear o desplegar:
 
@@ -122,7 +136,7 @@ Política recomendada para producción:
 
 ## 4. Rollback
 
-- **Aplicación**: el deploy construye desde GitHub `main` con `forceRebuild`. Para volver atrás, revertir el commit en `main` (o desplegar el commit anterior) y reejecutar `npm run deploy:easypanel`.
+- **Aplicación**: el deploy construye desde GitHub `main` con `forceRebuild`. Para volver atrás, revertir el commit en `main` y volver a disparar `deployService` (§2). El servicio **no** está apuntado a una imagen fija: siempre construye desde `main`.
 - **Artefacto inmutable**: el workflow publica `ghcr.io/<owner>/one-burger-commerce:<sha>`. Apuntar el servicio a esa imagen permite volver a una versión exacta sin reconstruir; hoy el servicio usa build desde Git.
 - **Base de datos**: no hay down-migrations. Toda migración aplicada se resuelve con *fix-forward* apoyado en el backup previo. Registrar en el mismo PR la reversión lógica (script SQL o migración nueva) cuando una migración sea destructiva.
 

@@ -6,24 +6,24 @@ ningún contexto de conversación previa**. Todo lo necesario está versionado e
 ## Prompt para pegar en el chat nuevo
 
 > Trabajás en `one-burger-commerce` (Next.js 16 + Prisma + Postgres, deploy en Easypanel).
-> Antes de escribir código leé, en este orden: `AGENTS.md`, `ops/project-state.md`,
-> `ops/production-readiness.md`, `ops/audit-checkout-mock.md` y **`ops/tasks/TASK-mock-adoption.md`**.
-> La tarea es la **adopción del mock completo** (rediseño de la UI pública): se copian **el orden
-> visual, los colores y los componentes** del mock, **no** su comportamiento (medido: no funciona) ni
-> sus dependencias (CDN) ni sus defectos de accesibilidad (zoom bloqueado, 0 `role`, 45 fallos de
-> contraste). **Regla dura: ningún control decorativo** — cada control queda implementado con su
-> API/estado y **cubierto por un test**, o se elimina con el motivo escrito.
-> El plan está en tareas (§4 del brief) en el **orden del mock**; `TASK-checkout-v2.md` es la tarea T5.
-> **TDD por fase y por tarea**: escribí primero el test que falla, corrélo y confirmá el rojo por la
-> razón correcta antes de implementar. Nada de código antes del test.
+> Antes de escribir código leé, en este orden: `AGENTS.md`, `ops/project-state.md` (el estado real:
+> qué está desplegado, qué se cerró y los pendientes priorizados de §4) y `ops/production-readiness.md`
+> (el runbook, con la secuencia de deploy).
+> **El programa del mock (`ops/tasks/TASK-mock-adoption.md`) está cerrado** salvo los opcionales: T1-T13
+> hechos, T8 (multi-sucursal) cerrada y el checkout v2 con sus fases 1-4 y 6 cerradas. Lo que queda son
+> los pendientes de `ops/project-state.md` §4 (varios necesitan una decisión o un dato del owner).
+> **Reglas duras**: TDD (el test que falla va primero, y se confirma el rojo por la razón correcta);
+> **ningún control decorativo** (cada control queda implementado con su API/estado y su test, o se
+> elimina con el motivo escrito); **nada de datos del negocio en el código**; verificación a 375 px y
+> 1280 px en navegador real (Playwright), no en HTML estático.
 > Ojo con dos cosas que el mock NO tiene y no se pueden perder: **nombre y WhatsApp** del cliente y
 > la **hora de retiro opcional/programable**.
 > Trabajá en español, con commits propios, y validá con `npm run test`, `lint`, `typecheck`,
 > `build` y `security:secrets` antes de cerrar cada fase. Si tocás `schema.prisma`, corré
 > `npx prisma generate` (el build local no lo regenera).
-> Lo visual se verifica en navegador real (Playwright) a 375 px y 1280 px, no en HTML estático.
 > Al terminar cada fase: actualizá `ops/project-state.md`, hacé push a `main` y confirmá que
-> el CI quedó verde. **No despliegues a producción sin pedir confirmación.**
+> el CI quedó verde. **No despliegues a producción sin pedir confirmación**: el deploy es una sola
+> llamada a `deployService` (§2 del runbook), nunca `npm run deploy:easypanel`.
 
 ## Orden de lectura (y qué responde cada documento)
 
@@ -50,11 +50,13 @@ de verdad** del cálculo ni del alcance: están sin versionar a propósito (son 
 
 ## Estado en una línea
 
-Producción viva en **https://oneburgernic.com** (landing), **https://menu.oneburgernic.com**
-(app de pedidos) y **https://admin.oneburgernic.com** (panel). Los datos del negocio ya se
-editan desde `/admin/settings`. El menú real está a medio cargar por el owner (hay una
-categoría sin productos), y las notificaciones a cocina y los backups siguen pendientes.
-Detalle y prioridades en `ops/project-state.md` §4.
+Producción viva en **https://oneburgernic.com** (el apex sirve la **app**, igual que `www`),
+**https://menu.oneburgernic.com** (app de pedidos) y **https://admin.oneburgernic.com** (panel), los
+cuatro con certificado. Los datos del negocio ya se editan desde `/admin/settings`, los **locales** y
+su catálogo por local desde `/admin/locations` (T8 cerrada) y los pedidos pueden ser **para días
+futuros**. El menú real está a medio cargar por el owner (categorías con pocos productos), y las
+notificaciones a cocina y los backups siguen pendientes. Detalle y prioridades en
+`ops/project-state.md` §4.
 
 ## Reglas mínimas que no se negocian
 
