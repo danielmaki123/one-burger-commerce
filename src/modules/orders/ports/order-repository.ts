@@ -2,6 +2,7 @@ import type {
   CouponRecord,
   DeliveryFeeStatus,
   DeliveryZoneRecord,
+  OrderPaymentMethod,
   OrderRecord,
   OrderStatusHistoryRecord,
   TableRecord,
@@ -29,6 +30,8 @@ export type CreateOrderInput = {
   /** Si el cliente programó el retiro; sin programar es "lo antes posible". */
   pickupScheduled?: boolean;
   pickupNotes?: string | null;
+  /** Forma de pago declarada por el cliente (T11). */
+  paymentMethod?: OrderPaymentMethod | null;
   tableId?: string | null;
   deliveryZoneId?: string | null;
   customerLat?: number | null;

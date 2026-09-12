@@ -53,6 +53,7 @@ export async function getPublicOrder(
     pickupTime: order.pickupTime,
     pickupScheduled: order.pickupScheduled ?? false,
     pickupNotes: order.pickupNotes,
+    paymentMethod: order.paymentMethod,
     tableId: order.tableId,
     couponCode: order.couponCode,
     deliveryZoneId: order.deliveryZoneId,

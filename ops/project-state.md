@@ -981,6 +981,35 @@ a medias**: el historial tenía datos inventados y un botón que mentía.
   platos del mock**, que el buscador filtra (y que "sushi" no encuentra nada), que "Pedir nuevamente"
   arma el carrito y que "Ver recibo" abre el detalle; a 1280 px, sin scroll horizontal.
 
+### Ola 2 · T11: la forma de pago (2026-09-12)
+
+Primera tarea de la ola 2 (aprobada por el owner). El mock tiene "Efectivo / Tarjeta·POS" en su
+checkout; el cobro sigue siendo **en el local**, así que el dato es informativo para la caja: no hay
+pasarela ni cobro online.
+
+- **Contrato nuevo**: enum `PaymentMethod` (`cash` / `card`) y columna `Order.paymentMethod` con
+  **default `cash`** (migración `add_order_payment_method`): un pedido viejo nunca queda sin forma de
+  pago. El caso de uso acepta solo esos dos valores (cualquier otro es 400 con el campo señalado) y sin
+  dato asume efectivo, que es lo más probable cuando se cobra al retirar.
+- **Dónde se ve**: el checkout pregunta "¿Cómo vas a pagar?" (tarjetas de 44 px, arranca en Efectivo),
+  la confirmación del cliente agrega la fila "Forma de pago" y el **detalle del admin** muestra el
+  chip: la caja necesita saber si preparar el vuelto.
+- **El bug que cazó el E2E, no el unitario**: el adaptador de Prisma arma el `data` campo por campo y
+  **no pasaba `paymentMethod`**, así que la API guardaba `cash` aunque el cliente hubiera elegido
+  tarjeta. El test unitario pasaba porque el adaptador en memoria sí lo persiste; se vio al consultar
+  la API con una tarjeta real (un pedido enviado como `card` volvía como `cash`). Corregido y
+  re-verificado contra la API.
+- **El patrón de los radios**: el input usa el overlay de opacidad 0 que el repo ya documentó en el
+  control de retiro (no `sr-only`): con `sr-only` queda sin caja, las herramientas no pueden tocarlo y
+  terminan clickeando la etiqueta de costado. Se probó primero con `sr-only` y falló exactamente así.
+- **El límite de pedidos ahora es configurable por entorno** (`ORDER_CREATE_RATE_LIMIT`), por el mismo
+  motivo que el del login del admin: la suite crea pedidos reales seguidos desde la misma IP y, con el
+  límite de producción (10/min), terminaba midiendo el limitador en vez del checkout. En producción
+  queda el default.
+- **Verificado en el camino real** (Postgres 17 local + `next start -p 3210` con el build nuevo):
+  **E2E completo 67 pasaron, 7 salteados, 0 fallos** (antes 66). El caso nuevo elige "Tarjeta" en el
+  checkout, confirma el pedido y comprueba que la confirmación muestra "Forma de pago: Tarjeta".
+
 ## 3. Infraestructura y secretos
 
 - `EASYPANEL_URL` y `EASYPANEL_TOKEN`: solo en el entorno de quien ejecuta el deploy (nunca
@@ -1007,7 +1036,7 @@ a medias**: el historial tenía datos inventados y un botón que mentía.
 | 8 | **Checkout sin redundancias** (textos y botones repetidos) | **Cerrada y desplegada** | `ops/tasks/TASK-checkout-ux.md`. Cuatro commits (`2832a93`…`aba4156`), en producción como `build-20260911-145656`. El checkout pasó de 807 a 476 líneas, un solo resumen compartido con el carrito, un solo CTA visible por viewport y los turnos de retiro calculados desde la configuración. |
 | 9 | **Validar el estado operativo en el servidor** | **Cerrada y desplegada** | Commits `3a67c37` y `ca474c8`, en producción como `build-20260911-154014`. `isAcceptingOrders` ya corta pedidos de verdad (antes no lo leía nadie) y la hora de retiro se valida contra el horario del día. Incluye el horario demo del seed y el límite de login del arnés E2E. |
 | 10 | **Retiro opcional y programable + la hora visible en toda la cadena** | **Cerrada y desplegada** | Commits `6f85a3c`, `c101f82`, `b207593` y `abc2183`, en producción como `build-20260911-191047`. Incluye **una migración** (`pickupScheduled`). El retiro es opcional, la hora la resuelve el servidor, el ticket de cocina y el admin la muestran, y el semáforo va contra la hora prometida. Ver el detalle arriba. |
-| 11 | **Adopción del mock completo (rediseño de la UI pública)** | **En ejecución · ola 1: T1-T7 cerradas** | [`ops/tasks/TASK-mock-adoption.md`](tasks/TASK-mock-adoption.md). Plan **aprobado** el 2026-09-12 (D-A tipografía: Plus Jakarta Sans como tercera opción · D-B ola 2 completa **sin reseñas ni delivery** · D-C orden: tokens primero y después las pantallas en el orden del mock). **Reglas del programa**: ningún control decorativo (implementado con API/estado y test, o eliminado con motivo), nada hardcodeado, la paleta como preset que pasa el test de contraste, TDD por tarea, y verificación a 375 px **y 1280 px** (el mock no tiene escritorio). **Ola 1**: T1 tokens ✅ · T2 home ✅ · T3 menú ✅ · T3.1 color por categoría ✅ · T4 producto ✅ · T5 carrito+checkout ✅ (fases 1, 3, 6 y 7; queda la vista previa de turnos de la fase 2) · T6 confirmación ✅ · T7 seguimiento e historial ✅ · **ola 1 completa: siguen las tareas de la ola 2**. **Decisiones abiertas del checkout**: D1 (pedidos para días futuros) y D2 (presets de propina). **Ola 2** (aprobada): T8 multi-sucursal, T9 promos, T10 favoritos (**descartada por el owner**: "mantengamos el login tal cual lo tenemos"; sin cuenta no hay favoritos), T11 método de pago, T12 vuelto, T13 PIN de retiro. Evidencia del mock: [`ops/audit-checkout-mock.md`](audit-checkout-mock.md). |
+| 11 | **Adopción del mock completo (rediseño de la UI pública)** | **En ejecución · ola 1 completa (T1-T7) y T11 de la ola 2** | [`ops/tasks/TASK-mock-adoption.md`](tasks/TASK-mock-adoption.md). Plan **aprobado** el 2026-09-12 (D-A tipografía: Plus Jakarta Sans como tercera opción · D-B ola 2 completa **sin reseñas ni delivery** · D-C orden: tokens primero y después las pantallas en el orden del mock). **Reglas del programa**: ningún control decorativo (implementado con API/estado y test, o eliminado con motivo), nada hardcodeado, la paleta como preset que pasa el test de contraste, TDD por tarea, y verificación a 375 px **y 1280 px** (el mock no tiene escritorio). **Ola 1**: T1 tokens ✅ · T2 home ✅ · T3 menú ✅ · T3.1 color por categoría ✅ · T4 producto ✅ · T5 carrito+checkout ✅ (fases 1, 3, 6 y 7; queda la vista previa de turnos de la fase 2) · T6 confirmación ✅ · T7 seguimiento e historial ✅ · **ola 1 completa** · T11 forma de pago ✅ · **siguen T12 (vuelto), T13 (PIN) y T8 (multi-sucursal)**. **Decisiones abiertas del checkout**: D1 (pedidos para días futuros) y D2 (presets de propina). **Ola 2** (aprobada): T8 multi-sucursal, T9 promos, T10 favoritos (**descartada por el owner**: "mantengamos el login tal cual lo tenemos"; sin cuenta no hay favoritos), T11 método de pago, T12 vuelto, T13 PIN de retiro. Evidencia del mock: [`ops/audit-checkout-mock.md`](audit-checkout-mock.md). |
 
 ## 5. Cómo continuar
 

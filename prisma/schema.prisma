@@ -255,6 +255,12 @@ enum OrderType {
   table
 }
 
+/// Cómo piensa pagar el cliente (T11). El cobro sigue siendo en el local.
+enum PaymentMethod {
+  cash
+  card
+}
+
 enum OrderStatus {
   new
   confirmed
@@ -334,6 +340,8 @@ model Order {
   pickupScheduled   Boolean            @default(false)
   pickupNotes       String?
   tableId           String?
+  /// Forma de pago declarada por el cliente (informativa para la caja).
+  paymentMethod     PaymentMethod      @default(cash)
   couponId          String?
   couponCode        String?
   subtotal          Decimal            @db.Decimal(10, 2)

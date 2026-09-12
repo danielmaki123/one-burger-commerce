@@ -53,6 +53,57 @@ function seedDeliveryZone(repository: InMemoryOrderRepository, overrides?: Parti
 }
 
 describe("createOrder", () => {
+  it("guarda la forma de pago y usa efectivo cuando no la mandan (T11)", async () => {
+    const repository = createRepository();
+    seedProduct(repository);
+
+    const card = await createOrder(
+      {
+        type: "pickup",
+        customerName: "Juan Perez",
+        customerWhatsapp: "+50588887777",
+        items: [{ productId: "prod_01", quantity: 1, modifierOptionIds: [] }],
+        paymentMethod: "card",
+      },
+      { repository },
+    );
+    expect(card.data.paymentMethod).toBe("card");
+
+    // El negocio cobra en el local: sin dato, lo más probable es el efectivo.
+    const sinDato = await createOrder(
+      {
+        type: "pickup",
+        customerName: "Ana Perez",
+        customerWhatsapp: "+50588887778",
+        items: [{ productId: "prod_01", quantity: 1, modifierOptionIds: [] }],
+      },
+      { repository },
+    );
+    expect(sinDato.data.paymentMethod).toBe("cash");
+  });
+
+  it("rechaza una forma de pago que no existe (T11)", async () => {
+    const repository = createRepository();
+    seedProduct(repository);
+
+    await expect(
+      createOrder(
+        {
+          type: "pickup",
+          customerName: "Juan Perez",
+          customerWhatsapp: "+50588887777",
+          items: [{ productId: "prod_01", quantity: 1, modifierOptionIds: [] }],
+          paymentMethod: "bitcoin" as never,
+        },
+        { repository },
+      ),
+    ).rejects.toMatchObject({
+      status: 400,
+      fields: { paymentMethod: expect.any(String) },
+    });
+    expect(repository.orders).toHaveLength(0);
+  });
+
   it("creates a delivery order with totals calculated by backend", async () => {
     const repository = createRepository();
     seedProduct(repository);

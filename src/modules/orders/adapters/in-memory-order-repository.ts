@@ -93,6 +93,7 @@ export class InMemoryOrderRepository implements OrderRepository {
       pickupTime: input.pickupTime ? input.pickupTime.toISOString() : null,
       pickupScheduled: input.pickupScheduled ?? false,
       pickupNotes: input.pickupNotes ?? null,
+      paymentMethod: input.paymentMethod ?? "cash",
       tableId: input.tableId ?? null,
       couponCode: input.couponCode ?? null,
       subtotal: input.subtotal,

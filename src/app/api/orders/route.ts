@@ -16,9 +16,22 @@ import {
 
 registerOutboxEventBusHandlers();
 
+/**
+ * Límite de pedidos por minuto y por IP.
+ *
+ * Es configurable por entorno por el mismo motivo que el del login del admin: la
+ * suite E2E crea varios pedidos reales seguidos desde la misma IP y, con el
+ * límite de producción, termina midiendo el limitador en vez del checkout. En
+ * producción queda el default.
+ */
+function resolveCreateOrderRateLimit(): number {
+  const raw = Number(process.env.ORDER_CREATE_RATE_LIMIT ?? "");
+  return Number.isInteger(raw) && raw > 0 ? raw : 10;
+}
+
 const createOrderRateLimiter = new FixedWindowRateLimiter({
   prefix: "public-create-order",
-  limit: 10,
+  limit: resolveCreateOrderRateLimit(),
   windowMs: 60_000,
 });
 
@@ -41,6 +54,8 @@ const orderSchema = z.object({
   tipOptIn: z.boolean().optional(),
   pickupTime: z.string().nullable().optional(),
   pickupNotes: z.string().nullable().optional(),
+  // Forma de pago declarada (T11): informativa, se cobra en el local.
+  paymentMethod: z.enum(["cash", "card"]).nullable().optional(),
   tableId: z.string().nullable().optional(),
   qrToken: z.string().nullable().optional(),
   deliveryZoneId: z.string().nullable().optional(),

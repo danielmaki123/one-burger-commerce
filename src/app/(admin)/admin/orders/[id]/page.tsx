@@ -9,6 +9,10 @@ import { useBusinessSettings, useCurrencyFormat } from "@/shared/lib/business-se
 import { formatCurrency } from "@/shared/lib/format-currency";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
+import {
+  PAYMENT_METHOD_LABELS,
+  type OrderPaymentMethod,
+} from "@/modules/orders/domain/order.types";
 
 import {
   AdminPickupTimingChip,
@@ -85,6 +89,8 @@ type OrderDetail = {
   /** Si el cliente programó el retiro; sin programar es "lo antes posible". */
   pickupScheduled?: boolean;
   pickupNotes?: string | null;
+  /** Forma de pago declarada por el cliente (T11). */
+  paymentMethod?: OrderPaymentMethod | null;
 };
 
 type GetOrderResponse = {
@@ -386,6 +392,10 @@ export default function AdminOrderDetailPage() {
                   </span>
                 ) : null}
                 {pickupTiming ? <AdminPickupTimingChip timing={pickupTiming} /> : null}
+                {/* La caja necesita saber si preparar el vuelto (T11). */}
+                <span className="rounded-full border border-border bg-card px-2.5 py-1 text-xs font-semibold text-foreground">
+                  {PAYMENT_METHOD_LABELS[order.paymentMethod ?? "cash"]}
+                </span>
               </div>
             ) : null}
 

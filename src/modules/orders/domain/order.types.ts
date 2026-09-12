@@ -1,5 +1,25 @@
 export type OrderType = "delivery" | "pickup" | "table";
 
+/**
+ * Forma de pago declarada por el cliente (T11).
+ *
+ * El cobro es **en el local**: esto es informativo, para que la caja sepa si
+ * preparar el vuelto o el POS. No hay pasarela ni cobro online.
+ */
+export const PAYMENT_METHODS = ["cash", "card"] as const;
+
+export type OrderPaymentMethod = (typeof PAYMENT_METHODS)[number];
+
+/** Cómo se muestra en el checkout, en la confirmación y en el admin. */
+export const PAYMENT_METHOD_LABELS: Record<OrderPaymentMethod, string> = {
+  cash: "Efectivo",
+  card: "Tarjeta",
+};
+
+export function isOrderPaymentMethod(value: unknown): value is OrderPaymentMethod {
+  return typeof value === "string" && (PAYMENT_METHODS as readonly string[]).includes(value);
+}
+
 export type DeliveryFeeStatus =
   | "pending_manual_validation"
   | "confirmed";
@@ -83,6 +103,12 @@ export type OrderRecord = {
   /** Si el cliente programó el retiro; sin programar es "lo antes posible". */
   pickupScheduled?: boolean;
   pickupNotes?: string | null;
+  /**
+   * Forma de pago declarada por el cliente (T11). Opcional en el tipo porque la
+   * columna tiene default en la base (igual que pickupScheduled): un registro
+   * viejo o parcial nunca deja la pantalla sin dato.
+   */
+  paymentMethod?: OrderPaymentMethod;
   tableId?: string | null;
   couponCode?: string | null;
   deliveryZoneId?: string | null;
@@ -115,6 +141,12 @@ export type PublicOrderDetail = {
   /** Si el cliente programó el retiro; sin programar es "lo antes posible". */
   pickupScheduled?: boolean;
   pickupNotes?: string | null;
+  /**
+   * Forma de pago declarada por el cliente (T11). Opcional en el tipo porque la
+   * columna tiene default en la base (igual que pickupScheduled): un registro
+   * viejo o parcial nunca deja la pantalla sin dato.
+   */
+  paymentMethod?: OrderPaymentMethod;
   tableId?: string | null;
   couponCode?: string | null;
   deliveryZoneId?: string | null;

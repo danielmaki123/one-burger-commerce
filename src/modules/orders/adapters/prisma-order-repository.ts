@@ -82,6 +82,8 @@ function mapOrder(order: any): OrderRecord {
     pickupTime: order.pickupTime ? order.pickupTime.toISOString() : null,
     pickupScheduled: order.pickupScheduled,
     pickupNotes: order.pickupNotes,
+    // La columna tiene default en la base: un pedido viejo nunca queda sin forma de pago.
+    paymentMethod: (order.paymentMethod ?? "cash") as OrderRecord["paymentMethod"],
     tableId: order.tableId,
     couponCode: order.couponCode,
     subtotal: decimalToNumber(order.subtotal),
@@ -150,6 +152,9 @@ export class PrismaOrderRepository implements OrderRepository {
         pickupTime: input.pickupTime ?? null,
         pickupScheduled: input.pickupScheduled ?? false,
         pickupNotes: input.pickupNotes ?? null,
+        // T11: sin esto el pedido se guardaba siempre como efectivo, aunque el
+        // cliente hubiera elegido tarjeta (lo cazó el E2E, no el unitario).
+        paymentMethod: input.paymentMethod ?? "cash",
         tableId: input.tableId ?? null,
         couponCode: input.couponCode ?? null,
         subtotal: input.subtotal,

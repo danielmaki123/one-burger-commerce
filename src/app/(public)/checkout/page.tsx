@@ -31,6 +31,11 @@ import {
 import { PickupScheduleField } from "./pickup-schedule-field";
 import { resolveWhatsappDefaultPrefix } from "@/shared/lib/whatsapp-input-value";
 import {
+  PAYMENT_METHODS,
+  PAYMENT_METHOD_LABELS,
+  type OrderPaymentMethod,
+} from "@/modules/orders/domain/order.types";
+import {
   getPublicCheckoutMobileActionClassName,
   publicCheckoutScaleClasses,
 } from "./checkout-scale-helpers";
@@ -97,6 +102,8 @@ export default function CheckoutPage() {
     customerWhatsapp: "",
     pickupTime: "",
     pickupNotes: "",
+    // Se cobra en el local: lo más probable es efectivo, y el cliente puede cambiarlo.
+    paymentMethod: "cash" as OrderPaymentMethod,
   });
 
   // El "ahora" se resuelve después de montar: en el servidor y en el cliente daría
@@ -280,6 +287,8 @@ export default function CheckoutPage() {
           modifierOptionIds: item.modifierOptionIds,
           notes: item.notes,
         })),
+        // Forma de pago declarada (T11): informativa, se cobra en el local.
+        paymentMethod: formData.paymentMethod,
       };
 
       // Sin hora = sin programar. No se manda nada y el servidor completa con
@@ -448,6 +457,44 @@ export default function CheckoutPage() {
                   ) : null}
                 </div>
               ) : null}
+
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-foreground">¿Cómo vas a pagar?</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {PAYMENT_METHODS.map((method) => {
+                    const checked = formData.paymentMethod === method;
+
+                    return (
+                      <label
+                        key={method}
+                        className={`relative flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-2xl border px-3 text-sm font-medium transition has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand has-[:focus-visible]:ring-offset-2 has-[:focus-visible]:ring-offset-background ${
+                          checked
+                            ? "border-brand bg-brand text-brand-foreground"
+                            : "border-border bg-card text-foreground"
+                        }`}
+                      >
+                        {/*
+                          El input cubre la tarjeta con opacidad 0 en vez de `sr-only`:
+                          sigue siendo un radio nativo (teclado y lector de pantalla) pero
+                          además es clickeable y automatizable. Con `sr-only` queda sin caja
+                          y las herramientas terminan clickeando la etiqueta de costado.
+                        */}
+                        <input
+                          type="radio"
+                          name="paymentMethod"
+                          value={method}
+                          checked={checked}
+                          onChange={() =>
+                            setFormData((prev) => ({ ...prev, paymentMethod: method }))
+                          }
+                          className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                        />
+                        {PAYMENT_METHOD_LABELS[method]}
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
 
               <div className="space-y-2">
                 <Input

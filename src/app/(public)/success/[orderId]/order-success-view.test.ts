@@ -81,6 +81,13 @@ describe("order success view", () => {
     expect(html).not.toContain('href="#"');
   });
 
+  it("dice cómo va a pagar el cliente (T11)", () => {
+    // El servidor guarda la forma de pago; el cliente la ve en su resumen.
+    expect(renderWith(pickupOrder({ paymentMethod: "cash" }))).toContain("Efectivo");
+    expect(renderWith(pickupOrder({ paymentMethod: "card" }))).toContain("Tarjeta");
+    expect(renderWith(pickupOrder({}))).toContain("Efectivo");
+  });
+
   it("con rango configurado le promete una franja, no un instante (T5)", () => {
     // 20:35 con 20 min de preparación y 40 de máximo: la franja es 20:35–20:55.
     const html = renderToStaticMarkup(

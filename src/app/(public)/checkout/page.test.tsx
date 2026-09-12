@@ -176,7 +176,31 @@ describe("checkout sin redundancias", () => {
     await waitFor(() => {
       expect(screen.getByText(/^Lo antes posible · listo ~/)).toBeTruthy();
     });
-    expect(screen.queryByRole("radio")).toBeNull();
+    // Los turnos no se ofrecen hasta abrir el control (los radios de la forma de
+    // pago son otra cosa y sí están).
+    expect(screen.queryByRole("radio", { name: /Lo antes posible/ })).toBeNull();
+  });
+
+  it("deja elegir la forma de pago y arranca en efectivo (T11)", async () => {
+    mockCart = { items: twoItems, subtotal: 380, clearCart: vi.fn() };
+    const user = userEvent.setup();
+
+    render(<CheckoutPage />);
+
+    const cash = screen.getByRole("radio", { name: "Efectivo" }) as HTMLInputElement;
+    const card = screen.getByRole("radio", { name: "Tarjeta" }) as HTMLInputElement;
+
+    // El cobro es en el local: lo más probable es efectivo, y el cliente puede cambiarlo.
+    expect(cash.checked).toBe(true);
+    expect(card.checked).toBe(false);
+
+    await user.click(card);
+    expect(card.checked).toBe(true);
+    expect(cash.checked).toBe(false);
+
+    // Y la copia de cómo se paga sigue apareciendo una sola vez (vive en el resumen).
+    const { container } = render(<CheckoutPage />);
+    expect(countMatches(container.innerHTML, "Pagás en el local al retirar tu pedido.")).toBe(1);
   });
 
   it("con rango configurado promete una franja y muestra dónde se retira (T5)", async () => {

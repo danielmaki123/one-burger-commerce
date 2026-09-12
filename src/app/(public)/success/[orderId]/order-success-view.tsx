@@ -8,6 +8,10 @@ import { resolveBrandImageUrl, resolveFaviconUrl } from "@/modules/business-sett
 import { formatTimeInTimeZone } from "@/modules/business-settings/domain/format-time-in-timezone";
 import { useBusinessSettings, useCurrencyFormat } from "@/shared/lib/business-settings";
 import { formatCurrency } from "@/shared/lib/format-currency";
+import {
+  PAYMENT_METHOD_LABELS,
+  type OrderPaymentMethod,
+} from "@/modules/orders/domain/order.types";
 
 type OrderModifier = {
   id: string;
@@ -43,6 +47,8 @@ export type OrderSuccessData = {
   pickupTime?: string | null;
   /** Si el cliente programó el retiro; sin programar es "lo antes posible". */
   pickupScheduled?: boolean;
+  /** Forma de pago declarada por el cliente (T11). */
+  paymentMethod?: OrderPaymentMethod | null;
 };
 
 /**
@@ -211,6 +217,10 @@ export default function OrderSuccessView({
           <div className="mt-5 space-y-4">
             <SummaryRow label="Número de pedido" value={order.orderNumber} />
             <SummaryRow label="Tipo" value={formatOrderType(order.type)} />
+            <SummaryRow
+              label="Forma de pago"
+              value={PAYMENT_METHOD_LABELS[order.paymentMethod ?? "cash"]}
+            />
             <SummaryRow label="Artículos" value={itemCountLabel} />
             {pickupLabel ? (
               <SummaryRow label="Hora de retiro" value={pickupLabel} />

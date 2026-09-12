@@ -3,7 +3,12 @@ import { DEFAULT_BUSINESS_SETTINGS } from "@/modules/business-settings/domain/bu
 import { maskWhatsapp } from "@/modules/customers/domain/mask-whatsapp";
 import { findOrCreateCustomer } from "@/modules/customers/features/find-or-create-customer/find-or-create-customer";
 import { OrderError } from "@/modules/orders/domain/order-errors";
-import type { DeliveryFeeStatus, DeliveryZoneRecord } from "@/modules/orders/domain/order.types";
+import {
+  isOrderPaymentMethod,
+  type DeliveryFeeStatus,
+  type DeliveryZoneRecord,
+  type OrderPaymentMethod,
+} from "@/modules/orders/domain/order.types";
 import { getInitialStatus } from "@/modules/orders/domain/order-workflows";
 import {
   generateOrderLookupToken,
@@ -34,6 +39,8 @@ export type CreateOrderRequest = {
   /** Si el cliente programó el retiro; `false` = lo antes posible. */
   pickupScheduled?: boolean;
   pickupNotes?: string | null;
+  /** Forma de pago declarada por el cliente (T11); sin dato se asume efectivo. */
+  paymentMethod?: OrderPaymentMethod | null;
   tableId?: string | null;
   qrToken?: string | null;
   deliveryZoneId?: string | null;
@@ -89,6 +96,17 @@ export async function createOrder(
   if (!Array.isArray(input.items) || input.items.length === 0) {
     throw new OrderError(400, "BAD_REQUEST", "Invalid payload", { items: "Required and must not be empty" });
   }
+
+  // Forma de pago (T11): informativa para la caja. Se acepta solo lo que existe y
+  // sin dato se asume efectivo, porque el cobro es en el local.
+  if (input.paymentMethod !== undefined && input.paymentMethod !== null && !isOrderPaymentMethod(input.paymentMethod)) {
+    throw new OrderError(400, "BAD_REQUEST", "Invalid payload", {
+      paymentMethod: "Must be cash or card",
+    });
+  }
+  const paymentMethod: OrderPaymentMethod = isOrderPaymentMethod(input.paymentMethod)
+    ? input.paymentMethod
+    : "cash";
 
   // Type-specific validation
   let selectedZone: DeliveryZoneRecord | null = null;
@@ -343,6 +361,7 @@ export async function createOrder(
         pickupTime: input.pickupTime ? new Date(input.pickupTime) : null,
         pickupScheduled: input.pickupScheduled ?? false,
         pickupNotes: input.pickupNotes ?? null,
+        paymentMethod,
         tableId: input.tableId ?? null,
         orderNumber,
         subtotal,

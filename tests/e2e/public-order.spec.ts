@@ -37,21 +37,22 @@ test.describe("checkout sin redundancias", () => {
     await openCheckoutWithOneProduct(page);
 
     // Por defecto no se programa nada, y el control muestra el estado en vez de esconderlo.
+    // Los radios de la forma de pago (T11) son otro control: el que no está es el del turno.
     const schedule = page.getByRole("button", { name: /^Retiro Lo antes posible · listo ~/ });
     await expect(schedule).toBeVisible();
-    await expect(page.getByRole("radio")).toHaveCount(0);
+    await expect(page.locator('input[name="pickupTimeOption"]')).toHaveCount(0);
 
     await schedule.click();
     await expect(page.getByRole("radio", { name: "Lo antes posible" })).toBeChecked();
 
     // Los turnos son los del horario configurado, calculados desde ahora + preparación.
-    const slots = page.getByRole("radio");
+    const slots = page.locator('input[name="pickupTimeOption"]');
     const slotCount = await slots.count();
     test.skip(slotCount < 2, "El local demo no tiene turnos disponibles a esta hora.");
 
     await slots.nth(slotCount - 1).click();
     // Al elegir, el control colapsa y muestra la hora elegida.
-    await expect(page.getByRole("radio")).toHaveCount(0);
+    await expect(page.locator('input[name="pickupTimeOption"]')).toHaveCount(0);
     await expect(
       page.getByRole("button", { name: /^Retiro programado \d/ }),
     ).toBeVisible();
@@ -61,7 +62,7 @@ test.describe("checkout sin redundancias", () => {
     await openCheckoutWithOneProduct(page);
 
     await page.getByRole("button", { name: /^Retiro Lo antes posible · listo ~/ }).click();
-    const slots = page.getByRole("radio");
+    const slots = page.locator('input[name="pickupTimeOption"]');
     const slotCount = await slots.count();
     test.skip(slotCount < 2, "El local demo no tiene turnos disponibles a esta hora.");
     await slots.nth(slotCount - 1).click();
@@ -164,6 +165,27 @@ test.describe("checkout sin redundancias", () => {
     await page.goto("/reservations");
     await expect(page).toHaveURL(/\/menu$/);
     await expect(page.getByRole("heading", { name: "Menú" })).toBeVisible();
+  });
+
+  test("la forma de pago viaja con el pedido y se ve en la confirmación (T11)", async ({ page }) => {
+    await openCheckoutWithOneProduct(page);
+
+    // Se cobra en el local: el checkout pregunta cómo y arranca en efectivo.
+    const cash = page.getByRole("radio", { name: "Efectivo" });
+    const card = page.getByRole("radio", { name: "Tarjeta" });
+    await expect(cash).toBeChecked();
+
+    await card.check();
+    await expect(card).toBeChecked();
+
+    await page.locator('input[name="customerName"]').fill("Cliente Tarjeta");
+    await page.locator('input[name="customerWhatsapp"]').fill("88887777");
+    await confirmButton(page).click();
+    await expect(page).toHaveURL(/\/success\/.+/);
+
+    // El cliente ve cómo va a pagar, y la caja también (lo mira el ticket del admin).
+    await expect(page.getByText("Forma de pago")).toBeVisible();
+    await expect(page.getByText("Tarjeta")).toBeVisible();
   });
 });
 
