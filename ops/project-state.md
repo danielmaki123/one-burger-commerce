@@ -1661,6 +1661,31 @@ propio campo). El cliente veía un total más alto que el que se le cobra.
 - **Verificación**: **1528 unitarios**, lint, typecheck, `npm run build`, `security:secrets` y **E2E 80
   pasaron, 7 salteados, 0 fallos**. El seed local tiene empaque 0, por eso ningún test lo veía.
 
+### Gap del total con varios locales: el checkout re-preciá con el local elegido (2026-09-12) — **cerrada**
+
+Cierra el gap que quedó declarado al terminar T8: el servidor cobra con el local elegido, pero el
+total que veía el cliente se calculaba con los precios del carrito (los del menú que miró, o sea el
+**local por defecto**). Con dos locales de precios distintos, el cliente podía ver un total y que se
+le cobre otro.
+
+- **No se reimplementó ninguna regla de precios**: el checkout pide `GET /api/menu?locationId=` —el
+  menú que el servidor **ya cotizó para ese local**— y re-preciá las líneas con ese `basePrice` más
+  los deltas de los modificadores elegidos. El empaque no depende del local y sigue en su campo.
+- **Decisión del owner sobre lo que el local no vende**: se **frena la confirmación** y se nombran los
+  platos ("En Norte no se vende: Papas Fritas. Cambiá de local o quitá esos platos del carrito"), en
+  vez de cambiarle el carrito o el total en silencio. La línea que no se puede pedir no se toca, así
+  el total no baja sin avisar.
+- Si el menú del local no llegó (o la lectura falla) se muestran los precios del carrito y **no se
+  bloquea** nada: no se frena un pedido por una lectura que falló.
+- **Hallazgo lateral, ya arreglado en `d7de7df`**: revisando esta cuenta apareció que el "+" rápido
+  contaba el empaque dos veces en el total (vivo en producción, C$35 por pedido).
+- **Verificación**: **1538 unitarios** (10 nuevos: 8 del helper puro y 2 del checkout), lint,
+  typecheck, `npm run build`, `security:secrets` y **E2E 80 pasaron, 7 salteados, 0 fallos**. El caso
+  de dos locales ahora pone un precio propio en el local de prueba y comprueba que el CTA pasa de
+  C$35 a **C$50** y vuelve, en el navegador y contra el servidor real.
+- **Fixtures alineados**: el carrito de prueba del checkout tenía `lineTotal` con empaque (la
+  semántica del bug); ahora modela lo mismo que produce la app.
+
 ## 3. Infraestructura y secretos
 
 - `EASYPANEL_URL` y `EASYPANEL_TOKEN`: solo en el entorno de quien ejecuta el deploy (nunca

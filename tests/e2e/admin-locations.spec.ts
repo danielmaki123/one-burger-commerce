@@ -196,6 +196,14 @@ test.describe("locales del admin", () => {
     await page.getByRole("button", { name: "Crear local" }).click();
     await expect(page.getByText("Local creado.")).toBeVisible();
 
+    // Y con un precio propio para el plato de prueba: es lo que hace visible que el total del
+    // checkout siga al local elegido (el servidor cobra con ese precio).
+    await page.getByRole("link", { name: `Catálogo de ${NAME}` }).click();
+    await page.getByRole("button", { name: "Editar Taco de Birria" }).click();
+    await page.getByRole("spinbutton", { name: "Precio en este local" }).fill("50");
+    await page.getByRole("button", { name: "Guardar cambios" }).click();
+    await expect(page.getByText("Producto actualizado.")).toBeVisible();
+
     try {
       await addSeedProductToCart(page);
       await page.goto("/checkout");
@@ -210,9 +218,14 @@ test.describe("locales del admin", () => {
       const pickupRow = page.getByText("Retirás en").locator("..");
       await expect(pickupRow).toContainText("Diriamba");
 
+      // Y el total pasa al precio de ese local (C$50 en vez de C$35): lo que se muestra es
+      // lo que el servidor cobra (gap del total con varios locales).
+      await expect(page.getByRole("button", { name: /Confirmar pedido • C\$50\.00/ }).first()).toBeVisible();
+
       // El pedido va al local que quede elegido al confirmar: se vuelve al principal para no
       // dejarle pedidos al local de prueba (un local con pedidos no se puede borrar).
       await page.getByRole("radio", { name: /Principal/ }).check();
+      await expect(page.getByRole("button", { name: /Confirmar pedido • C\$35\.00/ }).first()).toBeVisible();
 
       await page.locator('input[name="customerName"]').fill("Cliente Local E2E");
       await page.locator('input[name="customerWhatsapp"]').fill("88887777");

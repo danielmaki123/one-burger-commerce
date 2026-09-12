@@ -8,6 +8,12 @@ import { resolveOrderAcceptance } from "@/modules/business-settings/domain/order
 import { formatPickupAddress } from "@/modules/locations/domain/location-rules";
 import type { PublicLocation } from "@/modules/locations/features/list-public-locations/list-public-locations";
 import {
+  buildLocationPriceIndex,
+  describeMissingProducts,
+  repriceCartForLocation,
+  type LocationMenuCategory,
+} from "./location-pricing";
+import {
   buildPickupSlots,
   soonestPickupTime,
   type PickupSlot,
@@ -100,7 +106,7 @@ export default function CheckoutPage() {
   const router = useRouter();
   const settings = useBusinessSettings();
   const currency = useCurrencyFormat();
-  const { items, subtotal, clearCart } = useCart();
+  const { items, clearCart } = useCart();
 
   const itemCount = useMemo(
     () => items.reduce((sum, item) => sum + item.quantity, 0),
@@ -182,6 +188,64 @@ export default function CheckoutPage() {
       locations.find((location) => location.id === selectedLocationId) ?? locations[0] ?? null,
     [locations, selectedLocationId],
   );
+
+  /**
+   * Menú del local elegido (gap del total con varios locales): el servidor lo cotiza para
+   * ese local, así que el checkout re-preciá el carrito con esos precios en vez de mostrar
+   * los del menú que el cliente miró. Sin locales cargados no hace falta: los precios son
+   * los del negocio y los del carrito coinciden.
+   */
+  const [locationMenu, setLocationMenu] = useState<LocationMenuCategory[] | null>(null);
+
+  useEffect(() => {
+    if (!selectedLocation) {
+      setLocationMenu(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadLocationMenu(locationId: string) {
+      try {
+        const response = await fetch(`/api/menu?locationId=${encodeURIComponent(locationId)}`, {
+          cache: "no-store",
+        });
+        if (!response.ok) throw new Error(`status ${response.status}`);
+
+        const json = await response.json();
+        if (!cancelled) setLocationMenu(Array.isArray(json?.categories) ? json.categories : []);
+      } catch {
+        // Sin el menú del local se muestran los precios del carrito: no se bloquea un pedido
+        // por una lectura que falló.
+        if (!cancelled) setLocationMenu(null);
+      }
+    }
+
+    void loadLocationMenu(selectedLocation.id);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedLocation]);
+
+  const locationPriceIndex = useMemo(
+    () => buildLocationPriceIndex(locationMenu),
+    [locationMenu],
+  );
+
+  /** Las líneas con el precio del local elegido, y lo que ese local no vende. */
+  const pricedCart = useMemo(
+    () => repriceCartForLocation(items, locationPriceIndex),
+    [items, locationPriceIndex],
+  );
+  const pricedSubtotal = useMemo(
+    () => pricedCart.items.reduce((sum, item) => sum + item.lineTotal, 0),
+    [pricedCart],
+  );
+  const missingAtLocationMessage =
+    pricedCart.missing.length > 0
+      ? describeMissingProducts(selectedLocation?.name ?? null, pricedCart.missing)
+      : null;
 
   /** De dónde sale el retiro: el local elegido o, si no hay ninguno, la configuración. */
   const pickupSource = useMemo(
@@ -316,12 +380,16 @@ export default function CheckoutPage() {
   ]);
 
   const orderingBlocked =
-    (acceptance !== null && !acceptance.accepted) || pickupDayUnavailableMessage !== null;
-  const orderingBlockedMessage = pickupDayUnavailableMessage
-    ? pickupDayUnavailableMessage
-    : acceptance && !acceptance.accepted
-      ? acceptance.message
-      : "";
+    (acceptance !== null && !acceptance.accepted) ||
+    pickupDayUnavailableMessage !== null ||
+    missingAtLocationMessage !== null;
+  const orderingBlockedMessage = missingAtLocationMessage
+    ? missingAtLocationMessage
+    : pickupDayUnavailableMessage
+      ? pickupDayUnavailableMessage
+      : acceptance && !acceptance.accepted
+        ? acceptance.message
+        : "";
   const todayHours = formatTodayHours(pickupSource.businessHours, new Date(), settings.timezone);
   const selectedDayHours = selectedDay
     ? formatDayHours(pickupSource.businessHours, selectedDay)
@@ -359,13 +427,13 @@ export default function CheckoutPage() {
   }, [submitError]);
 
   const packagingItems = useMemo(
-    () => items.map((item) => ({ packagingTotalAmount: item.packagingTotalAmount })),
-    [items],
+    () => pricedCart.items.map((item) => ({ packagingTotalAmount: item.packagingTotalAmount })),
+    [pricedCart],
   );
   const estimatedTotals = useMemo(
     () =>
       calculateOrderTotals({
-        subtotal,
+        subtotal: pricedSubtotal,
         discount: 0,
         deliveryFeeAmount: 0,
         items: packagingItems,
@@ -373,12 +441,12 @@ export default function CheckoutPage() {
         orderType: ORDER_TYPE,
         tipRate,
       }),
-    [packagingItems, subtotal, tipOptIn, tipEnabled, tipRate],
+    [packagingItems, pricedSubtotal, tipOptIn, tipEnabled, tipRate],
   );
   const tipPreviewAmount = useMemo(
     () =>
       calculateOrderTotals({
-        subtotal,
+        subtotal: pricedSubtotal,
         discount: 0,
         deliveryFeeAmount: 0,
         items: packagingItems,
@@ -386,7 +454,7 @@ export default function CheckoutPage() {
         orderType: ORDER_TYPE,
         tipRate,
       }).tipAmount,
-    [packagingItems, subtotal, tipRate],
+    [packagingItems, pricedSubtotal, tipRate],
   );
 
   const totalLabel = formatCurrency(estimatedTotals.total, currency);
@@ -457,7 +525,7 @@ export default function CheckoutPage() {
     ? describeCouponLabel(appliedCoupon, settings.currencySymbol)
     : null;
   const appliedCouponDiscount = appliedCoupon
-    ? estimateCouponDiscount({ coupon: appliedCoupon, subtotal })
+    ? estimateCouponDiscount({ coupon: appliedCoupon, subtotal: pricedSubtotal })
     : null;
 
   const handleInputChange = (
@@ -668,8 +736,11 @@ export default function CheckoutPage() {
                 <p className="text-sm font-medium text-foreground">Hora de retiro</p>
                 {/* El control se esconde solo cuando el pedido no se puede hacer por el
                     negocio o el local (ahí no hay nada que elegir). Si el problema es el
-                    **día** elegido, el control se queda: es donde se cambia de día. */}
-                {orderingBlocked && !pickupDayUnavailableMessage ? (
+                    **día** elegido o un plato que ese local no vende, el control se queda:
+                    es donde se cambia de día. */}
+                {orderingBlocked &&
+                !pickupDayUnavailableMessage &&
+                !missingAtLocationMessage ? (
                   <p
                     role="status"
                     className="rounded-2xl border border-border bg-cream/60 p-3 text-sm leading-5 text-foreground"
@@ -920,13 +991,25 @@ export default function CheckoutPage() {
               {submitError}
             </div>
           ) : null}
+
+          {/* El local elegido no vende alguno de los platos del carrito: se explica con
+              nombres y no se deja confirmar, en vez de mostrar un total que el servidor va
+              a recalcular (o rechazar). */}
+          {missingAtLocationMessage ? (
+            <p
+              role="status"
+              className="rounded-2xl border border-danger-strong/30 bg-danger p-4 text-sm text-danger-foreground"
+            >
+              {missingAtLocationMessage}
+            </p>
+          ) : null}
         </div>
 
         <aside className="space-y-4 lg:sticky lg:top-24">
           <OrderSummaryCard
-            items={items}
+            items={pricedCart.items}
             itemCount={itemCount}
-            subtotal={subtotal}
+            subtotal={pricedSubtotal}
             packagingAmount={estimatedTotals.packagingAmount}
             tipAmount={estimatedTotals.tipAmount}
             tipRate={estimatedTotals.tipRate ?? tipRate}

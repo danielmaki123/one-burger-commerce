@@ -43,7 +43,7 @@ const twoItems: CartItem[] = [
     packagingUnitAmount: 10,
     packagingTotalAmount: 10,
     modifierOptionIds: [],
-    lineTotal: 210,
+    lineTotal: 200,
   },
   {
     productId: "prod-2",
@@ -53,7 +53,7 @@ const twoItems: CartItem[] = [
     packagingUnitAmount: 5,
     packagingTotalAmount: 10,
     modifierOptionIds: [],
-    lineTotal: 170,
+    lineTotal: 160,
   },
 ];
 
@@ -100,7 +100,7 @@ describe("checkout sin redundancias", () => {
   });
 
   it("dice cada cosa una sola vez", () => {
-    mockCart = { items: twoItems, subtotal: 380, clearCart: vi.fn() };
+    mockCart = { items: twoItems, subtotal: 360, clearCart: vi.fn() };
 
     const { container } = render(<CheckoutPage />);
     const html = container.innerHTML;
@@ -126,7 +126,7 @@ describe("checkout sin redundancias", () => {
   });
 
   it("muestra el CTA de escritorio y el de móvil en contenedores exclusivos", () => {
-    mockCart = { items: twoItems, subtotal: 380, clearCart: vi.fn() };
+    mockCart = { items: twoItems, subtotal: 360, clearCart: vi.fn() };
 
     const { container } = render(<CheckoutPage />);
 
@@ -136,7 +136,7 @@ describe("checkout sin redundancias", () => {
   });
 
   it("lista el pedido completo, no solo el primer producto", () => {
-    mockCart = { items: twoItems, subtotal: 380, clearCart: vi.fn() };
+    mockCart = { items: twoItems, subtotal: 360, clearCart: vi.fn() };
 
     render(<CheckoutPage />);
 
@@ -146,7 +146,7 @@ describe("checkout sin redundancias", () => {
   });
 
   it("avisa cómo se paga una sola vez y con el texto del negocio", () => {
-    mockCart = { items: twoItems, subtotal: 380, clearCart: vi.fn() };
+    mockCart = { items: twoItems, subtotal: 360, clearCart: vi.fn() };
 
     const { container } = render(<CheckoutPage />);
 
@@ -156,7 +156,7 @@ describe("checkout sin redundancias", () => {
   });
 
   it("no arranca con el botón deshabilitado", () => {
-    mockCart = { items: twoItems, subtotal: 380, clearCart: vi.fn() };
+    mockCart = { items: twoItems, subtotal: 360, clearCart: vi.fn() };
 
     render(<CheckoutPage />);
 
@@ -167,7 +167,7 @@ describe("checkout sin redundancias", () => {
 
   it("al tocar con datos faltantes señala el campo, lo enfoca y muestra un solo aviso", async () => {
     const user = userEvent.setup();
-    mockCart = { items: twoItems, subtotal: 380, clearCart: vi.fn() };
+    mockCart = { items: twoItems, subtotal: 360, clearCart: vi.fn() };
 
     render(<CheckoutPage />);
     await user.click(confirmButtons()[0]);
@@ -181,7 +181,7 @@ describe("checkout sin redundancias", () => {
   });
 
   it("arranca sin programar el retiro", async () => {
-    mockCart = { items: twoItems, subtotal: 380, clearCart: vi.fn() };
+    mockCart = { items: twoItems, subtotal: 360, clearCart: vi.fn() };
 
     render(<CheckoutPage />);
 
@@ -194,7 +194,7 @@ describe("checkout sin redundancias", () => {
   });
 
   it("deja elegir la forma de pago y arranca en efectivo (T11)", async () => {
-    mockCart = { items: twoItems, subtotal: 380, clearCart: vi.fn() };
+    mockCart = { items: twoItems, subtotal: 360, clearCart: vi.fn() };
     const user = userEvent.setup();
 
     render(<CheckoutPage />);
@@ -216,7 +216,7 @@ describe("checkout sin redundancias", () => {
   });
 
   it("con rango configurado promete una franja y muestra dónde se retira (T5)", async () => {
-    mockCart = { items: twoItems, subtotal: 380, clearCart: vi.fn() };
+    mockCart = { items: twoItems, subtotal: 360, clearCart: vi.fn() };
 
     render(
       <BusinessSettingsProvider
@@ -244,7 +244,7 @@ describe("checkout sin redundancias", () => {
   });
 
   it("sin dirección configurada no inventa la fila del punto de retiro (T5)", async () => {
-    mockCart = { items: twoItems, subtotal: 380, clearCart: vi.fn() };
+    mockCart = { items: twoItems, subtotal: 360, clearCart: vi.fn() };
 
     render(
       <BusinessSettingsProvider
@@ -259,7 +259,7 @@ describe("checkout sin redundancias", () => {
   });
 
   it("bloquea el pedido cuando el negocio no está aceptando pedidos", () => {
-    mockCart = { items: twoItems, subtotal: 380, clearCart: vi.fn() };
+    mockCart = { items: twoItems, subtotal: 360, clearCart: vi.fn() };
 
     render(
       <BusinessSettingsProvider
@@ -287,7 +287,7 @@ describe("checkout sin redundancias", () => {
     // pero el pedido entra 21:45, dentro del horario. Bloquearlo era el checkout siendo
     // más estricto que el servidor.
     vi.setSystemTime(new Date("2026-09-11T21:20:00-06:00"));
-    mockCart = { items: twoItems, subtotal: 380, clearCart: vi.fn() };
+    mockCart = { items: twoItems, subtotal: 360, clearCart: vi.fn() };
 
     render(<CheckoutPage />);
 
@@ -301,7 +301,7 @@ describe("checkout sin redundancias", () => {
     // Después del cierre (22:00): no hay turno posible, a diferencia de las 03:00,
     // donde el local todavía no abrió pero se puede pedir para la hora de apertura.
     vi.setSystemTime(new Date("2026-09-11T23:00:00-06:00"));
-    mockCart = { items: twoItems, subtotal: 380, clearCart: vi.fn() };
+    mockCart = { items: twoItems, subtotal: 360, clearCart: vi.fn() };
 
     render(<CheckoutPage />);
 
@@ -315,7 +315,7 @@ describe("checkout sin redundancias", () => {
 
   it("sin programar no manda hora de retiro: la calcula el servidor", async () => {
     const user = userEvent.setup();
-    mockCart = { items: twoItems, subtotal: 380, clearCart: vi.fn() };
+    mockCart = { items: twoItems, subtotal: 360, clearCart: vi.fn() };
     stubOrderResponse();
 
     render(<CheckoutPage />);
@@ -338,7 +338,7 @@ describe("checkout sin redundancias", () => {
 
   it("el monto con el que paga solo aparece en efectivo y viaja con el pedido (T12)", async () => {
     const user = userEvent.setup();
-    mockCart = { items: twoItems, subtotal: 380, clearCart: vi.fn() };
+    mockCart = { items: twoItems, subtotal: 360, clearCart: vi.fn() };
     stubOrderResponse();
 
     render(<CheckoutPage />);
@@ -350,9 +350,9 @@ describe("checkout sin redundancias", () => {
     await user.click(screen.getByRole("radio", { name: "Efectivo" }));
     const paidWith = screen.getByLabelText(/Con cuánto vas a pagar/);
 
-    // El total del carrito de prueba es 380 de subtotal + 20 de empaque = 400.
+    // El carrito de prueba: 360 de productos (200 + 2×80, sin empaque) + 20 de empaque = 380.
     await user.type(paidWith, "430");
-    expect(screen.getByText(/Cambio estimado: C\$30\.00/)).toBeTruthy();
+    expect(screen.getByText(/Cambio estimado: C\$50\.00/)).toBeTruthy();
 
     // Un monto que no alcanza se avisa y no se manda.
     await user.clear(paidWith);
@@ -375,7 +375,7 @@ describe("checkout sin redundancias", () => {
 
   it("valida el código de promo antes de confirmar y lo manda con el pedido (T9b)", async () => {
     const user = userEvent.setup();
-    mockCart = { items: twoItems, subtotal: 380, clearCart: vi.fn() };
+    mockCart = { items: twoItems, subtotal: 360, clearCart: vi.fn() };
 
     // El servidor dice que el código sirve y devuelve su forma pública.
     vi.stubGlobal(
@@ -407,7 +407,7 @@ describe("checkout sin redundancias", () => {
               type: "pickup",
               status: "new",
               total: 380,
-              subtotal: 380,
+              subtotal: 360,
               orderLookupToken: "token-1",
             },
           }),
@@ -439,7 +439,7 @@ describe("checkout sin redundancias", () => {
 
   it("un código que no sirve se avisa antes de confirmar (T9b)", async () => {
     const user = userEvent.setup();
-    mockCart = { items: twoItems, subtotal: 380, clearCart: vi.fn() };
+    mockCart = { items: twoItems, subtotal: 360, clearCart: vi.fn() };
 
     vi.stubGlobal(
       "fetch",
@@ -460,7 +460,7 @@ describe("checkout sin redundancias", () => {
 
   it("programar una hora la manda en el pedido", async () => {
     const user = userEvent.setup();
-    mockCart = { items: twoItems, subtotal: 380, clearCart: vi.fn() };
+    mockCart = { items: twoItems, subtotal: 360, clearCart: vi.fn() };
     stubOrderResponse();
 
     render(<CheckoutPage />);
@@ -485,8 +485,64 @@ describe("checkout sin redundancias", () => {
     expect(body.pickupTime).toBe("2026-09-12T02:00:00.000Z");
   });
 
+  /**
+   * Gap del total con varios locales: el servidor cobra con el local elegido y el checkout
+   * mostraba los precios del carrito (los del menú que el cliente miró). Ahora re-preciá con
+   * el menú que el servidor cotiza para ese local, y si el local no vende un plato, frena y
+   * lo dice con nombres.
+   */
+  it("el total se re-precia con los precios del local elegido (T8)", async () => {
+    const user = userEvent.setup();
+    mockCart = { items: twoItems, subtotal: 360, clearCart: vi.fn() };
+    stubLocationsWithMenus({
+      menusByLocation: {
+        loc_norte: [
+          {
+            products: [
+              { id: "prod-1", basePrice: 250, modifierGroups: [] },
+              { id: "prod-2", basePrice: 100, modifierGroups: [] },
+            ],
+          },
+        ],
+      },
+    });
+
+    render(<CheckoutPage />);
+
+    // Con el local por defecto, sin menú cotizado, se muestran los precios del carrito:
+    // 360 + 20 de empaque = 380.
+    await waitFor(() => expect(confirmButtons()[0].textContent).toContain("C$380.00"));
+
+    await user.click(await screen.findByRole("radio", { name: /Norte/ }));
+
+    // En el Norte: 250 + 2×100 = 450 de productos, + 20 de empaque = 470.
+    await waitFor(() => expect(confirmButtons()[0].textContent).toContain("C$470.00"));
+  });
+
+  it("un local que no vende un plato del carrito frena la confirmación y lo nombra (T8)", async () => {
+    const user = userEvent.setup();
+    mockCart = { items: twoItems, subtotal: 360, clearCart: vi.fn() };
+    stubLocationsWithMenus({
+      menusByLocation: {
+        loc_norte: [{ products: [{ id: "prod-1", basePrice: 200, modifierGroups: [] }] }],
+      },
+    });
+
+    render(<CheckoutPage />);
+    await user.click(await screen.findByRole("radio", { name: /Norte/ }));
+
+    expect(
+      await screen.findByText(
+        "En Norte no se vende: Papas Fritas. Cambiá de local o quitá esos platos del carrito.",
+      ),
+    ).toBeTruthy();
+    await waitFor(() => expect(confirmButtons()[0].hasAttribute("disabled")).toBe(true));
+    // No se manda nada: el servidor tampoco lo aceptaría.
+    expect(fetch).not.toHaveBeenCalledWith("/api/orders", expect.anything());
+  });
+
   it("con un solo local no dibuja el selector y el retiro sale de ese local (T8)", async () => {
-    mockCart = { items: twoItems, subtotal: 380, clearCart: vi.fn() };
+    mockCart = { items: twoItems, subtotal: 360, clearCart: vi.fn() };
     stubLocationsResponse([
       {
         id: "loc_principal",
@@ -508,7 +564,7 @@ describe("checkout sin redundancias", () => {
 
   it("con varios locales deja elegir y manda el local del retiro (T8)", async () => {
     const user = userEvent.setup();
-    mockCart = { items: twoItems, subtotal: 380, clearCart: vi.fn() };
+    mockCart = { items: twoItems, subtotal: 360, clearCart: vi.fn() };
     stubLocationsResponse([
       {
         id: "loc_principal",
@@ -549,7 +605,7 @@ describe("checkout sin redundancias", () => {
     expect(body.locationId).toBe("loc_norte");
   });
 
-  it("un local que dejó de recibir pedidos bloquea el checkout (T8)", async () => {    mockCart = { items: twoItems, subtotal: 380, clearCart: vi.fn() };
+  it("un local que dejó de recibir pedidos bloquea el checkout (T8)", async () => {    mockCart = { items: twoItems, subtotal: 360, clearCart: vi.fn() };
     stubLocationsResponse([
       {
         id: "loc_principal",
@@ -577,7 +633,7 @@ describe("checkout sin redundancias", () => {
    */
   it("elegir otro día muestra los turnos de ese día y manda su hora (D1)", async () => {
     const user = userEvent.setup();
-    mockCart = { items: twoItems, subtotal: 380, clearCart: vi.fn() };
+    mockCart = { items: twoItems, subtotal: 360, clearCart: vi.fn() };
     stubOrderResponse();
 
     render(<CheckoutPage />);
@@ -615,7 +671,7 @@ describe("checkout sin redundancias", () => {
 
   it("un día que el negocio no atiende no deja confirmar (D1)", async () => {
     const user = userEvent.setup();
-    mockCart = { items: twoItems, subtotal: 380, clearCart: vi.fn() };
+    mockCart = { items: twoItems, subtotal: 360, clearCart: vi.fn() };
     stubOrderResponse();
 
     render(
@@ -657,10 +713,74 @@ function stubOrderResponse() {
           type: "pickup",
           status: "new",
           total: 380,
-          subtotal: 380,
+          subtotal: 360,
           orderLookupToken: "token-1",
         },
       }),
+    }),
+  );
+}
+
+/**
+ * Checkout con locales y el menú que el servidor cotiza para cada uno (`?locationId=`).
+ * Sin `menusByLocation` ese local queda sin menú cotizado y se usan los precios del carrito.
+ */
+function stubLocationsWithMenus(options: {
+  menusByLocation?: Record<string, unknown[]>;
+  locations?: Record<string, unknown>[];
+}) {
+  const locations = options.locations ?? [
+    {
+      id: "loc_principal",
+      name: "Principal",
+      addressLine: "Frente al parque",
+      city: "Jinotepe",
+      pickupLeadMinutes: 25,
+      pickupMaxMinutes: null,
+      isAcceptingOrders: true,
+    },
+    {
+      id: "loc_norte",
+      name: "Norte",
+      addressLine: "Carretera sur",
+      city: "Diriamba",
+      pickupLeadMinutes: 40,
+      pickupMaxMinutes: null,
+      isAcceptingOrders: true,
+    },
+  ];
+
+  vi.stubGlobal(
+    "fetch",
+    vi.fn((url: string) => {
+      const target = String(url);
+
+      if (target === "/api/locations") {
+        return Promise.resolve({ ok: true, json: async () => ({ data: locations }) });
+      }
+
+      if (target.startsWith("/api/menu?locationId=")) {
+        const id = decodeURIComponent(target.split("=")[1] ?? "");
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ categories: options.menusByLocation?.[id] ?? [] }),
+        });
+      }
+
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({
+          data: {
+            id: "order-1",
+            orderNumber: "OB-1",
+            type: "pickup",
+            status: "new",
+            total: 380,
+            subtotal: 360,
+            orderLookupToken: "token-1",
+          },
+        }),
+      });
     }),
   );
 }
@@ -686,7 +806,7 @@ function stubLocationsResponse(locations: Record<string, unknown>[]) {
             type: "pickup",
             status: "new",
             total: 380,
-            subtotal: 380,
+            subtotal: 360,
             orderLookupToken: "token-1",
           },
         }),
