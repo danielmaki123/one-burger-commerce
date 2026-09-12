@@ -479,9 +479,10 @@ describe("checkout sin redundancias", () => {
     const body = JSON.parse(
       orderRequest(vi.mocked(fetch).mock.calls).body as string,
     );
-    const scheduled = new Date(body.pickupTime);
-    expect(scheduled.getHours()).toBe(20);
-    expect(scheduled.getMinutes()).toBe(0);
+    // El instante exacto: 8:00 p. m. del viernes 11 en Managua (UTC-6) son las 02:00 UTC del
+    // 12. Antes esto se afirmaba con `getHours()`, o sea en la zona del equipo que corre el
+    // test: pasaba en una máquina en UTC-6 y fallaba en CI (UTC) con "expected 2 to be 20".
+    expect(body.pickupTime).toBe("2026-09-12T02:00:00.000Z");
   });
 
   it("con un solo local no dibuja el selector y el retiro sale de ese local (T8)", async () => {
