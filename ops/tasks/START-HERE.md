@@ -32,7 +32,11 @@ hace falta nada de conversaciones anteriores. Si algo acá contradice a `AGENTS.
 > `test:e2e:prod:hosts` (los dos son de solo lectura).
 >
 > **Por dónde empezar:** preguntale al owner qué tarea sigue, o tomá la primera de la cola de §4
-> (abajo) que no necesite datos suyos. Si algo del brief no cierra, decilo antes de codear.
+> (abajo). Ojo: **hoy los pendientes que quedan necesitan algo del owner** (elegir el servicio de
+> monitoreo, corregir datos de los locales, el OK de otro administrador del panel, cargar la carta), así
+> que lo primero es preguntarle — no inventes trabajo para no quedar quieto. Si el owner dice «procedé
+> con lo que puedas», tomá el pendiente que menos dependa de él y explicá qué falta cuando lo cierres.
+> Si algo del brief no cierra, decilo antes de codear.
 
 ## 2. Orden de lectura (qué responde cada documento)
 
