@@ -20,13 +20,14 @@
 | Repo | `github.com/danielmaki123/one-burger-commerce`, rama de deploy `main` |
 | DNS | `oneburgernic.com` y `www` → `76.13.250.83` (registros A) |
 
-**Verificación al cierre de esta etapa**: 827 tests unitarios, lint, typecheck y build en
-verde; CI (`verify` + `migrations` + `container` + `publish`) verde; smoke productivo 4/4
-en producción y APIs fuera del MVP devolviendo 404.
+**Verificación al cierre de esta etapa** (2026-09-12): **1547 tests unitarios**, lint, typecheck,
+`build` y `security:secrets` en verde; CI (`verify` + `migrations` + `container` + `publish`) verde en
+cada push; smoke productivo **4/4** en los cuatro dominios. El detalle de cada fase cerrada está en §2.
 
-**Estado del catálogo:** el owner ya entró al admin y creó la categoría `ONE BURGER`
-(todavía sin subcategorías ni productos). El menú público responde pero está vacío de
-productos: es el primer pendiente de contenido.
+**Estado del catálogo** (revisado contra producción el 2026-09-12): el owner cargó **2 categorías con
+6 productos** (4 hamburguesas con C$35 de empaque y 2 bebidas). El menú público los muestra con sus
+precios. **Pendiente de contenido**: fotos y el resto de la carta; la carga la hace el owner desde
+`/admin/menu` (no hay subida de archivos: las fotos son URLs externas).
 
 ## 2. Qué se cerró en esta etapa
 
