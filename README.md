@@ -35,7 +35,12 @@ BASE_URL=https://oneburgernic.com npm run test:e2e:prod:hosts
 ## Alcance MVP
 
 - Publico: home, menu, detalle de producto, carrito, checkout pickup, confirmacion y seguimiento del pedido.
-- Admin: ordenes, menu, usuarios y **personalizacion del negocio** (`/admin/settings`).
+- **Locales (multi-sucursal)**: si el negocio tiene mas de uno, el cliente elige donde retira; cada
+  local tiene su direccion, su horario, su preparacion y **su propio menu y precios** (modulo
+  `locations`, T8). El pedido guarda el local y lo muestra en la confirmacion, el historial y el admin.
+- **Retiro programable**: el cliente puede elegir una hora del dia o **un dia futuro** (sin tope: el
+  limite es el horario de ese dia) y el servidor valida la hora contra el horario del dia elegido.
+- Admin: ordenes (con filtro por local), menu, usuarios y **personalizacion del negocio** (`/admin/settings`).
 - Roles: `owner`, `manager`, `kitchen`.
 - Pago: se cobra **en el local al retirar**. No hay pasarela de pago.
 - Propina: opcional, desmarcada por defecto, **porcentaje configurable** desde el admin
@@ -53,7 +58,8 @@ contacto, direccion, horarios, moneda, propina y textos operativos salen de la f
 de `BusinessSettings` y se editan en `/admin/settings` (solo `owner`). Los cambios se ven
 en la siguiente carga del sitio publico, sin redeploy.
 
-- Modulo: `src/modules/business-settings/` (leer su `README.md`).
+- Modulo: `src/modules/business-settings/` (leer su `README.md`). Los **locales** (dirección,
+  horario, contacto, catálogo y precios por sucursal) están en `src/modules/locations/README.md`.
 - Valores por defecto: `domain/business-settings-defaults.ts`, el unico lugar del codigo
   donde pueden vivir esos literales. Un test de contrato
   (`anti-hardcode-contract.test.ts`) falla si reaparecen en otra superficie.
@@ -67,11 +73,17 @@ npm run lint
 npm run typecheck
 npm run build
 npm run security:secrets
+# Si tocaste una pagina (`src/app/**/page.tsx`): el build de Turbopack no valida los exports de
+# una pagina, el de Webpack si.
+npm run build:webpack
 ```
 
 ## Operacion
 
-- Deploy y runbook de produccion: [`ops/production-readiness.md`](ops/production-readiness.md)
-- Deploy en Easypanel (detalle de la API): [`ops/easypanel-production.md`](ops/easypanel-production.md)
+- Deploy y runbook de produccion (secuencia exacta, dominio por dominio):
+  [`ops/production-readiness.md`](ops/production-readiness.md). El deploy es **una sola llamada** a
+  `deployService`; no usar `npm run deploy:easypanel`.
+- `ops/easypanel-production.md` es **histórico**: describe el primer proyecto abandonado
+  (`oneburguer`/`web`), no la producción actual.
 - El contenedor valida el entorno al arrancar y aborta si falta `DATABASE_URL`, `DIRECT_URL`, `APP_ENV` o `NODE_ENV`, o si quedaron activos interruptores de debug de OTP.
 - Healthcheck del contenedor: `GET /api/readiness` (hace un `SELECT 1` real y responde 503 si la base no responde).

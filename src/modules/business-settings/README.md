@@ -26,7 +26,11 @@ features/
   update-business-settings/
 ```
 
-Una sola fila (`id = "default"`): no hay multi-sucursal en el MVP.
+Una sola fila (`id = "default"`): la configuración del negocio es única. Lo que **sí** es por
+sucursal (dirección, contacto, horario, minutos de preparación, si acepta pedidos y qué productos y a
+qué precios) vive en el módulo **`locations`** (T8) y esta fila queda como **respaldo** cuando el
+negocio no tiene ningún local cargado. La **zona horaria** sigue siendo del negocio: el horario de
+cada local se interpreta en ella.
 
 ## Reglas
 
