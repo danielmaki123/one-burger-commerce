@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  WHATSAPP_DEFAULT_PREFIX,
   WHATSAPP_PREFIX_OPTIONS,
   buildWhatsappValue,
   isCompleteWhatsappInput,
@@ -23,17 +22,22 @@ describe("prefijo por defecto del WhatsApp (T5)", () => {
     expect(resolveWhatsappDefaultPrefix("+593999999999")).toBe("+593");
   });
 
-  it("sin teléfono configurado cae al respaldo", () => {
-    expect(resolveWhatsappDefaultPrefix(null)).toBe(WHATSAPP_DEFAULT_PREFIX);
-    expect(resolveWhatsappDefaultPrefix(undefined)).toBe(WHATSAPP_DEFAULT_PREFIX);
-    expect(resolveWhatsappDefaultPrefix("")).toBe(WHATSAPP_DEFAULT_PREFIX);
+  it("sin teléfono configurado no asume ningún país", () => {
+    // Fase 6 del checkout: antes caía a `+505` (Nicaragua) escrito a mano, que es
+    // exactamente el dato del negocio que una plataforma whitelabel no puede fijar. Sin
+    // teléfono no se sabe el país, así que se pide.
+    expect(resolveWhatsappDefaultPrefix(null)).toBeNull();
+    expect(resolveWhatsappDefaultPrefix(undefined)).toBeNull();
+    expect(resolveWhatsappDefaultPrefix("")).toBeNull();
+    expect(resolveWhatsappDefaultPrefix("   ")).toBeNull();
   });
 
-  it("un input vacío usa el prefijo del negocio", () => {
+  it("un input vacío usa el prefijo del negocio o ninguno", () => {
     expect(parseWhatsappValue("", "+506").prefix).toBe("+506");
     expect(parseWhatsappValue("", "+506").localNumber).toBe("");
-    // Sin prefijo explícito sigue el respaldo de siempre.
-    expect(parseWhatsappValue("").prefix).toBe(WHATSAPP_DEFAULT_PREFIX);
+    // Sin prefijo del negocio, el campo arranca sin país (lo elige el cliente).
+    expect(parseWhatsappValue("").prefix).toBe("");
+    expect(parseWhatsappValue("").localNumber).toBe("");
   });
 });
 

@@ -1608,6 +1608,18 @@ turno del día equivocado.
   el cliente del resumen tienen la zona fija. Es la próxima instancia a resolver cuando se toque el
   tablero; no se hizo acá para no mezclar dos superficies en un commit.
 
+### Checkout fase 6: el prefijo de WhatsApp deja de asumir Nicaragua (2026-09-12) — **cerrada (queda D3)**
+
+- El prefijo del campo de WhatsApp ya salía del **teléfono del negocio** (T5); lo que quedaba era el
+  respaldo cuando el negocio todavía no cargó ninguno: `+505` escrito a mano, más la ayuda del campo
+  ("si tu número no es de Nicaragua"). `resolveWhatsappDefaultPrefix` ahora devuelve `null` sin
+  teléfono y el campo arranca en **"Otro"** pidiendo el prefijo internacional: sin dato del negocio,
+  la plataforma no elige país. La ayuda pasó a "Elegí el prefijo internacional de tu número".
+- **Verificación**: **1527 unitarios** (3 del componente nuevos, 2 del helper reescritos), lint,
+  typecheck, `npm run build`, `security:secrets` y **E2E 80 pasaron, 7 salteados, 0 fallos**.
+- **D3 sigue abierto** (decisión del owner): qué hacer con `mockup/` y `stitch_full_pwa_builder/`
+  (están en `.gitignore`; son el material de referencia del mock).
+
 ## 3. Infraestructura y secretos
 
 - `EASYPANEL_URL` y `EASYPANEL_TOKEN`: solo en el entorno de quien ejecuta el deploy (nunca

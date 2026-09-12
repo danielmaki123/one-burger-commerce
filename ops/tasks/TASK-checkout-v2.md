@@ -293,13 +293,20 @@ No se hace. Se mantiene una sola tasa configurable (`settings.tipRate`) y el ser
 el monto, que es el invariante que importa. El mock premarca 10 % y lo calcula sobre subtotal +
 empaque; nosotros no copiamos ninguna de las dos cosas.
 
-### Fase 6 — Deuda menor del área · **incluye D3**
+### Fase 6 — Deuda menor del área · **incluye D3** — **prefijo cerrado (2026-09-12); D3 pendiente del owner**
 
-- **El prefijo de WhatsApp por defecto está fijo en `+505`**
+- **El prefijo de WhatsApp por defecto está fijo en `+505`
   (`src/shared/lib/whatsapp-input-value.ts:20`). Para una plataforma whitelabel es un dato del
   negocio escrito en el código, igual que lo eran el teléfono y la moneda. Derivarlo del teléfono
-  del negocio o hacerlo configurable.
-- Resolver D3 (qué hacer con `mockup/` y `stitch_full_pwa_builder/`).
+  del negocio o hacerlo configurable.** → **CERRADO**: el prefijo ya salía del teléfono del negocio
+  (T5); lo que quedaba era el **respaldo** cuando el negocio todavía no cargó ninguno, que asumía
+  Nicaragua (`+505`) y además la ayuda del campo decía "si tu número no es de Nicaragua". Ahora
+  `resolveWhatsappDefaultPrefix` devuelve `null` sin teléfono y el campo arranca en "Otro" pidiendo
+  el prefijo internacional: sin dato del negocio, la plataforma no elige país. La ayuda pasó a
+  "Elegí el prefijo internacional de tu número".
+- Resolver D3 (qué hacer con `mockup/` y `stitch_full_pwa_builder/`) — **pendiente de respuesta del
+  owner**: las dos carpetas están en `.gitignore` y son el material de referencia del mock; borrarlas
+  no afecta al código ni al deploy.
 
 ### Fase 7 — Opcional, solo si se quiere · **incluye D4**
 

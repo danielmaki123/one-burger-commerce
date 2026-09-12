@@ -17,8 +17,6 @@ export const WHATSAPP_PREFIX_OPTIONS: WhatsappPrefixOption[] = [
   { value: "+52", label: "+52", placeholder: "5512345678", minDigits: 10, maxDigits: 10 },
 ];
 
-/** Respaldo cuando el negocio todavía no cargó su teléfono. */
-export const WHATSAPP_DEFAULT_PREFIX = "+505";
 export const WHATSAPP_OTHER_PREFIX_VALUE = "OTHER";
 
 /**
@@ -27,10 +25,14 @@ export const WHATSAPP_OTHER_PREFIX_VALUE = "OTHER";
  * Sale del teléfono del negocio, no de un literal: en una plataforma whitelabel el
  * código de país es un dato del negocio, igual que la moneda o el horario. Si el
  * código no está en la lista conocida se toman los primeros dígitos.
+ *
+ * **Sin teléfono configurado devuelve `null`**: no se sabe el país del negocio y
+ * asumir uno (antes era `+505`) es justamente el dato que no puede estar en el
+ * código. El campo arranca sin país y el cliente elige el suyo.
  */
-export function resolveWhatsappDefaultPrefix(phone: string | null | undefined): string {
+export function resolveWhatsappDefaultPrefix(phone: string | null | undefined): string | null {
   const digits = sanitizeWhatsappDigits(phone ?? "");
-  if (!digits) return WHATSAPP_DEFAULT_PREFIX;
+  if (!digits) return null;
 
   const known = [...WHATSAPP_PREFIX_OPTIONS]
     .sort((a, b) => b.value.length - a.value.length)
@@ -96,7 +98,7 @@ export function isCompleteWhatsappInput(prefix: string, localNumber: string): bo
 
 export function parseWhatsappValue(
   value: string,
-  defaultPrefix: string = WHATSAPP_DEFAULT_PREFIX,
+  defaultPrefix: string = "",
 ): {
   prefix: string;
   localNumber: string;

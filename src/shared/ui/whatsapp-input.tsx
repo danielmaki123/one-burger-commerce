@@ -3,7 +3,6 @@
 import * as React from "react";
 
 import {
-  WHATSAPP_DEFAULT_PREFIX,
   WHATSAPP_OTHER_PREFIX_VALUE,
   WHATSAPP_PREFIX_OPTIONS,
   buildWhatsappValue,
@@ -24,11 +23,14 @@ type WhatsAppInputProps = {
   disabled?: boolean;
   required?: boolean;
   className?: string;
-  /** Prefijo que se muestra sin número: sale del teléfono del negocio (T5). */
-  defaultPrefix?: string;
+  /**
+   * Prefijo que se muestra sin número. Sale del teléfono del negocio (T5) y llega
+   * `null` cuando el negocio todavía no lo cargó: ahí no se asume ningún país.
+   */
+  defaultPrefix?: string | null;
 };
 
-const DEFAULT_HELP_TEXT = "Elegí el prefijo si tu número no es de Nicaragua.";
+const DEFAULT_HELP_TEXT = "Elegí el prefijo internacional de tu número.";
 
 export function WhatsAppInput({
   value,
@@ -41,25 +43,29 @@ export function WhatsAppInput({
   disabled = false,
   required = false,
   className = "",
-  defaultPrefix = WHATSAPP_DEFAULT_PREFIX,
+  defaultPrefix = null,
 }: WhatsAppInputProps) {
   const initial = React.useMemo(
-    () => parseWhatsappValue(value, defaultPrefix),
+    () => parseWhatsappValue(value, defaultPrefix ?? ""),
     [value, defaultPrefix],
   );
+  // Sin país conocido, el select arranca en "Otro" con el prefijo manual vacío: es lo
+  // honesto (no sabemos de dónde es el negocio) y el cliente escribe el suyo.
+  const startsWithOther = initial.isOtherPrefix || !initial.prefix;
   const [selectedPrefix, setSelectedPrefix] = React.useState(
-    initial.isOtherPrefix ? WHATSAPP_OTHER_PREFIX_VALUE : initial.prefix,
+    startsWithOther ? WHATSAPP_OTHER_PREFIX_VALUE : initial.prefix,
   );
   const [manualPrefix, setManualPrefix] = React.useState(
-    initial.isOtherPrefix ? initial.prefix : "+",
+    startsWithOther ? initial.prefix : "+",
   );
   const [localNumber, setLocalNumber] = React.useState(initial.localNumber);
 
   React.useEffect(() => {
     if (!value) return;
-    const parsed = parseWhatsappValue(value, defaultPrefix);
-    setSelectedPrefix(parsed.isOtherPrefix ? WHATSAPP_OTHER_PREFIX_VALUE : parsed.prefix);
-    setManualPrefix(parsed.isOtherPrefix ? parsed.prefix : "+");
+    const parsed = parseWhatsappValue(value, defaultPrefix ?? "");
+    const isOther = parsed.isOtherPrefix || !parsed.prefix;
+    setSelectedPrefix(isOther ? WHATSAPP_OTHER_PREFIX_VALUE : parsed.prefix);
+    setManualPrefix(isOther ? parsed.prefix : "+");
     setLocalNumber(parsed.localNumber);
   }, [value, defaultPrefix]);
 
