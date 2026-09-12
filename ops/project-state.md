@@ -1288,6 +1288,33 @@ local**. El brief con el diseño completo está en [`ops/tasks/TASK-multi-locati
 - **Lo que sigue (fases 2-7)**: API y casos de uso de locales, `/admin/locations`, productos por local,
   lectura pública por local, selector en el checkout y operación por local. Ver el brief.
 
+### T8 (multi-sucursal) · Fase 2, primera mitad: reglas y casos de uso de locales (2026-09-12)
+
+Con esto ya se puede crear, editar y borrar un local por código; falta la API y la pantalla.
+
+- **Reglas puras** (`validateLocationInput`): nombre (2 a 60), slug normalizado a minúsculas con
+  guiones, minutos de preparación con **los mismos límites y mensajes** que `/admin/settings`, rango
+  máximo ≥ mínimo, horario de cada día (cierre posterior a la apertura, con el día en el mensaje),
+  WhatsApp del local y coordenadas dentro del planeta. El formulario las muestra antes de guardar y el
+  caso de uso las vuelve a aplicar.
+- **Tres casos de uso** (`create`, `update`, `delete`) con `LocationError` propio del módulo (no se
+  reusa `OrderError`: son dominios distintos) y el mismo criterio que las promos: el slug se normaliza
+  **antes** de validar y antes de buscar duplicados ("Sucursal Norte" y "sucursal-norte" son el mismo
+  local), y el guardado es completo.
+- **Borrar tiene dos reglas** que evitan dejar el negocio sin dónde despachar: no se puede borrar el
+  último local activo (el checkout no tendría a dónde mandar el pedido) ni dejar la lista vacía. Un
+  local apagado sí se borra, pero solo si queda otro activo.
+- **El contrato anti-hardcode volvió a morder, y con razón**: el mensaje del WhatsApp tenía un número
+  de ejemplo (`50588770888`), que es un dato del negocio fuera del módulo de configuración. El mensaje
+  ahora no lleva número. Es la segunda vez en la sesión que ese test caza un atajo mío.
+- **La copia del catálogo al crear un local se movió a la fase 4**: hasta que existan filas de
+  `LocationProduct`, copiar sería copiar nada.
+- **Verificación**: **1375 unitarios** (43 del módulo de locales, antes 28), lint y typecheck verdes.
+- **Deuda de test que quedó anotada**: este par de tests de `/admin/promotions` volvió a fallar en CI
+  por tiempo. La causa real era que `asyncUtilTimeout` (5 s) había quedado **igual** que el
+  `testTimeout` de vitest (5 s), así que el test se moría justo cuando la espera se resolvía; ahora el
+  techo es 20 s y la espera 5 s. Queda escrito en `vitest.config.ts` y `src/test-setup.ts`.
+
 ## 3. Infraestructura y secretos
 
 - `EASYPANEL_URL` y `EASYPANEL_TOKEN`: solo en el entorno de quien ejecuta el deploy (nunca
