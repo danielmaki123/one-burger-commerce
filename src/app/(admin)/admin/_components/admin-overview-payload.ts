@@ -125,7 +125,8 @@ const performancePayloadSchema = z.object({
   }),
   meta: z.object({
     generatedAt: utcTimestampSchema,
-    timeZone: z.literal("America/Managua"),
+    /** Zona del negocio (configuración): el cliente formatea las fechas con esta. */
+    timeZone: z.string().min(1),
     period: z.enum(["today", "7d", "30d", "month"]),
     channel: z.enum(["all", "delivery", "pickup"]),
     ranges: z.object({

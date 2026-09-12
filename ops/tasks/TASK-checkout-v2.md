@@ -285,7 +285,8 @@ horario del día elegido (no hizo falta cambiarlo), y el admin separa los pedido
   (`orders-page-helpers.ts`), mientras el checkout y el retiro usan la zona de la configuración. Para
   un negocio en otra zona habría que mover ese anclaje a `BusinessSettings.timezone`. — **cerrado el
   2026-09-12**: la bandeja ya usa la zona del negocio (ver `ops/project-state.md`); la misma clase de
-  hardcodeo sigue en el tablero del admin (`admin-overview-periods`).
+  hardcodeo sigue en el tablero del admin (`admin-overview-periods`). — **cerrado también el
+  2026-09-12**: el tablero, el esquema del payload y su cliente usan la zona del negocio.
 
 ### Fase 5 — Presets de propina · **D2 resuelta: NO (2026-09-12) — fase descartada**
 

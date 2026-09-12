@@ -76,11 +76,11 @@ describe("getFirstCompletionAt", () => {
 
 describe("aggregateOverviewPerformance", () => {
   it("agrega solo delivery y pickup completados y usa snapshots de líneas", () => {
-    const ranges = buildOverviewRanges("7d", NOW);
+    const ranges = buildOverviewRanges("7d", NOW, "America/Managua");
     const result = aggregateOverviewPerformance({
       channel: "all",
       ranges,
-      buckets: buildOverviewBucketKeys(ranges),
+      buckets: buildOverviewBucketKeys(ranges, "America/Managua"),
       orders: [
         order({
           id: "delivery-current",

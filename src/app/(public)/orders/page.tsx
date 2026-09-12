@@ -228,13 +228,14 @@ export default function DeviceOrdersPage() {
 function OrderCard({ order }: { order: DeviceOrderRef }) {
   const router = useRouter();
   const currency = useCurrencyFormat();
+  const { timezone } = useBusinessSettings();
   return (
     <Card className="border-border">
       <CardContent className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-1">
           <p className="font-semibold text-foreground">{order.orderNumber}</p>
           <p className="text-sm text-muted-foreground">{formatOrderType(order.type)} • {order.statusLabel}</p>
-          <p className="text-xs text-muted-foreground">Última actualización: {formatPublicOrderUpdatedAt(order.updatedAt)}</p>
+          <p className="text-xs text-muted-foreground">Última actualización: {formatPublicOrderUpdatedAt(order.updatedAt, timezone)}</p>
           {order.stale ? <p className="text-xs text-amber-700">Desactualizado</p> : null}
         </div>
         <div className="flex items-center gap-3">

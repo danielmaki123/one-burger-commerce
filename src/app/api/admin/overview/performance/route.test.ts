@@ -4,10 +4,23 @@ import { AuthError } from "@/modules/auth/domain/auth-errors";
 
 const requireAdminSessionMock = vi.fn();
 const getAdminOverviewPerformanceMock = vi.fn();
+const getBusinessSettingsMock = vi.fn();
 
 vi.mock("@/modules/auth/features/require-admin-session/require-admin-session", () => ({
   requireAdminSession: requireAdminSessionMock,
 }));
+
+// La ruta lee la zona horaria del negocio para que el día del tablero sea el suyo.
+vi.mock("@/modules/business-settings/adapters/prisma-business-settings-repository", () => ({
+  PrismaBusinessSettingsRepository: vi.fn(function () {
+    return {};
+  }),
+}));
+
+vi.mock(
+  "@/modules/business-settings/features/get-business-settings/get-business-settings",
+  () => ({ getBusinessSettings: getBusinessSettingsMock }),
+);
 
 vi.mock(
   "@/modules/dashboard/features/get-admin-overview-performance/get-admin-overview-performance",
@@ -107,6 +120,10 @@ describe("GET /api/admin/overview/performance", () => {
     requireAdminSessionMock.mockResolvedValueOnce({
       user: { id: "admin-1", role: "owner" },
     });
+    getBusinessSettingsMock.mockResolvedValueOnce({
+      id: "default",
+      timezone: "America/Managua",
+    });
     getAdminOverviewPerformanceMock.mockResolvedValueOnce(responsePayload);
 
     const { GET } = await import("./route");
@@ -116,7 +133,11 @@ describe("GET /api/admin/overview/performance", () => {
 
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual(responsePayload);
-    expect(getAdminOverviewPerformanceMock).toHaveBeenCalledWith("7d", "all");
+    expect(getAdminOverviewPerformanceMock).toHaveBeenCalledWith(
+      "7d",
+      "all",
+      "America/Managua",
+    );
   });
 
   it("returns BAD_REQUEST for an invalid period", async () => {

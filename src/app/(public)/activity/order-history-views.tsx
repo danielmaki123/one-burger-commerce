@@ -6,6 +6,7 @@ import {
   getOrderStatusProgress,
   ORDER_PROGRESS_STEPS,
 } from "@/shared/lib/activity-status";
+import { addDays, dateInTimeZone } from "@/modules/business-settings/domain/pickup-days";
 import { useCurrencyFormat } from "@/shared/lib/business-settings";
 import type { DeviceOrderRef } from "@/shared/lib/device-orders";
 import { formatCurrency } from "@/shared/lib/format-currency";
@@ -41,34 +42,54 @@ export function formatActivityDateTime(value: string) {
   });
 }
 
-function formatHistoryTime(value: string) {
-  return new Date(value).toLocaleTimeString("es-NI", {
+function formatHistoryTime(value: string, timeZone: string) {
+  return new Intl.DateTimeFormat("es-NI", {
+    timeZone,
     hour: "numeric",
     minute: "2-digit",
-  });
+  }).format(new Date(value));
 }
 
-function formatHistoryMeta(value: string, parts: string[]) {
-  return ["Hoy", ...parts].join(" · ");
+/**
+ * Cuándo fue el pedido: `Hoy`, `Ayer` o la fecha.
+ *
+ * Estaba escrito `"Hoy"` a mano y la hora salía del reloj del dispositivo, así que un pedido
+ * de la semana pasada se veía como "Hoy · Retiro · 1:30 p. m.". Ahora el día y la hora se
+ * calculan en la **zona del negocio**, como el resto del sitio.
+ */
+function formatHistoryDay(value: string, timeZone: string): string {
+  const day = dateInTimeZone(new Date(value), timeZone);
+  const today = dateInTimeZone(new Date(), timeZone);
+
+  if (day === today) return "Hoy";
+  if (day === addDays(today, -1)) return "Ayer";
+
+  const [, month, dayOfMonth] = day.split("-");
+  return `${Number(dayOfMonth)}/${Number(month)}`;
+}
+
+function formatHistoryMeta(value: string, timeZone: string, parts: string[]) {
+  return [formatHistoryDay(value, timeZone), ...parts].join(" · ");
 }
 
 export function OrderHistoryCard({
   order,
   onOpen,
   onReorder,
-  timeZone = "America/Managua",
+  timeZone,
 }: {
   order: DeviceOrderRef;
   onOpen: () => void;
   onReorder?: () => void;
-  timeZone?: string;
+  /** Zona del negocio (configuración): la hora y el día del pedido salen de acá. */
+  timeZone: string;
 }) {
   const progress = getOrderStatusProgress(order.status);
   const latestText = order.lastCheckedAt ?? order.updatedAt;
   const currency = useCurrencyFormat();
-  const meta = formatHistoryMeta(latestText, [
+  const meta = formatHistoryMeta(latestText, timeZone, [
     order.type === "pickup" ? "Retiro" : formatOrderType(order.type),
-    formatHistoryTime(latestText),
+    formatHistoryTime(latestText, timeZone),
   ]);
   // El resumen sale de las líneas guardadas (T7): antes había un plato escrito a mano.
   const itemSummary = summarizeOrderItems(order.items);

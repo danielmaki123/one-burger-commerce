@@ -4,6 +4,8 @@ import { z } from "zod";
 import { canViewAdminOverview } from "@/modules/auth/domain/admin-permissions";
 import { AuthError } from "@/modules/auth/domain/auth-errors";
 import { requireAdminSession } from "@/modules/auth/features/require-admin-session/require-admin-session";
+import { PrismaBusinessSettingsRepository } from "@/modules/business-settings/adapters/prisma-business-settings-repository";
+import { getBusinessSettings } from "@/modules/business-settings/features/get-business-settings/get-business-settings";
 import { getAdminOverviewPerformance } from "@/modules/dashboard/features/get-admin-overview-performance/get-admin-overview-performance";
 import { createErrorResponse } from "@/shared/lib/http/error-response";
 
@@ -45,8 +47,17 @@ export async function GET(request: Request) {
       );
     }
 
+    // El día del tablero es el del negocio (T8/fase de zona horaria), no una zona fija.
+    const settings = await getBusinessSettings({
+      repository: new PrismaBusinessSettingsRepository(),
+    });
+
     return NextResponse.json(
-      await getAdminOverviewPerformance(parsed.data.period, parsed.data.channel),
+      await getAdminOverviewPerformance(
+        parsed.data.period,
+        parsed.data.channel,
+        settings.timezone,
+      ),
     );
   } catch (error) {
     return createErrorResponse(error);

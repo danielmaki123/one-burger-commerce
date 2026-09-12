@@ -19,6 +19,11 @@ import type {
   OverviewPeriod,
 } from "@/modules/dashboard/domain/admin-overview.types";
 import { Button } from "@/shared/ui/button";
+import { useBusinessSettings } from "@/shared/lib/business-settings";
+import {
+  dateInTimeZone,
+  pickupInstant,
+} from "@/modules/business-settings/domain/pickup-days";
 
 import { AdminEmptyState, AdminPageHeader } from "./admin-operational-ui";
 import {
@@ -76,16 +81,17 @@ const CHANNEL_OPTIONS: Array<{ value: OverviewChannel; label: string }> = [
 ];
 
 // --- Turno de hoy (centro de mando, admin v2) ---
-const TZ_MANAGUA = "America/Managua";
 
-function managuaTodayStartIso(): string {
-  const dateStr = new Intl.DateTimeFormat("en-CA", {
-    timeZone: TZ_MANAGUA,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(new Date());
-  return `${dateStr}T00:00:00.000-06:00`;
+/**
+ * El comienzo del día del **negocio** —no de una zona fija—, para pedir las órdenes del
+ * turno. Antes estaba `America/Managua` con su offset `-06:00` escrito a mano: un negocio
+ * en otra zona arrancaba el turno a la hora equivocada.
+ */
+function businessTodayStartIso(timeZone: string): string {
+  const today = dateInTimeZone(new Date(), timeZone);
+  const start = pickupInstant({ date: today, time: "00:00", timeZone });
+
+  return start?.toISOString() ?? "";
 }
 
 type TurnoOrderSummary = { status: string; createdAt: string };
@@ -200,6 +206,7 @@ export default function AdminOverviewClient() {
   }, [channel, loadPerformance, performanceRetryNonce, period]);
 
   // Centro de mando del turno: ventas de hoy + órdenes abiertas, en paralelo y best-effort.
+  const { timezone } = useBusinessSettings();
   const [turno, setTurno] = React.useState<TurnoState>({
     ventasHoy: null,
     ventasDelta: null,
@@ -231,7 +238,7 @@ export default function AdminOverviewClient() {
       }
 
       try {
-        const query = new URLSearchParams({ dateFrom: managuaTodayStartIso() });
+        const query = new URLSearchParams({ dateFrom: businessTodayStartIso(timezone) });
         const response = await fetch(`/api/admin/orders?${query.toString()}`, {
           cache: "no-store",
           signal: controller.signal,
@@ -259,7 +266,7 @@ export default function AdminOverviewClient() {
 
     void loadTurno();
     return () => controller.abort();
-  }, []);
+  }, [timezone]);
 
   const attentionItems: Array<{
     key: string;

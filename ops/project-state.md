@@ -1604,10 +1604,9 @@ turno del día equivocado.
 - **Verificación**: **1524 unitarios** (4 nuevos, con casos en otra zona horaria para el grupo y para
   el rango del día), lint, typecheck, `npm run build`, `security:secrets` y **E2E 80 pasaron, 7
   salteados, 0 fallos**.
-- **Queda la misma clase de hardcodeo en el tablero del admin**: `src/modules/dashboard/domain/admin-overview-periods.ts`
-  (`OVERVIEW_TIME_ZONE = "America/Managua"`), el esquema del payload (`z.literal("America/Managua")`) y
-  el cliente del resumen tienen la zona fija. Es la próxima instancia a resolver cuando se toque el
-  tablero; no se hizo acá para no mezclar dos superficies en un commit.
+- **La misma clase de hardcodeo quedaba en el tablero del admin** (`admin-overview-periods.ts`, el
+  esquema del payload y el cliente del resumen): **cerrado más abajo** (ver "La zona horaria del
+  negocio, en todo el panel").
 
 ### Checkout fase 6: el prefijo de WhatsApp deja de asumir Nicaragua (2026-09-12) — **cerrada (queda D3)**
 
@@ -1696,6 +1695,31 @@ aviso de lo que ese local no vende.
   código nuevo (marcador "no se vende" en `/_next/static/chunks/3fo7recy4xshf.js`); smoke productivo de
   solo lectura **4/4**; `/api/menu?locationId=` 200.
 - Sin migraciones nuevas: no hubo ventana de esquema como en el deploy anterior.
+
+### La zona horaria del negocio, en todo el panel (2026-09-12) — **cerrada**
+
+Cierra el último hardcodeo de zona horaria. El **tablero del admin** (`/admin`) calculaba su "hoy", sus
+rangos, sus buckets y la hora de cada pedido con `America/Managua` fija (y el esquema del payload lo
+exigía con un `z.literal`), mientras el checkout y el retiro público ya usaban
+`BusinessSettings.timezone`.
+
+- El dominio del tablero (`admin-overview-periods.ts`) ahora recibe la **zona del negocio** en
+  `buildOverviewRanges`, `buildOverviewBucketKeys` y `formatBusinessDate` (renombrada desde
+  `formatManaguaDate`), con los formateadores de `Intl` cacheados por zona. La ruta lee la configuración
+  y se la pasa a `getAdminOverviewPerformance`.
+- El cliente del tablero dejó de armar el comienzo del día con un offset `-06:00` escrito a mano: usa
+  los helpers del dominio con la zona de la configuración.
+- El esquema del payload pasó de `z.literal("America/Managua")` a `z.string()`.
+- **De paso, dos cosas del historial del cliente**: la fecha de "última actualización" de `/orders` se
+  formatea con la zona del negocio (estaba fija en Managua) y la tarjeta del historial ya no escribe
+  `"Hoy"` a mano ni la hora con el reloj del dispositivo: dice **Hoy / Ayer / la fecha** y la hora, en
+  la zona del negocio. Antes un pedido de la semana pasada se leía "Hoy · Retiro · 1:30 p. m.".
+- **Verificación**: **1543 unitarios** (4 nuevos, con casos en `Asia/Tokyo` para los rangos, los buckets
+  y el formateo), lint, typecheck, `npm run build`, `security:secrets` y **E2E 80 pasaron, 7 salteados,
+  0 fallos**.
+- **Lo que queda, a propósito**: `America/Managua` sigue apareciendo como **valor por defecto de la
+  configuración** (`business-settings-defaults.ts`, que es donde debe vivir), como ejemplo en la ayuda
+  del campo de zona horaria, y en reservas (fuera del MVP y excluido del contrato anti-hardcode).
 
 ## 3. Infraestructura y secretos
 

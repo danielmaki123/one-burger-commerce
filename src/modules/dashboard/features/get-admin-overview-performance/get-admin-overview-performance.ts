@@ -6,7 +6,6 @@ import {
 import {
   buildOverviewBucketKeys,
   buildOverviewRanges,
-  OVERVIEW_TIME_ZONE,
 } from "@/modules/dashboard/domain/admin-overview-periods";
 import type {
   AdminOverviewPerformanceResponse,
@@ -28,14 +27,21 @@ function toNumber(value: { toString(): string }): number {
   return Number(value.toString());
 }
 
+/**
+ * Tablero de operación del rango pedido.
+ *
+ * `timeZone` es la del **negocio** (configuración) y es obligatoria: el día natural, los
+ * rangos y los buckets se calculan en esa zona. Antes estaba fija en `America/Managua`.
+ */
 export async function getAdminOverviewPerformance(
   period: OverviewPeriod,
   channel: OverviewChannel,
+  timeZone: string,
   now = new Date(),
 ): Promise<AdminOverviewPerformanceResponse> {
   const prisma = getPrismaClient();
-  const ranges = buildOverviewRanges(period, now);
-  const buckets = buildOverviewBucketKeys(ranges);
+  const ranges = buildOverviewRanges(period, now, timeZone);
+  const buckets = buildOverviewBucketKeys(ranges, timeZone);
   const terminalStatuses = [...COMPLETED_ORDER_STATUSES];
 
   const orders = await prisma.order.findMany({
@@ -95,7 +101,7 @@ export async function getAdminOverviewPerformance(
     data,
     meta: {
       generatedAt: now.toISOString(),
-      timeZone: OVERVIEW_TIME_ZONE,
+      timeZone,
       period,
       channel,
       ranges: {

@@ -90,7 +90,7 @@ describe("getAdminOverviewPerformance", () => {
     ]);
     const now = new Date("2026-07-22T18:30:00.000Z");
 
-    const result = await getAdminOverviewPerformance("7d", "all", now);
+    const result = await getAdminOverviewPerformance("7d", "all", "America/Managua", now);
 
     expect(result.data.metrics).toEqual({
       completedOrderValue: { current: 100, previous: 50, changePercent: 100 },
@@ -187,6 +187,7 @@ describe("getAdminOverviewPerformance", () => {
     const result = await getAdminOverviewPerformance(
       "today",
       "pickup",
+      "America/Managua",
       new Date("2026-07-22T18:30:00.000Z"),
     );
 

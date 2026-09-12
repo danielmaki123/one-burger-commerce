@@ -7,6 +7,9 @@ import { CartProvider } from "@/shared/lib/cart";
 import CustomerActivityPage from "./page";
 import { OrderDetailView, OrderHistoryCard } from "./order-history-views";
 
+/** La zona del negocio que la página pasa a las vistas (configuración). */
+const MANAGUA = "America/Managua";
+
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
     push: vi.fn(),
@@ -99,6 +102,7 @@ describe("public activity page", () => {
         },
         onOpen: vi.fn(),
         onReorder: vi.fn(),
+        timeZone: MANAGUA,
       }),
     );
 
@@ -142,7 +146,7 @@ describe("public activity page", () => {
     };
 
     const card = renderToStaticMarkup(
-      createElement(OrderHistoryCard, { order, onOpen: vi.fn() }),
+      createElement(OrderHistoryCard, { order, onOpen: vi.fn(), timeZone: MANAGUA }),
     );
     expect(card).toContain("Sucursal Norte");
     expect(card).toContain("Frente al parque, Managua");
@@ -167,7 +171,7 @@ describe("public activity page", () => {
     };
 
     const card = renderToStaticMarkup(
-      createElement(OrderHistoryCard, { order, onOpen: vi.fn() }),
+      createElement(OrderHistoryCard, { order, onOpen: vi.fn(), timeZone: MANAGUA }),
     );
     expect(card).not.toContain("Retiro en");
 
@@ -190,6 +194,7 @@ describe("public activity page", () => {
         },
         onOpen: vi.fn(),
         onReorder: vi.fn(),
+        timeZone: MANAGUA,
       }),
     );
 
