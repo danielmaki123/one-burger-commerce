@@ -1,5 +1,17 @@
 # Easypanel production runbook
 
+> ⚠️ **Documento histórico — no es el deploy de producción actual.** Describe un proyecto
+> `oneburguer` con servicio `web`, que es el deploy **abandonado** (quedó como el servicio huérfano
+> que responde 502, pendiente #4 de `ops/project-state.md` §4). La producción real es:
+>
+> - Panel: `http://76.13.250.83:3000` · proyecto **`brunobot`** · servicio **`oneburguerweb`**
+> - Postgres: servicio `oneburguer-postgres` (sin puerto expuesto), base/usuario `oneburguer`
+> - Deploy: **una sola** llamada a `deployService` por API
+>   (`{"json":{"projectName":"brunobot","serviceName":"oneburguerweb","forceRebuild":true}}`);
+>   **no** usar `npm run deploy:easypanel` (fusiona variables y puede crear servicios).
+>
+> Los valores de abajo se dejan como referencia técnica de la API del panel, no como destino.
+
 This project deploys as one Easypanel app service plus one Easypanel PostgreSQL service.
 
 ## Services

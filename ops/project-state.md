@@ -1,6 +1,7 @@
 # Estado del proyecto — One Burger Commerce
 
-> Actualizado: 2026-09-12 · Último deploy a producción: `build-20260911-191047` (commit `abc2183`)
+> Actualizado: 2026-09-12 · Último deploy a producción: 2026-09-12, commit `d770895`
+> (deploy manual por API sobre el servicio `oneburguerweb`)
 > Este documento es el punto de entrada para retomar el trabajo. Mantenerlo al día al cerrar cada tarea.
 > Para arrancar en un chat nuevo: `ops/tasks/START-HERE.md`.
 
@@ -1620,12 +1621,39 @@ turno del día equivocado.
 - **D3 sigue abierto** (decisión del owner): qué hacer con `mockup/` y `stitch_full_pwa_builder/`
   (están en `.gitignore`; son el material de referencia del mock).
 
+### Deploy a producción del 2026-09-12 (commit `d770895`) — **verificado**
+
+Primer deploy desde el 2026-09-11 (`build-20260911-191047`). Lleva **T8 (multi-sucursal) completo**,
+**los pedidos para días futuros** (fase 4 del checkout) y los arreglos de CI, zona horaria de la
+bandeja y prefijo de WhatsApp.
+
+- **Cómo se hizo**: una sola llamada a `deployService` por API (proyecto `brunobot`, servicio
+  `oneburguerweb`, `forceRebuild: true`), sin `npm run deploy:easypanel` (fusiona variables y puede
+  crear servicios). El `commit.sha` del servicio quedó en `d770895` y el contenedor aplicó la
+  migración de T8 al arrancar.
+- **Verificación**: `/api/health` 200 en los cuatro hosts; `/api/locations` 200 con **un** local
+  (`loc_principal`) y los datos que la migración backfilleó desde la configuración (dirección,
+  horario 12:00–22:00, 20 min de preparación, aceptando pedidos, mensaje de cerrado); `/api/menu` 200
+  con las 2 categorías y sus productos; y el smoke productivo de solo lectura
+  (`BASE_URL=https://oneburgernic.com npm run test:e2e:prod`) **4/4**.
+- **Riesgo que conviene recordar**: la migración de T8 agrega `Order.locationId` como *nullable*, lo
+  backfillea y después lo deja `NOT NULL`. Las migraciones corren al **arrancar el contenedor nuevo**,
+  mientras el anterior todavía sirve: entre el `SET NOT NULL` y el cambio de tráfico, un pedido
+  creado por el contenedor viejo (que no manda `locationId`) fallaría. Este deploy cayó a las ~05:25
+  de Managua, con el local cerrado, así que no hubo ventana real; **para migraciones de esa forma
+  conviene desplegar fuera del horario de atención.**
+- **El token del panel se volvió a compartir por chat** (ver §3).
+
 ## 3. Infraestructura y secretos
 
 - `EASYPANEL_URL` y `EASYPANEL_TOKEN`: solo en el entorno de quien ejecuta el deploy (nunca
   en el repo). El token da acceso total al servidor: **rotarlo** si se compartió por chat.
-  ⚠️ El 2026-09-10 el token se pasó por chat para desplegar la personalización:
-  **conviene rotarlo**.
+  ⚠️ El 2026-09-10 el token se pasó por chat para desplegar la personalización y **el 2026-09-12
+  otra vez** para este deploy: **hay que rotarlo**.
+- El deploy es **una sola llamada** a `deployService` (proyecto `brunobot`, servicio
+  `oneburguerweb`, `forceRebuild: true`) contra `http://76.13.250.83:3000/api/rpc`. `ops/easypanel-production.md`
+  describe un proyecto `oneburguer`/servicio `web` que **no** es el de producción (es el deploy
+  abandonado que quedó como servicio huérfano, pendiente #4 de §4).
 - Variables obligatorias del servicio: `DATABASE_URL`, `DIRECT_URL`, `APP_ENV=production`,
   `NODE_ENV=production`, `PORT=3000`. El arranque falla si falta alguna.
 - Inventario completo: `ops/production-readiness.md` §1 y `.env.example`.
