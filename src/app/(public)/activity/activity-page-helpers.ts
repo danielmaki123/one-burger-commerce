@@ -1,6 +1,7 @@
 import { ORDER_PROGRESS_STEPS, getOrderStatusProgress } from "@/shared/lib/activity-status";
 import type { DeviceOrderItemRef, DeviceOrderRef } from "@/shared/lib/device-orders";
 import { formatTimeInTimeZone } from "@/modules/business-settings/domain/format-time-in-timezone";
+import { pickupDayLabel } from "@/modules/business-settings/domain/pickup-days";
 
 /**
  * Helpers del historial y del seguimiento (T7).
@@ -21,7 +22,8 @@ export function summarizeOrderItems(items: DeviceOrderItemRef[] | undefined): st
  * Estimado de retiro del pedido guardado.
  *
  * Sin hora no hay estimado. Si el cliente no programó, se muestra con `~` para
- * que se lea como aproximado y no como una hora reservada.
+ * que se lea como aproximado y no como una hora reservada. Con un retiro para otro día
+ * (fase 4) se agrega el día: "Listo 12:00 p. m." a secas se leería como hoy.
  */
 export function formatOrderPickupEstimate(
   order: Pick<DeviceOrderRef, "pickupTime" | "pickupScheduled">,
@@ -32,7 +34,10 @@ export function formatOrderPickupEstimate(
   const time = formatTimeInTimeZone(order.pickupTime, timeZone);
   if (!time) return null;
 
-  return order.pickupScheduled ? `Listo ${time}` : `Listo ~${time}`;
+  const day = pickupDayLabel({ pickupTime: order.pickupTime, nowMs: Date.now(), timeZone });
+  const value = order.pickupScheduled ? time : `~${time}`;
+
+  return `Listo ${day ? `${day} ` : ""}${value}`;
 }
 
 function normalize(value: string): string {

@@ -22,8 +22,11 @@ function renderField(overrides: Partial<Parameters<typeof PickupScheduleField>[0
       scheduledTime=""
       asapValue="11:35"
       options={options}
-      todayHours="hoy de 12:00 a 22:00"
+      scheduleHint="El local atiende hoy de 12:00 a 22:00. Si no elegís una hora, preparamos tu pedido apenas llega."
+      selectedDay="2026-09-11"
+      todayDate="2026-09-11"
       onSelect={onSelect}
+      onSelectDay={vi.fn()}
       {...overrides}
     />,
   );

@@ -10,6 +10,7 @@ import {
   formatPickupAddress,
   type PickupLocation,
 } from "@/modules/locations/domain/location-rules";
+import { pickupDayLabel } from "@/modules/business-settings/domain/pickup-days";
 import { useBusinessSettings, useCurrencyFormat } from "@/shared/lib/business-settings";
 import { formatCurrency } from "@/shared/lib/format-currency";
 import {
@@ -81,18 +82,23 @@ function formatPickupForCustomer(
   const time = formatTimeInTimeZone(order.pickupTime, timeZone);
   if (!time) return null;
 
-  if (order.pickupScheduled) return time;
+  // Si el retiro es para otro día (fase 4), el día es parte de la respuesta: "12:00 p. m."
+  // a secas se leería como hoy.
+  const day = pickupDayLabel({ pickupTime: order.pickupTime, nowMs: Date.now(), timeZone });
+  const withDay = (value: string) => (day ? `${day} ${value}` : value);
+
+  if (order.pickupScheduled) return withDay(time);
 
   const extraMinutes =
     pickupMaxMinutes === null ? 0 : Math.trunc(pickupMaxMinutes) - Math.trunc(pickupLeadMinutes);
-  if (extraMinutes <= 0) return `~${time}`;
+  if (extraMinutes <= 0) return withDay(`~${time}`);
 
   const endIso = new Date(
     new Date(order.pickupTime).getTime() + extraMinutes * 60_000,
   ).toISOString();
   const end = formatTimeInTimeZone(endIso, timeZone);
 
-  return end ? `entre ${time} y ${end}` : `~${time}`;
+  return end ? withDay(`entre ${time} y ${end}`) : withDay(`~${time}`);
 }
 
 function formatOrderType(type: string): string {

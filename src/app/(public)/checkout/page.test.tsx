@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -548,8 +548,7 @@ describe("checkout sin redundancias", () => {
     expect(body.locationId).toBe("loc_norte");
   });
 
-  it("un local que dejó de recibir pedidos bloquea el checkout (T8)", async () => {
-    mockCart = { items: twoItems, subtotal: 380, clearCart: vi.fn() };
+  it("un local que dejó de recibir pedidos bloquea el checkout (T8)", async () => {    mockCart = { items: twoItems, subtotal: 380, clearCart: vi.fn() };
     stubLocationsResponse([
       {
         id: "loc_principal",
@@ -566,6 +565,82 @@ describe("checkout sin redundancias", () => {
     render(<CheckoutPage />);
 
     expect(await screen.findByText("Volvemos mañana a las 12.")).toBeTruthy();
+  });
+
+  /**
+   * Fase 4 del checkout (D1) — pedidos para días futuros.
+   *
+   * El reloj está fijado el viernes 2026-09-11 a las 19:00 en Managua, así que "hoy" es el
+   * 11. El día elegido decide los turnos y la hora que viaja en el pedido, y "lo antes
+   * posible" solo existe para hoy: para otro día hay que elegir una hora.
+   */
+  it("elegir otro día muestra los turnos de ese día y manda su hora (D1)", async () => {
+    const user = userEvent.setup();
+    mockCart = { items: twoItems, subtotal: 380, clearCart: vi.fn() };
+    stubOrderResponse();
+
+    render(<CheckoutPage />);
+
+    await user.click(await screen.findByRole("button", { name: /Lo antes posible · listo/ }));
+
+    const dayInput = screen.getByLabelText("Día de retiro") as HTMLInputElement;
+    expect(dayInput.value).toBe("2026-09-11");
+    // No se puede pedir para ayer.
+    expect(dayInput.min).toBe("2026-09-11");
+
+    // Mañana (sábado 12): los turnos arrancan en la apertura, sin la espera de preparación
+    // que empuja los de hoy.
+    fireEvent.change(dayInput, { target: { value: "2026-09-12" } });
+
+    expect(screen.queryByRole("radio", { name: /Lo antes posible/ })).toBeNull();
+    expect(screen.getByRole("radio", { name: "12:00 p. m." })).toBeTruthy();
+    // El control plegado dice el día, no solo la hora.
+    expect(screen.getByText(/^Retiro programado/)).toBeTruthy();
+    expect(screen.getByText(/Mañana · 12:00 p\. m\./)).toBeTruthy();
+
+    await user.type(screen.getByLabelText("Nombre completo"), "Cliente Futuro");
+    await user.type(screen.getByLabelText("WhatsApp"), "88887777");
+    await user.click(confirmButtons()[0]);
+
+    await waitFor(() => expect(fetch).toHaveBeenCalledWith("/api/orders", expect.anything()));
+
+    const body = JSON.parse(
+      orderRequest(vi.mocked(fetch).mock.calls).body as string,
+    );
+    // 12:00 del 12 de septiembre en Managua (UTC-6) = 18:00 UTC. La hora se resuelve en la
+    // zona del negocio, no en la del equipo que corre el test.
+    expect(body.pickupTime).toBe("2026-09-12T18:00:00.000Z");
+  });
+
+  it("un día que el negocio no atiende no deja confirmar (D1)", async () => {
+    const user = userEvent.setup();
+    mockCart = { items: twoItems, subtotal: 380, clearCart: vi.fn() };
+    stubOrderResponse();
+
+    render(
+      <BusinessSettingsProvider
+        settings={{
+          ...FALLBACK_BUSINESS_SETTINGS,
+          // Domingo cerrado: el 13 de septiembre cae domingo.
+          businessHours: {
+            ...FALLBACK_BUSINESS_SETTINGS.businessHours,
+            sun: { open: "12:00", close: "22:00", closed: true },
+          },
+        }}
+      >
+        <CheckoutPage />
+      </BusinessSettingsProvider>,
+    );
+
+    await user.click(await screen.findByRole("button", { name: /Lo antes posible · listo/ }));
+    fireEvent.change(screen.getByLabelText("Día de retiro"), {
+      target: { value: "2026-09-13" },
+    });
+
+    // Se explica por qué no se puede, en vez de dejar un botón que falle al confirmar.
+    expect(await screen.findByText("Ese día no atendemos. Elegí otro día.")).toBeTruthy();
+    expect((confirmButtons()[0] as HTMLButtonElement).disabled).toBe(true);
+    expect(fetch).not.toHaveBeenCalledWith("/api/orders", expect.anything());
   });
 });
 

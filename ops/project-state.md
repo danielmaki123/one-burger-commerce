@@ -1552,6 +1552,33 @@ tenía forma de saber a qué local iba, ni la cocina cuál era el suyo al abrir 
   por defecto, o un horario general) y no se inventó una respuesta. Los turnos de retiro, el precio y el
   estado operativo **sí** son por local en todo el camino público.
 
+### Checkout fase 4: pedidos para días futuros (2026-09-12) — **cerrada**
+
+Decisión **D1 = sí** (2026-09-12), con un ajuste del owner en la sesión: **sin límite de días**, el
+único tope es el horario de ese día.
+
+- **El cliente elige el día** en el control de retiro (input de fecha con mínimo hoy) y los turnos se
+  calculan para ese día desde la apertura —sin sumarle la espera de preparación, que empuja los turnos
+  de hoy— y **todos** los del horario, no los primeros cinco.
+- **"Lo antes posible" sigue siendo solo de hoy**: al elegir otro día el control pide una hora
+  (arranca en el primer turno) porque sin hora el pedido saldría para hoy. Un día cerrado no deja
+  confirmar y se explica en pantalla.
+- **La hora se resuelve en la zona del negocio** (`pickupInstant`, en el dominio de turnos): el
+  checkout la armaba con `setHours` del celular, así que un cliente en otra zona mandaba la fecha
+  equivocada. Ese helper (`formatPickupTimeIso`) se eliminó junto con su test, reemplazado por el
+  dominio; el servidor ya validaba contra el horario del día elegido y no necesitó cambios.
+- **La cocina no lo confunde con el turno de hoy**: la bandeja agrupa los pedidos abiertos de otro
+  día en **"Programados"** (bucket nuevo), la etiqueta del retiro dice el día ("Retiro mañana 8:00
+  p. m. · Programado"), el semáforo no cuenta minutos de otro día, y la confirmación y el historial
+  del cliente también dicen el día ("Listo mañana 12:00 p. m.").
+- **Verificación**: **1520 unitarios** (+28), lint, typecheck, `npm run build`, `security:secrets` y
+  **E2E 80 pasaron, 7 salteados, 0 fallos** (el caso nuevo hace el recorrido entero: elige mañana,
+  confirma y lo encuentra agrupado en "Programados" con el día en la etiqueta).
+- **Pendiente declarado**: la bandeja del admin ancla "hoy" a `America/Managua` fijo
+  (`orders-page-helpers.ts`), mientras el checkout y el retiro usan la zona de la configuración. En la
+  práctica el negocio está en Managua; para una plataforma whitelabel de otra zona hay que mover ese
+  anclaje a `BusinessSettings.timezone`.
+
 ## 3. Infraestructura y secretos
 
 - `EASYPANEL_URL` y `EASYPANEL_TOKEN`: solo en el entorno de quien ejecuta el deploy (nunca
@@ -1578,7 +1605,7 @@ tenía forma de saber a qué local iba, ni la cocina cuál era el suyo al abrir 
 | 8 | **Checkout sin redundancias** (textos y botones repetidos) | **Cerrada y desplegada** | `ops/tasks/TASK-checkout-ux.md`. Cuatro commits (`2832a93`…`aba4156`), en producción como `build-20260911-145656`. El checkout pasó de 807 a 476 líneas, un solo resumen compartido con el carrito, un solo CTA visible por viewport y los turnos de retiro calculados desde la configuración. |
 | 9 | **Validar el estado operativo en el servidor** | **Cerrada y desplegada** | Commits `3a67c37` y `ca474c8`, en producción como `build-20260911-154014`. `isAcceptingOrders` ya corta pedidos de verdad (antes no lo leía nadie) y la hora de retiro se valida contra el horario del día. Incluye el horario demo del seed y el límite de login del arnés E2E. |
 | 10 | **Retiro opcional y programable + la hora visible en toda la cadena** | **Cerrada y desplegada** | Commits `6f85a3c`, `c101f82`, `b207593` y `abc2183`, en producción como `build-20260911-191047`. Incluye **una migración** (`pickupScheduled`). El retiro es opcional, la hora la resuelve el servidor, el ticket de cocina y el admin la muestran, y el semáforo va contra la hora prometida. Ver el detalle arriba. |
-| 11 | **Adopción del mock completo (rediseño de la UI pública)** | **En ejecución · ola 1 completa (T1-T7) y T9, T11, T12 y T13 de la ola 2** | [`ops/tasks/TASK-mock-adoption.md`](tasks/TASK-mock-adoption.md). Plan **aprobado** el 2026-09-12 (D-A tipografía: Plus Jakarta Sans como tercera opción · D-B ola 2 completa **sin reseñas ni delivery** · D-C orden: tokens primero y después las pantallas en el orden del mock). **Reglas del programa**: ningún control decorativo (implementado con API/estado y test, o eliminado con motivo), nada hardcodeado, la paleta como preset que pasa el test de contraste, TDD por tarea, y verificación a 375 px **y 1280 px** (el mock no tiene escritorio). **Ola 1**: T1 tokens ✅ · T2 home ✅ · T3 menú ✅ · T3.1 color por categoría ✅ · T4 producto ✅ · T5 carrito+checkout ✅ (fases 1, 2, 3, 6 y 7) · T6 confirmación ✅ · T7 seguimiento e historial ✅ · **ola 1 completa** · T11 forma de pago ✅ · T12 vuelto ✅ · T13 PIN de retiro ✅ · **T9 promos cerrada**: motor ✅, campo del código en el checkout ✅ y pantalla del admin `/admin/promotions` ✅ · **T8 (multi-sucursal) cerrada**: alcance **decidido el 2026-09-12 (D-T8) = menú y precios por local**, brief en [`ops/tasks/TASK-multi-location.md`](tasks/TASK-multi-location.md); **fases 1-7 cerradas** (modelo y backfill, API y pantalla de locales, catálogo y precios por local, menú público, selector en el checkout, operación por local, y el local en el detalle, la confirmación y el historial). Queda **un gap declarado**: el footer y el bloque de información de la home siguen mostrando el horario y la dirección de la configuración del negocio, no del local (ver §2, "Fase 7, cierre"). **Decisiones del checkout resueltas el 2026-09-12**: D1 **sí** (pedidos para días futuros, con selector de día → fase 4 de `TASK-checkout-v2`) y D2 **no** (una sola tasa de propina; la fase 5 queda descartada). **Ola 2** (aprobada): T8 multi-sucursal, T9 promos, T10 favoritos (**descartada por el owner**: "mantengamos el login tal cual lo tenemos"; sin cuenta no hay favoritos), T11 método de pago, T12 vuelto, T13 PIN de retiro. Evidencia del mock: [`ops/audit-checkout-mock.md`](audit-checkout-mock.md). |
+| 11 | **Adopción del mock completo (rediseño de la UI pública)** | **En ejecución · ola 1 completa (T1-T7) y T9, T11, T12 y T13 de la ola 2** | [`ops/tasks/TASK-mock-adoption.md`](tasks/TASK-mock-adoption.md). Plan **aprobado** el 2026-09-12 (D-A tipografía: Plus Jakarta Sans como tercera opción · D-B ola 2 completa **sin reseñas ni delivery** · D-C orden: tokens primero y después las pantallas en el orden del mock). **Reglas del programa**: ningún control decorativo (implementado con API/estado y test, o eliminado con motivo), nada hardcodeado, la paleta como preset que pasa el test de contraste, TDD por tarea, y verificación a 375 px **y 1280 px** (el mock no tiene escritorio). **Ola 1**: T1 tokens ✅ · T2 home ✅ · T3 menú ✅ · T3.1 color por categoría ✅ · T4 producto ✅ · T5 carrito+checkout ✅ (fases 1, 2, 3, 6 y 7) · T6 confirmación ✅ · T7 seguimiento e historial ✅ · **ola 1 completa** · T11 forma de pago ✅ · T12 vuelto ✅ · T13 PIN de retiro ✅ · **T9 promos cerrada**: motor ✅, campo del código en el checkout ✅ y pantalla del admin `/admin/promotions` ✅ · **T8 (multi-sucursal) cerrada**: alcance **decidido el 2026-09-12 (D-T8) = menú y precios por local**, brief en [`ops/tasks/TASK-multi-location.md`](tasks/TASK-multi-location.md); **fases 1-7 cerradas** (modelo y backfill, API y pantalla de locales, catálogo y precios por local, menú público, selector en el checkout, operación por local, y el local en el detalle, la confirmación y el historial). Queda **un gap declarado**: el footer y el bloque de información de la home siguen mostrando el horario y la dirección de la configuración del negocio, no del local (ver §2, "Fase 7, cierre"). **Decisiones del checkout resueltas el 2026-09-12**: D1 **sí** — **fase 4 cerrada** (pedidos para días futuros, sin límite de días: el tope es el horario del día) y D2 **no** (una sola tasa de propina; la fase 5 queda descartada). **Ola 2** (aprobada): T8 multi-sucursal, T9 promos, T10 favoritos (**descartada por el owner**: "mantengamos el login tal cual lo tenemos"; sin cuenta no hay favoritos), T11 método de pago, T12 vuelto, T13 PIN de retiro. Evidencia del mock: [`ops/audit-checkout-mock.md`](audit-checkout-mock.md). |
 
 ## 5. Cómo continuar
 

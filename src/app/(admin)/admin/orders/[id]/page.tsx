@@ -341,6 +341,7 @@ export default function AdminOrderDetailPage() {
         pickupTime: order.pickupTime,
         pickupScheduled: order.pickupScheduled,
         timeZone,
+        nowMs,
       })
     : null;
   const pickupTiming = order
@@ -348,6 +349,7 @@ export default function AdminOrderDetailPage() {
         pickupTime: order.pickupTime,
         status: order.status,
         nowMs,
+        timeZone,
       })
     : null;
   /** Vuelto del efectivo (T12): se deriva del monto y el total que ve la caja. */

@@ -7,6 +7,7 @@ import {
   formatSlotLabel,
   type PickupSlot,
 } from "@/modules/business-settings/domain/pickup-slots";
+import { formatPickupDayLabel } from "@/modules/business-settings/domain/pickup-days";
 
 /**
  * Retiro del pedido, programable y **opcional**.
@@ -18,8 +19,17 @@ import {
  * El control colapsado **siempre muestra el estado** ("Lo antes posible · listo 7:35
  * p. m." o la hora programada): esconderlo detrás de un botón genérico dejaría al
  * cliente sin saber cuándo va a estar su comida.
+ *
+ * Desde la fase 4 (D1) se puede pedir para **cualquier día**: el día elegido decide los
+ * turnos y "lo antes posible" solo existe para hoy.
  */
 export const ASAP_OPTION_LABEL = "Lo antes posible";
+
+/**
+ * Id del control de día. Vive acá y no en `page.tsx` porque el input está en este
+ * componente: así el foco del checkout puede llevarlo ahí cuando falta la hora.
+ */
+export const PICKUP_DAY_FIELD_ID = "checkout-pickup-day";
 
 export function PickupScheduleField({
   scheduledTime,
@@ -27,8 +37,11 @@ export function PickupScheduleField({
   pickupLeadMinutes = 0,
   pickupMaxMinutes = null,
   options,
-  todayHours,
+  scheduleHint,
+  selectedDay,
+  todayDate,
   onSelect,
+  onSelectDay,
 }: {
   /** `""` = sin programar (lo antes posible). */
   scheduledTime: string;
@@ -38,12 +51,20 @@ export function PickupScheduleField({
   pickupLeadMinutes?: number;
   pickupMaxMinutes?: number | null;
   options: PickupSlot[];
-  todayHours: string;
+  /** Qué decir del día elegido: horario y qué pasa si no se elige hora. */
+  scheduleHint: string;
+  /** Día elegido (`YYYY-MM-DD` en la zona del negocio). */
+  selectedDay: string;
+  /** Hoy en la zona del negocio: el único día con "lo antes posible". */
+  todayDate: string;
   onSelect: (value: string) => void;
+  onSelectDay: (date: string) => void;
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const panelId = useId();
   const isScheduled = scheduledTime !== "";
+  const isToday = !selectedDay || selectedDay === todayDate;
+  const dayLabel = selectedDay ? formatPickupDayLabel({ date: selectedDay, today: todayDate }) : "Hoy";
   const asapHint = asapValue
     ? formatPickupRangeLabel({ pickupTime: asapValue, pickupLeadMinutes, pickupMaxMinutes })
     : "";
@@ -71,7 +92,7 @@ export function PickupScheduleField({
           </span>{" "}
           <span className="block truncate text-sm font-semibold text-foreground">
             {isScheduled
-              ? formatSlotLabel(scheduledTime)
+              ? `${isToday ? "" : `${dayLabel} · `}${formatSlotLabel(scheduledTime)}`
               : `${ASAP_OPTION_LABEL}${asapHint ? ` · ${asapHint}` : ""}`}
           </span>
         </span>
@@ -87,19 +108,34 @@ export function PickupScheduleField({
           id={panelId}
           className="space-y-3 rounded-2xl border border-border bg-card p-3 shadow-[0_18px_36px_-30px_rgba(41,37,36,0.7)]"
         >
-          <p className="px-1 text-xs leading-5 text-muted-foreground">
-            El local atiende {todayHours}. Si no elegís una hora, preparamos tu pedido
-            apenas llega.
-          </p>
+          {/* Día de retiro (fase 4): cualquier fecha desde hoy. El control nativo del
+              navegador ya trae el calendario del celular y el teclado accesible. */}
+          <label className="block space-y-1.5 px-1">
+            <span className="block text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+              Día de retiro
+            </span>
+            <input
+              id={PICKUP_DAY_FIELD_ID}
+              type="date"
+              value={selectedDay}
+              min={todayDate}
+              onChange={(event) => onSelectDay(event.target.value)}
+              className="min-h-11 w-full rounded-xl border border-border bg-card px-3 text-sm font-medium text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            />
+          </label>
+
+          <p className="px-1 text-xs leading-5 text-muted-foreground">{scheduleHint}</p>
 
           <div className="grid gap-2 sm:grid-cols-2">
-            <ScheduleOption
-              name="pickupTimeOption"
-              checked={!isScheduled}
-              onSelect={() => select("")}
-              title={ASAP_OPTION_LABEL}
-              hint={asapHint || undefined}
-            />
+            {isToday ? (
+              <ScheduleOption
+                name="pickupTimeOption"
+                checked={!isScheduled}
+                onSelect={() => select("")}
+                title={ASAP_OPTION_LABEL}
+                hint={asapHint || undefined}
+              />
+            ) : null}
             {options.map((option) => (
               <ScheduleOption
                 key={option.value}

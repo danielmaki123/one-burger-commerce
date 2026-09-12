@@ -1,24 +1,13 @@
-import { TIME_OF_DAY_PATTERN } from "@/modules/business-settings/domain/business-settings.types";
-
 /**
  * Utilidades del checkout, separadas de la página para poder probarlas solas.
+ *
+ * El armado del instante de retiro **no** vive acá: desde la fase 4 (D1) el día elegido
+ * manda, así que lo resuelve el dominio de turnos (`pickupInstant`), que además lo hace en
+ * la zona del negocio y no en la del celular. Antes esta capa armaba la hora con
+ * `date.setHours(...)`, o sea con el reloj del cliente.
  */
 
 const GENERIC_ERROR = "No pudimos confirmar el pedido. Intentá de nuevo.";
-
-/**
- * Convierte la hora de retiro del formulario (`19:30`) al ISO que espera la API.
- * Devuelve `null` si la hora no es válida, para que el llamador la trate como falta.
- */
-export function formatPickupTimeIso(time24: string): string | null {
-  if (!TIME_OF_DAY_PATTERN.test(time24)) return null;
-
-  const [hours, minutes] = time24.split(":").map((part) => Number.parseInt(part, 10));
-  const date = new Date();
-  date.setHours(hours, minutes, 0, 0);
-
-  return date.toISOString();
-}
 
 /** Estados que ve el cliente en la confirmación y en el seguimiento. */
 export function formatPublicOrderStatus(status: string): string {

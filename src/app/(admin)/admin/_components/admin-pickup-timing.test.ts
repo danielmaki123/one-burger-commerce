@@ -26,6 +26,46 @@ describe("describeAdminPickup", () => {
       describeAdminPickup({ pickupTime: "no-es-fecha", timeZone: "America/Managua" }),
     ).toBeNull();
   });
+
+  /**
+   * Fase 4 del checkout (D1) — el pedido puede ser para otro día.
+   *
+   * En cocina no es lo mismo "hoy 8:00 p. m." que "mañana 8:00 p. m.": sin el día, un
+   * pedido programado para mañana se leería como uno de hoy y se empezaría a cocinar.
+   */
+  it("dice el día cuando el retiro no es hoy", () => {
+    const nowMs = new Date("2026-09-11T18:00:00-06:00").getTime();
+
+    // 2026-09-13T02:00Z = sábado 12 de septiembre, 8:00 p. m. en Managua (UTC-6).
+    expect(
+      describeAdminPickup({
+        pickupTime: "2026-09-13T02:00:00.000Z",
+        pickupScheduled: true,
+        timeZone: "America/Managua",
+        nowMs,
+      }),
+    ).toBe("Retiro mañana 8:00 p. m. · Programado");
+
+    // 2026-09-19T02:00Z = viernes 18 de septiembre por la noche en Managua.
+    expect(
+      describeAdminPickup({
+        pickupTime: "2026-09-19T02:00:00.000Z",
+        pickupScheduled: true,
+        timeZone: "America/Managua",
+        nowMs,
+      }),
+    ).toContain("viernes 18 de septiembre");
+
+    // El mismo día sigue leyéndose como siempre, sin día de por medio.
+    expect(
+      describeAdminPickup({
+        pickupTime: "2026-09-12T02:00:00.000Z",
+        pickupScheduled: true,
+        timeZone: "America/Managua",
+        nowMs: new Date("2026-09-11T23:00:00-06:00").getTime(),
+      }),
+    ).toBe("Retiro 8:00 p. m. · Programado");
+  });
 });
 
 const due = "2026-09-11T20:00:00-06:00";
@@ -127,5 +167,33 @@ describe("resolveAdminPickupTiming", () => {
     });
 
     expect(timing.state).toBe("unknown");
+  });
+
+  /**
+   * El semáforo es contra la hora prometida **de hoy**: para un pedido de otro día no hay
+   * cuenta regresiva que valga (decir "en 1440 min" no le sirve a nadie), así que no se
+   * muestra la píldora y el día lo dice la etiqueta del retiro.
+   */
+  it("no cuenta los minutos de un retiro de otro día", () => {
+    const timing = resolveAdminPickupTiming({
+      pickupTime: "2026-09-13T02:00:00.000Z",
+      status: "new",
+      nowMs: new Date("2026-09-11T18:00:00-06:00").getTime(),
+      timeZone: "America/Managua",
+    });
+
+    expect(timing.state).toBe("unknown");
+    expect(timing.deltaLabel).toBe("");
+  });
+
+  it("un retiro de hoy sí cuenta los minutos", () => {
+    const timing = resolveAdminPickupTiming({
+      pickupTime: due,
+      status: "new",
+      nowMs: atMinutes(-30),
+      timeZone: "America/Managua",
+    });
+
+    expect(timing.deltaLabel).toBe("en 30 min");
   });
 });

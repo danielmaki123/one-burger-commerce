@@ -12,6 +12,12 @@ import {
   soonestPickupTime,
   type PickupSlot,
 } from "@/modules/business-settings/domain/pickup-slots";
+import {
+  buildPickupSlotsForDay,
+  dateInTimeZone,
+  formatDayHours,
+  pickupInstant,
+} from "@/modules/business-settings/domain/pickup-days";
 import { useCart } from "@/shared/lib/cart";
 import { upsertDeviceOrder } from "@/shared/lib/device-orders";
 import { useBusinessSettings, useCurrencyFormat } from "@/shared/lib/business-settings";
@@ -26,11 +32,10 @@ import { EmptyCartState } from "../_components/empty-cart-state";
 import { OrderSummaryCard } from "../_components/order-summary-card";
 import {
   extractCheckoutErrorMessage,
-  formatPickupTimeIso,
   formatPublicOrderStatus,
   readAcceptanceReason,
 } from "./checkout-helpers";
-import { PickupScheduleField } from "./pickup-schedule-field";
+import { PICKUP_DAY_FIELD_ID, PickupScheduleField } from "./pickup-schedule-field";
 import { resolveWhatsappDefaultPrefix } from "@/shared/lib/whatsapp-input-value";
 import {
   PAYMENT_METHODS,
@@ -72,6 +77,7 @@ const ORDER_TYPE = "pickup";
 const FIELD_IDS = {
   customerName: "checkout-customer-name",
   customerWhatsapp: "checkout-customer-whatsapp",
+  pickupTime: PICKUP_DAY_FIELD_ID,
   items: "checkout-error",
 } as const;
 
@@ -118,6 +124,9 @@ export default function CheckoutPage() {
     customerName: "",
     customerWhatsapp: "",
     pickupTime: "",
+    // Día de retiro (fase 4): `""` = hoy. Se resuelve contra la zona del negocio cuando
+    // el reloj del cliente ya está disponible.
+    pickupDay: "",
     pickupNotes: "",
     // Se cobra en el local: lo más probable es efectivo, y el cliente puede cambiarlo.
     paymentMethod: "cash" as OrderPaymentMethod,
@@ -190,8 +199,27 @@ export default function CheckoutPage() {
     [selectedLocation, settings],
   );
 
+  /** Hoy, en la zona del negocio: es el día por defecto y el piso del selector. */
+  const todayDate = useMemo(
+    () => (now ? dateInTimeZone(now, settings.timezone) : ""),
+    [now, settings.timezone],
+  );
+
+  /** Día de retiro elegido (`""` = hoy). */
+  const selectedDay = formData.pickupDay || todayDate;
+  const isFutureDay = Boolean(selectedDay && todayDate && selectedDay !== todayDate);
+
   const pickupSlots = useMemo(() => {
-    if (!now) return null;
+    if (!now || !selectedDay) return null;
+
+    // Otro día: los turnos salen de su horario, desde la apertura. Hoy: los que quedan por
+    // delante, con la espera de preparación ya sumada.
+    if (isFutureDay) {
+      return buildPickupSlotsForDay({
+        businessHours: pickupSource.businessHours,
+        date: selectedDay,
+      });
+    }
 
     return buildPickupSlots({
       businessHours: pickupSource.businessHours,
@@ -199,14 +227,41 @@ export default function CheckoutPage() {
       pickupLeadMinutes: pickupSource.pickupLeadMinutes,
       now,
     });
-  }, [now, pickupSource, settings.timezone]);
+  }, [now, selectedDay, isFutureDay, pickupSource, settings.timezone]);
 
-  /** Turnos que ofrece el local hoy. Programar es opcional: sin elegir nada, el pedido
-   *  se prepara apenas llega. */
+  /** Turnos que ofrece el local el día elegido. Programar es opcional hoy: sin elegir
+   *  nada, el pedido se prepara apenas llega. Para otro día hay que elegir una hora. */
   const pickupOptions: PickupSlot[] = useMemo(
     () => (pickupSlots?.available ? pickupSlots.slots : []),
     [pickupSlots],
   );
+
+  /**
+   * Por qué el día elegido no se puede usar. `null` = se puede. Se muestra en el control
+   * y bloquea la confirmación, para no ofrecer un botón que falle.
+   */
+  const pickupDayUnavailableMessage = useMemo(() => {
+    if (!isFutureDay || !pickupSlots || pickupSlots.available) return null;
+
+    return pickupSlots.reason === "closed"
+      ? "Ese día no atendemos. Elegí otro día."
+      : "Ese día no quedan turnos. Elegí otro día.";
+  }, [isFutureDay, pickupSlots]);
+
+  /** Cambiar de día rearma el retiro: hoy vuelve a "lo antes posible" y otro día arranca
+   *  en su primer turno, así nunca queda un estado que el servidor vaya a rechazar. */
+  function selectPickupDay(day: string) {
+    const slots =
+      day && day !== todayDate
+        ? buildPickupSlotsForDay({ businessHours: pickupSource.businessHours, date: day })
+        : null;
+
+    setFormData((prev) => ({
+      ...prev,
+      pickupDay: day,
+      pickupTime: slots?.available ? slots.slots[0].value : "",
+    }));
+  }
 
   /** Hora que mostrará "lo antes posible". El servidor recalcula la suya al recibir el
    *  pedido, así que esto es solo para que el cliente sepa qué esperar. */
@@ -220,14 +275,17 @@ export default function CheckoutPage() {
     });
   }, [now, settings.timezone, pickupSource.pickupLeadMinutes]);
 
-  
-
+  /** El instante de retiro elegido, resuelto en la **zona del negocio** (fase 4): el día
+   *  elegido manda, no la fecha del reloj del cliente. */
   const scheduledPickupDate = useMemo(() => {
-    if (!formData.pickupTime) return null;
+    if (!formData.pickupTime || !selectedDay) return null;
 
-    const iso = formatPickupTimeIso(formData.pickupTime);
-    return iso ? new Date(iso) : null;
-  }, [formData.pickupTime]);
+    return pickupInstant({
+      date: selectedDay,
+      time: formData.pickupTime,
+      timeZone: settings.timezone,
+    });
+  }, [formData.pickupTime, selectedDay, settings.timezone]);
 
   /**
    * La misma regla que aplica el servidor, evaluada con el reloj del cliente.
@@ -257,10 +315,28 @@ export default function CheckoutPage() {
     scheduledPickupDate,
   ]);
 
-  const orderingBlocked = acceptance !== null && !acceptance.accepted;
-  const orderingBlockedMessage =
-    acceptance && !acceptance.accepted ? acceptance.message : "";
+  const orderingBlocked =
+    (acceptance !== null && !acceptance.accepted) || pickupDayUnavailableMessage !== null;
+  const orderingBlockedMessage = pickupDayUnavailableMessage
+    ? pickupDayUnavailableMessage
+    : acceptance && !acceptance.accepted
+      ? acceptance.message
+      : "";
   const todayHours = formatTodayHours(pickupSource.businessHours, new Date(), settings.timezone);
+  const selectedDayHours = selectedDay
+    ? formatDayHours(pickupSource.businessHours, selectedDay)
+    : null;
+
+  /**
+   * Qué decirle al cliente sobre el día elegido. Hoy se mantiene el copy de siempre
+   * (programar es opcional); para otro día se explica que hay que elegir una hora, porque
+   * sin hora el pedido saldría para hoy.
+   */
+  const scheduleHint = isFutureDay
+    ? selectedDayHours
+      ? `El local atiende ${selectedDayHours} ese día. Elegí la hora a la que pasás a retirar.`
+      : "Ese día el local no atiende. Elegí otro día."
+    : `El local atiende ${todayHours}. Si no elegís una hora, preparamos tu pedido apenas llega.`;
 
   /**
    * Dónde se retira (T5 y T8). Sale del local elegido —o del único que hay—, y si el negocio
@@ -401,9 +477,11 @@ export default function CheckoutPage() {
     if (!formData.customerWhatsapp.trim()) {
       return { field: "customerWhatsapp", message: "Falta completar WhatsApp." };
     }
-    // La hora de retiro es opcional: vacío es "lo antes posible" y lo resuelve el
-    // servidor con su reloj. No se valida porque los valores solo pueden salir de los
-    // turnos que ofrece el propio control.
+    // La hora de retiro de **hoy** es opcional: vacío es "lo antes posible" y lo resuelve
+    // el servidor con su reloj. Para otro día no: sin hora el pedido saldría para hoy.
+    if (isFutureDay && !formData.pickupTime) {
+      return { field: "pickupTime", message: "Elegí una hora para ese día." };
+    }
 
     return null;
   };
@@ -456,11 +534,11 @@ export default function CheckoutPage() {
         payload.locationId = selectedLocation.id;
       }
 
-      // Sin hora = sin programar. No se manda nada y el servidor completa con
+      // Sin hora de hoy = sin programar. No se manda nada y el servidor completa con
       // "ahora + preparación" usando su reloj, así un formulario lento no convierte
-      // la hora en una del pasado.
-      const pickupTime = formatPickupTimeIso(formData.pickupTime);
-      if (pickupTime) payload.pickupTime = pickupTime;
+      // la hora en una del pasado. Con otro día la hora ya viene resuelta en la zona del
+      // negocio (fase 4): el día elegido es el que manda.
+      if (scheduledPickupDate) payload.pickupTime = scheduledPickupDate.toISOString();
       if (formData.pickupNotes.trim()) payload.pickupNotes = formData.pickupNotes.trim();
 
       const res = await fetch("/api/orders", {
@@ -517,7 +595,9 @@ export default function CheckoutPage() {
         // se vuelve a "lo antes posible" en vez de dejarlo reintentando con una hora
         // que el servidor ya no va a aceptar.
         if (readAcceptanceReason(errorPayload) === "pickup-time-in-past") {
-          setFormData((prev) => ({ ...prev, pickupTime: "" }));
+          // Vuelve a "lo antes posible" de hoy: si la hora elegida ya pasó, tampoco tiene
+          // sentido seguir con el día que se había elegido.
+          setFormData((prev) => ({ ...prev, pickupTime: "", pickupDay: "" }));
         }
       }
     } catch {
@@ -586,7 +666,10 @@ export default function CheckoutPage() {
 
               <div className="space-y-2">
                 <p className="text-sm font-medium text-foreground">Hora de retiro</p>
-                {orderingBlocked ? (
+                {/* El control se esconde solo cuando el pedido no se puede hacer por el
+                    negocio o el local (ahí no hay nada que elegir). Si el problema es el
+                    **día** elegido, el control se queda: es donde se cambia de día. */}
+                {orderingBlocked && !pickupDayUnavailableMessage ? (
                   <p
                     role="status"
                     className="rounded-2xl border border-border bg-cream/60 p-3 text-sm leading-5 text-foreground"
@@ -603,9 +686,20 @@ export default function CheckoutPage() {
                     pickupLeadMinutes={pickupSource.pickupLeadMinutes}
                     pickupMaxMinutes={pickupSource.pickupMaxMinutes}
                     options={pickupOptions}
-                    todayHours={todayHours}
+                    scheduleHint={scheduleHint}
+                    selectedDay={selectedDay}
+                    todayDate={todayDate}
+                    onSelectDay={selectPickupDay}
                   />
                 )}
+
+                {/* El motivo por el que no se puede confirmar, aunque el control siga a la
+                    vista para poder corregirlo. */}
+                {pickupDayUnavailableMessage ? (
+                  <p role="status" className="text-sm text-danger-foreground">
+                    {pickupDayUnavailableMessage}
+                  </p>
+                ) : null}
               </div>
 
               {pickupAddress ? (
@@ -660,8 +754,27 @@ export default function CheckoutPage() {
                             checked={isSelected}
                             onChange={() => {
                               setSelectedLocationId(location.id);
-                              // La hora elegida era de otro local: se vuelve a "lo antes posible".
-                              setFormData((prev) => ({ ...prev, pickupTime: "" }));
+                              // La hora elegida era del horario de otro local. Hoy se vuelve a
+                              // "lo antes posible"; con otro día se rearma con los turnos del
+                              // local nuevo (si no, quedaría una hora que ese local no ofrece).
+                              setFormData((prev) => {
+                                const day =
+                                  prev.pickupDay && prev.pickupDay !== todayDate
+                                    ? prev.pickupDay
+                                    : "";
+
+                                if (!day) return { ...prev, pickupDay: "", pickupTime: "" };
+
+                                const slots = buildPickupSlotsForDay({
+                                  businessHours: location.businessHours ?? settings.businessHours,
+                                  date: day,
+                                });
+
+                                return {
+                                  ...prev,
+                                  pickupTime: slots.available ? slots.slots[0].value : "",
+                                };
+                              });
                             }}
                             className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
                           />

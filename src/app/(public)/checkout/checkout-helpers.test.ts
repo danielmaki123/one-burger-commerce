@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import {
   extractCheckoutErrorMessage,
-  formatPickupTimeIso,
   formatPublicOrderStatus,
   readAcceptanceReason,
 } from "./checkout-helpers";
@@ -18,25 +17,6 @@ describe("readAcceptanceReason", () => {
     expect(readAcceptanceReason({ error: { fields: { customerName: "x" } } })).toBeNull();
     expect(readAcceptanceReason(null)).toBeNull();
     expect(readAcceptanceReason("texto")).toBeNull();
-  });
-});
-
-describe("formatPickupTimeIso", () => {
-  it("convierte HH:mm a un ISO válido de hoy", () => {
-    const iso = formatPickupTimeIso("19:30");
-
-    expect(iso).not.toBeNull();
-    const date = new Date(iso as string);
-    expect(Number.isNaN(date.getTime())).toBe(false);
-    expect(date.getHours()).toBe(19);
-    expect(date.getMinutes()).toBe(30);
-  });
-
-  it("devuelve null con una hora inválida", () => {
-    expect(formatPickupTimeIso("")).toBeNull();
-    expect(formatPickupTimeIso("25:00")).toBeNull();
-    expect(formatPickupTimeIso("19:70")).toBeNull();
-    expect(formatPickupTimeIso("mediodía")).toBeNull();
   });
 });
 

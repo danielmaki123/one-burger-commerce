@@ -11,6 +11,15 @@ import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/shared/ui/tabs";
 import {
+  ADMIN_ORDERS_TIME_ZONE,
+  ADMIN_ORDERS_TZ_OFFSET,
+  BUCKET_META,
+  BUCKET_ORDER,
+  managuaDateString,
+  orderBucket,
+  type OrderBucket,
+} from "./orders-page-helpers";
+import {
   AdminCompactToolbar,
   AdminEmptyState,
   AdminPageHeader,
@@ -88,17 +97,8 @@ const OPEN_STATUSES: ReadonlySet<OrderStatus> = new Set<OrderStatus>([
 
 // Restaurante fijo en Nicaragua (UTC-6, sin DST). Anclamos "hoy" y los rangos
 // a esa zona para que la vista del día sea correcta sin tocar backend.
-const TZ = "America/Managua";
-const TZ_OFFSET = "-06:00";
-
-function managuaDateString(date: Date): string {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: TZ,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(date);
-}
+const TZ = ADMIN_ORDERS_TIME_ZONE;
+const TZ_OFFSET = ADMIN_ORDERS_TZ_OFFSET;
 
 function shiftDays(dateStr: string, days: number): string {
   const base = new Date(`${dateStr}T00:00:00${TZ_OFFSET}`);
@@ -128,26 +128,8 @@ function orderTypePresentation(type: OrderType) {
   return { label: "Mesa", Icon: Table2 };
 }
 
-// Buckets de turno, en el orden en que el encargado los atiende.
-type OrderBucket = "nuevas" | "cocina" | "listas" | "otras" | "cerradas";
-
-function orderBucket(status: OrderStatus): OrderBucket {
-  if (status === "new") return "nuevas";
-  if (status === "confirmed" || status === "accepted" || status === "preparing") return "cocina";
-  if (status === "ready" || status === "ready_for_pickup") return "listas";
-  if (status === "closed" || status === "delivered" || status === "picked_up" || status === "served") return "cerradas";
-  return "otras";
-}
-
-const BUCKET_META: Record<OrderBucket, { title: string; hint?: string }> = {
-  nuevas: { title: "Nuevas", hint: "esperan tu confirmación" },
-  cocina: { title: "En cocina" },
-  listas: { title: "Listas para retiro" },
-  otras: { title: "Otras" },
-  cerradas: { title: "Cerradas" },
-};
-
-const BUCKET_ORDER: OrderBucket[] = ["nuevas", "cocina", "listas", "otras", "cerradas"];
+// Buckets de turno: viven en `orders-page-helpers` para poder probarlos solos.
+// Un pedido abierto para otro día va a "Programados".
 
 const CHIP_LIST_CLASS =
   "flex flex-wrap gap-2 bg-transparent p-0";
@@ -320,9 +302,15 @@ export default function AdminOrdersPage() {
   const bucketedOrders = useMemo(() => {
     const buckets = new Map<OrderBucket, OrderSummary[]>();
     for (const bucket of BUCKET_ORDER) buckets.set(bucket, []);
-    for (const order of orders) buckets.get(orderBucket(order.status))?.push(order);
+    for (const order of orders) {
+      // El día del pedido decide si es trabajo de este turno (fase 4): un retiro
+      // programado para otro día va a "Programados" en vez de a "Nuevas".
+      buckets
+        .get(orderBucket(order.status, { pickupTime: order.pickupTime, today }))
+        ?.push(order);
+    }
     return buckets;
-  }, [orders]);
+  }, [orders, today]);
 
   const STATUS_CHIP_OPTIONS: Array<{ value: string; label: string; count: number }> = [
     { value: "all", label: "Todas", count: ordersStatusCounts.total },
@@ -338,15 +326,18 @@ export default function AdminOrdersPage() {
     const isNew = order.status === "new";
     // El semáforo va contra la hora prometida, no contra la antigüedad del pedido: un
     // pedido programado para más tarde no puede estar en rojo por haber entrado temprano.
+    // Y si el retiro es de otro día, no hay cuenta regresiva: lo dice la etiqueta.
     const timing = resolveAdminPickupTiming({
       pickupTime: order.pickupTime,
       status: order.status,
       nowMs,
+      timeZone,
     });
     const pickupLabel = describeAdminPickup({
       pickupTime: order.pickupTime,
       pickupScheduled: order.pickupScheduled,
       timeZone,
+      nowMs,
     });
 
     return (

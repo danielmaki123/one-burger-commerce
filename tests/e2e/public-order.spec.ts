@@ -81,8 +81,59 @@ test.describe("checkout sin redundancias", () => {
     await expect(page.getByText(/^Retiro \d.* · Programado$/).first()).toBeVisible();
   });
 
-  test("el botón no arranca deshabilitado y señala el campo que falta", async ({ page }) => {
+  /**
+   * Fase 4 del checkout (D1) — el pedido puede ser para otro día.
+   *
+   * El recorrido entero: elegir el día, ver que "lo antes posible" desaparece (no se puede
+   * pedir "ya" para mañana), confirmar y comprobar que la cocina lo recibe **separado del
+   * turno de hoy** y con el día en la etiqueta.
+   */
+  test("un pedido para otro día no cae en el turno de hoy (D1)", async ({ page }) => {
     await openCheckoutWithOneProduct(page);
+
+    await page.getByRole("button", { name: /^Retiro Lo antes posible · listo ~/ }).click();
+
+    // Mañana, en la zona del negocio (el selector trabaja con el día del local).
+    const tomorrow = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "America/Managua",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date(Date.now() + 24 * 60 * 60 * 1000));
+
+    await page.getByLabel("Día de retiro").fill(tomorrow);
+
+    await expect(page.getByRole("radio", { name: "Lo antes posible" })).toHaveCount(0);
+
+    const slots = page.locator('input[name="pickupTimeOption"]');
+    await expect(slots.first()).toBeVisible();
+    await slots.first().click();
+
+    // El control dice el día, no solo la hora.
+    await expect(page.getByRole("button", { name: /^Retiro programado Mañana · \d/ })).toBeVisible();
+
+    await page.locator('input[name="customerName"]').fill("Cliente Otro Dia");
+    await page.locator('input[name="customerWhatsapp"]').fill("88887777");
+    await confirmButton(page).click();
+    await expect(page).toHaveURL(/\/success\/.+/);
+
+    // La confirmación del cliente también dice el día.
+    await expect(page.getByText(/mañana \d/)).toBeVisible();
+
+    // Y la bandeja del admin lo agrupa aparte del turno de hoy.
+    await loginAsOwner(page);
+    await page.goto("/admin/orders");
+    await expect(page.getByText("Programados").first()).toBeVisible();
+
+    const row = page
+      .getByRole("link", { name: /Abrir orden/ })
+      .filter({ hasText: "Cliente Otro Dia" })
+      .first();
+    await expect(row).toBeVisible();
+    await expect(row).toContainText("mañana");
+  });
+
+  test("el botón no arranca deshabilitado y señala el campo que falta", async ({ page }) => {    await openCheckoutWithOneProduct(page);
 
     // Un botón inerte que parece activo era el defecto: ahora se puede tocar siempre.
     await expect(confirmButton(page)).toBeEnabled();

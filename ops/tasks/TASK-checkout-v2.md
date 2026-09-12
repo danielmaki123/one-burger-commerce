@@ -260,11 +260,30 @@ que hizo el pedido desde el celular no tiene ahí la referencia.
 - Sin contrato nuevo: son datos que ya existen y ya se leen en el público.
 - **TDD:** el copy con dirección vacía (no mostrar la fila) va primero.
 
-### Fase 4 — Pedidos para días futuros · **D1 resuelta: SÍ (2026-09-12)**
+### Fase 4 — Pedidos para días futuros · **D1 resuelta: SÍ (2026-09-12) — CERRADA**
 
 Selector de día en el control de retiro, turnos calculados por día, el servidor ya valida contra el
-horario del día elegido (no hace falta cambiarlo), y el admin agrupa o filtra por día. Es la fase más
-grande de esta tarea.**Pendiente de implementar.**
+horario del día elegido (no hizo falta cambiarlo), y el admin separa los pedidos de otro día.
+
+- **Sin límite de días**: decisión del owner en la sesión del 2026-09-12 ("sin límite práctico: todo
+  lo que permita el horario"). El único tope es el horario de ese día; un día cerrado no se puede
+  elegir y el control lo explica en vez de dejar un botón que falle.
+- **El día manda, no el reloj del cliente**: la hora del retiro se resuelve en la **zona del
+  negocio** (`pickupInstant`), no con `setHours` del celular — que era lo que hacía el checkout y
+  habría mandado la fecha equivocada desde otra zona. Ese helper (`formatPickupTimeIso`) se eliminó
+  con su test, reemplazado por el dominio.
+- **"Lo antes posible" es solo de hoy**: al elegir otro día el control pide una hora (arranca en el
+  primer turno del día) porque sin hora el pedido saldría para hoy.
+- **El admin no puede confundirlo con el turno de hoy**: la bandeja agrupa los pedidos abiertos de
+  otro día en "Programados" (bucket nuevo, con test propio en `orders-page-helpers.test.ts`), la
+  etiqueta del retiro agrega el día ("Retiro mañana 8:00 p. m. · Programado"), el semáforo no cuenta
+  minutos de otro día, y la confirmación y el historial del cliente también dicen el día.
+- **Verificación**: 1520 unitarios, lint, typecheck, `npm run build`, `security:secrets`, y **E2E 80
+  pasaron / 7 salteados / 0 fallos** (`public-order.spec.ts`: "un pedido para otro día no cae en el
+  turno de hoy").
+- **Pendiente declarado**: la bandeja del admin ancla "hoy" a `America/Managua` fijo
+  (`orders-page-helpers.ts`), mientras el checkout y el retiro usan la zona de la configuración. Para
+  un negocio en otra zona habría que mover ese anclaje a `BusinessSettings.timezone`.
 
 ### Fase 5 — Presets de propina · **D2 resuelta: NO (2026-09-12) — fase descartada**
 
