@@ -1197,6 +1197,64 @@ cierre"); lo que faltaba era **verlo**, que es esta fase.
 **Lo que queda de `TASK-checkout-v2`**: fase 4 (pedidos para días futuros, depende de **D1**) y fase 5
 (presets de propina, depende de **D2**). Las fases 1, 2, 3, 6 y 7 están cerradas.
 
+### Endurecimiento técnico: hash de contraseñas, CSP y el build de webpack (2026-09-12)
+
+El pendiente #5 de la lista de abajo, cerrado en un solo commit. Eran tres cosas que no bloqueaban
+nada pero se acumulaban.
+
+**1. El hash de contraseñas era viejo y no se podía subir.** El formato era `salt:digest` con los
+parámetros por defecto de Node (N=2^14, ~51 ms medidos acá) y **no guardaba los parámetros**: subirlos
+habría dejado afuera a todas las cuentas existentes en el próximo login.
+
+- Formato nuevo autodescriptivo: `scrypt$N$r$p$salt$digest` con **N=2^16, r=8, p=2** (64 MiB de
+  memoria, ~270 ms por hash medidos), una de las combinaciones que recomienda OWASP para scrypt. El
+  login del admin está limitado a 10 intentos por minuto y por IP, así que ese costo lo paga un
+  atacante.
+- Los hashes viejos **se siguen verificando** y se actualizan solos: `passwordNeedsRehash()` decide, y
+  el login rehashea en el momento en que tiene la contraseña en claro. Nunca debilita (un hash con
+  parámetros más altos se deja como está) y si el rehash falla **la entrada sigue** (es una mejora
+  interna, no un requisito).
+- Puerto: se agregó `updateUserPassword` a `AdminAuthRepository`, implementado en los dos adaptadores
+  (el compilador obliga: el doble en memoria lo implementa o no compila).
+- Evidencia en la base local: las cuentas que entraron en esta sesión quedaron con
+  `scrypt$65536$8$2$…` (178 caracteres) y el resto sigue con el formato viejo (161) hasta que entre.
+
+**2. No había CSP.** Solo HSTS, `nosniff`, `X-Frame-Options` y compañía: nada decía **qué scripts**
+pueden correr, así que un `<script>` inyectado corría igual.
+
+- La política se arma en el proxy (`content-security-policy.ts`, puro y con tests) con un **nonce por
+  respuesta** y viaja al render en el header del request (`x-nonce` + el propio CSP): así Next lo pone
+  en sus `<script>` sin que ninguna página lo pase a mano. Todas las pantallas ya eran dinámicas.
+- `default-src 'self'`, `script-src 'self' 'nonce-…' 'strict-dynamic'`, `object-src 'none'`,
+  `base-uri 'self'`, `form-action 'self'`, `frame-ancestors 'self'`, `connect-src 'self'`.
+  `style-src` lleva `'unsafe-inline'` (React escribe estilos en línea; el riesgo real es inyectar
+  scripts y eso lo cubre el nonce) e `img-src` permite `https:` porque el owner carga fotos por URL.
+- **Sin `upgrade-insecure-requests` a propósito**: reescribe los subrecursos a https y contra el
+  servidor local en http (el arnés E2E) dejaría la página sin CSS ni JS. El upgrade lo hace HSTS.
+- Verificado en navegador real: `security-csp.spec.ts` recorre home, menú, carrito, checkout, landing
+  y login del admin escuchando las violaciones que reporta el navegador (ninguna), y comprueba que la
+  hidratación siga viva (el "+" del menú agrega de verdad) y que el admin funcione.
+
+**3. `next build --webpack` fallaba** (el build del deploy usa Turbopack, que no corre esa
+validación, así que el problema estaba escondido). La causa: Next genera un tipo por módulo de ruta
+que exige que solo exporte lo que él conoce, y tres páginas exportaban de más.
+
+- `activity/page.tsx` exportaba `OrderHistoryCard`, `OrderTimeline` y `OrderDetailView` → movidos a
+  `activity/order-history-views.tsx`.
+- `menu/[productId]/page.tsx` exportaba `countAvailableSelectionGroups` → movido a
+  `menu/product-detail-page-helpers.ts`; `checkout/page.tsx` exportaba `focusCheckoutField` → ahora es
+  privada (nadie más la usaba).
+- **Test de contrato** (`src/app/route-module-exports.test.ts`): recorre las páginas, layouts y rutas
+  y falla si alguna exporta algo que Next no conoce. Comprobado que **caza de verdad** el caso (con un
+  archivo de prueba apareció el rojo nombrando el archivo); con esto no hace falta esperar a que
+  alguien corra el `--webpack`.
+- `npx next build --webpack` **pasa** (compila y termina el listado de rutas; antes cortaba en
+  "Failed to type check").
+
+**Verificación:** **1327 unitarios en 216 archivos** (antes 1301 en 213), lint, typecheck,
+`npm run build`, `npx next build --webpack` y `security:secrets` verdes; **E2E completo 76 pasaron,
+7 salteados, 0 fallos** (antes 73).
+
 ## 3. Infraestructura y secretos
 
 - `EASYPANEL_URL` y `EASYPANEL_TOKEN`: solo en el entorno de quien ejecuta el deploy (nunca
@@ -1217,13 +1275,13 @@ cierre"); lo que faltaba era **verlo**, que es esta fase.
 | 2 | **Notificaciones de pedidos a cocina** | Daniel + agente | Hoy `NOTIFICATIONS_DRIVER=dummy`: un pedido entra y nadie se entera salvo que alguien mire `/admin/orders`. Falta bot token + chat id de Telegram (o webhook n8n), y activar `OUTBOX_PROCESSOR_*`. |
 | 3 | **Backups del Postgres + drill de restore** | Daniel (panel) | No hay backup programado. Es la única red si algo sale mal. |
 | 4 | **Borrar el servicio duplicado huérfano `oneburguer-web`** (responde 502) | Agente | Evita confundir futuros deploys. |
-| 5 | **Endurecimiento técnico**: scrypt más fuerte con rehash al login, CSP, extraer componentes exportados de las páginas (hoy `next build --webpack` falla) | Agente | No bloquea. |
+| 5 | **Endurecimiento técnico**: scrypt más fuerte con rehash al login, CSP, extraer componentes exportados de las páginas (hoy `next build --webpack` falla) | **Cerrada** | Las tres partes están hechas y verificadas (ver §2, "Endurecimiento técnico"). Queda **una** mejora conocida que no se hizo: `style-src` necesita `'unsafe-inline'` porque React escribe estilos en línea; el día que se quiera cerrar del todo hay que pasar a hojas de estilo. |
 | 6 | **Cerrar puertos innecesarios** de otros servicios del servidor (`capostgres` 5455, `postimage` 8585) | Daniel | No es de One Burger, pero están expuestos a internet. |
 | 7 | **Personalización / quitar hardcodeo** (nombre, colores, logo, contacto, horarios, dirección) | **Cerrada (fases 1-4 y 6)** | Aprobada el 2026-09-10; brief en `ops/tasks/TASK-whitelabel-branding.md`. Sitio público, `/admin/settings`, apariencia con presets y contrato anti-hardcode, todo en `main` con CI verde. La **fase 5 (subida de logos)** se descartó: necesita un volumen persistente en Easypanel. Quedó **una excepción**: los turnos de retiro siguen hardcodeados y se trasladaron a la tarea #8. |
 | 8 | **Checkout sin redundancias** (textos y botones repetidos) | **Cerrada y desplegada** | `ops/tasks/TASK-checkout-ux.md`. Cuatro commits (`2832a93`…`aba4156`), en producción como `build-20260911-145656`. El checkout pasó de 807 a 476 líneas, un solo resumen compartido con el carrito, un solo CTA visible por viewport y los turnos de retiro calculados desde la configuración. |
 | 9 | **Validar el estado operativo en el servidor** | **Cerrada y desplegada** | Commits `3a67c37` y `ca474c8`, en producción como `build-20260911-154014`. `isAcceptingOrders` ya corta pedidos de verdad (antes no lo leía nadie) y la hora de retiro se valida contra el horario del día. Incluye el horario demo del seed y el límite de login del arnés E2E. |
 | 10 | **Retiro opcional y programable + la hora visible en toda la cadena** | **Cerrada y desplegada** | Commits `6f85a3c`, `c101f82`, `b207593` y `abc2183`, en producción como `build-20260911-191047`. Incluye **una migración** (`pickupScheduled`). El retiro es opcional, la hora la resuelve el servidor, el ticket de cocina y el admin la muestran, y el semáforo va contra la hora prometida. Ver el detalle arriba. |
-| 11 | **Adopción del mock completo (rediseño de la UI pública)** | **En ejecución · ola 1 completa (T1-T7) y T9, T11, T12 y T13 de la ola 2** | [`ops/tasks/TASK-mock-adoption.md`](tasks/TASK-mock-adoption.md). Plan **aprobado** el 2026-09-12 (D-A tipografía: Plus Jakarta Sans como tercera opción · D-B ola 2 completa **sin reseñas ni delivery** · D-C orden: tokens primero y después las pantallas en el orden del mock). **Reglas del programa**: ningún control decorativo (implementado con API/estado y test, o eliminado con motivo), nada hardcodeado, la paleta como preset que pasa el test de contraste, TDD por tarea, y verificación a 375 px **y 1280 px** (el mock no tiene escritorio). **Ola 1**: T1 tokens ✅ · T2 home ✅ · T3 menú ✅ · T3.1 color por categoría ✅ · T4 producto ✅ · T5 carrito+checkout ✅ (fases 1, 2, 3, 6 y 7) · T6 confirmación ✅ · T7 seguimiento e historial ✅ · **ola 1 completa** · T11 forma de pago ✅ · T12 vuelto ✅ · T13 PIN de retiro ✅ · **T9 promos cerrada**: motor ✅, campo del código en el checkout ✅ y pantalla del admin `/admin/promotions` ✅ · **queda T8 (multi-sucursal)**. **Decisiones abiertas del checkout**: D1 (pedidos para días futuros) y D2 (presets de propina). **Ola 2** (aprobada): T8 multi-sucursal, T9 promos, T10 favoritos (**descartada por el owner**: "mantengamos el login tal cual lo tenemos"; sin cuenta no hay favoritos), T11 método de pago, T12 vuelto, T13 PIN de retiro. Evidencia del mock: [`ops/audit-checkout-mock.md`](audit-checkout-mock.md). |
+| 11 | **Adopción del mock completo (rediseño de la UI pública)** | **En ejecución · ola 1 completa (T1-T7) y T9, T11, T12 y T13 de la ola 2** | [`ops/tasks/TASK-mock-adoption.md`](tasks/TASK-mock-adoption.md). Plan **aprobado** el 2026-09-12 (D-A tipografía: Plus Jakarta Sans como tercera opción · D-B ola 2 completa **sin reseñas ni delivery** · D-C orden: tokens primero y después las pantallas en el orden del mock). **Reglas del programa**: ningún control decorativo (implementado con API/estado y test, o eliminado con motivo), nada hardcodeado, la paleta como preset que pasa el test de contraste, TDD por tarea, y verificación a 375 px **y 1280 px** (el mock no tiene escritorio). **Ola 1**: T1 tokens ✅ · T2 home ✅ · T3 menú ✅ · T3.1 color por categoría ✅ · T4 producto ✅ · T5 carrito+checkout ✅ (fases 1, 2, 3, 6 y 7) · T6 confirmación ✅ · T7 seguimiento e historial ✅ · **ola 1 completa** · T11 forma de pago ✅ · T12 vuelto ✅ · T13 PIN de retiro ✅ · **T9 promos cerrada**: motor ✅, campo del código en el checkout ✅ y pantalla del admin `/admin/promotions` ✅ · **queda T8 (multi-sucursal)**: alcance **decidido el 2026-09-12 (D-T8) = menú y precios por local**, pendiente de implementar por fases. **Decisiones del checkout resueltas el 2026-09-12**: D1 **sí** (pedidos para días futuros, con selector de día → fase 4 de `TASK-checkout-v2`) y D2 **no** (una sola tasa de propina; la fase 5 queda descartada). **Ola 2** (aprobada): T8 multi-sucursal, T9 promos, T10 favoritos (**descartada por el owner**: "mantengamos el login tal cual lo tenemos"; sin cuenta no hay favoritos), T11 método de pago, T12 vuelto, T13 PIN de retiro. Evidencia del mock: [`ops/audit-checkout-mock.md`](audit-checkout-mock.md). |
 
 ## 5. Cómo continuar
 

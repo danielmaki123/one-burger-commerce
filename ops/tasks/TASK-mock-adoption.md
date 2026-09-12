@@ -157,7 +157,7 @@ sigue prohibiendo reactivar delivery sin pedido explícito posterior).
 
 | # | Cosa del mock | Qué implica | Costo |
 |---|---|---|---|
-| **T8** | **Multi-sucursal** (la más grande) | `BusinessSettings` es **una sola fila** (`id = "default"`): pasa a multi-local, con horario, datos de contacto y órdenes por local, más el selector en el checkout y el admin eligiendo local | **Alto** (migración + admin + operación) |
+| **T8** | **Multi-sucursal** (la más grande) — **alcance aprobado el 2026-09-12 (D-T8): menú y precios por local**, no solo horario y contacto. `BusinessSettings` es **una sola fila** (`id = "default"`): pasa a locales con horario, contacto, menú (productos, precios y disponibilidad) y órdenes por local, más el selector en el checkout y el admin eligiendo local. **Pendiente de implementar**, por fases | **Alto** (migración + admin + operación) |
 | **T9** | **Promos por cantidad** (B2G1) — **cerrada**: `CouponType.bogo` con `buyQuantity`/`freeQuantity` y alcance (`all`/`category`/`subcategory`/`product`), descuento calculado por el servidor y validación de la config (T9a), el campo del código en el checkout con su validación pública (T9b) y la pantalla del admin `/admin/promotions` para crear, editar, apagar y borrar (T9c), con las mismas reglas por campo que el formulario y el servidor comparten. El owner ya no depende de la base | `promo-bogo.test.ts` · `create-order.test.ts` · `promotion-rules.test.ts` · `page.test.tsx` · `tests/e2e/admin-promotions.spec.ts` | Medio |
 | **T10** | **Favoritos** ❤️ | ⚠️ **Descartada por decisión del owner (2026-09-12): "mantengamos el login tal cual lo tenemos"**. Los favoritos exigen cuenta de cliente y el login real (OTP) seguiría sin proveedor; el ❤️ del mock no se dibuja | — |
 | **T11** | **Método de pago** (efectivo/tarjeta) — **cerrada**: enum + columna con default en `Order`, selector en el checkout, fila en la confirmación y chip en el detalle del admin. **El E2E cazó que el adaptador de Prisma no guardaba el campo** (los unitarios pasaban por el adaptador en memoria) | `create-order.test.ts` · `checkout/page.test.tsx` · `order-success-view.test.ts` | **Sí** (migración `add_order_payment_method`) |
@@ -165,9 +165,9 @@ sigue prohibiendo reactivar delivery sin pedido explícito posterior).
 | **T13** | **PIN de retiro** — **cerrada**: `Order.pickupPin` (migración), cuatro dígitos con azar del sistema y generador inyectable. Se muestra en la confirmación, en el historial del dispositivo y en el detalle del admin. **No autoriza, no identifica y no se garantiza único**: es un código para dictar, y así está escrito en el código | `pickup-pin.test.ts` · `create-order.test.ts` · `order-success-view.test.ts` | **Sí** (migración `add_order_pickup_pin`) |
 
 > **Orden y dependencias:** T9, T11, T12 y T13 están cerradas. Lo único que queda de la ola 2 es **T8
-> (multi-sucursal)**: toca el modelo entero (`BusinessSettings` es una sola fila) y conviene decidirla
-> con la operación delante (¿el menú y los precios también por local, o solo el horario y el
-> contacto?); T10 está bloqueada hasta que exista login de cliente.
+> (multi-sucursal)**, ya con alcance decidido (**menú y precios por local**) y pendiente de
+> implementación: toca el modelo entero (`BusinessSettings` es una sola fila), así que va por fases y
+> conviene hacerlo con la operación delante. T10 está bloqueada hasta que exista login de cliente.
 
 ## 5.1 Lo que queda fuera (decidido)
 
@@ -190,6 +190,9 @@ sigue prohibiendo reactivar delivery sin pedido explícito posterior).
 | **D-A** | **Tipografía** | **Plus Jakarta Sans como tercera opción** de `FONT_CHOICES` (no reemplaza a Fraunces ni a Inter: el owner sigue eligiendo). Se implementa en T1.2 |
 | **D-B** | **Ola 2** | **Completa, sin reseñas y sin delivery** (§5, tareas T8-T13). ⚠️ **Favoritos (T10) queda bloqueado** hasta que exista login de cliente real: el OTP responde 503 en producción |
 | **D-C** | **Orden** | Confirmado: **tokens primero** y después las pantallas en el orden del mock (T2 → T7) |
+| **D-T8** | **Alcance de T8 (multi-sucursal)** | Resuelta el 2026-09-12: **menú y precios por local**. No es solo horario y contacto: los productos, sus precios y su disponibilidad pasan a ser por sucursal. Es la tarea más grande del plan (modelo + admin + operación) |
+| **D1** | **Pedidos para días futuros** | Resuelta el 2026-09-12: **sí**, con selector de día. Se implementa como fase 4 de `TASK-checkout-v2.md` (el servidor ya valida contra el horario del día elegido) |
+| **D2** | **Presets de propina** | Resuelta el 2026-09-12: **no**. Se mantiene **una sola tasa** configurable y el servidor sigue calculando el monto. La fase 5 de `TASK-checkout-v2.md` queda **descartada**, no pendiente |
 
 ## 8. Cómo se verifica
 

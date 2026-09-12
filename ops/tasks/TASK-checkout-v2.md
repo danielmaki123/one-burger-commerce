@@ -173,8 +173,8 @@ marcadas "por defecto" no bloquean nada si el owner no responde: se implementa l
 
 | # | Decisión | Bloquea | Opciones |
 |---|---|---|---|
-| **D1** | ¿Pedidos para **días futuros**? Hoy el checkout solo ofrece turnos de hoy; un pedido para mañana se puede crear por API y el admin lo muestra, pero la UI no lo ofrece. | Fase 4 | **No** (se saltea — recomendada) · **Sí** (selector de día, turnos por día, el servidor ya valida contra el horario del día elegido, y el admin agrupa o filtra por día: es la fase más grande del plan) |
-| **D2** | ¿**Presets de propina** o una sola tasa? Dejar elegir el porcentaje **es un cambio de contrato**, no de UI: hoy el monto lo calcula el servidor desde `settings.tipRate`. | Fase 5 | **Sí, con lista cerrada** (los presets se configuran en ajustes y el servidor acepta **solo** una tasa de esa lista, calculando siempre el monto — recomendada) · **No** (una sola tasa, como hoy) · Monto libre del cliente (**no recomendada**: rompe el invariante) |
+| **D1** | ¿Pedidos para **días futuros**? Hoy el checkout solo ofrece turnos de hoy; un pedido para mañana se puede crear por API y el admin lo muestra, pero la UI no lo ofrece. | Fase 4 | ✅ **RESUELTA el 2026-09-12: SÍ, con selector de día.** La fase 4 se hace (era la recomendación "No", pero el owner quiere el selector): selector de día, turnos por día, el servidor ya valida contra el horario del día elegido, y el admin agrupa o filtra por día |
+| **D2** | ¿**Presets de propina** o una sola tasa? Dejar elegir el porcentaje **es un cambio de contrato**, no de UI: hoy el monto lo calcula el servidor desde `settings.tipRate`. | Fase 5 | ✅ **RESUELTA el 2026-09-12: NO, una sola tasa.** La fase 5 queda **descartada** (no pendiente): el servidor sigue calculando el monto con `settings.tipRate` |
 | **D3** | ¿Se versionan `mockup/` y `stitch_full_pwa_builder/`? Hoy las dos figuran como *untracked*, no ignoradas. | Fase 6 | **Ignorarlas** explícitamente en `.gitignore` (recomendada: son carpetas de trabajo) · Mover el material a `ops/` con una nota |
 | **D4** | ¿**Upselling** "¿Algo más para acompañar?" en el carrito/checkout (el mock lo trae)? | Fase 7 | **No en el checkout** (recomendada: contradice el "un solo resumen" de `TASK-checkout-ux`) · Sí, pero en `/cart` |
 | **D5** | ¿**PIN de retiro** en la confirmación (el mock muestra "4821 · díctalo en caja")? | — | **No** por ahora (recomendada: mostrar el número de pedido) · Sí, un PIN real (**migración**) |
@@ -260,19 +260,17 @@ que hizo el pedido desde el celular no tiene ahí la referencia.
 - Sin contrato nuevo: son datos que ya existen y ya se leen en el público.
 - **TDD:** el copy con dirección vacía (no mostrar la fila) va primero.
 
-### Fase 4 — Pedidos para días futuros · **depende de D1**
+### Fase 4 — Pedidos para días futuros · **D1 resuelta: SÍ (2026-09-12)**
 
-Si el negocio los quiere: selector de día en el control de retiro, turnos calculados por día, el
-servidor ya valida contra el horario del día elegido (no hace falta cambiarlo), y el admin agrupa o
-filtra por día. Es la fase más grande; si la respuesta es no, se saltea.
+Selector de día en el control de retiro, turnos calculados por día, el servidor ya valida contra el
+horario del día elegido (no hace falta cambiarlo), y el admin agrupa o filtra por día. Es la fase más
+grande de esta tarea.**Pendiente de implementar.**
 
-### Fase 5 — Presets de propina · **depende de D2**
+### Fase 5 — Presets de propina · **D2 resuelta: NO (2026-09-12) — fase descartada**
 
-- Los presets se configuran en ajustes; el servidor acepta **solo** una tasa de esa lista y sigue
-  calculando el monto. Así se mantiene el invariante "el monto nunca viene del cliente".
-- **Ojo con la base:** el mock calcula 10 % de subtotal + empaque (C$78 sobre 780) y nuestro servidor
-  calcula 10 % de subtotal − descuento (C$71). Manda el servidor.
-- **TDD:** primero la validación de la tasa contra la lista; después el payload y la UI.
+No se hace. Se mantiene una sola tasa configurable (`settings.tipRate`) y el servidor sigue calculando
+el monto, que es el invariante que importa. El mock premarca 10 % y lo calcula sobre subtotal +
+empaque; nosotros no copiamos ninguna de las dos cosas.
 
 ### Fase 6 — Deuda menor del área · **incluye D3**
 
