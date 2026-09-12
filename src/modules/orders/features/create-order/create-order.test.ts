@@ -15,6 +15,8 @@ function seedProduct(repository: InMemoryOrderRepository, overrides?: Partial<ty
     name: "Cafe",
     basePrice: 100,
     packagingFeeAmount: null,
+    categoryId: "cat_01",
+    subcategoryId: null,
     isActive: true,
     isAvailable: true,
     modifierGroups: [],
@@ -53,6 +55,150 @@ function seedDeliveryZone(repository: InMemoryOrderRepository, overrides?: Parti
 }
 
 describe("createOrder", () => {
+  it("aplica una promo 2×1 sobre las unidades alcanzadas (T9)", async () => {
+    const repository = createRepository();
+    seedProduct(repository, { id: "prod_taco", name: "Taco", basePrice: 35, categoryId: "cat_tacos" });
+    seedProduct(repository, { id: "prod_agua", name: "Agua", basePrice: 25, categoryId: "cat_bebidas" });
+    repository.coupons.push({
+      id: "coupon_bogo",
+      code: "B2G1",
+      type: "bogo",
+      value: 0,
+      isActive: true,
+      usageLimit: 10,
+      usedCount: 0,
+      expiresAt: null,
+      buyQuantity: 2,
+      freeQuantity: 1,
+      scopeType: "all",
+      scopeId: null,
+    });
+
+    const result = await createOrder(
+      {
+        type: "pickup",
+        customerName: "Juan Perez",
+        customerWhatsapp: "+50588887777",
+        items: [
+          { productId: "prod_taco", quantity: 3, modifierOptionIds: [] },
+          { productId: "prod_agua", quantity: 1, modifierOptionIds: [] },
+        ],
+        couponCode: "B2G1",
+      },
+      { repository },
+    );
+
+    // 3 tacos (35 c/u) con B2G1: uno sale gratis. El agua no entra.
+    expect(result.data.subtotal).toBe(130);
+    expect(result.data.discount).toBe(35);
+    expect(result.data.total).toBe(95);
+    expect(result.data.couponCode).toBe("B2G1");
+  });
+
+  it("la promo por alcance no descuenta lo que no alcanza (T9)", async () => {
+    const repository = createRepository();
+    seedProduct(repository, { id: "prod_taco", name: "Taco", basePrice: 35, categoryId: "cat_tacos" });
+    seedProduct(repository, { id: "prod_agua", name: "Agua", basePrice: 25, categoryId: "cat_bebidas" });
+    repository.coupons.push({
+      id: "coupon_bogo",
+      code: "TACOS2X1",
+      type: "bogo",
+      value: 0,
+      isActive: true,
+      usageLimit: 10,
+      usedCount: 0,
+      expiresAt: null,
+      buyQuantity: 1,
+      freeQuantity: 1,
+      scopeType: "category",
+      scopeId: "cat_tacos",
+    });
+
+    const result = await createOrder(
+      {
+        type: "pickup",
+        customerName: "Juan Perez",
+        customerWhatsapp: "+50588887777",
+        items: [
+          { productId: "prod_taco", quantity: 2, modifierOptionIds: [] },
+          { productId: "prod_agua", quantity: 2, modifierOptionIds: [] },
+        ],
+        couponCode: "TACOS2X1",
+      },
+      { repository },
+    );
+
+    expect(result.data.discount).toBe(35);
+  });
+
+  it("rechaza la promo que no aplica sin quemar un uso (T9)", async () => {
+    const repository = createRepository();
+    seedProduct(repository, { id: "prod_taco", name: "Taco", basePrice: 35, categoryId: "cat_tacos" });
+    repository.coupons.push({
+      id: "coupon_bogo",
+      code: "B2G1",
+      type: "bogo",
+      value: 0,
+      isActive: true,
+      usageLimit: 10,
+      usedCount: 0,
+      expiresAt: null,
+      buyQuantity: 2,
+      freeQuantity: 1,
+      scopeType: "all",
+      scopeId: null,
+    });
+
+    // Dos unidades no completan un bloque de tres: el código no aplica.
+    await expect(
+      createOrder(
+        {
+          type: "pickup",
+          customerName: "Juan Perez",
+          customerWhatsapp: "+50588887777",
+          items: [{ productId: "prod_taco", quantity: 2, modifierOptionIds: [] }],
+          couponCode: "B2G1",
+        },
+        { repository },
+      ),
+    ).rejects.toMatchObject({ status: 409 });
+
+    // El descuento se calcula antes de consumir: el uso sigue disponible.
+    expect(repository.coupons[0].usedCount).toBe(0);
+  });
+
+  it("rechaza una promo mal configurada en vez de aplicarla a medias (T9)", async () => {
+    const repository = createRepository();
+    seedProduct(repository, { id: "prod_taco", name: "Taco", basePrice: 35, categoryId: "cat_tacos" });
+    repository.coupons.push({
+      id: "coupon_bogo",
+      code: "ROTA",
+      type: "bogo",
+      value: 0,
+      isActive: true,
+      usageLimit: 10,
+      usedCount: 0,
+      expiresAt: null,
+      buyQuantity: 2,
+      freeQuantity: null,
+      scopeType: "all",
+      scopeId: null,
+    });
+
+    await expect(
+      createOrder(
+        {
+          type: "pickup",
+          customerName: "Juan Perez",
+          customerWhatsapp: "+50588887777",
+          items: [{ productId: "prod_taco", quantity: 3, modifierOptionIds: [] }],
+          couponCode: "ROTA",
+        },
+        { repository },
+      ),
+    ).rejects.toMatchObject({ status: 409, message: expect.stringContaining("misconfigured") });
+  });
+
   it("genera un PIN de retiro para dictar en caja (T13)", async () => {
     const repository = createRepository();
     seedProduct(repository);

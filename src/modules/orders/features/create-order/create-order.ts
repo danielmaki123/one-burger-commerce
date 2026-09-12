@@ -17,6 +17,11 @@ import {
 } from "@/modules/orders/domain/order-tracking";
 import type { OrderRepository } from "@/modules/orders/ports/order-repository";
 import { generatePickupPin } from "@/modules/orders/domain/pickup-pin";
+import {
+  calculateBogoDiscount,
+  hasEligibleBogoUnits,
+  validateBogoCouponConfig,
+} from "@/modules/orders/domain/promo-bogo";
 import { randomInt } from "node:crypto";
 import { calculateOrderTotals, roundCurrency } from "@/shared/lib/order-totals";
 import { normalizeWhatsapp } from "@/shared/lib/normalize-whatsapp";
@@ -185,6 +190,18 @@ export async function createOrder(
     }>;
   }> = [];
 
+  /**
+   * Unidades del pedido para las promos por cantidad (T9): producto, categoría y
+   * precio unitario ya calculado por el servidor.
+   */
+  const promoUnits: Array<{
+    productId: string;
+    categoryId: string;
+    subcategoryId: string | null;
+    unitPrice: number;
+    quantity: number;
+  }> = [];
+
   for (let i = 0; i < input.items.length; i++) {
     const item = input.items[i];
     const prefix = `items[${i}]`;
@@ -270,6 +287,14 @@ export async function createOrder(
       lineTotal,
       modifiers,
     });
+
+    promoUnits.push({
+      productId: product.id,
+      categoryId: product.categoryId,
+      subcategoryId: product.subcategoryId ?? null,
+      unitPrice,
+      quantity: item.quantity,
+    });
   }
 
   // Calculate totals
@@ -295,6 +320,27 @@ export async function createOrder(
       throw new OrderError(409, "CONFLICT", "Coupon usage limit reached");
     }
 
+    // El descuento se calcula **antes** de consumir el uso: un código de promo que
+    // no aplica al pedido se rechaza sin quemar un uso (T9).
+    if (coupon.type === "bogo") {
+      const configError = validateBogoCouponConfig(coupon);
+      if (configError) {
+        throw new OrderError(409, "CONFLICT", `Coupon is misconfigured: ${configError}`);
+      }
+      if (!hasEligibleBogoUnits({ items: promoUnits, coupon })) {
+        throw new OrderError(409, "CONFLICT", "Coupon does not apply to this order");
+      }
+
+      discount = Math.min(
+        subtotal,
+        calculateBogoDiscount({ items: promoUnits, coupon }),
+      );
+    } else if (coupon.type === "percentage") {
+      discount = roundCurrency((subtotal * coupon.value) / 100);
+    } else {
+      discount = Math.min(coupon.value, subtotal);
+    }
+
     // Reserve the use atomically before persisting the order: two concurrent
     // orders can no longer both pass the limit check.
     const reserved = await repository.consumeCouponUsage(
@@ -307,13 +353,6 @@ export async function createOrder(
     }
 
     consumedCouponId = coupon.id;
-
-    if (coupon.type === "percentage") {
-      discount = roundCurrency((subtotal * coupon.value) / 100);
-    } else {
-      discount = Math.min(coupon.value, subtotal);
-    }
-
     appliedCouponCode = coupon.code;
   }
 

@@ -23,6 +23,9 @@ export class InMemoryOrderRepository implements OrderRepository {
     name: string;
     basePrice: number;
     packagingFeeAmount?: number | null;
+    /** Categoría y subcategoría: las necesitan las promos por alcance (T9). */
+    categoryId: string;
+    subcategoryId?: string | null;
     isActive: boolean;
     isAvailable: boolean;
     modifierGroups: {
@@ -299,6 +302,9 @@ export class InMemoryOrderRepository implements OrderRepository {
     name: string;
     basePrice: number;
     packagingFeeAmount?: number | null;
+    /** Categoría y subcategoría: las necesitan las promos por alcance (T9). */
+    categoryId: string;
+    subcategoryId?: string | null;
     isActive: boolean;
     isAvailable: boolean;
     modifierGroups: {

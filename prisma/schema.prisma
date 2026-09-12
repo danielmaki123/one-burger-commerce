@@ -279,6 +279,8 @@ enum OrderStatus {
 enum CouponType {
   percentage
   fixed_amount
+  /// Promo por cantidad (T9): usá `buyQuantity` y `freeQuantity`.
+  bogo
 }
 
 model Table {
@@ -303,6 +305,12 @@ model Coupon {
   usageLimit Int       @default(0)
   usedCount Int        @default(0)
   expiresAt DateTime?
+  /// Promo por cantidad (T9): cuántas unidades hay que llevar y cuántas salen gratis.
+  buyQuantity  Int?
+  freeQuantity Int?
+  /// A qué alcanza: `all`, `category`, `subcategory` o `product`, con su id.
+  scopeType    String?  @default("all")
+  scopeId      String?
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
   orders    Order[]

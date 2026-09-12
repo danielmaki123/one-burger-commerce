@@ -1063,6 +1063,33 @@ mostrador encuentre el pedido de un vistazo.
   **E2E completo 69 pasaron, 7 salteados, 0 fallos**. El caso de la confirmación ahora comprueba que el
   PIN está a la vista y que son cuatro dígitos.
 
+### Ola 2 · T9 (parte 1): el motor de promos por cantidad (2026-09-12)
+
+El mock muestra "PROMO B2G1" (llevá 2, pagá 1). Lo primero que encontré al abrir la tarea: **los
+cupones existen solo en la base** — no hay campo en el checkout para escribir un código ni pantalla en
+el admin para crearlos. Así que T9 va por partes y esta es la primera: el motor.
+
+- **Contrato nuevo**: `CouponType` suma `bogo`, y `Coupon` suma `buyQuantity`, `freeQuantity`,
+  `scopeType` (`all`/`category`/`subcategory`/`product`) y `scopeId` (migración `add_coupon_bogo`).
+- **El descuento lo calcula el servidor** desde el código que manda el cliente, nunca desde un monto:
+  se pagan las unidades **más caras de cada bloque** y salen gratis las más baratas (el criterio de un
+  2×1 de local), y la promo se repite por cada bloque completo (6 unidades con B2G1 → 2 gratis). El
+  motor es general: `buy=1, free=1` es un 2×1 y `buy=2, free=1` es el B2G1 del mock.
+- **Un vector mal elegido que corregí antes de seguir**: mis primeros tests decían "con dos unidades,
+  una gratis" para un B2G1 —eso es un 2×1, no un B2G1—, así que la especificación estaba mal, no el
+  código. Los reescribí con la semántica correcta (un bloque de B2G1 son tres unidades).
+- **Un invariante que arreglé de paso**: el uso del cupón se consumía **antes** de calcular el
+  descuento. Con la promo eso importa: un código que no aplica al pedido se rechaza (409) y **no quema
+  un uso**. Ahora el descuento se calcula primero y recién después se reserva el uso (verificado contra
+  la API: un intento rechazado dejó `usedCount` en 1, no en 2).
+- **Verificado contra la base y la API reales**, no solo con dobles: creé un cupón B2G1 por SQL, mandé
+  `POST /api/orders` con 3 tacos de C$35 y el código, y la respuesta fue `subtotal 105 · discount 35 ·
+  total 70`; con 2 unidades el mismo código devuelve 409. Después limpié el cupón y el pedido de
+  prueba de la base local.
+- **Lo que falta para cerrar T9** (anotado, no escondido): (b) el campo del código en el checkout con
+  su validación pública, para que el cliente pueda usarlo; y (c) la pantalla del admin para crear y
+  editar promos, sin la cual el owner depende de tocar la base. Sin (c), T9 no está terminada.
+
 ## 3. Infraestructura y secretos
 
 - `EASYPANEL_URL` y `EASYPANEL_TOKEN`: solo en el entorno de quien ejecuta el deploy (nunca
@@ -1089,7 +1116,7 @@ mostrador encuentre el pedido de un vistazo.
 | 8 | **Checkout sin redundancias** (textos y botones repetidos) | **Cerrada y desplegada** | `ops/tasks/TASK-checkout-ux.md`. Cuatro commits (`2832a93`…`aba4156`), en producción como `build-20260911-145656`. El checkout pasó de 807 a 476 líneas, un solo resumen compartido con el carrito, un solo CTA visible por viewport y los turnos de retiro calculados desde la configuración. |
 | 9 | **Validar el estado operativo en el servidor** | **Cerrada y desplegada** | Commits `3a67c37` y `ca474c8`, en producción como `build-20260911-154014`. `isAcceptingOrders` ya corta pedidos de verdad (antes no lo leía nadie) y la hora de retiro se valida contra el horario del día. Incluye el horario demo del seed y el límite de login del arnés E2E. |
 | 10 | **Retiro opcional y programable + la hora visible en toda la cadena** | **Cerrada y desplegada** | Commits `6f85a3c`, `c101f82`, `b207593` y `abc2183`, en producción como `build-20260911-191047`. Incluye **una migración** (`pickupScheduled`). El retiro es opcional, la hora la resuelve el servidor, el ticket de cocina y el admin la muestran, y el semáforo va contra la hora prometida. Ver el detalle arriba. |
-| 11 | **Adopción del mock completo (rediseño de la UI pública)** | **En ejecución · ola 1 completa (T1-T7) y T11 de la ola 2** | [`ops/tasks/TASK-mock-adoption.md`](tasks/TASK-mock-adoption.md). Plan **aprobado** el 2026-09-12 (D-A tipografía: Plus Jakarta Sans como tercera opción · D-B ola 2 completa **sin reseñas ni delivery** · D-C orden: tokens primero y después las pantallas en el orden del mock). **Reglas del programa**: ningún control decorativo (implementado con API/estado y test, o eliminado con motivo), nada hardcodeado, la paleta como preset que pasa el test de contraste, TDD por tarea, y verificación a 375 px **y 1280 px** (el mock no tiene escritorio). **Ola 1**: T1 tokens ✅ · T2 home ✅ · T3 menú ✅ · T3.1 color por categoría ✅ · T4 producto ✅ · T5 carrito+checkout ✅ (fases 1, 3, 6 y 7; queda la vista previa de turnos de la fase 2) · T6 confirmación ✅ · T7 seguimiento e historial ✅ · **ola 1 completa** · T11 forma de pago ✅ · T12 vuelto ✅ · T13 PIN de retiro ✅ · **queda T8 (multi-sucursal)**. **Decisiones abiertas del checkout**: D1 (pedidos para días futuros) y D2 (presets de propina). **Ola 2** (aprobada): T8 multi-sucursal, T9 promos, T10 favoritos (**descartada por el owner**: "mantengamos el login tal cual lo tenemos"; sin cuenta no hay favoritos), T11 método de pago, T12 vuelto, T13 PIN de retiro. Evidencia del mock: [`ops/audit-checkout-mock.md`](audit-checkout-mock.md). |
+| 11 | **Adopción del mock completo (rediseño de la UI pública)** | **En ejecución · ola 1 completa (T1-T7) y T11 de la ola 2** | [`ops/tasks/TASK-mock-adoption.md`](tasks/TASK-mock-adoption.md). Plan **aprobado** el 2026-09-12 (D-A tipografía: Plus Jakarta Sans como tercera opción · D-B ola 2 completa **sin reseñas ni delivery** · D-C orden: tokens primero y después las pantallas en el orden del mock). **Reglas del programa**: ningún control decorativo (implementado con API/estado y test, o eliminado con motivo), nada hardcodeado, la paleta como preset que pasa el test de contraste, TDD por tarea, y verificación a 375 px **y 1280 px** (el mock no tiene escritorio). **Ola 1**: T1 tokens ✅ · T2 home ✅ · T3 menú ✅ · T3.1 color por categoría ✅ · T4 producto ✅ · T5 carrito+checkout ✅ (fases 1, 3, 6 y 7; queda la vista previa de turnos de la fase 2) · T6 confirmación ✅ · T7 seguimiento e historial ✅ · **ola 1 completa** · T11 forma de pago ✅ · T12 vuelto ✅ · T13 PIN de retiro ✅ · T9 promos por cantidad: motor ✅ (faltan el campo del cliente y la pantalla del admin) · **queda T8 (multi-sucursal)**. **Decisiones abiertas del checkout**: D1 (pedidos para días futuros) y D2 (presets de propina). **Ola 2** (aprobada): T8 multi-sucursal, T9 promos, T10 favoritos (**descartada por el owner**: "mantengamos el login tal cual lo tenemos"; sin cuenta no hay favoritos), T11 método de pago, T12 vuelto, T13 PIN de retiro. Evidencia del mock: [`ops/audit-checkout-mock.md`](audit-checkout-mock.md). |
 
 ## 5. Cómo continuar
 

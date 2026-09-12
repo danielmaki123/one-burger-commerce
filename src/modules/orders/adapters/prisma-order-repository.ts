@@ -487,6 +487,10 @@ export class PrismaOrderRepository implements OrderRepository {
       id: coupon.id,
       code: coupon.code,
       type: coupon.type as CouponRecord["type"],
+      buyQuantity: coupon.buyQuantity ?? null,
+      freeQuantity: coupon.freeQuantity ?? null,
+      scopeType: coupon.scopeType ?? "all",
+      scopeId: coupon.scopeId ?? null,
       value: decimalToNumber(coupon.value),
       isActive: coupon.isActive,
       usageLimit: coupon.usageLimit,
@@ -565,6 +569,9 @@ export class PrismaOrderRepository implements OrderRepository {
     name: string;
     basePrice: number;
     packagingFeeAmount?: number | null;
+    /** Categoría y subcategoría: las necesitan las promos por alcance (T9). */
+    categoryId: string;
+    subcategoryId?: string | null;
     isActive: boolean;
     isAvailable: boolean;
     modifierGroups: {
@@ -606,6 +613,8 @@ export class PrismaOrderRepository implements OrderRepository {
       packagingFeeAmount: product.packagingFeeAmount
         ? decimalToNumber(product.packagingFeeAmount)
         : null,
+      categoryId: product.categoryId,
+      subcategoryId: product.subcategoryId,
       isActive: product.isActive,
       isAvailable: product.isAvailable,
       modifierGroups: product.modifierGroups.map((mg: {

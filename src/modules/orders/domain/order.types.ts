@@ -169,12 +169,17 @@ export type PublicOrderDetail = {
 export type CouponRecord = {
   id: string;
   code: string;
-  type: "percentage" | "fixed_amount";
+  type: "percentage" | "fixed_amount" | "bogo";
   value: number;
   isActive: boolean;
   usageLimit: number;
   usedCount: number;
   expiresAt: string | null;
+  /** Promo por cantidad (T9): unidades que se llevan y unidades que salen gratis. */
+  buyQuantity?: number | null;
+  freeQuantity?: number | null;
+  scopeType?: string | null;
+  scopeId?: string | null;
 };
 
 export type TableRecord = {
