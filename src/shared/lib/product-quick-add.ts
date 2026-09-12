@@ -31,7 +31,15 @@ export function canQuickAddProduct(product: Pick<QuickAddProduct, "modifierGroup
   });
 }
 
-/** Línea del carrito: sin modificadores, con el empaque que cobra el producto. */
+/**
+ * Línea del carrito: sin modificadores, con el empaque que cobra el producto.
+ *
+ * `lineTotal` es el precio de los **productos** (precio × cantidad), sin el empaque: el
+ * empaque se suma una sola vez aparte, con `packagingTotalAmount`, que es lo que hace el
+ * servidor en `createOrder` y lo que hacen el carrito y el checkout al mostrar el total.
+ * Sumarlo acá también lo contaba dos veces y el cliente veía un total más alto que el que
+ * se le cobraba (bug real con los productos que tienen empaque).
+ */
 export function buildQuickAddCartItem(
   product: QuickAddProduct,
   quantity = 1,
@@ -51,6 +59,6 @@ export function buildQuickAddCartItem(
     packagingTotalAmount: packagingUnitAmount * quantity,
     modifierOptionIds: [],
     modifiers: [],
-    lineTotal: unitPrice * quantity + packagingUnitAmount * quantity,
+    lineTotal: unitPrice * quantity,
   };
 }

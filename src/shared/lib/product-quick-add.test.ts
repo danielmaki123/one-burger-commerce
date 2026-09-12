@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { calculateOrderTotals } from "@/shared/lib/order-totals";
 import {
   buildQuickAddCartItem,
   canQuickAddProduct,
@@ -50,6 +51,8 @@ describe("agregar al carrito sin abrir el producto", () => {
   });
 
   it("arma la línea del carrito con el precio y el empaque del producto", () => {
+    // `lineTotal` es el precio del producto (35): el empaque (5) va en su propio campo y se
+    // suma una sola vez al mostrar el total (ver el test del invariante más abajo).
     expect(
       buildQuickAddCartItem({
         id: "seed-prod-01",
@@ -69,7 +72,7 @@ describe("agregar al carrito sin abrir el producto", () => {
       packagingTotalAmount: 5,
       modifierOptionIds: [],
       modifiers: [],
-      lineTotal: 40,
+      lineTotal: 35,
     });
   });
 
@@ -77,5 +80,36 @@ describe("agregar al carrito sin abrir el producto", () => {
     expect(
       buildQuickAddCartItem({ id: "p", name: "Flan", basePrice: 30, images: [] }),
     ).toMatchObject({ imageUrl: undefined, imageAlt: "Flan", packagingUnitAmount: 0, lineTotal: 30 });
+  });
+
+  /**
+   * Bug real: el "+" rápido sumaba el empaque **dentro** de `lineTotal`, y el carrito y el
+   * checkout lo vuelven a sumar por separado (como hace el servidor), así que el cliente veía
+   * un total más alto que el que se le cobra. Con los productos del owner (C$35 de empaque por
+   * hamburguesa) eran C$35 de diferencia en cada pedido hecho desde el "+".
+   *
+   * El invariante: `lineTotal` es el precio de los productos; el empaque se suma una sola vez
+   * aparte, igual que en `createOrder` (`lineTotal = unitPrice * quantity`).
+   */
+  it("el total que se muestra es el que se cobra: el empaque va aparte", () => {
+    const item = buildQuickAddCartItem({
+      id: "prod-doble",
+      name: "DOBLE",
+      basePrice: 305,
+      packagingFeeAmount: 35,
+    });
+
+    const totals = calculateOrderTotals({
+      subtotal: item.lineTotal,
+      discount: 0,
+      deliveryFeeAmount: 0,
+      items: [item],
+      tipOptIn: false,
+      orderType: "pickup",
+    });
+
+    expect(item.lineTotal).toBe(305);
+    expect(totals.packagingAmount).toBe(35);
+    expect(totals.total).toBe(340);
   });
 });

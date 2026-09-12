@@ -1644,6 +1644,23 @@ bandeja y prefijo de WhatsApp.
   conviene desplegar fuera del horario de atención.**
 - **El token del panel se volvió a compartir por chat** (ver §3).
 
+### Bug de dinero mostrado: el "+" rápido contaba el empaque dos veces (2026-09-12) — **cerrada**
+
+Encontrando mientras se miraba el total del checkout con varios locales. El "+" de la home y de la
+grilla del menú (agregar sin abrir el producto) armaba la línea del carrito con
+`lineTotal = precio × cantidad + empaque × cantidad`, y el carrito y el checkout **vuelven a sumar el
+empaque por separado** (igual que `createOrder`: `lineTotal = unitPrice * quantity` y el empaque en su
+propio campo). El cliente veía un total más alto que el que se le cobra.
+
+- **Estaba vivo en producción**: los cuatro productos del owner tienen C$35 de empaque, así que un
+  pedido hecho desde el "+" mostraba C$35 de más (el servidor cobraba bien: el precio lo resuelve el
+  servidor).
+- Ahora `buildQuickAddCartItem` deja el empaque **fuera** de `lineTotal`, como la ficha de producto y
+  como el servidor. El test nuevo fija el invariante ("lo que se muestra es lo que se cobra") con una
+  hamburguesa de C$305 + C$35 de empaque = C$340.
+- **Verificación**: **1528 unitarios**, lint, typecheck, `npm run build`, `security:secrets` y **E2E 80
+  pasaron, 7 salteados, 0 fallos**. El seed local tiene empaque 0, por eso ningún test lo veía.
+
 ## 3. Infraestructura y secretos
 
 - `EASYPANEL_URL` y `EASYPANEL_TOKEN`: solo en el entorno de quien ejecuta el deploy (nunca
