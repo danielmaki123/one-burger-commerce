@@ -21,9 +21,11 @@ prisma/dev.db
 .superpowers
 
 # Historical Casa Antigua planning/docs copied only for local audit context.
+# Ojo: `CLAUDE.md` **sí** se versiona en este repo, pero como un puntero a `AGENTS.md`
+# (la versión heredada de Casa Antigua traía reglas de otro proyecto: rama `staging`,
+# ramas `claude/*` y rutas que acá están ignoradas). No volver a agregarlo a esta lista.
 ANTIGRAVITY.md
 ARCHITECTURE.md
-CLAUDE.md
 CODEX.md
 CONTEXT.md
 DEPLOYMENT.md

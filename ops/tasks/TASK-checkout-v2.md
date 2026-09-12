@@ -1,19 +1,19 @@
 # TASK: Mejora del checkout (v2)
 
-> ⚠️ **Absorbida por [`TASK-mock-adoption.md`](TASK-mock-adoption.md)**, el programa de adopción del
-> mock completo: este brief pasa a ser la tarea **T5 (carrito + checkout)** de su ola 1. El plan
-> vigente, las reglas (ningún control decorativo, paleta como preset con contraste, TDD por tarea) y
-> las decisiones están en ese documento; lo de acá sigue valiendo como detalle de la tarea del
-> checkout.
+> ⚠️ **Absorbida por [`TASK-mock-adoption.md`](TASK-mock-adoption.md)** (el programa de adopción del
+> mock, **cerrado el 2026-09-12**): este brief pasó a ser la tarea **T5 (carrito + checkout)** de su
+> ola 1. Las reglas (ningún control decorativo, paleta como preset con contraste, TDD por tarea) y las
+> decisiones están en ese documento; lo de acá sigue valiendo como detalle de la tarea del checkout.
 
-**Estado:** **fase 0 medida** (`ops/audit-checkout-mock.md`) · **pendiente la aprobación del owner**
-sobre el plan de §7 y las decisiones de §6 · **Prioridad:** media-alta (es la pantalla donde se cierra
-la venta) · **Origen:** el **mock completo** que entregó el owner + el mock previo
-`mockup/confirmar pedido.txt` (ver §4) + los pendientes que quedaron abiertos tras
+**Estado:** **CERRADA** (2026-09-12): fases 1, 2, 3, 4, 6 y 7 hechas y desplegadas; **fase 5
+descartada** por decisión del owner (D2 = una sola tasa de propina). El detalle de cada fase está en
+su fila; lo que quedó abierto se anota en `ops/project-state.md` §2 · **Prioridad:** media-alta (era
+la pantalla donde se cierra la venta) · **Origen:** el **mock completo** que entregó el owner + el
+mock previo `mockup/confirmar pedido.txt` (ver §4) + los pendientes que quedaron abiertos tras
 `TASK-checkout-ux` y `TASK-checkout-mockup`.
 
-> Cómo arrancar en un chat nuevo: pegar el prompt de §12.
-> Antes de codificar leer `AGENTS.md`, `ops/project-state.md` y este archivo completo.
+> Cómo arrancar en un chat nuevo: [`ops/tasks/START-HERE.md`](START-HERE.md) (prompt listo y cola de
+> pendientes). Antes de codificar leer `AGENTS.md`, `ops/project-state.md` y este archivo completo.
 
 **Cambio de plan.** El owner está terminando un **mock completo** del checkout. La tarea ya no
 arranca implementando el rango de preparación: arranca **auditando ese mock completo** para decidir

@@ -3,6 +3,17 @@
 Instrucciones de trabajo para este repositorio. Si algo acá contradice un pedido
 explícito del humano, gana el humano; después de resolverlo, actualizá este archivo.
 
+## Cómo trabajamos (acuerdo con el owner)
+
+- **De a una tarea por vez**, no varias cosas de un saque: cada tarea se cierra entera
+  (implementación, tests, validación, commit, push, CI verde y estado actualizado) antes de
+  empezar la siguiente.
+- Si una tarea mezcla temas distintos, se parte en **un commit por tema**.
+- Ante una duda de alcance, se pregunta **antes** de codear; no se inventa producto.
+- El punto de entrada para un chat nuevo es
+  [`ops/tasks/START-HERE.md`](ops/tasks/START-HERE.md): tiene el prompt listo para pegar, el
+  mapa de documentos y la cola de pendientes en orden.
+
 ## Qué es el proyecto
 
 **One Burger Commerce** — plataforma de pedidos para un restaurante, **solo retiro en el local**.
