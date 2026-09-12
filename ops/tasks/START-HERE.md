@@ -37,6 +37,13 @@ hace falta nada de conversaciones anteriores. Si algo acá contradice a `AGENTS.
 > que lo primero es preguntarle — no inventes trabajo para no quedar quieto. Si el owner dice «procedé
 > con lo que puedas», tomá el pendiente que menos dependa de él y explicá qué falta cuando lo cierres.
 > Si algo del brief no cierra, decilo antes de codear.
+>
+> **Ciclo de auditoría (vigente)**: el owner manda las cosas que encuentra **a medida que las revisa**
+> y se registran en [`ops/audit-backlog.md`](../audit-backlog.md) con su ID, tipo y severidad. **No se
+> ataca ninguna hasta que el owner dice «ya»**, y ahí se toma **la primera de la cola**: una task por
+> vez, un commit por task (por tema si toca varios), TDD, validación completa, push a `main`, CI verde
+> y estado actualizado. Si un ítem resulta ser una **decisión de producto** y no un bug, se pregunta
+> antes de codear.
 
 ## 2. Orden de lectura (qué responde cada documento)
 
@@ -44,6 +51,7 @@ hace falta nada de conversaciones anteriores. Si algo acá contradice a `AGENTS.
 |---|---|---|
 | 1 | `AGENTS.md` | Reglas de trabajo: alcance del MVP, arquitectura DDD, TDD, validación, git/CI, deploy, idioma, prohibiciones |
 | 2 | `ops/project-state.md` | **El estado real**: qué está vivo, qué se cerró (con la verificación de cada fase), la cola de pendientes y cómo levantar el entorno local (§5) |
+| 2b | `ops/audit-backlog.md` | **La cola de trabajo del ciclo de auditoría**: las cosas que el owner va reportando, con su ID, tipo, severidad y estado. Se ataca **una por vez** y cada una cierra con su commit |
 | 3 | `ops/production-readiness.md` | Runbook: entorno obligatorio, secuencia de deploy, backups, rollback, notificaciones, primer arranque, límites conocidos y pendientes operativos con su receta (§8) |
 | 4 | `README.md` · `.env.example` | Alcance, dominios, comandos de validación y variables de entorno |
 | 5 | `src/modules/*/README.md` | Cómo funciona cada módulo (reglas, puertos, adaptadores, casos de uso, migraciones) |
