@@ -16,8 +16,15 @@ import {
   hashOrderLookupToken,
 } from "@/modules/orders/domain/order-tracking";
 import type { OrderRepository } from "@/modules/orders/ports/order-repository";
+import { generatePickupPin } from "@/modules/orders/domain/pickup-pin";
+import { randomInt } from "node:crypto";
 import { calculateOrderTotals, roundCurrency } from "@/shared/lib/order-totals";
 import { normalizeWhatsapp } from "@/shared/lib/normalize-whatsapp";
+
+/** PIN de retiro por defecto: cuatro dígitos con azar del sistema (T13). */
+function defaultPickupPinGenerator(): string {
+  return generatePickupPin((max) => randomInt(max));
+}
 
 export type OrderItemRequest = {
   productId: string;
@@ -59,6 +66,7 @@ export async function createOrder(
     repository,
     resolveCustomerId = findOrCreateCustomer,
     orderLookupTokenGenerator = generateOrderLookupToken,
+    pickupPinGenerator = defaultPickupPinGenerator,
     tipPolicy = {
       enabled: DEFAULT_BUSINESS_SETTINGS.tipEnabled,
       rate: DEFAULT_BUSINESS_SETTINGS.tipRate,
@@ -70,6 +78,11 @@ export async function createOrder(
       whatsappNormalized: string;
     }) => Promise<string | null>;
     orderLookupTokenGenerator?: () => string;
+    /**
+     * PIN de retiro (T13). Se inyecta por el mismo motivo que el token: los tests
+     * necesitan un valor determinista.
+     */
+    pickupPinGenerator?: () => string;
     /**
      * Propina configurada en `/admin/settings`. El servidor es la fuente de
      * verdad: el porcentaje del cliente nunca se acepta, y con la propina
@@ -363,6 +376,9 @@ export async function createOrder(
 
   const orderLookupToken = orderLookupTokenGenerator();
   const orderLookupTokenHash = hashOrderLookupToken(orderLookupToken);
+  // PIN corto para dictar en caja (T13). No autoriza nada: el acceso al pedido
+  // sigue siendo el token o el WhatsApp.
+  const pickupPin = pickupPinGenerator();
 
   let order: Awaited<ReturnType<typeof repository.createOrder>>;
 
@@ -383,6 +399,7 @@ export async function createOrder(
         pickupNotes: input.pickupNotes ?? null,
         paymentMethod,
         paidWithAmount,
+        pickupPin,
         tableId: input.tableId ?? null,
         orderNumber,
         subtotal,

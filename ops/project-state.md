@@ -1040,6 +1040,29 @@ necesita saber con qué billete paga alguien).
   pedido de C$35 muestra "Cambio estimado C$65.00" y después "Pagás con C$100.00 · Cambio C$65.00"; y
   con tarjeta el campo del vuelto no se pregunta.
 
+### Ola 2 · T13: el PIN de retiro (2026-09-12)
+
+El mock muestra "PIN de Retiro 4821 · Díctalo en caja". Entra como **código corto para dictar**, con un
+límite escrito en el código: **no es un identificador ni un secreto**, no autoriza nada y no reemplaza
+al número de pedido ni al token de seguimiento. Su único uso es que el cliente lo diga en caja y el
+mostrador encuentre el pedido de un vistazo.
+
+- **Contrato nuevo**: `Order.pickupPin` (texto, opcional) con la migración `add_order_pickup_pin`. Son
+  **cuatro dígitos** con ceros a la izquierda, generados con azar del sistema; el generador se inyecta
+  en el caso de uso (mismo patrón que el token) para que los tests sean deterministas.
+- **El dominio es puro a propósito**: `pickup-pin.ts` no importa `crypto`, porque lo consume también la
+  pantalla de confirmación, que corre en el cliente. El azar entra por parámetro desde el servidor.
+- **Dónde se ve**: en la confirmación, en grande y con "Díctalo en caja al retirar"; en el **historial
+  del dispositivo** (el cliente no siempre tiene el link a mano); y en el **detalle del admin**, donde
+  la caja lo lee para entregar el pedido.
+- **Lo que el PIN no hace, por diseño**: no autoriza, no identifica y **no se garantiza único entre
+  pedidos**. Con cuatro dígitos hay 10.000 combinaciones y dos pedidos activos pueden compartirlo; el
+  mostrador tiene el número de pedido y el nombre para desambiguar, igual que en un local real.
+  Prometer unicidad global habría sido mentir (y pasar a seis dígitos no lo arregla).
+- **Verificado en el camino real** (Postgres 17 local + `next start -p 3210` con el build nuevo):
+  **E2E completo 69 pasaron, 7 salteados, 0 fallos**. El caso de la confirmación ahora comprueba que el
+  PIN está a la vista y que son cuatro dígitos.
+
 ## 3. Infraestructura y secretos
 
 - `EASYPANEL_URL` y `EASYPANEL_TOKEN`: solo en el entorno de quien ejecuta el deploy (nunca
@@ -1066,7 +1089,7 @@ necesita saber con qué billete paga alguien).
 | 8 | **Checkout sin redundancias** (textos y botones repetidos) | **Cerrada y desplegada** | `ops/tasks/TASK-checkout-ux.md`. Cuatro commits (`2832a93`…`aba4156`), en producción como `build-20260911-145656`. El checkout pasó de 807 a 476 líneas, un solo resumen compartido con el carrito, un solo CTA visible por viewport y los turnos de retiro calculados desde la configuración. |
 | 9 | **Validar el estado operativo en el servidor** | **Cerrada y desplegada** | Commits `3a67c37` y `ca474c8`, en producción como `build-20260911-154014`. `isAcceptingOrders` ya corta pedidos de verdad (antes no lo leía nadie) y la hora de retiro se valida contra el horario del día. Incluye el horario demo del seed y el límite de login del arnés E2E. |
 | 10 | **Retiro opcional y programable + la hora visible en toda la cadena** | **Cerrada y desplegada** | Commits `6f85a3c`, `c101f82`, `b207593` y `abc2183`, en producción como `build-20260911-191047`. Incluye **una migración** (`pickupScheduled`). El retiro es opcional, la hora la resuelve el servidor, el ticket de cocina y el admin la muestran, y el semáforo va contra la hora prometida. Ver el detalle arriba. |
-| 11 | **Adopción del mock completo (rediseño de la UI pública)** | **En ejecución · ola 1 completa (T1-T7) y T11 de la ola 2** | [`ops/tasks/TASK-mock-adoption.md`](tasks/TASK-mock-adoption.md). Plan **aprobado** el 2026-09-12 (D-A tipografía: Plus Jakarta Sans como tercera opción · D-B ola 2 completa **sin reseñas ni delivery** · D-C orden: tokens primero y después las pantallas en el orden del mock). **Reglas del programa**: ningún control decorativo (implementado con API/estado y test, o eliminado con motivo), nada hardcodeado, la paleta como preset que pasa el test de contraste, TDD por tarea, y verificación a 375 px **y 1280 px** (el mock no tiene escritorio). **Ola 1**: T1 tokens ✅ · T2 home ✅ · T3 menú ✅ · T3.1 color por categoría ✅ · T4 producto ✅ · T5 carrito+checkout ✅ (fases 1, 3, 6 y 7; queda la vista previa de turnos de la fase 2) · T6 confirmación ✅ · T7 seguimiento e historial ✅ · **ola 1 completa** · T11 forma de pago ✅ · T12 vuelto ✅ · **siguen T13 (PIN de retiro) y T8 (multi-sucursal)**. **Decisiones abiertas del checkout**: D1 (pedidos para días futuros) y D2 (presets de propina). **Ola 2** (aprobada): T8 multi-sucursal, T9 promos, T10 favoritos (**descartada por el owner**: "mantengamos el login tal cual lo tenemos"; sin cuenta no hay favoritos), T11 método de pago, T12 vuelto, T13 PIN de retiro. Evidencia del mock: [`ops/audit-checkout-mock.md`](audit-checkout-mock.md). |
+| 11 | **Adopción del mock completo (rediseño de la UI pública)** | **En ejecución · ola 1 completa (T1-T7) y T11 de la ola 2** | [`ops/tasks/TASK-mock-adoption.md`](tasks/TASK-mock-adoption.md). Plan **aprobado** el 2026-09-12 (D-A tipografía: Plus Jakarta Sans como tercera opción · D-B ola 2 completa **sin reseñas ni delivery** · D-C orden: tokens primero y después las pantallas en el orden del mock). **Reglas del programa**: ningún control decorativo (implementado con API/estado y test, o eliminado con motivo), nada hardcodeado, la paleta como preset que pasa el test de contraste, TDD por tarea, y verificación a 375 px **y 1280 px** (el mock no tiene escritorio). **Ola 1**: T1 tokens ✅ · T2 home ✅ · T3 menú ✅ · T3.1 color por categoría ✅ · T4 producto ✅ · T5 carrito+checkout ✅ (fases 1, 3, 6 y 7; queda la vista previa de turnos de la fase 2) · T6 confirmación ✅ · T7 seguimiento e historial ✅ · **ola 1 completa** · T11 forma de pago ✅ · T12 vuelto ✅ · T13 PIN de retiro ✅ · **queda T8 (multi-sucursal)**. **Decisiones abiertas del checkout**: D1 (pedidos para días futuros) y D2 (presets de propina). **Ola 2** (aprobada): T8 multi-sucursal, T9 promos, T10 favoritos (**descartada por el owner**: "mantengamos el login tal cual lo tenemos"; sin cuenta no hay favoritos), T11 método de pago, T12 vuelto, T13 PIN de retiro. Evidencia del mock: [`ops/audit-checkout-mock.md`](audit-checkout-mock.md). |
 
 ## 5. Cómo continuar
 

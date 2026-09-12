@@ -94,6 +94,8 @@ type OrderDetail = {
   paymentMethod?: OrderPaymentMethod | null;
   /** Con cuánto paga el cliente cuando es efectivo (T12). */
   paidWithAmount?: number | null;
+  /** PIN de retiro para dictar en caja (T13). */
+  pickupPin?: string | null;
 };
 
 type GetOrderResponse = {
@@ -416,6 +418,12 @@ export default function AdminOrderDetailPage() {
                   <span className="rounded-full border border-border bg-card px-2.5 py-1 text-xs font-semibold text-foreground">
                     Paga con {formatCurrency(order.paidWithAmount, currency)}
                     {changeLabel ? ` · ${changeLabel}` : ""}
+                  </span>
+                ) : null}
+                {/* PIN de retiro (T13): el cliente lo dicta acá para entregarle el pedido. */}
+                {order.pickupPin ? (
+                  <span className="rounded-full border border-brand/30 bg-brand/10 px-2.5 py-1 font-mono text-xs font-bold tracking-[0.18em] text-brand">
+                    PIN {order.pickupPin}
                   </span>
                 ) : null}
               </div>

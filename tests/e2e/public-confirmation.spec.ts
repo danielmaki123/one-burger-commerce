@@ -36,6 +36,10 @@ test.describe("confirmación del pedido", () => {
     // Y para cuándo: la hora de retiro con su estimación.
     await expect(page.getByText("Hora de retiro")).toBeVisible();
 
+    // El PIN de retiro (T13): cuatro dígitos, para dictarlos en caja.
+    await expect(page.getByText("PIN de retiro")).toBeVisible();
+    await expect(page.getByText(/^\d{4}$/)).toBeVisible();
+
     // Ningún enlace muerto de los que tiene el mock.
     const deadLinks = await page.locator('a[href="#"]').count();
     expect(deadLinks).toBe(0);

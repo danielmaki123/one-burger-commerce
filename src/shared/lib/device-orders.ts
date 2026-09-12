@@ -40,6 +40,8 @@ export type DeviceOrderRef = {
   pickupTime?: string | null;
   /** `false` = "lo antes posible" (el estimado se muestra como aproximado). */
   pickupScheduled?: boolean;
+  /** PIN de retiro (T13): el cliente lo dicta en caja. */
+  pickupPin?: string | null;
   /** Líneas del pedido, para repetirlo. */
   items?: DeviceOrderItemRef[];
 };
@@ -129,6 +131,10 @@ function sanitizeDeviceOrderExtras(order: DeviceOrderRef): DeviceOrderRef {
 
   if (order.pickupScheduled !== undefined && typeof order.pickupScheduled !== "boolean") {
     delete sanitized.pickupScheduled;
+  }
+
+  if (order.pickupPin !== undefined && order.pickupPin !== null && typeof order.pickupPin !== "string") {
+    delete sanitized.pickupPin;
   }
 
   return sanitized;

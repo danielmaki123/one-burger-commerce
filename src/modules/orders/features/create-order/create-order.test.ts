@@ -53,6 +53,42 @@ function seedDeliveryZone(repository: InMemoryOrderRepository, overrides?: Parti
 }
 
 describe("createOrder", () => {
+  it("genera un PIN de retiro para dictar en caja (T13)", async () => {
+    const repository = createRepository();
+    seedProduct(repository);
+
+    const result = await createOrder(
+      {
+        type: "pickup",
+        customerName: "Juan Perez",
+        customerWhatsapp: "+50588887777",
+        items: [{ productId: "prod_01", quantity: 1, modifierOptionIds: [] }],
+      },
+      { repository, pickupPinGenerator: () => "4821" },
+    );
+
+    // El PIN no identifica ni autoriza: es para dictarlo, y el generador se inyecta
+    // igual que el del token de seguimiento.
+    expect(result.data.pickupPin).toBe("4821");
+  });
+
+  it("sin generador inyectado igual devuelve un PIN válido (T13)", async () => {
+    const repository = createRepository();
+    seedProduct(repository);
+
+    const result = await createOrder(
+      {
+        type: "pickup",
+        customerName: "Ana Perez",
+        customerWhatsapp: "+50588887778",
+        items: [{ productId: "prod_01", quantity: 1, modifierOptionIds: [] }],
+      },
+      { repository },
+    );
+
+    expect(result.data.pickupPin).toMatch(/^\d{4}$/);
+  });
+
   it("guarda con cuánto paga el cliente cuando es efectivo (T12)", async () => {
     const repository = createRepository();
     seedProduct(repository);

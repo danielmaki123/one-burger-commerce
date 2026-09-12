@@ -34,6 +34,8 @@ export type CreateOrderInput = {
   paymentMethod?: OrderPaymentMethod | null;
   /** Con cuánto paga el cliente cuando es efectivo (T12). */
   paidWithAmount?: number | null;
+  /** PIN corto para dictar en caja (T13). */
+  pickupPin?: string | null;
   tableId?: string | null;
   deliveryZoneId?: string | null;
   customerLat?: number | null;

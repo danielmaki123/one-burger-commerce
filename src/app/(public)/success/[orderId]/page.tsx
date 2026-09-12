@@ -48,6 +48,8 @@ type OrderPayload = {
     pickupTime?: string | null;
     /** Si el cliente programó el retiro; sin programar es "lo antes posible". */
     pickupScheduled?: boolean;
+    /** PIN de retiro para dictar en caja (T13). */
+    pickupPin?: string | null;
   };
 };
 
@@ -157,6 +159,9 @@ export default function OrderSuccessPage() {
       // la hora de retiro, puede mostrar el estimado.
       pickupTime: order.pickupTime ?? null,
       pickupScheduled: order.pickupScheduled ?? false,
+      // El PIN se guarda con el pedido del dispositivo (T13): el cliente lo
+      // necesita al retirar y no siempre tiene el link a mano.
+      pickupPin: order.pickupPin ?? null,
       items: order.items.map((item) => ({
         productId: item.productId,
         productName: item.productName,

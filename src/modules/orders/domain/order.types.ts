@@ -116,6 +116,8 @@ export type OrderRecord = {
    * corregido no deja un vuelto viejo en la caja.
    */
   paidWithAmount?: number | null;
+  /** PIN corto para dictar en caja (T13); no autoriza nada. */
+  pickupPin?: string | null;
   tableId?: string | null;
   couponCode?: string | null;
   deliveryZoneId?: string | null;
@@ -156,6 +158,8 @@ export type PublicOrderDetail = {
   paymentMethod?: OrderPaymentMethod;
   /** Con cuánto paga el cliente cuando es efectivo (T12); el vuelto se deriva. */
   paidWithAmount?: number | null;
+  /** PIN corto para dictar en caja (T13); no autoriza nada. */
+  pickupPin?: string | null;
   tableId?: string | null;
   couponCode?: string | null;
   deliveryZoneId?: string | null;

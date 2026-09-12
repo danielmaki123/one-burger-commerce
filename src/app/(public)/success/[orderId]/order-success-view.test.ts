@@ -104,6 +104,17 @@ describe("order success view", () => {
     expect(sinMonto).not.toContain("Cambio");
   });
 
+  it("le dice al cliente el PIN que tiene que dictar en caja (T13)", () => {
+    const html = renderWith(pickupOrder({ pickupPin: "4821" }));
+
+    expect(html).toContain("PIN de retiro");
+    expect(html).toContain("4821");
+    expect(html).toContain("Díctalo en caja");
+
+    // Sin PIN guardado no se muestra un hueco.
+    expect(renderWith(pickupOrder({}))).not.toContain("PIN de retiro");
+  });
+
   it("con rango configurado le promete una franja, no un instante (T5)", () => {
     // 20:35 con 20 min de preparación y 40 de máximo: la franja es 20:35–20:55.
     const html = renderToStaticMarkup(

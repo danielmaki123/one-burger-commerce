@@ -344,6 +344,9 @@ model Order {
   paymentMethod     PaymentMethod      @default(cash)
   /// Con cuánto paga el cliente, para calcular el vuelto en la caja (T12).
   paidWithAmount    Decimal?           @db.Decimal(10, 2)
+  /// Código corto para dictar en caja (T13). No identifica ni autoriza: eso es
+  /// `orderNumber` + `orderLookupTokenHash`.
+  pickupPin         String?
   couponId          String?
   couponCode        String?
   subtotal          Decimal            @db.Decimal(10, 2)

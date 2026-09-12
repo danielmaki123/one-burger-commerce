@@ -31,6 +31,7 @@ import {
   buildOrderTimeline,
   filterDeviceOrders,
   formatOrderPickupEstimate,
+  formatOrderPickupPin,
   formatTimelineProgress,
   summarizeOrderItems,
 } from "./activity-page-helpers";
@@ -406,6 +407,7 @@ export function OrderHistoryCard({
   // El resumen sale de las líneas guardadas (T7): antes había un plato escrito a mano.
   const itemSummary = summarizeOrderItems(order.items);
   const pickupEstimate = formatOrderPickupEstimate(order, timeZone);
+  const pickupPinLabel = formatOrderPickupPin(order.pickupPin);
   const cardStatusLabel = progress.label === "En preparación" ? "Preparando" : progress.label;
   const statusClass =
     cardStatusLabel === "Completada"
@@ -436,6 +438,12 @@ export function OrderHistoryCard({
 
         {pickupEstimate ? (
           <p className="text-sm text-muted-foreground">{pickupEstimate}</p>
+        ) : null}
+        {/* El PIN se dicta en caja: tiene que estar también acá, no solo en la confirmación. */}
+        {pickupPinLabel ? (
+          <p className="font-mono text-sm font-semibold tracking-[0.14em] text-brand">
+            {pickupPinLabel}
+          </p>
         ) : null}
 
         <div className="flex flex-wrap items-center justify-between gap-3">

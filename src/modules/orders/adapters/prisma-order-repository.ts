@@ -88,6 +88,7 @@ function mapOrder(order: any): OrderRecord {
       order.paidWithAmount === null || order.paidWithAmount === undefined
         ? null
         : decimalToNumber(order.paidWithAmount),
+    pickupPin: order.pickupPin ?? null,
     tableId: order.tableId,
     couponCode: order.couponCode,
     subtotal: decimalToNumber(order.subtotal),
@@ -160,6 +161,7 @@ export class PrismaOrderRepository implements OrderRepository {
         // cliente hubiera elegido tarjeta (lo cazó el E2E, no el unitario).
         paymentMethod: input.paymentMethod ?? "cash",
         paidWithAmount: input.paidWithAmount ?? null,
+        pickupPin: input.pickupPin ?? null,
         tableId: input.tableId ?? null,
         couponCode: input.couponCode ?? null,
         subtotal: input.subtotal,

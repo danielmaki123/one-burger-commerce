@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildOrderTimeline, filterDeviceOrders, formatOrderPickupEstimate, formatTimelineProgress, summarizeOrderItems } from "./activity-page-helpers";
+import { buildOrderTimeline, filterDeviceOrders, formatOrderPickupEstimate, formatOrderPickupPin, formatTimelineProgress, summarizeOrderItems } from "./activity-page-helpers";
 
 function item(productName: string, quantity = 1) {
   return {
@@ -73,6 +73,15 @@ describe("historial: buscador (T7)", () => {
     expect(filterDeviceOrders([order("P-CCC333")], "ccc").map((o) => o.orderNumber)).toEqual([
       "P-CCC333",
     ]);
+  });
+});
+
+describe("historial: PIN de retiro (T13)", () => {
+  it("muestra el PIN para dictarlo en caja y no inventa uno si no hay", () => {
+    expect(formatOrderPickupPin("4821")).toBe("PIN de retiro 4821");
+    expect(formatOrderPickupPin(null)).toBeNull();
+    expect(formatOrderPickupPin(undefined)).toBeNull();
+    expect(formatOrderPickupPin("")).toBeNull();
   });
 });
 

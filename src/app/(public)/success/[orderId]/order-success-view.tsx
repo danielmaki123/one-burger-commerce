@@ -52,6 +52,8 @@ export type OrderSuccessData = {
   paymentMethod?: OrderPaymentMethod | null;
   /** Con cuánto paga el cliente cuando es efectivo (T12). */
   paidWithAmount?: number | null;
+  /** PIN corto para dictar en caja (T13). */
+  pickupPin?: string | null;
 };
 
 /**
@@ -197,6 +199,22 @@ export default function OrderSuccessView({
               />
               {statusLabel}
             </Badge>
+
+            {/* PIN de retiro (T13): el código corto que se dicta en caja. */}
+            {order.pickupPin ? (
+              <div className="mt-5 rounded-2xl border border-border bg-card px-5 py-4 text-center">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                  PIN de retiro
+                </p>
+                <p
+                  className="mt-1 text-4xl font-semibold tracking-[0.18em] tabular-nums text-foreground"
+                  style={{ fontFamily: "var(--font-heading)" }}
+                >
+                  {order.pickupPin}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">Díctalo en caja al retirar.</p>
+              </div>
+            ) : null}
           </div>
         </section>
 

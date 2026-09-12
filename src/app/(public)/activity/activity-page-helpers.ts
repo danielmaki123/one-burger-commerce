@@ -69,6 +69,13 @@ export type OrderTimelineStep = {
   isPending: boolean;
 };
 
+/** Copy del PIN para el historial: `PIN de retiro 4821`, o `null` si no hay. */
+export function formatOrderPickupPin(pin: string | null | undefined): string | null {
+  if (!pin) return null;
+
+  return `PIN de retiro ${pin}`;
+}
+
 /**
  * Pasos del timeline del pedido, con el estado de cada uno.
  *
