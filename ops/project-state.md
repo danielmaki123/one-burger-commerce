@@ -1,6 +1,6 @@
 # Estado del proyecto — One Burger Commerce
 
-> Actualizado: 2026-09-12 · Último deploy a producción: 2026-09-12, commit `d770895`
+> Actualizado: 2026-09-12 · Último deploy a producción: 2026-09-12, commit `5a487ad`
 > (deploy manual por API sobre el servicio `oneburguerweb`)
 > Este documento es el punto de entrada para retomar el trabajo. Mantenerlo al día al cerrar cada tarea.
 > Para arrancar en un chat nuevo: `ops/tasks/START-HERE.md`.
@@ -1685,6 +1685,17 @@ le cobre otro.
   C$35 a **C$50** y vuelve, en el navegador y contra el servidor real.
 - **Fixtures alineados**: el carrito de prueba del checkout tenía `lineTotal` con empaque (la
   semántica del bug); ahora modela lo mismo que produce la app.
+
+### Segundo deploy del 2026-09-12 (commit `5a487ad`) — **verificado**
+
+Lleva los dos arreglos de la tarde: el **"+" que contaba el empaque dos veces** en el total que ve
+el cliente (vivo en producción) y el **total del checkout que ahora sigue al local elegido**, con el
+aviso de lo que ese local no vende.
+
+- **Verificación**: `commit.sha` del servicio en `5a487ad`; el bundle que sirve el sitio trae el
+  código nuevo (marcador "no se vende" en `/_next/static/chunks/3fo7recy4xshf.js`); smoke productivo de
+  solo lectura **4/4**; `/api/menu?locationId=` 200.
+- Sin migraciones nuevas: no hubo ventana de esquema como en el deploy anterior.
 
 ## 3. Infraestructura y secretos
 
