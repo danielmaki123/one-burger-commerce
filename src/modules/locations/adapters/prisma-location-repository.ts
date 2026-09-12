@@ -1,7 +1,8 @@
-import type { Location as PrismaLocation } from "@prisma/client";
+import type { Location as PrismaLocation, Prisma } from "@prisma/client";
 
 import { getPrismaClient } from "@/infrastructure/database/prisma";
 import { readBusinessHours } from "@/modules/business-settings/domain/business-hours";
+import type { LocationInput } from "@/modules/locations/domain/location-rules";
 import type { LocationRecord } from "@/modules/locations/domain/location.types";
 import type { LocationRepository } from "@/modules/locations/ports/location-repository";
 
@@ -44,5 +45,43 @@ export class PrismaLocationRepository implements LocationRepository {
     });
 
     return rows.map(mapLocation);
+  }
+
+  async findLocationById(id: string): Promise<LocationRecord | null> {
+    const prisma = getPrismaClient();
+    const row = await prisma.location.findUnique({ where: { id } });
+
+    return row ? mapLocation(row) : null;
+  }
+
+  async findLocationBySlug(slug: string): Promise<LocationRecord | null> {
+    const prisma = getPrismaClient();
+    const row = await prisma.location.findUnique({ where: { slug } });
+
+    return row ? mapLocation(row) : null;
+  }
+
+  async createLocation(input: LocationInput): Promise<LocationRecord> {
+    const prisma = getPrismaClient();
+    const row = await prisma.location.create({
+      data: { ...input, businessHours: input.businessHours as unknown as Prisma.InputJsonValue },
+    });
+
+    return mapLocation(row);
+  }
+
+  async updateLocation(id: string, input: LocationInput): Promise<LocationRecord> {
+    const prisma = getPrismaClient();
+    const row = await prisma.location.update({
+      where: { id },
+      data: { ...input, businessHours: input.businessHours as unknown as Prisma.InputJsonValue },
+    });
+
+    return mapLocation(row);
+  }
+
+  async deleteLocation(id: string): Promise<void> {
+    const prisma = getPrismaClient();
+    await prisma.location.delete({ where: { id } });
   }
 }

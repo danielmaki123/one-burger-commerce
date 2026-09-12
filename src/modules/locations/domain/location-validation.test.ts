@@ -122,7 +122,7 @@ describe("validateLocationInput", () => {
   });
 
   it("el WhatsApp es un dato del local y tiene que ser válido", () => {
-    expect(validateLocationInput(input({ whatsapp: "abc" })).whatsapp).toContain("E.164");
+    expect(validateLocationInput(input({ whatsapp: "abc" })).whatsapp).toContain("código de país");
     expect(validateLocationInput(input({ whatsapp: "50588770888" })).whatsapp).toBeUndefined();
     // Con espacios o con + se acepta: se normaliza al guardar.
     expect(validateLocationInput(input({ whatsapp: "+505 8877 0888" })).whatsapp).toBeUndefined();

@@ -2,6 +2,7 @@ import {
   DEFAULT_BUSINESS_HOURS,
   cloneBusinessHours,
 } from "@/modules/business-settings/domain/business-settings-defaults";
+import type { LocationInput } from "@/modules/locations/domain/location-rules";
 import type { LocationRecord } from "@/modules/locations/domain/location.types";
 import type { LocationRepository } from "@/modules/locations/ports/location-repository";
 
@@ -45,9 +46,11 @@ export function createInMemoryLocation(
 
 export class InMemoryLocationRepository implements LocationRepository {
   readonly locations: LocationRecord[];
+  private nextId = 1;
 
   constructor(locations: LocationRecord[] = []) {
     this.locations = [...locations];
+    this.nextId = locations.length + 1;
   }
 
   async listLocations(): Promise<LocationRecord[]> {
@@ -55,5 +58,43 @@ export class InMemoryLocationRepository implements LocationRepository {
       if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder;
       return a.name.localeCompare(b.name, "es");
     });
+  }
+
+  async findLocationById(id: string): Promise<LocationRecord | null> {
+    return this.locations.find((location) => location.id === id) ?? null;
+  }
+
+  async findLocationBySlug(slug: string): Promise<LocationRecord | null> {
+    return this.locations.find((location) => location.slug === slug) ?? null;
+  }
+
+  async createLocation(input: LocationInput): Promise<LocationRecord> {
+    const now = "2026-09-12T00:00:00.000Z";
+    const location: LocationRecord = {
+      ...input,
+      id: `loc_${this.nextId}`,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    this.nextId += 1;
+    this.locations.push(location);
+
+    return location;
+  }
+
+  async updateLocation(id: string, input: LocationInput): Promise<LocationRecord> {
+    const index = this.locations.findIndex((location) => location.id === id);
+    if (index < 0) throw new Error(`Location ${id} not found`);
+
+    const updated: LocationRecord = { ...this.locations[index], ...input };
+    this.locations[index] = updated;
+
+    return updated;
+  }
+
+  async deleteLocation(id: string): Promise<void> {
+    const index = this.locations.findIndex((location) => location.id === id);
+    if (index >= 0) this.locations.splice(index, 1);
   }
 }

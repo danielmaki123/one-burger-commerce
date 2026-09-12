@@ -111,7 +111,9 @@ export function validateLocationInput(input: LocationInput): Record<string, stri
   if (hoursError) errors.businessHours = hoursError;
 
   if (input.whatsapp !== null && input.whatsapp.trim() !== "" && !normalizeWhatsapp(input.whatsapp)) {
-    errors.whatsapp = "Usá formato E.164 sin +, por ejemplo 50588770888";
+    // Sin un número de ejemplo en el mensaje: el contrato anti-hardcode rechaza cualquier
+    // teléfono literal fuera del módulo de configuración del negocio.
+    errors.whatsapp = "Usá el número con código de país, sin + ni espacios";
   }
 
   if (input.latitude !== null && (input.latitude < -90 || input.latitude > 90)) {
