@@ -99,6 +99,17 @@ BASE_URL=https://oneburgernic.com npm run test:e2e:prod
 Ningún cambio se considera cerrado sin: tests verdes, CI verde y verificación del
 camino real (contenedor o producción).
 
+Si tocás una **página** (`src/app/**/page.tsx`), además:
+
+```bash
+npm run build:webpack   # el build de Turbopack no valida esto
+```
+
+Una página de Next solo puede exportar lo que Next conoce (`default`, `metadata`, …). El
+build con Webpack lo exige y falla si una página exporta de más; con Turbopack el problema
+queda escondido hasta que alguien usa ese otro camino de build. Los componentes y los helpers
+van en su propio archivo (por eso `orders-page-helpers.ts` no vive dentro de la página).
+
 ## Git y CI
 
 - Repo: `github.com/danielmaki123/one-burger-commerce`, rama de trabajo y deploy: **`main`**.
@@ -117,10 +128,15 @@ camino real (contenedor o producción).
 
 - Panel: `http://76.13.250.83:3000` · proyecto `brunobot` · servicio `oneburguerweb` ·
   Postgres `oneburguer-postgres` (sin puerto expuesto).
-- Dominios: **https://oneburgernic.com** (apex) y `https://www.oneburgernic.com`.
-- Deploy: `npm run deploy:easypanel` con `EASYPANEL_URL`/`EASYPANEL_TOKEN` en el entorno
-  (el script fusiona variables y **no** sobrescribe configuración manual). El webhook del
-  panel no es fiable en esta instalación.
+- Dominios: **https://oneburgernic.com** (apex) y `https://www.oneburgernic.com` sirven el
+  landing y redirigen la app (307); **https://menu.oneburgernic.com** sirve la app de pedidos
+  y **https://admin.oneburgernic.com** el panel. Los cuatro con certificado.
+- Deploy: **una sola llamada** a `deployService` por API (proyecto `brunobot`, servicio
+  `oneburguerweb`, `forceRebuild: true`) con `EASYPANEL_TOKEN` en el entorno; la secuencia
+  exacta está en `ops/production-readiness.md` §2. ⚠️ **No** usar `npm run deploy:easypanel`:
+  fusiona variables y puede crear servicios.
+- **No desplegar sin confirmación del owner**; después del deploy correr los dos smokes de
+  solo lectura (`test:e2e:prod` y `test:e2e:prod:hosts`).
 - El contenedor, al arrancar: valida entorno → aplica migraciones → (opcional) crea el
   primer admin → `next start`. Si el arranque falla, Easypanel **no** promueve la versión
   y sigue sirviendo la anterior.
