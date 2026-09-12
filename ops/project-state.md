@@ -1578,6 +1578,12 @@ Decisión **D1 = sí** (2026-09-12), con un ajuste del owner en la sesión: **si
   (`orders-page-helpers.ts`), mientras el checkout y el retiro usan la zona de la configuración. En la
   práctica el negocio está en Managua; para una plataforma whitelabel de otra zona hay que mover ese
   anclaje a `BusinessSettings.timezone`.
+- **CI rojo por un test que leía la hora del equipo**: `programar una hora la manda en el pedido`
+  afirmaba `new Date(...).getHours()` (20 en esta máquina en UTC-6, 2 en CI en UTC). Además solo era
+  cierto con la implementación vieja, que armaba el instante en la zona del navegador. Ahora afirma el
+  instante UTC exacto (`fix(test)`, commit `4b204a9`). **Lección**: cuando algo depende de la zona, la
+  aserción va contra el instante (UTC), no contra `getHours()`/`toLocaleString()`; y conviene correr
+  `TZ=UTC npm run test` antes de pushear.
 
 ## 3. Infraestructura y secretos
 
