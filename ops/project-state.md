@@ -1390,6 +1390,31 @@ El lado servidor de "menú y precios por local". Falta la pantalla (4b).
   casos se saltan solos; a las 22:04 corrían y eran 77 los que pasaban. No es una regresión.
 - **Lo que sigue**: 4b (la pantalla del catálogo por local), y después las fases 5-7.
 
+### T8 (multi-sucursal) · Fase 4 (cierre): la pantalla del catálogo por local (2026-09-12)
+
+El owner ya ajusta precios y disponibilidad por sucursal sin tocar la API: `/admin/locations/[id]`,
+alcanzable desde el botón "Catálogo" de cada local en la lista.
+
+- **La lista** muestra todo el menú del negocio con el precio que cobra **este** local y, cuando
+  tiene precio propio, también el del negocio ("C$42.00 · base C$35.00"), más su estado: "Se vende
+  acá", "Agotado acá" o "No se vende acá". El encabezado resume el catálogo del local, no el del
+  negocio ("12 productos · 10 en este local · 2 agotados · 3 con precio propio").
+- **El sheet de un producto** deja: precio propio (vacío = el del negocio), si se vende en este local
+  y si está agotado acá. El botón "Volver al precio base" saca **solo** el precio propio: la
+  disponibilidad y "se vende acá" quedan como estaban (un test lo cazó: mi primera versión los
+  reseteaba a los valores por defecto, o sea cambiaba algo que el owner no había pedido tocar).
+- **El catálogo viaja con el nombre del local** (`meta.location`), así la pantalla no tiene que pedir
+  la lista de locales otra vez.
+- **Verificación en el camino real**: **1449 unitarios** (30 del módulo de pantallas de locales: 10 de
+  los helpers del catálogo + 6 de la pantalla + 14 de la lista y sus helpers), lint, typecheck,
+  `npm run build` (`/admin/locations/[id]` en el listado) y **E2E 76 pasaron, 9 salteados, 0 fallos**.
+  El caso nuevo entra desde el listado, pone precio propio y agotado, vuelve al precio del negocio,
+  saca el plato del local y lo devuelve, y deja **la base sin filas de catálogo** (0 excepciones, un
+  solo local). Los 9 salteados son los mismos de la fase 4a (7 de hosts de producción y 2 que dependen
+  de la hora del local demo).
+- **Lo que sigue de T8**: fase 5 (lectura pública por local: home, menú y producto con el precio del
+  local), 6 (selector de local en el checkout) y 7 (operación por local).
+
 ## 3. Infraestructura y secretos
 
 - `EASYPANEL_URL` y `EASYPANEL_TOKEN`: solo en el entorno de quien ejecuta el deploy (nunca

@@ -37,7 +37,14 @@ export async function listLocationCatalog(
   { locationRepository, menuRepository }: ListLocationCatalogDependencies,
 ): Promise<{
   data: LocationCatalogItem[];
-  meta: { total: number; sold: number; unavailable: number; overridden: number };
+  meta: {
+    /** El local, para que la pantalla no tenga que pedirlo de nuevo. */
+    location: { id: string; name: string };
+    total: number;
+    sold: number;
+    unavailable: number;
+    overridden: number;
+  };
 }> {
   const location = await locationRepository.findLocationById(locationId);
   if (!location) {
@@ -70,6 +77,9 @@ export async function listLocationCatalog(
 
   return {
     data,
-    meta: summarizeLocationCatalog({ productIds, rows, locationId }),
+    meta: {
+      location: { id: location.id, name: location.name },
+      ...summarizeLocationCatalog({ productIds, rows, locationId }),
+    },
   };
 }

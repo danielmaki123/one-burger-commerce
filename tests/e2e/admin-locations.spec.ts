@@ -27,6 +27,19 @@ async function deleteLocationIfPresent(page: Page) {
   await expect(page.getByText("Local borrado.")).toBeVisible();
 }
 
+/**
+ * Deja un producto en el estado "como el negocio": sin precio propio, vendible y disponible.
+ * Se hace al empezar y al terminar, así la corrida es repetible y la base no se ensucia.
+ */
+async function resetProduct(page: Page, productName: string) {
+  await page.getByRole("button", { name: `Editar ${productName}` }).click();
+  await page.getByRole("spinbutton", { name: "Precio en este local" }).fill("");
+  await page.getByRole("combobox", { name: "En este local" }).selectOption("yes");
+  await page.getByRole("combobox", { name: /Disponibilidad/ }).selectOption("yes");
+  await page.getByRole("button", { name: "Guardar cambios" }).click();
+  await expect(page.getByText("Producto actualizado.")).toBeVisible();
+}
+
 test.describe("locales del admin", () => {
   test.use({ viewport: { width: 375, height: 812 } });
 
@@ -79,6 +92,59 @@ test.describe("locales del admin", () => {
     await page.getByRole("button", { name: "Eliminar local Principal" }).click();
     await expect(page.getByText(/necesita al menos un local|último local activo/)).toBeVisible();
     await page.getByRole("button", { name: "Cancelar" }).click();
+
+    // La pantalla entra en 375 px sin scroll horizontal.
+    const horizontalOverflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - window.innerWidth,
+    );
+    expect(horizontalOverflow).toBeLessThanOrEqual(1);
+  });
+
+  test("el catálogo del local ajusta precio y disponibilidad (T8 fase 4)", async ({ page }) => {
+    await loginAsOwner(page);
+    await page.goto("/admin/locations");
+
+    // 1) Se entra desde el listado, no por URL directa.
+    await page.getByRole("link", { name: "Catálogo de Principal" }).click();
+    await expect(page.getByRole("heading", { name: "Principal" })).toBeVisible();
+
+    // Estado conocido de partida: una corrida anterior puede haber dejado una excepción.
+    await resetProduct(page, "Taco de Birria");
+
+    // El plato sembrado cuesta C$35 y, sin excepción, se vende acá al precio del negocio.
+    const tacoRow = page.getByRole("button", { name: "Editar Taco de Birria" });
+    await expect(tacoRow).toContainText("C$35.00");
+    await expect(tacoRow).toContainText("Se vende acá");
+
+    // 2) Precio propio y agotado en este local.
+    await tacoRow.click();
+    await page.getByRole("spinbutton", { name: "Precio en este local" }).fill("42");
+    await page.getByRole("combobox", { name: /Disponibilidad/ }).selectOption("no");
+    await page.getByRole("button", { name: "Guardar cambios" }).click();
+    await expect(page.getByText("Producto actualizado.")).toBeVisible();
+
+    await expect(tacoRow).toContainText("C$42.00 · base C$35.00");
+    await expect(tacoRow).toContainText("Agotado acá");
+
+    // 3) Volver al precio del negocio: el precio deja de ser propio (la disponibilidad queda
+    // como está en el formulario, que es lo que el owner no pidió cambiar).
+    await tacoRow.click();
+    await page.getByRole("button", { name: "Volver al precio base" }).click();
+    await expect(page.getByText("Producto actualizado.")).toBeVisible();
+    await expect(tacoRow).toContainText("C$35.00");
+    await expect(tacoRow).not.toContainText("base C$");
+
+    // 4) Sacar el plato de este local sin borrarlo del menú.
+    await tacoRow.click();
+    await page.getByRole("combobox", { name: "En este local" }).selectOption("no");
+    await page.getByRole("button", { name: "Guardar cambios" }).click();
+    await expect(page.getByText("Producto actualizado.")).toBeVisible();
+    await expect(tacoRow).toContainText("No se vende acá");
+
+    // 5) Y devolverlo: se vende, disponible y sin precio propio = sin excepción (la base
+    // queda como estaba, sin filas de catálogo).
+    await resetProduct(page, "Taco de Birria");
+    await expect(tacoRow).toContainText("Se vende acá");
 
     // La pantalla entra en 375 px sin scroll horizontal.
     const horizontalOverflow = await page.evaluate(

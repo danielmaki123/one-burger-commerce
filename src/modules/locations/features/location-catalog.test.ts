@@ -137,6 +137,8 @@ describe("listLocationCatalog", () => {
     });
 
     expect(result.meta).toMatchObject({ total: 1, sold: 1, unavailable: 1, overridden: 1 });
+    // El local viaja con el catálogo: la pantalla no tiene que pedirlo de nuevo.
+    expect(result.meta.location).toEqual({ id: "loc_norte", name: "Norte" });
   });
 
   it("un local que no existe se rechaza", async () => {

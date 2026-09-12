@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 
 import { cloneBusinessHours } from "@/modules/business-settings/domain/business-settings-defaults";
 import { WEEKDAY_KEYS } from "@/modules/business-settings/domain/business-settings.types";
@@ -283,45 +284,59 @@ export default function AdminLocationsPage() {
             const status = locationStatus(location);
 
             return (
-              <button
+              <div
                 key={location.id}
-                type="button"
-                onClick={() => openSheet(location)}
-                aria-label={`Editar local ${location.name}`}
-                className="flex min-h-14 w-full flex-col gap-1 border-t border-border px-4 py-3 text-left transition-colors first:border-t-0 hover:bg-accent/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand motion-reduce:transition-none"
+                className="flex items-stretch gap-1 border-t border-border first:border-t-0"
               >
-                <span className="flex flex-wrap items-center gap-2">
-                  <span
-                    className={`text-[15px] font-semibold ${
-                      location.isActive ? "text-foreground" : "text-muted-foreground"
-                    }`}
-                  >
-                    {location.name}
-                  </span>
-                  <span
-                    className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold before:h-1.5 before:w-1.5 before:rounded-full before:bg-current before:content-[''] ${
-                      location.isActive
-                        ? "bg-success text-success-foreground"
-                        : "bg-secondary text-muted-foreground"
-                    }`}
-                  >
-                    {LOCATION_STATUS_LABELS[status]}
-                  </span>
-                  {location.isAcceptingOrders ? null : (
-                    <span className="inline-flex items-center rounded-full bg-warning px-2.5 py-0.5 text-[11px] font-semibold text-warning-foreground">
-                      No recibe pedidos
+                <button
+                  type="button"
+                  onClick={() => openSheet(location)}
+                  aria-label={`Editar local ${location.name}`}
+                  className="flex min-h-14 min-w-0 flex-1 flex-col gap-1 px-4 py-3 text-left transition-colors hover:bg-accent/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand motion-reduce:transition-none"
+                >
+                  <span className="flex flex-wrap items-center gap-2">
+                    <span
+                      className={`text-[15px] font-semibold ${
+                        location.isActive ? "text-foreground" : "text-muted-foreground"
+                      }`}
+                    >
+                      {location.name}
                     </span>
-                  )}
-                </span>
-                <span className="block text-sm text-foreground">
-                  {describeLocationAddress(location)}
-                </span>
-                <span className="block text-xs leading-5 text-muted-foreground">
-                  {now
-                    ? `${describeLocationHours(location, settings.timezone, now)} · preparación ${location.pickupLeadMinutes} min`
-                    : `Preparación ${location.pickupLeadMinutes} min`}
-                </span>
-              </button>
+                    <span
+                      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold before:h-1.5 before:w-1.5 before:rounded-full before:bg-current before:content-[''] ${
+                        location.isActive
+                          ? "bg-success text-success-foreground"
+                          : "bg-secondary text-muted-foreground"
+                      }`}
+                    >
+                      {LOCATION_STATUS_LABELS[status]}
+                    </span>
+                    {location.isAcceptingOrders ? null : (
+                      <span className="inline-flex items-center rounded-full bg-warning px-2.5 py-0.5 text-[11px] font-semibold text-warning-foreground">
+                        No recibe pedidos
+                      </span>
+                    )}
+                  </span>
+                  <span className="block text-sm text-foreground">
+                    {describeLocationAddress(location)}
+                  </span>
+                  <span className="block text-xs leading-5 text-muted-foreground">
+                    {now
+                      ? `${describeLocationHours(location, settings.timezone, now)} · preparación ${location.pickupLeadMinutes} min`
+                      : `Preparación ${location.pickupLeadMinutes} min`}
+                  </span>
+                </button>
+
+                {/* Los precios y la disponibilidad por local viven en su propia pantalla: el
+                    sheet del local ya es largo y esto es otra tarea. */}
+                <Link
+                  href={`/admin/locations/${location.id}`}
+                  aria-label={`Catálogo de ${location.name}`}
+                  className="my-2 mr-3 inline-flex min-h-11 shrink-0 items-center rounded-full border border-border px-3 text-xs font-semibold text-foreground hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                >
+                  Catálogo
+                </Link>
+              </div>
             );
           })}
         </section>
