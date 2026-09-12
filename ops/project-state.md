@@ -1745,6 +1745,19 @@ Lleva la zona horaria del negocio en el tablero del admin, el esquema del payloa
 cliente. Sin migraciones. `commit.sha` del servicio en `c530966`; smoke productivo **4/4** y el apex
 restaurado en el mismo tramo.
 
+### Fase 7 del checkout (editar por ítem) cerrada con su test (2026-09-12)
+
+La fase 7 de `TASK-checkout-v2` estaba marcada como opcional y **ya estaba implementada** desde
+`TASK-checkout-ux`: en `/cart`, cada línea tiene el stepper `− / +` y "Quitar" sobre
+`updateQuantity`/`removeItem` (que es donde la auditoría recomendaba ponerlo, no dentro del checkout).
+
+Lo que faltaba era la otra mitad de la regla del programa —"ningún control decorativo: implementado
+**y cubierto por un test**"—: no había ningún test de comportamiento de esos controles. Se agregó
+`src/app/(public)/cart/cart-editing.test.tsx` con el **carrito de verdad** (`CartProvider` sobre
+`localStorage`), que verifica que sumar cambia el total (C$35 → C$70), que restar no baja de una unidad
+(y que para vaciar está "Quitar"), que quitar deja el estado vacío y que editar una línea no toca a la
+otra. **4 tests nuevos, 1547 en total.**
+
 ## 3. Infraestructura y secretos
 
 - `EASYPANEL_URL` y `EASYPANEL_TOKEN`: solo en el entorno de quien ejecuta el deploy (nunca

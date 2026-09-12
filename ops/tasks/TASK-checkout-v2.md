@@ -309,12 +309,20 @@ empaque; nosotros no copiamos ninguna de las dos cosas.
   owner**: las dos carpetas están en `.gitignore` y son el material de referencia del mock; borrarlas
   no afecta al código ni al deploy.
 
-### Fase 7 — Opcional, solo si se quiere · **incluye D4**
+### Fase 7 — Opcional · **incluye D4** — **CERRADA (2026-09-12): ya estaba implementada; se le agregó el test**
 
-**Editar por ítem desde el resumen** (el mock lo hace: cantidad y quitar dentro de su carrito). Vale
-únicamente si es **edición en línea**, reutilizando `updateQuantity`/`removeItem`. **Recomendación de
-la auditoría: en `/cart`, no en el checkout** — dentro del checkout contradice el "un solo resumen" y
-el CTA único por viewport que dejó `TASK-checkout-ux`.
+**Editar por ítem desde el resumen** (el mock lo hace: cantidad y quitar dentro de su carrito). Los
+controles ya existían desde `TASK-checkout-ux`, **en `/cart`** y no en el checkout (que es lo que
+recomendaba la auditoría, para no romper el "un solo resumen" ni el CTA único por viewport):
+`CartLineCard` con stepper `− / +` y "Quitar", sobre `updateQuantity`/`removeItem` del carrito.
+
+Lo que faltaba era lo que exige la regla del programa ("ningún control decorativo: implementado **y
+cubierto por un test**"): el test de comportamiento. Se agregó
+`src/app/(public)/cart/cart-editing.test.tsx`, que usa el **carrito de verdad** (`CartProvider` sobre
+`localStorage`) y comprueba que sumar cambia el total (35 → 70), que restar no baja de una unidad (y que
+para vaciar está "Quitar"), que quitar deja el estado vacío, y que editar una línea no toca a la otra.
+
+**D4** (si el mock va a `/cart`): resuelto de hecho — la edición quedó en `/cart`.
 
 ## 8. Fuera de alcance (no hacer sin pedido explícito)
 
