@@ -302,16 +302,19 @@ cada uno con su receta y su verificación.
    se edita en `/admin/settings` (configuración del negocio) y el servidor es la fuente de verdad del
    monto. Solo se toca el código si se quiere cambiar el valor por defecto de una instalación nueva.
 8. **Locales en producción** — corregido el 2026-09-12 con el drill: producción **no** tiene un solo
-   local, tiene **tres**, y ninguno tiene precios propios salvo dos excepciones de catálogo
-   (`LocationProduct` = 2 filas). Los tres están activos y tomando pedidos:
+   local, tiene **tres**, y el owner confirmó que **los tres son reales**. Los tres están activos y
+   tomando pedidos, con `pickupLeadMinutes: 20` y `sortOrder: 0`:
 
-   | Nombre | Slug | Ciudad | Nota |
+   | Nombre | Slug | Ciudad | Qué corregir |
    |---|---|---|---|
-   | Camino de Oriente | `one-burger-masaya` | Managua | el nombre y el slug no coinciden: huele a carga de prueba |
-   | Carretera Masaya | `carretera-masaya` | Managua | idem |
-   | Casa Antigua | `casa-antigua-jinotepe` | `Jinoteoe` | **la ciudad está mal escrita** (Jinotepe) |
+   | Camino de Oriente | `one-burger-masaya` | Managua | el slug no coincide con el nombre → `camino-de-oriente` |
+   | Carretera Masaya | `carretera-masaya` | Managua | nada |
+   | Casa Antigua | `casa-antigua-jinotepe` | `Jinoteoe` | **la ciudad está mal escrita** → `Jinotepe` |
 
-   Qué hacer (decisión del owner): dejar activo solo el local real y desactivar/borrar los de prueba,
-   corregir la ciudad, y recién entonces usar el multi-sucursal con datos de verdad (menú y precios por
-   local, selector en el checkout, filtro en la bandeja). Ojo: un local con pedidos no se puede borrar
-   sin más (hoy hay 0 pedidos, así que todavía es barato ordenarlo).
+   Se arregla desde `/admin/locations` → editar cada local (`name`, `slug` y `city` son campos del
+   formulario; el slug se normaliza solo). Es cosmético y sin riesgo: **el slug del local no se usa en
+   ninguna URL pública ni se guarda en los pedidos** (el checkout y la bandeja trabajan con `locationId`;
+   lo que va en la URL pública es el slug de la *categoría*, no el del local). Aprovechar para poner
+   `sortOrder` si se quiere un orden propio en el selector del checkout (hoy se ordenan por nombre).
+   Después de esto queda pendiente lo de siempre: cargar el menú real y, si hay precios distintos por
+   sucursal, usar el catálogo por local (hoy `LocationProduct` tiene solo 2 filas).

@@ -66,9 +66,10 @@ temporal). Detalle y prioridades en `ops/project-state.md` §4.
 
 1. **Monitoreo externo** — un uptime que pegue a `GET /api/readiness` y avise al canal del equipo.
    Receta: runbook §8.5. Necesita que el owner elija el servicio.
-2. **Ordenar los locales de producción** (hallazgo del drill): hay **3 locales** activos y tomando
-   pedidos, dos con nombre y slug que no coinciden y uno con la ciudad mal escrita (`Jinoteoe`).
-   Es decisión del owner (runbook §8.8); hoy es barato porque hay 0 pedidos.
+2. **Corregir dos datos de los locales de producción** (hallazgo del drill): hay **3 locales** y los
+   tres son reales (lo confirmó el owner), pero el slug de *Camino de Oriente* es `one-burger-masaya` y
+   la ciudad de *Casa Antigua* dice `Jinoteoe`. Se arregla en `/admin/locations` (5 minutos, runbook
+   §8.8); el slug del local no se usa en ninguna URL pública, así que no rompe nada.
 3. **Cerrar los puertos expuestos** de servicios ajenos del panel compartido (`capostgres` 5455,
    `postimage` 8585). Receta: runbook §8.4. Necesita el OK de quien administra esos servicios.
 4. **Cargar la carta completa** (categorías, productos, precios, fotos) desde `/admin/menu`. Es del
