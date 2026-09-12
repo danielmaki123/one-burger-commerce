@@ -261,14 +261,15 @@ Los tres primeros son los que más pesan; cada uno con su receta y su verificaci
      acá, y borrar el servicio temporal al terminar.
    - Alternativa manual si hiciera falta: *Terminal* del servicio y
      `pg_dump -U oneburguer -d oneburger -Fc -f /tmp/oneburger-$(date +%F).dump`.
-2. **Notificaciones de pedidos a cocina** (§5) — necesitan dos datos que solo tiene el owner: el
-   **bot token** de Telegram y el **chat id** del grupo de cocina (o la URL del webhook de n8n). Con
-   eso: cargar las cuatro variables en el servicio, desplegar y **probar de verdad**: hacer un pedido
-   de prueba y confirmar que llega el mensaje al grupo. Si no llega, revisar
-   `OUTBOX_PROCESSOR_ENABLED` y los logs del contenedor (el outbox reintenta).
-3. **Rotar el token del panel** (`EASYPANEL_TOKEN`): el token da acceso total al servidor y se pasó
-   por chat varias veces el 2026-09-12. Panel → *Settings* → *API tokens*: crear uno nuevo, usarlo y
-   revocar el viejo. Guardarlo solo en el gestor de secretos de quien despliega (nunca en el repo).
+2. **Notificaciones de pedidos a cocina** (§5) — **en pausa por decisión del owner (2026-09-12): "no
+   telegram por el momento"**. La operación es 100 % panel: alguien tiene que tener `/admin/orders`
+   abierto (la bandeja ordena por estado y las órdenes nuevas van primero). Para retomarlo hacen falta
+   el **bot token** y el **chat id** del grupo de cocina; después: cargar las cuatro variables del §5,
+   desplegar y probar con un pedido real.
+3. **Rotar el token del panel** (`EASYPANEL_TOKEN`) — **cuando terminen los cambios** (decisión del
+   owner, 2026-09-12). Mientras tanto: el token da acceso total al servidor y se pasó por chat varias
+   veces, así que no debería quedar en capturas ni en repos. Al rotarlo: panel → *Settings* → *API
+   tokens*, crear uno nuevo, usarlo y revocar el viejo.
 4. **Cerrar puertos innecesarios de servicios ajenos** (`capostgres` 5455, `postimage` 8585, en el
    panel compartido): no son de One Burger, así que requiere el OK de quien administra esos servicios.
    Se cierran quitando el *port mapping* en el panel de cada servicio.
