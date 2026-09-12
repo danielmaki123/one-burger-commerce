@@ -1319,10 +1319,15 @@ Con esto el admin ya puede administrar locales **por API**; falta la pantalla (f
 - **Verificación**: **1389 unitarios** (13 de las rutas nuevas + 2 del mapeo de errores), lint,
   typecheck, `npm run build` (las dos rutas aparecen en el listado) y **E2E completo 76 pasaron,
   7 salteados, 0 fallos**.
-- **Deuda de test que quedó anotada**: este par de tests de `/admin/promotions` volvió a fallar en CI
-  por tiempo. La causa real era que `asyncUtilTimeout` (5 s) había quedado **igual** que el
-  `testTimeout` de vitest (5 s), así que el test se moría justo cuando la espera se resolvía; ahora el
-  techo es 20 s y la espera 5 s. Queda escrito en `vitest.config.ts` y `src/test-setup.ts`.
+- **Deuda de test que quedó anotada (y costó tres CI rojos)**: el mismo par de tests de
+  `/admin/promotions` falló tres veces en CI. Primero se cambió la espera (del mock a la UI
+  visible), después el techo (`asyncUtilTimeout` de 5 s había quedado **igual** que el
+  `testTimeout` de vitest, así que el test se moría justo cuando la espera se resolvía), y al
+  tercer intento se dejó de adivinar: el test ahora **dice en qué paso falla** (comprueba el
+  valor del input después de tipear y espera el POST con 10 s propios antes de mirar la UI).
+  Con eso el par quedó verde en CI. La lección escrita en los dos archivos: en un runner
+  cargado, jsdom + `userEvent` + fetch simulado pueden tardar varios segundos, y una espera
+  tiene que quedar holgada y **por debajo** del presupuesto del test.
 
 ### T8 (multi-sucursal) · Fase 3: la pantalla de locales (2026-09-12) — **cerrada**
 
