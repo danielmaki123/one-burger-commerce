@@ -43,3 +43,28 @@ export type LocationResolutionFailure = "not-found" | "inactive" | "none-active"
 export type LocationResolution =
   | { ok: true; location: LocationRecord }
   | { ok: false; reason: LocationResolutionFailure };
+
+/**
+ * Lo que un local decide sobre un producto (T8 fase 4).
+ *
+ * Sin fila para ese local el producto **se vende al precio base**: un negocio de un solo
+ * local no necesita configurar nada, y un producto nuevo se vende en todos lados salvo que
+ * el owner lo apague en alguno. Con fila, el local manda.
+ */
+export type LocationProductRecord = {
+  id: string;
+  locationId: string;
+  productId: string;
+  /** `null` = el precio base del producto. `0` es gratis, no "sin precio". */
+  priceOverride: number | null;
+  /** Agotado hoy en este local, sin dejar de venderlo. */
+  isAvailable: boolean;
+  /** `false` = este local no lo ofrece. */
+  isActive: boolean;
+};
+
+export type LocationProductInput = {
+  priceOverride: number | null;
+  isAvailable: boolean;
+  isActive: boolean;
+};

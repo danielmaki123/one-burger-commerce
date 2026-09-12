@@ -3,7 +3,11 @@ import {
   cloneBusinessHours,
 } from "@/modules/business-settings/domain/business-settings-defaults";
 import type { LocationInput } from "@/modules/locations/domain/location-rules";
-import type { LocationRecord } from "@/modules/locations/domain/location.types";
+import type {
+  LocationProductInput,
+  LocationProductRecord,
+  LocationRecord,
+} from "@/modules/locations/domain/location.types";
 import type { LocationRepository } from "@/modules/locations/ports/location-repository";
 
 /**
@@ -46,10 +50,15 @@ export function createInMemoryLocation(
 
 export class InMemoryLocationRepository implements LocationRepository {
   readonly locations: LocationRecord[];
+  readonly locationProducts: LocationProductRecord[] = [];
   private nextId = 1;
 
-  constructor(locations: LocationRecord[] = []) {
+  constructor(
+    locations: LocationRecord[] = [],
+    locationProducts: LocationProductRecord[] = [],
+  ) {
     this.locations = [...locations];
+    this.locationProducts = [...locationProducts];
     this.nextId = locations.length + 1;
   }
 
@@ -96,5 +105,44 @@ export class InMemoryLocationRepository implements LocationRepository {
   async deleteLocation(id: string): Promise<void> {
     const index = this.locations.findIndex((location) => location.id === id);
     if (index >= 0) this.locations.splice(index, 1);
+  }
+
+  // Catálogo por local (fase 4): sin fila, el producto se vende al precio base.
+  async listLocationProducts(locationId: string): Promise<LocationProductRecord[]> {
+    return this.locationProducts.filter((row) => row.locationId === locationId);
+  }
+
+  async findLocationProduct(
+    locationId: string,
+    productId: string,
+  ): Promise<LocationProductRecord | null> {
+    return (
+      this.locationProducts.find(
+        (row) => row.locationId === locationId && row.productId === productId,
+      ) ?? null
+    );
+  }
+
+  async upsertLocationProduct(
+    input: LocationProductInput & { locationId: string; productId: string },
+  ): Promise<LocationProductRecord> {
+    const existing = await this.findLocationProduct(input.locationId, input.productId);
+
+    if (existing) {
+      Object.assign(existing, input);
+      return existing;
+    }
+
+    const row: LocationProductRecord = { id: `lp_${this.locationProducts.length + 1}`, ...input };
+    this.locationProducts.push(row);
+
+    return row;
+  }
+
+  async deleteLocationProduct(locationId: string, productId: string): Promise<void> {
+    const index = this.locationProducts.findIndex(
+      (row) => row.locationId === locationId && row.productId === productId,
+    );
+    if (index >= 0) this.locationProducts.splice(index, 1);
   }
 }

@@ -1357,6 +1357,39 @@ El owner ya administra los locales sin tocar la API: `/admin/locations`, en la n
 - **Lo que sigue de T8 (fases 4-7)**: productos y precios por local, lectura pública por local,
   selector de local en el checkout y operación por local (filtro del admin, confirmación e historial).
 
+### T8 (multi-sucursal) · Fase 4, primera mitad: el catálogo por local (2026-09-12)
+
+El lado servidor de "menú y precios por local". Falta la pantalla (4b).
+
+- **Cambio de diseño, y el motivo**: el brief decía "sin fila en `LocationProduct` no hay producto en
+  ese local" (copiando el catálogo al crear un local). Al implementarlo quedó claro que eso rompía el
+  caso real: un negocio de **un solo local** no tiene filas, así que el menú público habría quedado
+  **vacío** hasta que alguien copiara el catálogo. La regla ahora es **"sin fila, el producto se vende
+  al precio base"**, y el local guarda **excepciones** (precio propio, agotado, "acá no lo vendo"). Tres
+  consecuencias buenas: el negocio de un local sigue funcionando sin configurar nada, un producto nuevo
+  se vende en todos lados, y el menú no puede quedar vacío por un catálogo sin copiar. La copia del
+  catálogo, entonces, ya no hace falta.
+- **Reglas puras** (`location-product-rules.ts`): el precio del local gana si existe (**`0` es gratis,
+  no "sin precio"**), un precio propio con más de dos decimales o negativo se rechaza, y el resumen
+  cuenta el catálogo **del local** (cuántos vende, cuántos agotados, cuántos con precio propio).
+- **Dos casos de uso**: `list-location-catalog` (todos los productos del negocio con la excepción del
+  local al lado, para que la pantalla pueda mostrar de dónde sale el precio) y `set-location-product`
+  (valida, comprueba que el local y el producto existan, y **borra la fila cuando no hay excepción que
+  guardar**: volver al precio base no es copiar el precio del negocio).
+- **API**: `GET /api/admin/locations/[id]/products` (cualquier admin con sesión) y
+  `PUT /api/admin/locations/[id]/products/[productId]` (**solo owner**, es configuración del negocio).
+- **Verificado en el camino real** (Postgres 17 local + `next start -p 3210` con curl y la cookie del
+  owner): sin excepciones el catálogo muestra los 5 productos al precio base (0 con precio propio);
+  un `PUT` con precio 42 y agotado se ve en el catálogo (precio 42, agotado, resumen con 1 precio
+  propio); un precio negativo da **422** con el campo en español; un producto inexistente da **404**;
+  y volver al precio base **borra la fila** (el catálogo vuelve al base y la tabla queda en 0 filas).
+- **Verificación**: **1433 unitarios** (85 del módulo de locales, antes 53), lint, typecheck,
+  `npm run build` (las dos rutas nuevas en el listado) y **E2E 75 pasaron, 9 salteados, 0 fallos**.
+  Los 9 salteados son 7 de hosts de producción (el arnés apunta a local) y **2 que dependen de la
+  hora**: a las 23:31 de Managua al local demo (cierra 23:59) le quedan menos de dos turnos y esos
+  casos se saltan solos; a las 22:04 corrían y eran 77 los que pasaban. No es una regresión.
+- **Lo que sigue**: 4b (la pantalla del catálogo por local), y después las fases 5-7.
+
 ## 3. Infraestructura y secretos
 
 - `EASYPANEL_URL` y `EASYPANEL_TOKEN`: solo en el entorno de quien ejecuta el deploy (nunca
