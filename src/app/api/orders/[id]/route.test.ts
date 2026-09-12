@@ -8,6 +8,10 @@ vi.mock("@/modules/orders/adapters/prisma-order-repository", () => ({
   PrismaOrderRepository: vi.fn(function () { return {}; }),
 }));
 
+vi.mock("@/modules/locations/adapters/prisma-location-repository", () => ({
+  PrismaLocationRepository: vi.fn(function () { return {}; }),
+}));
+
 vi.mock("@/modules/orders/features/get-order/get-public-order", () => ({
   getPublicOrder: getPublicOrderMock,
 }));

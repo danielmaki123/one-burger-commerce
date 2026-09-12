@@ -108,3 +108,39 @@ describe("detalle de la orden: hora de retiro", () => {
     expect(timingChip(container, "past")).toBeNull();
   });
 });
+
+/**
+ * T8 fase 7 — de qué local sale el pedido.
+ *
+ * Con más de una sucursal, el mismo número de pedido puede existir en dos cocinas: el
+ * detalle tiene que decir cuál, y con la dirección para poder mandarlo si hace falta.
+ */
+describe("detalle de la orden: local de retiro", () => {
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+  });
+
+  it("muestra el local y su dirección", async () => {
+    await renderWith({
+      ...detail(),
+      pickupLocation: {
+        name: "Sucursal Norte",
+        addressLine: "Frente al parque",
+        addressReference: null,
+        city: "Managua",
+        mapsUrl: null,
+      },
+    });
+
+    expect(screen.getByText("Local")).toBeTruthy();
+    expect(screen.getByText("Sucursal Norte")).toBeTruthy();
+    expect(screen.getByText("Frente al parque, Managua")).toBeTruthy();
+  });
+
+  it("sin local resuelto no dibuja la sección", async () => {
+    await renderWith({ ...detail(), pickupLocation: null });
+
+    expect(screen.queryByText("Local")).toBeNull();
+  });
+});

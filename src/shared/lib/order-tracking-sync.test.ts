@@ -130,4 +130,68 @@ describe("order-tracking sync", () => {
     const stored = readDeviceOrders(storage).orders[0];
     expect(stored.orderLookupToken).toBe("opaque-token-456");
   });
+
+  /**
+   * T8 fase 7 — el sync solo trae estado y montos: lo que el servidor no manda se conserva.
+   *
+   * El seguimiento devuelve un payload chico (estado, hora, total), así que reconstruir el
+   * pedido guardado solo con eso borraba las líneas (T7), el PIN y la hora de retiro (T13) y
+   * ahora también el local. Refrescar "Mis pedidos" no puede vaciar el historial.
+   */
+  it("no borra lo que el seguimiento no manda (lineas, PIN, retiro y local)", () => {
+    const storage = new MemoryStorage();
+    upsertDeviceOrder(
+      {
+        orderNumber: "P-KEEP01",
+        type: "pickup",
+        status: "new",
+        statusLabel: "Recibida",
+        updatedAt: "2026-05-27T09:00:00.000Z",
+        createdAt: "2026-05-27T08:30:00.000Z",
+        total: 614,
+        pickupTime: "2026-05-27T11:00:00.000Z",
+        pickupScheduled: true,
+        pickupPin: "4821",
+        locationName: "Sucursal Norte",
+        locationAddress: "Frente al parque, Managua",
+        locationMapsUrl: "https://maps.example.com/norte",
+        items: [
+          {
+            productId: "prod_1",
+            productName: "Hamburguesa clásica",
+            quantity: 2,
+            unitPrice: 300,
+            packagingUnitAmount: 7,
+            modifierOptionIds: [],
+            modifiers: [],
+            lineTotal: 614,
+          },
+        ],
+      },
+      storage,
+    );
+
+    syncTrackedOrderToDeviceOrders(
+      {
+        orderNumber: "P-KEEP01",
+        type: "pickup",
+        status: "confirmed",
+        statusLabel: "Confirmada",
+        updatedAt: "2026-05-27T10:00:00.000Z",
+        total: 614,
+      },
+      { storage, checkedAt: "2026-05-27T10:01:00.000Z" },
+    );
+
+    const stored = readDeviceOrders(storage).orders[0];
+    expect(stored.status).toBe("confirmed");
+    expect(stored.pickupPin).toBe("4821");
+    expect(stored.pickupTime).toBe("2026-05-27T11:00:00.000Z");
+    expect(stored.pickupScheduled).toBe(true);
+    expect(stored.locationName).toBe("Sucursal Norte");
+    expect(stored.locationAddress).toBe("Frente al parque, Managua");
+    expect(stored.locationMapsUrl).toBe("https://maps.example.com/norte");
+    expect(stored.items).toHaveLength(1);
+    expect(stored.items?.[0].productName).toBe("Hamburguesa clásica");
+  });
 });

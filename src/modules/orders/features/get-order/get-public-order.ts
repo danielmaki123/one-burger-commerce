@@ -1,5 +1,10 @@
 import { timingSafeEqual } from "node:crypto";
 
+import {
+  describePickupLocation,
+  type PickupLocation,
+} from "@/modules/locations/domain/location-rules";
+import type { LocationRepository } from "@/modules/locations/ports/location-repository";
 import { OrderError } from "@/modules/orders/domain/order-errors";
 import type { PublicOrderDetail } from "@/modules/orders/domain/order.types";
 import { hashOrderLookupToken } from "@/modules/orders/domain/order-tracking";
@@ -17,7 +22,10 @@ function safeCompareHex(left: string, right: string) {
 export async function getPublicOrder(
   id: string,
   token: string | null,
-  { repository }: { repository: OrderRepository },
+  {
+    repository,
+    locationRepository,
+  }: { repository: OrderRepository; locationRepository: LocationRepository },
 ): Promise<{ data: PublicOrderDetail }> {
   if (!token || !token.trim()) {
     throw new OrderError(401, "UNAUTHORIZED", "Order lookup token required");
@@ -32,6 +40,11 @@ export async function getPublicOrder(
   if (!safeCompareHex(incomingHash, order.orderLookupTokenHash)) {
     throw new OrderError(404, "NOT_FOUND", "Order not found");
   }
+
+  // Dónde retira (T8 fase 7). Se resuelve al leer: el pedido guarda el id del local, no
+  // su nombre ni su dirección, así una corrección llega a los pedidos ya hechos.
+  const location = await locationRepository.findLocationById(order.locationId);
+  const pickupLocation: PickupLocation | null = describePickupLocation(location);
 
   const publicOrder: PublicOrderDetail = {
     id: order.id,
@@ -60,6 +73,7 @@ export async function getPublicOrder(
     couponCode: order.couponCode,
     deliveryZoneId: order.deliveryZoneId,
     deliveryZoneName: order.deliveryZoneName,
+    pickupLocation,
   };
 
   return { data: publicOrder };

@@ -3,6 +3,10 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/shared/ui/button";
+import {
+  formatPickupAddress,
+  type PickupLocation,
+} from "@/modules/locations/domain/location-rules";
 import { readDeviceOrders, upsertDeviceOrder } from "@/shared/lib/device-orders";
 import OrderSuccessView from "./order-success-view";
 
@@ -50,6 +54,8 @@ type OrderPayload = {
     pickupScheduled?: boolean;
     /** PIN de retiro para dictar en caja (T13). */
     pickupPin?: string | null;
+    /** Dónde retira (T8 fase 7); `null` si el local ya no existe. */
+    pickupLocation?: PickupLocation | null;
   };
 };
 
@@ -162,6 +168,11 @@ export default function OrderSuccessPage() {
       // El PIN se guarda con el pedido del dispositivo (T13): el cliente lo
       // necesita al retirar y no siempre tiene el link a mano.
       pickupPin: order.pickupPin ?? null,
+      // El local de retiro (T8 fase 7) también: el historial se lee sin red y ahí es
+      // donde el cliente busca dónde iba a retirar.
+      locationName: order.pickupLocation?.name ?? null,
+      locationAddress: formatPickupAddress(order.pickupLocation ?? null),
+      locationMapsUrl: order.pickupLocation?.mapsUrl ?? null,
       items: order.items.map((item) => ({
         productId: item.productId,
         productName: item.productName,

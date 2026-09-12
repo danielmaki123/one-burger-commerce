@@ -73,8 +73,7 @@ export function OrderHistoryCard({
   // El resumen sale de las líneas guardadas (T7): antes había un plato escrito a mano.
   const itemSummary = summarizeOrderItems(order.items);
   const pickupEstimate = formatOrderPickupEstimate(order, timeZone);
-  const pickupPinLabel = formatOrderPickupPin(order.pickupPin);
-  const cardStatusLabel = progress.label === "En preparación" ? "Preparando" : progress.label;
+  const pickupPinLabel = formatOrderPickupPin(order.pickupPin);  const cardStatusLabel = progress.label === "En preparación" ? "Preparando" : progress.label;
   const statusClass =
     cardStatusLabel === "Completada"
       ? "bg-warning text-warning-foreground"
@@ -104,6 +103,13 @@ export function OrderHistoryCard({
 
         {pickupEstimate ? (
           <p className="text-sm text-muted-foreground">{pickupEstimate}</p>
+        ) : null}
+        {/* Dónde retira (T8 fase 7): el local elegido al pedir, guardado en el dispositivo. */}
+        {order.locationName ? (
+          <p className="text-sm text-muted-foreground">
+            Retiro en <span className="font-semibold text-foreground">{order.locationName}</span>
+            {order.locationAddress ? ` · ${order.locationAddress}` : ""}
+          </p>
         ) : null}
         {/* El PIN se dicta en caja: tiene que estar también acá, no solo en la confirmación. */}
         {pickupPinLabel ? (
@@ -215,6 +221,27 @@ export function OrderDetailView({
         <CompactFact label="Fecha del pedido" value={formatActivityDateTime(order.createdAt ?? order.updatedAt)} />
         <CompactFact label="Última actualización" value={formatActivityDateTime(latestText)} />
       </DetailCard>
+      {/* Punto de retiro (T8 fase 7): a qué local iba este pedido y cómo llegar. */}
+      {order.locationName ? (
+        <DetailSection title="Punto de retiro">
+          <div className="space-y-3">
+            <CompactFact label="Local" value={order.locationName} />
+            {order.locationAddress ? (
+              <CompactFact label="Dirección" value={order.locationAddress} />
+            ) : null}
+            {order.locationMapsUrl ? (
+              <a
+                href={order.locationMapsUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="flex min-h-11 items-center justify-center rounded-2xl border border-border px-4 text-sm font-semibold text-brand"
+              >
+                Cómo llegar
+              </a>
+            ) : null}
+          </div>
+        </DetailSection>
+      ) : null}
       <DetailSection title="Estado del pedido">
         <StatusProgress
           steps={ORDER_PROGRESS_STEPS}

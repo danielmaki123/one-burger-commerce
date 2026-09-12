@@ -10,6 +10,10 @@ import { formatCurrency } from "@/shared/lib/format-currency";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import {
+  formatPickupAddress,
+  type PickupLocation,
+} from "@/modules/locations/domain/location-rules";
+import {
   PAYMENT_METHOD_LABELS,
   type OrderPaymentMethod,
 } from "@/modules/orders/domain/order.types";
@@ -96,6 +100,8 @@ type OrderDetail = {
   paidWithAmount?: number | null;
   /** PIN de retiro para dictar en caja (T13). */
   pickupPin?: string | null;
+  /** Local del que sale el pedido (T8 fase 7); `null` si el local ya no existe. */
+  pickupLocation?: PickupLocation | null;
 };
 
 type GetOrderResponse = {
@@ -357,6 +363,8 @@ export default function AdminOrderDetailPage() {
         ? "Sin cambio"
         : null
       : `Cambio ${formatCurrency(orderChange, currency)}`;
+  /** Dirección del local (T8 fase 7), ya armada en una línea. */
+  const pickupAddress = formatPickupAddress(order?.pickupLocation ?? null);
 
   return (
     <div className="space-y-6 pb-40 md:pb-6">
@@ -550,6 +558,41 @@ export default function AdminOrderDetailPage() {
               </div>
             </div>
           </section>
+
+          {/* Local del pedido (T8 fase 7): con más de una sucursal, dos pedidos del mismo
+              tipo salen de cocinas distintas. Se muestra siempre que el servidor pudo
+              resolverlo, con la dirección para poder ubicarlo. */}
+          {order.pickupLocation ? (
+            <section className="space-y-3 rounded-xl border border-border bg-card p-4">
+              <h2 className="text-lg font-semibold text-foreground">Punto de retiro</h2>
+              <div className="grid grid-cols-1 gap-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Local</span>
+                  <span className="font-medium text-foreground">
+                    {order.pickupLocation.name}
+                  </span>
+                </div>
+                {pickupAddress ? (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Dirección</span>
+                    <span className="text-right font-medium text-foreground">
+                      {pickupAddress}
+                    </span>
+                  </div>
+                ) : null}
+                {order.pickupLocation.mapsUrl ? (
+                  <a
+                    href={order.pickupLocation.mapsUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="min-h-11 text-sm font-medium text-brand hover:underline"
+                  >
+                    Ver en mapa
+                  </a>
+                ) : null}
+              </div>
+            </section>
+          ) : null}
 
           {order.type === "delivery" ? (
             <section className="space-y-3 rounded-xl border border-border bg-card p-4">

@@ -122,8 +122,62 @@ describe("public activity page", () => {
     expect(html).not.toContain("Estado y total guardados");
   });
 
-  it("un pedido viejo sin líneas no ofrece repetir (T7)", () => {
-    // Los pedidos guardados antes de T7 no tienen ítems: se ven, no se repiten.
+  /**
+   * T8 fase 7 — el historial tiene que decir dónde se retira.
+   *
+   * El local se guarda con el pedido del dispositivo, igual que el PIN: el historial se
+   * lee sin red y ahí el cliente busca a qué local iba.
+   */
+  it("la tarjeta y el recibo dicen en qué local se retira (T8)", () => {
+    const order = {
+      orderNumber: "P-LOCAL01",
+      type: "pickup" as const,
+      status: "preparing" as const,
+      statusLabel: "Preparando",
+      updatedAt: "2026-08-24T19:30:00.000Z",
+      total: 100,
+      locationName: "Sucursal Norte",
+      locationAddress: "Frente al parque, Managua",
+      locationMapsUrl: "https://maps.example.com/norte",
+    };
+
+    const card = renderToStaticMarkup(
+      createElement(OrderHistoryCard, { order, onOpen: vi.fn() }),
+    );
+    expect(card).toContain("Sucursal Norte");
+    expect(card).toContain("Frente al parque, Managua");
+
+    const detail = renderToStaticMarkup(
+      createElement(OrderDetailView, { order, onBack: vi.fn() }),
+    );
+    expect(detail).toContain("Punto de retiro");
+    expect(detail).toContain("Sucursal Norte");
+    expect(detail).toContain("Frente al parque, Managua");
+    expect(detail).toContain("https://maps.example.com/norte");
+  });
+
+  it("sin local guardado no se dibuja una fila vacía (T8)", () => {
+    const order = {
+      orderNumber: "P-SINLOCAL",
+      type: "pickup" as const,
+      status: "closed" as const,
+      statusLabel: "Completada",
+      updatedAt: "2026-08-24T19:30:00.000Z",
+      total: 100,
+    };
+
+    const card = renderToStaticMarkup(
+      createElement(OrderHistoryCard, { order, onOpen: vi.fn() }),
+    );
+    expect(card).not.toContain("Retiro en");
+
+    const detail = renderToStaticMarkup(
+      createElement(OrderDetailView, { order, onBack: vi.fn() }),
+    );
+    expect(detail).not.toContain("Punto de retiro");
+  });
+
+  it("un pedido viejo sin líneas no ofrece repetir (T7)", () => {    // Los pedidos guardados antes de T7 no tienen ítems: se ven, no se repiten.
     const html = renderToStaticMarkup(
       createElement(OrderHistoryCard, {
         order: {

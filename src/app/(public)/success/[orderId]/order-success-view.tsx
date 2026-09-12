@@ -6,6 +6,10 @@ import { Button } from "@/shared/ui/button";
 import { Badge } from "@/shared/ui/badge";
 import { resolveBrandImageUrl, resolveFaviconUrl } from "@/modules/business-settings/domain/brand-assets";
 import { formatTimeInTimeZone } from "@/modules/business-settings/domain/format-time-in-timezone";
+import {
+  formatPickupAddress,
+  type PickupLocation,
+} from "@/modules/locations/domain/location-rules";
 import { useBusinessSettings, useCurrencyFormat } from "@/shared/lib/business-settings";
 import { formatCurrency } from "@/shared/lib/format-currency";
 import {
@@ -54,6 +58,8 @@ export type OrderSuccessData = {
   paidWithAmount?: number | null;
   /** PIN corto para dictar en caja (T13). */
   pickupPin?: string | null;
+  /** Dónde retira (T8 fase 7): el local del pedido, ya resuelto por el servidor. */
+  pickupLocation?: PickupLocation | null;
 };
 
 /**
@@ -147,6 +153,11 @@ export default function OrderSuccessView({
   const orderChange = calculateOrderChange({ paidWithAmount, total: order.total });
   const changeLabel = orderChange === null ? null : formatCurrency(orderChange, currency);
 
+  // Dónde retira (T8 fase 7). El nombre siempre está si el local existe; la dirección y el
+  // mapa solo si el owner los cargó.
+  const pickupLocation = order.pickupLocation ?? null;
+  const pickupAddress = formatPickupAddress(pickupLocation);
+
   return (
     <div className="brand-canvas min-h-dvh text-foreground">
       <main className="mx-auto flex min-h-dvh w-full max-w-xl flex-col px-5 pb-28 pt-6 sm:max-w-2xl sm:px-8 sm:pb-16 sm:pt-10">
@@ -215,6 +226,35 @@ export default function OrderSuccessView({
                 <p className="mt-1 text-xs text-muted-foreground">Díctalo en caja al retirar.</p>
               </div>
             ) : null}
+
+            {/* Dónde retira (T8 fase 7): el nombre del local y, si el owner la cargó, la
+                dirección con el mapa. Va arriba, junto al PIN, porque es lo que el cliente
+                mira cuando sale a buscar el pedido. */}
+            {pickupLocation ? (
+              <div className="mt-4 flex w-full items-start gap-3 rounded-2xl border border-border bg-card px-4 py-3 text-left">
+                <span aria-hidden="true" className="text-base text-brand">
+                  📍
+                </span>
+                <div className="min-w-0 flex-1 text-sm">
+                  <p className="font-medium text-foreground">
+                    Retiro en {pickupLocation.name}
+                  </p>
+                  {pickupAddress ? (
+                    <p className="text-muted-foreground">{pickupAddress}</p>
+                  ) : null}
+                </div>
+                {pickupLocation.mapsUrl ? (
+                  <a
+                    href={pickupLocation.mapsUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex min-h-11 shrink-0 items-center rounded-xl px-2 text-sm font-semibold text-brand"
+                  >
+                    Cómo llegar
+                  </a>
+                ) : null}
+              </div>
+            ) : null}
           </div>
         </section>
 
@@ -243,6 +283,9 @@ export default function OrderSuccessView({
           <div className="mt-5 space-y-4">
             <SummaryRow label="Número de pedido" value={order.orderNumber} />
             <SummaryRow label="Tipo" value={formatOrderType(order.type)} />
+            {pickupLocation ? (
+              <SummaryRow label="Retiro en" value={pickupLocation.name} />
+            ) : null}
             <SummaryRow
               label="Forma de pago"
               value={PAYMENT_METHOD_LABELS[order.paymentMethod ?? "cash"]}

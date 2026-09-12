@@ -1,3 +1,5 @@
+import type { PickupLocation } from "@/modules/locations/domain/location-rules";
+
 export type OrderType = "delivery" | "pickup" | "table";
 
 /**
@@ -166,6 +168,11 @@ export type PublicOrderDetail = {
   couponCode?: string | null;
   deliveryZoneId?: string | null;
   deliveryZoneName?: string | null;
+  /**
+   * Dónde retira el cliente (T8 fase 7). Se resuelve al leer el local del pedido;
+   * `null` si el local ya no existe. El `locationId` no sale al público.
+   */
+  pickupLocation: PickupLocation | null;
 };
 
 export type CouponRecord = {

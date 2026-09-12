@@ -39,6 +39,10 @@ export function syncTrackedOrderToDeviceOrders(
 
   return upsertDeviceOrder(
     {
+      // El seguimiento devuelve estado y montos, nada más. Se parte del pedido guardado
+      // para **no borrar** lo que este payload no trae: las líneas (T7), el PIN y la hora
+      // de retiro (T13) y el local (T8). Reconstruir el pedido desde cero lo vaciaba.
+      ...existing,
       orderNumber: tracked.orderNumber,
       type: tracked.type,
       status: tracked.status,

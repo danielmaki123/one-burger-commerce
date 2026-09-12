@@ -115,8 +115,51 @@ describe("order success view", () => {
     expect(renderWith(pickupOrder({}))).not.toContain("PIN de retiro");
   });
 
-  it("con rango configurado le promete una franja, no un instante (T5)", () => {
-    // 20:35 con 20 min de preparación y 40 de máximo: la franja es 20:35–20:55.
+  /**
+   * T8 fase 7 — dónde retira.
+   *
+   * El checkout ya lo dice antes de confirmar; la confirmación tiene que repetirlo porque
+   * es la pantalla que el cliente guarda o deja abierta cuando va en camino al local.
+   */
+  it("le dice al cliente en qué local retira (T8)", () => {
+    const html = renderWith(
+      pickupOrder({
+        pickupLocation: {
+          name: "Sucursal Norte",
+          addressLine: "Frente al parque",
+          addressReference: null,
+          city: "Managua",
+          mapsUrl: "https://maps.example.com/norte",
+        },
+      }),
+    );
+
+    expect(html).toContain("Retiro en");
+    expect(html).toContain("Sucursal Norte");
+    expect(html).toContain("Frente al parque, Managua");
+    expect(html).toContain("Cómo llegar");
+    expect(html).toContain("https://maps.example.com/norte");
+
+    // Un local sin dirección cargada muestra el nombre, no una línea vacía.
+    const sinDireccion = renderWith(
+      pickupOrder({
+        pickupLocation: {
+          name: "Sucursal Norte",
+          addressLine: null,
+          addressReference: null,
+          city: null,
+          mapsUrl: null,
+        },
+      }),
+    );
+    expect(sinDireccion).toContain("Retiro en");
+    expect(sinDireccion).not.toContain("Cómo llegar");
+
+    // Y sin local resuelto no se dibuja la fila.
+    expect(renderWith(pickupOrder({}))).not.toContain("Retiro en");
+  });
+
+  it("con rango configurado le promete una franja, no un instante (T5)", () => {    // 20:35 con 20 min de preparación y 40 de máximo: la franja es 20:35–20:55.
     const html = renderToStaticMarkup(
       createElement(BusinessSettingsProvider, {
         settings: {

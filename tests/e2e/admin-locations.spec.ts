@@ -219,6 +219,15 @@ test.describe("locales del admin", () => {
       await page.getByRole("button", { name: /Confirmar pedido/ }).click();
       await expect(page).toHaveURL(/\/success\/.+/);
 
+      // La confirmación dice dónde retira (T8 fase 7). El nombre sale del local del pedido,
+      // resuelto por el servidor contra la base.
+      await expect(page.getByText("Retiro en Principal")).toBeVisible();
+
+      // Y el historial del dispositivo lo guarda: cuando el cliente vuelve sin el link a
+      // mano, el pedido guardado sigue diciendo a qué local iba.
+      await page.goto("/activity?tab=orders");
+      await expect(page.getByText("Retiro en Principal").first()).toBeVisible();
+
       // La bandeja del admin filtra por local (T8 fase 7): el pedido es del principal.
       // `first()` porque una corrida anterior puede haber dejado otro pedido del mismo cliente.
       await page.goto("/admin/orders");
@@ -229,6 +238,14 @@ test.describe("locales del admin", () => {
       await expect(orderRow).toBeVisible();
       await expect(orderRow).toContainText("Principal");
 
+      // El detalle del pedido también dice de qué local sale (T8 fase 7).
+      await orderRow.click();
+      const pickupSection = page
+        .getByRole("heading", { name: "Punto de retiro" })
+        .locator("..");
+      await expect(pickupSection).toContainText("Principal");
+
+      await page.goto("/admin/orders");
       await page.getByRole("button", { name: "Mostrar filtros" }).click();
       const locationFilter = page.getByLabel("Local");
 

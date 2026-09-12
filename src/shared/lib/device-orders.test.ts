@@ -186,4 +186,44 @@ describe("device-orders storage", () => {
     const store = readDeviceOrders(storage);
     expect(store.orders).toHaveLength(0);
   });
+
+  /**
+   * T8 fase 7 — el historial guarda dónde retira el pedido.
+   *
+   * Como el PIN y la hora de retiro, es un dato del pedido y no del pedido anterior: se
+   * escribe una vez y el sync no lo pisa. Un valor basura se tira sin perder el pedido.
+   */
+  it("guarda el local del pedido para mostrarlo en el historial", () => {
+    const storage = new MemoryStorage();
+    upsertDeviceOrder(
+      makeOrder({
+        locationName: "Sucursal Norte",
+        locationAddress: "Frente al parque, Managua",
+        locationMapsUrl: "https://maps.example.com/norte",
+      }),
+      storage,
+    );
+
+    const stored = readDeviceOrders(storage).orders[0];
+    expect(stored.locationName).toBe("Sucursal Norte");
+    expect(stored.locationAddress).toBe("Frente al parque, Managua");
+    expect(stored.locationMapsUrl).toBe("https://maps.example.com/norte");
+  });
+
+  it("tira un local con valor basura en vez de romper el historial", () => {
+    const storage = new MemoryStorage();
+    upsertDeviceOrder(
+      makeOrder({
+        orderNumber: "D-BASURA",
+        locationName: 42 as unknown as string,
+        locationAddress: "   ",
+      }),
+      storage,
+    );
+
+    const stored = readDeviceOrders(storage).orders[0];
+    expect(stored.orderNumber).toBe("D-BASURA");
+    expect(stored.locationName).toBeUndefined();
+    expect(stored.locationAddress).toBeUndefined();
+  });
 });

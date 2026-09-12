@@ -42,6 +42,16 @@ export type DeviceOrderRef = {
   pickupScheduled?: boolean;
   /** PIN de retiro (T13): el cliente lo dicta en caja. */
   pickupPin?: string | null;
+  /**
+   * Dónde retira el pedido (T8 fase 7): nombre del local y dirección para mostrar.
+   *
+   * Se guardan en el dispositivo porque el historial se lee sin red y el seguimiento
+   * devuelve un payload chico. Son datos de exhibición: el servidor manda el local ya
+   * resuelto y acá no se recalcula nada.
+   */
+  locationName?: string | null;
+  locationAddress?: string | null;
+  locationMapsUrl?: string | null;
   /** Líneas del pedido, para repetirlo. */
   items?: DeviceOrderItemRef[];
 };
@@ -135,6 +145,15 @@ function sanitizeDeviceOrderExtras(order: DeviceOrderRef): DeviceOrderRef {
 
   if (order.pickupPin !== undefined && order.pickupPin !== null && typeof order.pickupPin !== "string") {
     delete sanitized.pickupPin;
+  }
+
+  // El local del pedido (T8): un valor de otro tipo se tira, y un texto vacío también
+  // (no aporta nada y dejaría una fila en blanco en el historial).
+  for (const key of ["locationName", "locationAddress", "locationMapsUrl"] as const) {
+    const value = order[key];
+    if (value === undefined) continue;
+    if (value === null) continue;
+    if (typeof value !== "string" || value.trim() === "") delete sanitized[key];
   }
 
   return sanitized;

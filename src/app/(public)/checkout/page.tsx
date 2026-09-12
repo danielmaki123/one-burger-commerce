@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 
 import { formatTodayHours } from "@/modules/business-settings/domain/business-hours-format";
 import { resolveOrderAcceptance } from "@/modules/business-settings/domain/order-acceptance";
+import { formatPickupAddress } from "@/modules/locations/domain/location-rules";
 import type { PublicLocation } from "@/modules/locations/features/list-public-locations/list-public-locations";
 import {
   buildPickupSlots,
@@ -494,6 +495,13 @@ export default function CheckoutPage() {
             lastCheckedAt: new Date().toISOString(),
             stale: false,
             orderLookupToken: order.orderLookupToken,
+            // Dónde retira (T8 fase 7): queda guardado en el historial del dispositivo,
+            // que se lee sin red. El local es el que se eligió (o el único que hay); si el
+            // negocio todavía no cargó ninguno, el dato sale de la configuración y acá no
+            // se inventa un local.
+            locationName: selectedLocation?.name ?? null,
+            locationAddress: formatPickupAddress(selectedLocation),
+            locationMapsUrl: selectedLocation?.mapsUrl ?? null,
           });
         }
         clearCart();

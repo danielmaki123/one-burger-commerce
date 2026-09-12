@@ -179,3 +179,54 @@ export function resolveLocation({
 
   return { ok: true, location: found };
 }
+
+/**
+ * El punto de retiro de un pedido ya hecho (T8 fase 7).
+ *
+ * Solo lo que hace falta para ir a buscar la comida: nombre, dirección y mapa. El
+ * teléfono y el WhatsApp del local quedan afuera, igual que en `listPublicLocations`.
+ */
+export type PickupLocation = {
+  name: string;
+  addressLine: string | null;
+  city: string | null;
+  addressReference: string | null;
+  mapsUrl: string | null;
+};
+
+/**
+ * Resuelve el punto de retiro que muestra un pedido. `null` cuando el local ya no está,
+ * para que la pantalla muestre "sin local" en vez de romperse.
+ */
+export function describePickupLocation(location: LocationRecord | null): PickupLocation | null {
+  if (!location) return null;
+
+  return {
+    name: location.name,
+    addressLine: location.addressLine,
+    city: location.city,
+    addressReference: location.addressReference,
+    mapsUrl: location.mapsUrl,
+  };
+}
+
+/**
+ * La dirección del punto de retiro en una línea, como la lee el cliente.
+ *
+ * Mismo criterio que el checkout: se une con coma y se saltean los datos que el owner no
+ * cargó. Sin ningún dato devuelve `null`, para no dibujar una fila vacía.
+ *
+ * Pide solo los campos de dirección (no el nombre ni el mapa) para que la pueda usar
+ * también quien tiene el local público a mano en vez del registro completo.
+ */
+export function formatPickupAddress(
+  location: Pick<PickupLocation, "addressLine" | "addressReference" | "city"> | null,
+): string | null {
+  if (!location) return null;
+
+  const parts = [location.addressLine, location.addressReference, location.city]
+    .map((part) => part?.trim())
+    .filter((part): part is string => Boolean(part));
+
+  return parts.length > 0 ? parts.join(", ") : null;
+}

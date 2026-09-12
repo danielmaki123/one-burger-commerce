@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { PrismaLocationRepository } from "@/modules/locations/adapters/prisma-location-repository";
 import { PrismaOrderRepository } from "@/modules/orders/adapters/prisma-order-repository";
 import { getPublicOrder } from "@/modules/orders/features/get-order/get-public-order";
 import { createErrorResponse } from "@/shared/lib/http/error-response";
@@ -13,7 +14,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     const { searchParams } = new URL(request.url);
     const token = searchParams.get("token");
     const repository = new PrismaOrderRepository();
-    const result = await getPublicOrder(id, token, { repository });
+    const locationRepository = new PrismaLocationRepository();
+    const result = await getPublicOrder(id, token, { repository, locationRepository });
     return NextResponse.json(result, {
       headers: {
         "Cache-Control": "no-store",

@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import type { BusinessHours } from "@/modules/business-settings/domain/business-settings.types";
 import {
+  describePickupLocation,
+  formatPickupAddress,
   pickDefaultLocation,
   resolveLocation,
   type LocationRecord,
@@ -137,5 +139,78 @@ describe("resolveLocation", () => {
       ok: true,
       location: principal,
     });
+  });
+});
+
+/**
+ * T8 fase 7 — el punto de retiro tal como lo muestra un pedido ya hecho.
+ *
+ * Es lo que el cliente necesita para ir a buscar la comida y lo que la cocina necesita
+ * para saber de qué local sale el pedido. Se resuelve al leer y **no** se copia al
+ * pedido: si el owner corrige la dirección, los pedidos viejos muestran la nueva.
+ */
+describe("describePickupLocation", () => {
+  it("sin local devuelve null en vez de un objeto vacío", () => {
+    expect(describePickupLocation(null)).toBeNull();
+  });
+
+  it("copia solo los datos del punto de retiro, nunca el contacto interno", () => {
+    const conContacto = location({
+      id: "loc_1",
+      name: "Sucursal Norte",
+      addressLine: "Frente al parque",
+      city: "Managua",
+      addressReference: "Portón verde",
+      mapsUrl: "https://maps.example.com/norte",
+      phone: "22223333",
+      whatsapp: "50588887777",
+    });
+
+    expect(describePickupLocation(conContacto)).toEqual({
+      name: "Sucursal Norte",
+      addressLine: "Frente al parque",
+      city: "Managua",
+      addressReference: "Portón verde",
+      mapsUrl: "https://maps.example.com/norte",
+    });
+  });
+});
+
+describe("formatPickupAddress", () => {
+  it("arma la dirección en una línea con lo que haya cargado", () => {
+    // Sale del punto de retiro que arma `describePickupLocation`: es el objeto completo
+    // que reciben la confirmación, el historial y el detalle del admin.
+    const punto = describePickupLocation(
+      location({
+        id: "loc_norte",
+        name: "Norte",
+        addressLine: "Frente al parque",
+        addressReference: "Portón verde",
+        city: "Managua",
+      }),
+    );
+
+    expect(formatPickupAddress(punto)).toBe("Frente al parque, Portón verde, Managua");
+  });
+
+  it("sin dirección cargada devuelve null en vez de una línea vacía", () => {
+    expect(
+      formatPickupAddress({
+        addressLine: null,
+        addressReference: null,
+        city: null,
+      }),
+    ).toBeNull();
+    expect(formatPickupAddress(null)).toBeNull();
+  });
+
+  it("ignora los huecos y los espacios sueltos", () => {
+    expect(
+      formatPickupAddress({
+        addressLine: "Frente al parque",
+        addressReference: "  ",
+        city: "Managua",
+      }),
+    ).toBe("Frente al parque, Managua");
   });
 });
