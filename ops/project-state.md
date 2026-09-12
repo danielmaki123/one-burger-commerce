@@ -1288,9 +1288,9 @@ local**. El brief con el diseño completo está en [`ops/tasks/TASK-multi-locati
 - **Lo que sigue (fases 2-7)**: API y casos de uso de locales, `/admin/locations`, productos por local,
   lectura pública por local, selector en el checkout y operación por local. Ver el brief.
 
-### T8 (multi-sucursal) · Fase 2, primera mitad: reglas y casos de uso de locales (2026-09-12)
+### T8 (multi-sucursal) · Fase 2: reglas, casos de uso y API de locales (2026-09-12) — **cerrada**
 
-Con esto ya se puede crear, editar y borrar un local por código; falta la API y la pantalla.
+Con esto el admin ya puede administrar locales **por API**; falta la pantalla (fase 3).
 
 - **Reglas puras** (`validateLocationInput`): nombre (2 a 60), slug normalizado a minúsculas con
   guiones, minutos de preparación con **los mismos límites y mensajes** que `/admin/settings`, rango
@@ -1304,12 +1304,21 @@ Con esto ya se puede crear, editar y borrar un local por código; falta la API y
 - **Borrar tiene dos reglas** que evitan dejar el negocio sin dónde despachar: no se puede borrar el
   último local activo (el checkout no tendría a dónde mandar el pedido) ni dejar la lista vacía. Un
   local apagado sí se borra, pero solo si queda otro activo.
-- **El contrato anti-hardcode volvió a morder, y con razón**: el mensaje del WhatsApp tenía un número
-  de ejemplo (`50588770888`), que es un dato del negocio fuera del módulo de configuración. El mensaje
-  ahora no lleva número. Es la segunda vez en la sesión que ese test caza un atajo mío.
-- **La copia del catálogo al crear un local se movió a la fase 4**: hasta que existan filas de
-  `LocationProduct`, copiar sería copiar nada.
-- **Verificación**: **1375 unitarios** (43 del módulo de locales, antes 28), lint y typecheck verdes.
+- **API**: `GET /api/admin/locations` (cualquier admin con sesión: la lista la usan la pantalla de
+  locales y la de pedidos) y `POST`, `PATCH [id]`, `DELETE [id]` **solo owner**
+  (`canManageBusinessSettings`), porque de acá salen dirección, horario y si se aceptan pedidos.
+- **Bug latente que encontré al escribir las rutas**: había creado `LocationError` **sin mapearlo en
+  `createErrorResponse`**, así que un error de dominio de locales habría salido como **500 "Unexpected
+  server error"** y el formulario no habría podido marcar el campo. Test primero (rojo: 500 en vez de
+  422), mapeo agregado.
+- **Verificado en el camino real** (Postgres 17 local + `next start -p 3210`, llamando la API con curl y
+  la cookie del owner): `GET` → 1 local (el primario de la migración); `POST` → crea con slug
+  normalizado, minutos y rango guardados; `POST` repetido → **409** con `fields.slug` en español;
+  `PATCH` → cambia nombre y `isActive`; `DELETE` → borra; borrar el último local → **409**; y al final
+  la base quedó **como estaba** (1 local, el primario).
+- **Verificación**: **1389 unitarios** (13 de las rutas nuevas + 2 del mapeo de errores), lint,
+  typecheck, `npm run build` (las dos rutas aparecen en el listado) y **E2E completo 76 pasaron,
+  7 salteados, 0 fallos**.
 - **Deuda de test que quedó anotada**: este par de tests de `/admin/promotions` volvió a fallar en CI
   por tiempo. La causa real era que `asyncUtilTimeout` (5 s) había quedado **igual** que el
   `testTimeout` de vitest (5 s), así que el test se moría justo cuando la espera se resolvía; ahora el

@@ -8,6 +8,7 @@ import { MenuError } from "@/modules/menu/domain/menu-errors";
 import { OutboxError } from "@/modules/notifications/domain/outbox-errors";
 import { OrderError } from "@/modules/orders/domain/order-errors";
 import { InventoryError } from "@/modules/inventory/domain/inventory-errors";
+import { LocationError } from "@/modules/locations/domain/location-errors";
 import { ReservationError } from "@/modules/reservations/domain/reservation-errors";
 
 export function createErrorResponse(error: unknown) {
@@ -51,6 +52,19 @@ export function createErrorResponse(error: unknown) {
   }
 
   if (error instanceof MenuError) {
+    return NextResponse.json(
+      {
+        error: {
+          code: error.code,
+          message: error.message,
+          ...(error.fields ? { fields: error.fields } : {}),
+        },
+      },
+      { status: error.status },
+    );
+  }
+
+  if (error instanceof LocationError) {
     return NextResponse.json(
       {
         error: {
