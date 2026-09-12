@@ -1,8 +1,8 @@
 # TASK: Checkout sin redundancias (carrito → checkout)
 
-**Estado:** **EJECUTADA el 2026-09-11** — cuatro commits (`2832a93`, `31457fd`, `9023b6f`,
-`aba4156`), **pendiente de deploy** · **Prioridad:** alta (era la pantalla donde se pierde
-la venta)
+**Estado:** **CERRADA y desplegada** — cuatro commits (`2832a93`, `31457fd`, `9023b6f`,
+`aba4156`), en producción desde el deploy `build-20260911-145656` · **Prioridad:** alta (era la
+pantalla donde se pierde la venta)
 
 > Resultado real, con las dos diferencias respecto de lo planeado:
 >
