@@ -361,6 +361,91 @@ describe("checkout sin redundancias", () => {
     expect(body.paidWithAmount).toBe(430);
   });
 
+  it("valida el código de promo antes de confirmar y lo manda con el pedido (T9b)", async () => {
+    const user = userEvent.setup();
+    mockCart = { items: twoItems, subtotal: 380, clearCart: vi.fn() };
+
+    // El servidor dice que el código sirve y devuelve su forma pública.
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string) => {
+        if (String(url).includes("/api/coupons/validate")) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              data: {
+                code: "B2G1",
+                type: "bogo",
+                value: 0,
+                buyQuantity: 2,
+                freeQuantity: 1,
+                scopeType: "category",
+                scopeId: "cat-tacos",
+              },
+            }),
+          });
+        }
+
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            data: {
+              id: "order-1",
+              orderNumber: "OB-1",
+              type: "pickup",
+              status: "new",
+              total: 380,
+              subtotal: 380,
+              orderLookupToken: "token-1",
+            },
+          }),
+        });
+      }),
+    );
+
+    render(<CheckoutPage />);
+
+    await user.type(screen.getByLabelText("Código de promo"), "b2g1");
+    await user.click(screen.getByRole("button", { name: "Aplicar" }));
+
+    // Se muestra el bloque completo y se avisa que el monto lo calcula el servidor.
+    expect(await screen.findByText(/Código B2G1 aplicado · Llevá 3 y pagá 2/)).toBeTruthy();
+    expect(screen.getByText(/el descuento se calcula al confirmar/)).toBeTruthy();
+
+    // Y el código viaja en el pedido aunque el cliente no vuelva a tocar "Aplicar".
+    await user.type(screen.getByLabelText("Nombre completo"), "Cliente Promo");
+    await user.type(screen.getByLabelText("WhatsApp"), "88887777");
+    await user.click(confirmButtons()[0]);
+
+    await waitFor(() => expect(push).toHaveBeenCalled());
+    const orderCall = vi
+      .mocked(fetch)
+      .mock.calls.find(([url]) => String(url).includes("/api/orders"));
+    const body = JSON.parse((orderCall![1] as RequestInit).body as string) as Record<string, unknown>;
+    expect(body.couponCode).toBe("b2g1");
+  });
+
+  it("un código que no sirve se avisa antes de confirmar (T9b)", async () => {
+    const user = userEvent.setup();
+    mockCart = { items: twoItems, subtotal: 380, clearCart: vi.fn() };
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 404,
+        json: async () => ({ error: { message: "No encontramos ese código." } }),
+      }),
+    );
+
+    render(<CheckoutPage />);
+
+    await user.type(screen.getByLabelText("Código de promo"), "NOEXISTE");
+    await user.click(screen.getByRole("button", { name: "Aplicar" }));
+
+    expect(await screen.findByText("No encontramos ese código.")).toBeTruthy();
+  });
+
   it("programar una hora la manda en el pedido", async () => {
     const user = userEvent.setup();
     mockCart = { items: twoItems, subtotal: 380, clearCart: vi.fn() };

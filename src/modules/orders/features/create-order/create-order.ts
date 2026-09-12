@@ -4,6 +4,11 @@ import { maskWhatsapp } from "@/modules/customers/domain/mask-whatsapp";
 import { findOrCreateCustomer } from "@/modules/customers/features/find-or-create-customer/find-or-create-customer";
 import { OrderError } from "@/modules/orders/domain/order-errors";
 import {
+  COUPON_REJECTION_MESSAGES,
+  normalizeCouponCode,
+  resolveCouponEligibility,
+} from "@/modules/orders/domain/coupon-eligibility";
+import {
   isOrderPaymentMethod,
   type DeliveryFeeStatus,
   type DeliveryZoneRecord,
@@ -306,18 +311,18 @@ export async function createOrder(
   let consumedCouponId: string | null = null;
 
   if (input.couponCode) {
-    const coupon = await repository.findCouponByCode(input.couponCode);
+    // El código se normaliza igual que en la validación del checkout (T9b): si no,
+    // el cliente vería "sirve" y el pedido fallaría después.
+    const coupon = await repository.findCouponByCode(normalizeCouponCode(input.couponCode));
     if (!coupon) {
       throw new OrderError(404, "NOT_FOUND", "Coupon not found");
     }
-    if (!coupon.isActive) {
-      throw new OrderError(409, "CONFLICT", "Coupon is not active");
-    }
-    if (coupon.expiresAt && new Date(coupon.expiresAt) < new Date()) {
-      throw new OrderError(409, "CONFLICT", "Coupon has expired");
-    }
-    if (coupon.usedCount >= coupon.usageLimit) {
-      throw new OrderError(409, "CONFLICT", "Coupon usage limit reached");
+
+    // Una sola fuente de verdad para "¿se puede usar?": la comparte el checkout
+    // (T9b), así que no pueden desincronizarse.
+    const eligibility = resolveCouponEligibility(coupon, new Date());
+    if (!eligibility.usable) {
+      throw new OrderError(409, "CONFLICT", COUPON_REJECTION_MESSAGES[eligibility.reason]);
     }
 
     // El descuento se calcula **antes** de consumir el uso: un código de promo que

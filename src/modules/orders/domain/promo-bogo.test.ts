@@ -10,7 +10,7 @@ import {
 /**
  * T9 — promociones por cantidad.
  *
- * El mock muestra "PROMO B2G1" (llevá 2, pagá 1): un bloque son **3 unidades**.
+ * El mock muestra "PROMO B2G1" (llevá 3, pagá 2): un bloque son **3 unidades**.
  * El motor es general — sirve igual para un 2×1 (llevá 1, pagá 1) — y el descuento
  * lo calcula el servidor desde el código que manda el cliente.
  */

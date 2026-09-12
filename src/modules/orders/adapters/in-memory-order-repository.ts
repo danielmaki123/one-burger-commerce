@@ -268,7 +268,8 @@ export class InMemoryOrderRepository implements OrderRepository {
   async consumeCouponUsage(id: string, usageLimit: number): Promise<boolean> {
     const coupon = this.coupons.find((c) => c.id === id);
 
-    if (!coupon || coupon.usedCount >= usageLimit) {
+    // `usageLimit: 0` es "sin límite" (mismo criterio que el adaptador de Prisma).
+    if (!coupon || (usageLimit > 0 && coupon.usedCount >= usageLimit)) {
       return false;
     }
 

@@ -37,6 +37,11 @@ import {
 } from "@/modules/orders/domain/order.types";
 import { calculateOrderChange, validatePaidWithAmount } from "@/modules/orders/domain/payment-change";
 import {
+  describeCouponLabel,
+  estimateCouponDiscount,
+  type AppliedCoupon,
+} from "./coupon-helpers";
+import {
   getPublicCheckoutMobileActionClassName,
   publicCheckoutScaleClasses,
 } from "./checkout-scale-helpers";
@@ -94,6 +99,10 @@ export default function CheckoutPage() {
   const tipRate = settings.tipRate;
   const [tipOptIn, setTipOptIn] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // Código de promo (T9b): lo valida el servidor antes de confirmar el pedido.
+  const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
+  const [appliedCoupon, setAppliedCoupon] = useState<AppliedCoupon | null>(null);
+  const [couponError, setCouponError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [fieldError, setFieldError] = useState<FieldError>(null);
   const errorRef = useRef<HTMLDivElement>(null);
@@ -107,6 +116,8 @@ export default function CheckoutPage() {
     paymentMethod: "cash" as OrderPaymentMethod,
     // "¿Con cuánto pagás?" (T12): vacío = no lo dijo.
     paidWithAmount: "",
+    // Código de promo (T9b): vacío = sin código.
+    couponCode: "",
   });
 
   // El "ahora" se resuelve después de montar: en el servidor y en el cliente daría
@@ -256,6 +267,58 @@ export default function CheckoutPage() {
       ? calculateOrderChange({ paidWithAmount: paidWithNumber, total: estimatedTotals.total })
       : null;
 
+  /**
+   * Código de promo (T9b).
+   *
+   * El servidor dice si el código sirve y devuelve su forma pública; el descuento
+   * definitivo lo aplica al crear el pedido. Para porcentaje y monto fijo se puede
+   * estimar acá; para las promos por cantidad no se inventa un número.
+   */
+  async function handleApplyCoupon() {
+    const code = formData.couponCode.trim();
+    if (!code) return;
+
+    setIsApplyingCoupon(true);
+    setCouponError(null);
+    setAppliedCoupon(null);
+
+    try {
+      const res = await fetch("/api/coupons/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code }),
+      });
+
+      if (!res.ok) {
+        const payload = (await res.json().catch(() => null)) as
+          | { error?: { message?: string } }
+          | null;
+        setCouponError(payload?.error?.message ?? "No pudimos verificar ese código.");
+        return;
+      }
+
+      const payload = (await res.json()) as { data: AppliedCoupon };
+      setAppliedCoupon(payload.data);
+    } catch {
+      setCouponError("No pudimos verificar ese código.");
+    } finally {
+      setIsApplyingCoupon(false);
+    }
+  }
+
+  function handleClearCoupon() {
+    setAppliedCoupon(null);
+    setCouponError(null);
+    setFormData((prev) => ({ ...prev, couponCode: "" }));
+  }
+
+  const appliedCouponLabel = appliedCoupon
+    ? describeCouponLabel(appliedCoupon, settings.currencySymbol)
+    : null;
+  const appliedCouponDiscount = appliedCoupon
+    ? estimateCouponDiscount({ coupon: appliedCoupon, subtotal })
+    : null;
+
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) => {
@@ -314,6 +377,12 @@ export default function CheckoutPage() {
       // El vuelto solo viaja si el cliente dijo con cuánto paga y es efectivo (T12).
       if (formData.paymentMethod === "cash" && paidWithNumber !== null && !paidWithError) {
         payload.paidWithAmount = paidWithNumber;
+      }
+
+      // El código viaja aunque no se haya tocado "Aplicar" (T9b): el servidor es el
+      // que decide, y así el checkout no puede bloquear una promo válida.
+      if (formData.couponCode.trim()) {
+        payload.couponCode = formData.couponCode.trim();
       }
 
       // Sin hora = sin programar. No se manda nada y el servidor completa con
@@ -482,6 +551,49 @@ export default function CheckoutPage() {
                   ) : null}
                 </div>
               ) : null}
+
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-foreground">¿Tenés un código de promo?</p>
+                <div className="flex items-start gap-2">
+                  <Input
+                    name="couponCode"
+                    label="Código de promo"
+                    value={formData.couponCode}
+                    onChange={handleInputChange}
+                    placeholder="Ej. B2G1"
+                    className="flex-1"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="min-h-11 shrink-0"
+                    disabled={isApplyingCoupon || formData.couponCode.trim() === ""}
+                    onClick={() => void handleApplyCoupon()}
+                  >
+                    {isApplyingCoupon ? "Verificando…" : "Aplicar"}
+                  </Button>
+                </div>
+                {couponError ? (
+                  <p role="alert" className="text-xs font-medium text-danger-foreground">
+                    {couponError}
+                  </p>
+                ) : null}
+                {appliedCoupon ? (
+                  <p role="status" className="text-xs font-medium text-success-foreground">
+                    Código {appliedCoupon.code} aplicado · {appliedCouponLabel}
+                    {appliedCouponDiscount !== null
+                      ? ` (−${formatCurrency(appliedCouponDiscount, currency)})`
+                      : " (el descuento se calcula al confirmar)"}
+                    <button
+                      type="button"
+                      onClick={handleClearCoupon}
+                      className="ml-2 font-semibold underline"
+                    >
+                      Quitar
+                    </button>
+                  </p>
+                ) : null}
+              </div>
 
               <div className="space-y-2">
                 <p className="text-sm font-medium text-foreground">¿Cómo vas a pagar?</p>

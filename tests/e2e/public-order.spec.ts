@@ -217,6 +217,21 @@ test.describe("checkout sin redundancias", () => {
     await page.getByRole("radio", { name: "Tarjeta" }).check();
     await expect(page.getByLabel(/Con cuánto vas a pagar/)).toHaveCount(0);
   });
+
+  test("el campo del código avisa cuando el código no sirve (T9b)", async ({ page }) => {
+    await openCheckoutWithOneProduct(page);
+
+    // El descuento lo aplica el servidor; acá se comprueba que el campo existe y
+    // que el rechazo se le muestra al cliente antes de confirmar.
+    await page.getByLabel("Código de promo").fill("NOEXISTE");
+    await page.getByRole("button", { name: "Aplicar" }).click();
+
+    // El mensaje que devuelve el servidor, tal cual lo vería el cliente.
+    await expect(page.getByText("No encontramos ese código.")).toBeVisible();
+    await expect(page.getByRole("alert").first()).toBeVisible();
+    // Y el pedido se puede confirmar igual: el código es opcional.
+    await expect(confirmButton(page)).toBeEnabled();
+  });
 });
 
 test.describe("checkout en celular", () => {

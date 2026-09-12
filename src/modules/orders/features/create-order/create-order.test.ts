@@ -55,6 +55,68 @@ function seedDeliveryZone(repository: InMemoryOrderRepository, overrides?: Parti
 }
 
 describe("createOrder", () => {
+  it("encuentra el código aunque el cliente lo escriba en minúsculas (T9b)", async () => {
+    const repository = createRepository();
+    seedProduct(repository);
+    repository.coupons.push({
+      id: "coupon_b2g1",
+      code: "B2G1",
+      type: "percentage",
+      value: 10,
+      isActive: true,
+      usageLimit: 0,
+      usedCount: 0,
+      expiresAt: null,
+    });
+
+    // El checkout valida el código tal como se escribe; el pedido tiene que
+    // encontrarlo igual, o el cliente ve "sirve" y después el pedido falla.
+    const result = await createOrder(
+      {
+        type: "pickup",
+        customerName: "Juan Perez",
+        customerWhatsapp: "+50588887777",
+        items: [{ productId: "prod_01", quantity: 1, modifierOptionIds: [] }],
+        couponCode: " b2g1 ",
+      },
+      { repository },
+    );
+
+    expect(result.data.couponCode).toBe("B2G1");
+    expect(result.data.discount).toBe(10);
+  });
+
+  it("un cupón sin límite de uso se puede usar (T9b)", async () => {
+    const repository = createRepository();
+    seedProduct(repository);
+    repository.coupons.push({
+      id: "coupon_ilimitado",
+      code: "SINTOPE",
+      type: "percentage",
+      value: 10,
+      isActive: true,
+      // `usageLimit: 0` es el default del modelo y significa "sin límite": antes
+      // esta combinación rechazaba cualquier pedido.
+      usageLimit: 0,
+      usedCount: 7,
+      expiresAt: null,
+    });
+
+    const result = await createOrder(
+      {
+        type: "pickup",
+        customerName: "Juan Perez",
+        customerWhatsapp: "+50588887777",
+        items: [{ productId: "prod_01", quantity: 1, modifierOptionIds: [] }],
+        couponCode: "SINTOPE",
+      },
+      { repository },
+    );
+
+    expect(result.data.discount).toBe(10);
+    expect(repository.coupons[0].usedCount).toBe(8);
+  });
+
   it("aplica una promo 2×1 sobre las unidades alcanzadas (T9)", async () => {
     const repository = createRepository();
     seedProduct(repository, { id: "prod_taco", name: "Taco", basePrice: 35, categoryId: "cat_tacos" });

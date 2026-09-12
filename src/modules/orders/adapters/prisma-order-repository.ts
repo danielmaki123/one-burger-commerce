@@ -506,8 +506,9 @@ export class PrismaOrderRepository implements OrderRepository {
     const prisma = getPrismaClient();
     // Single conditional UPDATE: the WHERE clause is evaluated by the database,
     // so two concurrent orders can never both pass the limit check.
+    // `usageLimit: 0` es "sin límite": se incrementa sin condición.
     const result = await prisma.coupon.updateMany({
-      where: { id, usedCount: { lt: usageLimit } },
+      where: usageLimit > 0 ? { id, usedCount: { lt: usageLimit } } : { id },
       data: { usedCount: { increment: 1 } },
     });
 
