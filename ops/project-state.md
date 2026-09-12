@@ -1849,6 +1849,32 @@ los horarios, pero **no la zona horaria**.
   typecheck, `npm run build` y `security:secrets` están verdes. Cambio de copy en el admin: entra en el
   próximo deploy.
 
+### Los READMEs de los módulos dejan de mentir (2026-09-12)
+
+Los `README.md` de los módulos venían de **otro proyecto**: cinco líneas en inglés que decían
+`No implementar aquí sin task asignada y revisión de Codex`, con un "orquestador Codex" que en este
+repo no existe. Para un chat nuevo era la primera cosa que se leía y la peor: una regla de gobernanza
+que no rige acá.
+
+- `src/modules/orders/README.md` y `src/modules/menu/README.md` (los dos módulos centrales) ahora
+  documentan **estructura real, reglas y trampas**: precios resueltos por el servidor, `lineTotal` sin
+  empaque (el bug de dinero mostrado), el gate operativo por local, estados y transiciones por tipo,
+  token de seguimiento y qué NO expone el payload público, cupones/promos, PIN y pago.
+- `auth`, `customers` y `notifications` explican cómo funcionan de verdad: cookie opaca
+  (`ob_admin_session`, 7 días) + `admin-permissions` en el servidor, rate limit de login, OTP con hash
+  y sesión hasheada, outbox con dedup y `telegram-dry-run-sender` que no envía.
+- `inventory`, `reservations` y `table-ordering` quedan marcados **fuera del MVP**, con lo que hay que
+  respetar si se retoman (movimientos idempotentes; reservas sin superposición y su horario propio,
+  excluido del contrato anti-hardcode). `coupons` aclara que está **vacío a propósito**: los cupones
+  viven en `orders`.
+- También se documentaron las capas: `src/app/api` (composición, zod, mapeo de errores, rutas de
+  staging protegidas por `APP_ENV=staging` + token), `src/app/(admin)`, `src/app/(public)`,
+  `src/shared` e `src/infrastructure/database` (cliente Prisma único, nunca importado desde `features/`).
+- `AGENTS.md` aclara que los documentos sueltos heredados que siguen en el disco (`CODEX.md`,
+  `LINEAR.md`, `PROJECT_AUDIT_FOR_CODEX.md`, …) **no** son fuente de verdad; ya estaban en `.gitignore`.
+- **Verificación**: cambio solo de documentación; lint, typecheck, tests y `security:secrets` verdes.
+  Nada que desplegar (los tres commits son `docs`).
+
 ## 3. Infraestructura y secretos
 
 - `EASYPANEL_URL` y `EASYPANEL_TOKEN`: solo en el entorno de quien ejecuta el deploy (nunca
