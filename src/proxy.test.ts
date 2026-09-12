@@ -307,3 +307,55 @@ describe("proxy admin auth guard", () => {
     expect(response.headers.get("location")).toBeNull();
   });
 });
+
+describe("proxy CSP", () => {
+  beforeEach(() => {
+    getAdminSessionMock.mockReset();
+  });
+
+  function nonceOf(response: { headers: Headers }) {
+    const policy = response.headers.get("content-security-policy") ?? "";
+    return /'nonce-([^']+)'/.exec(policy)?.[1] ?? null;
+  }
+
+  it("pone la politica y un nonce distinto en cada respuesta", async () => {
+    const first = await proxy(new NextRequest("http://localhost:3210/menu"));
+    const second = await proxy(new NextRequest("http://localhost:3210/menu"));
+
+    const nonceA = nonceOf(first);
+    const nonceB = nonceOf(second);
+
+    expect(nonceA).toBeTruthy();
+    expect(nonceB).toBeTruthy();
+    expect(nonceA).not.toBe(nonceB);
+    expect(first.headers.get("content-security-policy")).toContain("default-src 'self'");
+  });
+
+  it("le pasa el nonce al render, que es quien lo pone en los scripts", async () => {
+    // `x-middleware-override-headers` es como Next avisa qué headers del request
+    // cambió el proxy. Si esto dejara de pasar, el nonce no llegaría al HTML y la
+    // CSP bloquearía los scripts: la app quedaría sin hidratar.
+    const response = await proxy(new NextRequest("http://localhost:3210/menu"));
+    const overridden = response.headers.get("x-middleware-override-headers") ?? "";
+
+    expect(overridden.toLowerCase()).toContain("content-security-policy");
+    expect(overridden.toLowerCase()).toContain("x-nonce");
+  });
+
+  it("tambien viaja en las redirecciones y en los rewrites", async () => {
+    const redirect = await proxy(
+      new NextRequest("http://localhost:3000/admin/orders"),
+    );
+    const rewrite = await proxy(
+      new NextRequest("https://oneburgernic.com/", {
+        headers: { host: "oneburgernic.com", "x-forwarded-host": "oneburgernic.com" },
+      }),
+    );
+
+    expect(redirect.headers.get("content-security-policy")).toContain("object-src 'none'");
+    expect(rewrite.headers.get("content-security-policy")).toContain("object-src 'none'");
+    expect(rewrite.headers.get("x-middleware-rewrite")).toBe(
+      "https://oneburgernic.com/landing",
+    );
+  });
+});
