@@ -249,4 +249,35 @@ describe("AdminSettingsClientPage", () => {
     ) as Record<string, unknown>;
     expect(body.primaryColor).toBe("#eeeeee");
   });
+
+  /**
+   * T8 fase 7 — el interruptor global de "aceptando pedidos" sale de acá.
+   *
+   * Con locales cargados (siempre: la migración crea el primario) el que manda es el del
+   * local, así que el de esta pantalla era un control que no hacía lo que decía. Los
+   * valores guardados se siguen mandando al guardar, porque son el respaldo que usa el
+   * servidor cuando el negocio no tiene ningún local.
+   */
+  it("ya no ofrece el interruptor global de pedidos y apunta a Locales (T8)", async () => {
+    const user = userEvent.setup();
+    render(<AdminSettingsClientPage initialSettings={initialSettings()} />);
+
+    expect(screen.queryByLabelText("Aceptando pedidos")).toBeNull();
+    expect(screen.queryByLabelText("Mensaje de cerrado")).toBeNull();
+
+    const pointer = screen.getByRole("link", { name: "Locales" });
+    expect(pointer.getAttribute("href")).toBe("/admin/locations");
+    expect(screen.getByText(/se configuran por local/i)).toBeTruthy();
+
+    await user.click(screen.getByRole("button", { name: "Guardar cambios" }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+
+    const body = JSON.parse(
+      String((fetchMock.mock.calls[0] as [string, RequestInit])[1].body),
+    ) as Record<string, unknown>;
+    // El respaldo viaja igual: no se pierde lo que ya estaba guardado.
+    const saved = initialSettings();
+    expect(body.isAcceptingOrders).toBe(saved.isAcceptingOrders);
+    expect(body.closedMessage).toBe(saved.closedMessage);
+  });
 });

@@ -1,8 +1,8 @@
 # TASK-multi-location — T8: multi-sucursal **con menú y precios por local**
 
-> **Estado: alcance aprobado por el owner el 2026-09-12 (decisión D-T8)**. Pendiente de implementar
-> por fases, una por commit. Este brief es el diseño acordado; si algo cambia, se actualiza acá
-> primero.
+> **Estado: T8 CERRADA (fases 1-7, 2026-09-12).** Alcance aprobado por el owner el 2026-09-12
+> (decisión D-T8). Este brief es el diseño acordado; lo que sigue abierto está anotado al final de la
+> tabla de fases y en `ops/project-state.md` §2.
 
 ## 1. Qué pidió el owner
 
@@ -104,11 +104,30 @@ model LocationProduct {
 | **4** | Productos por local: precio y disponibilidad por sucursal — **CERRADA**: reglas puras, puerto y adaptadores, casos de uso `list-location-catalog`/`set-location-product`, las rutas `GET …/products` + `PUT …/products/[productId]` y la **pantalla `/admin/locations/[id]`** (lista el menú del negocio con el precio de este local, y deja poner precio propio, marcarlo agotado o sacarlo del local). **Cambio de diseño documentado**: sin fila en `LocationProduct` el producto **se vende al precio base**, en vez de "sin fila no se vende" — con un solo local no hay filas y el menú público habría quedado vacío. Se guarda la **excepción**, y "volver al precio base" borra la fila (sin tocar la disponibilidad que el owner no pidió cambiar) | `location-product-rules.test.ts` · `location-catalog.test.ts` · `route.test.ts` (x2) · `catalog-helpers.test.ts` · `page.test.tsx` · `tests/e2e/admin-locations.spec.ts` |
 | **5** | Lectura pública: home, menú y producto resuelven precios y disponibilidad del local elegido — **CERRADA**: el menú público (`/api/menu`, y por lo tanto la home, la carta y la ficha de producto) aplica las excepciones del local —precio propio, agotado, no se vende— sobre el catálogo del negocio. Sin `locationId` usa el local por defecto, y sin locales activos muestra los precios del negocio. El `basePrice` del menú público pasa a ser **el precio que se cobra en ese local** | `apply-location-pricing.test.ts` · `get-public-menu.test.ts` · `tests/e2e/admin-locations.spec.ts` (375 px) |
 | **6** | Checkout: selector de local, horario y preparación del local, `locationId` en el pedido — **CERRADA**: `GET /api/locations` (público, solo locales activos y solo datos del punto de retiro), el checkout usa las horas, la preparación, el interruptor de "aceptando pedidos" y la dirección **del local elegido**, muestra el selector **solo si hay más de uno** y manda `locationId` en el pedido. **El gate operativo del servidor también mira el local** (`/api/orders`). Queda pendiente sacar `isAcceptingOrders`/`closedMessage` de `/admin/settings`, que ahora son por local: quedan como respaldo cuando no hay ningún local cargado | `list-public-locations.test.ts` · `route.test.ts` (x2) · `checkout/page.test.tsx` · `tests/e2e/admin-locations.spec.ts` · `tests/e2e/public-order.spec.ts` |
-| **7** | Operación por local: filtro por local en `/admin/orders`, detalle y ticket; confirmación e historial del cliente — **PARCIAL**: el filtro por local y el nombre del local en cada pedido están hechos (el control aparece solo con más de un local), y **un local con pedidos ya no se puede borrar** (antes eso salía como 500 por la FK `Restrict`). **Falta**: el local en el detalle del pedido, en el ticket y en la confirmación/historial del cliente, y sacar el interruptor global de `/admin/settings` | `list-admin-orders.test.ts` · `delete-location.test.ts` · `page.test.tsx` · `tests/e2e/admin-locations.spec.ts` |
+| **7** | Operación por local: filtro por local en `/admin/orders`, detalle y ticket; confirmación e historial del cliente — **CERRADA** (en tres commits). (a) El filtro por local y el nombre del local en cada pedido (el control aparece solo con más de un local), y **un local con pedidos ya no se puede borrar** (antes eso salía como 500 por la FK `Restrict`). (b) El local en el **detalle del admin**, en la **confirmación** del cliente y en el **historial** de "Mi actividad", resuelto al leer desde el `locationId` del pedido (nunca copiado: una dirección corregida llega a los pedidos en curso). En el camino apareció un bug real: el sync del historial borraba las líneas, el PIN y la hora de retiro del pedido guardado en el dispositivo; ahora conserva lo que el seguimiento no manda. (c) **Fuera el interruptor global** de `/admin/settings` ("aceptando pedidos" y su mensaje), que con cualquier local cargado no hacía lo que decía, con un puntero a `/admin/locations`; y el **cartel "Abierto/Cerrado" de la home** pasa a leer el local por defecto como el checkout y el servidor (antes podía decir "Abierto" con los pedidos rechazados: es la regla que el propio código decía respetar). **Gap declarado**: el footer y el bloque de información de la home siguen mostrando horario, ciudad y dirección de la configuración del negocio; con dos locales, qué horario mostrar ahí es una decisión del owner | `list-admin-orders.test.ts` · `delete-location.test.ts` · `get-order.test.ts` · `get-public-order.test.ts` · `device-orders.test.ts` · `order-tracking-sync.test.ts` · `location-rules.test.ts` · `settings-client.test.tsx` · `page.dom.test.tsx` · `page.test.tsx` (historial y detalle) · `tests/e2e/admin-locations.spec.ts` · `tests/e2e/public-order.spec.ts` |
 
 **Dependencia con D1 (fase 4 de `TASK-checkout-v2`):** el selector de días futuros calcula turnos por
 día **y por local**, así que conviene hacerlo **después** de T8 para no tocar el control de retiro dos
-veces. Queda anotado en `ops/tasks/TASK-checkout-v2.md`.
+veces. Queda anotado en `ops/tasks/TASK-checkout-v2.md`. **T8 ya está cerrada**, así que esa fase puede
+arrancar.
+
+## 4.1 Lo que queda abierto después de T8
+
+1. **El footer y el bloque de "Información del restaurante" de la home** (`src/app/(public)/layout.tsx`
+   y `page.tsx`) siguen mostrando **horario, ciudad y dirección de la configuración del negocio**. La
+   dirección tiene el mismo problema: el checkout muestra la del local elegido y la home la del negocio.
+   Con un local coinciden; con dos hay que **decidir qué mostrar** (los locales listados, el por defecto,
+   o un dato general del negocio). No se inventó una respuesta.
+2. **Promos por local** (`Coupon.scopeLocationId`): fuera de alcance por decisión del owner; las promos
+   siguen siendo globales.
+3. **Zona horaria**: sigue siendo una sola para el negocio. Si algún día abre en otra zona, se mueve al
+   local (está en el modelo de la tabla de §2.1, no en `Location`).
+4. **El checkout estima el total con los precios del carrito, no con los del local elegido.** Verificado
+   en el código: el resumen usa `subtotal` del carrito (`useCart`), que viene del menú público —o sea de
+   los precios del **local por defecto**—, mientras que el servidor resuelve el precio con el
+   `locationId` que llega en el pedido. Con un local no se nota; con dos locales de precios distintos, el
+   cliente puede ver un total y que se le cobre otro. Lo que falta es re-preciar el carrito al cambiar de
+   local en el checkout (y decidir qué hacer con un producto que el local elegido no vende).
 
 ## 5. Reglas que no se negocian
 

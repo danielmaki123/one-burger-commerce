@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 
 import { formatBusinessHoursSummary } from "@/modules/business-settings/domain/business-hours-format";
 import {
@@ -712,21 +713,6 @@ export default function AdminSettingsClientPage({
           />
         </SettingsField>
 
-        <SettingsField
-          id="settings-closed-message"
-          label="Mensaje de cerrado"
-          error={fieldErrors.closedMessage}
-          onReset={() => resetField("closedMessage")}
-          className="space-y-1.5 sm:col-span-2"
-        >
-          <Input
-            id="settings-closed-message"
-            value={draft.closedMessage ?? ""}
-            maxLength={300}
-            onChange={(event) => setField("closedMessage", event.target.value)}
-          />
-        </SettingsField>
-
         <div className="flex min-h-11 items-center">
           <Checkbox
             id="settings-tip-enabled"
@@ -736,14 +722,19 @@ export default function AdminSettingsClientPage({
           />
         </div>
 
-        <div className="flex min-h-11 items-center">
-          <Checkbox
-            id="settings-accepting-orders"
-            checked={draft.isAcceptingOrders}
-            onChange={(event) => setField("isAcceptingOrders", event.target.checked)}
-            label="Aceptando pedidos"
-          />
-        </div>
+        {/* T8 fase 7: "aceptando pedidos" y su mensaje de cerrado son **por local**.
+            Acá eran un control que no hacía lo que decía: con cualquier local cargado
+            (la migración crea el primario) manda el del local y este no cambiaba nada.
+            Los valores guardados siguen viajando en el payload porque son el respaldo
+            del servidor cuando el negocio no tiene ningún local. */}
+        <p className="text-sm text-muted-foreground sm:col-span-2">
+          Si aceptás pedidos, el horario de retiro y los minutos de preparación se
+          configuran por local:{" "}
+          <Link href="/admin/locations" className="font-semibold text-brand hover:underline">
+            Locales
+          </Link>
+          .
+        </p>
       </SettingsSection>
 
       <SettingsSection

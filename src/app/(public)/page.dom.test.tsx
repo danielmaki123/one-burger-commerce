@@ -5,6 +5,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createDefaultBusinessSettingsRecord } from "@/modules/business-settings/domain/business-settings-defaults";
+import type { PublicLocation } from "@/modules/locations/features/list-public-locations/list-public-locations";
 import { CartProvider, useCart } from "@/shared/lib/cart";
 import {
   BusinessSettingsProvider,
@@ -92,6 +93,17 @@ function CartProbe() {
   return <p>Carrito: {items.length}</p>;
 }
 
+/** Horario propio del local de prueba: distinto del que trae la configuración. */
+const MENU_LOCATION_HOURS = {
+  mon: { open: "09:00", close: "18:00", closed: false },
+  tue: { open: "09:00", close: "18:00", closed: false },
+  wed: { open: "09:00", close: "18:00", closed: false },
+  thu: { open: "09:00", close: "18:00", closed: false },
+  fri: { open: "09:00", close: "18:00", closed: false },
+  sat: { open: "09:00", close: "18:00", closed: false },
+  sun: { open: "09:00", close: "18:00", closed: false },
+};
+
 function renderHome(settings: BusinessSettingsValue = settingsValue()) {
   return render(
     <CartProvider>
@@ -113,7 +125,6 @@ describe("home pública (T2)", () => {
     );
     localStorage.clear();
   });
-
   afterEach(() => {
     cleanup();
     vi.unstubAllGlobals();
@@ -219,5 +230,43 @@ describe("home pública (T2)", () => {
     // Con los pedidos pausados el cartel no puede decir "Abierto".
     expect(screen.getByText("Cerrado")).toBeTruthy();
     expect(screen.getByText(/Retiro: ~25 min/)).toBeTruthy();
+  });
+
+  /**
+   * T8 fase 7 — el cartel de la home mira el local, como el checkout y el servidor.
+   *
+   * La regla del servidor es por local desde la fase 6: si el cartel siguiera leyendo la
+   * configuración del negocio, podría decir "Abierto" mientras el checkout rechaza el
+   * pedido (o al revés).
+   */
+  it("el estado operativo sale del local por defecto cuando hay uno (T8)", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string) => {
+        const body = url.includes("/api/locations")
+          ? {
+              data: [
+                {
+                  id: "loc_norte",
+                  name: "Sucursal Norte",
+                  isAcceptingOrders: false,
+                  closedMessage: "Hoy no abrimos en el Norte.",
+                  businessHours: MENU_LOCATION_HOURS,
+                  pickupLeadMinutes: 40,
+                },
+              ] satisfies Partial<PublicLocation>[],
+            }
+          : MENU_PAYLOAD;
+
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(body) } as Response);
+      }),
+    );
+
+    // La configuración del negocio dice lo contrario: manda el local.
+    renderHome(settingsValue({ pickupLeadMinutes: 25, isAcceptingOrders: true }));
+
+    expect(await screen.findByText("Cerrado")).toBeTruthy();
+    expect(screen.getByText(/Hoy no abrimos en el Norte\./)).toBeTruthy();
+    expect(screen.getByText(/Retiro: ~40 min/)).toBeTruthy();
   });
 });

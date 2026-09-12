@@ -1505,6 +1505,53 @@ Cada sucursal tiene su cocina y su caja, así que la bandeja de pedidos ahora se
   historial del cliente, y sacar `isAcceptingOrders`/`closedMessage` de `/admin/settings` (hoy son por
   local y quedan como respaldo cuando no hay ningún local cargado).
 
+### T8 (multi-sucursal) · Fase 7, segunda parte: el local en el detalle, la confirmación y el historial (2026-09-12) — **cerrada**
+
+Con la primera parte el local se veía en la bandeja, pero el cliente que volvía a mirar su pedido no
+tenía forma de saber a qué local iba, ni la cocina cuál era el suyo al abrir el detalle.
+
+- **El pedido guarda el `locationId`, nunca el nombre ni la dirección**: el punto de retiro se resuelve
+  **al leer** (`describePickupLocation` y `formatPickupAddress`, en el dominio de locales). Si el owner
+  corrige una dirección, los pedidos que ya están en curso muestran la nueva. Del local sale solo lo del
+  punto de retiro: teléfono y WhatsApp internos no se exponen.
+- **Detalle del admin**: sección "Punto de retiro" con local, dirección y enlace al mapa.
+- **Confirmación del cliente**: "Retiro en <local>" junto al PIN, con dirección y "Cómo llegar" cuando el
+  owner los cargó. Es la pantalla que el cliente deja abierta cuando sale a buscar el pedido.
+- **Historial de "Mi actividad"**: el local se guarda con el pedido del dispositivo (como el PIN, porque
+  el historial se lee sin red) y se muestra en la tarjeta y en el recibo.
+- **Bug real que apareció al escribir el test del sync**: `syncTrackedOrderToDeviceOrders` reconstruía el
+  pedido guardado solo con lo que devuelve el seguimiento (estado y montos), así que tocar "Actualizar"
+  en Mis pedidos **borraba las líneas (T7), el PIN y la hora de retiro (T13)** del historial del
+  dispositivo. Ahora parte del pedido guardado y solo pisa lo que el payload trae. El local habría
+  sufrido lo mismo.
+- **Verificación en el camino real**: **1490 unitarios** (+17), lint, typecheck, `npm run build`,
+  `security:secrets` y **E2E 79 pasaron, 7 salteados, 0 fallos**. El caso de dos locales comprueba el
+  local en la confirmación, en el historial y en el detalle del admin. Medido a **375 px y 1280 px**: sin
+  scroll horizontal en las tres pantallas.
+
+### T8 (multi-sucursal) · Fase 7, cierre: el interruptor global sale de `/admin/settings` (2026-09-12) — **cerrada**
+
+- **"Aceptando pedidos" y "Mensaje de cerrado" ya no están en `/admin/settings`**: con cualquier local
+  cargado (y la migración siempre crea el primario) el que manda es el del local, así que el de la
+  configuración era **un control que no hacía lo que decía**. En su lugar queda una línea que apunta a
+  `/admin/locations`. Los valores guardados **siguen viajando en el payload**: son el respaldo que usa el
+  servidor cuando el negocio no tiene ningún local.
+- **Bug real de la fase 6, encontrado al sacar ese interruptor**: el cartel de "Abierto/Cerrado" de la
+  home seguía leyendo la **configuración del negocio** mientras el checkout y `/api/orders` ya decidían
+  por local. Es exactamente lo que la propia función decía que no podía pasar ("el cartel no puede decir
+  Abierto mientras el checkout rechaza el pedido"). La home ahora usa el **local por defecto**
+  (`/api/locations`, el primero de los activos, la misma regla del servidor) con la configuración como
+  respaldo, y lo mismo para el horario del encabezado y el estimado de retiro. El E2E lo comprueba de
+  punta a punta: apagando el local, la home dice "Cerrado" y el checkout queda deshabilitado.
+- **Verificación**: **1492 unitarios**, lint, typecheck, `npm run build`, `security:secrets` y **E2E 79
+  pasaron, 7 salteados, 0 fallos**.
+- **Gap declarado (no silencioso)**: el **footer** (`src/app/(public)/layout.tsx`) y el bloque de
+  "Información del restaurante" de la home siguen mostrando **horario, ciudad y dirección de la
+  configuración del negocio**, no del local. Con un solo local coinciden casi siempre; con dos, la
+  pregunta "¿qué horario muestra el footer?" es una **decisión del owner** (listar los locales, mostrar el
+  por defecto, o un horario general) y no se inventó una respuesta. Los turnos de retiro, el precio y el
+  estado operativo **sí** son por local en todo el camino público.
+
 ## 3. Infraestructura y secretos
 
 - `EASYPANEL_URL` y `EASYPANEL_TOKEN`: solo en el entorno de quien ejecuta el deploy (nunca
@@ -1531,7 +1578,7 @@ Cada sucursal tiene su cocina y su caja, así que la bandeja de pedidos ahora se
 | 8 | **Checkout sin redundancias** (textos y botones repetidos) | **Cerrada y desplegada** | `ops/tasks/TASK-checkout-ux.md`. Cuatro commits (`2832a93`…`aba4156`), en producción como `build-20260911-145656`. El checkout pasó de 807 a 476 líneas, un solo resumen compartido con el carrito, un solo CTA visible por viewport y los turnos de retiro calculados desde la configuración. |
 | 9 | **Validar el estado operativo en el servidor** | **Cerrada y desplegada** | Commits `3a67c37` y `ca474c8`, en producción como `build-20260911-154014`. `isAcceptingOrders` ya corta pedidos de verdad (antes no lo leía nadie) y la hora de retiro se valida contra el horario del día. Incluye el horario demo del seed y el límite de login del arnés E2E. |
 | 10 | **Retiro opcional y programable + la hora visible en toda la cadena** | **Cerrada y desplegada** | Commits `6f85a3c`, `c101f82`, `b207593` y `abc2183`, en producción como `build-20260911-191047`. Incluye **una migración** (`pickupScheduled`). El retiro es opcional, la hora la resuelve el servidor, el ticket de cocina y el admin la muestran, y el semáforo va contra la hora prometida. Ver el detalle arriba. |
-| 11 | **Adopción del mock completo (rediseño de la UI pública)** | **En ejecución · ola 1 completa (T1-T7) y T9, T11, T12 y T13 de la ola 2** | [`ops/tasks/TASK-mock-adoption.md`](tasks/TASK-mock-adoption.md). Plan **aprobado** el 2026-09-12 (D-A tipografía: Plus Jakarta Sans como tercera opción · D-B ola 2 completa **sin reseñas ni delivery** · D-C orden: tokens primero y después las pantallas en el orden del mock). **Reglas del programa**: ningún control decorativo (implementado con API/estado y test, o eliminado con motivo), nada hardcodeado, la paleta como preset que pasa el test de contraste, TDD por tarea, y verificación a 375 px **y 1280 px** (el mock no tiene escritorio). **Ola 1**: T1 tokens ✅ · T2 home ✅ · T3 menú ✅ · T3.1 color por categoría ✅ · T4 producto ✅ · T5 carrito+checkout ✅ (fases 1, 2, 3, 6 y 7) · T6 confirmación ✅ · T7 seguimiento e historial ✅ · **ola 1 completa** · T11 forma de pago ✅ · T12 vuelto ✅ · T13 PIN de retiro ✅ · **T9 promos cerrada**: motor ✅, campo del código en el checkout ✅ y pantalla del admin `/admin/promotions` ✅ · **T8 (multi-sucursal) en ejecución**: alcance **decidido el 2026-09-12 (D-T8) = menú y precios por local**, brief en [`ops/tasks/TASK-multi-location.md`](tasks/TASK-multi-location.md); **fase 1 cerrada** (modelo `Location` + `LocationProduct` + `Order.locationId` con backfill) y quedan las fases 2-7. **Decisiones del checkout resueltas el 2026-09-12**: D1 **sí** (pedidos para días futuros, con selector de día → fase 4 de `TASK-checkout-v2`) y D2 **no** (una sola tasa de propina; la fase 5 queda descartada). **Ola 2** (aprobada): T8 multi-sucursal, T9 promos, T10 favoritos (**descartada por el owner**: "mantengamos el login tal cual lo tenemos"; sin cuenta no hay favoritos), T11 método de pago, T12 vuelto, T13 PIN de retiro. Evidencia del mock: [`ops/audit-checkout-mock.md`](audit-checkout-mock.md). |
+| 11 | **Adopción del mock completo (rediseño de la UI pública)** | **En ejecución · ola 1 completa (T1-T7) y T9, T11, T12 y T13 de la ola 2** | [`ops/tasks/TASK-mock-adoption.md`](tasks/TASK-mock-adoption.md). Plan **aprobado** el 2026-09-12 (D-A tipografía: Plus Jakarta Sans como tercera opción · D-B ola 2 completa **sin reseñas ni delivery** · D-C orden: tokens primero y después las pantallas en el orden del mock). **Reglas del programa**: ningún control decorativo (implementado con API/estado y test, o eliminado con motivo), nada hardcodeado, la paleta como preset que pasa el test de contraste, TDD por tarea, y verificación a 375 px **y 1280 px** (el mock no tiene escritorio). **Ola 1**: T1 tokens ✅ · T2 home ✅ · T3 menú ✅ · T3.1 color por categoría ✅ · T4 producto ✅ · T5 carrito+checkout ✅ (fases 1, 2, 3, 6 y 7) · T6 confirmación ✅ · T7 seguimiento e historial ✅ · **ola 1 completa** · T11 forma de pago ✅ · T12 vuelto ✅ · T13 PIN de retiro ✅ · **T9 promos cerrada**: motor ✅, campo del código en el checkout ✅ y pantalla del admin `/admin/promotions` ✅ · **T8 (multi-sucursal) cerrada**: alcance **decidido el 2026-09-12 (D-T8) = menú y precios por local**, brief en [`ops/tasks/TASK-multi-location.md`](tasks/TASK-multi-location.md); **fases 1-7 cerradas** (modelo y backfill, API y pantalla de locales, catálogo y precios por local, menú público, selector en el checkout, operación por local, y el local en el detalle, la confirmación y el historial). Queda **un gap declarado**: el footer y el bloque de información de la home siguen mostrando el horario y la dirección de la configuración del negocio, no del local (ver §2, "Fase 7, cierre"). **Decisiones del checkout resueltas el 2026-09-12**: D1 **sí** (pedidos para días futuros, con selector de día → fase 4 de `TASK-checkout-v2`) y D2 **no** (una sola tasa de propina; la fase 5 queda descartada). **Ola 2** (aprobada): T8 multi-sucursal, T9 promos, T10 favoritos (**descartada por el owner**: "mantengamos el login tal cual lo tenemos"; sin cuenta no hay favoritos), T11 método de pago, T12 vuelto, T13 PIN de retiro. Evidencia del mock: [`ops/audit-checkout-mock.md`](audit-checkout-mock.md). |
 
 ## 5. Cómo continuar
 

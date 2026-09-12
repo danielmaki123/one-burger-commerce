@@ -111,6 +111,12 @@ test.describe("checkout sin redundancias", () => {
     try {
       await setAcceptingOrders("no");
 
+      // El cartel de la home lee el mismo local (T8 fase 7): no puede decir "Abierto"
+      // mientras el checkout rechaza el pedido. El punto distingue el cartel del texto de
+      // abajo, que también dice "cerrados" (el mensaje del local).
+      await page.goto("/");
+      await expect(page.getByText("●Cerrado")).toBeVisible();
+
       await page.goto("/checkout");
       await expect(confirmButton(page)).toBeDisabled();
       await expect(page.getByRole("status")).toBeVisible();

@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import { formatBusinessHoursSummary } from "@/modules/business-settings/domain/business-hours-format";
 import { formatPhoneForDisplay } from "@/modules/business-settings/domain/format-phone";
+import type { PublicLocation } from "@/modules/locations/features/list-public-locations/list-public-locations";
 import { useCart } from "@/shared/lib/cart";
 import {
   useBusinessSettings,
@@ -305,15 +306,37 @@ export default function PublicHomePage() {
   const settings = useBusinessSettings();
   const whatsappUrl = whatsappUrlFor(settings);
   const phoneDisplay = formatPhoneForDisplay(settings.phone);
-  const hoursSummary = formatBusinessHoursSummary(settings.businessHours);
   const directions = directionsHref(settings);
 
   const [marketingBlocks, setMarketingBlocks] = useState<MarketingBlock[]>([]);
   const [categories, setCategories] = useState<HomeCategory[]>([]);
+  const [locations, setLocations] = useState<PublicLocation[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeIndex, setActiveIndex] = useState(0);
   const [query, setQuery] = useState("");
   const [now, setNow] = useState<Date | null>(null);
+
+  /**
+   * De dónde salen los datos operativos del cartel (T8 fase 7): del **local por defecto** o
+   * de la configuración si el negocio todavía no cargó ninguno. Leer la configuración con
+   * locales cargados dejaría el cartel diciendo "Abierto" mientras el checkout rechaza el
+   * pedido.
+   *
+   * `/api/locations` devuelve solo los activos y ya ordenados, así que el primero es el
+   * local por defecto: la misma regla que aplica el servidor (`pickDefaultLocation`).
+   */
+  const operationalSource = useMemo(() => {
+    const location = locations[0] ?? null;
+
+    return {
+      hours: location?.businessHours ?? settings.businessHours,
+      pickupLeadMinutes: location?.pickupLeadMinutes ?? settings.pickupLeadMinutes,
+      isAcceptingOrders: location?.isAcceptingOrders ?? settings.isAcceptingOrders,
+      closedMessage: location?.closedMessage ?? settings.closedMessage,
+    };
+  }, [locations, settings]);
+
+  const hoursSummary = formatBusinessHoursSummary(operationalSource.hours);
 
   const trackRef = useRef<HTMLDivElement | null>(null);
   const activeIndexRef = useRef(0);
@@ -340,6 +363,26 @@ export default function PublicHomePage() {
   }, []);
 
   /**
+   * El local por defecto (T8 fase 7). Es la misma fuente que usa el checkout: si falla o
+   * no hay ninguno, el cartel sigue con la configuración en vez de quedarse sin estado.
+   */
+  useEffect(() => {
+    async function fetchLocations() {
+      try {
+        const res = await fetch("/api/locations", { cache: "no-store" });
+        if (!res.ok) return;
+
+        const payload = (await res.json()) as { data?: PublicLocation[] };
+        setLocations(payload.data ?? []);
+      } catch {
+        // El cartel ya tiene el respaldo de la configuración: no se avisa de nada.
+      }
+    }
+
+    void fetchLocations();
+  }, []);
+
+  /**
    * El estado operativo se calcula con el reloj del cliente y recién en el
    * cliente: en el servidor la hora sería la del build y el cartel mentiría.
    */
@@ -350,14 +393,14 @@ export default function PublicHomePage() {
   const openState = useMemo(
     () =>
       resolveHomeOpenState({
-        isAcceptingOrders: settings.isAcceptingOrders,
-        closedMessage: settings.closedMessage,
-        businessHours: settings.businessHours,
+        isAcceptingOrders: operationalSource.isAcceptingOrders,
+        closedMessage: operationalSource.closedMessage,
+        businessHours: operationalSource.hours,
         timezone: settings.timezone,
-        pickupLeadMinutes: settings.pickupLeadMinutes,
+        pickupLeadMinutes: operationalSource.pickupLeadMinutes,
         now: now ?? new Date(0),
       }),
-    [now, settings],
+    [now, settings.timezone, operationalSource],
   );
 
   const products = useMemo(() => flattenHomeProducts(categories), [categories]);
@@ -440,7 +483,7 @@ export default function PublicHomePage() {
                 </>
               ) : null}
               <span aria-hidden="true"> · </span>
-              {getHomePickupEstimateLabel({ pickupLeadMinutes: settings.pickupLeadMinutes })}
+              {getHomePickupEstimateLabel({ pickupLeadMinutes: operationalSource.pickupLeadMinutes })}
             </p>
           </div>
         </header>
