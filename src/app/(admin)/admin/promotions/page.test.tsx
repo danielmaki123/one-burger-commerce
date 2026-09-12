@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -140,26 +140,29 @@ describe("AdminPromotionsPage", () => {
     await user.selectOptions(screen.getByLabelText("¿A qué alcanza?"), "cat_tacos");
     await user.click(screen.getByRole("button", { name: "Crear promo" }));
 
-    await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith(
-        "/api/admin/promotions",
-        expect.objectContaining({
-          method: "POST",
-          body: JSON.stringify({
-            code: "TACOS2X1",
-            type: "bogo",
-            value: 0,
-            isActive: true,
-            usageLimit: 0,
-            expiresAt: null,
-            buyQuantity: 1,
-            freeQuantity: 1,
-            scopeType: "category",
-            scopeId: "cat_tacos",
-          }),
+    // Se espera el aviso (que llega **después** de la respuesta) y recién ahí se mira
+    // la llamada: esperar la llamada con `waitFor` es lo que hacía fallar este test en
+    // CI, donde el tipeo y el render tardan más que el timeout de 1 s.
+    expect(await screen.findByText("Promo creada.")).toBeTruthy();
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/admin/promotions",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          code: "TACOS2X1",
+          type: "bogo",
+          value: 0,
+          isActive: true,
+          usageLimit: 0,
+          expiresAt: null,
+          buyQuantity: 1,
+          freeQuantity: 1,
+          scopeType: "category",
+          scopeId: "cat_tacos",
         }),
-      );
-    });
+      }),
+    );
   });
 
   it("abre una promo guardada con sus valores y guarda el cambio", async () => {
@@ -173,15 +176,15 @@ describe("AdminPromotionsPage", () => {
     await user.type(screen.getByLabelText("Unidades que se llevan"), "3");
     await user.click(screen.getByRole("button", { name: "Guardar cambios" }));
 
-    await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith(
-        "/api/admin/promotions/coupon_1",
-        expect.objectContaining({
-          method: "PATCH",
-          body: expect.stringContaining('"buyQuantity":3'),
-        }),
-      );
-    });
+    expect(await screen.findByText("Promo actualizada.")).toBeTruthy();
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/admin/promotions/coupon_1",
+      expect.objectContaining({
+        method: "PATCH",
+        body: expect.stringContaining('"buyQuantity":3'),
+      }),
+    );
   });
 
   it("muestra el error del servidor en el campo que corresponde", async () => {
@@ -215,7 +218,10 @@ describe("AdminPromotionsPage", () => {
     await user.type(screen.getByLabelText("Código"), "B2G1");
     await user.click(screen.getByRole("button", { name: "Crear promo" }));
 
-    expect(await screen.findByText("Ya hay una promo con el código B2G1")).toBeTruthy();
+    // El aviso de "revisá los campos" llega con la respuesta: se espera eso, y después
+    // el mensaje del campo. En CI el render posterior al fetch supera el 1 s por defecto.
+    expect(await screen.findByText("Revisá los campos marcados.")).toBeTruthy();
+    expect(screen.getByText("Ya hay una promo con el código B2G1")).toBeTruthy();
   });
 
   it("borra una promo después de confirmar", async () => {
@@ -225,15 +231,12 @@ describe("AdminPromotionsPage", () => {
     await user.click(await screen.findByRole("button", { name: "Editar promo VERANO" }));
     await user.click(screen.getByRole("button", { name: "Eliminar promo VERANO" }));
 
-    await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith(
-        "/api/admin/promotions/coupon_2",
-        expect.objectContaining({ method: "DELETE" }),
-      );
-    });
+    expect(await screen.findByText("Promo borrada.")).toBeTruthy();
 
-    await waitFor(() => {
-      expect(screen.queryByRole("button", { name: "Editar promo VERANO" })).toBeNull();
-    });
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/admin/promotions/coupon_2",
+      expect.objectContaining({ method: "DELETE" }),
+    );
+    expect(screen.queryByRole("button", { name: "Editar promo VERANO" })).toBeNull();
   });
 });
