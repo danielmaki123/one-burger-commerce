@@ -59,8 +59,12 @@ model LocationProduct {
   precio N veces y "sin override" significa "el mismo en todos".
 - **Disponibilidad**: `isAvailable` (agotado hoy) e `isActive` (este local no lo vende) separados, como
   ya están separados en `Product`.
-- **Sin fila `LocationProduct` no hay producto en ese local**: la primera vez que un local se crea, se
-  copian las filas del local primario (explícito y auditable, no un fallback silencioso).
+- **Sin fila `LocationProduct` el producto se vende al precio base** (regla cambiada al implementar la
+  fase 4, ver esa fila de la tabla): el local guarda **excepciones**, no una copia del menú. El brief
+  decía lo contrario ("sin fila no hay producto", copiando el catálogo al crear un local) y eso rompía
+  el caso real de un negocio de **un solo local**: no tendría filas y el menú público quedaría vacío.
+  Con la regla nueva no hace falta copiar nada, un producto nuevo se vende en todos los locales, y
+  "acá no lo vendo" es una excepción explícita (`isActive: false`).
 
 ### 2.3 `Order.locationId`
 
@@ -95,7 +99,7 @@ model LocationProduct {
 | Fase | Qué | Tests que abren |
 |---|---|---|
 | **1** | Modelo y migración: `Location`, `LocationProduct`, `Order.locationId` con backfill al local primario. Sin UI: los datos se siguen leyendo de la config para no cambiar comportamiento — **CERRADA** (commit `feat(locales): el modelo de locales y el backfill (T8, fase 1)`) | `location-rules.test.ts` · `locations-migration-contract.test.ts` · `create-order.test.ts` (bloque T8) |
-| **2** | Casos de uso y API de locales (`/api/admin/locations`): CRUD, "no se puede borrar el último" — **CERRADA** (reglas de validación + `create/update/delete-location` + las rutas `GET/POST` y `PATCH/DELETE [id]`). Escribir es **solo owner** (`canManageBusinessSettings`), leer lo puede hacer cualquier admin con sesión. La **copia del catálogo** se hace en la fase 4: hasta que existan filas de `LocationProduct`, copiar sería copiar nada | `location-validation.test.ts` · `create-location.test.ts` · `update-location.test.ts` · `delete-location.test.ts` · `route.test.ts` (x2) · `error-response.test.ts` |
+| **2** | Casos de uso y API de locales (`/api/admin/locations`): CRUD, "no se puede borrar el último" — **CERRADA** (reglas de validación + `create/update/delete-location` + las rutas `GET/POST` y `PATCH/DELETE [id]`). Escribir es **solo owner** (`canManageBusinessSettings`), leer lo puede hacer cualquier admin con sesión. **La copia del catálogo no se hace**: la fase 4 la volvió innecesaria (sin fila, el producto se vende al precio base) | `location-validation.test.ts` · `create-location.test.ts` · `update-location.test.ts` · `delete-location.test.ts` · `route.test.ts` (x2) · `error-response.test.ts` |
 | **3** | `/admin/locations`: pantalla con datos, horario, operación — **CERRADA**. Lista con estado, dirección y horario de hoy; formulario completo (datos, 7 días de horario, preparación, aceptación, estado); validación local con las mismas reglas del servidor; borrar con confirmación y el motivo cuando no se puede. Entra en la navegación del admin **solo para el owner** | `location-helpers.test.ts` · `page.test.tsx` · `admin-layout-helpers.test.ts` · `tests/e2e/admin-locations.spec.ts` |
 | **4** | Productos por local: precio y disponibilidad por sucursal · **4a CERRADA** (reglas puras, puerto y adaptadores, casos de uso `list-location-catalog`/`set-location-product` y las rutas `GET …/products` + `PUT …/products/[productId]`) · **4b pendiente** (la pantalla del catálogo por local). **Cambio de diseño aprobado por el implementador y documentado**: sin fila en `LocationProduct` el producto **se vende al precio base**, en vez de "sin fila no se vende" — con un solo local no hay filas y el menú público habría quedado vacío. Se guarda la **excepción**, y "volver al precio base" borra la fila | `location-product-rules.test.ts` · `location-catalog.test.ts` · `route.test.ts` (x2) |
 | **5** | Lectura pública: home, menú y producto resuelven precios y disponibilidad del local elegido | `resolve-location-pricing.test.ts` · E2E a 375 y 1280 px |
