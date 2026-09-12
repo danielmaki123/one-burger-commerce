@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 
 import { formatTodayHours } from "@/modules/business-settings/domain/business-hours-format";
 import { resolveOrderAcceptance } from "@/modules/business-settings/domain/order-acceptance";
+import type { PublicLocation } from "@/modules/locations/features/list-public-locations/list-public-locations";
 import {
   buildPickupSlots,
   soonestPickupTime,
@@ -132,16 +133,72 @@ export default function CheckoutPage() {
     setNow(new Date());
   }, []);
 
+  /**
+   * Locales del negocio (T8). El retiro —dirección, horario, minutos de preparación y si se
+   * están recibiendo pedidos— sale del local elegido. Sin locales cargados (o si la lectura
+   * falla) se usa la configuración del negocio, que es como funcionaba antes.
+   */
+  const [locations, setLocations] = useState<PublicLocation[]>([]);
+  const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadLocations() {
+      try {
+        const response = await fetch("/api/locations");
+        if (!response.ok) throw new Error(`status ${response.status}`);
+
+        const json = await response.json();
+        // El endpoint devuelve `{ data: [...] }`; cualquier otra cosa se ignora y se sigue
+        // con la configuración del negocio.
+        if (!cancelled && Array.isArray(json?.data)) setLocations(json.data);
+      } catch {
+        console.error(
+          "[checkout] no se pudieron leer los locales; se usa la configuración del negocio",
+        );
+      }
+    }
+
+    void loadLocations();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const selectedLocation = useMemo(
+    () =>
+      locations.find((location) => location.id === selectedLocationId) ?? locations[0] ?? null,
+    [locations, selectedLocationId],
+  );
+
+  /** De dónde sale el retiro: el local elegido o, si no hay ninguno, la configuración. */
+  const pickupSource = useMemo(
+    () => ({
+      businessHours: selectedLocation?.businessHours ?? settings.businessHours,
+      pickupLeadMinutes: selectedLocation?.pickupLeadMinutes ?? settings.pickupLeadMinutes,
+      pickupMaxMinutes: selectedLocation?.pickupMaxMinutes ?? settings.pickupMaxMinutes,
+      isAcceptingOrders: selectedLocation?.isAcceptingOrders ?? settings.isAcceptingOrders,
+      closedMessage: selectedLocation?.closedMessage ?? settings.closedMessage,
+      addressLine: selectedLocation?.addressLine ?? settings.addressLine,
+      addressReference: selectedLocation?.addressReference ?? settings.addressReference,
+      city: selectedLocation?.city ?? settings.city,
+      mapsUrl: selectedLocation?.mapsUrl ?? settings.mapsUrl,
+    }),
+    [selectedLocation, settings],
+  );
+
   const pickupSlots = useMemo(() => {
     if (!now) return null;
 
     return buildPickupSlots({
-      businessHours: settings.businessHours,
+      businessHours: pickupSource.businessHours,
       timezone: settings.timezone,
-      pickupLeadMinutes: settings.pickupLeadMinutes,
+      pickupLeadMinutes: pickupSource.pickupLeadMinutes,
       now,
     });
-  }, [now, settings.businessHours, settings.timezone, settings.pickupLeadMinutes]);
+  }, [now, pickupSource, settings.timezone]);
 
   /** Turnos que ofrece el local hoy. Programar es opcional: sin elegir nada, el pedido
    *  se prepara apenas llega. */
@@ -158,9 +215,9 @@ export default function CheckoutPage() {
     return soonestPickupTime({
       now,
       timezone: settings.timezone,
-      pickupLeadMinutes: settings.pickupLeadMinutes,
+      pickupLeadMinutes: pickupSource.pickupLeadMinutes,
     });
-  }, [now, settings.timezone, settings.pickupLeadMinutes]);
+  }, [now, settings.timezone, pickupSource.pickupLeadMinutes]);
 
   
 
@@ -184,34 +241,36 @@ export default function CheckoutPage() {
     if (!now) return null;
 
     return resolveOrderAcceptance({
-      isAcceptingOrders: settings.isAcceptingOrders,
-      closedMessage: settings.closedMessage,
-      businessHours: settings.businessHours,
+      isAcceptingOrders: pickupSource.isAcceptingOrders,
+      closedMessage: pickupSource.closedMessage,
+      businessHours: pickupSource.businessHours,
       timezone: settings.timezone,
-      pickupLeadMinutes: settings.pickupLeadMinutes,
+      pickupLeadMinutes: pickupSource.pickupLeadMinutes,
       now,
       pickupTime: scheduledPickupDate,
     });
   }, [
     now,
-    settings.isAcceptingOrders,
-    settings.closedMessage,
-    settings.businessHours,
+    pickupSource,
     settings.timezone,
-    settings.pickupLeadMinutes,
     scheduledPickupDate,
   ]);
 
   const orderingBlocked = acceptance !== null && !acceptance.accepted;
   const orderingBlockedMessage =
     acceptance && !acceptance.accepted ? acceptance.message : "";
-  const todayHours = formatTodayHours(settings.businessHours, new Date(), settings.timezone);
+  const todayHours = formatTodayHours(pickupSource.businessHours, new Date(), settings.timezone);
 
   /**
-   * Dónde se retira (T5). Sale de `/admin/settings`: si el negocio no cargó
-   * dirección, la fila no se dibuja en vez de mostrar un hueco.
+   * Dónde se retira (T5 y T8). Sale del local elegido —o del único que hay—, y si el negocio
+   * todavía no cargó ninguno, de la configuración. Si no hay dirección, la fila no se dibuja
+   * en vez de mostrar un hueco.
    */
-  const pickupAddress = [settings.addressLine, settings.addressReference, settings.city]
+  const pickupAddress = [
+    pickupSource.addressLine,
+    pickupSource.addressReference,
+    pickupSource.city,
+  ]
     .filter(Boolean)
     .join(", ");
 
@@ -390,6 +449,12 @@ export default function CheckoutPage() {
         payload.couponCode = formData.couponCode.trim();
       }
 
+      // El local de retiro (T8). Sin locales cargados no se manda nada y el servidor usa el
+      // primario, así el negocio de un solo local sigue igual.
+      if (selectedLocation) {
+        payload.locationId = selectedLocation.id;
+      }
+
       // Sin hora = sin programar. No se manda nada y el servidor completa con
       // "ahora + preparación" usando su reloj, así un formulario lento no convierte
       // la hora en una del pasado.
@@ -527,8 +592,8 @@ export default function CheckoutPage() {
                       setFormData((prev) => ({ ...prev, pickupTime: value }))
                     }
                     asapValue={asapPickupTime}
-                    pickupLeadMinutes={settings.pickupLeadMinutes}
-                    pickupMaxMinutes={settings.pickupMaxMinutes}
+                    pickupLeadMinutes={pickupSource.pickupLeadMinutes}
+                    pickupMaxMinutes={pickupSource.pickupMaxMinutes}
                     options={pickupOptions}
                     todayHours={todayHours}
                   />
@@ -544,9 +609,9 @@ export default function CheckoutPage() {
                     <p className="font-medium text-foreground">Retirás en</p>
                     <p className="text-muted-foreground">{pickupAddress}</p>
                   </div>
-                  {settings.mapsUrl ? (
+                  {pickupSource.mapsUrl ? (
                     <a
-                      href={settings.mapsUrl}
+                      href={pickupSource.mapsUrl}
                       target="_blank"
                       rel="noreferrer"
                       className="flex min-h-11 shrink-0 items-center rounded-xl px-2 text-sm font-semibold text-brand"
@@ -555,6 +620,56 @@ export default function CheckoutPage() {
                     </a>
                   ) : null}
                 </div>
+              ) : null}
+
+              {/* Selector de local (T8): solo cuando hay más de uno. Con un solo local sería
+                  un control decorativo, y el negocio chico no tiene que elegir nada. */}
+              {locations.length > 1 ? (
+                <fieldset className="space-y-2">
+                  <legend className="text-sm font-medium text-foreground">
+                    ¿En qué local retirás?
+                  </legend>
+                  <div className="grid gap-2">
+                    {locations.map((location) => {
+                      const isSelected = selectedLocation?.id === location.id;
+                      const address = [location.addressLine, location.city]
+                        .filter(Boolean)
+                        .join(", ");
+
+                      return (
+                        <label
+                          key={location.id}
+                          className={`relative flex min-h-11 cursor-pointer items-start gap-3 rounded-2xl border px-4 py-3 text-sm transition-colors focus-within:ring-2 focus-within:ring-brand motion-reduce:transition-none ${
+                            isSelected
+                              ? "border-brand bg-brand/5"
+                              : "border-border bg-card hover:bg-accent/40"
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="locationId"
+                            value={location.id}
+                            checked={isSelected}
+                            onChange={() => {
+                              setSelectedLocationId(location.id);
+                              // La hora elegida era de otro local: se vuelve a "lo antes posible".
+                              setFormData((prev) => ({ ...prev, pickupTime: "" }));
+                            }}
+                            className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                          />
+                          <span className="min-w-0 flex-1">
+                            <span className="block font-medium text-foreground">
+                              {location.name}
+                            </span>
+                            {address ? (
+                              <span className="mt-0.5 block text-muted-foreground">{address}</span>
+                            ) : null}
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </fieldset>
               ) : null}
 
               <div className="space-y-2">

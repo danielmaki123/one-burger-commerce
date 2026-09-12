@@ -6,6 +6,7 @@ import { resolveOrderAcceptance } from "@/modules/business-settings/domain/order
 import { loadBusinessSettings } from "@/modules/business-settings/features/get-public-business-settings/get-public-business-settings";
 import { registerOutboxEventBusHandlers } from "@/modules/notifications/adapters/outbox-subscriber";
 import { PrismaLocationRepository } from "@/modules/locations/adapters/prisma-location-repository";
+import { resolveLocation } from "@/modules/locations/domain/location-rules";
 import { PrismaOrderRepository } from "@/modules/orders/adapters/prisma-order-repository";
 import { OrderError } from "@/modules/orders/domain/order-errors";
 import { createOrder } from "@/modules/orders/features/create-order/create-order";
@@ -45,6 +46,9 @@ const itemSchema = z.object({
 
 const orderSchema = z.object({
   type: z.enum(["pickup"]),
+  // Local de retiro (T8): sin dato el servidor usa el primario, así el negocio de un solo
+  // local no cambia nada y el selector del checkout es opcional.
+  locationId: z.string().nullable().optional(),
   customerName: z.string().min(1),
   customerWhatsapp: z.string().min(1),
   items: z.array(itemSchema).min(1),
@@ -111,9 +115,11 @@ export async function POST(request: Request) {
       repository: new PrismaBusinessSettingsRepository(),
     });
 
-    // El estado operativo también es fuente de verdad del servidor: si el negocio no
-    // está aceptando pedidos, o el local está cerrado a la hora pedida, el pedido se
-    // rechaza aunque el cliente insista. Antes `isAcceptingOrders` no lo leía nadie.
+    // El estado operativo también es fuente de verdad del servidor: si el local no está
+    // aceptando pedidos, o está cerrado a la hora pedida, el pedido se rechaza aunque el
+    // cliente insista. Desde T8 el estado es **del local**: cada sucursal tiene su horario,
+    // su preparación y su interruptor. Sin locales cargados se usan los de la configuración,
+    // que es como funcionaba antes.
     const requestedPickupTime = parsed.data.pickupTime
       ? new Date(parsed.data.pickupTime)
       : null;
@@ -124,12 +130,27 @@ export async function POST(request: Request) {
         ? requestedPickupTime
         : null;
 
+    const locationResolution = resolveLocation({
+      requestedLocationId: parsed.data.locationId,
+      locations: await locationRepository.listLocations(),
+    });
+    const operationalSource = locationResolution.ok
+      ? {
+          isAcceptingOrders: locationResolution.location.isAcceptingOrders,
+          closedMessage: locationResolution.location.closedMessage,
+          businessHours: locationResolution.location.businessHours,
+          pickupLeadMinutes: locationResolution.location.pickupLeadMinutes,
+        }
+      : {
+          isAcceptingOrders: settings.isAcceptingOrders,
+          closedMessage: settings.closedMessage,
+          businessHours: settings.businessHours,
+          pickupLeadMinutes: settings.pickupLeadMinutes,
+        };
+
     const acceptance = resolveOrderAcceptance({
-      isAcceptingOrders: settings.isAcceptingOrders,
-      closedMessage: settings.closedMessage,
-      businessHours: settings.businessHours,
+      ...operationalSource,
       timezone: settings.timezone,
-      pickupLeadMinutes: settings.pickupLeadMinutes,
       now: new Date(),
       pickupTime,
     });

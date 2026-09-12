@@ -12,6 +12,12 @@ const loadBusinessSettingsMock = vi.fn();
  */
 const PINNED_NOW = new Date("2026-09-11T19:00:00-06:00");
 
+/**
+ * Este archivo manda más pedidos que el límite de producción (10 por minuto y por IP), así
+ * que el límite se sube acá. El valor por defecto del servicio no cambia.
+ */
+process.env.ORDER_CREATE_RATE_LIMIT = "200";
+
 vi.mock("@/modules/notifications/adapters/outbox-subscriber", () => ({
   registerOutboxEventBusHandlers: vi.fn(),
 }));
@@ -19,6 +25,18 @@ vi.mock("@/modules/notifications/adapters/outbox-subscriber", () => ({
 vi.mock("@/modules/orders/adapters/prisma-order-repository", () => ({
   PrismaOrderRepository: vi.fn(function () {
     return {};
+  }),
+}));
+
+/**
+ * Sin locales cargados (el mock devuelve vacío) el gate operativo sale de la configuración,
+ * que es como funcionaba antes de T8. Los casos de local pisan este mock.
+ */
+const listLocationsMock = vi.fn(async () => [] as unknown[]);
+
+vi.mock("@/modules/locations/adapters/prisma-location-repository", () => ({
+  PrismaLocationRepository: vi.fn(function () {
+    return { listLocations: listLocationsMock };
   }),
 }));
 
@@ -42,6 +60,10 @@ vi.mock("@/modules/orders/features/create-order/create-order", () => ({
 describe("POST /api/orders", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    // `reset` explícito: una implementación `Once` de un test anterior se consumía en el
+    // siguiente y lo hacía fallar por algo que no tenía que ver.
+    listLocationsMock.mockReset();
+    listLocationsMock.mockResolvedValue([]);
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(PINNED_NOW);
     loadBusinessSettingsMock.mockResolvedValue(createDefaultBusinessSettingsRecord());
@@ -80,6 +102,70 @@ describe("POST /api/orders", () => {
       }),
       expect.any(Object),
     );
+  });
+
+  it("deja pasar el local de retiro que eligió el cliente (T8)", async () => {
+    createOrderMock.mockResolvedValueOnce({
+      data: { id: "order_01", type: "pickup" },
+      meta: { sourceOfTruth: "backend" },
+    });
+
+    const { POST } = await import("./route");
+    const response = await POST(
+      new Request("http://localhost/api/orders", {
+        method: "POST",
+        body: JSON.stringify({
+          type: "pickup",
+          locationId: "loc_norte",
+          customerName: "Daniel",
+          customerWhatsapp: "+50588887777",
+          items: [{ productId: "prod_01", quantity: 1 }],
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(201);
+    expect(createOrderMock).toHaveBeenCalledWith(
+      expect.objectContaining({ locationId: "loc_norte" }),
+      expect.any(Object),
+    );
+  });
+
+  it("no acepta pedidos si el local elegido está pausado (T8)", async () => {
+    listLocationsMock.mockResolvedValueOnce([
+      {
+        id: "loc_norte",
+        name: "Norte",
+        slug: "norte",
+        isActive: true,
+        sortOrder: 1,
+        isAcceptingOrders: false,
+        closedMessage: "Volvemos mañana a las 12.",
+        businessHours: createDefaultBusinessSettingsRecord().businessHours,
+        pickupLeadMinutes: 25,
+        pickupMaxMinutes: null,
+      },
+    ]);
+
+    const { POST } = await import("./route");
+    const response = await POST(
+      new Request("http://localhost/api/orders", {
+        method: "POST",
+        body: JSON.stringify({
+          type: "pickup",
+          locationId: "loc_norte",
+          customerName: "Daniel",
+          customerWhatsapp: "+50588887777",
+          items: [{ productId: "prod_01", quantity: 1 }],
+        }),
+      }),
+    );
+
+    const json = await response.json();
+
+    expect(response.status).toBe(409);
+    expect(json.error.message).toContain("Volvemos mañana");
+    expect(createOrderMock).not.toHaveBeenCalled();
   });
 
   it("marca el pedido como programado cuando el cliente elige la hora", async () => {
@@ -256,7 +342,7 @@ describe("POST /api/orders", () => {
     });
 
     const { POST } = await import("./route");
-    await POST(
+    const response = await POST(
       new Request("http://localhost/api/orders", {
         method: "POST",
         body: JSON.stringify({
@@ -269,6 +355,7 @@ describe("POST /api/orders", () => {
       }),
     );
 
+    expect(response.status).toBe(201);
     expect(createOrderMock).toHaveBeenCalledWith(
       expect.objectContaining({ type: "pickup", tipOptIn: true }),
       expect.objectContaining({ tipPolicy: { enabled: true, rate: 15 } }),

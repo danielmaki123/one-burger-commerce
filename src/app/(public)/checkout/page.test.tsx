@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -63,6 +63,16 @@ function countMatches(haystack: string, needle: string) {
 
 function confirmButtons() {
   return screen.getAllByRole("button", { name: /Confirmar pedido/ });
+}
+
+/**
+ * La llamada del pedido. El checkout también pide `/api/locations` al montar (T8), así que
+ * contar llamadas a `fetch` ya no sirve para saber si se envió el pedido.
+ */
+function orderRequest(calls: unknown[][]): RequestInit {
+  const call = calls.find(([url]) => url === "/api/orders");
+
+  return (call?.[1] ?? {}) as RequestInit;
 }
 
 describe("checkout sin redundancias", () => {
@@ -165,7 +175,9 @@ describe("checkout sin redundancias", () => {
     const messages = screen.getAllByText("Falta completar nombre.");
     expect(messages).toHaveLength(1);
     expect(document.activeElement).toBe(screen.getByLabelText("Nombre completo"));
-    expect(fetch).not.toHaveBeenCalled();
+    // No se manda el pedido. (`/api/locations` sí se pide al montar: es la lectura del
+    // punto de retiro, no el envío.)
+    expect(fetch).not.toHaveBeenCalledWith("/api/orders", expect.anything());
   });
 
   it("arranca sin programar el retiro", async () => {
@@ -311,10 +323,10 @@ describe("checkout sin redundancias", () => {
     await user.type(screen.getByLabelText("WhatsApp"), "88887777");
     await user.click(confirmButtons()[0]);
 
-    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(fetch).toHaveBeenCalledWith("/api/orders", expect.anything()));
 
     const body = JSON.parse(
-      (vi.mocked(fetch).mock.calls[0][1] as RequestInit).body as string,
+      orderRequest(vi.mocked(fetch).mock.calls).body as string,
     );
     expect(body.customerName).toBe("Cliente E2E");
     expect(body.type).toBe("pickup");
@@ -353,9 +365,9 @@ describe("checkout sin redundancias", () => {
     await user.type(screen.getByLabelText("WhatsApp"), "88887777");
     await user.click(confirmButtons()[0]);
 
-    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(fetch).toHaveBeenCalledWith("/api/orders", expect.anything()));
     const body = JSON.parse(
-      (vi.mocked(fetch).mock.calls[0][1] as RequestInit).body as string,
+      orderRequest(vi.mocked(fetch).mock.calls).body as string,
     );
     expect(body.paymentMethod).toBe("cash");
     expect(body.paidWithAmount).toBe(430);
@@ -462,14 +474,98 @@ describe("checkout sin redundancias", () => {
     await user.type(screen.getByLabelText("WhatsApp"), "88887777");
     await user.click(confirmButtons()[0]);
 
-    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(fetch).toHaveBeenCalledWith("/api/orders", expect.anything()));
 
     const body = JSON.parse(
-      (vi.mocked(fetch).mock.calls[0][1] as RequestInit).body as string,
+      orderRequest(vi.mocked(fetch).mock.calls).body as string,
     );
     const scheduled = new Date(body.pickupTime);
     expect(scheduled.getHours()).toBe(20);
     expect(scheduled.getMinutes()).toBe(0);
+  });
+
+  it("con un solo local no dibuja el selector y el retiro sale de ese local (T8)", async () => {
+    mockCart = { items: twoItems, subtotal: 380, clearCart: vi.fn() };
+    stubLocationsResponse([
+      {
+        id: "loc_principal",
+        name: "Principal",
+        addressLine: "Frente al parque",
+        city: "Jinotepe",
+        pickupLeadMinutes: 25,
+        pickupMaxMinutes: null,
+        isAcceptingOrders: true,
+      },
+    ]);
+
+    render(<CheckoutPage />);
+
+    expect(await screen.findByText("Frente al parque, Jinotepe")).toBeTruthy();
+    // Un solo local = nada que elegir: el selector sería un control decorativo.
+    expect(screen.queryByRole("radio", { name: /Principal/ })).toBeNull();
+  });
+
+  it("con varios locales deja elegir y manda el local del retiro (T8)", async () => {
+    const user = userEvent.setup();
+    mockCart = { items: twoItems, subtotal: 380, clearCart: vi.fn() };
+    stubLocationsResponse([
+      {
+        id: "loc_principal",
+        name: "Principal",
+        addressLine: "Frente al parque",
+        city: "Jinotepe",
+        pickupLeadMinutes: 25,
+        pickupMaxMinutes: null,
+        isAcceptingOrders: true,
+      },
+      {
+        id: "loc_norte",
+        name: "Norte",
+        addressLine: "Carretera sur",
+        city: "Diriamba",
+        pickupLeadMinutes: 40,
+        pickupMaxMinutes: null,
+        isAcceptingOrders: true,
+      },
+    ]);
+
+    render(<CheckoutPage />);
+
+    const norte = await screen.findByRole("radio", { name: /Norte/ });
+    await user.click(norte);
+
+    // El punto de retiro es el del local elegido (el selector también muestra la dirección,
+    // así que se mira la fila "Retirás en").
+    const pickupRow = screen.getByText("Retirás en").parentElement as HTMLElement;
+    expect(within(pickupRow).getByText("Carretera sur, Diriamba")).toBeTruthy();
+
+    await user.type(screen.getByLabelText("Nombre completo"), "Cliente Local");
+    await user.type(screen.getByLabelText("WhatsApp"), "88887777");
+    await user.click(confirmButtons()[0]);
+
+    await waitFor(() => expect(fetch).toHaveBeenCalledWith("/api/orders", expect.anything()));
+    const body = JSON.parse(orderRequest(vi.mocked(fetch).mock.calls).body as string);
+    expect(body.locationId).toBe("loc_norte");
+  });
+
+  it("un local que dejó de recibir pedidos bloquea el checkout (T8)", async () => {
+    mockCart = { items: twoItems, subtotal: 380, clearCart: vi.fn() };
+    stubLocationsResponse([
+      {
+        id: "loc_principal",
+        name: "Principal",
+        addressLine: "Frente al parque",
+        city: "Jinotepe",
+        pickupLeadMinutes: 25,
+        pickupMaxMinutes: null,
+        isAcceptingOrders: false,
+        closedMessage: "Volvemos mañana a las 12.",
+      },
+    ]);
+
+    render(<CheckoutPage />);
+
+    expect(await screen.findByText("Volvemos mañana a las 12.")).toBeTruthy();
   });
 });
 
@@ -489,6 +585,36 @@ function stubOrderResponse() {
           orderLookupToken: "token-1",
         },
       }),
+    }),
+  );
+}
+
+/**
+ * El checkout pide los locales al montar (T8) y después manda el pedido. El horario se
+ * completa con el de la configuración para no repetirlo en cada caso.
+ */
+function stubLocationsResponse(locations: Record<string, unknown>[]) {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn((url: string) => {
+      if (String(url) === "/api/locations") {
+        return Promise.resolve({ ok: true, json: async () => ({ data: locations }) });
+      }
+
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({
+          data: {
+            id: "order-1",
+            orderNumber: "OB-1",
+            type: "pickup",
+            status: "new",
+            total: 380,
+            subtotal: 380,
+            orderLookupToken: "token-1",
+          },
+        }),
+      });
     }),
   );
 }

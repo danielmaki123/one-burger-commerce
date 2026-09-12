@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
-import { loginAsOwner } from "./helpers";
+import { addSeedProductToCart, loginAsOwner } from "./helpers";
 
 /**
  * T8 fase 3 — la pantalla de locales, de punta a punta.
@@ -181,5 +181,36 @@ test.describe("locales del admin", () => {
     await expect(tacoRow).toContainText("Se vende acá");
 
     expect(await publicPrice(page, "seed-prod-01")).toBe("C$35.00");
+  });
+
+  test("con dos locales, el checkout deja elegir dónde retirar (T8 fase 6)", async ({ page }) => {
+    await loginAsOwner(page);
+    await deleteLocationIfPresent(page);
+
+    // Un segundo local, con otra ciudad.
+    await page.goto("/admin/locations");
+    await page.getByRole("button", { name: "Nuevo local" }).click();
+    await page.getByLabel("Nombre").fill(NAME);
+    await page.getByLabel("Identificador para la URL").fill("prueba-e2e");
+    await page.getByLabel("Ciudad").fill("Diriamba");
+    await page.getByRole("button", { name: "Crear local" }).click();
+    await expect(page.getByText("Local creado.")).toBeVisible();
+
+    try {
+      await addSeedProductToCart(page);
+      await page.goto("/checkout");
+
+      // Con más de un local aparece el selector, con la dirección de cada uno.
+      const segundo = page.getByRole("radio", { name: new RegExp(NAME) });
+      await expect(page.getByRole("radio", { name: /Principal/ })).toBeVisible();
+      await expect(segundo).toBeVisible();
+
+      // Al elegirlo, el punto de retiro es el de ese local.
+      await segundo.check();
+      const pickupRow = page.getByText("Retirás en").locator("..");
+      await expect(pickupRow).toContainText("Diriamba");
+    } finally {
+      await deleteLocationIfPresent(page);
+    }
   });
 });

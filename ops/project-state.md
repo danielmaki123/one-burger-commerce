@@ -1442,6 +1442,43 @@ ficha de producto salen del mismo `/api/menu`, así que la resolución vive en u
 - **Lo que sigue de T8**: fase 6 (selector de local en el checkout, con el `locationId` del pedido) y
   fase 7 (operación por local).
 
+### T8 (multi-sucursal) · Fase 6: el checkout elige el local (2026-09-12)
+
+El cliente ya puede retirar en el local que quiera, y **el estado operativo pasó a ser del local**:
+cada sucursal tiene su horario, su preparación, su interruptor y su mensaje de cerrado.
+
+- **`GET /api/locations`** (público): solo locales activos y solo los datos del punto de retiro
+  (nombre, dirección, mapa, horario, preparación y si acepta pedidos). El teléfono del local, el
+  WhatsApp interno y la auditoría no salen a la calle.
+- **El checkout sale del local elegido**: dirección, horario, minutos de preparación, rango y el gate
+  de "aceptando pedidos". Sin locales cargados (o si la lectura falla) usa la configuración del
+  negocio, que es como funcionaba antes; el endpoint devuelve `Location[]` o nada, y cualquier otra
+  cosa se ignora en vez de romper la pantalla.
+- **El selector aparece solo si hay más de un local activo**: con uno solo sería un control decorativo.
+  Al cambiar de local se limpia la hora elegida (era de otro local).
+- **El gate del servidor también mira el local** (`/api/orders`): si el local elegido está pausado, el
+  pedido se rechaza con su mensaje, no con el genérico del negocio.
+- **Gap declarado, no escondido**: `/admin/settings` todavía tiene "Aceptando pedidos" y "Mensaje
+  cuando no acepta". Después de T8 esas dos cosas son **por local**, así que quedan como respaldo para
+  cuando no hay ningún local cargado y hay que sacarlas de la pantalla de configuración (queda anotado
+  en el brief).
+- **Dos hallazgos de los tests, los dos reales**:
+  1. El test de la propina fallaba con **429**: el archivo de tests de `/api/orders` ya manda más
+     pedidos que el límite de producción (10 por minuto por IP) y mi caso nuevo lo pasó. El límite se
+     sube **en el archivo de tests** (`ORDER_CREATE_RATE_LIMIT=200`), no en el servicio.
+  2. Tres tests del checkout contaban llamadas a `fetch` (`toHaveBeenCalledTimes(1)`) para saber si se
+     había enviado el pedido; ahora el checkout también pide `/api/locations` al montar, así que la
+     aserción pasó a buscar **la llamada del pedido** (`/api/orders`) en vez de contar.
+- **Verificación en el camino real**: **1467 unitarios** (47 del checkout, 19 de la API de pedidos),
+  lint, typecheck, `npm run build` (`/api/locations` en el listado) y **E2E 79 pasaron, 7 salteados,
+  0 fallos**. El caso nuevo crea un segundo local desde el admin, entra al checkout, ve los dos en el
+  selector y comprueba que al elegir el segundo **el punto de retiro cambia de ciudad**; y el caso del
+  interruptor se reescribió para apagarlo **desde el local** (antes lo hacía desde la configuración),
+  que es el cambio de semántica que trajo T8. La base quedó con un local, el primario, aceptando
+  pedidos y sin filas de catálogo.
+- **Lo que sigue de T8**: fase 7 (operación por local: filtro del admin, confirmación e historial del
+  cliente) y sacar el interruptor global de `/admin/settings`.
+
 ## 3. Infraestructura y secretos
 
 - `EASYPANEL_URL` y `EASYPANEL_TOKEN`: solo en el entorno de quien ejecuta el deploy (nunca
