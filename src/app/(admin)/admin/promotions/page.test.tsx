@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -133,6 +133,9 @@ describe("AdminPromotionsPage", () => {
 
     await user.click(screen.getByRole("button", { name: "Nueva promo" }));
     await user.type(screen.getByLabelText("Código"), "tacos2x1");
+    // Se comprueba que el texto entró antes de seguir: si el tipeo se pierde, el test lo
+    // dice **acá** en vez de fallar con un timeout que no explica nada.
+    expect((screen.getByLabelText("Código") as HTMLInputElement).value).toBe("tacos2x1");
     await user.selectOptions(screen.getByLabelText("Tipo"), "bogo");
     await user.type(screen.getByLabelText("Unidades que se llevan"), "1");
     await user.type(screen.getByLabelText("Unidades gratis"), "1");
@@ -140,9 +143,16 @@ describe("AdminPromotionsPage", () => {
     await user.selectOptions(screen.getByLabelText("¿A qué alcanza?"), "cat_tacos");
     await user.click(screen.getByRole("button", { name: "Crear promo" }));
 
-    // Se espera el aviso (que llega **después** de la respuesta) y recién ahí se mira
-    // la llamada: esperar la llamada con `waitFor` es lo que hacía fallar este test en
-    // CI, donde el tipeo y el render tardan más que el timeout de 1 s.
+    // En un runner cargado el guardado tarda; se espera la llamada con margen propio y,
+    // si nunca sale, el error muestra exactamente qué llamadas hubo.
+    await waitFor(
+      () =>
+        expect(fetchMock).toHaveBeenCalledWith(
+          "/api/admin/promotions",
+          expect.objectContaining({ method: "POST" }),
+        ),
+      { timeout: 10_000 },
+    );
     expect(await screen.findByText("Promo creada.")).toBeTruthy();
 
     expect(fetchMock).toHaveBeenCalledWith(
@@ -216,10 +226,19 @@ describe("AdminPromotionsPage", () => {
 
     await user.click(screen.getByRole("button", { name: "Nueva promo" }));
     await user.type(screen.getByLabelText("Código"), "B2G1");
+    expect((screen.getByLabelText("Código") as HTMLInputElement).value).toBe("B2G1");
     await user.click(screen.getByRole("button", { name: "Crear promo" }));
 
-    // El aviso de "revisá los campos" llega con la respuesta: se espera eso, y después
-    // el mensaje del campo. En CI el render posterior al fetch supera el 1 s por defecto.
+    await waitFor(
+      () =>
+        expect(fetchMock).toHaveBeenCalledWith(
+          "/api/admin/promotions",
+          expect.objectContaining({ method: "POST" }),
+        ),
+      { timeout: 10_000 },
+    );
+
+    // El aviso de "revisá los campos" llega con la respuesta, y después el mensaje del campo.
     expect(await screen.findByText("Revisá los campos marcados.")).toBeTruthy();
     expect(screen.getByText("Ya hay una promo con el código B2G1")).toBeTruthy();
   });
