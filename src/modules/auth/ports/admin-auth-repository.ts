@@ -17,6 +17,12 @@ export interface AdminAuthRepository {
     id: string,
     role: AdminUserRecord["role"],
   ): Promise<AdminUserRecord>;
+  /**
+   * Reescribe el hash de la contraseña. Lo usa el login para actualizar un hash viejo
+   * (o más débil) en el momento en que tiene la contraseña en claro: es la única forma
+   * de subir el costo sin pedirle a nadie que cambie su contraseña.
+   */
+  updateUserPassword(id: string, passwordHash: string): Promise<void>;
   deleteUser(id: string): Promise<void>;
   createSession(input: {
     tokenHash: string;

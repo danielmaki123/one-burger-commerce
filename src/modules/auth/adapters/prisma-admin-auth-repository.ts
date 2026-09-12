@@ -76,6 +76,14 @@ export class PrismaAdminAuthRepository implements AdminAuthRepository {
     return mapUser(user);
   }
 
+  async updateUserPassword(id: string, passwordHash: string) {
+    const prisma = getPrismaClient();
+    await prisma.adminUser.update({
+      where: { id },
+      data: { passwordHash },
+    });
+  }
+
   async deleteUser(id: string) {
     const prisma = getPrismaClient();
     // AdminSession has onDelete: Cascade, so revoking the account also kills

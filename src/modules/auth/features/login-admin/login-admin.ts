@@ -5,7 +5,7 @@ import {
 import { AuthError } from "@/modules/auth/domain/auth-errors";
 import { ADMIN_SESSION_TTL_MS } from "@/modules/auth/domain/session-cookie";
 import type { AdminAuthRepository } from "@/modules/auth/ports/admin-auth-repository";
-import { verifyPassword } from "@/shared/lib/auth/password-hasher";
+import { verifyPassword, passwordNeedsRehash, hashPassword } from "@/shared/lib/auth/password-hasher";
 import {
   generateSessionToken,
   hashSessionToken,
@@ -40,6 +40,17 @@ export async function loginAdmin(
 
   if (!user || !verifyPassword(input.password, user.passwordHash)) {
     throw new AuthError(401, "UNAUTHORIZED", "Correo o contraseña incorrectos.");
+  }
+
+  // Rehash al entrar: es el único momento en que el servidor tiene la contraseña en
+  // claro, así que un hash viejo (o con parámetros más débiles) se actualiza sin que
+  // el usuario se entere. Es una mejora interna: si falla, la entrada sigue.
+  if (passwordNeedsRehash(user.passwordHash)) {
+    try {
+      await repository.updateUserPassword(user.id, hashPassword(input.password));
+    } catch (error) {
+      console.error("[password-rehash] no se pudo actualizar el hash", error);
+    }
   }
 
   const sessionToken = generateSessionToken();

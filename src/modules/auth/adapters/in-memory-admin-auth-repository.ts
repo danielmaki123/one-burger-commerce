@@ -71,6 +71,16 @@ export class InMemoryAdminAuthRepository implements AdminAuthRepository {
     return user;
   }
 
+  async updateUserPassword(id: string, passwordHash: string): Promise<void> {
+    const user = this.users.find((entry) => entry.id === id);
+
+    if (!user) {
+      throw new Error(`Admin user ${id} not found`);
+    }
+
+    user.passwordHash = passwordHash;
+  }
+
   async deleteUser(id: string): Promise<void> {
     const index = this.users.findIndex((entry) => entry.id === id);
 
