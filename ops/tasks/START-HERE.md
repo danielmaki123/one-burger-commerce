@@ -87,6 +87,12 @@ nombre— en el header **también en celular**) quedaron cerrados. Lo que sigue 
 está **bloqueado**: son datos, infraestructura o decisiones del owner, así que **hay que preguntarle**
 cuál sigue. Después, esta lista:
 
+**Trabajo técnico ya acordado y en curso (no está en la cola de auditoría)**: `TASK-staff-location-scope`
+(A) quedó **cerrada el 2026-09-13** (cada usuario del staff ve solo sus sucursales; el dueño ve todas;
+el filtro por local de la bandeja ahora filtra de verdad; activar/apagar sucursal de un toque). Le
+sigue **B, la consola de pedidos** (`TASK-orders-console.md`: auto-refresh y avisos, aceptar/rechazar
+en la fila, modo cocina, filtros avanzados, umbrales de demora), que todavía **no arrancó**.
+
 1. **Monitoreo externo** — un uptime que pegue a `GET /api/readiness` y avise al canal del equipo.
    Receta: runbook §8.5. Necesita que el owner elija el servicio.
 2. **Corregir dos datos de los locales de producción** (hallazgo del drill): hay **3 locales** y los

@@ -2010,8 +2010,53 @@ nombre— **también en el header de celular**), más el arreglo de arnés que s
 - **El token del panel se volvió a compartir por chat** (2026-09-13) para este deploy: **hay que
   rotarlo** (ver §3 y el ítem A-06 del backlog).
 
-## 3. Infraestructura y secretos
+### A · El alcance por sucursal del staff (2026-09-13) — **cerrada**
 
+Pedido del owner: *"si cae una orden, ¿la verán todas las sucursales? Puede haber confusión… a cada
+usuario debería asignársele una sucursal; el dueño puede ver todas"*. Decisiones del owner: **varias
+sucursales por usuario**, **sin asignar = ve todas** (el deploy no deja a nadie ciego), el **dueño ve
+todo** y su asignación se ignora, y un pedido fuera de alcance responde **403 con mensaje claro**.
+Brief en [`ops/tasks/TASK-staff-location-scope.md`](tasks/TASK-staff-location-scope.md).
+
+- **Antes no había ninguna regla**: `AdminUser` no tenía local y las tres rutas de pedidos solo
+  miraban el rol, así que cualquier `manager` o `kitchen` veía **todas** las sucursales.
+- **Modelo**: `AdminUserLocation` (N a N) con migración `add_admin_user_locations` **aditiva y sin
+  backfill**; borrar un local o un usuario borra sus asignaciones en cascada. `AuthenticatedAdminUser`
+  lleva `locationIds`, así que el alcance se resuelve en cada request desde la sesión.
+- **Dominio puro** `order-visibility.ts` (`resolveOrderLocationScope`, `resolveOrderListLocationIds`,
+  `canAccessOrderLocation`) con 12 tests: el dueño ve todo; con asignaciones se ve solo eso; sin
+  asignar se ve todo; una sucursal pedida **fuera del alcance se ignora** (nunca se muestra).
+- **Enforcement en los tres caminos**: `GET /api/admin/orders` (lee el `locationId` que pedía la
+  pantalla y lo cruza con el alcance), `GET /api/admin/orders/[id]` y `PATCH .../status` (403 **antes**
+  de mutar). El detalle muestra el motivo del servidor en vez de un texto genérico.
+- **UI**: `/admin/users` asigna sucursales en el alta y por fila (con "Ve todas las sucursales" /
+  "Sin asignar · ve todas" / "Asignado a: …"); el filtro de la bandeja se dibuja con **las sucursales
+  del alcance** y la lista publica `aria-busy` mientras carga.
+- **Activar/apagar sucursales (pedido del owner durante la tarea)**: el interruptor ya existía en el
+  formulario (T8); ahora hay **toggle de un toque** en la lista y una guarda nueva: **no se puede
+  apagar el único local activo** (simétrica de la del borrado, que ya existía).
+
+**Tres hallazgos del camino, medidos**
+
+1. **El filtro por local nunca filtró**: `src/app/api/admin/orders/route.ts` declaraba `locationId` en
+   el zod y **nunca lo leía** de `searchParams` (lo introdujo `ad0074d`, T8 fase 7, cuyo mensaje
+   afirmaba lo contrario). Medición contra el server local: **650 órdenes con `locationId=loc_que_no_existe`
+   y 650 sin filtro**; con el rango del día, 31 y 31. No existía test de esa ruta; ahora sí.
+2. **El E2E que decía verificarlo pasaba por una carrera**: mientras el refetch está en vuelo la
+   bandeja desmonta la lista, así que `toHaveCount(0)` pasaba solo. El caso ahora espera a que el
+   refetch termine (`aria-busy`) — y con eso **falla si el filtro se vuelve a romper**.
+3. **`locationIds` (filtro aplicado) no es lo mismo que el alcance**: la primera versión de la pantalla
+   usaba el primero como si fuera el segundo, y al elegir una sucursal el control desaparecía. Se
+   separaron en `meta.locationScope` (lo que puede ver) y `meta.locationIds` (lo que pidió), con test
+   de regresión.
+
+**Verificación**: **1627 unitarios en 251 archivos**, lint, typecheck, `build:webpack` y
+`security:secrets` en verde; **E2E completo 89 pasaron / 6 salteados / 0 fallos** (el caso nuevo entra
+con una cocina asignada a una sucursal: ve solo la suya, no puede abrir la ajena ni por URL, y un
+usuario sin asignar sigue viendo todo). **No desplegado**: entra con el próximo deploy, con el OK del
+owner.
+
+## 3. Infraestructura y secretos
 - `EASYPANEL_URL` y `EASYPANEL_TOKEN`: solo en el entorno de quien ejecuta el deploy (nunca
   en el repo). El token da acceso total al servidor: **rotarlo** si se compartió por chat.
   ⚠️ El 2026-09-10 el token se pasó por chat para desplegar la personalización, **el 2026-09-12**
