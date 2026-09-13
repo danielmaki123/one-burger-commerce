@@ -133,13 +133,19 @@ el landing):
 ```bash
 BASE_URL="https://menu.oneburgernic.com" npx playwright test \
   tests/e2e/public-header.spec.ts tests/e2e/public-home.spec.ts tests/e2e/public-menu.spec.ts \
-  tests/e2e/public-product.spec.ts tests/e2e/public-cart.spec.ts
+  tests/e2e/public-product.spec.ts tests/e2e/public-cart.spec.ts \
+  tests/e2e/design-tokens.spec.ts tests/e2e/security-csp.spec.ts
 ```
 
 Estos specs **no crean pedidos ni tocan el admin**: el carrito vive en `localStorage`. Un caso se
-saltea solo cuando la carta real no tiene el dato que necesita (por ejemplo, un producto con opciones
-obligatorias), y lo dice con su motivo. Verificado contra producción el 2026-09-13: **24 pasaron / 1
-salteado / 0 fallos**.
+saltea solo cuando el entorno no tiene lo que necesita, y **lo dice con su motivo**:
+
+- la carta real no tiene un producto con opciones obligatorias (el caso del "+" que no debe existir);
+- el caso necesita entrar al panel y no hay credenciales para ese entorno. Con
+  `E2E_ADMIN_EMAIL`/`E2E_ADMIN_PASSWORD` configurados, esos casos también corren.
+
+Verificado contra producción el 2026-09-13: **31 pasaron / 3 salteados / 0 fallos** (incluye el
+chequeo de CSP en todas las pantallas públicas y la hidratación viva del sitio real).
 
 El smoke productivo es no mutante y valida `/api/health`, `/api/readiness`
 (que hace un `SELECT 1` real y responde 503 si la base está caída), menú

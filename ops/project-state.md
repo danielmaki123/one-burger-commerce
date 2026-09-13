@@ -2105,12 +2105,17 @@ contra `menu.oneburgernic.com` (QA de solo lectura después de cada deploy, ver 
   venía con un grupo obligatorio: esa rama del producto nunca se ejercitaba en local. El seed
   (`prisma/seed.ts`, solo local/demo) ahora crea el grupo "Tipo de carne" (obligatorio) con dos
   opciones y lo vincula a `seed-prod-03`.
+- **Los specs que entran al panel** (`design-tokens`, `security-csp`) usan `tryLoginAsOwner`, que
+  intenta el login del entorno y **saltea el caso con el motivo** cuando no hay credenciales: contra
+  producción la contraseña la administra el owner. Con `E2E_ADMIN_EMAIL`/`E2E_ADMIN_PASSWORD`
+  configurados corren en cualquier entorno.
 
 **Verificación**: **1627 unitarios en 251 archivos**, lint, typecheck y `security:secrets` en verde;
 **E2E local 89 pasaron / 6 salteados / 0 fallos** (el séptimo salto que había aparecido volvió a
-correr con el seed arreglado); **QA de solo lectura contra producción 24 pasaron / 1 salteado / 0
-fallos** (el salteado es el caso que necesita un producto con opciones obligatorias, que la carta real
-no tiene: lo dice con su motivo), más los smokes oficiales **7/7** y dominios **6/6**.
+correr con el seed arreglado); **QA de solo lectura contra producción 31 pasaron / 3 salteados / 0
+fallos** sobre siete specs (los tres saltos dicen su motivo: uno necesita un producto con opciones
+obligatorias y dos necesitan credenciales del panel), más los smokes oficiales **7/7** y dominios
+**6/6**.
 
 ## 3. Infraestructura y secretos
 - `EASYPANEL_URL` y `EASYPANEL_TOKEN`: solo en el entorno de quien ejecuta el deploy (nunca
