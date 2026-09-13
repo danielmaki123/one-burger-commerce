@@ -165,6 +165,54 @@ async function main() {
     },
   });
 
+  // Grupos de modificadores (local/demo): un producto que **obliga a elegir** es lo que hace que su
+  // tarjeta lleve al detalle en vez de ofrecer el "+". Sin esto, la carta del seed no ejercitaba esa
+  // rama y los specs de UI no podían verificarla (los E2E la daban por sentada).
+  const meatGroup = await prisma.modifierGroup.upsert({
+    where: { id: "seed-mod-01" },
+    update: {},
+    create: {
+      id: "seed-mod-01",
+      name: "Tipo de carne",
+      isRequired: true,
+      minSelections: 1,
+      maxSelections: 1,
+      sortOrder: 1,
+    },
+  });
+
+  for (const option of [
+    { id: "seed-mod-opt-01", name: "Res", priceDelta: 0, sortOrder: 1 },
+    { id: "seed-mod-opt-02", name: "Cerdo", priceDelta: 0, sortOrder: 2 },
+  ]) {
+    await prisma.modifierOption.upsert({
+      where: { id: option.id },
+      update: {},
+      create: {
+        id: option.id,
+        modifierGroupId: meatGroup.id,
+        name: option.name,
+        priceDelta: option.priceDelta,
+        sortOrder: option.sortOrder,
+      },
+    });
+  }
+
+  await prisma.productModifierGroup.upsert({
+    where: {
+      productId_modifierGroupId: {
+        productId: "seed-prod-03",
+        modifierGroupId: meatGroup.id,
+      },
+    },
+    update: {},
+    create: {
+      productId: "seed-prod-03",
+      modifierGroupId: meatGroup.id,
+      sortOrder: 1,
+    },
+  });
+
   // Tables (qrToken is unique — safe for upsert)
   for (const [i, label] of ["Mesa 1", "Mesa 2", "Mesa 3", "Barra 1"].entries()) {
     await prisma.table.upsert({
@@ -181,7 +229,7 @@ async function main() {
   }
 
   console.log(
-    "Seed completed: admin + business settings + 3 categories + 3 subcategories + 5 products + 4 tables.",
+    "Seed completed: admin + business settings + 3 categories + 3 subcategories + 5 products + 1 modifier group + 4 tables.",
   );
 }
 
