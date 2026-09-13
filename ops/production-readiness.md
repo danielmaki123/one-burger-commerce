@@ -9,10 +9,13 @@ de Casa Antigua que viven en `docs/` (esa carpeta no se versiona).
 
 ---
 
-## 0. Estado del deploy actual (2026-09-12)
+## 0. Estado del deploy actual (2026-09-13)
 
 - Panel: `http://76.13.250.83:3000`
 - Proyecto / servicio: **`brunobot` / `oneburguerweb`**
+- **Deploy actual**: commit **`ea6be95`** (main), build **`build-20260913-174229`**. Lleva el ciclo de
+  auditoría **A-07** (la home y el footer muestran la información de cada sucursal) y **A-08** (la marca
+  en el header también en celular). Sin migraciones nuevas. El anterior era `7635a06`.
 - Dominios públicos (verificado el 2026-09-12): **`https://oneburgernic.com`** (apex, canónico) y
   `https://www.oneburgernic.com` sirven el **landing** y redirigen las páginas de la app (307) a
   `menu.`/`admin.`; **`https://menu.oneburgernic.com`** sirve la **app de pedidos** y
@@ -30,8 +33,8 @@ de Casa Antigua que viven en `docs/` (esa carpeta no se versiona).
 - Deploy: **una sola llamada** a `deployService` por API (ver §4). ⚠️ **No usar
   `npm run deploy:easypanel`**: fusiona variables y puede crear servicios. El **webhook del panel no es
   fiable** en esta instalación.
-- Verificado: `/api/health` y `/api/readiness` en 200 en los cuatro dominios, smoke productivo 4/4,
-  `/admin` redirigiendo a login.
+- Verificado (2026-09-13): `/api/health` y `/api/readiness` en 200 en los cuatro dominios, smoke
+  productivo **7/7**, dominios **6/6** y `/admin` redirigiendo a login.
 
 ⚠️ **Avisos de esta instalación**
 

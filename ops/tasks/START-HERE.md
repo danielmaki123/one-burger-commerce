@@ -74,9 +74,9 @@ retiro, forma de pago y vuelto. El menú real lo está cargando el owner y el **
 está probado** (drill de restore hecho el 2026-09-12: el respaldo restauró completo en un Postgres
 temporal). Detalle y prioridades en `ops/project-state.md` §4.
 
-**Sin desplegar todavía** (está en `main` con CI verde, pero producción sigue en `5a487ad`): la
-información de **cada sucursal** en la home y el footer (A-07) y la **marca en el header también en
-celular** (A-08). Desplegar necesita la confirmación del owner.
+**Desplegado el 2026-09-13** (commit `ea6be95`, build `build-20260913-174229`): la información de
+**cada sucursal** en la home y el footer (A-07) y la **marca en el header también en celular** (A-08),
+verificados contra `menu.oneburgernic.com` con el smoke 7/7 y los dominios 6/6.
 
 ## 4. Cola de pendientes (en orden recomendado)
 

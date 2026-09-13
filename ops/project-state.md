@@ -1,9 +1,8 @@
 # Estado del proyecto — One Burger Commerce
 
-> Actualizado: 2026-09-13 · Último deploy a producción: 2026-09-12, commit `5a487ad`
-> (deploy manual por API sobre el servicio `oneburguerweb`). **Hay trabajo en `main` sin desplegar**:
-> el ciclo de auditoría A-07 (información de cada sucursal) y A-08 (la marca en el header de celular),
-> ambos con CI verde; desplegar necesita la confirmación del owner.
+> Actualizado: 2026-09-13 · Último deploy a producción: 2026-09-13, commit `ea6be95`
+> (build `build-20260913-174229`, deploy manual por API sobre el servicio `oneburguerweb`). Lleva el
+> ciclo de auditoría A-07 (información de cada sucursal) y A-08 (la marca en el header de celular).
 > Este documento es el punto de entrada para retomar el trabajo. Mantenerlo al día al cerrar cada tarea.
 > Para arrancar en un chat nuevo: `ops/tasks/START-HERE.md`.
 
@@ -1978,15 +1977,46 @@ celular**. Commit `f0366c8`.
   badge Abierto/Cerrado) además del nombre del header. Es deliberado —el `h1` es el título y el header
   es la marca de navegación— y si el owner prefiere una sola aparición en la primera pantalla es un
   cambio de diseño aparte (esa fila es el encabezado que ordena el mock, T2).
-- **No desplegado**: A-07 y A-08 están en `main` con CI verde pero **producción sigue en el deploy
-  `5a487ad`**; desplegar necesita la confirmación del owner y, después, los dos smokes de solo lectura.
+- **Desplegado el 2026-09-13** (ver la sección del deploy, más abajo): A-07 y A-08 están en producción
+  con el commit `ea6be95`.
+
+### Deploy del 2026-09-13 (commit `ea6be95`) — **verificado**
+
+Primer deploy desde el 2026-09-12 (el cuarto fue `7635a06`). Lleva el **ciclo de auditoría** completo:
+A-07 (la home y el footer muestran la información de **cada sucursal**) y A-08 (la marca —isotipo +
+nombre— **también en el header de celular**), más el arreglo de arnés que salió del E2E (`cef9a1c`).
+
+- **Cómo se hizo**: una sola llamada a `deployService` por API (proyecto `brunobot`, servicio
+  `oneburguerweb`, `forceRebuild: true`), sin `npm run deploy:easypanel` (fusiona variables y puede
+  crear servicios). El POST cortó por timeout a los 120 s, como está documentado: el build siguió en
+  segundo plano. **Sin migraciones nuevas** (`git diff --name-only 7635a06..HEAD -- prisma/migrations`
+  vacío), así que no hubo ventana de esquema.
+- **Resultado**: `commit.sha` del servicio en **`ea6be95`** (main) y build **`build-20260913-174229`**
+  sirviendo en los **cuatro** hosts (`oneburgernic.com`, `www`, `menu.` y `admin.` con `/api/health`
+  200 y la versión nueva). El build tardó ~2,5 minutos desde el disparo.
+- **Verificación de solo lectura**: smoke productivo **7/7** y dominios **6/6**.
+- **Verificación de las dos tareas contra el host de la app** (`https://menu.oneburgernic.com`: el apex
+  sirve el landing, así que la app se mide en su subdominio):
+  - **A-08: 2/2** — la marca visible a 375 px y 1280 px en `/`, `/menu` y `/cart`.
+  - **A-07**: los dos casos nuevos **verdes** (375 px en la home y 1280 px en el footer). El snapshot de
+    accesibilidad de la home real muestra las **tres sucursales** (Carretera Masaya, Camino de Oriente
+    y Casa Antigua - Jinotepe), que es lo que el owner pidió ver.
+  - **Hallazgo de arnés (anotado, no arreglado)**: 3 casos de `public-home.spec.ts` **no son
+    ejecutables contra producción** porque buscan productos del seed local por nombre ("Taco de
+    Birria": su tarjeta, el "+" de esa tarjeta y el buscador que arranca con ese producto). En la carta
+    real no existen, así que fallan por datos del arnés, no por un defecto del sitio. Si se quiere
+    correr esa suite contra producción, esos casos necesitan un guard que los salte cuando el producto
+    del seed no está.
+- **El token del panel se volvió a compartir por chat** (2026-09-13) para este deploy: **hay que
+  rotarlo** (ver §3 y el ítem A-06 del backlog).
 
 ## 3. Infraestructura y secretos
 
 - `EASYPANEL_URL` y `EASYPANEL_TOKEN`: solo en el entorno de quien ejecuta el deploy (nunca
   en el repo). El token da acceso total al servidor: **rotarlo** si se compartió por chat.
-  ⚠️ El 2026-09-10 el token se pasó por chat para desplegar la personalización y **el 2026-09-12
-  otra vez** para este deploy: **hay que rotarlo**.
+  ⚠️ El 2026-09-10 el token se pasó por chat para desplegar la personalización, **el 2026-09-12**
+  otra vez y **el 2026-09-13** de nuevo para el deploy de A-07/A-08: **hay que rotarlo** (ítem A-06
+  del backlog; receta en `ops/production-readiness.md` §8.3).
 - El deploy es **una sola llamada** a `deployService` (proyecto `brunobot`, servicio
   `oneburguerweb`, `forceRebuild: true`) contra `http://76.13.250.83:3000/api/rpc`. `ops/easypanel-production.md`
   describe un proyecto `oneburguer`/servicio `web` que **no** es el de producción (es el deploy
