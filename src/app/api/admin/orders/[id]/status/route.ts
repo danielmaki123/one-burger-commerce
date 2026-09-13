@@ -6,8 +6,12 @@ import { AuthError } from "@/modules/auth/domain/auth-errors";
 import { requireAdminSession } from "@/modules/auth/features/require-admin-session/require-admin-session";
 import { registerOutboxEventBusHandlers } from "@/modules/notifications/adapters/outbox-subscriber";
 import { PrismaOrderRepository } from "@/modules/orders/adapters/prisma-order-repository";
+import { OrderError } from "@/modules/orders/domain/order-errors";
+import { resolveOrderLocationScope } from "@/modules/orders/domain/order-visibility";
 import { updateOrderStatus } from "@/modules/orders/features/update-order-status/update-order-status";
 import { createErrorResponse } from "@/shared/lib/http/error-response";
+
+import { assertOrderInScope } from "../../order-scope";
 
 registerOutboxEventBusHandlers();
 
@@ -74,6 +78,21 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     }
 
     const repository = new PrismaOrderRepository();
+
+    // A: el alcance se comprueba **antes** de mutar; un pedido de otra sucursal no se toca.
+    const existing = await repository.findOrderById(id);
+    if (!existing) {
+      throw new OrderError(404, "NOT_FOUND", "Order not found");
+    }
+
+    assertOrderInScope(
+      resolveOrderLocationScope({
+        role: session.user.role,
+        assignedLocationIds: session.user.locationIds,
+      }),
+      existing.locationId,
+    );
+
     const result = await updateOrderStatus(id, parsed.data, { repository });
     return NextResponse.json(result);
   } catch (error) {

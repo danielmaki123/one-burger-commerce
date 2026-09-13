@@ -62,13 +62,38 @@ describe("listAdminOrders · por local (T8)", () => {
 
   it("con local devuelve solo los de ese local", async () => {
     const result = await listAdminOrders(
-      { locationId: "loc_norte" },
+      { locationIds: ["loc_norte"] },
       { repository: repository(), locationRepository: locations() },
     );
 
     expect(result.data).toHaveLength(1);
     expect(result.data[0].locationName).toBe("Norte");
     expect(result.meta.count).toBe(1);
+  });
+
+  it("con varias sucursales (alcance del usuario) devuelve solo las suyas (A)", async () => {
+    const repo = new InMemoryOrderRepository();
+    repo.orders.push(
+      order({ id: "ord_1", orderNumber: "P-1", locationId: "loc_principal" }),
+      order({ id: "ord_2", orderNumber: "P-2", locationId: "loc_norte" }),
+      order({ id: "ord_3", orderNumber: "P-3", locationId: "loc_sur" }),
+    );
+
+    const result = await listAdminOrders(
+      { locationIds: ["loc_norte", "loc_sur"] },
+      { repository: repo, locationRepository: locations() },
+    );
+
+    expect(result.data.map((entry) => entry.orderNumber)).toEqual(["P-2", "P-3"]);
+  });
+
+  it("una lista de sucursales vacía no filtra nada (sin asignar = ve todas)", async () => {
+    const result = await listAdminOrders(
+      { locationIds: [] },
+      { repository: repository(), locationRepository: locations() },
+    );
+
+    expect(result.data).toHaveLength(2);
   });
 
   it("un pedido de un local que ya no existe no rompe la lista", async () => {

@@ -42,7 +42,7 @@ export async function deleteLocation(
     });
   }
 
-  const orders = await orderRepository.listOrders({ locationId: id });
+  const orders = await orderRepository.listOrders({ locationIds: [id] });
   if (orders.length > 0) {
     throw new LocationError(409, "CONFLICT", "Location has orders", {
       id: `Este local tiene ${orders.length === 1 ? "un pedido" : `${orders.length} pedidos`}: apagalo si no querés ofrecerlo, pero no se puede borrar`,

@@ -103,4 +103,42 @@ describe("GET /api/admin/orders/[id]", () => {
 
     expect(response.status).toBe(403);
   });
+
+  it("un usuario acotado no puede abrir un pedido de otra sucursal (A)", async () => {
+    requireAdminSessionMock.mockResolvedValueOnce({
+      user: { id: "admin_2", role: "kitchen", locationIds: ["loc_norte"] },
+    });
+    canManageOrderOperationsMock.mockReturnValueOnce(true);
+    getOrderMock.mockResolvedValueOnce({
+      data: { id: "ord_1", orderNumber: "P-1", locationId: "loc_sur", items: [] },
+    });
+
+    const { GET } = await import("./route");
+    const response = await GET(
+      new Request("http://localhost/api/admin/orders/ord_1"),
+      { params: Promise.resolve({ id: "ord_1" }) },
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(403);
+    expect(body.error.message).toContain("sucursal");
+  });
+
+  it("un usuario acotado sí abre un pedido de su sucursal (A)", async () => {
+    requireAdminSessionMock.mockResolvedValueOnce({
+      user: { id: "admin_2", role: "kitchen", locationIds: ["loc_norte"] },
+    });
+    canManageOrderOperationsMock.mockReturnValueOnce(true);
+    getOrderMock.mockResolvedValueOnce({
+      data: { id: "ord_2", orderNumber: "P-2", locationId: "loc_norte", items: [] },
+    });
+
+    const { GET } = await import("./route");
+    const response = await GET(
+      new Request("http://localhost/api/admin/orders/ord_2"),
+      { params: Promise.resolve({ id: "ord_2" }) },
+    );
+
+    expect(response.status).toBe(200);
+  });
 });

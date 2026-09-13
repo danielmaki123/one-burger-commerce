@@ -199,7 +199,12 @@ export default function AdminOrderDetailPage() {
         return;
       }
       if (!response.ok) {
-        setError("No se pudo cargar el detalle de la orden.");
+        // El servidor sabe por qué no se puede ver (A: "este pedido es de otra sucursal"): se
+        // muestra su mensaje en vez de uno genérico que no explica nada.
+        const payload = (await response.json().catch(() => null)) as
+          | { error?: { message?: string } }
+          | null;
+        setError(payload?.error?.message ?? "No se pudo cargar el detalle de la orden.");
         setOrder(null);
         return;
       }

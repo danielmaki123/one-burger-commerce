@@ -66,8 +66,12 @@ export type ListOrdersFilter = {
   status?: string;
   dateFrom?: string;
   dateTo?: string;
-  /** Local del pedido (T8). Cada local ve lo suyo; sin dato, todos. */
-  locationId?: string;
+  /**
+   * Sucursales del pedido. Una lista **vacía o ausente significa "todas"**: es lo que usa el
+   * `owner` y el usuario sin asignar. Viene de la capa de composición, que resuelve el alcance
+   * del usuario (`resolveOrderListLocationIds`).
+   */
+  locationIds?: string[];
 };
 
 export interface OrderRepository {

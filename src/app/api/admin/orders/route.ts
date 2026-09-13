@@ -6,6 +6,10 @@ import { AuthError } from "@/modules/auth/domain/auth-errors";
 import { requireAdminSession } from "@/modules/auth/features/require-admin-session/require-admin-session";
 import { PrismaLocationRepository } from "@/modules/locations/adapters/prisma-location-repository";
 import { PrismaOrderRepository } from "@/modules/orders/adapters/prisma-order-repository";
+import {
+  resolveOrderListLocationIds,
+  resolveOrderLocationScope,
+} from "@/modules/orders/domain/order-visibility";
 import { listAdminOrders } from "@/modules/orders/features/list-admin-orders/list-admin-orders";
 import { createErrorResponse } from "@/shared/lib/http/error-response";
 
@@ -76,12 +80,39 @@ export async function GET(request: Request) {
       );
     }
 
-    const repository = new PrismaOrderRepository();
-    const result = await listAdminOrders(parsed.data, {
-      repository,
-      locationRepository: new PrismaLocationRepository(),
+    // El filtro por local **se lee** (antes viajaba en la query y la ruta lo ignoraba: el control
+    // era decorativo) y pasa por el alcance del usuario: pedir una sucursal ajena no la muestra.
+    const scope = resolveOrderLocationScope({
+      role: session.user.role,
+      assignedLocationIds: session.user.locationIds,
     });
-    return NextResponse.json(result);
+    const locationIds = resolveOrderListLocationIds({
+      scope,
+      requestedLocationId: searchParams.get("locationId"),
+    });
+
+    const repository = new PrismaOrderRepository();
+    const result = await listAdminOrders(
+      { ...parsed.data, locationIds },
+      {
+        repository,
+        locationRepository: new PrismaLocationRepository(),
+      },
+    );
+
+    // El alcance del usuario viaja en `meta` para que la pantalla no reimplemente la regla (A).
+    // Ojo: `locationIds` es el filtro **aplicado** (lo que se pidió, si está permitido) y
+    // `locationScope` es lo que el usuario **puede** ver (`null` = todas). La pantalla usa el
+    // segundo para dibujar el filtro: con el primero, elegir una sucursal lo dejaba con una sola
+    // opción y el control desaparecía.
+    return NextResponse.json({
+      ...result,
+      meta: {
+        ...result.meta,
+        locationIds,
+        locationScope: scope.kind === "restricted" ? scope.locationIds : null,
+      },
+    });
   } catch (error) {
     return createErrorResponse(error);
   }

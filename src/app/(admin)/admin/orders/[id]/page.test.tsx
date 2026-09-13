@@ -143,4 +143,45 @@ describe("detalle de la orden: local de retiro", () => {
 
     expect(screen.queryByText("Local")).toBeNull();
   });
+
+  it("muestra el motivo del servidor cuando el pedido es de otra sucursal (A)", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 403,
+        json: async () => ({
+          error: {
+            code: "FORBIDDEN",
+            message: "Este pedido es de otra sucursal: tu usuario no tiene acceso a ese local",
+          },
+        }),
+      }),
+    );
+
+    render(<AdminOrderDetailPage />);
+
+    expect(
+      await screen.findByText(
+        "Este pedido es de otra sucursal: tu usuario no tiene acceso a ese local",
+      ),
+    ).toBeTruthy();
+  });
+
+  it("sin mensaje del servidor cae al texto genérico", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 500,
+        json: async () => ({}),
+      }),
+    );
+
+    render(<AdminOrderDetailPage />);
+
+    expect(
+      await screen.findByText("No se pudo cargar el detalle de la orden."),
+    ).toBeTruthy();
+  });
 });
