@@ -43,9 +43,15 @@ test.describe("carrito público", () => {
     await addSeedProductToCart(page);
     await page.goto("/checkout");
 
-    // La dirección sale de `/admin/settings`: el local demo la tiene configurada.
-    await expect(page.getByText("Retirás en")).toBeVisible();
-    await expect(page.getByText(/Retiro en restaurante/)).toBeVisible();
+    // La dirección sale de la configuración: el local demo la tiene cargada.
+    // Se afirma **dentro de la fila del punto de retiro** y no en toda la página: desde A-07 el
+    // footer lista la dirección de cada sucursal, y con el local demo (que hereda la dirección de
+    // la configuración) el mismo texto aparece dos veces en el DOM —a 375 px el footer está
+    // oculto por CSS pero sigue contando para el modo estricto de Playwright—. La fila es lo que
+    // el cliente lee en el checkout; el footer tiene su propia verificación en public-home.spec.ts.
+    const pickupRow = page.getByText("Retirás en").locator("..");
+    await expect(pickupRow).toBeVisible();
+    await expect(pickupRow.getByText(/Retiro en restaurante/)).toBeVisible();
   });
 });
 
