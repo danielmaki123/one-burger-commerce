@@ -76,6 +76,12 @@ temporal). Detalle y prioridades en `ops/project-state.md` §4.
 
 ## 4. Cola de pendientes (en orden recomendado)
 
+**Primero está la cola de auditoría** ([`ops/audit-backlog.md`](../audit-backlog.md)): es lo que el
+owner va reportando al revisar el producto. A-01/A-07 quedaron **cerrados** el 2026-09-12 (commit
+`83d7433`: la home y el footer muestran la información de **cada sucursal**) y el próximo de esa cola
+es **A-08** (la marca —isotipo + nombre— también en el header de celular), con el alcance ya
+confirmado por el owner. Después, esta lista:
+
 1. **Monitoreo externo** — un uptime que pegue a `GET /api/readiness` y avise al canal del equipo.
    Receta: runbook §8.5. Necesita que el owner elija el servicio.
 2. **Corregir dos datos de los locales de producción** (hallazgo del drill): hay **3 locales** y los
@@ -99,10 +105,12 @@ npm run test && npm run lint && npm run typecheck && npm run build && npm run se
 npx prisma generate   # solo si el build local falla por el cliente de Prisma
 ```
 
-Y la última línea de base conocida, para comparar: **1548 tests unitarios en 242 archivos**, CI
+Y la última línea de base conocida, para comparar: **1560 tests unitarios en 245 archivos**, CI
 (`verify` + `migrations` + `container` + `publish`) verde en cada push, E2E local **84 pasaron / 6
 salteados / 0 fallos** (los 6 saltos son la verificación de dominios reales) y smoke productivo
-**7/7** más hosts **6/6**.
+**7/7** más hosts **6/6**. Ojo con el E2E: **A-07 sumó dos casos y reescribió uno** en
+`tests/e2e/public-home.spec.ts` que **todavía no se corrieron** (el arnés necesita Docker/Postgres);
+la verificación por DOM de ese cambio sí está (`src/app/(public)/layout.dom.test.tsx`).
 
 ## 6. Qué pedirle a Daniel si falta algo
 

@@ -1548,11 +1548,13 @@ tenía forma de saber a qué local iba, ni la cocina cuál era el suyo al abrir 
 - **Verificación**: **1492 unitarios**, lint, typecheck, `npm run build`, `security:secrets` y **E2E 79
   pasaron, 7 salteados, 0 fallos**.
 - **Gap declarado (no silencioso)**: el **footer** (`src/app/(public)/layout.tsx`) y el bloque de
-  "Información del restaurante" de la home siguen mostrando **horario, ciudad y dirección de la
+  "Información del restaurante" de la home seguían mostrando **horario, ciudad y dirección de la
   configuración del negocio**, no del local. Con un solo local coinciden casi siempre; con dos, la
-  pregunta "¿qué horario muestra el footer?" es una **decisión del owner** (listar los locales, mostrar el
+  pregunta "¿qué horario muestra el footer?" era una **decisión del owner** (listar los locales, mostrar el
   por defecto, o un horario general) y no se inventó una respuesta. Los turnos de retiro, el precio y el
   estado operativo **sí** son por local en todo el camino público.
+  → **Cerrado el 2026-09-12** con la opción (a) del owner: ver "A-07 · la información de cada sucursal"
+  más abajo (commit `83d7433`).
 
 ### Checkout fase 4: pedidos para días futuros (2026-09-12) — **cerrada**
 
@@ -1910,6 +1912,39 @@ destruir el servicio.
   `exposedPort: 0` y el puerto temporal quedó cerrado; los archivos temporales locales del drill se
   borraron. Producción no se tocó en ningún momento.
 
+### A-07 · La información de cada sucursal en la home y el footer (2026-09-12) — **cerrada**
+
+Primer ítem del **ciclo de auditoría** (`ops/audit-backlog.md`): el owner reportó que el footer y el
+bloque "Información del restaurante" de la home mostraban horario, ciudad y dirección de la
+**configuración del negocio**. Con **tres locales reales** eso no le dice al cliente dónde retira, y
+la decisión del owner fue listar **cada sucursal activa** (opción (a) de A-01). Commit `83d7433`.
+
+- **`locationDirectionsHref`** (dominio de locales) es la versión por sucursal de lo que la home
+  hacía para el negocio: usa el mapa cargado en el local y, si no lo hay, una búsqueda armada con
+  **su** dirección. Sin mapa ni dirección devuelve `null`, así el consumidor no dibuja un control que
+  no lleva a ningún lado.
+- **`PublicLocationsList`** (componente compartido por la home y el footer) lista cada local activo
+  con nombre, dirección, horario y "Cómo llegar". Todo sale de `GET /api/locations`, que ya devolvía
+  solo los activos y **no** expone el teléfono ni el WhatsApp internos del local: no se tocó ese
+  contrato público.
+- **La home dejó de repetir la dirección del negocio** cuando hay sucursales cargadas (antes se veían
+  dos direcciones y dos "Cómo llegar" para el mismo lugar). **Sin** sucursales se mantiene el respaldo
+  de la configuración, que es como funcionaba antes.
+- **Decisión extra del owner**: el footer **ya no imprime el horario ni la ciudad de la
+  configuración**. Se quitaron los dos lugares donde se imprimían, incluido el bloque que estaba
+  oculto por CSS y ya no se veía en ninguna pantalla. El horario que queda es el de cada sucursal.
+- **Verificación**: **1560 unitarios en 245 archivos** (antes 1548 en 242), lint, typecheck,
+  `build:webpack` (se tocaron `page.tsx` y `layout.tsx`) y `security:secrets` en verde. El test nuevo
+  del footer (`src/app/(public)/layout.dom.test.tsx`, jsdom) se confirmó **rojo** antes del arreglo
+  nombrando los dos lugares donde salía el horario del negocio.
+- **Pendiente declarado**: el **E2E de navegador real** en los dos anchos (375 px en la home, 1280 px
+  en el footer) **no se corrió**: Docker Desktop estaba apagado y el arnés necesita Postgres. Los
+  casos ya están escritos en `tests/e2e/public-home.spec.ts` y se corren en el próximo arranque del
+  entorno local. Recordar que el **footer no existe a 375 px** (`hidden … md:block`): en celular la
+  información por sucursal llega por la home.
+- **Próximo de la cola**: **A-08** (la marca —isotipo + nombre— también en el header de celular), con
+  el alcance ya confirmado por el owner.
+
 ## 3. Infraestructura y secretos
 
 - `EASYPANEL_URL` y `EASYPANEL_TOKEN`: solo en el entorno de quien ejecuta el deploy (nunca
@@ -1944,7 +1979,7 @@ destruir el servicio.
 | 8 | **Checkout sin redundancias** (textos y botones repetidos) | **Cerrada y desplegada** | `ops/tasks/TASK-checkout-ux.md`. Cuatro commits (`2832a93`…`aba4156`), en producción como `build-20260911-145656`. El checkout pasó de 807 a 476 líneas, un solo resumen compartido con el carrito, un solo CTA visible por viewport y los turnos de retiro calculados desde la configuración. |
 | 9 | **Validar el estado operativo en el servidor** | **Cerrada y desplegada** | Commits `3a67c37` y `ca474c8`, en producción como `build-20260911-154014`. `isAcceptingOrders` ya corta pedidos de verdad (antes no lo leía nadie) y la hora de retiro se valida contra el horario del día. Incluye el horario demo del seed y el límite de login del arnés E2E. |
 | 10 | **Retiro opcional y programable + la hora visible en toda la cadena** | **Cerrada y desplegada** | Commits `6f85a3c`, `c101f82`, `b207593` y `abc2183`, en producción como `build-20260911-191047`. Incluye **una migración** (`pickupScheduled`). El retiro es opcional, la hora la resuelve el servidor, el ticket de cocina y el admin la muestran, y el semáforo va contra la hora prometida. Ver el detalle arriba. |
-| 11 | **Adopción del mock completo (rediseño de la UI pública)** | **Cerrada el 2026-09-12** (ola 1 T1-T7 + T3.1; ola 2 T8, T9, T11, T12 y T13). **T10 (favoritos) sigue descartada/bloqueada** por falta de login de cliente real | [`ops/tasks/TASK-mock-adoption.md`](tasks/TASK-mock-adoption.md). Plan **aprobado** el 2026-09-12 (D-A tipografía: Plus Jakarta Sans como tercera opción · D-B ola 2 completa **sin reseñas ni delivery** · D-C orden: tokens primero y después las pantallas en el orden del mock). **Reglas del programa**: ningún control decorativo (implementado con API/estado y test, o eliminado con motivo), nada hardcodeado, la paleta como preset que pasa el test de contraste, TDD por tarea, y verificación a 375 px **y 1280 px** (el mock no tiene escritorio). **Ola 1**: T1 tokens ✅ · T2 home ✅ · T3 menú ✅ · T3.1 color por categoría ✅ · T4 producto ✅ · T5 carrito+checkout ✅ (fases 1, 2, 3, 6 y 7) · T6 confirmación ✅ · T7 seguimiento e historial ✅ · **ola 1 completa** · T11 forma de pago ✅ · T12 vuelto ✅ · T13 PIN de retiro ✅ · **T9 promos cerrada**: motor ✅, campo del código en el checkout ✅ y pantalla del admin `/admin/promotions` ✅ · **T8 (multi-sucursal) cerrada**: alcance **decidido el 2026-09-12 (D-T8) = menú y precios por local**, brief en [`ops/tasks/TASK-multi-location.md`](tasks/TASK-multi-location.md); **fases 1-7 cerradas** (modelo y backfill, API y pantalla de locales, catálogo y precios por local, menú público, selector en el checkout, operación por local, y el local en el detalle, la confirmación y el historial). Queda **un gap declarado**: el footer y el bloque de información de la home siguen mostrando el horario y la dirección de la configuración del negocio, no del local (ver §2, "Fase 7, cierre"). **Decisiones del checkout resueltas el 2026-09-12**: D1 **sí** — **fase 4 cerrada** (pedidos para días futuros, sin límite de días: el tope es el horario del día) y D2 **no** (una sola tasa de propina; la fase 5 queda descartada). **Ola 2** (aprobada): T8 multi-sucursal, T9 promos, T10 favoritos (**descartada por el owner**: "mantengamos el login tal cual lo tenemos"; sin cuenta no hay favoritos), T11 método de pago, T12 vuelto, T13 PIN de retiro. Evidencia del mock: [`ops/audit-checkout-mock.md`](audit-checkout-mock.md). |
+| 11 | **Adopción del mock completo (rediseño de la UI pública)** | **Cerrada el 2026-09-12** (ola 1 T1-T7 + T3.1; ola 2 T8, T9, T11, T12 y T13). **T10 (favoritos) sigue descartada/bloqueada** por falta de login de cliente real | [`ops/tasks/TASK-mock-adoption.md`](tasks/TASK-mock-adoption.md). Plan **aprobado** el 2026-09-12 (D-A tipografía: Plus Jakarta Sans como tercera opción · D-B ola 2 completa **sin reseñas ni delivery** · D-C orden: tokens primero y después las pantallas en el orden del mock). **Reglas del programa**: ningún control decorativo (implementado con API/estado y test, o eliminado con motivo), nada hardcodeado, la paleta como preset que pasa el test de contraste, TDD por tarea, y verificación a 375 px **y 1280 px** (el mock no tiene escritorio). **Ola 1**: T1 tokens ✅ · T2 home ✅ · T3 menú ✅ · T3.1 color por categoría ✅ · T4 producto ✅ · T5 carrito+checkout ✅ (fases 1, 2, 3, 6 y 7) · T6 confirmación ✅ · T7 seguimiento e historial ✅ · **ola 1 completa** · T11 forma de pago ✅ · T12 vuelto ✅ · T13 PIN de retiro ✅ · **T9 promos cerrada**: motor ✅, campo del código en el checkout ✅ y pantalla del admin `/admin/promotions` ✅ · **T8 (multi-sucursal) cerrada**: alcance **decidido el 2026-09-12 (D-T8) = menú y precios por local**, brief en [`ops/tasks/TASK-multi-location.md`](tasks/TASK-multi-location.md); **fases 1-7 cerradas** (modelo y backfill, API y pantalla de locales, catálogo y precios por local, menú público, selector en el checkout, operación por local, y el local en el detalle, la confirmación y el historial). Queda **un gap declarado** —**cerrado el 2026-09-12 con A-07, commit `83d7433`** (§2, "A-07 · la información de cada sucursal")—: el footer y el bloque de información de la home mostraban el horario y la dirección de la configuración del negocio, no del local. **Decisiones del checkout resueltas el 2026-09-12**: D1 **sí** — **fase 4 cerrada** (pedidos para días futuros, sin límite de días: el tope es el horario del día) y D2 **no** (una sola tasa de propina; la fase 5 queda descartada). **Ola 2** (aprobada): T8 multi-sucursal, T9 promos, T10 favoritos (**descartada por el owner**: "mantengamos el login tal cual lo tenemos"; sin cuenta no hay favoritos), T11 método de pago, T12 vuelto, T13 PIN de retiro. Evidencia del mock: [`ops/audit-checkout-mock.md`](audit-checkout-mock.md). |
 
 | 12 | **Corregir los datos de los locales de producción** | Daniel (5 minutos en `/admin/locations`) | Producción tiene **3 locales y los tres son reales** (confirmado por el owner el 2026-09-12). Falta corregir dos datos: el slug de *Camino de Oriente* (`one-burger-masaya` → `camino-de-oriente`, que no coincide con el nombre) y la ciudad de *Casa Antigua*, escrita **`Jinoteoe`**. Sin riesgo: el slug del local no se usa en URLs públicas ni queda en los pedidos. Detalle en `ops/production-readiness.md` §8.8. |
 
