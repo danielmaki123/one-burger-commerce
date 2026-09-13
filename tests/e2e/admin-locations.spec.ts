@@ -262,12 +262,16 @@ test.describe("locales del admin", () => {
       await page.getByRole("button", { name: "Mostrar filtros" }).click();
       const locationFilter = page.getByLabel("Local");
 
-      // Filtrando por el otro local, el pedido no está.
+      // Filtrando por el otro local, el pedido no está. **Se espera a que el refetch termine**
+      // (la bandeja publica `aria-busy`): sin eso la lista se desmonta mientras carga y la
+      // aserción pasaría sola, que es exactamente como este test dejó de ver el filtro roto.
       await locationFilter.selectOption({ label: NAME });
+      await expect(page.locator('[aria-busy="true"]')).toHaveCount(0);
       await expect(orderRow).toHaveCount(0);
 
       // Y con su local, vuelve.
       await locationFilter.selectOption({ label: "Principal" });
+      await expect(page.locator('[aria-busy="true"]')).toHaveCount(0);
       await expect(orderRow).toBeVisible();
     } finally {
       await deleteLocationIfPresent(page);
