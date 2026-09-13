@@ -1972,7 +1972,8 @@ celular**. Commit `f0366c8`.
   que la tarea cambia. Después del cambio: verde en los dos anchos y en `/`, `/menu` y `/cart`, sin
   scroll horizontal.
 - **Verificación**: **1560 unitarios en 245 archivos**, lint, typecheck, `build:webpack` y
-  `security:secrets` en verde; **E2E 88 pasaron / 6 salteados / 0 fallos**.
+  `security:secrets` en verde; **E2E 88 pasaron / 6 salteados / 0 fallos**; **CI verde** en el push
+  (`verify` + `migrations` + `container` + `publish`, run `34770351646`).
 - **A la vista, no escondido**: la home sigue mostrando el nombre como `<h1>` de la página (título +
   badge Abierto/Cerrado) además del nombre del header. Es deliberado —el `h1` es el título y el header
   es la marca de navegación— y si el owner prefiere una sola aparición en la primera pantalla es un
