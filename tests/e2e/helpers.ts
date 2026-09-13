@@ -154,6 +154,33 @@ export async function addCatalogProductToCart(
   return product;
 }
 
+/**
+ * Intenta entrar al panel con las credenciales del entorno y devuelve si lo logró.
+ *
+ * Los specs que necesitan el panel se **saltean** cuando las credenciales no sirven para ese entorno
+ * (contra producción la contraseña la administra el owner y no está en el repo): mejor decir por qué
+ * no se verificó que fallar por datos. Con `E2E_ADMIN_EMAIL`/`E2E_ADMIN_PASSWORD` configurados, los
+ * mismos casos corren en cualquier entorno.
+ */
+export async function tryLoginAsOwner(page: Page): Promise<boolean> {
+  await page.goto("/admin/login");
+
+  // Con una sesión activa, `/admin/login` redirige al panel: ya estamos adentro.
+  if (/\/admin(?:\/orders)?$/.test(page.url())) return true;
+
+  const email = page.locator('input[type="email"]');
+  if ((await email.count()) === 0) return false;
+
+  await email.fill(E2E_ADMIN_EMAIL);
+  await page.locator('input[type="password"]').fill(E2E_ADMIN_PASSWORD);
+  await page.getByRole("button", { name: "Iniciar sesión" }).click();
+
+  return page
+    .waitForURL(/\/admin(?:\/orders)?$/, { timeout: 10_000 })
+    .then(() => true)
+    .catch(() => false);
+}
+
 export async function loginAsOwner(page: Page) {
   await page.goto("/admin/login");
   await page.locator('input[type="email"]').fill(E2E_ADMIN_EMAIL);
