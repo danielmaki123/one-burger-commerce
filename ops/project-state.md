@@ -1,7 +1,9 @@
 # Estado del proyecto — One Burger Commerce
 
-> Actualizado: 2026-09-12 · Último deploy a producción: 2026-09-12, commit `5a487ad`
-> (deploy manual por API sobre el servicio `oneburguerweb`)
+> Actualizado: 2026-09-13 · Último deploy a producción: 2026-09-12, commit `5a487ad`
+> (deploy manual por API sobre el servicio `oneburguerweb`). **Hay trabajo en `main` sin desplegar**:
+> el ciclo de auditoría A-07 (información de cada sucursal) y A-08 (la marca en el header de celular),
+> ambos con CI verde; desplegar necesita la confirmación del owner.
 > Este documento es el punto de entrada para retomar el trabajo. Mantenerlo al día al cerrar cada tarea.
 > Para arrancar en un chat nuevo: `ops/tasks/START-HERE.md`.
 
@@ -1939,13 +1941,44 @@ la decisión del owner fue listar **cada sucursal activa** (opción (a) de A-01)
   nombrando los dos lugares donde salía el horario del negocio. **CI verde** en el push (`verify` +
   `migrations` + `container` + `publish`, run `34767909489`): la imagen se construye y se ejecuta
   contra Postgres antes de publicarse, así que el cambio pasó el camino real del contenedor.
-- **Pendiente declarado**: el **E2E de navegador real** en los dos anchos (375 px en la home, 1280 px
-  en el footer) **no se corrió**: Docker Desktop estaba apagado y el arnés necesita Postgres. Los
-  casos ya están escritos en `tests/e2e/public-home.spec.ts` y se corren en el próximo arranque del
-  entorno local. Recordar que el **footer no existe a 375 px** (`hidden … md:block`): en celular la
-  información por sucursal llega por la home.
-- **Próximo de la cola**: **A-08** (la marca —isotipo + nombre— también en el header de celular), con
-  el alcance ya confirmado por el owner.
+- **E2E de navegador, corrido el 2026-09-13** (el que había quedado pendiente por Docker apagado):
+  arnés local completo (Postgres 17 + migraciones + seed + `next start -p 3210`) y **suite completa 88
+  pasaron / 6 salteados / 0 fallos**, incluidos los dos casos de esta tarea (375 px en la home y 1280 px
+  en el footer). Al correrla apareció **un hallazgo real del cambio**: en `/checkout` la aserción de la
+  dirección resolvía a dos elementos, porque el footer ahora lista la dirección de cada sucursal y el
+  local demo hereda la de la configuración (a 375 px el footer está oculto por CSS, pero el modo
+  estricto de Playwright cuenta los elementos del DOM). Se acotó la aserción a la fila del punto de
+  retiro en `cef9a1c` (`fix(test)`), sin tocar ninguna verificación de producto.
+
+### A-08 · La marca en el header también en celular (2026-09-13) — **cerrada**
+
+Segundo ítem del ciclo de auditoría. El owner reportó que *"el isotipo de One Burger desapareció en los
+headers"*; lo que se verificó es que **el asset no estaba roto**: lo que pasaba es que
+`getPublicHeaderClassName()` devolvía `hidden … md:block`, así que por debajo de `md` el header entero
+—isotipo y nombre incluidos— no existía. El alcance que confirmó el owner: la marca se ve **también en
+celular**. Commit `f0366c8`.
+
+- **El header del sitio público se dibuja en todos los anchos.** La navegación de escritorio (Menú y
+  carrito) sigue apareciendo desde `sm`, y en celular el resto de la navegación vive en la barra
+  inferior, que no se tocó.
+- **El isotipo conserva su `aria-hidden="true"`**: el nombre accesible del enlace sigue siendo
+  `<nombre> inicio`, sin anunciar el nombre dos veces. El caso de E2E busca el enlace por ese nombre
+  exacto, así que un isotipo que aportara texto lo rompería.
+- **Cambio de contrato en un test**: `src/app/(public)/public-layout-helpers.test.ts` afirmaba que el
+  header estaba oculto en celular; se reescribió para el contrato nuevo (el archivo explica por qué).
+- **TDD en el navegador real**: el caso nuevo `tests/e2e/public-header.spec.ts` se corrió **primero**
+  contra el build servido con el código viejo y falló como debía (`la marca tiene que verse en /` →
+  `element(s) not found` a 375 px), mientras el caso de 1280 px ya pasaba: el test mide exactamente lo
+  que la tarea cambia. Después del cambio: verde en los dos anchos y en `/`, `/menu` y `/cart`, sin
+  scroll horizontal.
+- **Verificación**: **1560 unitarios en 245 archivos**, lint, typecheck, `build:webpack` y
+  `security:secrets` en verde; **E2E 88 pasaron / 6 salteados / 0 fallos**.
+- **A la vista, no escondido**: la home sigue mostrando el nombre como `<h1>` de la página (título +
+  badge Abierto/Cerrado) además del nombre del header. Es deliberado —el `h1` es el título y el header
+  es la marca de navegación— y si el owner prefiere una sola aparición en la primera pantalla es un
+  cambio de diseño aparte (esa fila es el encabezado que ordena el mock, T2).
+- **No desplegado**: A-07 y A-08 están en `main` con CI verde pero **producción sigue en el deploy
+  `5a487ad`**; desplegar necesita la confirmación del owner y, después, los dos smokes de solo lectura.
 
 ## 3. Infraestructura y secretos
 

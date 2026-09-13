@@ -74,13 +74,18 @@ retiro, forma de pago y vuelto. El menú real lo está cargando el owner y el **
 está probado** (drill de restore hecho el 2026-09-12: el respaldo restauró completo en un Postgres
 temporal). Detalle y prioridades en `ops/project-state.md` §4.
 
+**Sin desplegar todavía** (está en `main` con CI verde, pero producción sigue en `5a487ad`): la
+información de **cada sucursal** en la home y el footer (A-07) y la **marca en el header también en
+celular** (A-08). Desplegar necesita la confirmación del owner.
+
 ## 4. Cola de pendientes (en orden recomendado)
 
 **Primero está la cola de auditoría** ([`ops/audit-backlog.md`](../audit-backlog.md)): es lo que el
-owner va reportando al revisar el producto. A-01/A-07 quedaron **cerrados** el 2026-09-12 (commit
-`83d7433`: la home y el footer muestran la información de **cada sucursal**) y el próximo de esa cola
-es **A-08** (la marca —isotipo + nombre— también en el header de celular), con el alcance ya
-confirmado por el owner. Después, esta lista:
+owner va reportando al revisar el producto. **A-01/A-07** (commit `83d7433`: la home y el footer
+muestran la información de **cada sucursal**) y **A-08** (commit `f0366c8`: la marca —isotipo +
+nombre— en el header **también en celular**) quedaron cerrados. Lo que sigue en esa cola (A-02 a A-06)
+está **bloqueado**: son datos, infraestructura o decisiones del owner, así que **hay que preguntarle**
+cuál sigue. Después, esta lista:
 
 1. **Monitoreo externo** — un uptime que pegue a `GET /api/readiness` y avise al canal del equipo.
    Receta: runbook §8.5. Necesita que el owner elija el servicio.
@@ -106,11 +111,10 @@ npx prisma generate   # solo si el build local falla por el cliente de Prisma
 ```
 
 Y la última línea de base conocida, para comparar: **1560 tests unitarios en 245 archivos**, CI
-(`verify` + `migrations` + `container` + `publish`) verde en cada push, E2E local **84 pasaron / 6
-salteados / 0 fallos** (los 6 saltos son la verificación de dominios reales) y smoke productivo
-**7/7** más hosts **6/6**. Ojo con el E2E: **A-07 sumó dos casos y reescribió uno** en
-`tests/e2e/public-home.spec.ts` que **todavía no se corrieron** (el arnés necesita Docker/Postgres);
-la verificación por DOM de ese cambio sí está (`src/app/(public)/layout.dom.test.tsx`).
+(`verify` + `migrations` + `container` + `publish`) verde en cada push, E2E local **88 pasaron / 6
+salteados / 0 fallos** (los 6 saltos son la verificación de dominios reales; el arnés local corre con
+`E2E_APEX_HOST`, ver §5 de `project-state.md`) y smoke productivo **7/7** más hosts **6/6**. El E2E
+local se corrió el **2026-09-13** con Postgres 17 + migraciones + seed + `next start -p 3210`.
 
 ## 6. Qué pedirle a Daniel si falta algo
 

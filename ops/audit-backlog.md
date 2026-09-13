@@ -20,8 +20,10 @@
 > 6. La UI se verifica a **375 px y 1280 px en navegador real** (Playwright), no en HTML estático.
 > 7. **Producción no se toca ni se despliega sin confirmación explícita del owner.**
 >
-> **Fecha de apertura**: 2026-09-12 · **Rama**: `main` · **Estado**: A-01/A-07 cerrados (commit
-> `83d7433`). El próximo de la cola es **A-08**, con su alcance ya confirmado por el owner.
+> **Fecha de apertura**: 2026-09-12 · **Rama**: `main` · **Estado**: A-01/A-07 (commit `83d7433`) y
+> A-08 (commit `f0366c8`) **cerrados**. Lo que queda en la cola (A-02 a A-06) está **bloqueado**: son
+> datos, infraestructura o decisiones del owner, así que no hay task técnica para atacar sin que él
+> diga cuál.
 
 ## 1. Índice
 
@@ -32,7 +34,7 @@ Estados: `reportado` · `a reproducir` · `en curso` · `cerrado` · `no-repro` 
 |---|---|---|---|---|---|
 | A-01 | El **footer** y el bloque **"Información del restaurante"** de la home muestran horario, ciudad y dirección de la **configuración del negocio**, no del local: con 3 locales reales la información no corresponde al local del pedido | decisión | P2 | `cerrado` (A-07) | `83d7433` |
 | A-07 | **"Acá debería salir la información de cada sucursal"**: el footer tiene que mostrar los datos de **cada local**, no los del negocio | feat | P2 | `cerrado` | `83d7433` |
-| A-08 | **El isotipo de One Burger desapareció en los headers**: el owner pide que la marca (isotipo + nombre del negocio) se mantenga arriba a la derecha en las secciones principales | bug | P2 | `reportado` (alcance confirmado: es el próximo) | — |
+| A-08 | **El isotipo de One Burger desapareció en los headers**: el owner pide que la marca (isotipo + nombre del negocio) se mantenga arriba a la derecha en las secciones principales | bug | P2 | `cerrado` | `f0366c8` |
 | A-02 | Datos mal cargados en **locales de producción**: el slug de *Camino de Oriente* es `one-burger-masaya` y la ciudad de *Casa Antigua* dice `Jinoteoe` | dato | P2 | `bloqueado` (sesión de owner) | — |
 | A-03 | Falta **cargar la carta completa** (categorías, productos, precios, fotos): producción tiene 2 categorías con 6 productos | dato | P3 | `bloqueado` (owner) | — |
 | A-04 | **Monitoreo externo** inexistente: nada pega a `GET /api/readiness` ni avisa si el sitio o la base se caen | infra | P2 | `bloqueado` (owner elige servicio) | — |
@@ -121,13 +123,16 @@ Estados: `reportado` · `a reproducir` · `en curso` · `cerrado` · `no-repro` 
     antes del arreglo, nombrando los dos lugares donde salía el horario del negocio. **CI verde** en el
     push (`verify` + `migrations` + `container` + `publish`, run `34767909489`), que es el que
     construye la imagen y la ejecuta contra Postgres.
-  - **Pendiente al cerrar**: el E2E de navegador real en los dos anchos (375 px en la home, 1280 px en
-    el footer) **no se corrió** porque Docker Desktop estaba apagado y el arnés necesita Postgres. Los
-    casos ya están escritos en `tests/e2e/public-home.spec.ts`; se corren en el próximo arranque del
-    entorno local. El footer **no existe a 375 px** (`hidden … md:block`), así que en celular la
-    información por sucursal llega por la home, como ya estaba anotado en esta ficha.
+  - **Pendiente al cerrar** → **saldado el 2026-09-13**: el E2E de navegador real en los dos anchos
+    (375 px en la home, 1280 px en el footer) se corrió con el arnés local completo (Postgres 17 +
+    migraciones + seed + `next start`) y la suite quedó **88 pasaron / 6 salteados / 0 fallos**. Al
+    correrla apareció **un hallazgo real del cambio**: en `/checkout` la aserción de la dirección
+    resolvía a dos elementos, porque el footer ahora lista la dirección de cada sucursal y el local
+    demo hereda la de la configuración; se acotó la aserción a la fila del punto de retiro (commit
+    `cef9a1c`, `fix(test)`), sin cambiar ninguna verificación de producto. El footer **no existe a
+    375 px** (`hidden … md:block`), así que en celular la información por sucursal llega por la home.
 
-### A-08 · El isotipo y el nombre del negocio en los headers — `en curso`
+### A-08 · El isotipo y el nombre del negocio en los headers — `cerrado` (commit `f0366c8`)
 
 - **Qué se reportó** (owner, 2026-09-12): *"el isotipo de One Burger desapareció en los header[s] de
   la derecha… quiero que se mantenga ese header en las secciones principales: nombre del negocio e
@@ -152,16 +157,33 @@ Estados: `reportado` · `a reproducir` · `en curso` · `cerrado` · `no-repro` 
   duplica la marca, **no** se le agrega un `alt` que repita el nombre (dos veces el mismo texto para
   un lector de pantalla).
 - **Decisión del owner (2026-09-12)**: la marca (isotipo + nombre) tiene que verse **también en
-  celular**, en el header, como en las secciones principales de escritorio. Hoy
-  `getPublicHeaderClassName()` devuelve `hidden … md:block`, así que a 375 px no hay marca. El
-  isotipo a la derecha duplicado **no** es lo pedido: se mantiene una marca consistente arriba.
-  **Es el próximo task de la cola** (una task por vez: no se toca código de A-08 hasta que A-07 esté
-  cerrado, y ya lo está).
+  celular**, en el header, como en las secciones principales de escritorio. El isotipo a la derecha
+  duplicado **no** es lo pedido: se mantiene una marca consistente arriba.
 - **Criterio de aceptación**: la marca (isotipo + nombre) se ve en las superficies principales a
   **375 px y 1280 px**, con el asset configurado en `/admin/settings` (nunca hardcodeado), sin scroll
   horizontal y sin duplicar el anuncio accesible. Test de componente + E2E en los dos anchos.
+- **Cierre (2026-09-13, commit `f0366c8`)**:
+  - `getPublicHeaderClassName()` ya no oculta el header por debajo de `md`: **la marca se ve en todos
+    los anchos**. La navegación de escritorio (Menú y carrito) sigue apareciendo desde `sm`, y en
+    celular el resto de la navegación vive en la barra inferior, que no se tocó.
+  - El isotipo conserva su `aria-hidden="true"`, así que el nombre accesible del enlace sigue siendo
+    `<nombre> inicio` y el nombre no se anuncia dos veces.
+  - **Cambio de contrato en un test**: `public-layout-helpers.test.ts` afirmaba que el header estaba
+    oculto en celular; se reescribió para el contrato nuevo (el archivo explica el motivo).
+  - **Verificación en el navegador real, con el rojo confirmado primero**: el caso nuevo
+    `tests/e2e/public-header.spec.ts` se corrió contra el build servido con el código viejo y falló
+    como debía (`la marca tiene que verse en /` → `element(s) not found` a 375 px, mientras el de
+    1280 px ya pasaba). Después del cambio: verde en los dos anchos y en `/`, `/menu` y `/cart`, sin
+    scroll horizontal.
+  - **Suite completa**: 1560 unitarios en 245 archivos, lint, typecheck, `build:webpack` y
+    `security:secrets` en verde; **E2E 88 pasaron / 6 salteados / 0 fallos**.
+- **Queda a la vista, no escondido**: la home sigue mostrando el nombre del negocio como `<h1>` de la
+  página (título + badge Abierto/Cerrado) además del nombre del header. Es deliberado: el `h1` es el
+  título de la página y el header es la marca de navegación. Si el owner prefiere una sola aparición
+  del nombre en la primera pantalla, es un cambio de diseño aparte (el mock de T2 ordena esa fila
+  como encabezado de la home).
 - **Referencias**: `ops/project-state.md` §2 ("Arreglo de branding: el logo y los colores no llegaban
-  a toda la app"); `src/shared/ui/brand-mark.tsx`.
+  a toda la app" y "A-08 · la marca en el header"); `src/shared/ui/brand-mark.tsx`.
 
 ### A-02 · Datos de los locales de producción — `bloqueado` (sesión de owner)
 
@@ -206,4 +228,5 @@ Estados: `reportado` · `a reproducir` · `en curso` · `cerrado` · `no-repro` 
 
 | ID | Qué se cerró | Commit | Verificación |
 |---|---|---|---|
-| A-01 · A-07 | La home y el footer muestran la información de **cada sucursal activa** (nombre, dirección, horario y "Cómo llegar", de `GET /api/locations`) y el footer deja de imprimir el horario y la ciudad de la configuración del negocio | `83d7433` | 1560 unitarios en 245 archivos (el test del footer se confirmó **rojo** primero), lint, typecheck, `build:webpack` y `security:secrets` en verde; **CI verde** (`verify` + `migrations` + `container` + `publish`, run `34767909489`). **E2E de navegador (375 px y 1280 px) pendiente**: Docker estaba apagado al cerrar; los casos ya están escritos |
+| A-01 · A-07 | La home y el footer muestran la información de **cada sucursal activa** (nombre, dirección, horario y "Cómo llegar", de `GET /api/locations`) y el footer deja de imprimir el horario y la ciudad de la configuración del negocio | `83d7433` | 1560 unitarios en 245 archivos (el test del footer se confirmó **rojo** primero), lint, typecheck, `build:webpack` y `security:secrets` en verde; **CI verde** (`verify` + `migrations` + `container` + `publish`, run `34767909489`). **E2E de navegador corrido el 2026-09-13**: 88 pasaron / 6 salteados / 0 fallos (375 px home y 1280 px footer); dejó un hallazgo de arnés, arreglado en `cef9a1c` |
+| A-08 | La marca (isotipo + nombre) se ve **en todos los anchos**, incluido celular, en el header de las secciones principales | `f0366c8` | TDD en navegador real: el caso nuevo se confirmó **rojo** contra el build viejo (`element(s) not found` a 375 px) y verde después; 1560 unitarios en 245 archivos, lint, typecheck, `build:webpack`, `security:secrets` y **E2E 88/6/0** |
