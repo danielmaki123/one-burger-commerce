@@ -220,8 +220,8 @@ Estados: `reportado` · `a reproducir` · `en curso` · `cerrado` · `no-repro` 
 
 ### A-06 · Rotar el `EASYPANEL_TOKEN` — `bloqueado` (decisión de owner)
 
-- **Por qué**: el token da acceso total al servidor y se pasó por chat **tres veces** (2026-09-10,
-  2026-09-12 y **2026-09-13**, esta última para el deploy de A-07/A-08).
+- **Por qué**: el token da acceso total al servidor y se pasó por chat **cuatro veces** (2026-09-10,
+  2026-09-12, y **dos veces el 2026-09-13**: el deploy de A-07/A-08 y el de A).
 - **Receta**: `ops/production-readiness.md` §8.3 (panel → Settings → API tokens: crear uno nuevo,
   usarlo y revocar el viejo).
 - **Ojo**: el `inspectService` del panel devuelve el `env` completo del servicio (incluye

@@ -74,9 +74,9 @@ retiro, forma de pago y vuelto. El menú real lo está cargando el owner y el **
 está probado** (drill de restore hecho el 2026-09-12: el respaldo restauró completo en un Postgres
 temporal). Detalle y prioridades en `ops/project-state.md` §4.
 
-**Desplegado el 2026-09-13** (commit `ea6be95`, build `build-20260913-174229`): la información de
-**cada sucursal** en la home y el footer (A-07) y la **marca en el header también en celular** (A-08),
-verificados contra `menu.oneburgernic.com` con el smoke 7/7 y los dominios 6/6.
+**Desplegado el 2026-09-13**: primero A-07/A-08 (commit `ea6be95`) y después **A**, el alcance por
+sucursal del staff (commit `982da3f`, build `build-20260913-191302`), verificados con el smoke 7/7 y
+los dominios 6/6 contra `menu.oneburgernic.com` y el apex.
 
 ## 4. Cola de pendientes (en orden recomendado)
 
@@ -87,11 +87,13 @@ nombre— en el header **también en celular**) quedaron cerrados. Lo que sigue 
 está **bloqueado**: son datos, infraestructura o decisiones del owner, así que **hay que preguntarle**
 cuál sigue. Después, esta lista:
 
-**Trabajo técnico ya acordado y en curso (no está en la cola de auditoría)**: `TASK-staff-location-scope`
-(A) quedó **cerrada el 2026-09-13** (cada usuario del staff ve solo sus sucursales; el dueño ve todas;
-el filtro por local de la bandeja ahora filtra de verdad; activar/apagar sucursal de un toque). Le
-sigue **B, la consola de pedidos** (`TASK-orders-console.md`: auto-refresh y avisos, aceptar/rechazar
-en la fila, modo cocina, filtros avanzados, umbrales de demora), que todavía **no arrancó**.
+**Trabajo técnico ya acordado**: `TASK-staff-location-scope` (A) quedó **cerrada y desplegada el
+2026-09-13** (cada usuario del staff ve solo sus sucursales; el dueño ve todas; el filtro por local de
+la bandeja ahora filtra de verdad; activar/apagar sucursal de un toque). Le sigue **B, la consola de
+pedidos** (`TASK-orders-console.md`: auto-refresh y avisos, aceptar/rechazar en la fila, modo cocina,
+filtros avanzados, umbrales de demora), que todavía **no arrancó**. Queda **un QA interactivo de A que
+necesita la sesión del owner**: asignarle una sucursal a la cuenta de cocina en `/admin/users` y
+entrar con ella para ver la bandeja acotada (el recorrido está cubierto por el E2E local).
 
 1. **Monitoreo externo** — un uptime que pegue a `GET /api/readiness` y avise al canal del equipo.
    Receta: runbook §8.5. Necesita que el owner elija el servicio.

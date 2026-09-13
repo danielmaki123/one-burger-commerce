@@ -1,8 +1,8 @@
 # Estado del proyecto — One Burger Commerce
 
-> Actualizado: 2026-09-13 · Último deploy a producción: 2026-09-13, commit `ea6be95`
-> (build `build-20260913-174229`, deploy manual por API sobre el servicio `oneburguerweb`). Lleva el
-> ciclo de auditoría A-07 (información de cada sucursal) y A-08 (la marca en el header de celular).
+> Actualizado: 2026-09-13 · Último deploy a producción: 2026-09-13, commit `982da3f`
+> (build `build-20260913-191302`, deploy manual por API sobre el servicio `oneburguerweb`). Lleva
+> **A**, el alcance por sucursal del staff, con la migración `add_admin_user_locations`.
 > Este documento es el punto de entrada para retomar el trabajo. Mantenerlo al día al cerrar cada tarea.
 > Para arrancar en un chat nuevo: `ops/tasks/START-HERE.md`.
 
@@ -2055,8 +2055,27 @@ Brief en [`ops/tasks/TASK-staff-location-scope.md`](tasks/TASK-staff-location-sc
 con una cocina asignada a una sucursal: ve solo la suya, no puede abrir la ajena ni por URL, y un
 usuario sin asignar sigue viendo todo). **CI verde** en el push (`verify` + `migrations` + `container`
 + `publish`, run `34776231376`): el job `migrations` aplica `add_admin_user_locations` en una base
-limpia y falla ante drift, así que la migración está probada en el camino real. **No desplegado**:
-entra con el próximo deploy, con el OK del owner.
+limpia y falla ante drift, así que la migración está probada en el camino real.
+
+### Deploy de A a producción (2026-09-13, commit `982da3f`) — **verificado**
+
+- **Cómo se hizo**: una sola llamada a `deployService` (proyecto `brunobot`, servicio `oneburguerweb`,
+  `forceRebuild: true`), sin `npm run deploy:easypanel`. El POST cortó por timeout a los 150 s, como
+  está documentado: el build siguió en segundo plano (~1,5 min hasta que el sitio sirvió la versión
+  nueva).
+- **Resultado**: `commit.sha` del servicio en **`982da3f`** (main) y build **`build-20260913-191302`**
+  sirviendo en los **cuatro** hosts, con `readiness: ready`. Como el contenedor nuevo arrancó y el
+  arranque aplica migraciones antes de servir, quedó aplicada `add_admin_user_locations` (tabla nueva,
+  sin ventana de esquema: no toca datos existentes).
+- **QA de solo lectura**: smoke productivo **7/7**, dominios **6/6**, `public-header.spec.ts` **2/2**
+  (A-08 sigue bien: la marca en el header a 375 px y 1280 px), `GET /api/admin/orders` sin sesión
+  **401**, y `/api/locations`, `/api/menu`, `/api/health` en 200 con el punto de retiro sin teléfono
+  ni WhatsApp internos. Sin mutaciones en producción.
+- **QA interactivo pendiente (necesita la sesión del owner)**: en `/admin/users` asignarle una
+  sucursal a la cuenta de cocina y entrar con ella para ver que la bandeja muestra solo esa sucursal
+  (el recorrido completo está cubierto por el E2E local; en producción no se crearon usuarios).
+- **El token del panel se volvió a compartir por chat** (cuarta vez, para los dos deploys del
+  2026-09-13): **hay que rotarlo** (ítem A-06 del backlog).
 
 ## 3. Infraestructura y secretos
 - `EASYPANEL_URL` y `EASYPANEL_TOKEN`: solo en el entorno de quien ejecuta el deploy (nunca

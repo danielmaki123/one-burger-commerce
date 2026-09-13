@@ -13,9 +13,10 @@ de Casa Antigua que viven en `docs/` (esa carpeta no se versiona).
 
 - Panel: `http://76.13.250.83:3000`
 - Proyecto / servicio: **`brunobot` / `oneburguerweb`**
-- **Deploy actual**: commit **`ea6be95`** (main), build **`build-20260913-174229`**. Lleva el ciclo de
-  auditoría **A-07** (la home y el footer muestran la información de cada sucursal) y **A-08** (la marca
-  en el header también en celular). Sin migraciones nuevas. El anterior era `7635a06`.
+- **Deploy actual**: commit **`982da3f`** (main), build **`build-20260913-191302`**. Lleva **A**
+  (alcance por sucursal del staff: cada usuario ve las suyas, el dueño ve todas) con la migración
+  **`add_admin_user_locations`** (tabla nueva, aditiva, sin backfill) y el arreglo del filtro por
+  local de la bandeja, que hasta ese deploy **no filtraba**. El anterior era `ea6be95`.
 - Dominios públicos (verificado el 2026-09-12): **`https://oneburgernic.com`** (apex, canónico) y
   `https://www.oneburgernic.com` sirven el **landing** y redirigen las páginas de la app (307) a
   `menu.`/`admin.`; **`https://menu.oneburgernic.com`** sirve la **app de pedidos** y
@@ -34,7 +35,10 @@ de Casa Antigua que viven en `docs/` (esa carpeta no se versiona).
   `npm run deploy:easypanel`**: fusiona variables y puede crear servicios. El **webhook del panel no es
   fiable** en esta instalación.
 - Verificado (2026-09-13): `/api/health` y `/api/readiness` en 200 en los cuatro dominios, smoke
-  productivo **7/7**, dominios **6/6** y `/admin` redirigiendo a login.
+  productivo **7/7**, dominios **6/6** y `/admin` redirigiendo a login. En el deploy de A también se
+  comprobó: `commit.sha` en `982da3f`, `readiness: ready` (el contenedor nuevo aplicó la migración al
+  arrancar), `GET /api/admin/orders` sin sesión **401**, y las superficies públicas
+  (`/api/locations`, `/api/menu`, `/api/health`) en 200 con el punto de retiro sin contacto interno.
 
 ⚠️ **Avisos de esta instalación**
 
