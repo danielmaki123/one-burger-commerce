@@ -8,11 +8,17 @@ import {
 } from "./public-layout-helpers";
 
 describe("public layout helpers", () => {
-  it("hides the global public header on mobile and keeps it on desktop", () => {
+  /**
+   * A-08 — **cambio de contrato**: antes el header era `hidden … md:block` y por debajo de `md` la
+   * marca (isotipo + nombre) no existía. El owner pidió que se mantenga en las secciones
+   * principales, así que ahora se dibuja en todos los anchos. El caso se reescribe por eso, no
+   * para que pase: la visibilidad real la mide `tests/e2e/public-header.spec.ts` en el navegador.
+   */
+  it("keeps the public header visible at every width", () => {
     const className = getPublicHeaderClassName();
 
-    expect(className).toContain("hidden");
-    expect(className).toContain("md:block");
+    expect(className).not.toContain("hidden");
+    expect(className).toContain("sticky");
   });
 
   it("hides the informational public footer on mobile", () => {
