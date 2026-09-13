@@ -225,4 +225,90 @@ describe("AdminLocationsPage", () => {
     );
     expect(screen.queryByRole("button", { name: "Editar local Norte" })).toBeNull();
   });
+
+  /**
+   * A — activar y apagar una sucursal de un toque, sin abrir el formulario completo.
+   *
+   * El guardado viaja **completo** (es el contrato del PATCH), así que el toque manda el local tal
+   * como está con `isActive` invertido: no se pierde nada de lo demás.
+   */
+  it("apaga un local activo de un toque", async () => {
+    const user = userEvent.setup();
+    render(<AdminLocationsPage />);
+
+    await user.click(await screen.findByRole("button", { name: "Apagar Principal" }));
+
+    expect(await screen.findByText("Local apagado.")).toBeTruthy();
+
+    const [, init] = fetchMock.mock.calls.find(
+      ([url, options]) =>
+        requestUrl(url as RequestInfo) === "/api/admin/locations/loc_principal" &&
+        (options as RequestInit | undefined)?.method === "PATCH",
+    ) as [string, RequestInit];
+    const body = JSON.parse(String(init.body)) as Record<string, unknown>;
+
+    expect(body.isActive).toBe(false);
+    // El resto de la configuración viaja igual: el toque no borra datos.
+    expect(body).toMatchObject({
+      name: "Principal",
+      slug: "principal",
+      isAcceptingOrders: true,
+      pickupLeadMinutes: 25,
+    });
+  });
+
+  it("activa un local apagado de un toque", async () => {
+    const user = userEvent.setup();
+    render(<AdminLocationsPage />);
+
+    await user.click(await screen.findByRole("button", { name: "Activar Norte" }));
+
+    expect(await screen.findByText("Local activado.")).toBeTruthy();
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/admin/locations/loc_norte",
+      expect.objectContaining({
+        method: "PATCH",
+        body: expect.stringContaining('"isActive":true'),
+      }),
+    );
+  });
+
+  it("muestra el motivo cuando la API rechaza apagar el único local activo", async () => {
+    const user = userEvent.setup();
+    fetchMock.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = requestUrl(input);
+      const method = init?.method ?? "GET";
+
+      if (url === "/api/admin/locations" && method === "GET") {
+        return jsonResponse({ data: [principal, norte] });
+      }
+      if (url === "/api/admin/business-settings") {
+        return jsonResponse({ data: { timezone: "America/Managua" } });
+      }
+
+      return jsonResponse(
+        {
+          error: {
+            code: "CONFLICT",
+            message: "Cannot disable the last active location",
+            fields: {
+              isActive:
+                "Este es el único local activo: activá otro antes de apagar este, o dejalo encendido",
+            },
+          },
+        },
+        false,
+      );
+    });
+
+    render(<AdminLocationsPage />);
+
+    await user.click(await screen.findByRole("button", { name: "Apagar Principal" }));
+
+    expect(
+      await screen.findByText(
+        "Este es el único local activo: activá otro antes de apagar este, o dejalo encendido",
+      ),
+    ).toBeTruthy();
+  });
 });

@@ -72,6 +72,38 @@ describe("updateLocation", () => {
     expect(result.data.pickupLeadMinutes).toBe(25);
   });
 
+  it("no puede apagar el último local activo (A)", async () => {
+    // Es la guarda simétrica del borrado: el negocio necesita al menos un local que se pueda
+    // elegir, así que apagar el último dejaría el checkout sin a dónde mandar el pedido.
+    const repo = new InMemoryLocationRepository([
+      createInMemoryLocation({ id: "loc_norte", name: "Norte", slug: "norte", isActive: true }),
+      createInMemoryLocation({
+        id: "loc_sur",
+        name: "Sur",
+        slug: "sur",
+        isActive: false,
+        sortOrder: 1,
+      }),
+    ]);
+
+    await expect(
+      updateLocation("loc_norte", input({ isActive: false }), { repository: repo }),
+    ).rejects.toMatchObject({
+      status: 409,
+      fields: { isActive: expect.stringContaining("único local activo") },
+    });
+
+    expect((await repo.findLocationById("loc_norte"))?.isActive).toBe(true);
+  });
+
+  it("con otro local activo sí se puede apagar (A)", async () => {
+    const result = await updateLocation("loc_norte", input({ isActive: false }), {
+      repository: repository(),
+    });
+
+    expect(result.data.isActive).toBe(false);
+  });
+
   it("rechaza datos inválidos sin tocar lo guardado", async () => {
     const repo = repository();
 

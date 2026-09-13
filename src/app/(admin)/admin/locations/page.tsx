@@ -106,6 +106,59 @@ export default function AdminLocationsPage() {
     setFieldErrors({});
   };
 
+  /**
+   * A — activar o apagar la sucursal de un toque, sin abrir el formulario.
+   *
+   * El PATCH es de guardado completo, así que se manda el local tal como está con `isActive`
+   * invertido: el toque no pierde nada de lo demás. Si la API lo rechaza (el último local activo),
+   * se muestra su motivo y el estado no cambia en pantalla.
+   */
+  const handleToggleActive = async (location: LocationRecord) => {
+    if (saving) return;
+
+    setSaving(true);
+    setFeedback(null);
+
+    const nextIsActive = !location.isActive;
+    const input = locationFormToInput({ ...locationToForm(location), isActive: nextIsActive });
+
+    try {
+      const response = await fetch(`/api/admin/locations/${location.id}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(input),
+      });
+
+      if (!response.ok) {
+        const json = await response.json().catch(() => null);
+        const fields = json?.error?.fields ?? {};
+
+        setFeedback({
+          type: "error",
+          message:
+            fields.isActive ??
+            json?.error?.message ??
+            "No se pudo cambiar el estado del local.",
+        });
+        return;
+      }
+
+      setLocations((current) =>
+        current.map((entry) =>
+          entry.id === location.id ? { ...entry, isActive: nextIsActive } : entry,
+        ),
+      );
+      setFeedback({
+        type: "success",
+        message: nextIsActive ? "Local activado." : "Local apagado.",
+      });
+    } catch {
+      setFeedback({ type: "error", message: "No se pudo cambiar el estado. Revisá tu conexión." });
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleSave = async () => {
     if (!sheetLocation) return;
 
@@ -325,6 +378,18 @@ export default function AdminLocationsPage() {
                       ? `${describeLocationHours(location, settings.timezone, now)} · preparación ${location.pickupLeadMinutes} min`
                       : `Preparación ${location.pickupLeadMinutes} min`}
                   </span>
+                </button>
+
+                {/* Activar/apagar de un toque (A): es la operación más repetida del owner y no
+                    necesita abrir el formulario completo. */}
+                <button
+                  type="button"
+                  aria-label={`${location.isActive ? "Apagar" : "Activar"} ${location.name}`}
+                  disabled={saving}
+                  onClick={() => void handleToggleActive(location)}
+                  className="my-2 inline-flex min-h-11 shrink-0 items-center rounded-full border border-border px-3 text-xs font-semibold text-foreground hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:opacity-60"
+                >
+                  {location.isActive ? "Apagar" : "Activar"}
                 </button>
 
                 {/* Los precios y la disponibilidad por local viven en su propia pantalla: el

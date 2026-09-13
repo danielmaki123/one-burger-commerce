@@ -42,6 +42,22 @@ export async function updateLocation(
     });
   }
 
+  // Guarda simétrica del borrado (A): el negocio necesita al menos un local que se pueda elegir.
+  // Apagar el último dejaría el checkout sin a dónde mandar el pedido.
+  if (current.isActive && !input.isActive) {
+    const others = await repository.listLocations();
+    const anotherActive = others.some(
+      (location) => location.id !== id && location.isActive,
+    );
+
+    if (!anotherActive) {
+      throw new LocationError(409, "CONFLICT", "Cannot disable the last active location", {
+        isActive:
+          "Este es el único local activo: activá otro antes de apagar este, o dejalo encendido",
+      });
+    }
+  }
+
   const location = await repository.updateLocation(id, {
     ...input,
     name: input.name.trim(),
