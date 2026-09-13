@@ -6,6 +6,11 @@ export type AdminUserRecord = {
   email: string;
   passwordHash: string;
   role: AdminRole;
+  /**
+   * Sucursales asignadas (A). **Vacío significa "ve todas"**: el dueño y el usuario sin asignar
+   * no quedan acotados, que es lo que mantiene la operación andando el día del deploy.
+   */
+  locationIds: string[];
 };
 
 export type AdminSessionRecord = {
@@ -19,6 +24,6 @@ export type AdminSessionRecord = {
 
 export type AuthenticatedAdminUser = Pick<
   AdminUserRecord,
-  "id" | "name" | "email" | "role"
+  "id" | "name" | "email" | "role" | "locationIds"
 >;
 

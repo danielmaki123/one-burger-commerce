@@ -1,3 +1,4 @@
+import { toAuthenticatedAdminUser } from "@/modules/auth/domain/admin-user-view";
 import { AuthError } from "@/modules/auth/domain/auth-errors";
 import type { AdminAuthRepository } from "@/modules/auth/ports/admin-auth-repository";
 import { hashSessionToken } from "@/shared/lib/auth/session-token";
@@ -26,12 +27,8 @@ export async function getAdminSession(
 
   return {
     isAuthenticated: true as const,
-    user: {
-      id: session.user.id,
-      name: session.user.name,
-      email: session.user.email,
-      role: session.user.role,
-    },
+    // La vista del usuario lleva sus sucursales (A): el alcance de cada request sale de acá.
+    user: toAuthenticatedAdminUser(session.user),
   };
 }
 

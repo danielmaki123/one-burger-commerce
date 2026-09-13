@@ -37,6 +37,7 @@ export class InMemoryAdminAuthRepository implements AdminAuthRepository {
     email: string;
     passwordHash: string;
     role: AdminUserRecord["role"];
+    locationIds?: string[];
   }): Promise<AdminUserRecord> {
     const user: AdminUserRecord = {
       id: `user_${this.nextUserId}`,
@@ -44,6 +45,7 @@ export class InMemoryAdminAuthRepository implements AdminAuthRepository {
       email: input.email.trim().toLowerCase(),
       passwordHash: input.passwordHash,
       role: input.role,
+      locationIds: [...(input.locationIds ?? [])],
     };
 
     this.nextUserId += 1;
@@ -67,6 +69,19 @@ export class InMemoryAdminAuthRepository implements AdminAuthRepository {
     }
 
     user.role = role;
+
+    return user;
+  }
+
+  async setUserLocations(id: string, locationIds: string[]): Promise<AdminUserRecord> {
+    const user = this.users.find((entry) => entry.id === id);
+
+    if (!user) {
+      throw new Error(`Admin user ${id} not found`);
+    }
+
+    // Guardado completo, en el orden en que llegaron (paridad con el adaptador de Prisma).
+    user.locationIds = [...locationIds];
 
     return user;
   }

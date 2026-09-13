@@ -11,12 +11,19 @@ export interface AdminAuthRepository {
     email: string;
     passwordHash: string;
     role: AdminUserRecord["role"];
+    /** Sucursales asignadas (A). Sin lista, el usuario ve todas. */
+    locationIds?: string[];
   }): Promise<AdminUserRecord>;
   listUsers(): Promise<AdminUserRecord[]>;
   updateUserRole(
     id: string,
     role: AdminUserRecord["role"],
   ): Promise<AdminUserRecord>;
+  /**
+   * Reemplaza las sucursales asignadas (guardado completo, como el formulario de locales).
+   * Una lista vacía borra las asignaciones: el usuario vuelve a ver todas.
+   */
+  setUserLocations(id: string, locationIds: string[]): Promise<AdminUserRecord>;
   /**
    * Reescribe el hash de la contraseña. Lo usa el login para actualizar un hash viejo
    * (o más débil) en el momento en que tiene la contraseña en claro: es la única forma

@@ -85,7 +85,46 @@ describe("admin users route", () => {
     expect(response.status).toBe(201);
     expect(createAdminUserMock).toHaveBeenCalledWith(
       expect.objectContaining({ role: "kitchen" }),
-      { repository: expect.any(Object), actorRole: "owner" },
+      {
+        repository: expect.any(Object),
+        locationRepository: expect.any(Object),
+        actorRole: "owner",
+      },
+    );
+  });
+
+  it("POST pasa las sucursales asignadas al caso de uso (A)", async () => {
+    requireAdminSessionMock.mockResolvedValueOnce({
+      user: { id: "owner_1", role: "owner" },
+    });
+    createAdminUserMock.mockResolvedValueOnce({
+      data: {
+        id: "user_3",
+        name: "Cocina Norte",
+        email: "norte@oneburger.local",
+        role: "kitchen",
+        locationIds: ["loc_norte"],
+      },
+    });
+
+    const { POST } = await import("./route");
+    const response = await POST(
+      new Request("http://localhost/api/admin/users", {
+        method: "POST",
+        body: JSON.stringify({
+          name: "Cocina Norte",
+          email: "norte@oneburger.local",
+          password: "Admin1234!",
+          role: "kitchen",
+          locationIds: ["loc_norte"],
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(201);
+    expect(createAdminUserMock).toHaveBeenCalledWith(
+      expect.objectContaining({ locationIds: ["loc_norte"] }),
+      expect.objectContaining({ locationRepository: expect.any(Object) }),
     );
   });
 });

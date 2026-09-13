@@ -20,6 +20,7 @@ function createRepository() {
       email: "admin@oneburger.local",
       passwordHash: hashPassword("secret123"),
       role: ADMIN_ROLES.owner,
+      locationIds: [],
     },
   ]);
 }
@@ -37,6 +38,7 @@ function createLegacyRepository() {
       email: "admin@oneburger.local",
       passwordHash: legacyHash("secret123"),
       role: ADMIN_ROLES.owner,
+      locationIds: [],
     },
   ]);
 }

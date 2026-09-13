@@ -13,6 +13,7 @@ function seedUser(role: AdminUserRecord["role"], id = "user_2"): AdminUserRecord
     email: `${id}@oneburger.local`,
     passwordHash: "hash",
     role,
+    locationIds: [],
   };
 }
 

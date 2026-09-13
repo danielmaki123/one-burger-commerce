@@ -1,7 +1,7 @@
-import type { AuthenticatedAdminUser } from "@/modules/auth/domain/admin-auth.types";
 import type { AdminUserRecord } from "@/modules/auth/domain/admin-auth.types";
 import { isAdminRole, type AdminRole, ADMIN_ROLES } from "@/modules/auth/domain/admin-role";
 import { canManageUsers } from "@/modules/auth/domain/admin-permissions";
+import { toAuthenticatedAdminUser } from "@/modules/auth/domain/admin-user-view";
 import { AuthError } from "@/modules/auth/domain/auth-errors";
 import type { AdminAuthRepository } from "@/modules/auth/ports/admin-auth-repository";
 
@@ -14,17 +14,6 @@ type UpdateAdminUserRoleDependencies = {
   repository: AdminAuthRepository;
   actorRole: AdminRole;
 };
-
-function toAuthenticatedAdminUser(
-  user: AdminUserRecord,
-): AuthenticatedAdminUser {
-  return {
-    id: user.id,
-    name: user.name,
-    email: user.email,
-    role: user.role,
-  };
-}
 
 function countOwners(users: AdminUserRecord[]): number {
   return users.filter((user) => user.role === ADMIN_ROLES.owner).length;

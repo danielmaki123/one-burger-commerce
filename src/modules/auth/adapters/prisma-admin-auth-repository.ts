@@ -13,6 +13,7 @@ function mapUser(user: {
   email: string;
   passwordHash: string;
   role: AdminRole;
+  locations?: { locationId: string }[];
 }): AdminUserRecord {
   return {
     id: user.id,
@@ -20,14 +21,22 @@ function mapUser(user: {
     email: user.email,
     passwordHash: user.passwordHash,
     role: user.role,
+    // El orden es el de la selección en el formulario (que sigue el orden de los locales).
+    locationIds: (user.locations ?? []).map((location) => location.locationId),
   };
 }
+
+/** Las asignaciones viajan siempre con el usuario: el alcance de pedidos las necesita en la sesión. */
+const USER_WITH_LOCATIONS = {
+  locations: { select: { locationId: true }, orderBy: { createdAt: "asc" } },
+} as const;
 
 export class PrismaAdminAuthRepository implements AdminAuthRepository {
   async findUserByEmail(email: string) {
     const prisma = getPrismaClient();
     const user = await prisma.adminUser.findUnique({
       where: { email: email.toLowerCase() },
+      include: USER_WITH_LOCATIONS,
     });
 
     return user ? mapUser(user) : null;
@@ -35,7 +44,10 @@ export class PrismaAdminAuthRepository implements AdminAuthRepository {
 
   async findUserById(id: string) {
     const prisma = getPrismaClient();
-    const user = await prisma.adminUser.findUnique({ where: { id } });
+    const user = await prisma.adminUser.findUnique({
+      where: { id },
+      include: USER_WITH_LOCATIONS,
+    });
 
     return user ? mapUser(user) : null;
   }
@@ -45,13 +57,20 @@ export class PrismaAdminAuthRepository implements AdminAuthRepository {
     email: string;
     passwordHash: string;
     role: AdminRole;
+    locationIds?: string[];
   }) {
     const prisma = getPrismaClient();
     const user = await prisma.adminUser.create({
       data: {
-        ...input,
+        name: input.name,
         email: input.email.toLowerCase(),
+        passwordHash: input.passwordHash,
+        role: input.role,
+        locations: input.locationIds?.length
+          ? { create: input.locationIds.map((locationId) => ({ locationId })) }
+          : undefined,
       },
+      include: USER_WITH_LOCATIONS,
     });
 
     return mapUser(user);
@@ -61,6 +80,7 @@ export class PrismaAdminAuthRepository implements AdminAuthRepository {
     const prisma = getPrismaClient();
     const users = await prisma.adminUser.findMany({
       orderBy: { createdAt: "asc" },
+      include: USER_WITH_LOCATIONS,
     });
 
     return users.map(mapUser);
@@ -71,7 +91,31 @@ export class PrismaAdminAuthRepository implements AdminAuthRepository {
     const user = await prisma.adminUser.update({
       where: { id },
       data: { role },
+      include: USER_WITH_LOCATIONS,
     });
+
+    return mapUser(user);
+  }
+
+  async setUserLocations(id: string, locationIds: string[]) {
+    const prisma = getPrismaClient();
+
+    // Guardado completo en una transacción: si falla la inserción, no se pierden las anteriores.
+    await prisma.$transaction([
+      prisma.adminUserLocation.deleteMany({ where: { adminUserId: id } }),
+      prisma.adminUserLocation.createMany({
+        data: locationIds.map((locationId) => ({ adminUserId: id, locationId })),
+      }),
+    ]);
+
+    const user = await prisma.adminUser.findUnique({
+      where: { id },
+      include: USER_WITH_LOCATIONS,
+    });
+
+    if (!user) {
+      throw new Error(`Admin user ${id} not found`);
+    }
 
     return mapUser(user);
   }
@@ -106,7 +150,8 @@ export class PrismaAdminAuthRepository implements AdminAuthRepository {
     const prisma = getPrismaClient();
     const session = await prisma.adminSession.findUnique({
       where: { tokenHash },
-      include: { user: true },
+      // Las asignaciones viajan con la sesión: el alcance de pedidos se resuelve en cada request.
+      include: { user: { include: USER_WITH_LOCATIONS } },
     });
 
     if (!session) {

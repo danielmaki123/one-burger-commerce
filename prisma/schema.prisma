@@ -15,14 +15,29 @@ enum AdminRole {
 }
 
 model AdminUser {
-  id           String         @id @default(cuid())
+  id           String              @id @default(cuid())
   name         String
-  email        String         @unique
+  email        String              @unique
   passwordHash String
   role         AdminRole
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
   sessions     AdminSession[]
+  locations    AdminUserLocation[]
+}
+
+/// Sucursales que puede ver un usuario del staff (A). El `owner` ve todas y su asignación se
+/// ignora; un gerente o cocina **sin filas acá** también ve todas (el deploy no deja a nadie
+/// ciego). Borrar el local o el usuario borra la asignación en cascada.
+model AdminUserLocation {
+  adminUserId String
+  locationId  String
+  createdAt   DateTime  @default(now())
+  adminUser   AdminUser @relation(fields: [adminUserId], references: [id], onDelete: Cascade)
+  location    Location  @relation(fields: [locationId], references: [id], onDelete: Cascade)
+
+  @@id([adminUserId, locationId])
+  @@index([locationId])
 }
 
 model AdminSession {
@@ -154,12 +169,12 @@ model Product {
 /// minutos de preparación y si acepta pedidos. La marca, la moneda y las promos siguen
 /// siendo del negocio entero y viven en `BusinessSettings`.
 model Location {
-  id                String            @id @default(cuid())
+  id                String              @id @default(cuid())
   name              String
-  slug              String            @unique
-  isActive          Boolean           @default(true)
+  slug              String              @unique
+  isActive          Boolean             @default(true)
   /// Orden manual; el primero activo es el local por defecto.
-  sortOrder         Int               @default(0)
+  sortOrder         Int                 @default(0)
   addressLine       String?
   city              String?
   addressReference  String?
@@ -169,15 +184,16 @@ model Location {
   phone             String?
   whatsapp          String?
   businessHours     Json
-  pickupLeadMinutes Int               @default(25)
+  pickupLeadMinutes Int                 @default(25)
   /// Máximo del rango de preparación (`null` = se promete un instante, no una franja).
   pickupMaxMinutes  Int?
-  isAcceptingOrders Boolean           @default(true)
+  isAcceptingOrders Boolean             @default(true)
   closedMessage     String?
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
   products          LocationProduct[]
   orders            Order[]
+  adminUsers        AdminUserLocation[]
 
   @@index([isActive, sortOrder])
 }

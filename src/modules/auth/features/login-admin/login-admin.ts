@@ -1,7 +1,4 @@
-import {
-  type AuthenticatedAdminUser,
-  type AdminUserRecord,
-} from "@/modules/auth/domain/admin-auth.types";
+import { toAuthenticatedAdminUser } from "@/modules/auth/domain/admin-user-view";
 import { AuthError } from "@/modules/auth/domain/auth-errors";
 import { ADMIN_SESSION_TTL_MS } from "@/modules/auth/domain/session-cookie";
 import type { AdminAuthRepository } from "@/modules/auth/ports/admin-auth-repository";
@@ -20,17 +17,6 @@ type LoginAdminDependencies = {
   repository: AdminAuthRepository;
   now?: Date;
 };
-
-function toAuthenticatedAdminUser(
-  user: AdminUserRecord,
-): AuthenticatedAdminUser {
-  return {
-    id: user.id,
-    name: user.name,
-    email: user.email,
-    role: user.role,
-  };
-}
 
 export async function loginAdmin(
   input: LoginAdminInput,

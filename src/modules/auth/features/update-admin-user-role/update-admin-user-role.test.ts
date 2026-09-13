@@ -13,6 +13,7 @@ function seedUser(role: AdminUserRecord["role"], id = "user_2"): AdminUserRecord
     email: `${id}@oneburger.local`,
     passwordHash: "hash",
     role,
+    locationIds: [],
   };
 }
 
@@ -33,6 +34,8 @@ describe("updateAdminUserRole", () => {
       name: "Usuario user_2",
       email: "user_2@oneburger.local",
       role: ADMIN_ROLES.manager,
+      // La vista del usuario lleva sus sucursales (A): vacío = ve todas.
+      locationIds: [],
     });
     expect(repository.users.find((user) => user.id === "user_2")?.role).toBe(
       ADMIN_ROLES.manager,

@@ -6,12 +6,25 @@ import { ADMIN_ROLES } from "@/modules/auth/domain/admin-role";
 import { AuthError } from "@/modules/auth/domain/auth-errors";
 import { deleteAdminUser } from "@/modules/auth/features/delete-admin-user/delete-admin-user";
 import { requireAdminSession } from "@/modules/auth/features/require-admin-session/require-admin-session";
+import { updateAdminUserLocations } from "@/modules/auth/features/update-admin-user-locations/update-admin-user-locations";
 import { updateAdminUserRole } from "@/modules/auth/features/update-admin-user-role/update-admin-user-role";
+import { PrismaLocationRepository } from "@/modules/locations/adapters/prisma-location-repository";
 import { createErrorResponse } from "@/shared/lib/http/error-response";
 
-const updateRoleSchema = z.object({
-  role: z.enum([ADMIN_ROLES.owner, ADMIN_ROLES.manager, ADMIN_ROLES.kitchen]),
-});
+/**
+ * Se puede cambiar el rol, las sucursales asignadas o las dos cosas. Un payload vacío se rechaza:
+ * un PATCH que no cambia nada es un botón que miente.
+ */
+const updateUserSchema = z
+  .object({
+    role: z
+      .enum([ADMIN_ROLES.owner, ADMIN_ROLES.manager, ADMIN_ROLES.kitchen])
+      .optional(),
+    locationIds: z.array(z.string().trim().min(1).max(80)).max(50).optional(),
+  })
+  .refine((value) => value.role !== undefined || value.locationIds !== undefined, {
+    message: "Nothing to update",
+  });
 
 export async function PATCH(
   request: Request,
@@ -21,22 +34,37 @@ export async function PATCH(
     const session = await requireAdminSession();
     const { id } = await params;
     const payload = await request.json().catch(() => ({}));
-    const parsed = updateRoleSchema.safeParse(payload);
+    const parsed = updateUserSchema.safeParse(payload);
 
     if (!parsed.success) {
       throw new AuthError(400, "BAD_REQUEST", "Invalid payload", {
-        role: "Invalid role",
+        role: "Rol o sucursales inválidas",
       });
     }
 
     const repository = new PrismaAdminAuthRepository();
-    const result = await updateAdminUserRole(
-      { userId: id, role: parsed.data.role },
-      {
-        repository,
-        actorRole: session.user.role,
-      },
-    );
+    let result: { data: unknown } | null = null;
+
+    if (parsed.data.role !== undefined) {
+      result = await updateAdminUserRole(
+        { userId: id, role: parsed.data.role },
+        {
+          repository,
+          actorRole: session.user.role,
+        },
+      );
+    }
+
+    if (parsed.data.locationIds !== undefined) {
+      result = await updateAdminUserLocations(
+        { userId: id, locationIds: parsed.data.locationIds },
+        {
+          repository,
+          locationRepository: new PrismaLocationRepository(),
+          actorRole: session.user.role,
+        },
+      );
+    }
 
     return NextResponse.json(result);
   } catch (error) {
