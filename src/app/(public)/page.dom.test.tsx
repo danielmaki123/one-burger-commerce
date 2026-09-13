@@ -117,10 +117,16 @@ function renderHome(settings: BusinessSettingsValue = settingsValue()) {
 
 describe("home pública (T2)", () => {
   beforeEach(() => {
+    // Stub por endpoint: sin locales cargados, la home cae al respaldo de la configuración
+    // (que es lo que fijan los casos históricos). Los casos con sucursales lo pisan.
     vi.stubGlobal(
       "fetch",
-      vi.fn(() =>
-        Promise.resolve({ ok: true, json: () => Promise.resolve(MENU_PAYLOAD) } as Response),
+      vi.fn((url: string) =>
+        Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve(url.includes("/api/locations") ? { data: [] } : MENU_PAYLOAD),
+        } as Response),
       ),
     );
     localStorage.clear();
@@ -187,7 +193,12 @@ describe("home pública (T2)", () => {
     );
   });
 
-  it("la información del restaurante usa los datos del admin y enlaces que funcionan", async () => {
+  /**
+   * A-07 — el **respaldo** de la configuración: sin sucursales cargadas, la información del
+   * restaurante sigue saliendo de `/admin/settings`, como antes de esta tarea. Lo que cambió
+   * es que con sucursales cargadas manda `/api/locations` (ver el caso de abajo).
+   */
+  it("sin sucursales cargadas, la información del restaurante sale de la configuración", async () => {
     renderHome(
       settingsValue({
         addressLine: "Frente al parque central",
@@ -197,12 +208,13 @@ describe("home pública (T2)", () => {
       }),
     );
 
-    const directions = await screen.findByRole("link", { name: /Cómo llegar/ });
+    await screen.findByText(/Frente al parque central, Jinotepe/);
+
+    const directions = screen.getByRole("link", { name: /Cómo llegar/ });
     expect(directions.getAttribute("href")).toBe("https://maps.test/one-burger");
     expect(screen.getByRole("link", { name: /Llamar/ }).getAttribute("href")).toBe(
       "tel:+50588770888",
     );
-    expect(screen.getByText(/Frente al parque central, Jinotepe/)).toBeTruthy();
   });
 
   it("sin URL de mapas arma la búsqueda con la dirección configurada", async () => {
@@ -268,5 +280,67 @@ describe("home pública (T2)", () => {
     expect(await screen.findByText("Cerrado")).toBeTruthy();
     expect(screen.getByText(/Hoy no abrimos en el Norte\./)).toBeTruthy();
     expect(screen.getByText(/Retiro: ~40 min/)).toBeTruthy();
+  });
+
+  /**
+   * A-07 — con más de un local, la home tiene que mostrar la información de **cada
+   * sucursal**, no la del negocio: es lo que el cliente necesita para saber dónde retira.
+   */
+  it("muestra la información de cada sucursal cuando hay más de una (A-07)", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string) => {
+        const body = url.includes("/api/locations")
+          ? {
+              data: [
+                {
+                  id: "loc_principal",
+                  name: "Camino de Oriente",
+                  addressLine: "Km 7 carretera",
+                  city: "Managua",
+                  addressReference: null,
+                  mapsUrl: "https://maps.test/oriente",
+                  businessHours: MENU_LOCATION_HOURS,
+                  pickupLeadMinutes: 20,
+                  pickupMaxMinutes: null,
+                  isAcceptingOrders: true,
+                  closedMessage: null,
+                },
+                {
+                  id: "loc_casa",
+                  name: "Casa Antigua",
+                  addressLine: "Frente al parque",
+                  city: "Jinotepe",
+                  addressReference: null,
+                  mapsUrl: null,
+                  businessHours: MENU_LOCATION_HOURS,
+                  pickupLeadMinutes: 20,
+                  pickupMaxMinutes: null,
+                  isAcceptingOrders: true,
+                  closedMessage: null,
+                },
+              ] satisfies Partial<PublicLocation>[],
+            }
+          : MENU_PAYLOAD;
+
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(body) } as Response);
+      }),
+    );
+
+    renderHome();
+
+    // Las dos sucursales, con su propia dirección (no la de la configuración).
+    expect(await screen.findByText("Camino de Oriente")).toBeTruthy();
+    expect(screen.getByText("Casa Antigua")).toBeTruthy();
+    expect(screen.getByText(/Km 7 carretera, Managua/)).toBeTruthy();
+    expect(screen.getByText(/Frente al parque, Jinotepe/)).toBeTruthy();
+
+    // Un enlace por sucursal: el del local con mapa cargado y el armado con la dirección del
+    // otro. Ninguno sale de la configuración del negocio (el bloque ya no repite la dirección).
+    const directions = screen.getAllByRole("link", { name: /Cómo llegar/ });
+    expect(directions.map((link) => link.getAttribute("href"))).toEqual([
+      "https://maps.test/oriente",
+      "https://www.google.com/maps/search/?api=1&query=Frente%20al%20parque%2C%20Jinotepe",
+    ]);
   });
 });

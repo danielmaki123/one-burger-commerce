@@ -24,20 +24,31 @@ test.describe("home pública", () => {
     await page.goto("/");
 
     await expect(page.getByRole("heading", { name: "Información del restaurante" })).toBeVisible();
-    // La dirección y el horario salen de `/admin/settings`, no del código.
-    await expect(page.getByText("Retiro en tienda")).toBeVisible();
-    await expect(page.getByText("Horario de atención")).toBeVisible();
-    await expect(
-      page.getByText(/(\d{2}:\d{2} - \d{2}:\d{2}|\bcerrado\b)/).first(),
-    ).toBeVisible();
 
-    const directions = page.getByRole("link", { name: /Cómo llegar/ });
-    await expect(directions).toBeVisible();
-    const href = await directions.getAttribute("href");
-    expect(href ?? "", "el enlace de mapas tiene que ser absoluto").toMatch(/^https:\/\//);
+    // A-07: la dirección se mudó a la tarjeta de la sucursal (sale de `/api/locations`); acá
+    // queda el contacto del negocio. La dirección ya no se repite en las dos superficies.
+    const locations = await page.evaluate(async () => {
+      const res = await fetch("/api/locations");
+      const payload = (await res.json()) as {
+        data: { addressLine: string | null; city: string | null }[];
+      };
+      return payload.data;
+    });
+    const addressParts = [locations[0].addressLine, locations[0].city].filter(Boolean);
+    for (const part of addressParts) {
+      await expect(page.getByText(String(part)).first()).toBeVisible();
+    }
+
+    await expect(page.getByText("Contacto")).toBeVisible();
 
     const call = page.getByRole("link", { name: /Llamar/ });
     await expect(call).toHaveAttribute("href", /^tel:\+\d+$/);
+
+    // Cada sucursal con dirección ofrece su "Cómo llegar" a un destino absoluto.
+    const directions = page.getByRole("link", { name: /Cómo llegar/ });
+    await expect(directions.first()).toBeVisible();
+    const href = await directions.first().getAttribute("href");
+    expect(href ?? "", "el enlace de mapas tiene que ser absoluto").toMatch(/^https:\/\//);
   });
 
   test("las tarjetas de producto llevan al producto y el '+' cumple el mínimo táctil", async ({
@@ -96,6 +107,34 @@ test.describe("home pública", () => {
     );
     expect(horizontalOverflow).toBeLessThanOrEqual(1);
   });
+
+  /**
+   * A-07 — la información de cada sucursal, contra `/api/locations` de verdad.
+   *
+   * El seed local tiene un solo local activo, así que la sección tiene que dibujarse igual:
+   * con un local también se ve su propia dirección (antes se veía la del negocio).
+   */
+  test("muestra la información de cada sucursal, no la del negocio (375 px)", async ({ page }) => {
+    await page.goto("/");
+
+    await expect(page.getByRole("heading", { name: "Sucursales" })).toBeVisible();
+
+    const locations = await page.evaluate(async () => {
+      const res = await fetch("/api/locations");
+      const payload = (await res.json()) as { data: { name: string; addressLine: string | null }[] };
+      return payload.data;
+    });
+    expect(locations.length, "el seed tiene que traer al menos un local").toBeGreaterThan(0);
+
+    // El nombre del local sale de la API, no del código.
+    await expect(page.getByText(locations[0].name).first()).toBeVisible();
+
+    // Y un local con dirección ofrece "Cómo llegar" a un destino absoluto.
+    const directions = page.getByRole("link", { name: /Cómo llegar/ });
+    await expect(directions.first()).toBeVisible();
+    const href = await directions.first().getAttribute("href");
+    expect(href ?? "", "el enlace del local tiene que ser absoluto").toMatch(/^https:\/\//);
+  });
 });
 
 test.describe("home pública en escritorio", () => {
@@ -132,5 +171,23 @@ test.describe("home pública en escritorio", () => {
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
     await expect(page.getByText(/^●?(Abierto|Cerrado)$/)).toBeVisible();
     await expect(page.getByLabel("Buscar en el menú")).toBeVisible();
+  });
+
+  /** A-07 — el footer de escritorio también lista las sucursales, no el horario del negocio. */
+  test("el footer muestra la información de cada sucursal (1280 px)", async ({ page }) => {
+    await page.goto("/menu");
+
+    await expect(page.getByRole("heading", { name: "Sucursales" })).toBeVisible();
+
+    const locations = await page.evaluate(async () => {
+      const res = await fetch("/api/locations");
+      const payload = (await res.json()) as { data: { name: string }[] };
+      return payload.data;
+    });
+    expect(locations.length).toBeGreaterThan(0);
+
+    const footer = page.locator("footer");
+    await expect(footer.getByText(locations[0].name).first()).toBeVisible();
+    await expect(footer.getByRole("link", { name: /Cómo llegar/ }).first()).toBeVisible();
   });
 });

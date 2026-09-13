@@ -15,6 +15,7 @@ import {
 import { formatCurrency } from "@/shared/lib/format-currency";
 import { getPublicStartingPrice } from "@/shared/lib/public-product-pricing";
 import { buildQuickAddCartItem, canQuickAddProduct } from "@/shared/lib/product-quick-add";
+import { PublicLocationsList } from "@/shared/ui/public-locations-list";
 import { getMenuSearchEmptyState } from "./menu/menu-page-helpers";
 import {
   flattenHomeProducts,
@@ -683,22 +684,29 @@ export default function PublicHomePage() {
             Información del restaurante
           </h2>
           <div className="space-y-3 rounded-panel border border-border bg-accent/60 p-4 shadow-card">
-            <div className="flex items-start gap-3">
-              <span
-                aria-hidden="true"
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-card text-base text-brand"
-              >
-                📍
-              </span>
-              <div className="flex-1 text-caption">
-                <p className="text-label-sm text-foreground">Retiro en tienda</p>
-                <p className="text-muted-foreground">
-                  {[settings.addressLine, settings.addressReference, settings.city]
-                    .filter(Boolean)
-                    .join(", ") || "—"}
-                </p>
+            {/* A-07: con sucursales cargadas, la dirección **y el horario** viven en la lista de
+                sucursales (salen de `/api/locations`). Antes este bloque los mostraba con los
+                datos del negocio: quedaban dos direcciones y dos "Cómo llegar" para el mismo
+                lugar, y un horario que no era el del local elegido. Sin sucursales cargadas se
+                mantiene el respaldo de la configuración, como antes. */}
+            {locations.length === 0 ? (
+              <div className="flex items-start gap-3">
+                <span
+                  aria-hidden="true"
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-card text-base text-brand"
+                >
+                  📍
+                </span>
+                <div className="flex-1 text-caption">
+                  <p className="text-label-sm text-foreground">Retiro en tienda</p>
+                  <p className="text-muted-foreground">
+                    {[settings.addressLine, settings.addressReference, settings.city]
+                      .filter(Boolean)
+                      .join(", ") || "—"}
+                  </p>
+                </div>
               </div>
-            </div>
+            ) : null}
 
             <div className="flex items-start gap-3 border-t border-border pt-3">
               <span
@@ -708,17 +716,21 @@ export default function PublicHomePage() {
                 🕒
               </span>
               <div className="flex-1 text-caption">
-                <p className="text-label-sm text-foreground">Horario de atención</p>
-                <p className="text-muted-foreground">{hoursSummary}</p>
+                <p className="text-label-sm text-foreground">
+                  {locations.length === 0 ? "Horario de atención" : "Contacto"}
+                </p>
+                {locations.length === 0 ? (
+                  <p className="text-muted-foreground">{hoursSummary}</p>
+                ) : null}
                 {phoneDisplay ? (
                   <p className="mt-0.5 text-muted-foreground">Teléfono: {phoneDisplay}</p>
                 ) : null}
               </div>
             </div>
 
-            {directions || settings.phone || whatsappUrl ? (
+            {(locations.length === 0 && directions) || settings.phone || whatsappUrl ? (
               <div className="grid grid-cols-2 gap-2 pt-1">
-                {directions ? (
+                {locations.length === 0 && directions ? (
                   <a
                     href={directions}
                     target="_blank"
@@ -749,6 +761,21 @@ export default function PublicHomePage() {
             ) : null}
           </div>
         </section>
+
+        {locations.length > 0 ? (
+          /* A-07: cada sucursal con su propia dirección, su horario y su mapa. Antes acá
+             solo se veía el horario y la dirección de la configuración del negocio, que con
+             más de un local no le dice al cliente dónde retira. */
+          <section className="space-y-2 pb-2">
+            <h2
+              className="text-headline-md text-foreground"
+              style={{ fontFamily: "var(--font-heading)" }}
+            >
+              Sucursales
+            </h2>
+            <PublicLocationsList locations={locations} />
+          </section>
+        ) : null}
 
         {settings.tagline ? (
           <p className="text-center text-caption italic text-muted-foreground">

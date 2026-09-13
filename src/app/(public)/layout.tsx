@@ -6,12 +6,13 @@ import { usePathname } from "next/navigation";
 
 import { CartProvider, useCart } from "@/shared/lib/cart";
 import { useBusinessSettings, useCurrencyFormat } from "@/shared/lib/business-settings";
-import { formatBusinessHoursSummary } from "@/modules/business-settings/domain/business-hours-format";
+import type { PublicLocation } from "@/modules/locations/features/list-public-locations/list-public-locations";
 import { BrandMark } from "@/shared/ui/brand-mark";
 import { formatPhoneForDisplay } from "@/modules/business-settings/domain/format-phone";
 import { formatCurrency } from "@/shared/lib/format-currency";
 import { PwaUpdateGate } from "@/shared/pwa/pwa-update-gate";
 import { Badge } from "@/shared/ui/badge";
+import { PublicLocationsList } from "@/shared/ui/public-locations-list";
 import { PublicMobileBottomNav } from "@/shared/ui/public-mobile-bottom-nav";
 
 import { OrderTrackingSessionProvider } from "./_components/order-tracking-session";
@@ -136,8 +137,34 @@ function CartStickyBar() {
 function Footer() {
   const settings = useBusinessSettings();
   const phoneDisplay = formatPhoneForDisplay(settings.phone);
-  const hoursSummary = formatBusinessHoursSummary(settings.businessHours);
   const contactHref = settings.phone ? `tel:${settings.phone}` : "/menu";
+  const [locations, setLocations] = React.useState<PublicLocation[]>([]);
+
+  /**
+   * A-07: la información de **cada sucursal**, de `GET /api/locations` (solo activos y ya
+   * ordenados), en vez del horario y la ciudad de la configuración del negocio. Si la lectura
+   * falla o no hay locales, el footer queda con el contacto del negocio: el respaldo es la
+   * configuración.
+   *
+   * El horario del negocio **no** se dibuja en ninguna parte del footer (decisión del owner,
+   * 2026-09-12): con más de un local no corresponde a ninguno, y el de cada sucursal está en la
+   * lista de arriba. Antes se imprimía acá y en el bloque oculto de móvil.
+   */
+  React.useEffect(() => {
+    async function fetchLocations() {
+      try {
+        const res = await fetch("/api/locations", { cache: "no-store" });
+        if (!res.ok) return;
+
+        const payload = (await res.json()) as { data?: PublicLocation[] };
+        setLocations(payload.data ?? []);
+      } catch {
+        // Sin sucursales se muestra el contacto del negocio: no se avisa de nada.
+      }
+    }
+
+    void fetchLocations();
+  }, []);
 
   return (
     <footer className={getPublicFooterClassName()}>
@@ -147,16 +174,23 @@ function Footer() {
             <a href={contactHref} className="font-semibold text-foreground">
               WhatsApp
             </a>
-            <span aria-hidden="true">·</span>
-            <span>{hoursSummary}</span>
-            {settings.city ? (
-              <>
-                <span aria-hidden="true">·</span>
-                <span>{settings.city}</span>
-              </>
-            ) : null}
           </div>
         </div>
+
+        {locations.length > 0 ? (
+          <div className="mb-8">
+            {/* Un solo encabezado real (no un rótulo + un heading oculto con el mismo texto):
+                el tamaño lo fija `text-xs` en la clase y el `h2` lo aporta la etiqueta. */}
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-brand">
+              Sucursales
+            </h2>
+            <PublicLocationsList
+              locations={locations}
+              variant="compact"
+              className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
+            />
+          </div>
+        ) : null}
 
         <div className="hidden gap-8 md:grid md:grid-cols-3">
           <div>
@@ -196,7 +230,6 @@ function Footer() {
             <div className="mt-2 space-y-1 text-sm text-muted-foreground">
               {phoneDisplay ? <p>{phoneDisplay}</p> : null}
               {settings.instagram ? <p>@{settings.instagram}</p> : null}
-              <p>{hoursSummary}</p>
             </div>
           </div>
         </div>
