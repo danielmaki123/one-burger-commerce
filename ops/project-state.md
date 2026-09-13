@@ -2053,8 +2053,10 @@ Brief en [`ops/tasks/TASK-staff-location-scope.md`](tasks/TASK-staff-location-sc
 **Verificación**: **1627 unitarios en 251 archivos**, lint, typecheck, `build:webpack` y
 `security:secrets` en verde; **E2E completo 89 pasaron / 6 salteados / 0 fallos** (el caso nuevo entra
 con una cocina asignada a una sucursal: ve solo la suya, no puede abrir la ajena ni por URL, y un
-usuario sin asignar sigue viendo todo). **No desplegado**: entra con el próximo deploy, con el OK del
-owner.
+usuario sin asignar sigue viendo todo). **CI verde** en el push (`verify` + `migrations` + `container`
++ `publish`, run `34776231376`): el job `migrations` aplica `add_admin_user_locations` en una base
+limpia y falla ante drift, así que la migración está probada en el camino real. **No desplegado**:
+entra con el próximo deploy, con el OK del owner.
 
 ## 3. Infraestructura y secretos
 - `EASYPANEL_URL` y `EASYPANEL_TOKEN`: solo en el entorno de quien ejecuta el deploy (nunca
