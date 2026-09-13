@@ -56,6 +56,55 @@ async function publicPrice(page: Page, productId: string): Promise<string> {
   return text.match(/C\$[\d.,]+/)?.[0] ?? text;
 }
 
+/**
+ * Deja a `name` como el **único local activo** y devuelve los que apagó, para restaurarlos.
+ *
+ * El caso del "último local activo" necesita ese estado, y otro spec (o una corrida anterior que
+ * se cortó) puede haber dejado una sucursal encendida: sin preparar el estado, el borrado se
+ * permite y el test falla por datos en vez de por una regla rota. Se usa el mismo toggle de un
+ * toque que usa el owner, así que la preparación también verifica esa UI.
+ */
+async function makeOnlyActiveLocation(page: Page, name: string): Promise<string[]> {
+  const locations = await page.evaluate(async () => {
+    const response = await fetch("/api/admin/locations", { cache: "no-store" });
+    const payload = (await response.json()) as {
+      data: Array<{ name: string; isActive: boolean }>;
+    };
+
+    return payload.data;
+  });
+
+  const toDisable = locations.filter((location) => location.isActive && location.name !== name);
+
+  for (const location of toDisable) {
+    await page.getByRole("button", { name: `Apagar ${location.name}` }).click();
+    await expect(page.getByText("Local apagado.")).toBeVisible();
+  }
+
+  return toDisable.map((location) => location.name);
+}
+
+async function restoreActiveLocations(page: Page, names: string[]) {
+  for (const name of names) {
+    const activate = page.getByRole("button", { name: `Activar ${name}` });
+
+    if ((await activate.count()) === 0) continue;
+
+    await activate.click();
+    await expect(page.getByText("Local activado.")).toBeVisible();
+  }
+}
+
+/** El primario, como último local activo, no se puede borrar y el motivo se muestra en pantalla. */
+async function assertLastActiveLocationCannotBeDeleted(page: Page) {
+  await page.getByRole("button", { name: "Editar local Principal" }).click();
+  // `window.confirm` del borrado: Playwright lo descarta por defecto.
+  page.once("dialog", (dialog) => void dialog.accept());
+  await page.getByRole("button", { name: "Eliminar local Principal" }).click();
+  await expect(page.getByText(/necesita al menos un local|último local activo/)).toBeVisible();
+  await page.getByRole("button", { name: "Cancelar" }).click();
+}
+
 test.describe("locales del admin", () => {
   test.use({ viewport: { width: 375, height: 812 } });
 
@@ -94,7 +143,7 @@ test.describe("locales del admin", () => {
     await expect(page.getByText(/Ya hay un local con el identificador/)).toBeVisible();
     await page.getByRole("button", { name: "Cancelar" }).click();
 
-    // 3) Borrar: el último local activo no se puede borrar, el nuevo sí.
+    // 3) Borrar: el local nuevo no tiene pedidos, así que se borra sin problema.
     await row.click();
     // `window.confirm` del borrado: Playwright lo descarta por defecto.
     page.once("dialog", (dialog) => void dialog.accept());
@@ -102,12 +151,14 @@ test.describe("locales del admin", () => {
     await expect(page.getByText("Local borrado.")).toBeVisible();
     await expect(page.getByRole("button", { name: `Editar local ${NAME}` })).toHaveCount(0);
 
-    // 4) Y el primario, que es el único que queda, se rechaza con el motivo.
-    await page.getByRole("button", { name: "Editar local Principal" }).click();
-    page.once("dialog", (dialog) => void dialog.accept());
-    await page.getByRole("button", { name: "Eliminar local Principal" }).click();
-    await expect(page.getByText(/necesita al menos un local|último local activo/)).toBeVisible();
-    await page.getByRole("button", { name: "Cancelar" }).click();
+    // 4) Y el primario, que es el único activo, se rechaza con el motivo. El estado se prepara
+    //    explícitamente (y se restaura) porque otro spec puede haber dejado una sucursal encendida.
+    const disabled = await makeOnlyActiveLocation(page, "Principal");
+    try {
+      await assertLastActiveLocationCannotBeDeleted(page);
+    } finally {
+      await restoreActiveLocations(page, disabled);
+    }
 
     // La pantalla entra en 375 px sin scroll horizontal.
     const horizontalOverflow = await page.evaluate(

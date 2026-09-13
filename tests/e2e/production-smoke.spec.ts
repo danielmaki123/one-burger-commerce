@@ -1,26 +1,16 @@
 import { expect, test } from "@playwright/test";
 
+import { flattenMenuProducts, readPublicMenu, seedCartWithProduct } from "./helpers";
+
 /**
  * El smoke de producción: **solo lectura**, sin `E2E_ALLOW_MUTATIONS`. Verifica que el sitio real
  * responde, que el login del panel está, y las superficies de T8 (locales, menú por local y el
  * control de retiro del checkout). Los dominios y sus redirecciones los cubre
  * `production-hosts.spec.ts` (`npm run test:e2e:prod:hosts`).
+ *
+ * El catálogo se lee de `/api/menu` (helpers compartidos): el smoke no puede depender del seed
+ * local, que en producción no existe.
  */
-
-type MenuProduct = { id: string; name: string; basePrice: number; packagingFeeAmount?: number | null };
-type MenuCategory = {
-  products?: MenuProduct[] | null;
-  subcategories?: { products?: MenuProduct[] | null }[] | null;
-};
-
-/** El catálogo puede tener los productos en la categoría o en una subcategoría (el seed local usa
- *  subcategorías; producción los tiene directos), así que se aplana antes de mirar. */
-function flattenProducts(categories: MenuCategory[] | undefined): MenuProduct[] {
-  return (categories ?? []).flatMap((category) => [
-    ...(category.products ?? []),
-    ...(category.subcategories ?? []).flatMap((subcategory) => subcategory.products ?? []),
-  ]);
-}
 
 test.describe("production smoke", () => {
   test("health endpoint responds", async ({ request }) => {
@@ -97,8 +87,8 @@ test.describe("production smoke", () => {
     const scoped = await byLocation.json();
 
     expect(scoped.categories.length).toBe(general.categories.length);
-    expect(flattenProducts(scoped.categories).map((product) => product.id)).toEqual(
-      flattenProducts(general.categories).map((product) => product.id),
+    expect(flattenMenuProducts(scoped.categories).map((product) => product.id)).toEqual(
+      flattenMenuProducts(general.categories).map((product) => product.id),
     );
   });
 
@@ -112,27 +102,11 @@ test.describe("production smoke", () => {
     page,
     request,
   }) => {
-    const menu = await (await request.get("/api/menu")).json();
-    const product = flattenProducts(menu.categories)[0];
+    const menu = await readPublicMenu(request);
+    const product = menu.products[0];
     expect(product, "el catálogo tiene que tener al menos un producto").toBeTruthy();
 
-    await page.addInitScript(
-      (item) => {
-        localStorage.setItem("one-burger-cart", JSON.stringify([item]));
-      },
-      {
-        productId: product.id,
-        productName: product.name,
-        quantity: 1,
-        unitPrice: product.basePrice,
-        packagingUnitAmount: product.packagingFeeAmount ?? 0,
-        packagingTotalAmount: product.packagingFeeAmount ?? 0,
-        modifierOptionIds: [],
-        modifiers: [],
-        lineTotal: product.basePrice,
-      },
-    );
-
+    await seedCartWithProduct(page, product);
     await page.goto("/checkout");
 
     const schedule = page.getByRole("button", { name: /^Retiro/ });

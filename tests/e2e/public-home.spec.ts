@@ -1,5 +1,11 @@
 import { expect, test } from "@playwright/test";
 
+import {
+  pickQuickAddProduct,
+  pickSearchableProduct,
+  readPublicMenu,
+} from "./helpers";
+
 /**
  * T2 — la home adopta el orden del mock (TASK-mock-adoption, ola 1).
  *
@@ -51,52 +57,85 @@ test.describe("home pública", () => {
     expect(href ?? "", "el enlace de mapas tiene que ser absoluto").toMatch(/^https:\/\//);
   });
 
+  /**
+   * Estas tarjetas se prueban **contra el catálogo real** (`/api/menu`), no contra el seed local:
+   * el producto que dibuja el "+" es el primero que se puede pedir sin elegir nada. Así el caso
+   * corre igual en local y contra producción.
+   */
   test("las tarjetas de producto llevan al producto y el '+' cumple el mínimo táctil", async ({
     page,
+    request,
   }) => {
+    const product = pickQuickAddProduct((await readPublicMenu(request)).products);
+    test.skip(
+      !product,
+      "la carta no tiene productos sin opciones obligatorias: no hay '+' que verificar",
+    );
+
     await page.goto("/");
 
-    const card = page.getByRole("link", { name: "Ver Taco de Birria" });
+    const card = page.getByRole("link", { name: `Ver ${product!.name}` });
     await expect(card).toBeVisible();
 
-    const quickAdd = page.getByRole("button", { name: "Agregar Taco de Birria al carrito" });
+    const quickAdd = page.getByRole("button", { name: `Agregar ${product!.name} al carrito` });
     const box = await quickAdd.boundingBox();
-    expect(box, "el producto sembrado no tiene opciones: debería poder agregarse").not.toBeNull();
+    expect(box, "un producto sin opciones debería poder agregarse").not.toBeNull();
     // El "+" del mock mide 24×24 y no hace nada; el nuestro, 44 px y agrega.
     expect(box!.height).toBeGreaterThanOrEqual(44);
     expect(box!.width).toBeGreaterThanOrEqual(44);
 
     // La tarjeta entera también lleva al producto (enlace estirado).
-    await expect(card).toHaveAttribute("href", "/menu/seed-prod-01");
+    await expect(card).toHaveAttribute("href", `/menu/${product!.id}`);
   });
 
-  test("el '+' agrega al carrito de verdad", async ({ page }) => {
+  test("el '+' agrega al carrito de verdad", async ({ page, request }) => {
+    const product = pickQuickAddProduct((await readPublicMenu(request)).products);
+    test.skip(
+      !product,
+      "la carta no tiene productos sin opciones obligatorias: no hay '+' que verificar",
+    );
+
     await page.goto("/");
 
-    await page.getByRole("button", { name: "Agregar Taco de Birria al carrito" }).click();
+    await page.getByRole("button", { name: `Agregar ${product!.name} al carrito` }).click();
     await expect(page.getByText("Agregado al carrito")).toBeAttached();
 
     await page.goto("/cart");
-    await expect(page.getByText("Taco de Birria").first()).toBeVisible();
+    await expect(page.getByText(product!.name).first()).toBeVisible();
   });
 
   test("el buscador filtra el menú cargado y explica cuando no hay resultados", async ({
     page,
+    request,
   }) => {
+    const products = (await readPublicMenu(request)).products;
+    const searchable = pickSearchableProduct(products);
+    const other = products.find((product) => product.id !== searchable?.id);
+    test.skip(!searchable || !other, "la carta necesita un producto con nombre distinguible");
+
     await page.goto("/");
-    await expect(page.getByText("Taco de Birria")).toBeVisible();
+    await expect(page.getByText(searchable!.name).first()).toBeVisible();
 
     const search = page.getByLabel("Buscar en el menú");
-    await search.fill("pastor");
+    await search.fill(searchable!.name);
 
-    await expect(page.getByText("Taco de Pastor")).toBeVisible();
-    await expect(page.getByText("Taco de Birria")).toHaveCount(0);
+    // Se afirma **dentro de la sección de resultados**: la home tiene bloques de portada que
+    // muestran nombres de platos y no siguen al buscador, así que una aserción global diría que el
+    // filtro no filtra cuando en realidad sí.
+    const results = page
+      .locator("section")
+      .filter({ has: page.getByRole("heading", { name: "Resultados", exact: true }) });
 
-    await search.fill("sushi");
+    await expect(results.getByText(searchable!.name).first()).toBeVisible();
+    // `pickSearchableProduct` garantiza que ningún otro nombre contiene el buscado, así que el otro
+    // producto tiene que quedar afuera de los resultados.
+    await expect(results.getByText(other!.name, { exact: true })).toHaveCount(0);
+
+    await search.fill("zzz-no-existe-en-esta-carta");
     await expect(page.getByText(/No encontramos productos/)).toBeVisible();
 
     await page.getByRole("button", { name: "Limpiar búsqueda" }).click();
-    await expect(page.getByText("Taco de Birria")).toBeVisible();
+    await expect(page.getByText(searchable!.name).first()).toBeVisible();
   });
 
   test("en 375 px no hay scroll horizontal", async ({ page }) => {

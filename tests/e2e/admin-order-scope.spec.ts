@@ -228,7 +228,10 @@ test.describe("alcance por sucursal del staff (A)", () => {
       }
 
       try {
-        await loginAsOwner(page);
+        // `logIn` y no `loginAsOwner`: con la sesión del dueño activa, `/admin/login` redirige al
+        // panel y el formulario no está. Sin eso la limpieza fallaba en silencio y la sucursal de
+        // prueba quedaba encendida (y rompía los specs que asumen un solo local activo).
+        await logIn(page, E2E_ADMIN_EMAIL, ADMIN_PASSWORD);
         await disableBranch(page);
       } catch {
         // La sucursal se reutiliza y se apaga en la próxima corrida.
