@@ -1936,7 +1936,9 @@ la decisión del owner fue listar **cada sucursal activa** (opción (a) de A-01)
 - **Verificación**: **1560 unitarios en 245 archivos** (antes 1548 en 242), lint, typecheck,
   `build:webpack` (se tocaron `page.tsx` y `layout.tsx`) y `security:secrets` en verde. El test nuevo
   del footer (`src/app/(public)/layout.dom.test.tsx`, jsdom) se confirmó **rojo** antes del arreglo
-  nombrando los dos lugares donde salía el horario del negocio.
+  nombrando los dos lugares donde salía el horario del negocio. **CI verde** en el push (`verify` +
+  `migrations` + `container` + `publish`, run `34767909489`): la imagen se construye y se ejecuta
+  contra Postgres antes de publicarse, así que el cambio pasó el camino real del contenedor.
 - **Pendiente declarado**: el **E2E de navegador real** en los dos anchos (375 px en la home, 1280 px
   en el footer) **no se corrió**: Docker Desktop estaba apagado y el arnés necesita Postgres. Los
   casos ya están escritos en `tests/e2e/public-home.spec.ts` y se corren en el próximo arranque del

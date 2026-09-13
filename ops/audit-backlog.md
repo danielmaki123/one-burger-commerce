@@ -45,7 +45,7 @@ Estados: `reportado` · `a reproducir` · `en curso` · `cerrado` · `no-repro` 
 
 ## 2. Detalle
 
-### A-01 · Footer y home con datos del negocio en vez del local — `decisión-pendiente`
+### A-01 · Footer y home con datos del negocio en vez del local — `cerrado` (implementado por A-07)
 
 - **Qué se reportó**: con **tres locales reales** en producción, el footer y el bloque "Información
   del restaurante" de la home siguen mostrando el horario y la dirección de la **configuración del
@@ -64,13 +64,16 @@ Estados: `reportado` · `a reproducir` · `en curso` · `cerrado` · `no-repro` 
   - **(b)** mostrar solo el **local por defecto** (el primero activo, la misma regla que usan el
     checkout y el servidor);
   - **(c)** un **horario general** del negocio, y el detalle por local solo al elegir en el checkout.
-- **Decisión del owner (2026-09-12)**: para el **footer**, la opción **(a)** — los datos de cada
-  sucursal (ver A-07, que es la implementación de esta decisión). Queda por definir si el bloque
-  "Información del restaurante" de la **home** hace lo mismo.
+- **Decisión del owner (2026-09-12)**: la opción **(a)** — los datos de cada sucursal — para **los dos
+  lugares** (el footer y el bloque "Información del restaurante" de la home), y **sin teléfono por
+  sucursal**. Implementado por A-07 (commit `83d7433`).
 - **Contrato a respetar** (cualquiera sea la opción): salir de `GET /api/locations` (que ya devuelve
   solo los activos y **no** expone teléfono ni WhatsApp internos del local), nunca hardcodear datos.
-- **Es el ítem que puedo implementar entero** en cuanto el owner elija la opción.
-- **Referencias**: `ops/project-state.md` §2 ("T8 · Fase 7, cierre" — gap declarado).
+- **Estado**: cerrado con A-07. Lo que la implementación dejó afuera, con motivo escrito, está en la
+  ficha de A-07 (el footer no existe a 375 px y el contacto del negocio sigue siendo el de la
+  configuración).
+- **Referencias**: `ops/project-state.md` §2 ("T8 · Fase 7, cierre" y "A-07 · la información de cada
+  sucursal").
 
 ### A-07 · La información de cada sucursal en el footer y la home — `cerrado` (commit `83d7433`)
 
@@ -115,7 +118,9 @@ Estados: `reportado` · `a reproducir` · `en curso` · `cerrado` · `no-repro` 
     la lista. Se quitaron los dos lugares donde se imprimían (uno de ellos oculto por CSS).
   - **Verificación**: 1560 unitarios en 245 archivos, lint, typecheck, `build:webpack` y
     `security:secrets` en verde. El test nuevo del footer (`layout.dom.test.tsx`) se confirmó **rojo**
-    antes del arreglo, nombrando los dos lugares donde salía el horario del negocio.
+    antes del arreglo, nombrando los dos lugares donde salía el horario del negocio. **CI verde** en el
+    push (`verify` + `migrations` + `container` + `publish`, run `34767909489`), que es el que
+    construye la imagen y la ejecuta contra Postgres.
   - **Pendiente al cerrar**: el E2E de navegador real en los dos anchos (375 px en la home, 1280 px en
     el footer) **no se corrió** porque Docker Desktop estaba apagado y el arnés necesita Postgres. Los
     casos ya están escritos en `tests/e2e/public-home.spec.ts`; se corren en el próximo arranque del
@@ -201,4 +206,4 @@ Estados: `reportado` · `a reproducir` · `en curso` · `cerrado` · `no-repro` 
 
 | ID | Qué se cerró | Commit | Verificación |
 |---|---|---|---|
-| A-01 · A-07 | La home y el footer muestran la información de **cada sucursal activa** (nombre, dirección, horario y "Cómo llegar", de `GET /api/locations`) y el footer deja de imprimir el horario y la ciudad de la configuración del negocio | `83d7433` | 1560 unitarios en 245 archivos (el test del footer se confirmó **rojo** primero), lint, typecheck, `build:webpack` y `security:secrets` en verde. **E2E de navegador (375 px y 1280 px) pendiente**: Docker estaba apagado al cerrar; los casos ya están escritos |
+| A-01 · A-07 | La home y el footer muestran la información de **cada sucursal activa** (nombre, dirección, horario y "Cómo llegar", de `GET /api/locations`) y el footer deja de imprimir el horario y la ciudad de la configuración del negocio | `83d7433` | 1560 unitarios en 245 archivos (el test del footer se confirmó **rojo** primero), lint, typecheck, `build:webpack` y `security:secrets` en verde; **CI verde** (`verify` + `migrations` + `container` + `publish`, run `34767909489`). **E2E de navegador (375 px y 1280 px) pendiente**: Docker estaba apagado al cerrar; los casos ya están escritos |
