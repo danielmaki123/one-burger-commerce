@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -193,5 +193,162 @@ describe("bandeja de órdenes: hora de retiro y semáforo", () => {
     await waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("locationId=loc_norte")),
     );
+  });
+});
+
+/**
+ * A — el alcance por sucursal en la bandeja.
+ *
+ * La pantalla refleja **lo que el servidor aplicó** (`meta.locationIds`): no reimplementa la regla
+ * ni ofrece sucursales que el usuario no puede ver. Y publica `aria-busy` mientras carga, que es lo
+ * que permite al E2E esperar a que el refetch termine en vez de pasar por una carrera.
+ */
+describe("bandeja de órdenes: alcance por sucursal (A)", () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(NOW);
+  });
+
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+  });
+
+  function stubWithScope(locationIds: string[] | null | undefined) {
+    const fetchMock = vi.fn((url: string) =>
+      Promise.resolve({
+        ok: true,
+        json: async () =>
+          String(url).includes("/api/admin/locations")
+            ? {
+                data: [
+                  { id: "loc_principal", name: "Principal", isActive: true },
+                  { id: "loc_norte", name: "Norte", isActive: true },
+                  { id: "loc_sur", name: "Sur", isActive: true },
+                ],
+              }
+            : { data: [order()], meta: { count: 1, locationScope: locationIds } },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    return fetchMock;
+  }
+
+  it("solo ofrece las sucursales del alcance del usuario", async () => {
+    const user = userEvent.setup();
+    stubWithScope(["loc_norte", "loc_sur"]);
+    render(<AdminOrdersPage />);
+
+    await screen.findByText("OB-1");
+    await user.click(screen.getByRole("button", { name: "Mostrar filtros" }));
+
+    const select = screen.getByLabelText("Local");
+    const options = within(select)
+      .getAllByRole("option")
+      .map((option) => option.textContent);
+
+    expect(options).toEqual(["Mis sucursales", "Norte", "Sur"]);
+  });
+
+  it("el filtro sigue ofreciendo el alcance después de elegir una sucursal", async () => {
+    // Bug real que esto fija: la pantalla usaba el **filtro aplicado** como si fuera el alcance,
+    // así que al elegir una sucursal se quedaba con una sola opción y el control desaparecía.
+    const user = userEvent.setup();
+    let listCalls = 0;
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string) => {
+        if (String(url).includes("/api/admin/locations")) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              data: [
+                { id: "loc_norte", name: "Norte", isActive: true },
+                { id: "loc_sur", name: "Sur", isActive: true },
+              ],
+            }),
+          });
+        }
+
+        listCalls += 1;
+        const first = listCalls === 1;
+
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            data: [order()],
+            meta: {
+              count: 1,
+              // Primera lectura: sin filtro pedido. Segunda: se pidió Norte.
+              locationIds: first ? undefined : ["loc_norte"],
+              locationScope: ["loc_norte", "loc_sur"],
+            },
+          }),
+        });
+      }),
+    );
+
+    render(<AdminOrdersPage />);
+    await screen.findByText("OB-1");
+    await user.click(screen.getByRole("button", { name: "Mostrar filtros" }));
+    await user.selectOptions(screen.getByLabelText("Local"), "loc_norte");
+
+    await waitFor(() => expect(listCalls).toBeGreaterThan(1));
+
+    // El control sigue ahí, con las dos sucursales del alcance.
+    const options = within(screen.getByLabelText("Local"))
+      .getAllByRole("option")
+      .map((option) => option.textContent);
+
+    expect(options).toEqual(["Mis sucursales", "Norte", "Sur"]);
+  });
+
+  it("sin alcance (dueño o sin asignar) ofrece todos los locales", async () => {
+    const user = userEvent.setup();
+    stubWithScope(undefined);
+    render(<AdminOrdersPage />);
+
+    await screen.findByText("OB-1");
+    await user.click(screen.getByRole("button", { name: "Mostrar filtros" }));
+
+    const select = screen.getByLabelText("Local");
+    const options = within(select)
+      .getAllByRole("option")
+      .map((option) => option.textContent);
+
+    expect(options).toEqual(["Todas las sucursales", "Principal", "Norte", "Sur"]);
+  });
+
+  it("con una sola sucursal en el alcance no dibuja el filtro", async () => {
+    const user = userEvent.setup();
+    stubWithScope(["loc_norte"]);
+    render(<AdminOrdersPage />);
+
+    await screen.findByText("OB-1");
+    await user.click(screen.getByRole("button", { name: "Mostrar filtros" }));
+
+    expect(screen.queryByLabelText("Local")).toBeNull();
+  });
+
+  it("publica aria-busy mientras carga la lista", async () => {
+    let release: () => void = () => {};
+    const pending = new Promise((resolve) => {
+      release = () =>
+        resolve({ ok: true, json: async () => ({ data: [order()], meta: { count: 1 } }) });
+    });
+
+    vi.stubGlobal("fetch", vi.fn(() => pending));
+    render(<AdminOrdersPage />);
+
+    expect(document.querySelector('[aria-busy="true"]')).toBeTruthy();
+
+    release();
+
+    await waitFor(() => {
+      expect(document.querySelector('[aria-busy="true"]')).toBeNull();
+    });
   });
 });

@@ -67,6 +67,12 @@ type OrderSummary = {
 
 type AdminOrdersResponse = {
   data: OrderSummary[];
+  /**
+   * `locationScope` es lo que el usuario **puede** ver (A): `null`/ausente = todas. Lo usa la
+   * pantalla para no ofrecer sucursales ajenas, sin reimplementar la regla. No confundir con
+   * `locationIds`, que es el filtro aplicado en esa respuesta.
+   */
+  meta?: { count?: number; locationIds?: string[]; locationScope?: string[] | null };
 };
 
 type OrdersView = "today" | "history";
@@ -129,6 +135,8 @@ export default function AdminOrdersPage() {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [locationFilter, setLocationFilter] = useState("all");
   const [locations, setLocations] = useState<Array<{ id: string; name: string }>>([]);
+  /** Alcance por sucursal que devolvió el servidor (A). `null` = ve todas. */
+  const [scopeLocationIds, setScopeLocationIds] = useState<string[] | null>(null);
 
   // Locales del negocio (T8): con uno solo no hay nada que filtrar y el control no se dibuja.
   useEffect(() => {
@@ -220,6 +228,7 @@ export default function AdminOrdersPage() {
 
         const payload = (await response.json()) as AdminOrdersResponse;
         setOrders(payload.data ?? []);
+        setScopeLocationIds(payload.meta?.locationScope ?? null);
       } catch {
         setError("No se pudieron cargar las órdenes.");
         setOrders([]);
@@ -273,6 +282,24 @@ export default function AdminOrdersPage() {
   const showOlderOpenNotice = view === "today" && (olderOpenCount ?? 0) > 0;
   const activeStatusLabel = STATUS_FILTERS.find((option) => option.value === statusFilter)?.label ?? "Todos";
   const activeTypeLabel = TYPE_FILTERS.find((option) => option.value === typeFilter)?.label ?? "Todos";
+
+  /**
+   * Las sucursales que este usuario puede mirar (A): las del alcance cuando lo hay, todas si no.
+   * El filtro se dibuja solo si hay más de una: con una sola sería un control decorativo.
+   */
+  const scopedLocations = scopeLocationIds
+    ? locations.filter((location) => scopeLocationIds.includes(location.id))
+    : locations;
+  const showLocationFilter = scopedLocations.length > 1;
+
+  // Si el alcance no incluye lo que estaba filtrado (le cambiaron las sucursales), se vuelve a
+  // "mis sucursales" en vez de dejar un filtro que no corresponde a ninguna opción.
+  useEffect(() => {
+    if (locationFilter === "all") return;
+    if (scopedLocations.some((location) => location.id === locationFilter)) return;
+
+    setLocationFilter("all");
+  }, [locationFilter, scopedLocations]);
 
   // Reloj del turno: refresca los "hace N min" cada 30 s.
   const [nowMs, setNowMs] = useState(() => Date.now());
@@ -339,8 +366,8 @@ export default function AdminOrdersPage() {
             <Icon className="mr-1 inline h-3.5 w-3.5 align-[-2px] text-brand" strokeWidth={2} aria-hidden="true" />
             {typeLabel} · {order.customerName} ·{" "}
             <span className="font-mono font-semibold">{elapsed}</span>
-            {/* De qué local es el pedido (T8): con una sola sucursal no aporta y no se muestra. */}
-            {locations.length > 1 && order.locationName ? ` · ${order.locationName}` : ""}
+            {/* De qué local es el pedido (T8): con una sola sucursal en el alcance no aporta. */}
+            {scopedLocations.length > 1 && order.locationName ? ` · ${order.locationName}` : ""}
           </p>
         </div>
         <p className="text-right text-base font-bold tabular-nums text-foreground">
@@ -368,7 +395,7 @@ export default function AdminOrdersPage() {
   }
 
   return (
-    <div className="min-w-0 space-y-6">
+    <div className="min-w-0 space-y-6" aria-busy={loading}>
       <AdminPageHeader
         title="Órdenes"
         description="Bandeja de turno: prioriza ingresos nuevos y sigue cada pedido hasta su cierre."
@@ -490,9 +517,9 @@ export default function AdminOrdersPage() {
               </div>
             </div>
 
-            {/* Filtro por local (T8): con un solo local no se dibuja, sería un control
-                decorativo. Cada sucursal ve lo suyo. */}
-            {locations.length > 1 ? (
+            {/* Filtro por local: las sucursales del alcance del usuario (A) y solo si hay más de
+                una; el servidor vuelve a aplicar el alcance aunque se pida otra por query. */}
+            {showLocationFilter ? (
               <div className="min-w-0 space-y-2">
                 <label
                   htmlFor="orders-location-filter"
@@ -506,8 +533,10 @@ export default function AdminOrdersPage() {
                   value={locationFilter}
                   onChange={(event) => setLocationFilter(event.target.value)}
                 >
-                  <option value="all">Todos los locales</option>
-                  {locations.map((location) => (
+                  <option value="all">
+                    {scopeLocationIds ? "Mis sucursales" : "Todas las sucursales"}
+                  </option>
+                  {scopedLocations.map((location) => (
                     <option key={location.id} value={location.id}>
                       {location.name}
                     </option>

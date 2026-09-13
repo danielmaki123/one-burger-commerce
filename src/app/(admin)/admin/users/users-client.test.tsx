@@ -11,6 +11,7 @@ const owner = {
   name: "Daniel",
   email: "owner@oneburger.local",
   role: "owner",
+  locationIds: [],
 };
 
 const kitchen = {
@@ -18,7 +19,13 @@ const kitchen = {
   name: "Cocina",
   email: "cocina@oneburger.local",
   role: "kitchen",
+  locationIds: [],
 };
+
+const LOCATIONS = [
+  { id: "loc_norte", name: "Norte", isActive: true },
+  { id: "loc_sur", name: "Sur", isActive: true },
+];
 
 function jsonResponse(body: unknown, ok = true) {
   return Promise.resolve({
@@ -30,12 +37,23 @@ function jsonResponse(body: unknown, ok = true) {
 describe("AdminUsersPage", () => {
   let fetchMock: ReturnType<typeof vi.fn>;
 
-  beforeEach(() => {
+  function stubFetch({
+    users = [owner, kitchen],
+    locations = LOCATIONS,
+  }: { users?: unknown[]; locations?: unknown[] } = {}) {
     fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
       const url = typeof input === "string" ? input : String(input);
 
+      if (url === "/api/admin/locations" && !init?.method) {
+        return jsonResponse({ data: locations });
+      }
+
       if (url === "/api/admin/users" && !init?.method) {
-        return jsonResponse({ data: [owner, kitchen] });
+        return jsonResponse({ data: users });
+      }
+
+      if (url === "/api/admin/users" && init?.method === "POST") {
+        return jsonResponse({ data: { id: "user_9" } });
       }
 
       if (init?.method === "PATCH") {
@@ -51,6 +69,10 @@ describe("AdminUsersPage", () => {
 
     vi.stubGlobal("fetch", fetchMock);
     vi.stubGlobal("confirm", vi.fn(() => true));
+  }
+
+  beforeEach(() => {
+    stubFetch();
   });
 
   afterEach(() => {
@@ -119,6 +141,12 @@ describe("AdminUsersPage", () => {
   it("keeps the user in the list when the revoke fails", async () => {
     const user = userEvent.setup();
     fetchMock.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : String(input);
+
+      if (url === "/api/admin/locations") {
+        return jsonResponse({ data: LOCATIONS });
+      }
+
       if (init?.method === "DELETE") {
         return jsonResponse(
           { error: { code: "BAD_REQUEST", message: "At least one owner must remain" } },
@@ -154,5 +182,124 @@ describe("AdminUsersPage", () => {
 
     expect(row).not.toBeNull();
     expect(within(row as HTMLElement).getByRole("combobox")).toBeTruthy();
+  });
+
+  /**
+   * A — las sucursales de cada usuario.
+   *
+   * El owner ve todas (su asignación se ignora); un gerente o cocina sin asignar también ve todas,
+   * y el admin lo dice con todas las letras. El control de asignación **no se dibuja con una sola
+   * sucursal**: con un solo local, "asignada" y "sin asignar" son lo mismo, así que sería un
+   * control decorativo.
+   */
+  it("al crear, manda las sucursales elegidas", async () => {
+    const user = userEvent.setup();
+    render(<AdminUsersPage />);
+
+    const branchSelector = await screen.findByRole("group", {
+      name: "Sucursales asignadas",
+    });
+    await user.click(within(branchSelector).getByRole("checkbox", { name: "Norte" }));
+
+    await user.type(screen.getByLabelText("Nombre"), "Cocina Norte");
+    await user.type(screen.getByLabelText("Correo"), "norte@oneburger.local");
+    await user.type(screen.getByLabelText("Contraseña temporal"), "Admin1234!");
+    await user.click(screen.getByRole("button", { name: "Crear usuario" }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/admin/users",
+        expect.objectContaining({
+          method: "POST",
+          body: JSON.stringify({
+            name: "Cocina Norte",
+            email: "norte@oneburger.local",
+            password: "Admin1234!",
+            role: "kitchen",
+            locationIds: ["loc_norte"],
+          }),
+        }),
+      );
+    });
+  });
+
+  it("con una sola sucursal no dibuja el selector de asignación", async () => {
+    stubFetch({ locations: [LOCATIONS[0]] });
+    render(<AdminUsersPage />);
+
+    await screen.findByText("owner@oneburger.local");
+
+    expect(screen.queryByRole("group", { name: "Sucursales asignadas" })).toBeNull();
+    expect(screen.queryByRole("group", { name: "Sucursales de Cocina" })).toBeNull();
+  });
+
+  it("muestra las sucursales de cada usuario y quién ve todas", async () => {
+    stubFetch({ users: [owner, { ...kitchen, locationIds: ["loc_norte"] }] });
+    render(<AdminUsersPage />);
+
+    const row = (await screen.findByText("cocina@oneburger.local")).closest("article");
+    expect(row).not.toBeNull();
+    expect(within(row as HTMLElement).getByText("Asignado a: Norte")).toBeTruthy();
+
+    // El owner ve todas por rol, y se dice explícito.
+    expect(screen.getByText("Ve todas las sucursales")).toBeTruthy();
+  });
+
+  it("muestra 'sin asignar · ve todas' cuando el usuario no tiene sucursales", async () => {
+    render(<AdminUsersPage />);
+
+    expect(await screen.findByText("Sin asignar · ve todas")).toBeTruthy();
+  });
+
+  it("cambia las sucursales de un usuario existente", async () => {
+    const user = userEvent.setup();
+    render(<AdminUsersPage />);
+
+    const branchSelector = await screen.findByRole("group", {
+      name: "Sucursales de Cocina",
+    });
+    await user.click(within(branchSelector).getByRole("checkbox", { name: "Sur" }));
+    await user.click(
+      within(branchSelector).getByRole("button", {
+        name: "Guardar sucursales de Cocina",
+      }),
+    );
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/admin/users/user_2",
+        expect.objectContaining({
+          method: "PATCH",
+          body: JSON.stringify({ locationIds: ["loc_sur"] }),
+        }),
+      );
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Sucursales actualizadas.")).toBeTruthy();
+    });
+  });
+
+  it("avisa cuando no pudo cargar las sucursales, sin dibujar el selector", async () => {
+    fetchMock.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : String(input);
+
+      if (url === "/api/admin/locations") {
+        return jsonResponse({ error: { message: "boom" } }, false);
+      }
+
+      if (url === "/api/admin/users" && !init?.method) {
+        return jsonResponse({ data: [owner, kitchen] });
+      }
+
+      return jsonResponse({ data: null });
+    });
+
+    render(<AdminUsersPage />);
+
+    expect(
+      await screen.findByText("No se pudieron cargar las sucursales."),
+    ).toBeTruthy();
+    expect(screen.queryByRole("group", { name: "Sucursales asignadas" })).toBeNull();
   });
 });
