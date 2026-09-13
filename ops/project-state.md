@@ -2077,6 +2077,41 @@ limpia y falla ante drift, así que la migración está probada en el camino rea
 - **El token del panel se volvió a compartir por chat** (cuarta vez, para los dos deploys del
   2026-09-13): **hay que rotarlo** (ítem A-06 del backlog).
 
+### Endurecimiento de los E2E: la carta real, no el seed local (2026-09-13)
+
+Los specs de la carta pública daban por sentado el **seed local** (`/menu/seed-prod-01`, "Taco de
+Birria", `C$35.00`), así que no se podían correr contra producción: la carta real es otra. Ahora
+resuelven el catálogo **por API** y la moneda no se asume, así que el mismo spec corre en local y
+contra `menu.oneburgernic.com` (QA de solo lectura después de cada deploy, ver el runbook §2).
+
+- **Helpers compartidos** (`tests/e2e/helpers.ts`): `readPublicMenu` / `flattenMenuProducts` (aplanan
+  categorías y subcategorías, como el payload), `pickQuickAddProduct` y
+  `pickProductWithRequiredChoices` —que usan **la regla de la app** (`canQuickAddProduct`), no una
+  copia—, `pickSearchableProduct` —que usa la **misma normalización** que el buscador
+  (`normalizeSearchText`) para elegir un nombre que no aparezca en otra ficha—, `seedCartWithProduct`
+  y `addCatalogProductToCart` (el carrito vive en `localStorage`: no tocan la API).
+- **`production-smoke.spec.ts`** dejó de tener su copia local del aplanado del menú: usa los helpers.
+- **Tres aserciones que mentían**, todas por la misma clase de defecto (afirmar sobre algo que todavía
+  no se dibujó o sobre un contenedor que no es el que se cree):
+  1. `public-menu`: el caso "cuando hay que elegir opciones" afirmaba que el "+" no estaba **antes**
+     de que las tarjetas se dibujaran, así que pasaba siempre. Ahora espera la tarjeta y recién ahí
+     afirma (y se saltea con motivo si la carta no tiene un producto con opciones obligatorias).
+  2. Las búsquedas afirmaban "el otro producto no está" en **toda la página**, y la home y el menú
+     tienen secciones destacadas que no siguen al buscador: en producción fallaba por eso. Ahora se
+     afirma **dentro de la sección de resultados**.
+  3. `public-menu`: el encabezado "Resultados para “X”" también contiene el nombre buscado, así que
+     las aserciones se hacen con `exact: true` (si no, resolvían a dos elementos).
+- **El seed no tenía grupos de modificadores** aunque varios specs afirmaban que "Taco de Pastor"
+  venía con un grupo obligatorio: esa rama del producto nunca se ejercitaba en local. El seed
+  (`prisma/seed.ts`, solo local/demo) ahora crea el grupo "Tipo de carne" (obligatorio) con dos
+  opciones y lo vincula a `seed-prod-03`.
+
+**Verificación**: **1627 unitarios en 251 archivos**, lint, typecheck y `security:secrets` en verde;
+**E2E local 89 pasaron / 6 salteados / 0 fallos** (el séptimo salto que había aparecido volvió a
+correr con el seed arreglado); **QA de solo lectura contra producción 24 pasaron / 1 salteado / 0
+fallos** (el salteado es el caso que necesita un producto con opciones obligatorias, que la carta real
+no tiene: lo dice con su motivo), más los smokes oficiales **7/7** y dominios **6/6**.
+
 ## 3. Infraestructura y secretos
 - `EASYPANEL_URL` y `EASYPANEL_TOKEN`: solo en el entorno de quien ejecuta el deploy (nunca
   en el repo). El token da acceso total al servidor: **rotarlo** si se compartió por chat.

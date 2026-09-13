@@ -125,6 +125,22 @@ Los dos son de **solo lectura**. El de hosts es el que habría cazado el apex si
 `/api/locations` no exponga el contacto interno del local y que el control de retiro del checkout esté
 disponible aunque el local esté cerrado en ese momento.
 
+**QA de las superficies públicas (solo lectura, sin `E2E_ALLOW_MUTATIONS`)**: los specs de la carta y
+el checkout público se pueden correr **contra producción** porque resuelven el catálogo desde
+`/api/menu` en vez de depender del seed local. La app vive en el subdominio de pedidos (el apex sirve
+el landing):
+
+```bash
+BASE_URL="https://menu.oneburgernic.com" npx playwright test \
+  tests/e2e/public-header.spec.ts tests/e2e/public-home.spec.ts tests/e2e/public-menu.spec.ts \
+  tests/e2e/public-product.spec.ts tests/e2e/public-cart.spec.ts
+```
+
+Estos specs **no crean pedidos ni tocan el admin**: el carrito vive en `localStorage`. Un caso se
+saltea solo cuando la carta real no tiene el dato que necesita (por ejemplo, un producto con opciones
+obligatorias), y lo dice con su motivo. Verificado contra producción el 2026-09-13: **24 pasaron / 1
+salteado / 0 fallos**.
+
 El smoke productivo es no mutante y valida `/api/health`, `/api/readiness`
 (que hace un `SELECT 1` real y responde 503 si la base está caída), menú
 público, carrito, checkout y login admin.
