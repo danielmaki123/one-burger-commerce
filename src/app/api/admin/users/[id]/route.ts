@@ -18,7 +18,13 @@ import { createErrorResponse } from "@/shared/lib/http/error-response";
 const updateUserSchema = z
   .object({
     role: z
-      .enum([ADMIN_ROLES.owner, ADMIN_ROLES.manager, ADMIN_ROLES.kitchen])
+      .enum([
+        ADMIN_ROLES.owner,
+        ADMIN_ROLES.manager,
+        ADMIN_ROLES.kitchen,
+        // TASK-105: se puede promover a un usuario a cajero y sacarlo de ahí.
+        ADMIN_ROLES.cashier,
+      ])
       .optional(),
     locationIds: z.array(z.string().trim().min(1).max(80)).max(50).optional(),
   })

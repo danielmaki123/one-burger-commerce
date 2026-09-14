@@ -44,6 +44,21 @@ export function canManageOrderOperations(role: AdminRole) {
   );
 }
 
+/**
+ * TASK-105 — usar el punto de venta (abrir la caja, cobrar, cerrar el turno).
+ *
+ * `kitchen` **no** entra: cocina opera órdenes, no maneja plata. Y `cashier` entra solo acá: no es
+ * un manager con menos botones, es un rol de mostrador, así que no hereda menú, promociones,
+ * inventario ni configuración (hay un test que lo fija).
+ */
+export function canUsePOS(role: AdminRole) {
+  return (
+    role === ADMIN_ROLES.owner ||
+    role === ADMIN_ROLES.manager ||
+    role === ADMIN_ROLES.cashier
+  );
+}
+
 export function canViewDashboardSummary(role: AdminRole) {
   return role === ADMIN_ROLES.owner;
 }

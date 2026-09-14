@@ -13,7 +13,13 @@ const createUserSchema = z.object({
   name: z.string().min(1).max(120),
   email: z.string().email().max(200),
   password: z.string().min(8).max(200),
-  role: z.enum([ADMIN_ROLES.owner, ADMIN_ROLES.manager, ADMIN_ROLES.kitchen]),
+  role: z.enum([
+    ADMIN_ROLES.owner,
+    ADMIN_ROLES.manager,
+    ADMIN_ROLES.kitchen,
+    // TASK-105: el rol de mostrador. Sin esto el admin no puede dar de alta un cajero.
+    ADMIN_ROLES.cashier,
+  ]),
   /** Sucursales asignadas (A). Sin lista, el usuario ve todas. */
   locationIds: z.array(z.string().trim().min(1).max(80)).max(50).optional(),
 });
