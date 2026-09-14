@@ -133,7 +133,7 @@ muestran). Sin PIN (es de caja).
 | **B2 · Aceptar y rechazar en la fila** | Los botones del flujo (§3) en la comanda, con el motivo obligatorio inline y aviso si la transición ya no aplica | `order-workflows.ts` | **Cerrada** |
 | **B3 · Comandas** | La vista completa: tres columnas / carril en celular, anatomía de §4.2, urgencia de §4.3, esqueleto, vacíos y pantalla completa | El **último cambio de estado** por pedido (`OrderStatusHistory`) en una sola lectura | **Cerrada** (`14ff91c`, CI `34809472367`) |
 | **B4 · Búsqueda y filtros** | Buscar por número, nombre, WhatsApp o PIN; filtros de forma de pago, «solo sin aceptar» y «atrasados»; el estado de la vista en la URL | Un parámetro `search` en el servidor | **Cerrada** |
-| **B5 · Umbrales por local** | `acceptAlertMinutes` y `prepAlertMinutes` por local, editables en `/admin/locations`, y el tiempo promedio de preparación del día | Migración aditiva + el actor del cambio de estado | **Cerrada la parte de umbrales (B5a)**; faltan el actor (`changedByUserId`) y el promedio de preparación |
+| **B5 · Umbrales por local** | `acceptAlertMinutes` y `prepAlertMinutes` por local, editables en `/admin/locations`, y el tiempo promedio de preparación del día | Migración aditiva + el actor del cambio de estado | **Cerrada (B5a + B5b)** |
 
 ## 6. Decisiones que quedan
 

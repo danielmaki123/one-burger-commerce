@@ -2151,10 +2151,15 @@ los 15 min **en la etapa actual**, todo en `/admin/orders`). Se avanza **una fas
   varias sucursales a la vista y sin filtro rigen los valores por defecto del negocio. A los `late`
   minutos del umbral ya está atrasada (`LATE_EXTRA_MINUTES` = 5).
 
-**Pendiente de B5 (el resto)**: el **actor** del cambio de estado (`changedByUserId` en
-`OrderStatusHistory`, para responder «quién aceptó esto» con cuentas compartidas) y el **tiempo
-promedio de preparación del día**. Van en su propio commit: no hacen falta para que los umbrales
-funcionen.
+- **B5b** — **el ritmo de la cocina y quién hizo cada cambio**: el tablero muestra el **promedio de
+  preparación del día** (de los pedidos que ya quedaron listos; `null` = «sin datos todavía», nunca un
+  «0 min» que se leería como cocina instantánea) y cada cambio de estado queda **firmado**
+  (`changedByUserId` en `OrderStatusHistory`, migración `20260914061058`, sin FK a propósito). La regla
+  de los sellos vive en `domain/order-stage-times.ts`, compartida por los dos adaptadores.
+
+**Con esto la consola de comandas está completa (B0–B5)**. Lo único que queda del lado del producto es
+**desplegarla** (necesita el OK del owner) y, del lado operativo, la QA interactiva de A (asignar una
+sucursal a la cuenta de cocina) y la rotación de `EASYPANEL_TOKEN`.
 
 - **B3** (`14ff91c`, CI `34809472367`) — **el tablero del turno**: tres carriles (Por aceptar · En
   preparación · Listas) en escritorio y **un carril por vez** en celular con conmutador segmentado;
@@ -2168,6 +2173,9 @@ funcionen.
 
 Faltan **B4** (búsqueda por número, nombre, WhatsApp o PIN, y filtros avanzados con el estado en la
 URL) y **B5** (umbrales por local y tiempo promedio de preparación).
+
+**Verificación de B5b**: **1775 unitarios en 262 archivos**, lint, typecheck, `build`, `build:webpack` y
+`security:secrets` en verde; **E2E completo local 95 pasaron / 7 salteados / 0 fallos**.
 
 **Verificación de B5a**: **1760 unitarios en 260 archivos**, lint, typecheck, `build`, `build:webpack`
 y `security:secrets` en verde; **E2E completo local 96 pasaron / 6 salteados / 0 fallos**.
