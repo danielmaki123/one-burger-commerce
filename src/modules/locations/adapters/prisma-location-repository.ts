@@ -34,6 +34,8 @@ function mapLocation(row: PrismaLocation): LocationRecord {
     businessHours: readBusinessHours(row.businessHours),
     pickupLeadMinutes: row.pickupLeadMinutes,
     pickupMaxMinutes: row.pickupMaxMinutes,
+    acceptAlertMinutes: row.acceptAlertMinutes,
+    prepAlertMinutes: row.prepAlertMinutes,
     isAcceptingOrders: row.isAcceptingOrders,
     closedMessage: row.closedMessage,
     createdAt: row.createdAt.toISOString(),

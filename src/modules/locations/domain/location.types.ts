@@ -31,6 +31,13 @@ export type LocationRecord = {
   pickupLeadMinutes: number;
   /** Máximo del rango de preparación (`null` = se promete un instante, no una franja). */
   pickupMaxMinutes: number | null;
+  /**
+   * B5 — minutos que puede esperar un pedido **sin aceptar** antes de que la comanda avise. Es el
+   * umbral de la cola «Por aceptar»: un pedido que nadie tomó no puede quedarse invisible.
+   */
+  acceptAlertMinutes: number;
+  /** B5 — minutos en cocina (aceptado, preparando o listo) antes de que la comanda avise. */
+  prepAlertMinutes: number;
   isAcceptingOrders: boolean;
   closedMessage: string | null;
   createdAt: string;

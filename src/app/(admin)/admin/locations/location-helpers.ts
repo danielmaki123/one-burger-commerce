@@ -52,6 +52,9 @@ export type LocationFormState = {
   businessHours: BusinessHours;
   pickupLeadMinutes: string;
   pickupMaxMinutes: string;
+  /** B5: cuándo avisa la comanda de este local (sin aceptar y en cocina). */
+  acceptAlertMinutes: string;
+  prepAlertMinutes: string;
   isAcceptingOrders: boolean;
   closedMessage: string;
 };
@@ -82,6 +85,9 @@ export function createEmptyLocationForm(): LocationFormState {
     },
     pickupLeadMinutes: "25",
     pickupMaxMinutes: "",
+    // Los mismos valores por defecto que la base (B5): 10 sin aceptar, 15 en cocina.
+    acceptAlertMinutes: "10",
+    prepAlertMinutes: "15",
     isAcceptingOrders: true,
     closedMessage: "",
   };
@@ -125,6 +131,8 @@ export function locationFormToInput(form: LocationFormState): LocationInput {
     businessHours: form.businessHours,
     pickupLeadMinutes: integerOrNull(form.pickupLeadMinutes) ?? 0,
     pickupMaxMinutes: integerOrNull(form.pickupMaxMinutes),
+    acceptAlertMinutes: integerOrNull(form.acceptAlertMinutes) ?? 10,
+    prepAlertMinutes: integerOrNull(form.prepAlertMinutes) ?? 15,
     isAcceptingOrders: form.isAcceptingOrders,
     closedMessage: textOrNull(form.closedMessage),
   };
@@ -147,6 +155,8 @@ export function locationToForm(location: LocationRecord): LocationFormState {
     businessHours: location.businessHours,
     pickupLeadMinutes: String(location.pickupLeadMinutes),
     pickupMaxMinutes: location.pickupMaxMinutes === null ? "" : String(location.pickupMaxMinutes),
+    acceptAlertMinutes: String(location.acceptAlertMinutes),
+    prepAlertMinutes: String(location.prepAlertMinutes),
     isAcceptingOrders: location.isAcceptingOrders,
     closedMessage: location.closedMessage ?? "",
   };
@@ -176,3 +186,4 @@ export function describeLocationHours(
 
   return `Hoy ${day.open} a ${day.close}`;
 }
+

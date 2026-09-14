@@ -31,6 +31,8 @@ function input(overrides: Partial<LocationInput> = {}): LocationInput {
     businessHours: DEFAULT_BUSINESS_HOURS,
     pickupLeadMinutes: 25,
     pickupMaxMinutes: null,
+    acceptAlertMinutes: 10,
+    prepAlertMinutes: 15,
     isAcceptingOrders: true,
     closedMessage: null,
     ...overrides,

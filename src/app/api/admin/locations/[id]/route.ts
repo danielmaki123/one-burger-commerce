@@ -50,6 +50,9 @@ const locationSchema = z.object({
   }),
   pickupLeadMinutes: z.number().int().min(0).max(180),
   pickupMaxMinutes: z.number().int().min(0).max(240).nullable().default(null),
+  // B5: umbrales de aviso del tablero de comandas (por local).
+  acceptAlertMinutes: z.number().int().min(1).max(120).default(10),
+  prepAlertMinutes: z.number().int().min(1).max(120).default(15),
   isAcceptingOrders: z.boolean().default(true),
   closedMessage: z.string().max(300).nullable().default(null),
 });

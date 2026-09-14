@@ -40,6 +40,9 @@ export function createInMemoryLocation(
     businessHours: cloneBusinessHours(DEFAULT_BUSINESS_HOURS),
     pickupLeadMinutes: 25,
     pickupMaxMinutes: null,
+    // B5: los mismos valores por defecto que la base, para que el doble no mienta.
+    acceptAlertMinutes: 10,
+    prepAlertMinutes: 15,
     isAcceptingOrders: true,
     closedMessage: null,
     createdAt: "2026-09-12T00:00:00.000Z",

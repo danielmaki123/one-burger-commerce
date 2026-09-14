@@ -92,6 +92,48 @@ export function formatStageElapsed(minutes: number): string {
   return rest === 0 ? `hace ${hours} h` : `hace ${hours} h ${rest} min`;
 }
 
+/**
+ * B5 — los umbrales del local, por familia de etapas.
+ *
+ * `acceptAlertMinutes` es de la cola «Por aceptar» (un pedido que nadie tomó es lo más urgente que hay)
+ * y `prepAlertMinutes` de la cocina, que incluye lo que espera en «Listas»: la comida lista también se
+ * enfría. El local los configura en `/admin/locations`; sin configuración rigen los valores por
+ * defecto, y un valor inservible no puede dejar la pantalla sin umbral.
+ */
+export const LATE_EXTRA_MINUTES = 5;
+
+export type ComandaThresholds = { warningMinutes: number; lateMinutes: number };
+
+export type ComandaThresholdsByLane = {
+  pending: ComandaThresholds;
+  kitchen: ComandaThresholds;
+};
+
+function usableMinutes(value: number | null | undefined, fallback: number): number {
+  return typeof value === "number" && Number.isFinite(value) && value >= 1 ? Math.trunc(value) : fallback;
+}
+
+export function comandaThresholds(input: {
+  acceptAlertMinutes?: number | null;
+  prepAlertMinutes?: number | null;
+}): ComandaThresholdsByLane {
+  const accept = usableMinutes(input.acceptAlertMinutes, DEFAULT_WARNING_MINUTES);
+  const prep = usableMinutes(input.prepAlertMinutes, DEFAULT_LATE_MINUTES);
+
+  return {
+    pending: { warningMinutes: accept, lateMinutes: accept + LATE_EXTRA_MINUTES },
+    kitchen: { warningMinutes: prep, lateMinutes: prep + LATE_EXTRA_MINUTES },
+  };
+}
+
+/** Los umbrales que le tocan a un carril: «Por aceptar» tiene los suyos, el resto los de cocina. */
+export function thresholdsForLane(
+  thresholds: ComandaThresholdsByLane,
+  lane: ComandaLane,
+): ComandaThresholds {
+  return lane === "pending" ? thresholds.pending : thresholds.kitchen;
+}
+
 /** Umbrales por defecto, en minutos: a los 10 avisa y a los 15 ya está atrasada (§4.3). */
 export const DEFAULT_WARNING_MINUTES = 10;
 export const DEFAULT_LATE_MINUTES = 15;

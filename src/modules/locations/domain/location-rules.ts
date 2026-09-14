@@ -51,6 +51,9 @@ export type LocationInput = {
   businessHours: BusinessHours;
   pickupLeadMinutes: number;
   pickupMaxMinutes: number | null;
+  /** B5 — cuándo avisa la comanda: sin aceptar y en cocina. */
+  acceptAlertMinutes: number;
+  prepAlertMinutes: number;
   isAcceptingOrders: boolean;
   closedMessage: string | null;
 };
@@ -109,6 +112,21 @@ export function validateLocationInput(input: LocationInput): Record<string, stri
 
   const hoursError = firstBusinessHoursError(input.businessHours);
   if (hoursError) errors.businessHours = hoursError;
+
+  // B5: los avisos del tablero de comandas. El mismo límite y el mismo mensaje para los dos: son la
+  // misma magnitud y discrepar solo confundiría a quien los edita.
+  for (const [field, label] of [
+    ["acceptAlertMinutes", "El aviso de pedidos sin aceptar"],
+    ["prepAlertMinutes", "El aviso de preparación"],
+  ] as const) {
+    const value = input[field];
+
+    if (!Number.isInteger(value) || value < 1) {
+      errors[field] = `${label} tiene que ser de al menos 1 minuto`;
+    } else if (value > 120) {
+      errors[field] = `${label} no puede pasar de 120 minutos`;
+    }
+  }
 
   if (input.whatsapp !== null && input.whatsapp.trim() !== "" && !normalizeWhatsapp(input.whatsapp)) {
     // Sin un número de ejemplo en el mensaje: el contrato anti-hardcode rechaza cualquier

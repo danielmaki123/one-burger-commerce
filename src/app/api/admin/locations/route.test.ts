@@ -127,8 +127,30 @@ describe("admin locations route", () => {
 
     expect(response.status).toBe(201);
     expect(createLocationMock).toHaveBeenCalledWith(
-      expect.objectContaining({ name: "Sucursal Norte", slug: "sucursal-norte", sortOrder: 1 }),
+      expect.objectContaining({
+        name: "Sucursal Norte",
+        slug: "sucursal-norte",
+        sortOrder: 1,
+        // B5: los umbrales de aviso del tablero viajan con el local. Un payload que no los traiga usa
+        // los valores por defecto (10 sin aceptar, 15 en cocina) en vez de quedar sin umbral.
+        acceptAlertMinutes: 10,
+        prepAlertMinutes: 15,
+      }),
       { repository: expect.anything() },
+    );
+  });
+
+  it("POST respeta los umbrales que el owner eligió para el local (B5)", async () => {
+    requireAdminSessionMock.mockResolvedValueOnce({ user: { id: "u_1", role: "owner" } });
+    canManageBusinessSettingsMock.mockReturnValueOnce(true);
+    createLocationMock.mockResolvedValueOnce({ data: { id: "loc_norte" }, meta: {} });
+
+    const { POST } = await import("./route");
+    await POST(postRequest({ ...validPayload, acceptAlertMinutes: 4, prepAlertMinutes: 22 }));
+
+    expect(createLocationMock).toHaveBeenCalledWith(
+      expect.objectContaining({ acceptAlertMinutes: 4, prepAlertMinutes: 22 }),
+      expect.anything(),
     );
   });
 

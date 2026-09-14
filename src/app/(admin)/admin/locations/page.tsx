@@ -602,6 +602,47 @@ export default function AdminLocationsPage() {
             pedido en este local.
           </p>
 
+          {/*
+            B5 — con qué minutos avisa el tablero de comandas de este local. Un pedido sin aceptar es lo
+            más urgente que hay (nadie lo tomó), y en cocina el ritmo lo pone la sucursal.
+          */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Input
+                label="Aviso sin aceptar (min)"
+                type="number"
+                inputMode="numeric"
+                min={1}
+                max={120}
+                value={form.acceptAlertMinutes}
+                error={fieldErrors.acceptAlertMinutes}
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, acceptAlertMinutes: event.target.value }))
+                }
+              />
+              <p className="mt-1 text-xs text-muted-foreground">
+                Cuánto puede esperar un pedido sin que nadie lo acepte.
+              </p>
+            </div>
+            <div>
+              <Input
+                label="Aviso en cocina (min)"
+                type="number"
+                inputMode="numeric"
+                min={1}
+                max={120}
+                value={form.prepAlertMinutes}
+                error={fieldErrors.prepAlertMinutes}
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, prepAlertMinutes: event.target.value }))
+                }
+              />
+              <p className="mt-1 text-xs text-muted-foreground">
+                Cuánto puede estar preparándose (o esperando listo) antes de avisar.
+              </p>
+            </div>
+          </div>
+
           <label className="grid gap-1.5 text-sm font-medium text-foreground">
             Aceptando pedidos
             <select

@@ -41,6 +41,8 @@ function input(overrides: Partial<LocationInput> = {}): LocationInput {
     businessHours: HOURS,
     pickupLeadMinutes: 25,
     pickupMaxMinutes: null,
+    acceptAlertMinutes: 10,
+    prepAlertMinutes: 15,
     isAcceptingOrders: true,
     closedMessage: null,
     ...overrides,
@@ -92,8 +94,28 @@ describe("validateLocationInput", () => {
     expect(validateLocationInput(input({ pickupLeadMinutes: 12.5 })).pickupLeadMinutes).toBeDefined();
   });
 
-  it("el rango no puede terminar antes de empezar", () => {
+  /**
+   * B5 — los umbrales con los que avisa el tablero de comandas de este local.
+   *
+   * Con límites: un aviso de 0 minutos marcaría todo atrasado desde el primer segundo, y uno de tres
+   * horas no avisaría nunca dentro de un turno.
+   */
+  it("los avisos del tablero van de 1 a 120 minutos", () => {
     expect(
+      validateLocationInput(input({ acceptAlertMinutes: 5, prepAlertMinutes: 30 })),
+    ).toEqual({});
+
+    expect(validateLocationInput(input({ acceptAlertMinutes: 0 })).acceptAlertMinutes).toBeDefined();
+    expect(validateLocationInput(input({ prepAlertMinutes: 0 })).prepAlertMinutes).toBeDefined();
+    expect(validateLocationInput(input({ acceptAlertMinutes: -5 })).acceptAlertMinutes).toBeDefined();
+    expect(validateLocationInput(input({ prepAlertMinutes: 121 })).prepAlertMinutes).toContain("120");
+    expect(validateLocationInput(input({ acceptAlertMinutes: 999 })).acceptAlertMinutes).toContain(
+      "120",
+    );
+    expect(validateLocationInput(input({ acceptAlertMinutes: 7.5 })).acceptAlertMinutes).toBeDefined();
+  });
+
+  it("el rango no puede terminar antes de empezar", () => {    expect(
       validateLocationInput(input({ pickupLeadMinutes: 30, pickupMaxMinutes: 20 })).pickupMaxMinutes,
     ).toContain("mayor o igual");
     expect(

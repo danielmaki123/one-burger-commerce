@@ -34,6 +34,8 @@ const principal = {
   businessHours: DEFAULT_BUSINESS_HOURS,
   pickupLeadMinutes: 25,
   pickupMaxMinutes: 40,
+  acceptAlertMinutes: 10,
+  prepAlertMinutes: 15,
   isAcceptingOrders: true,
   closedMessage: null,
   createdAt: "2026-09-12T00:00:00.000Z",
@@ -93,6 +95,8 @@ describe("locationFormToInput", () => {
       longitude: "-86.2",
       pickupLeadMinutes: "30",
       pickupMaxMinutes: "45",
+      acceptAlertMinutes: "12",
+      prepAlertMinutes: "18",
       whatsapp: "50588887777",
     });
 
@@ -105,6 +109,8 @@ describe("locationFormToInput", () => {
       longitude: -86.2,
       pickupLeadMinutes: 30,
       pickupMaxMinutes: 45,
+      acceptAlertMinutes: 12,
+      prepAlertMinutes: 18,
       whatsapp: "50588887777",
     });
     // El horario viaja completo, día por día, como lo espera la API.
@@ -127,6 +133,8 @@ describe("locationToForm", () => {
       slug: "principal",
       pickupLeadMinutes: "25",
       pickupMaxMinutes: "40",
+      acceptAlertMinutes: "10",
+      prepAlertMinutes: "15",
       isActive: true,
       isAcceptingOrders: true,
     });
@@ -138,3 +146,5 @@ describe("locationToForm", () => {
     expect(roundTrip.businessHours).toEqual(principal.businessHours);
   });
 });
+
+

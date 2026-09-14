@@ -4,6 +4,7 @@ import {
   COMANDA_LANES,
   comandaCounters,
   comandaLane,
+  comandaThresholds,
   formatStageElapsed,
   groupComandasByLane,
   resolveComandaUrgency,
@@ -133,5 +134,47 @@ describe("urgencia de una comanda", () => {
 
     expect(result.level).toBe("normal");
     expect(result.minutes).toBe(0);
+  });
+});
+
+/**
+ * B5 — los umbrales por local.
+ *
+ * Cada sucursal tiene su ritmo: la del centro con dos cocineros no avisa a los mismos minutos que la
+ * de la carretera. Lo que se avisa en cada familia de etapas es distinto (un pedido sin aceptar es más
+ * urgente que uno que recién entra al fuego), y a los `late` minutos de cada umbral ya está atrasado:
+ * `LATE_EXTRA_MINUTES` es la regla de producto que separa "aviso" de "atrasado".
+ */
+describe("umbrales por local (B5)", () => {
+  it("sin configuración rigen los valores por defecto: 10 sin aceptar, 15 en cocina", () => {
+    expect(comandaThresholds({})).toEqual({
+      pending: { warningMinutes: 10, lateMinutes: 15 },
+      kitchen: { warningMinutes: 15, lateMinutes: 20 },
+    });
+  });
+
+  it("un local más lento mueve sus dos umbrales", () => {
+    expect(
+      comandaThresholds({ acceptAlertMinutes: 5, prepAlertMinutes: 25 }),
+    ).toEqual({
+      pending: { warningMinutes: 5, lateMinutes: 10 },
+      kitchen: { warningMinutes: 25, lateMinutes: 30 },
+    });
+  });
+
+  it("un valor inservible no deja la pantalla sin umbral", () => {
+    expect(
+      comandaThresholds({ acceptAlertMinutes: null, prepAlertMinutes: 0 }),
+    ).toEqual({
+      pending: { warningMinutes: 10, lateMinutes: 15 },
+      kitchen: { warningMinutes: 15, lateMinutes: 20 },
+    });
+  });
+
+  it("el carril de listas usa el umbral de cocina: la comida esperando también se enfría", () => {
+    const thresholds = comandaThresholds({ prepAlertMinutes: 20 });
+
+    expect(comandaLane("ready_for_pickup")).toBe("ready");
+    expect(thresholds.kitchen.warningMinutes).toBe(20);
   });
 });

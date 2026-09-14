@@ -1047,6 +1047,109 @@ describe("bandeja de órdenes: tablero de comandas (B3)", () => {
 });
 
 /**
+ * B5 — los umbrales con los que avisa el tablero.
+ *
+ * Son **del local**: la sucursal del centro no cocina al ritmo de la de la carretera. Se usan los del
+ * local que se está mirando. Con varias sucursales a la vista y sin filtro no hay un ritmo único que
+ * valga, así que rigen los valores por defecto del negocio (10 sin aceptar, 15 en cocina).
+ */
+describe("bandeja de órdenes: umbrales por local (B5)", () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date", "setInterval", "clearInterval"] });
+    vi.setSystemTime(NOW);
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      get: () => "hidden",
+    });
+  });
+
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+  });
+
+  async function flush(times = 12) {
+    await act(async () => {
+      for (let index = 0; index < times; index += 1) {
+        await Promise.resolve();
+      }
+    });
+  }
+
+  async function renderWithThresholds({
+    locations,
+    locationScope = null,
+  }: {
+    locations: Array<Record<string, unknown>>;
+    locationScope?: string[] | null;
+  }) {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string) =>
+        Promise.resolve({
+          ok: true,
+          status: 200,
+          json: async () =>
+            String(url).includes("/api/admin/locations")
+              ? { data: locations }
+              : {
+                  data: [
+                    order({
+                      id: "ord_1",
+                      status: "new",
+                      // Siete minutos sin que nadie lo acepte.
+                      stageChangedAt: new Date(NOW.getTime() - 7 * 60_000).toISOString(),
+                    }),
+                  ],
+                  meta: { count: 1, locationScope },
+                },
+        }),
+      ),
+    );
+
+    const view = render(<AdminOrdersPage />);
+    await flush();
+
+    return view;
+  }
+
+  function urgency(container: HTMLElement) {
+    return container.querySelector("[data-urgency]")?.getAttribute("data-urgency");
+  }
+
+  it("con un solo local usa su umbral: avisa a los 5 minutos, no a los 10", async () => {
+    const { container } = await renderWithThresholds({
+      locations: [
+        {
+          id: "loc_centro",
+          name: "Centro",
+          isActive: true,
+          acceptAlertMinutes: 5,
+          prepAlertMinutes: 20,
+        },
+      ],
+      locationScope: ["loc_centro"],
+    });
+
+    expect(urgency(container)).toBe("warning");
+    expect(screen.getByText("hace 7 min")).toBeTruthy();
+  });
+
+  it("con varias sucursales a la vista rigen los valores por defecto del negocio", async () => {
+    const { container } = await renderWithThresholds({
+      locations: [
+        { id: "loc_centro", name: "Centro", isActive: true, acceptAlertMinutes: 5 },
+        { id: "loc_carretera", name: "Carretera", isActive: true, acceptAlertMinutes: 30 },
+      ],
+    });
+
+    // A los 10 minutos avisa y a los 15 está atrasado: con 7 todavía no.
+    expect(urgency(container)).toBe("normal");
+  });
+});
+
+/**
  * B4 — buscar y acotar el turno.
  *
  * El caso real: entra un pedido, el cliente llama preguntando por él, y quien atiende tiene el número,

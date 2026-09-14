@@ -2,7 +2,14 @@
 
 import type { OrderStatus } from "@/modules/orders/domain/order.types";
 
-import { COMANDA_LANES, comandaCounters, groupComandasByLane, type ComandaLane } from "./comanda-helpers";
+import {
+  COMANDA_LANES,
+  comandaCounters,
+  groupComandasByLane,
+  thresholdsForLane,
+  type ComandaLane,
+  type ComandaThresholdsByLane,
+} from "./comanda-helpers";
 import { OrderComandaCard, type ComandaOrder } from "./order-comanda-card";
 
 type OrderComandaBoardProps = {
@@ -21,8 +28,8 @@ type OrderComandaBoardProps = {
   ) => Promise<void>;
   disabled?: boolean;
   disabledReason?: string;
-  warningMinutes?: number;
-  lateMinutes?: number;
+  /** Umbrales del local (B5): «Por aceptar» y cocina avisan a minutos distintos. */
+  thresholds: ComandaThresholdsByLane;
   /** Con más de una sucursal a la vista, cada comanda dice de dónde es. */
   showLocation?: boolean;
   /** Término buscado: cuando el carril está vacío, el vacío explica que es por la búsqueda. */
@@ -52,8 +59,7 @@ export function OrderComandaBoard({
   onUpdateStatus,
   disabled = false,
   disabledReason,
-  warningMinutes,
-  lateMinutes,
+  thresholds,
   showLocation = false,
   searchTerm = "",
 }: OrderComandaBoardProps) {
@@ -125,8 +131,8 @@ export function OrderComandaBoard({
                     isNew={newOrderIds.includes(order.id)}
                     disabled={disabled}
                     disabledReason={disabledReason}
-                    warningMinutes={warningMinutes}
-                    lateMinutes={lateMinutes}
+                    warningMinutes={thresholdsForLane(thresholds, lane.id).warningMinutes}
+                    lateMinutes={thresholdsForLane(thresholds, lane.id).lateMinutes}
                     showLocation={showLocation}
                     onUpdateStatus={(status, note) => onUpdateStatus(order.id, status, note)}
                   />
@@ -139,3 +145,4 @@ export function OrderComandaBoard({
     </div>
   );
 }
+

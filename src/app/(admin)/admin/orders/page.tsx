@@ -47,6 +47,7 @@ import {
   DEFAULT_LATE_MINUTES,
   comandaCounters,
   comandaLane,
+  comandaThresholds,
   resolveComandaUrgency,
   type ComandaLane,
 } from "./comanda-helpers";
@@ -233,7 +234,9 @@ export default function AdminOrdersPage() {
   const [dateTo, setDateTo] = useState("");
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [locationFilter, setLocationFilter] = useState("all");
-  const [locations, setLocations] = useState<Array<{ id: string; name: string }>>([]);
+  const [locations, setLocations] = useState<
+    Array<{ id: string; name: string; acceptAlertMinutes?: number; prepAlertMinutes?: number }>
+  >([]);
   /** Alcance por sucursal que devolvió el servidor (A). `null` = ve todas. */
   const [scopeLocationIds, setScopeLocationIds] = useState<string[] | null>(null);
 
@@ -551,6 +554,28 @@ export default function AdminOrdersPage() {
   }, [orders, nowMs, showBoard]);
 
   const boardCounters = useMemo(() => comandaCounters(orders), [orders]);
+
+  /**
+   * B5 — con qué minutos avisa este tablero.
+   *
+   * Los umbrales son **del local**: la sucursal del centro no cocina al ritmo de la de la carretera. Se
+   * usan los del local que se está mirando (el filtro elegido, o el único del alcance). Con varias
+   * sucursales a la vista y sin filtro no hay un ritmo único que valga, así que rigen los valores por
+   * defecto: inventar un promedio sería mentir sobre las dos.
+   */
+  const boardThresholds = useMemo(() => {
+    const activeLocation =
+      locationFilter !== "all"
+        ? locations.find((location) => location.id === locationFilter)
+        : scopedLocations.length === 1
+          ? scopedLocations[0]
+          : undefined;
+
+    return comandaThresholds({
+      acceptAlertMinutes: activeLocation?.acceptAlertMinutes,
+      prepAlertMinutes: activeLocation?.prepAlertMinutes,
+    });
+  }, [locationFilter, locations, scopedLocations]);
 
   /**
    * B3 — un pedido programado para **otro día** no es trabajo de este turno: no entra en los carriles
@@ -1285,6 +1310,7 @@ export default function AdminOrdersPage() {
           onActiveLaneChange={setActiveLane}
           disabled={error !== null}
           disabledReason="Sin conexión: no se puede cambiar el estado."
+          thresholds={boardThresholds}
           showLocation={scopedLocations.length > 1}
           searchTerm={searchQuery}
           onUpdateStatus={(orderId, status, note) => {
@@ -1326,3 +1352,4 @@ export default function AdminOrdersPage() {
     </div>
   );
 }
+

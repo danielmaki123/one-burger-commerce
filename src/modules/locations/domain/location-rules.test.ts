@@ -15,6 +15,9 @@ import {
  * Regla del brief: si el cliente (o el admin) no eligió local, se usa el **primario**:
  * el primero activo por orden. Un local inactivo o inexistente se rechaza; el servidor
  * nunca cae en "el primero que haya" si el que pidieron no sirve.
+ *
+ * Los umbrales de aviso del tablero de comandas (B5) se validan en
+ * `location-validation.test.ts`, con el resto de la validación del formulario.
  */
 const HOURS: BusinessHours = {
   mon: { open: "12:00", close: "22:00", closed: false },
@@ -42,6 +45,8 @@ function location(overrides: Partial<LocationRecord> & { id: string; name: strin
     businessHours: HOURS,
     pickupLeadMinutes: 25,
     pickupMaxMinutes: null,
+    acceptAlertMinutes: 10,
+    prepAlertMinutes: 15,
     isAcceptingOrders: true,
     closedMessage: null,
     createdAt: "2026-09-12T00:00:00.000Z",
@@ -85,6 +90,12 @@ describe("pickDefaultLocation", () => {
   });
 });
 
+/**
+ * B5 — los umbrales de aviso del tablero de comandas.
+ *
+ * Se validan en `location-validation.test.ts`, con el resto del formulario: son dos campos más de la
+ * misma pantalla y no pueden tener reglas propias distintas.
+ */
 describe("resolveLocation", () => {
   it("sin local pedido usa el primario", () => {
     const result = resolveLocation({ requestedLocationId: null, locations: [segunda, principal] });

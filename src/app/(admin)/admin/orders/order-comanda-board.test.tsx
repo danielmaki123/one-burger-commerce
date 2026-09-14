@@ -5,6 +5,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { ComandaOrder } from "./order-comanda-card";
+import { comandaThresholds } from "./comanda-helpers";
 import { OrderComandaBoard } from "./order-comanda-board";
 
 /**
@@ -42,6 +43,7 @@ function renderBoard(orders: ComandaOrder[], props: Record<string, unknown> = {}
       activeLane="pending"
       onActiveLaneChange={onActiveLaneChange}
       onUpdateStatus={onUpdateStatus}
+      thresholds={comandaThresholds({})}
       {...props}
     />,
   );
