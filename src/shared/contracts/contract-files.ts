@@ -31,6 +31,10 @@ function toRepoPath(absolutePath: string): string {
 /**
  * Devuelve rutas relativas a la raíz (con `/`, no `\`) de todos los archivos bajo `relativeDir`,
  * ordenadas alfabéticamente para que los mensajes de fallo sean estables entre corridas.
+ *
+ * Un directorio que no existe devuelve `[]` en vez de explotar: git no versiona carpetas vacías, así
+ * que un directorio con contenido solo en el disco de alguien **no existe** en un clon ni en CI, y
+ * los guardrails tienen que medir lo mismo en los dos lados.
  */
 export function listFiles(
   relativeDir: string,
@@ -54,7 +58,12 @@ export function listFiles(
     }
   };
 
-  walk(path.join(repoRoot, relativeDir));
+  const root = path.join(repoRoot, relativeDir);
+  if (statSync(root, { throwIfNoEntry: false }) === undefined) {
+    return [];
+  }
+
+  walk(root);
 
   return found.sort();
 }
@@ -77,12 +86,4 @@ export function fileExists(repoPath: string): boolean {
 
 export function countMatches(source: string, pattern: RegExp): number {
   return (source.match(pattern) ?? []).length;
-}
-
-/** Directorios de un módulo (`src/modules/<módulo>` → `["adapters", "domain", ...]`). */
-export function listModuleDirectories(moduleName: string): string[] {
-  return readdirSync(path.join(repoRoot, "src", "modules", moduleName), { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => entry.name)
-    .sort();
 }

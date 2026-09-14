@@ -46,6 +46,7 @@ Estados: `reportado` · `a reproducir` · `en curso` · `cerrado` · `no-repro` 
 | A-10 | **La home del panel no existe para los roles sin Resumen**: `/admin` redirige a `/admin/orders`, así que un `manager` o una `kitchen` no tienen dónde elegir sección. Con POS e inventario anunciados (tablets separadas), hace falta una home por rol | decisión | P2 | `decisión-pendiente` | — |
 | A-11 | **Timeouts de la QA de solo lectura**: dos corridas contra `menu.oneburgernic.com` fallaron por `page.goto` de 30 s (una en masa, 33 casos) y al repetirlas pasaron; medido en el momento, las cargas públicas respondían en 0,7 s | infra | P3 | `a reproducir` | — |
 | A-12 | **El filtro «solo sin aceptar»** del brief B4 **no se implementó**: los carriles ya separan lo nuevo, así que se decidió no duplicarlo. Falta que el owner lo confirme (si lo quiere igual, es un toggle de la vista) | decisión | P3 | `decisión-pendiente` | — |
+| A-13 | **Dos módulos cascarón** (`coupons`, `table-ordering`): versionan solo su `README.md`, con las carpetas `adapters/domain/features/ports` **vacías** en el disco de quien las creó (git no versiona carpetas vacías, así que en un clon no existen). El motor de cupones vive en `orders` y el bootstrap de mesas en `tables/lib` | deuda | P3 | `reportado` (agente) | — |
 
 > Las **limitaciones conocidas y aceptadas** de `ops/production-readiness.md` §7 **no** son ítems de
 > este backlog (rate limiting en memoria, `replicas: 1`, `X-Powered-By` cosmético, `style-src` con
@@ -281,6 +282,24 @@ Estados: `reportado` · `a reproducir` · `en curso` · `cerrado` · `no-repro` 
   `src/app/(admin)/admin/orders/page.tsx` (los filtros que sí van: `search`, `paymentMethod`, `late`).
 - **Qué falta**: que el owner confirme que está bien así. Si lo quiere igual, es un toggle de la vista
   (mostrar solo el carril «Por aceptar») y entra como task nueva.
+
+### A-13 · Dos módulos cascarón: `coupons` y `table-ordering` — `reportado` (agente)
+
+- **Cómo apareció**: el guardrail de módulos de TASK-204 (`src/shared/contracts/module-contract.test.ts`)
+  pasó **verde en la máquina de desarrollo y rojo en CI**, con `coupons: falta adapters, domain,
+  features, ports` (y lo mismo para `table-ordering`). La causa no era el contrato sino cómo medía: su
+  primera versión miraba si el **directorio** existía, y esas cuatro carpetas existen —vacías— en el
+  disco local. **Git no versiona carpetas vacías**, así que en un clon esos dos módulos son un
+  `README.md` y nada más. Ya corregido: una capa cuenta solo si tiene archivos.
+- **Evidencia**: `git ls-files src/modules/coupons` → `src/modules/coupons/README.md` (ídem
+  `table-ordering`); `Get-ChildItem -Directory src/modules/coupons` en local muestra `adapters`,
+  `domain`, `features` y `ports` sin un solo archivo.
+- **Por qué es deuda real**: el motor de cupones vive en `src/modules/orders/domain/promo-bogo.ts` y
+  sus casos de uso en `src/modules/orders/features/`; el bootstrap de mesas, en
+  `src/modules/tables/lib/casa-antigua-table-bootstrap.ts`. Los cascarones no tienen código y aun así
+  aparecen como módulos en cualquier inventario (TASK-201 los contó como capas completas).
+- **Qué falta**: decisión del owner — borrar los cascarones con su README o dejarlos como marcador. Hasta
+  entonces quedan **congelados** en `LEGACY_PARTIAL_MODULES` con el motivo escrito.
 
 ## 3. Registro de lo cerrado
 
