@@ -47,6 +47,7 @@ Estados: `reportado` · `a reproducir` · `en curso` · `cerrado` · `no-repro` 
 | A-11 | **Timeouts de la QA de solo lectura**: dos corridas contra `menu.oneburgernic.com` fallaron por `page.goto` de 30 s (una en masa, 33 casos) y al repetirlas pasaron; medido en el momento, las cargas públicas respondían en 0,7 s | infra | P3 | `a reproducir` | — |
 | A-12 | **El filtro «solo sin aceptar»** del brief B4 **no se implementó**: los carriles ya separan lo nuevo, así que se decidió no duplicarlo. Falta que el owner lo confirme (si lo quiere igual, es un toggle de la vista) | decisión | P3 | `decisión-pendiente` | — |
 | A-13 | **Dos módulos cascarón** (`coupons`, `table-ordering`): versionan solo su `README.md`, con las carpetas `adapters/domain/features/ports` **vacías** en el disco de quien las creó (git no versiona carpetas vacías, así que en un clon no existen). El motor de cupones vive en `orders` y el bootstrap de mesas en `tables/lib` | deuda | P3 | `reportado` (agente) | — |
+| A-14 | **El mapeo de errores repite el mismo bloque 12 veces**: `src/shared/lib/http/error-response.ts` tiene un `if (error instanceof XError)` idéntico por módulo (11 antes de TASK-301). Se puede resolver con una tabla de constructores sin cambiar el comportamiento | deuda | P3 | `reportado` (agente) | — |
 
 > Las **limitaciones conocidas y aceptadas** de `ops/production-readiness.md` §7 **no** son ítems de
 > este backlog (rate limiting en memoria, `replicas: 1`, `X-Powered-By` cosmético, `style-src` con
@@ -300,6 +301,20 @@ Estados: `reportado` · `a reproducir` · `en curso` · `cerrado` · `no-repro` 
   aparecen como módulos en cualquier inventario (TASK-201 los contó como capas completas).
 - **Qué falta**: decisión del owner — borrar los cascarones con su README o dejarlos como marcador. Hasta
   entonces quedan **congelados** en `LEGACY_PARTIAL_MODULES` con el motivo escrito.
+
+### A-14 · El mapeo de errores repite el mismo bloque 12 veces — `reportado` (agente)
+
+- **Qué es**: `src/shared/lib/http/error-response.ts` tiene un `if (error instanceof XError)` con el
+  mismo cuerpo (`code`, `message`, `fields?` y `status`) repetido por cada módulo: 11 copias antes de
+  TASK-301 y 12 después (se sumó `PosError` con el mismo patrón, para no inventar un camino distinto
+  en el medio de otra tarea).
+- **Por qué es deuda y no un bug**: funciona y cada copia está tipada distinto (`status` varía por
+  módulo), así que no hay riesgo inmediato. El costo es que agregar un módulo nuevo obliga a copiar el
+  bloque, y que un cambio de formato de respuesta hay que hacerlo 12 veces.
+- **Qué falta**: una tabla de constructores (`[AuthError, BusinessSettingsError, …]`) que recorra y
+  devuelva lo mismo, con el test que ya existe (`src/shared/lib/http/error-response.test.ts`) como red.
+  Criterio de activación: cuando haya que tocar la forma de la respuesta de error o cuando entre un
+  módulo más.
 
 ## 3. Registro de lo cerrado
 
