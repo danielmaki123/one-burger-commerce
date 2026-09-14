@@ -122,6 +122,20 @@ responda. Ejemplo usado el 2026-09-12:
 curl -sS https://oneburgernic.com/checkout | grep -o '/_next/static/[^"]*\.js' | sort -u   # y buscar el marcador en esos chunks
 ```
 
+⚠️ Tres cosas que se aprendieron el 2026-09-14, con las comandas:
+
+- **La llamada a `deployService` puede no responder** (el panel sostiene el build y el cliente corta por
+  timeout a los 40–180 s). No significa que no se desplegó: verificá la **acción** con
+  `actions/listActions` (tiene que aparecer `Deploy service: …` en `pending`/`running`/`done`) y el
+  `commit.sha` con `inspectService`.
+- **El `sha` del panel puede quedar atrás de `main`** si el último push fue solo de documentación: el
+  artefacto es el commit del **código** (p. ej. `0072531`), no `HEAD` (`8ba51ec`, docs). Compará
+  `commit.sha` contra **el commit que quisiste desplegar**, no contra `HEAD`. La versión de
+  `/api/health` (`build-AAAAMMDD-HHMMSS`) es la señal de que el build nuevo ya sirve.
+- Un marcador de texto puede **no aparecer** en los chunks del HTML inicial: la página de admin no
+  referencia su chunk de cliente en el HTML servido, así que la verificación fina necesita una sesión de
+  admin (o se acepta `commit.sha` + versión de `/api/health` como evidencia).
+
 Antes de commitear o desplegar:
 
 ```bash

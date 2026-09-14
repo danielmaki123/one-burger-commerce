@@ -1,13 +1,18 @@
 # TASK-orders-console — B: las comandas de la sucursal
 
-> **Estado: DISEÑO ACORDADO (2026-09-13), sin arrancar.** Arranca al cerrar A (cerrada y desplegada:
-> commit `982da3f`). **Decisiones del owner**: avisos = **sonido + aviso en el panel** · la vista vive
+> **Estado (2026-09-14): CERRADA Y DESPLEGADA.** B0–B5 están en producción desde `0124784`
+> (`build-20260914-113152`) y **B6** (la vuelta al panel) desde `0072531` (`build-20260914-151459`).
+> Lo único que no se implementó es el filtro «solo sin aceptar» de B4, porque los carriles ya separan lo
+> nuevo: está anotado como **A-12** en `ops/audit-backlog.md`, a confirmar por el owner.
+> **Decisiones del owner** (se mantienen): avisos = **sonido + aviso en el panel** · la vista vive
 > **dentro de `/admin/orders`** (no una pantalla aparte) · **sin Telegram** por ahora · **sin
 > aceptación automática**: se **acepta o se rechaza** · luego **un botón**: preparación → terminado ·
 > la comanda va **bien detallada** (cliente, hora de entrada, tiempo de preparación) sin necesidad de
 > ver el plato completo · la sección **ocupa toda la pantalla**, ordenada, con buenas prácticas de
 > UX/UI · **si se va el wifi se mantiene el orden y la lista** · **pasados 15 minutos la comanda
-> cambia de color** para dar urgencia.
+> cambia de color** para dar urgencia. El owner corrigió el rumbo el 2026-09-14: la pantalla a pantalla
+> completa se sale con **«Ver el panel»** (devuelve la barra lateral, sin cerrar sesión), no con un
+> botón de cerrar sesión.
 
 ## 1. Qué pidió el owner
 
@@ -133,7 +138,8 @@ muestran). Sin PIN (es de caja).
 | **B2 · Aceptar y rechazar en la fila** | Los botones del flujo (§3) en la comanda, con el motivo obligatorio inline y aviso si la transición ya no aplica | `order-workflows.ts` | **Cerrada** |
 | **B3 · Comandas** | La vista completa: tres columnas / carril en celular, anatomía de §4.2, urgencia de §4.3, esqueleto, vacíos y pantalla completa | El **último cambio de estado** por pedido (`OrderStatusHistory`) en una sola lectura | **Cerrada** (`14ff91c`, CI `34809472367`) |
 | **B4 · Búsqueda y filtros** | Buscar por número, nombre, WhatsApp o PIN; filtros de forma de pago, «solo sin aceptar» y «atrasados»; el estado de la vista en la URL | Un parámetro `search` en el servidor | **Cerrada** |
-| **B5 · Umbrales por local** | `acceptAlertMinutes` y `prepAlertMinutes` por local, editables en `/admin/locations`, y el tiempo promedio de preparación del día | Migración aditiva + el actor del cambio de estado | **Cerrada (B5a + B5b)** |
+| **B5 · Umbrales por local** | `acceptAlertMinutes` y `prepAlertMinutes` por local, editables en `/admin/locations`, y el tiempo promedio de preparación del día | Migración aditiva + el actor del cambio de estado | **Cerrada (B5a + B5b)**: `54d1f66` y `2c8ec39` |
+| **B6 · Volver al panel** | La pantalla a pantalla completa tiene que poder **salirse**: «Ver el panel» devuelve la barra lateral —navegación y sesión— **sin cerrar sesión**. El primer intento (`0c3aa35`) puso un «Cerrar sesión» en la barra del turno y se revirtió: el owner quería **retroceder**, no salir de su cuenta | Nada nuevo: era el bug que el owner encontró en producción | **Cerrada** (`0072531`, CI `34860078905`) |
 
 ## 6. Decisiones que quedan
 

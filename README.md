@@ -40,7 +40,12 @@ BASE_URL=https://oneburgernic.com npm run test:e2e:prod:hosts
   `locations`, T8). El pedido guarda el local y lo muestra en la confirmacion, el historial y el admin.
 - **Retiro programable**: el cliente puede elegir una hora del dia o **un dia futuro** (sin tope: el
   limite es el horario de ese dia) y el servidor valida la hora contra el horario del dia elegido.
-- Admin: ordenes (con filtro por local), menu, usuarios y **personalizacion del negocio** (`/admin/settings`).
+- Admin: **comandas** (`/admin/orders`: tablero del turno en tres carriles —por aceptar, en preparación,
+  listas— con la urgencia medida dentro de la etapa, auto-refresh con aviso y sonido, aceptar/rechazar
+  desde la fila, búsqueda por número/nombre/WhatsApp/PIN y filtros en la URL, umbrales de aviso por local
+  editables en `/admin/locations` y promedio de preparación del día), menú, usuarios y **personalización
+  del negocio** (`/admin/settings`). El detalle del diseño y las decisiones está en
+  [`ops/tasks/TASK-orders-console.md`](ops/tasks/TASK-orders-console.md).
 - Roles: `owner`, `manager`, `kitchen`.
 - Pago: se cobra **en el local al retirar**. No hay pasarela de pago.
 - Propina: opcional, desmarcada por defecto, **porcentaje configurable** desde el admin

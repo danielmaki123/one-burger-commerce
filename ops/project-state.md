@@ -21,9 +21,11 @@
 | Repo | `github.com/danielmaki123/one-burger-commerce`, rama de deploy `main` |
 | DNS | `oneburgernic.com` y `www` → `76.13.250.83` (registros A) |
 
-**Verificación al cierre de esta etapa** (2026-09-12): **1547 tests unitarios**, lint, typecheck,
-`build` y `security:secrets` en verde; CI (`verify` + `migrations` + `container` + `publish`) verde en
-cada push; smoke productivo **4/4** en los cuatro dominios. El detalle de cada fase cerrada está en §2.
+**Verificación al cierre de la última etapa** (2026-09-14, comandas B0–B6): **1783 tests unitarios en
+263 archivos**, lint, typecheck, `build`, `build:webpack` y `security:secrets` en verde; CI (`verify` +
+`migrations` + `container` + `publish`) verde en cada push; **E2E completo local 97 pasaron / 6
+salteados / 0 fallos**; smoke productivo **7/7** y dominios **6/6**. La línea de base anterior era
+**1560 en 245** (2026-09-13, cierre de A). El detalle de cada fase cerrada está en §2.
 
 **Estado del catálogo** (revisado contra producción el 2026-09-12): el owner cargó **2 categorías con
 6 productos** (4 hamburguesas con C$35 de empaque y 2 bebidas). El menú público los muestra con sus
@@ -2288,6 +2290,8 @@ panel» la devuelve y que se sigue adentro (misma URL, misma pantalla).
 | 11 | **Adopción del mock completo (rediseño de la UI pública)** | **Cerrada el 2026-09-12** (ola 1 T1-T7 + T3.1; ola 2 T8, T9, T11, T12 y T13). **T10 (favoritos) sigue descartada/bloqueada** por falta de login de cliente real | [`ops/tasks/TASK-mock-adoption.md`](tasks/TASK-mock-adoption.md). Plan **aprobado** el 2026-09-12 (D-A tipografía: Plus Jakarta Sans como tercera opción · D-B ola 2 completa **sin reseñas ni delivery** · D-C orden: tokens primero y después las pantallas en el orden del mock). **Reglas del programa**: ningún control decorativo (implementado con API/estado y test, o eliminado con motivo), nada hardcodeado, la paleta como preset que pasa el test de contraste, TDD por tarea, y verificación a 375 px **y 1280 px** (el mock no tiene escritorio). **Ola 1**: T1 tokens ✅ · T2 home ✅ · T3 menú ✅ · T3.1 color por categoría ✅ · T4 producto ✅ · T5 carrito+checkout ✅ (fases 1, 2, 3, 6 y 7) · T6 confirmación ✅ · T7 seguimiento e historial ✅ · **ola 1 completa** · T11 forma de pago ✅ · T12 vuelto ✅ · T13 PIN de retiro ✅ · **T9 promos cerrada**: motor ✅, campo del código en el checkout ✅ y pantalla del admin `/admin/promotions` ✅ · **T8 (multi-sucursal) cerrada**: alcance **decidido el 2026-09-12 (D-T8) = menú y precios por local**, brief en [`ops/tasks/TASK-multi-location.md`](tasks/TASK-multi-location.md); **fases 1-7 cerradas** (modelo y backfill, API y pantalla de locales, catálogo y precios por local, menú público, selector en el checkout, operación por local, y el local en el detalle, la confirmación y el historial). Queda **un gap declarado** —**cerrado el 2026-09-12 con A-07, commit `83d7433`** (§2, "A-07 · la información de cada sucursal")—: el footer y el bloque de información de la home mostraban el horario y la dirección de la configuración del negocio, no del local. **Decisiones del checkout resueltas el 2026-09-12**: D1 **sí** — **fase 4 cerrada** (pedidos para días futuros, sin límite de días: el tope es el horario del día) y D2 **no** (una sola tasa de propina; la fase 5 queda descartada). **Ola 2** (aprobada): T8 multi-sucursal, T9 promos, T10 favoritos (**descartada por el owner**: "mantengamos el login tal cual lo tenemos"; sin cuenta no hay favoritos), T11 método de pago, T12 vuelto, T13 PIN de retiro. Evidencia del mock: [`ops/audit-checkout-mock.md`](audit-checkout-mock.md). |
 
 | 12 | **Corregir los datos de los locales de producción** | Daniel (5 minutos en `/admin/locations`) | Producción tiene **3 locales y los tres son reales** (confirmado por el owner el 2026-09-12). Falta corregir dos datos: el slug de *Camino de Oriente* (`one-burger-masaya` → `camino-de-oriente`, que no coincide con el nombre) y la ciudad de *Casa Antigua*, escrita **`Jinoteoe`**. Sin riesgo: el slug del local no se usa en URLs públicas ni queda en los pedidos. Detalle en `ops/production-readiness.md` §8.8. |
+| 13 | **Consola de comandas (B0–B6)** | **Cerrada y desplegada (2026-09-14)** | `ops/tasks/TASK-orders-console.md`. Nueve commits: B0 `64e0930` · B1 `d19bdf8` · B2 `17f151b` · B3 `03321d1`/`37487de`/`14ff91c` · B4 `0ab648d` · B5a `54d1f66` · B5b `2c8ec39` · B6 `0072531`. En producción como `build-20260914-151459`. Lo único no implementado: el filtro «solo sin aceptar» de B4 (los carriles ya lo separan) → **A-12** del backlog. |
+| 14 | **Auditoría del producto y del código** | Abierta (2026-09-14) | Cola en [`ops/audit-backlog.md`](audit-backlog.md): **A-02 a A-06** bloqueados por el owner (datos, monitoreo, puertos, token) y **A-09 a A-12** registrados por el agente al cerrar las comandas (actor del cambio sin mostrar, home del panel por rol, timeouts de la QA, filtro «solo sin aceptar»). El prompt para el chat de auditoría está en `ops/tasks/START-HERE.md` §1b. |
 
 ## 5. Cómo continuar
 
@@ -2327,8 +2331,24 @@ BASE_URL=http://127.0.0.1:3210 E2E_ALLOW_MUTATIONS=true \
 #    Verificar después: commit.sha vía services/app/inspectService + el sitio real.
 
 # 5. Verificación en producción (solo lectura)
-BASE_URL=https://oneburgernic.com npm run test:e2e:prod
+BASE_URL=https://oneburgernic.com npm run test:e2e:prod            # smoke: 7 casos
+BASE_URL=https://oneburgernic.com npm run test:e2e:prod:hosts      # dominios: 6 casos
+# QA de las superficies públicas (7 specs, ~31 casos) contra el subdominio de pedidos:
+BASE_URL=https://menu.oneburgernic.com npx playwright test \
+  tests/e2e/public-header.spec.ts tests/e2e/public-home.spec.ts tests/e2e/public-menu.spec.ts \
+  tests/e2e/public-product.spec.ts tests/e2e/public-cart.spec.ts \
+  tests/e2e/design-tokens.spec.ts tests/e2e/security-csp.spec.ts
+# ⚠️ Esa QA puede dar timeouts de carga en ráfaga (pasó el 2026-09-14): si falla en masa, medí la
+# latencia de las superficies antes de culpar al código (runbook §0 y A-11 del backlog).
 ```
+
+**Antes de tocar nada, el estado en una línea (2026-09-14)**: producción sirve `build-20260914-151459`
+(commit `0072531`), con A (alcance por sucursal) y B (comandas B0–B6) desplegadas; la cola de trabajo es
+**la auditoría** —[`ops/audit-backlog.md`](audit-backlog.md), prompt en
+[`ops/tasks/START-HERE.md`](tasks/START-HERE.md) §1b— con A-02…A-06 bloqueados por el owner y A-09…A-12
+abiertos por el cierre de las comandas. La última línea de base verificada: **1783 unitarios en 263
+archivos**, lint, typecheck, `build`, `build:webpack` y `security:secrets` en verde, **E2E local 97
+pasaron / 6 salteados / 0 fallos**, CI verde en cada push.
 
 ## 6. Límites conocidos (resumen)
 

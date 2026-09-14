@@ -20,10 +20,12 @@
 > 6. La UI se verifica a **375 px y 1280 px en navegador real** (Playwright), no en HTML estático.
 > 7. **Producción no se toca ni se despliega sin confirmación explícita del owner.**
 >
-> **Fecha de apertura**: 2026-09-12 · **Rama**: `main` · **Estado**: A-01/A-07 (commit `83d7433`) y
-> A-08 (commit `f0366c8`) **cerrados**. Lo que queda en la cola (A-02 a A-06) está **bloqueado**: son
-> datos, infraestructura o decisiones del owner, así que no hay task técnica para atacar sin que él
-> diga cuál.
+> **Fecha de apertura**: 2026-09-12 · **Rama**: `main` · **Estado (2026-09-14)**: **A-01/A-07**
+> (commit `83d7433`) y **A-08** (commit `f0366c8`) cerrados. **A-02 a A-06** están **bloqueados**: son
+> datos, infraestructura o decisiones del owner, así que no hay task técnica para atacar sin que él diga
+> cuál. **A-09 a A-12** los registró el **agente** al cerrar la consola de comandas (B0–B6): son cosas
+> que quedaron abiertas a propósito y que conviene que mire una auditoría **antes** de decidir si se
+> atacan.
 
 ## 1. Índice
 
@@ -39,11 +41,17 @@ Estados: `reportado` · `a reproducir` · `en curso` · `cerrado` · `no-repro` 
 | A-03 | Falta **cargar la carta completa** (categorías, productos, precios, fotos): producción tiene 2 categorías con 6 productos | dato | P3 | `bloqueado` (owner) | — |
 | A-04 | **Monitoreo externo** inexistente: nada pega a `GET /api/readiness` ni avisa si el sitio o la base se caen | infra | P2 | `bloqueado` (owner elige servicio) | — |
 | A-05 | **Puertos expuestos** de servicios ajenos del panel compartido (`capostgres` 5455, `postimage` 8585) | infra | P2 | `bloqueado` (OK de otro admin) | — |
-| A-06 | **Rotar `EASYPANEL_TOKEN`** (se pasó por chat varias veces; da acceso total al servidor) | infra | P2 | `bloqueado` (decisión de owner) | — |
+| A-06 | **Rotar `EASYPANEL_TOKEN`** (se pasó por chat cinco veces; da acceso total al servidor) | infra | P2 | `bloqueado` (decisión de owner) | — |
+| A-09 | **El actor del cambio de estado se guarda pero no se muestra en ninguna pantalla**: `OrderStatusHistory.changedByUserId` queda asentado (B5b) y no hay vista que lo lea | deuda | P3 | `reportado` (agente) | — |
+| A-10 | **La home del panel no existe para los roles sin Resumen**: `/admin` redirige a `/admin/orders`, así que un `manager` o una `kitchen` no tienen dónde elegir sección. Con POS e inventario anunciados (tablets separadas), hace falta una home por rol | decisión | P2 | `decisión-pendiente` | — |
+| A-11 | **Timeouts de la QA de solo lectura**: dos corridas contra `menu.oneburgernic.com` fallaron por `page.goto` de 30 s (una en masa, 33 casos) y al repetirlas pasaron; medido en el momento, las cargas públicas respondían en 0,7 s | infra | P3 | `a reproducir` | — |
+| A-12 | **El filtro «solo sin aceptar»** del brief B4 **no se implementó**: los carriles ya separan lo nuevo, así que se decidió no duplicarlo. Falta que el owner lo confirme (si lo quiere igual, es un toggle de la vista) | decisión | P3 | `decisión-pendiente` | — |
 
 > Las **limitaciones conocidas y aceptadas** de `ops/production-readiness.md` §7 **no** son ítems de
 > este backlog (rate limiting en memoria, `replicas: 1`, `X-Powered-By` cosmético, `style-src` con
 > `'unsafe-inline'`, módulos fuera del MVP). Si el owner quiere atacar alguna, entra como ítem nuevo.
+> A-09 a A-12 los registró el agente (no el owner): **A-10 y A-12 son decisiones de producto**, no bugs,
+> y no se implementan sin respuesta.
 
 ## 2. Detalle
 
@@ -220,13 +228,59 @@ Estados: `reportado` · `a reproducir` · `en curso` · `cerrado` · `no-repro` 
 
 ### A-06 · Rotar el `EASYPANEL_TOKEN` — `bloqueado` (decisión de owner)
 
-- **Por qué**: el token da acceso total al servidor y se pasó por chat **cuatro veces** (2026-09-10,
-  2026-09-12, y **dos veces el 2026-09-13**: el deploy de A-07/A-08 y el de A).
+- **Por qué**: el token da acceso total al servidor y se pasó por chat **cinco veces** (2026-09-10,
+  2026-09-12, dos veces el 2026-09-13 —el deploy de A-07/A-08 y el de A— y **dos veces más el
+  2026-09-14**: el deploy de las comandas y el de B6).
 - **Receta**: `ops/production-readiness.md` §8.3 (panel → Settings → API tokens: crear uno nuevo,
   usarlo y revocar el viejo).
 - **Ojo**: el `inspectService` del panel devuelve el `env` completo del servicio (incluye
   `DATABASE_URL` con su contraseña y `NEXTAUTH_SECRET`), así que quien tenga el token ve también esos
   secretos: no es solo acceso al panel.
+
+### A-09 · El actor del cambio de estado no se muestra — `reportado` (agente)
+
+- **Qué es**: en B5b cada cambio de estado queda firmado (`OrderStatusHistory.changedByUserId`, migración
+  `20260914061058`) y **ninguna pantalla lo lee**: el detalle del pedido no muestra historial y la
+  comanda tampoco. La pregunta «quién aceptó esto» hoy se responde **en la base**, no en el producto.
+- **Evidencia**: `src/modules/orders/adapters/prisma-order-repository.ts` (`getOrderStatusHistory` lo
+  devuelve) y ningún componente lo consume (`grep -rn "getOrderStatusHistory" src/app` no devuelve usos).
+- **Por qué quedó así**: mostrarlo pide una vista de historial del pedido, que es una pantalla nueva, no
+  un detalle del arreglo. Se dejó asentado a propósito.
+- **Qué haría falta para cerrarlo**: decidir dónde se muestra (detalle del pedido vs. comanda) y con qué
+  nombre (el id solo no sirve: hay que resolver el usuario).
+
+### A-10 · La home del panel no existe para los roles sin Resumen — `decisión-pendiente`
+
+- **Qué es**: `/admin` es solo del dueño (`canViewAdminOverview`); a un `manager` o una `kitchen` los
+  redirige a `/admin/orders`. El owner anunció **POS e inventario** para tablets separadas: esos roles
+  van a necesitar un lugar donde elegir sección, y hoy no lo tienen (B6 agregó «Ver el panel», que
+  devuelve la barra lateral, pero esa barra para una cocina solo tiene Órdenes).
+- **Evidencia**: `src/app/(admin)/admin/page.tsx` (redirección por rol),
+  `src/app/(admin)/admin/admin-layout-helpers.ts` (`getAdminNavGroups`) y el `homeHref` del shell.
+- **Por qué es `decisión` y no bug**: hoy nada está roto (la cocina solo tiene una sección). Lo que falta
+  es producto: qué ve cada rol al entrar al panel cuando haya POS e inventario.
+
+### A-11 · Timeouts de la QA de solo lectura — `a reproducir`
+
+- **Qué pasó**: el 2026-09-14, dos corridas de la QA de solo lectura contra `menu.oneburgernic.com`
+  fallaron por `page.goto` de 30 s —una **en masa** (33 casos de 34) y otra en un solo caso— y al
+  repetirlas pasaron (30–31 de 34, 3 salteados).
+- **Lo que se midió en ese momento**: las seis superficies públicas en 200 (`/api/health`,
+  `/api/readiness`, `/api/menu`, `/api/locations`, `/`, `/menu`), `/api/readiness` con la base en 9 ms y
+  cinco cargas de `/menu` con **0,7 s de media** (máx. 0,9 s). No hay evidencia de regresión de código.
+- **Hipótesis**: saturación del burst de la suite (una réplica, muchos navegadores en paralelo) o de la
+  red de quien la corre. **Qué haría falta**: correrla de nuevo midiendo tiempos, y si se repite, mirar
+  recursos del contenedor en Easypanel (CPU/memoria) y el `replicas: 1` del runbook §7.
+
+### A-12 · El filtro «solo sin aceptar» no se implementó — `decisión-pendiente`
+
+- **Qué es**: el brief B4 listaba «filtros de forma de pago, **solo sin aceptar** y atrasados». Se
+  implementaron la búsqueda, la forma de pago y «Atrasados»; **no** «solo sin aceptar», porque los
+  carriles del tablero ya separan lo nuevo (un filtro que duplica un carril es un control de más).
+- **Evidencia**: `ops/tasks/TASK-orders-console.md` §5 (fila B4) y
+  `src/app/(admin)/admin/orders/page.tsx` (los filtros que sí van: `search`, `paymentMethod`, `late`).
+- **Qué falta**: que el owner confirme que está bien así. Si lo quiere igual, es un toggle de la vista
+  (mostrar solo el carril «Por aceptar») y entra como task nueva.
 
 ## 3. Registro de lo cerrado
 
