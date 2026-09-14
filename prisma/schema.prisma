@@ -12,6 +12,8 @@ enum AdminRole {
   owner
   manager
   kitchen
+  /// TASK-105 — cobra en el punto de venta. No administra menú, promociones ni configuración.
+  cashier
 }
 
 model AdminUser {
@@ -24,6 +26,8 @@ model AdminUser {
   updatedAt    DateTime            @updatedAt
   sessions     AdminSession[]
   locations    AdminUserLocation[]
+  /// TASK-104 — los turnos de caja que abrió y cerró este usuario.
+  shifts       Shift[]
 }
 
 /// Sucursales que puede ver un usuario del staff (A). El `owner` ve todas y su asignación se
@@ -198,6 +202,8 @@ model Location {
   products          LocationProduct[]
   orders            Order[]
   adminUsers        AdminUserLocation[]
+  /// TASK-104 — los turnos de caja de este local.
+  shifts            Shift[]
 
   @@index([isActive, sortOrder])
 }
@@ -341,6 +347,12 @@ enum PaymentMethodType {
   transfer
   mixed
   other
+}
+
+/// TASK-104 — un turno de caja, abierto y cerrado.
+enum ShiftStatus {
+  open
+  closed
 }
 
 enum OrderStatus {
@@ -724,6 +736,40 @@ model Payment {
 
   @@index([orderId])
   @@index([createdAt])
+}
+
+/// TASK-104 — un turno de caja: se abre con un fondo, se cierra con el conteo y deja la diferencia.
+///
+/// Lo que el schema **no** puede declarar, y por eso vive en la migración: un índice único
+/// **parcial** que impide dos turnos abiertos en el mismo local a la vez
+/// (`UNIQUE ("locationId") WHERE status = 'open'`). El DSL de Prisma no tiene índices parciales, así
+/// que la regla se escribe a mano en el SQL; hay un test de contrato que exige que el índice exista,
+/// porque sin él dos cajas podrían abrir el mismo turno y el arqueo quedaría partido en dos.
+model Shift {
+  id             String      @id @default(cuid())
+  locationId     String
+  userId         String
+  status         ShiftStatus @default(open)
+  openedAt       DateTime    @default(now())
+  closedAt       DateTime?
+  /// Fondo con el que arranca la caja.
+  openingAmount  Decimal     @default(0) @db.Decimal(10, 2)
+  /// Lo que se contó al cerrar. `null` mientras el turno está abierto.
+  closingAmount  Decimal?    @db.Decimal(10, 2)
+  /// Lo que el sistema esperaba según los cobros. Se guarda congelado al cerrar: el arqueo de un
+  /// turno cerrado no puede cambiar porque después se editó un pedido.
+  expectedAmount Decimal?    @db.Decimal(10, 2)
+  /// `closingAmount - expectedAmount`. Negativo = faltó plata.
+  difference     Decimal?    @db.Decimal(10, 2)
+  notes          String?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  location       Location    @relation(fields: [locationId], references: [id], onDelete: Restrict)
+  user           AdminUser   @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([locationId, status])
+  @@index([userId])
+  @@index([openedAt])
 }
 
 

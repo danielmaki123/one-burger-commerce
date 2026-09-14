@@ -32,6 +32,21 @@ function mapPayment(payment: {
   };
 }
 
+/**
+ * Ventana de tiempo traducida al `where` de Prisma. Sin extremos no filtra por fecha, así que una
+ * llamada sin rango se comporta como antes.
+ */
+function rangeFilter(range?: { from?: string; to?: string }) {
+  if (!range || (!range.from && !range.to)) return {};
+
+  return {
+    createdAt: {
+      ...(range.from ? { gte: new Date(range.from) } : {}),
+      ...(range.to ? { lte: new Date(range.to) } : {}),
+    },
+  };
+}
+
 export class PrismaPaymentRepository implements PaymentRepository {
   async createPayment(input: CreatePaymentInput): Promise<PaymentRecord> {
     const prisma = getPrismaClient();
@@ -48,10 +63,27 @@ export class PrismaPaymentRepository implements PaymentRepository {
     return mapPayment(payment);
   }
 
-  async listPaymentsByOrder(orderId: string): Promise<PaymentRecord[]> {
+  async listPaymentsByOrder(
+    orderId: string,
+    range?: { from?: string; to?: string },
+  ): Promise<PaymentRecord[]> {
     const prisma = getPrismaClient();
     const payments = await prisma.payment.findMany({
-      where: { orderId },
+      where: { orderId, ...rangeFilter(range) },
+      orderBy: { createdAt: "asc" },
+    });
+
+    return payments.map(mapPayment);
+  }
+
+  async listPaymentsInRange(
+    locationId: string,
+    range: { from?: string; to?: string },
+  ): Promise<PaymentRecord[]> {
+    const prisma = getPrismaClient();
+    // El local sale del pedido: `Payment` no lo guarda (sería dato duplicado que puede quedar viejo).
+    const payments = await prisma.payment.findMany({
+      where: { order: { locationId }, ...rangeFilter(range) },
       orderBy: { createdAt: "asc" },
     });
 

@@ -241,3 +241,36 @@ export type PaymentRecord = {
   reference: string | null;
   createdAt: string;
 };
+
+/** TASK-104 — estado de un turno de caja. */
+export const SHIFT_STATUSES = {
+  open: "open",
+  closed: "closed",
+} as const;
+
+export type ShiftStatus = (typeof SHIFT_STATUSES)[keyof typeof SHIFT_STATUSES];
+
+export function isShiftStatus(value: string): value is ShiftStatus {
+  return Object.values(SHIFT_STATUSES).includes(value as ShiftStatus);
+}
+
+/** Un turno de caja. Los montos de cierre son `null` mientras está abierto. */
+export type ShiftRecord = {
+  id: string;
+  locationId: string;
+  userId: string;
+  status: ShiftStatus;
+  openedAt: string;
+  closedAt: string | null;
+  /** Fondo con el que arrancó la caja. */
+  openingAmount: number;
+  /** Lo que se contó al cerrar. */
+  closingAmount: number | null;
+  /** Lo que el sistema esperaba según los cobros. Congelado al cerrar. */
+  expectedAmount: number | null;
+  /** `closingAmount - expectedAmount`. Negativo = faltó plata. */
+  difference: number | null;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
