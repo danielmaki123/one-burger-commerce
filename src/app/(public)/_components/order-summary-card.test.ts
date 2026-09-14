@@ -80,6 +80,32 @@ describe("OrderSummaryCard", () => {
     expect(html).toContain("Propina (10%)");
   });
 
+  /**
+   * TASK-102 — la tarjeta calculaba el total por su cuenta y la suma quedó en la fuente canónica.
+   * Estos dos casos son los sumandos que la tarjeta no recibía: fijan que la puerta nueva los
+   * respeta cuando una pantalla se los pasa.
+   */
+  it("resta el descuento cuando la pantalla lo conoce (TASK-102)", () => {
+    const html = render({ subtotal: 380, packagingAmount: 20, discount: 80 });
+
+    // 380 + 20 - 80
+    expect(html).toContain("C$320.00");
+  });
+
+  it("suma el envío cuando la pantalla lo conoce (TASK-102)", () => {
+    const html = render({ subtotal: 380, packagingAmount: 20, deliveryFeeAmount: 30 });
+
+    // 380 + 20 + 30
+    expect(html).toContain("C$430.00");
+  });
+
+  it("sin descuento ni envío el total es el de antes (TASK-102)", () => {
+    const html = render({ subtotal: 380, packagingAmount: 20, tipAmount: 40 });
+
+    // El refactor no puede cambiar el número que ya se mostraba: 380 + 20 + 40.
+    expect(html).toContain("C$440.00");
+  });
+
   it("no muestra la fila de propina cuando no hay propina", () => {
     const html = render({ tipAmount: 0 });
 
