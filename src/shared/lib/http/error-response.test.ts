@@ -2,6 +2,7 @@ import { PrismaClientInitializationError } from "@prisma/client/runtime/library"
 import { describe, expect, it } from "vitest";
 
 import { LocationError } from "@/modules/locations/domain/location-errors";
+import { PosError } from "@/modules/pos/domain/pos-errors";
 import { createErrorResponse } from "@/shared/lib/http/error-response";
 
 describe("createErrorResponse", () => {
@@ -28,5 +29,19 @@ describe("createErrorResponse", () => {
     expect(response.status).toBe(422);
     expect(body.error.code).toBe("VALIDATION_ERROR");
     expect(body.error.fields.slug).toContain("norte");
+  });
+
+  it("un error del POS llega con su estado y sus campos (TASK-301)", async () => {
+    // El 403 importa: el POS apagado para un local tiene que salir como prohibido y no como 500.
+    const response = createErrorResponse(
+      new PosError(403, "FORBIDDEN", "El POS no está habilitado en este local.", {
+        locationId: "El POS no está habilitado en este local.",
+      }),
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(403);
+    expect(body.error.code).toBe("FORBIDDEN");
+    expect(body.error.fields.locationId).toContain("no está habilitado");
   });
 });

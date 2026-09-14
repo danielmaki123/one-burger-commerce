@@ -10,6 +10,7 @@ import { OrderError } from "@/modules/orders/domain/order-errors";
 import { ShiftError } from "@/modules/orders/domain/shift-errors";
 import { InventoryError } from "@/modules/inventory/domain/inventory-errors";
 import { LocationError } from "@/modules/locations/domain/location-errors";
+import { PosError } from "@/modules/pos/domain/pos-errors";
 import { ReservationError } from "@/modules/reservations/domain/reservation-errors";
 
 export function createErrorResponse(error: unknown) {
@@ -132,6 +133,20 @@ export function createErrorResponse(error: unknown) {
 
   // TASK-104: los errores del turno de caja (una caja ya abierta, un local que no existe).
   if (error instanceof ShiftError) {
+    return NextResponse.json(
+      {
+        error: {
+          code: error.code,
+          message: error.message,
+          ...(error.fields ? { fields: error.fields } : {}),
+        },
+      },
+      { status: error.status },
+    );
+  }
+
+  // TASK-301: los errores del POS (borrador inválido; el POS apagado en ese local sale 403).
+  if (error instanceof PosError) {
     return NextResponse.json(
       {
         error: {
