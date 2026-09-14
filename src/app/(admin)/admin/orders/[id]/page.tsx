@@ -18,6 +18,7 @@ import {
   type OrderPaymentMethod,
 } from "@/modules/orders/domain/order.types";
 import { calculateOrderChange } from "@/modules/orders/domain/payment-change";
+import { getAllowedNextStatuses } from "@/modules/orders/domain/order-workflows";
 
 import {
   AdminPickupTimingChip,
@@ -123,51 +124,14 @@ const ORDER_TYPE_LABELS: Record<OrderType, string> = {
   table: "Mesa",
 };
 
-const STATUS_TRANSITIONS: Record<OrderType, Record<OrderStatus, OrderStatus[]>> =
-  {
-    delivery: {
-      new: ["confirmed", "cancelled"],
-      confirmed: ["preparing", "cancelled"],
-      preparing: ["ready", "cancelled"],
-      ready: ["out_for_delivery"],
-      out_for_delivery: ["delivered"],
-      delivered: ["closed"],
-      closed: [],
-      ready_for_pickup: [],
-      picked_up: [],
-      accepted: [],
-      served: [],
-      cancelled: [],
-    },
-    pickup: {
-      new: ["confirmed", "cancelled"],
-      confirmed: ["preparing", "cancelled"],
-      preparing: ["ready_for_pickup", "cancelled"],
-      ready_for_pickup: ["picked_up"],
-      picked_up: ["closed"],
-      closed: [],
-      ready: [],
-      out_for_delivery: [],
-      delivered: [],
-      accepted: [],
-      served: [],
-      cancelled: [],
-    },
-    table: {
-      new: ["accepted", "cancelled"],
-      accepted: ["preparing"],
-      preparing: ["served", "cancelled"],
-      served: ["closed"],
-      closed: [],
-      confirmed: [],
-      ready: [],
-      out_for_delivery: [],
-      delivered: [],
-      ready_for_pickup: [],
-      picked_up: [],
-      cancelled: [],
-    },
-  };
+/**
+ * B2 — el flujo de estados **no se escribe acá**: sale de `order-workflows.ts`, que es la misma regla
+ * que valida el servidor. Antes esta pantalla tenía su propia copia del mapa, así que podía ofrecer
+ * botones que la API rechazaba (y de hecho B2 los necesitaba iguales en la bandeja).
+ */
+function allowedTransitionsFor(order: { type: OrderType; status: OrderStatus } | null) {
+  return order ? getAllowedNextStatuses(order.type, order.status) : [];
+}
 
 export default function AdminOrderDetailPage() {
   const params = useParams<{ id: string }>();
@@ -235,25 +199,17 @@ export default function AdminOrderDetailPage() {
       return;
     }
 
-    const allowed = STATUS_TRANSITIONS[order.type]?.[order.status] ?? [];
-    setNextStatus(allowed[0] ?? "");
+    setNextStatus(allowedTransitionsFor(order)[0] ?? "");
     setReviewMode(null);
   }, [order]);
 
-  const allowedTransitions = useMemo(() => {
-    if (!order) return [];
-    return STATUS_TRANSITIONS[order.type]?.[order.status] ?? [];
-  }, [order]);
+  const allowedTransitions = useMemo(() => allowedTransitionsFor(order), [order]);
 
   const isNewOrder = order?.status === "new";
-  const acceptStatus = useMemo(() => {
-    if (!order) return "";
-    return (
-      (STATUS_TRANSITIONS[order.type]?.[order.status] ?? []).find(
-        (status) => status !== "cancelled",
-      ) ?? ""
-    );
-  }, [order]);
+  const acceptStatus = useMemo(
+    () => allowedTransitions.find((status) => status !== "cancelled") ?? "",
+    [allowedTransitions],
+  );
   const canReject = allowedTransitions.includes("cancelled");
 
   // Reloj del turno para "hace N min".

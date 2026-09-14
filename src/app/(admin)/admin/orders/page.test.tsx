@@ -704,3 +704,162 @@ describe("bandeja de órdenes: auto-refresh y avisos (B1)", () => {
     expect(screen.getByText(/Actualizado ahora/)).toBeTruthy();
   });
 });
+
+/**
+ * B2 — aceptar y rechazar sin salir de la bandeja.
+ *
+ * Ir al detalle para aceptar un pedido es un viaje de ida y vuelta en el peor momento: el pedido
+ * nuevo se está enfriando mientras se navega. Lo que se prueba acá es el contrato de la pantalla con
+ * la API de estados: qué manda, qué hace cuando el pedido ya cambió y qué pasa sin conexión.
+ */
+describe("bandeja de órdenes: aceptar y rechazar desde la fila (B2)", () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date", "setInterval", "clearInterval"] });
+    vi.setSystemTime(NOW);
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      get: () => "hidden",
+    });
+  });
+
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+  });
+
+  /** La lista, más un espía para el `PATCH` de estados. */
+  function stubFetchWithActions({
+    orders,
+    patchStatus = 200,
+    ordersFailFrom,
+  }: {
+    orders: unknown[];
+    patchStatus?: number;
+    /** A partir de esta lectura (1-based) la lista falla: sirve para simular que se cayó la red. */
+    ordersFailFrom?: number;
+  }) {
+    let ordersCalls = 0;
+    const fetchMock = vi.fn((url: string) => {
+      const href = String(url);
+
+      if (href.includes("/api/admin/locations")) {
+        return Promise.resolve({ ok: true, status: 200, json: async () => ({ data: [] }) });
+      }
+      if (isOlderOpenCall(href)) {
+        return Promise.resolve({ ok: true, status: 200, json: async () => ({ data: [] }) });
+      }
+      if (href.includes("/status")) {
+        return Promise.resolve({
+          ok: patchStatus < 400,
+          status: patchStatus,
+          json: async () => ({}),
+        });
+      }
+
+      ordersCalls += 1;
+      if (ordersFailFrom && ordersCalls >= ordersFailFrom) {
+        return Promise.reject(new Error("sin red"));
+      }
+
+      const data = ordersCalls === 1 ? orders : [...orders, order({ id: "ord_2", orderNumber: "OB-2" })];
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: async () => ({ data, meta: { count: data.length } }),
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    return fetchMock;
+  }
+
+  function statusCalls(fetchMock: ReturnType<typeof vi.fn>) {
+    return fetchMock.mock.calls.filter(([url]) => String(url).includes("/status"));
+  }
+
+  async function flush(times = 12) {
+    await act(async () => {
+      for (let index = 0; index < times; index += 1) {
+        await Promise.resolve();
+      }
+    });
+  }
+
+  async function renderWithActions(options: Parameters<typeof stubFetchWithActions>[0]) {
+    const fetchMock = stubFetchWithActions(options);
+    render(<AdminOrdersPage />);
+    await flush();
+
+    return fetchMock;
+  }
+
+  it("acepta el pedido desde la fila, sin abrir el detalle", async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    const fetchMock = await renderWithActions({ orders: [order({ status: "new" })] });
+
+    await user.click(screen.getByRole("button", { name: "Aceptar" }));
+    await flush();
+
+    const [url, init] = statusCalls(fetchMock)[0];
+    expect(String(url)).toBe("/api/admin/orders/ord_1/status");
+    expect(init?.method).toBe("PATCH");
+    expect(JSON.parse(String(init?.body))).toEqual({ status: "confirmed", note: null });
+  });
+
+  it("refresca la lista después de cambiar el estado", async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    const fetchMock = await renderWithActions({ orders: [order({ status: "new" })] });
+    const callsBefore = fetchMock.mock.calls.length;
+
+    await user.click(screen.getByRole("button", { name: "Aceptar" }));
+    await flush();
+
+    expect(screen.getByText("OB-2")).toBeTruthy();
+    expect(fetchMock.mock.calls.length).toBeGreaterThan(callsBefore);
+  });
+
+  it("el rechazo manda el motivo y avisa que se canceló", async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    const fetchMock = await renderWithActions({ orders: [order({ status: "new" })] });
+
+    await user.click(screen.getByRole("button", { name: "Rechazar" }));
+    await user.type(screen.getByLabelText(/motivo del rechazo/i), "  Se quedó sin pan  ");
+    await user.click(screen.getByRole("button", { name: "Confirmar rechazo" }));
+    await flush();
+
+    expect(JSON.parse(String(statusCalls(fetchMock)[0][1]?.body))).toEqual({
+      status: "cancelled",
+      note: "Se quedó sin pan",
+    });
+    expect(screen.getByTestId("orders-action-notice").textContent).toMatch(/cancelada/i);
+  });
+
+  it("si el pedido ya cambió de estado, lo dice y vuelve a leer la lista", async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    const fetchMock = await renderWithActions({
+      orders: [order({ status: "new" })],
+      patchStatus: 409,
+    });
+    const callsBefore = fetchMock.mock.calls.length;
+
+    await user.click(screen.getByRole("button", { name: "Aceptar" }));
+    await flush();
+
+    expect(screen.getByRole("alert").textContent).toMatch(/ya cambió de estado/i);
+    expect(fetchMock.mock.calls.length).toBeGreaterThan(callsBefore);
+  });
+
+  it("sin conexión las acciones se apagan y dicen por qué", async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    await renderWithActions({ orders: [order({ status: "new" })], ordersFailFrom: 2 });
+
+    await user.click(screen.getByRole("button", { name: "Actualizar" }));
+    await flush();
+
+    // La lista se conserva (B0) y las acciones quedan deshabilitadas con el motivo a la vista.
+    expect(screen.getByText("OB-1")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Aceptar" }).hasAttribute("disabled")).toBe(true);
+    expect(screen.getAllByText(/sin conexión/i).length).toBeGreaterThan(0);
+  });
+});

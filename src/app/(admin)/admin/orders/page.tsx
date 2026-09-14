@@ -37,6 +37,8 @@ import {
   playNewOrderAlert,
   setAlertSoundEnabled,
 } from "./admin-alert-sound";
+import { describeOrderActionFailure } from "./order-action-helpers";
+import { OrderActions } from "./order-actions";
 import {
   AdminCompactToolbar,
   AdminEmptyState,
@@ -158,6 +160,8 @@ export default function AdminOrdersPage() {
   const [refreshToken, setRefreshToken] = useState(0);
   /** Pedidos que aparecieron desde la última lectura y todavía nadie miró (B1). */
   const [newOrderIds, setNewOrderIds] = useState<string[]>([]);
+  /** Confirmación del último cambio de estado (B2): la pantalla dice qué pasó, no lo deja adivinar. */
+  const [actionNotice, setActionNotice] = useState<string | null>(null);
   const [soundEnabled, setSoundEnabled] = useState(false);
   /** Para saber qué apareció hay que recordar qué había: no alcanza con la lista actual del render. */
   const previousOrderIdsRef = useRef<string[] | null>(null);
@@ -421,6 +425,49 @@ export default function AdminOrdersPage() {
     return buckets;
   }, [queueOrders, today, timeZone]);
 
+  /**
+   * B2 — cambiar el estado de un pedido desde la fila.
+   *
+   * Devuelve una promesa que **rechaza con un mensaje legible**: el componente de acciones lo muestra
+   * al lado del botón, así nadie se queda mirando una pantalla que no hizo nada. Un 409 no es un error
+   * de quien toca —alguien más movió el pedido, o el poll lo trajo actualizado—, así que además se
+   * vuelve a leer la lista para que la comanda quede donde corresponde.
+   */
+  async function changeOrderStatus(
+    order: OrderSummary,
+    status: OrderStatus,
+    note?: string | null,
+  ): Promise<void> {
+    setActionNotice(null);
+
+    let response: Response;
+    try {
+      response = await fetch(`/api/admin/orders/${order.id}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status, note: note ?? null }),
+      });
+    } catch {
+      throw new Error(describeOrderActionFailure(0));
+    }
+
+    if (response.status === 401) {
+      setAuthRequired(true);
+      throw new Error(describeOrderActionFailure(401));
+    }
+
+    if (!response.ok) {
+      if (response.status === 409) setRefreshToken((token) => token + 1);
+
+      throw new Error(describeOrderActionFailure(response.status));
+    }
+
+    setActionNotice(
+      `Orden ${order.orderNumber} ${getAdminOrderStatusLabel(status).toLowerCase()}.`,
+    );
+    setRefreshToken((token) => token + 1);
+  }
+
   const STATUS_CHIP_OPTIONS: Array<{ value: string; label: string; count: number }> = [
     { value: "all", label: "Todas", count: ordersStatusCounts.total },
     { value: "new", label: "Nuevas", count: ordersStatusCounts.new },
@@ -450,46 +497,65 @@ export default function AdminOrdersPage() {
     });
 
     return (
-      <Link
+      /**
+       * B2: la fila **no** es un `<Link>` completo. Un botón dentro de un enlace es HTML inválido y,
+       * además, un toque en «Aceptar» aterrizaría en el detalle. El enlace cubre la información —el
+       * blanco grande para abrir la orden— y las acciones viven al lado, con su propio espacio.
+       */
+      <div
         key={order.id}
-        href={`/admin/orders/${order.id}`}
-        aria-label={`Abrir orden ${order.orderNumber}`}
         className={[
-          "group grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 border-t border-border px-4 py-3.5 transition-colors first:border-t-0 hover:bg-accent/40",
+          "border-t border-border first:border-t-0",
           isNew ? "bg-warning/60" : "bg-card",
         ].join(" ")}
       >
-        <div className="min-w-0">
-          <p className="text-base font-bold text-foreground">{order.orderNumber}</p>
-          <p className="mt-0.5 truncate text-xs font-medium text-muted-foreground">
-            <Icon className="mr-1 inline h-3.5 w-3.5 align-[-2px] text-brand" strokeWidth={2} aria-hidden="true" />
-            {typeLabel} · {order.customerName} ·{" "}
-            <span className="font-mono font-semibold">{elapsed}</span>
-            {/* De qué local es el pedido (T8): con una sola sucursal en el alcance no aporta. */}
-            {scopedLocations.length > 1 && order.locationName ? ` · ${order.locationName}` : ""}
+        <Link
+          href={`/admin/orders/${order.id}`}
+          aria-label={`Abrir orden ${order.orderNumber}`}
+          className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 px-4 pb-2.5 pt-3.5 transition-colors hover:bg-accent/40"
+        >
+          <div className="min-w-0">
+            <p className="text-base font-bold text-foreground">{order.orderNumber}</p>
+            <p className="mt-0.5 truncate text-xs font-medium text-muted-foreground">
+              <Icon className="mr-1 inline h-3.5 w-3.5 align-[-2px] text-brand" strokeWidth={2} aria-hidden="true" />
+              {typeLabel} · {order.customerName} ·{" "}
+              <span className="font-mono font-semibold">{elapsed}</span>
+              {/* De qué local es el pedido (T8): con una sola sucursal en el alcance no aporta. */}
+              {scopedLocations.length > 1 && order.locationName ? ` · ${order.locationName}` : ""}
+            </p>
+          </div>
+          <p className="text-right text-base font-bold tabular-nums text-foreground">
+            {formatCurrency(order.total, currency)}
           </p>
+          <div className="col-span-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+            <span className="flex min-w-0 flex-wrap items-center gap-2">
+              {pickupLabel ? (
+                <span className="text-xs font-semibold text-foreground tabular-nums">
+                  {pickupLabel}
+                </span>
+              ) : (
+                <span className="text-xs text-muted-foreground tabular-nums">
+                  Recibida {formatTimeInTimeZone(order.createdAt, timeZone) ?? "—"}
+                </span>
+              )}
+              <AdminPickupTimingChip timing={timing} />
+            </span>
+            <AdminStatusSolid status={getAdminOrderSolidStatus(order.status)}>
+              {getAdminOrderStatusLabel(order.status)}
+            </AdminStatusSolid>
+          </div>
+        </Link>
+
+        <div className="flex flex-wrap items-center justify-end gap-2 px-4 pb-3.5 pt-0.5">
+          <OrderActions
+            layout="row"
+            order={order}
+            disabled={error !== null}
+            disabledReason="Sin conexión: no se puede cambiar el estado."
+            onUpdateStatus={(status, note) => changeOrderStatus(order, status, note)}
+          />
         </div>
-        <p className="text-right text-base font-bold tabular-nums text-foreground">
-          {formatCurrency(order.total, currency)}
-        </p>
-        <div className="col-span-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-          <span className="flex min-w-0 flex-wrap items-center gap-2">
-            {pickupLabel ? (
-              <span className="text-xs font-semibold text-foreground tabular-nums">
-                {pickupLabel}
-              </span>
-            ) : (
-              <span className="text-xs text-muted-foreground tabular-nums">
-                Recibida {formatTimeInTimeZone(order.createdAt, timeZone) ?? "—"}
-              </span>
-            )}
-            <AdminPickupTimingChip timing={timing} />
-          </span>
-          <AdminStatusSolid status={getAdminOrderSolidStatus(order.status)}>
-            {getAdminOrderStatusLabel(order.status)}
-          </AdminStatusSolid>
-        </div>
-      </Link>
+      </div>
     );
   }
 
@@ -499,6 +565,21 @@ export default function AdminOrdersPage() {
         title="Órdenes"
         description="Bandeja de turno: prioriza ingresos nuevos y sigue cada pedido hasta su cierre."
       />
+
+      {/* B2: qué se acaba de hacer. Sin esto, la fila cambia de estado y nadie sabe si funcionó. */}
+      {actionNotice ? (
+        <div
+          role="status"
+          aria-live="polite"
+          data-testid="orders-action-notice"
+          className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-border bg-card px-4 py-3 text-sm font-semibold text-foreground"
+        >
+          {actionNotice}
+          <Button variant="ghost" className="min-h-11" onClick={() => setActionNotice(null)}>
+            Cerrar
+          </Button>
+        </div>
+      ) : null}
 
       {/* B1: lo que apareció solo se anuncia; el aviso se cierra cuando alguien lo mira. */}
       {newOrderIds.length > 0 ? (
