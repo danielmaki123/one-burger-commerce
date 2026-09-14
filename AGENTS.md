@@ -10,12 +10,13 @@ explícito del humano, gana el humano; después de resolverlo, actualizá este a
   empezar la siguiente.
 - Si una tarea mezcla temas distintos, se parte en **un commit por tema**.
 - Ante una duda de alcance, se pregunta **antes** de codear; no se inventa producto.
-- **Plan escrito = alcance ya resuelto** (2026-09-14): si el owner entrega un plan o un brief
-  (`plna.md`, `ops/tasks/*.md`), las tareas que ese documento ya define se ejecutan **de corrido y
-  sin pedir validación entre una y otra**. Se sigue cerrando **una por vez** (implementación, tests,
-  validación, commit, push, CI verde y estado actualizado) y se sigue preguntando por lo que el plan
-  **no** decide: alcance nuevo, producto, dependencias nuevas y deploy. Si el plan choca con este
-  archivo, gana el plan y la excepción se anota acá, en el mismo commit.
+- **Plan escrito = alcance ya resuelto** (2026-09-14): si el owner entrega un plan o un brief (los
+  de `ops/tasks/*.md`, o el plan que pase por el chat), las tareas que ese documento ya define se
+  ejecutan **de corrido y sin pedir validación entre una y otra**. Se sigue cerrando **una por vez**
+  (implementación, tests, validación, commit, push, CI verde y estado actualizado) y se sigue
+  preguntando por lo que el plan **no** decide: alcance nuevo, producto, dependencias nuevas y
+  deploy. Si el plan choca con este archivo, gana el plan y la excepción se anota acá, en el mismo
+  commit.
 - El punto de entrada para un chat nuevo es
   [`ops/tasks/START-HERE.md`](ops/tasks/START-HERE.md): tiene el prompt listo para pegar, el
   mapa de documentos y la cola de pendientes en orden.
