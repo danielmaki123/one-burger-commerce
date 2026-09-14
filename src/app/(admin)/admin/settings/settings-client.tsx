@@ -94,6 +94,7 @@ export function toSettingsPayload(draft: BusinessSettingsDraft) {
     currencyCode: draft.currencyCode,
     currencySymbol: draft.currencySymbol,
     locale: draft.locale,
+    usdExchangeRate: draft.usdExchangeRate,
     pickupLeadMinutes: draft.pickupLeadMinutes,
     pickupMaxMinutes: draft.pickupMaxMinutes,
     paymentInstructions: draft.paymentInstructions,
@@ -679,6 +680,29 @@ export default function AdminSettingsClientPage({
             value={draft.currencySymbol}
             maxLength={8}
             onChange={(event) => setField("currencySymbol", event.target.value)}
+          />
+        </SettingsField>
+
+        <SettingsField
+          id="settings-usd-exchange-rate"
+          label="Tipo de cambio del dólar"
+          hint="Cuánto vale US$1 en tu moneda. Vacío: los cobros en dólares se rechazan hasta cargarlo."
+          error={fieldErrors.usdExchangeRate}
+          onReset={() => resetField("usdExchangeRate")}
+        >
+          <Input
+            id="settings-usd-exchange-rate"
+            type="number"
+            inputMode="decimal"
+            min={0}
+            step="0.01"
+            value={draft.usdExchangeRate === null ? "" : String(draft.usdExchangeRate)}
+            onChange={(event) =>
+              setField(
+                "usdExchangeRate",
+                event.target.value === "" ? null : Number(event.target.value),
+              )
+            }
           />
         </SettingsField>
 

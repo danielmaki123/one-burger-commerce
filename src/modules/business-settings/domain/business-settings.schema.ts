@@ -186,6 +186,16 @@ export const businessSettingsPatchSchema = z.object({
     .min(1, "Escribí el símbolo de la moneda")
     .max(8, "Máximo 8 caracteres")
     .optional(),
+  /**
+   * TASK-303a — tipo de cambio del dólar, en moneda del negocio. `null` = sin tasa cargada (un cobro
+   * en dólares se rechaza hasta que se cargue). El tope de 100000 ataja un dedazo, no un mercado.
+   */
+  usdExchangeRate: z
+    .number()
+    .positive("Tiene que ser mayor que cero")
+    .max(100000, "Ese número es demasiado grande para un tipo de cambio")
+    .nullable()
+    .optional(),
   locale: z
     .string()
     .trim()

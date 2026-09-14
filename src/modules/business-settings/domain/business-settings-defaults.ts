@@ -64,6 +64,9 @@ export const DEFAULT_BUSINESS_SETTINGS: BusinessSettingsDefaults = {
   currencyCode: "NIO",
   currencySymbol: "C$",
   locale: "es-NI",
+  // TASK-303a: sin tasa cargada. El tipo de cambio se configura cuando el negocio cobre en dólares;
+  // hasta entonces un cobro en esa moneda se rechaza con el motivo, no se convierte a ojo.
+  usdExchangeRate: null,
   pickupLeadMinutes: 25,
   // Sin rango por defecto: el checkout sigue prometiendo un instante concreto.
   pickupMaxMinutes: null,

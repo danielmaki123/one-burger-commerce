@@ -62,6 +62,7 @@ function mapRow(row: BusinessSettings): BusinessSettingsRecord {
     currencyCode: row.currencyCode,
     currencySymbol: row.currencySymbol,
     locale: row.locale,
+    usdExchangeRate: row.usdExchangeRate,
     pickupLeadMinutes: row.pickupLeadMinutes,
     pickupMaxMinutes: row.pickupMaxMinutes,
     paymentInstructions: row.paymentInstructions,

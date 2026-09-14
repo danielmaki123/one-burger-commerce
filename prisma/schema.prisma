@@ -703,6 +703,8 @@ model BusinessSettings {
   currencyCode        String   @default("NIO")
   currencySymbol      String   @default("C$")
   locale              String   @default("es-NI")
+  /// TASK-303a — cuántos de la moneda del negocio vale 1 dólar. `null` = sin tasa cargada.
+  usdExchangeRate     Float?
   pickupLeadMinutes   Int      @default(25)
   /// Máximo del rango de preparación (`null` = se promete un instante, no un rango).
   pickupMaxMinutes    Int?

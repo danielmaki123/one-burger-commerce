@@ -89,6 +89,11 @@ export type BusinessSettingsRecord = {
   currencyCode: string;
   currencySymbol: string;
   locale: string;
+  /**
+   * TASK-303a — cuántos de la moneda del negocio vale 1 dólar. `null` = sin tasa cargada: un cobro en
+   * dólares se rechaza con el motivo en vez de convertirse con un número inventado.
+   */
+  usdExchangeRate: number | null;
   pickupLeadMinutes: number;
   /** Máximo del rango de preparación; `null` = se promete un instante, no un rango. */
   pickupMaxMinutes: number | null;

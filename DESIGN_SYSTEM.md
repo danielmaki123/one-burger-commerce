@@ -195,6 +195,12 @@ caso testigo es `src/shared/ui/button.tsx:21` (`danger: "bg-red-600 …"`) contr
 - Usar la escala de §frontmatter. **Prohibido** `text-display-lg`, `text-headline-lg` y `text-body`:
   hoy no se usan, así que introducirlos es sumar un paso sin necesidad.
 
+> **No todo lo configurable es un token.** El negocio también configura datos que **no** generan
+> variables CSS —la moneda (`currencyCode`), su símbolo y el **tipo de cambio del dólar**
+> (`usdExchangeRate`, TASK-303a)— y se leen por la API de configuración. No inventes tokens
+> `--currency-*` ni `--rate-*`: si algo no cambia un color, una tipografía, un radio o una sombra, no
+> va acá.
+
 ### 2.4 Espaciado, radios y sombras
 
 - **Espaciado: NO EXISTE escala propia.** Se usa la de Tailwind. No inventar `--spacing-*`.

@@ -124,6 +124,16 @@ describe("validación de la configuración del negocio", () => {
     expectFieldError({ tipRate: 7.5 }, "tipRate");
   });
 
+  it("valida el tipo de cambio del dólar (TASK-303a)", () => {
+    // Es la casilla que el owner ajusta cuando se mueve el mercado; vacía = sin tasa cargada, y
+    // entonces un cobro en dólares se rechaza en vez de convertir con un número inventado.
+    expect(parseBusinessSettingsPatch({ usdExchangeRate: 36.5 })).toEqual({ usdExchangeRate: 36.5 });
+    expect(parseBusinessSettingsPatch({ usdExchangeRate: null })).toEqual({ usdExchangeRate: null });
+    expectFieldError({ usdExchangeRate: 0 }, "usdExchangeRate");
+    expectFieldError({ usdExchangeRate: -1 }, "usdExchangeRate");
+    expectFieldError({ usdExchangeRate: 100001 }, "usdExchangeRate");
+  });
+
   it("valida moneda, locale y coordenadas", () => {
     expect(parseBusinessSettingsPatch({ currencyCode: "NIO", locale: "es-NI" })).toEqual({
       currencyCode: "NIO",
