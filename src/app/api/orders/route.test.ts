@@ -76,7 +76,7 @@ describe("POST /api/orders", () => {
   it("completa la hora de retiro cuando el cliente no programa el pedido", async () => {
     createOrderMock.mockResolvedValueOnce({
       data: { id: "order_01", type: "pickup" },
-      meta: { sourceOfTruth: "backend" },
+      meta: { sourceOfTruth: "backend", reused: false },
     });
 
     const { POST } = await import("./route");
@@ -107,7 +107,7 @@ describe("POST /api/orders", () => {
   it("deja pasar el local de retiro que eligió el cliente (T8)", async () => {
     createOrderMock.mockResolvedValueOnce({
       data: { id: "order_01", type: "pickup" },
-      meta: { sourceOfTruth: "backend" },
+      meta: { sourceOfTruth: "backend", reused: false },
     });
 
     const { POST } = await import("./route");
@@ -171,7 +171,7 @@ describe("POST /api/orders", () => {
   it("marca el pedido como programado cuando el cliente elige la hora", async () => {
     createOrderMock.mockResolvedValueOnce({
       data: { id: "order_01", type: "pickup" },
-      meta: { sourceOfTruth: "backend" },
+      meta: { sourceOfTruth: "backend", reused: false },
     });
 
     const { POST } = await import("./route");
@@ -249,7 +249,7 @@ describe("POST /api/orders", () => {
   it("acepta el pedido dentro del horario y le pasa la hora de retiro", async () => {
     createOrderMock.mockResolvedValueOnce({
       data: { id: "order_01", type: "pickup" },
-      meta: { sourceOfTruth: "backend" },
+      meta: { sourceOfTruth: "backend", reused: false },
     });
 
     const { POST } = await import("./route");
@@ -309,7 +309,7 @@ describe("POST /api/orders", () => {
   it("accepts pickup orders and delegates total calculation to the domain feature", async () => {
     createOrderMock.mockResolvedValueOnce({
       data: { id: "order_01", type: "pickup" },
-      meta: { sourceOfTruth: "backend" },
+      meta: { sourceOfTruth: "backend", reused: false },
     });
 
     const { POST } = await import("./route");
@@ -338,7 +338,7 @@ describe("POST /api/orders", () => {
     );
     createOrderMock.mockResolvedValueOnce({
       data: { id: "order_01", type: "pickup" },
-      meta: { sourceOfTruth: "backend" },
+      meta: { sourceOfTruth: "backend", reused: false },
     });
 
     const { POST } = await import("./route");
@@ -359,6 +359,85 @@ describe("POST /api/orders", () => {
     expect(createOrderMock).toHaveBeenCalledWith(
       expect.objectContaining({ type: "pickup", tipOptIn: true }),
       expect.objectContaining({ tipPolicy: { enabled: true, rate: 15 } }),
+    );
+  });
+
+  /**
+   * TASK-101 — idempotencia. La ruta no decide si el alta se reusa: eso lo resuelve el caso de uso
+   * y lo informa en `meta.reused`, que es lo único que se traduce acá (200 vs 201).
+   */
+  it("pasa la clave de idempotencia del header al caso de uso", async () => {
+    createOrderMock.mockResolvedValueOnce({
+      data: { id: "order_01", type: "pickup" },
+      meta: { sourceOfTruth: "backend", reused: false },
+    });
+
+    const { POST } = await import("./route");
+    await POST(
+      new Request("http://localhost/api/orders", {
+        method: "POST",
+        headers: { "x-idempotency-key": "op-abc-123" },
+        body: JSON.stringify({
+          type: "pickup",
+          customerName: "Daniel",
+          customerWhatsapp: "+50588887777",
+          items: [{ productId: "prod_01", quantity: 1 }],
+        }),
+      }),
+    );
+
+    expect(createOrderMock).toHaveBeenCalledWith(
+      expect.objectContaining({ idempotencyKey: "op-abc-123" }),
+      expect.any(Object),
+    );
+  });
+
+  it("responde 200 y no 201 cuando el alta reusa un pedido que ya existía", async () => {
+    createOrderMock.mockResolvedValueOnce({
+      data: { id: "order_01", type: "pickup", orderLookupToken: null },
+      meta: { sourceOfTruth: "backend", reused: true },
+    });
+
+    const { POST } = await import("./route");
+    const response = await POST(
+      new Request("http://localhost/api/orders", {
+        method: "POST",
+        headers: { "x-idempotency-key": "op-abc-123" },
+        body: JSON.stringify({
+          type: "pickup",
+          customerName: "Daniel",
+          customerWhatsapp: "+50588887777",
+          items: [{ productId: "prod_01", quantity: 1 }],
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(200);
+  });
+
+  it("sin header de idempotencia el alta no manda clave", async () => {
+    createOrderMock.mockResolvedValueOnce({
+      data: { id: "order_01", type: "pickup" },
+      meta: { sourceOfTruth: "backend", reused: false },
+    });
+
+    const { POST } = await import("./route");
+    const response = await POST(
+      new Request("http://localhost/api/orders", {
+        method: "POST",
+        body: JSON.stringify({
+          type: "pickup",
+          customerName: "Daniel",
+          customerWhatsapp: "+50588887777",
+          items: [{ productId: "prod_01", quantity: 1 }],
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(201);
+    expect(createOrderMock).toHaveBeenCalledWith(
+      expect.objectContaining({ idempotencyKey: null }),
+      expect.any(Object),
     );
   });
 });

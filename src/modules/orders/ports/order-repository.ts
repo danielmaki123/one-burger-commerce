@@ -76,6 +76,12 @@ export type CreateOrderInput = {
   geoAccuracy?: number | null;
   geoCapturedAt?: Date | null;
   orderLookupTokenHash?: string | null;
+  /**
+   * TASK-101 — clave de operación del cliente. La guarda el adaptador en la misma escritura del
+   * pedido; su índice único es lo que hace que dos altas simultáneas con la misma clave no
+   * terminen en dos pedidos.
+   */
+  idempotencyKey?: string | null;
 };
 
 export type ListOrdersFilter = {
@@ -131,6 +137,11 @@ export interface OrderRepository {
 
   findOrderById(id: string): Promise<OrderRecord | null>;
   findOrderByOrderNumber(orderNumber: string): Promise<OrderRecord | null>;
+  /**
+   * TASK-101 — el pedido que ya se creó con esa clave de operación, o `null`. Es lo que convierte
+   * un reintento del mismo request en el **mismo** pedido en vez de en otro.
+   */
+  findOrderByIdempotencyKey(idempotencyKey: string): Promise<OrderRecord | null>;
 
   listOrders(filter: ListOrdersFilter): Promise<OrderQueueRecord[]>;
 

@@ -118,6 +118,8 @@ export class InMemoryOrderRepository implements OrderRepository {
       geoAccuracy: input.geoAccuracy ?? null,
       geoCapturedAt: input.geoCapturedAt ? input.geoCapturedAt.toISOString() : null,
       orderLookupTokenHash: input.orderLookupTokenHash ?? null,
+      // TASK-101: la clave viaja con el pedido, igual que en el adaptador de Prisma.
+      idempotencyKey: input.idempotencyKey ?? null,
       createdAt: now,
       updatedAt: now,
       items: itemDetails.map((item, idx) => ({
@@ -156,6 +158,13 @@ export class InMemoryOrderRepository implements OrderRepository {
 
   async findOrderByOrderNumber(orderNumber: string): Promise<OrderRecord | null> {
     return this.orders.find((o) => o.orderNumber === orderNumber) ?? null;
+  }
+
+  async findOrderByIdempotencyKey(idempotencyKey: string): Promise<OrderRecord | null> {
+    // Una clave vacía no identifica nada: es lo mismo que no mandar clave.
+    if (!idempotencyKey) return null;
+
+    return this.orders.find((o) => o.idempotencyKey === idempotencyKey) ?? null;
   }
 
   async listOrders(filter: ListOrdersFilter): Promise<OrderQueueRecord[]> {

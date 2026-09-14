@@ -176,6 +176,16 @@ function mapQueueOrder(order: any): OrderQueueRecord {
   };
 }
 
+/**
+ * TASK-101 — el error de índice único de Prisma. Misma detección que usan el alta de cliente y la
+ * de reserva: se mira el `code`, no la clase, para no depender del runtime del cliente.
+ */
+function isUniqueConstraintError(error: unknown): boolean {
+  if (typeof error !== "object" || error === null) return false;
+
+  return (error as { code?: unknown }).code === "P2002";
+}
+
 export class PrismaOrderRepository implements OrderRepository {
   async createOrder(
     input: CreateOrderInput & {
@@ -208,6 +218,51 @@ export class PrismaOrderRepository implements OrderRepository {
   ): Promise<OrderRecord> {
     const prisma = getPrismaClient();
 
+    try {
+      return await this.insertOrder(prisma, input, itemDetails);
+    } catch (error) {
+      // TASK-101: dos altas simultáneas con la misma clave. El índice único deja pasar una sola;
+      // la otra cae acá y devuelve **el pedido que ya existe**, que es lo que la idempotencia
+      // promete. Se re-lee en vez de reintentar la escritura: reintentar volvería a chocar.
+      if (input.idempotencyKey && isUniqueConstraintError(error)) {
+        const existing = await this.findOrderByIdempotencyKey(input.idempotencyKey);
+        if (existing) return existing;
+      }
+
+      throw error;
+    }
+  }
+
+  private async insertOrder(
+    prisma: ReturnType<typeof getPrismaClient>,
+    input: CreateOrderInput & {
+      orderNumber: string;
+      subtotal: number;
+      discount: number;
+      packagingAmount: number;
+      deliveryFeeAmount: number;
+      tipAmount: number;
+      tipRate?: number | null;
+      total: number;
+      status: string;
+    },
+    itemDetails: Array<{
+      productId: string;
+      productName: string;
+      quantity: number;
+      unitPrice: number;
+      packagingUnitAmount: number;
+      packagingQuantity: number;
+      packagingTotalAmount: number;
+      notes: string | null;
+      lineTotal: number;
+      modifiers: Array<{
+        modifierOptionId: string;
+        name: string;
+        priceDelta: number;
+      }>;
+    }>,
+  ): Promise<OrderRecord> {
     const order = await prisma.order.create({
       data: {
         orderNumber: input.orderNumber,
@@ -244,6 +299,9 @@ export class PrismaOrderRepository implements OrderRepository {
         geoAccuracy: input.geoAccuracy ?? null,
         geoCapturedAt: input.geoCapturedAt ?? null,
         orderLookupTokenHash: input.orderLookupTokenHash ?? null,
+        // TASK-101: la clave de operación viaja con el pedido. Su índice único es lo que hace
+        // que un reintento simultáneo no termine en dos pedidos.
+        idempotencyKey: input.idempotencyKey ?? null,
         items: {
           create: itemDetails.map((item) => ({
             productId: item.productId,
@@ -272,6 +330,7 @@ export class PrismaOrderRepository implements OrderRepository {
         },
       },
       include: {
+        deliveryZone: true,
         items: {
           include: {
             modifiers: true,
@@ -312,6 +371,27 @@ export class PrismaOrderRepository implements OrderRepository {
         },
       },
     });
+    return order ? mapOrder(order) : null;
+  }
+
+  async findOrderByIdempotencyKey(idempotencyKey: string): Promise<OrderRecord | null> {
+    // Una clave vacía no identifica nada: `findUnique` con "" no encontraría nada igual, pero
+    // devolverlo explícito deja la regla en un solo lugar junto al adaptador de memoria.
+    if (!idempotencyKey) return null;
+
+    const prisma = getPrismaClient();
+    const order = await prisma.order.findUnique({
+      where: { idempotencyKey },
+      include: {
+        deliveryZone: true,
+        items: {
+          include: {
+            modifiers: true,
+          },
+        },
+      },
+    });
+
     return order ? mapOrder(order) : null;
   }
 

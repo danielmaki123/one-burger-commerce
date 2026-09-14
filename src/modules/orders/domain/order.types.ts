@@ -92,6 +92,12 @@ export type OrderRecord = {
   status: OrderStatus;
   /** Local al que va el pedido (T8). Obligatorio: la migración backfillea los viejos. */
   locationId: string;
+  /**
+   * TASK-101 — clave de operación que mandó el cliente para esta alta. `null` en los pedidos que
+   * ya existían y en los que llegan sin clave: un pedido "sin clave" es un pedido normal, no uno
+   * que pueda reusarse.
+   */
+  idempotencyKey?: string | null;
   customerName: string;
   customerWhatsapp: string;
   customerId?: string | null;

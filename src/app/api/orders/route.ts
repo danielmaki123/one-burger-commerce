@@ -37,6 +37,19 @@ const createOrderRateLimiter = new FixedWindowRateLimiter({
   windowMs: 60_000,
 });
 
+/**
+ * TASK-101 — clave de operación del cliente para el alta.
+ *
+ * Es opcional: sin header el alta se comporta como siempre. Cuando viene, el pedido se crea una sola
+ * vez y los reintentos devuelven el mismo. Se acota el largo para que la columna no sea un depósito
+ * de texto arbitrario.
+ */
+function resolveIdempotencyKey(request: Request): string | null {
+  const raw = request.headers.get("x-idempotency-key")?.trim() ?? "";
+
+  return raw.length > 0 && raw.length <= 200 ? raw : null;
+}
+
 const itemSchema = z.object({
   productId: z.string().min(1),
   quantity: z.number().int().min(1),
@@ -170,6 +183,8 @@ export async function POST(request: Request) {
         // sin haber elegido nada.
         pickupTime: acceptance.pickupTime.toISOString(),
         pickupScheduled: pickupTime !== null,
+        // TASK-101: la clave viaja al caso de uso, que es quien decide si el alta reusa un pedido.
+        idempotencyKey: resolveIdempotencyKey(request),
       },
       {
         repository,
@@ -177,7 +192,9 @@ export async function POST(request: Request) {
         tipPolicy: { enabled: settings.tipEnabled, rate: settings.tipRate },
       },
     );
-    return NextResponse.json(result, { status: 201 });
+    // 200 en el reintento y 201 cuando el pedido es nuevo: el cliente puede distinguir "lo creé" de
+    // "ya lo habías creado" sin cambiar el cuerpo de la respuesta.
+    return NextResponse.json(result, { status: result.meta.reused ? 200 : 201 });
   } catch (error) {
     return createErrorResponse(error);
   }

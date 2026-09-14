@@ -406,6 +406,10 @@ model Order {
   /// que ya existían al local primario.
   locationId           String
   orderLookupTokenHash String?
+  /// TASK-101: clave de operación del cliente. El alta pública no tiene sesión, así que un
+  /// reintento del mismo request (doble tap, red que se corta) creaba **otro pedido**. Nullable
+  /// porque los pedidos que ya existían y los que llegan sin clave no tienen ninguna.
+  idempotencyKey       String?              @unique
   type                 OrderType
   status               OrderStatus          @default(new)
   customerName         String

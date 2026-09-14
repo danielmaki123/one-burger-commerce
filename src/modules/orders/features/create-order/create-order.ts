@@ -85,6 +85,11 @@ export type CreateOrderRequest = {
   customerLng?: number | null;
   geoAccuracy?: number | null;
   geoCapturedAt?: string | null;
+  /**
+   * TASK-101 — clave de operación del cliente para esta alta. Repetirla devuelve el pedido que ya
+   * existe en vez de crear otro. Sin clave (o en blanco) el alta se comporta como antes.
+   */
+  idempotencyKey?: string | null;
 };
 
 export async function createOrder(
@@ -121,6 +126,23 @@ export async function createOrder(
     tipPolicy?: { enabled: boolean; rate: number };
   },
 ) {
+  // Idempotencia (TASK-101). Va **antes** de todo lo demás: un reintento del mismo request no tiene
+  // que resolver local, ni gate operativo, ni cupón otra vez. Si el pedido ya existe, se devuelve
+  // tal cual y la ruta contesta 200 en vez de 201.
+  //
+  // El `orderLookupToken` en claro solo se conoce al crear (en la base queda su hash), así que en un
+  // reintento viaja `null` en vez de inventar un token que no serviría para consultar el pedido.
+  const idempotencyKey = input.idempotencyKey?.trim() || null;
+  if (idempotencyKey) {
+    const existing = await repository.findOrderByIdempotencyKey(idempotencyKey);
+    if (existing) {
+      return {
+        data: { ...existing, orderLookupToken: null },
+        meta: { sourceOfTruth: "backend" as const, reused: true },
+      };
+    }
+  }
+
   // Basic validation
   if (!input.type || !["delivery", "pickup", "table"].includes(input.type)) {
     throw new OrderError(400, "BAD_REQUEST", "Invalid payload", { type: "Required and must be delivery, pickup, or table" });
@@ -496,6 +518,7 @@ export async function createOrder(
         geoAccuracy: input.geoAccuracy ?? null,
         geoCapturedAt: input.geoCapturedAt ? new Date(input.geoCapturedAt) : null,
         orderLookupTokenHash,
+        idempotencyKey,
       },
       itemDetails,
     );
@@ -517,6 +540,6 @@ export async function createOrder(
       ...order,
       orderLookupToken,
     },
-    meta: { sourceOfTruth: "backend" as const },
+    meta: { sourceOfTruth: "backend" as const, reused: false },
   };
 }
