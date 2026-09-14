@@ -45,6 +45,31 @@ export function calculateTipAmount(params: {
   };
 }
 
+/**
+ * La suma del total, con los componentes ya calculados.
+ *
+ * Es la **única** puerta para la fórmula. Existe además de `calculateOrderTotals` porque hay
+ * lugares que tienen los montos pero no las líneas del pedido: el agregado de ítems de mesa, la
+ * corrección del envío en el adaptador y la tarjeta de resumen. Antes cada uno la reescribía con su
+ * propia variante (uno omitía el descuento, otro el empaque), así que agregar un componente nuevo
+ * obligaba a encontrarlos todos.
+ */
+export function calculateOrderTotal(params: {
+  subtotal: number;
+  discount: number;
+  packagingAmount: number;
+  deliveryFeeAmount: number;
+  tipAmount: number;
+}): number {
+  return roundCurrency(
+    params.subtotal -
+      params.discount +
+      params.packagingAmount +
+      params.deliveryFeeAmount +
+      params.tipAmount,
+  );
+}
+
 export function calculateOrderTotals(params: {
   subtotal: number;
   discount: number;
@@ -68,12 +93,13 @@ export function calculateOrderTotals(params: {
     tipBase,
     tipAmount,
     tipRate,
-    total: roundCurrency(
-      params.subtotal -
-        params.discount +
-        packagingAmount +
-        params.deliveryFeeAmount +
-        tipAmount,
-    ),
+    // La fórmula no se repite acá: se delega en la única puerta.
+    total: calculateOrderTotal({
+      subtotal: params.subtotal,
+      discount: params.discount,
+      packagingAmount,
+      deliveryFeeAmount: params.deliveryFeeAmount,
+      tipAmount,
+    }),
   };
 }

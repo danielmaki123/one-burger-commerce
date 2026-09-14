@@ -6,6 +6,7 @@ import { businessInitials } from "@/modules/business-settings/domain/brand-initi
 import type { CartItem } from "@/shared/lib/cart";
 import { useBusinessSettings, useCurrencyFormat } from "@/shared/lib/business-settings";
 import { formatCurrency } from "@/shared/lib/format-currency";
+import { calculateOrderTotal } from "@/shared/lib/order-totals";
 import { Card, CardContent } from "@/shared/ui/card";
 
 /**
@@ -65,6 +66,8 @@ export function OrderSummaryCard({
   itemCount,
   subtotal,
   packagingAmount,
+  discount = 0,
+  deliveryFeeAmount = 0,
   tipAmount = 0,
   tipRate = null,
   children,
@@ -74,6 +77,8 @@ export function OrderSummaryCard({
   itemCount: number;
   subtotal: number;
   packagingAmount: number;
+  discount?: number;
+  deliveryFeeAmount?: number;
   tipAmount?: number;
   tipRate?: number | null;
   /** El CTA de la pantalla, para que viva adentro del resumen. */
@@ -81,7 +86,16 @@ export function OrderSummaryCard({
 }) {
   const settings = useBusinessSettings();
   const currency = useCurrencyFormat();
-  const total = subtotal + packagingAmount + tipAmount;
+  // TASK-102: la suma sale de la única puerta, no de una expresión propia. Los dos sumandos que
+  // esta pantalla todavía no recibe quedan en 0 explícito, así que el número que se muestra hoy es
+  // el mismo de antes.
+  const total = calculateOrderTotal({
+    subtotal,
+    discount,
+    packagingAmount,
+    deliveryFeeAmount,
+    tipAmount,
+  });
 
   return (
     <Card className="overflow-hidden rounded-[24px] border-white/80 bg-card/90 shadow-[0_28px_70px_-42px_rgba(41,37,36,0.75)] ring-1 ring-border">

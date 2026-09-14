@@ -25,6 +25,7 @@ import {
   resolveReadyAt,
   resolveStageChangedAt,
 } from "@/modules/orders/domain/order-stage-times";
+import { calculateOrderTotal } from "@/shared/lib/order-totals";
 import type { CouponType } from "@prisma/client";
 
 function decimalToNumber(d: Decimal): number {
@@ -519,12 +520,15 @@ export class PrismaOrderRepository implements OrderRepository {
       throw new Error("Order not found");
     }
 
-    const newTotal =
-      decimalToNumber(order.subtotal) -
-      decimalToNumber(order.discount) +
-      decimalToNumber(order.packagingAmount) +
-      decimalToNumber(order.tipAmount) +
-      deliveryFeeAmount;
+    // TASK-102: la suma sale de la única puerta. Antes estaba escrita acá, y por eso el orden de los
+    // sumandos podía divergir del resto sin que nada lo notara.
+    const newTotal = calculateOrderTotal({
+      subtotal: decimalToNumber(order.subtotal),
+      discount: decimalToNumber(order.discount),
+      packagingAmount: decimalToNumber(order.packagingAmount),
+      deliveryFeeAmount,
+      tipAmount: decimalToNumber(order.tipAmount),
+    });
 
     const updated = await prisma.order.update({
       where: { id },

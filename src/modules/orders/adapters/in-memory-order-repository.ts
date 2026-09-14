@@ -18,6 +18,7 @@ import type {
   OrderQueueRecord,
   OrderRepository,
 } from "@/modules/orders/ports/order-repository";
+import { calculateOrderTotal } from "@/shared/lib/order-totals";
 
 export class InMemoryOrderRepository implements OrderRepository {
   orders: OrderRecord[] = [];
@@ -223,12 +224,14 @@ export class InMemoryOrderRepository implements OrderRepository {
     if (!order) throw new Error("Order not found");
     order.deliveryFeeAmount = deliveryFeeAmount;
     order.deliveryFeeStatus = deliveryFeeStatus;
-    order.total =
-      order.subtotal -
-      order.discount +
-      order.packagingAmount +
-      deliveryFeeAmount +
-      order.tipAmount;
+    // TASK-102: la misma puerta que el adaptador de Prisma, para que los dos no puedan divergir.
+    order.total = calculateOrderTotal({
+      subtotal: order.subtotal,
+      discount: order.discount,
+      packagingAmount: order.packagingAmount,
+      deliveryFeeAmount,
+      tipAmount: order.tipAmount,
+    });
     order.updatedAt = new Date().toISOString();
     return order;
   }
