@@ -9,14 +9,17 @@ de Casa Antigua que viven en `docs/` (esa carpeta no se versiona).
 
 ---
 
-## 0. Estado del deploy actual (2026-09-13)
+## 0. Estado del deploy actual (2026-09-14)
 
 - Panel: `http://76.13.250.83:3000`
 - Proyecto / servicio: **`brunobot` / `oneburguerweb`**
-- **Deploy actual**: commit **`982da3f`** (main), build **`build-20260913-191302`**. Lleva **A**
-  (alcance por sucursal del staff: cada usuario ve las suyas, el dueño ve todas) con la migración
-  **`add_admin_user_locations`** (tabla nueva, aditiva, sin backfill) y el arreglo del filtro por
-  local de la bandeja, que hasta ese deploy **no filtraba**. El anterior era `ea6be95`.
+- **Deploy actual**: commit **`0124784`** (main, el tip), build **`build-20260914-113152`**. Lleva la
+  **consola de comandas completa (B0–B5)**: cola por hora prometida y lista que no se vacía sin red,
+  auto-refresh con aviso y sonido, aceptar/rechazar desde la fila, el tablero de tres carriles con
+  urgencia por etapa y pantalla completa, búsqueda y filtros con el estado en la URL, y los umbrales de
+  aviso por local más el promedio de preparación del día. Con **dos migraciones aditivas**:
+  `20260914054616_add_location_alert_minutes` y `20260914061058_add_status_history_actor`. El anterior
+  era `982da3f` (`build-20260913-191302`).
 - Dominios públicos (verificado el 2026-09-12): **`https://oneburgernic.com`** (apex, canónico) y
   `https://www.oneburgernic.com` sirven el **landing** y redirigen las páginas de la app (307) a
   `menu.`/`admin.`; **`https://menu.oneburgernic.com`** sirve la **app de pedidos** y
@@ -34,11 +37,15 @@ de Casa Antigua que viven en `docs/` (esa carpeta no se versiona).
 - Deploy: **una sola llamada** a `deployService` por API (ver §4). ⚠️ **No usar
   `npm run deploy:easypanel`**: fusiona variables y puede crear servicios. El **webhook del panel no es
   fiable** en esta instalación.
-- Verificado (2026-09-13): `/api/health` y `/api/readiness` en 200 en los cuatro dominios, smoke
-  productivo **7/7**, dominios **6/6** y `/admin` redirigiendo a login. En el deploy de A también se
-  comprobó: `commit.sha` en `982da3f`, `readiness: ready` (el contenedor nuevo aplicó la migración al
-  arrancar), `GET /api/admin/orders` sin sesión **401**, y las superficies públicas
-  (`/api/locations`, `/api/menu`, `/api/health`) en 200 con el punto de retiro sin contacto interno.
+- Verificado (2026-09-14, deploy de las comandas): `commit.sha` en `0124784` (**idéntico al tip de
+  `main`**), la acción `Deploy service` en `done`, `/api/health` sirviendo `build-20260914-113152`
+  (antes `build-20260913-191302`), la clase `comandas-view` presente en el CSS de admin servido
+  (prueba de que el código de la vista nueva está en producción), smoke productivo **7/7**, dominios
+  **6/6** y QA de solo lectura sobre `menu.oneburgernic.com` **31 pasaron / 3 salteados / 0 fallos**.
+  ⚠️ **Lo que este deploy NO pudo verificar desde acá**: el tablero de comandas en sí, porque necesita
+  una sesión de admin en producción y este entorno no tiene esas credenciales. La prueba funcional de
+  la UI es el E2E local (95/7/0) y la revisión a ojo de `/admin/orders` por el owner.
+
 
 ⚠️ **Avisos de esta instalación**
 

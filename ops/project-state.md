@@ -2199,6 +2199,30 @@ tuviera nada (quedan documentadas en `ops/production-readiness.md` §2): un `nex
 colgado que seguía dueño del puerto 3210, y `npm run build:webpack` corrido mientras el server servía
 el build de Turbopack (rompe el manifiesto de cliente y las páginas dejan de hidratar).
 
+### Deploy de las comandas a producción (2026-09-14, commit `0124784`) — **verificado**
+
+Una sola llamada a `deployService` (proyecto `brunobot`, servicio `oneburguerweb`, `forceRebuild:true`),
+como manda el runbook §2. El contenedor nuevo aplicó al arrancar las **dos migraciones aditivas** de
+B5 (`add_location_alert_minutes` y `add_status_history_actor`).
+
+Qué se comprobó, y con qué:
+
+- `commit.sha` del panel = **`0124784e46ad6fcf00486092f3fd7d5063fbb733`**, idéntico al tip de `main`.
+- La acción `Deploy service: …la consola de comandas completa (B0-B5)` quedó en **`done`**.
+- `/api/health` pasó de `build-20260913-191302` a **`build-20260914-113152`** (sondeo cada 20 s hasta
+  que cambió, ~2 minutos de build).
+- La clase `comandas-view` (B3) ya está en el CSS de admin que sirve producción, o sea que el código de
+  la vista nueva está en la imagen.
+- Smoke productivo **7/7**, dominios **6/6** y la QA de solo lectura sobre `menu.oneburgernic.com`
+  **31 pasaron / 3 salteados / 0 fallos** (el mismo baseline de siempre; los tres saltos dicen su
+  motivo: un producto con opciones obligatorias que la carta real no tiene y dos que necesitan
+  credenciales del panel).
+
+⚠️ **Lo que queda sin verificar desde acá**: el tablero de comandas funcionando **en producción**,
+porque hace falta una sesión de admin y este entorno no tiene esas credenciales. La evidencia funcional
+es el E2E local (95 pasaron / 7 salteados / 0 fallos) más la revisión a ojo del owner en
+`https://admin.oneburgernic.com/admin/orders`.
+
 ## 3. Infraestructura y secretos
 
 - `EASYPANEL_URL` y `EASYPANEL_TOKEN`: solo en el entorno de quien ejecuta el deploy (nunca
