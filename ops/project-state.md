@@ -2117,7 +2117,7 @@ fallos** sobre siete specs (los tres saltos dicen su motivo: uno necesita un pro
 obligatorias y dos necesitan credenciales del panel), más los smokes oficiales **7/7** y dominios
 **6/6**.
 
-### La consola de pedidos pasa a ser «comandas» (2026-09-13) — **en curso (B0, B1 y B2 cerradas)**
+### La consola de pedidos pasa a ser «comandas» (2026-09-13) — **en curso (B0, B1, B2 y B3 cerradas)**
 
 El owner redefinió la sección: deja de ser un visor y pasa a ser la herramienta de la sucursal. El
 diseño acordado y las decisiones están en [`ops/tasks/TASK-orders-console.md`](tasks/TASK-orders-console.md)
@@ -2139,9 +2139,35 @@ los 15 min **en la etapa actual**, todo en `/admin/orders`). Se avanza **una fas
   detalle— y el **409** se explica y refresca en vez de dejar la pantalla muda. El detalle de la orden
   dejó de tener su copia del mapa de transiciones.
 
-Faltan **B3** (la vista completa de comandas: tres columnas, anatomía de la comanda, urgencia y
-pantalla completa), **B4** (búsqueda y filtros) y **B5** (umbrales por local y tiempo promedio de
-preparación).
+- **B4** — **buscar y acotar el turno**: la regla de búsqueda (número, nombre, WhatsApp por contiene y
+  PIN) vive en `domain/order-search.ts` y la aplican igual los dos adaptadores; la ruta acepta `search`
+  y `paymentMethod`; en la barra hay buscador con demora de 300 ms, forma de pago y «Atrasados», y los
+  filtros quedan en la **URL** (el enlace a «el pedido de Ana» se puede compartir y recargar no pierde
+  la vista). El carril vacío dice que es por la búsqueda, no por falta de pedidos.
+
+Falta **B5** (umbrales por local y tiempo promedio de preparación).
+
+- **B3** (`14ff91c`, CI `34809472367`) — **el tablero del turno**: tres carriles (Por aceptar · En
+  preparación · Listas) en escritorio y **un carril por vez** en celular con conmutador segmentado;
+  barra superior compacta con contadores, conexión, sonido, pantalla completa y refresco; la barra
+  lateral del panel se esconde mientras la vista está montada (con enlace para volver) y el botón de
+  pantalla completa entra al Fullscreen API para el tablet de pared. La urgencia sale del **tiempo en
+  la etapa** (helper `comanda-helpers`, umbrales por parámetro para B5), avisa por lector de pantalla
+  una sola vez cuando una comanda se atrasa, y un pedido programado para **otro día** no entra en los
+  carriles: se anuncia aparte con la salida al listado (la separación de la fase 4 del checkout se
+  mantiene). El detalle de la orden sigue accesible desde la comanda.
+
+Faltan **B4** (búsqueda por número, nombre, WhatsApp o PIN, y filtros avanzados con el estado en la
+URL) y **B5** (umbrales por local y tiempo promedio de preparación).
+
+**Verificación de B4**: **1752 unitarios en 260 archivos**, lint, typecheck, `build`, `build:webpack` y
+`security:secrets` en verde; **E2E completo local 96 pasaron / 6 salteados / 0 fallos**, con un caso
+nuevo que busca un pedido real por nombre y comprueba el filtro en la URL.
+
+**Verificación de B3**: **1729 unitarios en 258 archivos**, lint, typecheck, `build`, `build:webpack`
+y `security:secrets` en verde; **E2E completo local 94 pasaron / 7 salteados / 0 fallos**, con cuatro
+casos nuevos (`tests/e2e/admin-comandas.spec.ts`) más los specs de admin y de la fase 4 del checkout
+adaptados al tablero.
 
 **Verificación de B2**: **1682 unitarios en 254 archivos**, lint, typecheck, `build` y `build:webpack`
 en verde; **E2E completo local 91 pasaron / 7 salteados / 0 fallos**, con tres casos nuevos
