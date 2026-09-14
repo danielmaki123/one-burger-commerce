@@ -2145,7 +2145,16 @@ los 15 min **en la etapa actual**, todo en `/admin/orders`). Se avanza **una fas
   filtros quedan en la **URL** (el enlace a «el pedido de Ana» se puede compartir y recargar no pierde
   la vista). El carril vacío dice que es por la búsqueda, no por falta de pedidos.
 
-Falta **B5** (umbrales por local y tiempo promedio de preparación).
+- **B5a** — **los umbrales de aviso son de cada local**: `acceptAlertMinutes` (cola «Por aceptar») y
+  `prepAlertMinutes` (cocina y listas), editables en `/admin/locations` y con migración aditiva
+  (`20260914054616_add_location_alert_minutes`). El tablero usa los del local que se está mirando; con
+  varias sucursales a la vista y sin filtro rigen los valores por defecto del negocio. A los `late`
+  minutos del umbral ya está atrasada (`LATE_EXTRA_MINUTES` = 5).
+
+**Pendiente de B5 (el resto)**: el **actor** del cambio de estado (`changedByUserId` en
+`OrderStatusHistory`, para responder «quién aceptó esto» con cuentas compartidas) y el **tiempo
+promedio de preparación del día**. Van en su propio commit: no hacen falta para que los umbrales
+funcionen.
 
 - **B3** (`14ff91c`, CI `34809472367`) — **el tablero del turno**: tres carriles (Por aceptar · En
   preparación · Listas) en escritorio y **un carril por vez** en celular con conmutador segmentado;
@@ -2159,6 +2168,9 @@ Falta **B5** (umbrales por local y tiempo promedio de preparación).
 
 Faltan **B4** (búsqueda por número, nombre, WhatsApp o PIN, y filtros avanzados con el estado en la
 URL) y **B5** (umbrales por local y tiempo promedio de preparación).
+
+**Verificación de B5a**: **1760 unitarios en 260 archivos**, lint, typecheck, `build`, `build:webpack`
+y `security:secrets` en verde; **E2E completo local 96 pasaron / 6 salteados / 0 fallos**.
 
 **Verificación de B4**: **1752 unitarios en 260 archivos**, lint, typecheck, `build`, `build:webpack` y
 `security:secrets` en verde; **E2E completo local 96 pasaron / 6 salteados / 0 fallos**, con un caso
