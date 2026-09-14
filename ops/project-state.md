@@ -2358,11 +2358,13 @@ BASE_URL=https://menu.oneburgernic.com npx playwright test \
 **Antes de tocar nada, el estado en una línea (2026-09-14)**: producción sirve `build-20260914-151459`
 (commit `0072531`), con A (alcance por sucursal) y B (comandas B0–B6) desplegadas. Sobre eso corre el
 plan `plna.md`: **FASE 1 (bloqueantes del POS) y FASE 2 (UI + design system) cerradas**, las dos
-**sin desplegar**; **FASE 3 (POS, TASK-301 a 308)** es lo que sigue. La cola de auditoría sigue viva en
-[`ops/audit-backlog.md`](audit-backlog.md) —A-02…A-06 bloqueados por el owner, A-09…A-13 abiertos—
+**sin desplegar**; de la **FASE 3 (POS, TASK-301 a 308)** están cerradas TASK-301, TASK-302 y TASK-303a
+(filas 24, 25 y 27) y lo que sigue es **TASK-303b** (el cobro). La cola de auditoría sigue viva en
+[`ops/audit-backlog.md`](audit-backlog.md) —A-02…A-06 bloqueados por el owner, A-09…A-14 abiertos—
 con el prompt en [`ops/tasks/START-HERE.md`](tasks/START-HERE.md) §1b. La última línea de base
-verificada: **1877 unitarios en 276 archivos**, lint, typecheck, `build`, `build:webpack` y
-`security:secrets` en verde, **E2E local 98 pasaron / 6 salteados / 0 fallos**, y los cinco guardrails
+verificada: **1933 unitarios en 284 archivos**, lint, typecheck, `build`, `build:webpack` y
+`security:secrets` en verde, **E2E local 101 pasaron / 6 salteados / 0 fallos** (con los specs nuevos
+`admin-pos.spec.ts` y `admin-exchange-rate.spec.ts`), y los cinco guardrails
 de `src/shared/contracts/` corriendo como job propio del CI.
 
 ## 6. Límites conocidos (resumen)
