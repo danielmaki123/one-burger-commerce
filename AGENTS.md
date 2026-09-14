@@ -10,6 +10,12 @@ explícito del humano, gana el humano; después de resolverlo, actualizá este a
   empezar la siguiente.
 - Si una tarea mezcla temas distintos, se parte en **un commit por tema**.
 - Ante una duda de alcance, se pregunta **antes** de codear; no se inventa producto.
+- **Plan escrito = alcance ya resuelto** (2026-09-14): si el owner entrega un plan o un brief
+  (`plna.md`, `ops/tasks/*.md`), las tareas que ese documento ya define se ejecutan **de corrido y
+  sin pedir validación entre una y otra**. Se sigue cerrando **una por vez** (implementación, tests,
+  validación, commit, push, CI verde y estado actualizado) y se sigue preguntando por lo que el plan
+  **no** decide: alcance nuevo, producto, dependencias nuevas y deploy. Si el plan choca con este
+  archivo, gana el plan y la excepción se anota acá, en el mismo commit.
 - El punto de entrada para un chat nuevo es
   [`ops/tasks/START-HERE.md`](ops/tasks/START-HERE.md): tiene el prompt listo para pegar, el
   mapa de documentos y la cola de pendientes en orden.
@@ -39,6 +45,7 @@ sin aprobación explícita.
 | `ops/project-state.md` | Estado real: qué está desplegado, qué se cerró, qué falta, cómo continuar. **Leer primero.** |
 | `ops/production-readiness.md` | Runbook: entorno, deploy, backups, rollback, notificaciones, primer arranque, límites conocidos. |
 | `ops/tasks/*.md` | Briefs de tareas acordadas con el owner (decisiones ya resueltas). |
+| `DESIGN_SYSTEM.md` | **UI**: tokens, catálogo de componentes y "cuándo NO usar" cada uno. Fuente única (raíz, versionado). |
 | `README.md` | Alcance y comandos de validación. |
 
 `docs/` y `handoffs/` están en `.gitignore` (material histórico heredado de otro
@@ -74,6 +81,50 @@ src/infrastructure/** prisma, event bus
   sesión/permisos, instancian adaptadores y llaman casos de uso.
 - Errores de dominio tipados por módulo (`OrderError`, `AuthError`, …) y mapeados en
   `src/shared/lib/http/error-response.ts`.
+
+## UI y design system
+
+La fuente única es [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md) (raíz, versionado), que deriva de este
+archivo y del inventario medido en [`ops/tasks/TASK-201-ui-inventory.md`](ops/tasks/TASK-201-ui-inventory.md).
+
+- **Componente que existe, componente que se usa**: primero `src/shared/ui/`, después
+  `(admin)/admin/_components/` y `(public)/_components/`. Hoy hay **26 componentes** y **111
+  elementos HTML crudos**, y en **22 archivos el componente ya estaba importado**: ese es el defecto
+  a no repetir.
+- **Prohibido el HTML crudo equivalente** (`<button>`, `<input>`, `<select>`, `<textarea>`) cuando el
+  primitivo existe. De los que **NO EXISTE** primitivo (hoy 31 `<select>` y 6 `<textarea>`), la falta
+  se documenta en `DESIGN_SYSTEM.md` §3.4 antes de inventar el sexto `className` distinto.
+- **Prohibido el color fuera de token**: nada de `#hex` (hoy hay 10 de UI), `rgba()` (35), paleta
+  cruda de Tailwind donde hay token (70 apariciones de `red-*`, `stone-*`, `amber-*`, `emerald-*`,
+  `sky-*`) ni `fontFamily` inline que duplique `font-heading` (29). Solo tokens de `globals.css`.
+- **Los 15 tokens huérfanos están prohibidos**: se leen en `DESIGN_SYSTEM.md` §2.1 antes de usar un
+  color o un espaciado "nuevo". El bloque `.dark` (31 tokens) **nunca se aplica** y no sirve de base
+  para un modo oscuro.
+- **Componente nuevo = registro previo**: un archivo nuevo en `_components/` se registra en
+  `DESIGN_SYSTEM.md` **en el mismo commit**, con su "cuándo SÍ" y su "cuándo NO".
+- **Ningún control decorativo**: cada control se implementa con su estado/API **y su test**, o se
+  elimina con el motivo escrito en el commit.
+- **Nada de texto decorativo**: copy que no cambia una decisión del usuario ("Bienvenido",
+  "Descubrí lo mejor de…", subtítulos que repiten el título). `DESIGN_SYSTEM.md` §5 lo lista.
+- La UI se verifica en **navegador real a 375 px y 1280 px**, no en HTML estático.
+
+## Reglas de código
+
+- **Una sola fuente por cálculo**: los totales salen de `src/shared/lib/order-totals.ts`
+  (`calculateOrderTotal` / `calculateOrderTotals`) y el estado del pedido de
+  `src/modules/orders/domain/order-workflows.ts`. Prohibido sumar `subtotal + packaging + tip` a
+  mano: hay un test de contrato que lo impide.
+- **Los route handlers no tienen lógica**: máximo **50 líneas**, validan con zod, resuelven permisos,
+  instancian el adaptador y llaman al caso de uso. Prohibido importar `getPrismaClient()` o
+  `@prisma/client` desde un `route.ts`.
+- **Módulo nuevo = `domain/features/ports/adapters`**, y `domain/` **no** importa de `app/`,
+  `adapters/` ni `infrastructure/`.
+- **Tamaño**: máximo **400 líneas por archivo** y **80 por función**. Los archivos que hoy los pasan
+  son deuda inventariada: no se agrandan y se parten cuando se los toque por otra razón.
+- **Antes de crear, buscar**: si la regla, el cálculo o el texto ya existen, se reusan. Duplicar para
+  "no tocar lo otro" no es una opción.
+- **Docs**: prohibido crear archivos `.md` nuevos sin aprobación humana; si el cambio deja un doc
+  desactualizado, se actualiza en el mismo commit.
 
 ## TDD (obligatorio para cambios funcionales)
 
@@ -186,3 +237,14 @@ van en su propio archivo (por eso `orders-page-helpers.ts` no vive dentro de la 
 - No borrar ni reescribir tests existentes para que pasen: si un test cambia de contrato,
   actualizalo explicando por qué en el commit.
 - No dejar `BOOTSTRAP_ADMIN_*` ni secretos temporales en el entorno del servicio.
+
+UI y código:
+
+- No escribir HTML crudo (`button`, `input`, `select`, `textarea`) donde ya hay componente, ni
+  `#hex`, `rgba()` o paleta cruda de Tailwind donde hay token.
+- No crear un componente en `_components/` sin registrarlo en `DESIGN_SYSTEM.md` en el mismo commit.
+- No duplicar un cálculo ni una transición de estado que ya tiene fuente única (`order-totals.ts`,
+  `order-workflows.ts`).
+- No pasar de **400 líneas por archivo**, **80 por función** ni **50 por route handler**.
+- No agregar dependencias nuevas sin aprobación humana.
+- No crear `AGENTS.md` anidados, `docs/ai/` ni skills: no es el patrón del repo.
