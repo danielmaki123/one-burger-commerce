@@ -111,7 +111,13 @@ type AdminOrdersResponse = {
    * pantalla para no ofrecer sucursales ajenas, sin reimplementar la regla. No confundir con
    * `locationIds`, que es el filtro aplicado en esa respuesta.
    */
-  meta?: { count?: number; locationIds?: string[]; locationScope?: string[] | null };
+  meta?: {
+    count?: number;
+    locationIds?: string[];
+    locationScope?: string[] | null;
+    /** B5: cuánto tarda la cocina hoy, en minutos (`null` si todavía no hay ningún pedido listo). */
+    averagePrepMinutes?: number | null;
+  };
 };
 
 type OrdersView = "today" | "history";
@@ -199,6 +205,8 @@ export default function AdminOrdersPage() {
   /** B3: lo que se anuncia por lector de pantalla cuando una comanda se pasa de tiempo. */
   const [lateAnnouncement, setLateAnnouncement] = useState<string | null>(null);
   const announcedLateIdsRef = useRef<Set<string>>(new Set());
+  /** B5: cuánto tarda la cocina hoy, tal como lo resolvió el servidor en la última lectura. */
+  const [averagePrepMinutes, setAveragePrepMinutes] = useState<number | null>(null);
 
   /**
    * B4 — los filtros del tablero. Arrancan en la URL (así un enlace a «el pedido de Ana» funciona y al
@@ -389,6 +397,9 @@ export default function AdminOrdersPage() {
 
         setOrders(incoming);
         setScopeLocationIds(payload.meta?.locationScope ?? null);
+        // B5: el promedio del día lo calcula el servidor con los sellos de todos los pedidos; la
+        // pantalla lo muestra tal cual, sin recalcularlo con lo que tiene a mano.
+        setAveragePrepMinutes(payload.meta?.averagePrepMinutes ?? null);
         setLastUpdatedAt(Date.now());
       } catch {
         setError("read-failed");
@@ -844,6 +855,17 @@ export default function AdminOrdersPage() {
             </p>
 
             <span className="ml-auto flex flex-wrap items-center gap-2">
+              {/* B5: el ritmo de la cocina hoy. Sin pedidos listos dice que todavía no hay datos,
+                  porque un "0 min" se leería como una cocina instantánea. */}
+              <span
+                data-testid="orders-average-prep"
+                className="text-xs font-semibold text-muted-foreground tabular-nums"
+              >
+                {averagePrepMinutes === null
+                  ? "Preparación promedio: sin datos todavía"
+                  : `Preparación promedio hoy: ${averagePrepMinutes} min`}
+              </span>
+
               <span
                 className={`text-xs font-semibold tabular-nums ${error ? "text-warning-foreground" : "text-muted-foreground"}`}
                 data-testid="orders-freshness"

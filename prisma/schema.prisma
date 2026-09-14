@@ -500,6 +500,9 @@ model OrderStatusHistory {
   orderId   String
   status    OrderStatus
   note      String?
+  /// B5: quién hizo el cambio (id del usuario del panel). Sin FK a propósito: borrar una cuenta no
+  /// puede borrar ni romper el historial de lo que pasó con los pedidos.
+  changedByUserId String?
   createdAt DateTime    @default(now())
   order     Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
@@ -683,4 +686,5 @@ model BusinessSettings {
   updatedAt           DateTime @updatedAt
   updatedByUserId     String?
 }
+
 

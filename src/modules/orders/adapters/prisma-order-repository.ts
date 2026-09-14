@@ -21,6 +21,10 @@ import {
   normalizeOrderSearch,
   searchDigits,
 } from "@/modules/orders/domain/order-search";
+import {
+  resolveReadyAt,
+  resolveStageChangedAt,
+} from "@/modules/orders/domain/order-stage-times";
 import type { CouponType } from "@prisma/client";
 
 function decimalToNumber(d: Decimal): number {
@@ -152,14 +156,23 @@ function mapOrder(order: any): OrderRecord {
  * hay— es el último cambio de estado. Un pedido sin historial (los que existían antes de que la
  * tabla se llenara) empieza su etapa al crearse: la pantalla nunca queda sin cuenta.
  */
+/**
+ * B3/B5 — la cola, con los sellos que la pantalla necesita.
+ *
+ * `statusHistory` viene completo (y ordenado) para los pedidos de la lista: son pocas filas por pedido
+ * y así se resuelven **en una sola consulta** el sello de la etapa actual y el momento en que el pedido
+ * quedó listo. La regla de ambos vive en `domain/order-stage-times.ts`, la misma que aplica el
+ * adaptador de memoria.
+ */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mapQueueOrder(order: any): OrderQueueRecord {
   const mapped = mapOrder(order);
-  const lastChange = order.statusHistory?.[0]?.createdAt;
+  const history = (order.statusHistory ?? []) as OrderStatusHistoryRecord[];
 
   return {
     ...mapped,
-    stageChangedAt: lastChange ? new Date(lastChange).toISOString() : mapped.createdAt,
+    stageChangedAt: resolveStageChangedAt(history, mapped.createdAt),
+    readyAt: resolveReadyAt(history),
   };
 }
 
@@ -361,11 +374,10 @@ export class PrismaOrderRepository implements OrderRepository {
             modifiers: true,
           },
         },
-        // B3: el sello de la etapa actual, en la **misma** consulta y solo la última fila. Pedirlo
-        // pedido por pedido serían veinte consultas para dibujar una pantalla.
+        // B3/B5: los sellos de la etapa actual y del momento en que quedó listo, en la **misma**
+        // consulta. Pedirlos pedido por pedido serían veinte consultas para dibujar una pantalla.
         statusHistory: {
-          orderBy: { createdAt: "desc" },
-          take: 1,
+          orderBy: { createdAt: "asc" },
         },
       },
     });
@@ -377,6 +389,7 @@ export class PrismaOrderRepository implements OrderRepository {
     id: string,
     status: string,
     note?: string | null,
+    changedByUserId?: string | null,
   ): Promise<{ id: string; status: string; updatedAt: string }> {
     const prisma = getPrismaClient();
 
@@ -390,6 +403,9 @@ export class PrismaOrderRepository implements OrderRepository {
           orderId: id,
           status: status as OrderStatus,
           note: note ?? null,
+          // B5: queda quién lo hizo. Es lo único que responde "quién aceptó esto" cuando la cuenta
+          // del panel es compartida.
+          changedByUserId: changedByUserId ?? null,
         },
       }),
     ]);
@@ -556,12 +572,14 @@ export class PrismaOrderRepository implements OrderRepository {
       id: string;
       status: string;
       note: string | null;
+      changedByUserId: string | null;
       createdAt: Date;
     }) => ({
       id: h.id,
       orderId: (h as unknown as { orderId: string }).orderId,
       status: h.status as OrderStatusHistoryRecord["status"],
       note: h.note,
+      changedByUserId: h.changedByUserId,
       createdAt: h.createdAt.toISOString(),
     }));
   }

@@ -80,7 +80,12 @@ describe("PATCH /api/admin/orders/[id]/status · alcance por sucursal (A)", () =
     expect(status).toBe(200);
     expect(updateOrderStatusMock).toHaveBeenCalledWith(
       "ord_2",
-      expect.objectContaining({ status: "confirmed" }),
+      expect.objectContaining({
+        status: "confirmed",
+        // B5: el cambio queda firmado por quien lo hizo. Con cuentas compartidas, "quién aceptó esto"
+        // es la pregunta que se hace después, cuando algo sale mal.
+        changedByUserId: "admin_2",
+      }),
       expect.anything(),
     );
   });

@@ -1150,6 +1150,67 @@ describe("bandeja de órdenes: umbrales por local (B5)", () => {
 });
 
 /**
+ * B5 — el ritmo de la cocina hoy.
+ *
+ * El promedio lo resuelve el servidor con los sellos de todos los pedidos (los que ya quedaron listos);
+ * la pantalla lo muestra tal cual. Un promedio nulo dice "sin datos todavía" en vez de "0 min", que se
+ * leería como una cocina instantánea.
+ */
+describe("bandeja de órdenes: promedio de preparación (B5)", () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date", "setInterval", "clearInterval"] });
+    vi.setSystemTime(NOW);
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      get: () => "hidden",
+    });
+  });
+
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+  });
+
+  async function renderWithPrep(averagePrepMinutes: number | null) {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string) =>
+        Promise.resolve({
+          ok: true,
+          status: 200,
+          json: async () =>
+            String(url).includes("/api/admin/locations")
+              ? { data: [] }
+              : { data: [order({ status: "new" })], meta: { count: 1, averagePrepMinutes } },
+        }),
+      ),
+    );
+
+    render(<AdminOrdersPage />);
+    await act(async () => {
+      for (let index = 0; index < 12; index += 1) await Promise.resolve();
+    });
+  }
+
+  it("muestra cuánto tarda la cocina hoy", async () => {
+    await renderWithPrep(14);
+
+    expect(screen.getByTestId("orders-average-prep").textContent).toBe(
+      "Preparación promedio hoy: 14 min",
+    );
+  });
+
+  it("sin pedidos listos lo dice, en vez de mostrar cero", async () => {
+    await renderWithPrep(null);
+
+    expect(screen.getByTestId("orders-average-prep").textContent).toBe(
+      "Preparación promedio: sin datos todavía",
+    );
+  });
+});
+
+/**
  * B4 — buscar y acotar el turno.
  *
  * El caso real: entra un pedido, el cliente llama preguntando por él, y quien atiende tiene el número,

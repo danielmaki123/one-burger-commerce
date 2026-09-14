@@ -66,6 +66,11 @@ export type OrderStatusHistoryRecord = {
   orderId: string;
   status: OrderStatus;
   note: string | null;
+  /**
+   * B5 — quién hizo el cambio (id del usuario del panel). Opcional porque las filas viejas no lo
+   * tienen: con cuentas compartidas, «quién aceptó esto» tiene que quedar asentado.
+   */
+  changedByUserId?: string | null;
   createdAt: string;
 };
 

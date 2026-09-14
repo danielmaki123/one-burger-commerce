@@ -37,6 +37,47 @@ describe("updateOrderStatus", () => {
     expect(result.meta.note).toBe("ok");
   });
 
+  /**
+   * B5 — cada cambio de estado queda firmado.
+   *
+   * Con una cuenta compartida en la cocina, el historial es lo único que puede responder quién aceptó
+   * o rechazó un pedido; sin esto, la pregunta queda sin respuesta para siempre.
+   */
+  it("deja asentado quién hizo el cambio", async () => {
+    const repository = createRepository();
+    repository.orders.push({
+      id: "ord_01",
+      orderNumber: "D-1",
+      locationId: "loc_principal",
+      type: "delivery",
+      status: "new",
+      customerName: "Juan",
+      customerWhatsapp: "+50588887777",
+      items: [],
+      subtotal: 100,
+      discount: 0,
+      packagingAmount: 0,
+      deliveryFeeAmount: 0,
+      tipAmount: 0,
+      tipRate: null,
+      total: 100,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+
+    await updateOrderStatus(
+      "ord_01",
+      { status: "confirmed", changedByUserId: "admin_7" },
+      { repository },
+    );
+
+    const history = await repository.getOrderStatusHistory("ord_01");
+    expect(history[history.length - 1]).toMatchObject({
+      status: "confirmed",
+      changedByUserId: "admin_7",
+    });
+  });
+
   it("rejects invalid transition new -> closed for delivery", async () => {
     const repository = createRepository();
     repository.orders.push({

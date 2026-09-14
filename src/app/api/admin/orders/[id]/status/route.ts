@@ -93,7 +93,13 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       existing.locationId,
     );
 
-    const result = await updateOrderStatus(id, parsed.data, { repository });
+    // B5: quién lo cambió, para el historial. Con cuentas compartidas, "quién aceptó esto" es la
+    // pregunta que se hace después, cuando algo sale mal.
+    const result = await updateOrderStatus(
+      id,
+      { ...parsed.data, changedByUserId: session.user.id },
+      { repository },
+    );
     return NextResponse.json(result);
   } catch (error) {
     return createErrorResponse(error);

@@ -23,7 +23,14 @@ export type OrderItemInput = {
  * 20 minutos y en preparación hace 2 no está atrasado), y con `updatedAt` mentiría, porque también
  * cambia cuando alguien edita el pedido por otro motivo. Sin historial, la etapa empezó con el pedido.
  */
-export type OrderQueueRecord = OrderRecord & { stageChangedAt: string };
+export type OrderQueueRecord = OrderRecord & {
+  stageChangedAt: string;
+  /**
+   * B5 — cuándo quedó listo (`null` si todavía no lo estuvo). Es lo que permite decir cuánto tarda la
+   * cocina hoy sin pedir el historial de cada pedido por separado.
+   */
+  readyAt: string | null;
+};
 
 /** Datos editables de una promo (T9c). El `id` y el uso acumulado los maneja el repositorio. */
 export type CouponInput = {
@@ -131,6 +138,8 @@ export interface OrderRepository {
     id: string,
     status: string,
     note?: string | null,
+    /** B5 — quién lo cambió: queda asentado en el historial. */
+    changedByUserId?: string | null,
   ): Promise<{ id: string; status: string; updatedAt: string }>;
 
   updateDeliveryFee(

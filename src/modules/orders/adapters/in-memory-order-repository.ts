@@ -7,6 +7,10 @@ import type {
   TableRecord,
 } from "@/modules/orders/domain/order.types";
 import { orderMatchesSearch } from "@/modules/orders/domain/order-search";
+import {
+  resolveReadyAt,
+  resolveStageChangedAt,
+} from "@/modules/orders/domain/order-stage-times";
 import type {
   CouponInput,
   CreateOrderInput,
@@ -167,26 +171,24 @@ export class InMemoryOrderRepository implements OrderRepository {
         if (filter.paymentMethod && o.paymentMethod !== filter.paymentMethod) return false;
         return true;
       })
-      // Copia con el sello de la etapa (B3): la cola no devuelve los objetos vivos del almacén.
-      .map((order) => ({ ...order, stageChangedAt: this.stageChangedAt(order) }));
-  }
+      // Copia con los sellos de la etapa y de "listo" (B3/B5): la cola no devuelve los objetos vivos
+      // del almacén y la misma regla que usa Prisma se aplica acá.
+      .map((order) => {
+        const history = this.statusHistory.filter((entry) => entry.orderId === order.id);
 
-  /** El último cambio de estado del pedido; si nunca cambió, la etapa empezó al crearlo. */
-  private stageChangedAt(order: OrderRecord): string {
-    const last = this.statusHistory
-      .filter((entry) => entry.orderId === order.id)
-      .reduce<OrderStatusHistoryRecord | null>(
-        (newest, entry) => (!newest || entry.createdAt > newest.createdAt ? entry : newest),
-        null,
-      );
-
-    return last?.createdAt ?? order.createdAt;
+        return {
+          ...order,
+          stageChangedAt: resolveStageChangedAt(history, order.createdAt),
+          readyAt: resolveReadyAt(history),
+        };
+      });
   }
 
   async updateOrderStatus(
     id: string,
     status: string,
     note?: string | null,
+    changedByUserId?: string | null,
   ): Promise<{ id: string; status: string; updatedAt: string }> {
     const order = this.orders.find((o) => o.id === id);
     if (!order) throw new Error("Order not found");
@@ -197,6 +199,7 @@ export class InMemoryOrderRepository implements OrderRepository {
       orderId: id,
       status: status as OrderStatusHistoryRecord["status"],
       note: note ?? null,
+      changedByUserId: changedByUserId ?? null,
       createdAt: new Date().toISOString(),
     });
     return { id, status, updatedAt: order.updatedAt };

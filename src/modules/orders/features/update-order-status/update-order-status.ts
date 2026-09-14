@@ -8,6 +8,8 @@ export async function updateOrderStatus(
   input: {
     status: string;
     note?: string | null;
+    /** B5 — quién lo cambió, para el historial (id del usuario del panel). */
+    changedByUserId?: string | null;
   },
   { repository }: { repository: OrderRepository },
 ) {
@@ -27,7 +29,12 @@ export async function updateOrderStatus(
     throw new OrderError(409, "CONFLICT", `Invalid status transition from ${order.status} to ${input.status}`);
   }
 
-  const updated = await repository.updateOrderStatus(id, input.status, normalizedNote);
+  const updated = await repository.updateOrderStatus(
+    id,
+    input.status,
+    normalizedNote,
+    input.changedByUserId ?? null,
+  );
 
   await publish("OrderStatusChanged", { orderId: id, status: input.status });
 
@@ -36,3 +43,4 @@ export async function updateOrderStatus(
     meta: { note: normalizedNote ?? undefined },
   };
 }
+

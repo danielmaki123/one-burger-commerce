@@ -164,6 +164,78 @@ describe("listAdminOrders · el tiempo en la etapa (B3)", () => {
 });
 
 /**
+ * B5 — cuánto tarda la cocina hoy.
+ *
+ * El promedio sale de los pedidos que **ya quedaron listos** (entraron a `ready`/`ready_for_pickup`) y
+ * de nada más: los que están en el fuego todavía no tienen tiempo de preparación, y contarlos con el
+ * reloj de ahora daría un número que empeora solo. Se resuelve en la misma lectura de la cola.
+ */
+describe("listAdminOrders · el promedio de preparación (B5)", () => {
+  function repoWith(history: Array<{ orderId: string; status: string; createdAt: string }>) {
+    const repo = new InMemoryOrderRepository();
+    repo.orders.push(
+      order({ id: "ord_1", orderNumber: "P-1", createdAt: "2026-09-12T18:00:00.000Z" }),
+      order({ id: "ord_2", orderNumber: "P-2", createdAt: "2026-09-12T18:00:00.000Z" }),
+    );
+    repo.statusHistory.push(
+      ...history.map((entry, index) => ({
+        id: `hist_${index}`,
+        orderId: entry.orderId,
+        status: entry.status as never,
+        note: null,
+        createdAt: entry.createdAt,
+      })),
+    );
+
+    return repo;
+  }
+
+  it("promedia lo que tardaron los pedidos que ya están listos", async () => {
+    const result = await listAdminOrders(
+      {},
+      {
+        repository: repoWith([
+          { orderId: "ord_1", status: "ready_for_pickup", createdAt: "2026-09-12T18:10:00.000Z" },
+          { orderId: "ord_2", status: "ready_for_pickup", createdAt: "2026-09-12T18:20:00.000Z" },
+        ]),
+        locationRepository: locations(),
+      },
+    );
+
+    expect(result.meta.averagePrepMinutes).toBe(15);
+    expect(result.data[0].readyAt).toBe("2026-09-12T18:10:00.000Z");
+  });
+
+  it("los que todavía están en el fuego no entran en el promedio", async () => {
+    const result = await listAdminOrders(
+      {},
+      {
+        repository: repoWith([
+          { orderId: "ord_1", status: "ready_for_pickup", createdAt: "2026-09-12T18:08:00.000Z" },
+          { orderId: "ord_2", status: "preparing", createdAt: "2026-09-12T18:30:00.000Z" },
+        ]),
+        locationRepository: locations(),
+      },
+    );
+
+    expect(result.meta.averagePrepMinutes).toBe(8);
+    expect(result.data.find((entry) => entry.id === "ord_2")?.readyAt).toBeNull();
+  });
+
+  it("sin ningún pedido listo todavía, no hay promedio (y eso no es cero)", async () => {
+    const result = await listAdminOrders(
+      {},
+      {
+        repository: repoWith([{ orderId: "ord_1", status: "new", createdAt: "2026-09-12T18:00:00.000Z" }]),
+        locationRepository: locations(),
+      },
+    );
+
+    expect(result.meta.averagePrepMinutes).toBeNull();
+  });
+});
+
+/**
  * B4 — buscar una comanda en el turno.
  *
  * Lo que se busca es lo que la persona tiene a mano cuando pregunta: el número que se dictó por
