@@ -147,6 +147,28 @@ saltea solo cuando el entorno no tiene lo que necesita, y **lo dice con su motiv
 Verificado contra producción el 2026-09-13: **31 pasaron / 3 salteados / 0 fallos** (incluye el
 chequeo de CSP en todas las pantallas públicas y la hidratación viva del sitio real).
 
+**Suite completa local (muta datos)**: es la que cubre el admin —aceptar/rechazar pedidos, sucursales,
+usuarios— y por eso **nunca** va contra producción. Necesita el flag y el server local:
+
+```bash
+BASE_URL="http://127.0.0.1:3210" E2E_ALLOW_MUTATIONS=true \
+  E2E_APEX_HOST=oneburgernic.com E2E_APEX_PORT=3210 npm run test:e2e:prod:full
+```
+
+⚠️ Dos trampas que costaron dos corridas enteras de fallos en masa (2026-09-13), ninguna del código:
+
+- **Un `next start` huérfano sigue dueño del puerto.** Cuando se mata el job que lo lanzó, el proceso
+  de Node puede sobrevivir colgado —escribiendo en un pipe que ya nadie lee— y seguir respondiendo
+  (mal) en `3210`: todo el E2E falla con *element not found* en pantallas públicas, y hasta
+  `/api/health` tarda 15 s. Antes de correr la suite: `Get-NetTCPConnection -LocalPort 3210 -State
+  Listen` y matar el proceso dueño si no es el server que uno acaba de levantar. Al lanzarlo en
+  segundo plano, redirigir la salida a un archivo (`npx next start -p 3210 *> "$env:TEMP\server.log"`)
+  evita que quede bloqueado si se cierra el pipe.
+- **`build:webpack` mientras el server sirve el build de Turbopack rompe el manifiesto de cliente**
+  (*Could not find the module … in the React Client Manifest*): las páginas dejan de hidratar. Los dos
+  builds escriben en `.next`, así que `build:webpack` se corre **antes** de levantar el server y, si ya
+  está levantado, se vuelve a `npm run build` y se reinicia.
+
 El smoke productivo es no mutante y valida `/api/health`, `/api/readiness`
 (que hace un `SELECT 1` real y responde 503 si la base está caída), menú
 público, carrito, checkout y login admin.

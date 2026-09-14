@@ -2117,7 +2117,44 @@ fallos** sobre siete specs (los tres saltos dicen su motivo: uno necesita un pro
 obligatorias y dos necesitan credenciales del panel), más los smokes oficiales **7/7** y dominios
 **6/6**.
 
+### La consola de pedidos pasa a ser «comandas» (2026-09-13) — **en curso (B0, B1 y B2 cerradas)**
+
+El owner redefinió la sección: deja de ser un visor y pasa a ser la herramienta de la sucursal. El
+diseño acordado y las decisiones están en [`ops/tasks/TASK-orders-console.md`](tasks/TASK-orders-console.md)
+(sin Telegram, sin aceptación automática, flujo aceptar/rechazar → preparando → terminado, urgencia a
+los 15 min **en la etapa actual**, todo en `/admin/orders`). Se avanza **una fase por commit**:
+
+- **B0** (`64e0930`) — dos defectos de base: la cola se ordena por **hora prometida** (la API devuelve
+  por creación descendente, así que el pedido más nuevo quedaba primero) y la bandeja **ya no se
+  vacía** cuando falla la red: conserva la última lista, avisa «No se pudo actualizar la bandeja» y
+  deja reintentar. De paso, el spinner dejó de reemplazar la lista en cada refresco.
+- **B1** (`d19bdf8`, CI verde `34806122522`) — los pedidos **caen solos**: poll cada 15 s solo con la
+  pestaña visible y refresco al volver, aviso «N pedidos nuevos» (altas contra la lectura anterior,
+  nada en la primera carga), «Actualizado hace N», botón de refresco y **sonido opcional** con WebAudio
+  (arranca apagado porque el navegador exige un toque; la preferencia queda en el dispositivo).
+- **B2** — **aceptar y rechazar desde la fila**, sin abrir el detalle: `order-action-helpers` saca la
+  acción primaria del flujo del dominio y `OrderActions` la dibuja (un botón de 44 px + `Rechazar`
+  separado con motivo obligatorio inline, sin doble toque mientras guarda). La fila dejó de ser un
+  `<Link>` completo —un botón dentro de un enlace es HTML inválido y el toque aterrizaba en el
+  detalle— y el **409** se explica y refresca en vez de dejar la pantalla muda. El detalle de la orden
+  dejó de tener su copia del mapa de transiciones.
+
+Faltan **B3** (la vista completa de comandas: tres columnas, anatomía de la comanda, urgencia y
+pantalla completa), **B4** (búsqueda y filtros) y **B5** (umbrales por local y tiempo promedio de
+preparación).
+
+**Verificación de B2**: **1682 unitarios en 254 archivos**, lint, typecheck, `build` y `build:webpack`
+en verde; **E2E completo local 91 pasaron / 7 salteados / 0 fallos**, con tres casos nuevos
+(`tests/e2e/admin-order-actions.spec.ts`) que crean un pedido por el checkout real y lo aceptan,
+avanzan y rechazan desde la bandeja, incluido el mismo flujo a 375 px con el blanco táctil medido.
+
+⚠️ **Dos trampas del arnés local** que hicieron fallar dos corridas E2E enteras sin que el código
+tuviera nada (quedan documentadas en `ops/production-readiness.md` §2): un `next start` huérfano
+colgado que seguía dueño del puerto 3210, y `npm run build:webpack` corrido mientras el server servía
+el build de Turbopack (rompe el manifiesto de cliente y las páginas dejan de hidratar).
+
 ## 3. Infraestructura y secretos
+
 - `EASYPANEL_URL` y `EASYPANEL_TOKEN`: solo en el entorno de quien ejecuta el deploy (nunca
   en el repo). El token da acceso total al servidor: **rotarlo** si se compartió por chat.
   ⚠️ El 2026-09-10 el token se pasó por chat para desplegar la personalización, **el 2026-09-12**

@@ -126,14 +126,14 @@ muestran). Sin PIN (es de caja).
 
 ## 5. Fases (una por commit, TDD en cada una)
 
-| Fase | Qué agrega | Qué necesita |
-|---|---|---|
-| **B0 · Base** | Orden de la cola por **hora prometida** (hoy ordena por creación descendente: el más nuevo primero) y **no vaciar la bandeja** cuando falla la red (hoy `setOrders([])` en los tres caminos de error) + banner «sin conexión» | Nada nuevo: son defectos |
-| **B1 · Que caigan solas** | Poll cada 15 s con la pestaña visible, aviso «N pedidos nuevos», «Actualizado hace Xs», botón de refresco y **sonido** opcional (WebAudio, se activa con un toque) | La lista actual |
-| **B2 · Aceptar y rechazar en la fila** | Los botones del flujo (§3) en la comanda, con el motivo obligatorio inline y aviso si la transición ya no aplica | `order-workflows.ts` |
-| **B3 · Comandas** | La vista completa: tres columnas / carril en celular, anatomía de §4.2, urgencia de §4.3, esqueleto, vacíos y pantalla completa | El **último cambio de estado** por pedido (`OrderStatusHistory`) en una sola lectura |
-| **B4 · Búsqueda y filtros** | Buscar por número, nombre, WhatsApp o PIN; filtros de forma de pago, «solo sin aceptar» y «atrasados»; el estado de la vista en la URL | Un parámetro `search` en el servidor |
-| **B5 · Umbrales por local** | `acceptAlertMinutes` y `prepAlertMinutes` por local, editables en `/admin/locations`, y el tiempo promedio de preparación del día | Migración aditiva + el actor del cambio de estado |
+| Fase | Qué agrega | Qué necesita | Estado |
+|---|---|---|---|
+| **B0 · Base** | Orden de la cola por **hora prometida** (hoy ordena por creación descendente: el más nuevo primero) y **no vaciar la bandeja** cuando falla la red (hoy `setOrders([])` en los tres caminos de error) + banner «sin conexión» | Nada nuevo: son defectos | **Cerrada** (`64e0930`) |
+| **B1 · Que caigan solas** | Poll cada 15 s con la pestaña visible, aviso «N pedidos nuevos», «Actualizado hace Xs», botón de refresco y **sonido** opcional (WebAudio, se activa con un toque) | La lista actual | **Cerrada** (`d19bdf8`, CI `34806122522`) |
+| **B2 · Aceptar y rechazar en la fila** | Los botones del flujo (§3) en la comanda, con el motivo obligatorio inline y aviso si la transición ya no aplica | `order-workflows.ts` | **Cerrada** |
+| **B3 · Comandas** | La vista completa: tres columnas / carril en celular, anatomía de §4.2, urgencia de §4.3, esqueleto, vacíos y pantalla completa | El **último cambio de estado** por pedido (`OrderStatusHistory`) en una sola lectura | Siguiente |
+| **B4 · Búsqueda y filtros** | Buscar por número, nombre, WhatsApp o PIN; filtros de forma de pago, «solo sin aceptar» y «atrasados»; el estado de la vista en la URL | Un parámetro `search` en el servidor | Pendiente |
+| **B5 · Umbrales por local** | `acceptAlertMinutes` y `prepAlertMinutes` por local, editables en `/admin/locations`, y el tiempo promedio de preparación del día | Migración aditiva + el actor del cambio de estado | Pendiente |
 
 ## 6. Decisiones que quedan
 
