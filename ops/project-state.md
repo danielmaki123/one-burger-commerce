@@ -2200,7 +2200,6 @@ colgado que seguía dueño del puerto 3210, y `npm run build:webpack` corrido mi
 el build de Turbopack (rompe el manifiesto de cliente y las páginas dejan de hidratar).
 
 ### Deploy de las comandas a producción (2026-09-14, commit `0124784`) — **verificado**
-
 Una sola llamada a `deployService` (proyecto `brunobot`, servicio `oneburguerweb`, `forceRebuild:true`),
 como manda el runbook §2. El contenedor nuevo aplicó al arrancar las **dos migraciones aditivas** de
 B5 (`add_location_alert_minutes` y `add_status_history_actor`).
@@ -2220,8 +2219,36 @@ Qué se comprobó, y con qué:
 
 ⚠️ **Lo que queda sin verificar desde acá**: el tablero de comandas funcionando **en producción**,
 porque hace falta una sesión de admin y este entorno no tiene esas credenciales. La evidencia funcional
-es el E2E local (95 pasaron / 7 salteados / 0 fallos) más la revisión a ojo del owner en
-`https://admin.oneburgernic.com/admin/orders`.
+es el E2E local más la revisión a ojo del owner en `https://admin.oneburgernic.com/admin/orders` (que es
+como apareció B6).
+
+⚠️ **Dos corridas de la QA de solo lectura dieron timeouts de carga** (una en masa, la otra un caso) y al
+repetirlas pasaron; en el momento de medir, las cargas públicas respondían en **0,7 s de media**. Sin
+evidencia de regresión: queda anotado en el runbook §0 como algo a vigilar.
+
+### B6 · La vuelta al panel desde el tablero (2026-09-14) — **cerrada y desplegada**
+
+El owner encontró el problema **en producción**: entró con una cuenta de sucursal, tocó «Volver al
+panel» y volvió a la misma pantalla, sin forma de recuperar el chrome del panel. Y aclaró el objetivo:
+**poder retroceder**, no cerrar sesión desde esa pantalla —cada tablet va a tener su sección (comandas
+ahora; POS, inventario después) y hay que poder volver a elegir—.
+
+Historia de los dos intentos, para que no se repita el error:
+
+1. `0c3aa35` (`build-20260914-145114`) — **mal encaminado**: agregué un bloque de sesión en la barra del
+   turno (nombre, rol, correo y «Cerrar sesión»). Resolvía el síntoma (no poder salir) pero ponía en la
+   cocina algo que no va ahí.
+2. `0072531` (`build-20260914-151459`) — **el arreglo**: se saca el bloque de sesión y la pantalla a
+   pantalla deja de ser una puerta que se cierra. `useComandaView` devuelve `immersive` / `setImmersive`
+   y el control de la barra dice **«Ver el panel»**, que devuelve la barra lateral —navegación y sesión,
+   que es donde van a vivir POS e inventario— sin cerrar sesión. Al volver, el mismo control ofrece
+   «Pantalla completa». El enlace muerto a `/admin` (que mandaba en círculos a un rol sin Resumen)
+   desaparece.
+
+Verificación: **1783 unitarios en 263 archivos**, lint, typecheck, `build` y `build:webpack` en verde;
+**E2E completo local 97 pasaron / 6 salteados / 0 fallos**, con el caso de la cuenta de sucursal
+comprobando que el tablero abre sin barra lateral, que ahí **no** hay «Cerrar sesión», que «Ver el
+panel» la devuelve y que se sigue adentro (misma URL, misma pantalla).
 
 ## 3. Infraestructura y secretos
 
@@ -2316,3 +2343,4 @@ Detalle en `ops/production-readiness.md` §7. Lo importante:
 - Sin backup automático de base de datos.
 - `X-Powered-By` visible (la imagen no carga `next.config.ts`); cosmético, se quita en Traefik.
 - Los módulos fuera del MVP siguen en el repo (dominio + páginas de admin por URL directa).
+

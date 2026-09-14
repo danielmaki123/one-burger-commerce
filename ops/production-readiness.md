@@ -37,14 +37,22 @@ de Casa Antigua que viven en `docs/` (esa carpeta no se versiona).
 - Deploy: **una sola llamada** a `deployService` por API (ver §4). ⚠️ **No usar
   `npm run deploy:easypanel`**: fusiona variables y puede crear servicios. El **webhook del panel no es
   fiable** en esta instalación.
-- Verificado (2026-09-14, deploy de las comandas): `commit.sha` en `0124784` (**idéntico al tip de
-  `main`**), la acción `Deploy service` en `done`, `/api/health` sirviendo `build-20260914-113152`
-  (antes `build-20260913-191302`), la clase `comandas-view` presente en el CSS de admin servido
-  (prueba de que el código de la vista nueva está en producción), smoke productivo **7/7**, dominios
-  **6/6** y QA de solo lectura sobre `menu.oneburgernic.com` **31 pasaron / 3 salteados / 0 fallos**.
-  ⚠️ **Lo que este deploy NO pudo verificar desde acá**: el tablero de comandas en sí, porque necesita
-  una sesión de admin en producción y este entorno no tiene esas credenciales. La prueba funcional de
-  la UI es el E2E local (95/7/0) y la revisión a ojo de `/admin/orders` por el owner.
+- Verificado (2026-09-14, los tres deploys del día): en cada uno `commit.sha` del panel **idéntico al
+  tip de `main`**, la acción `Deploy service` en `done`, `/api/health` cambiando de versión
+  (`build-20260913-191302` → `build-20260914-113152` → `build-20260914-145114` →
+  `build-20260914-151459`), `readiness: ready` con la base en milisegundos, smoke productivo **7/7** y
+  dominios **6/6**. La clase `comandas-view` está en el CSS de admin servido (el código de la vista
+  nueva está en la imagen).
+  ⚠️ **Lo que estos deploys NO pueden verificar desde acá**: el tablero funcionando con una sesión de
+  admin en producción (este entorno no tiene esas credenciales). La prueba funcional de la UI es el E2E
+  local (97/6/0 al cierre de B6) y la revisión del owner.
+  ⚠️ **Observación del 2026-09-14 (a vigilar)**: dos corridas de la QA de solo lectura contra
+  `menu.oneburgernic.com` fallaron por **timeouts de carga** (una en masa, 33 casos; otra un solo caso,
+  `page.goto` de 30 s), y al repetirlas pasaron (30–31 de 34). En el momento de medir, las cargas
+  públicas respondían en **0,7 s de media** y las seis superficies en 200, así que no hay evidencia de
+  regresión: parece saturación del burst de la suite (una réplica, muchos navegadores en paralelo) o de
+  la red de quien la corre. Si el owner nota lentitud en el panel, el siguiente paso es mirar recursos
+  del contenedor en Easypanel.
 
 
 ⚠️ **Avisos de esta instalación**
@@ -376,3 +384,4 @@ cada uno con su receta y su verificación.
    `sortOrder` si se quiere un orden propio en el selector del checkout (hoy se ordenan por nombre).
    Después de esto queda pendiente lo de siempre: cargar el menú real y, si hay precios distintos por
    sucursal, usar el catálogo por local (hoy `LocationProduct` tiene solo 2 filas).
+
