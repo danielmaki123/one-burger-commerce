@@ -1,9 +1,8 @@
 import type { LocationRepository } from "@/modules/locations/ports/location-repository";
-import type { OrderRecord } from "@/modules/orders/domain/order.types";
-import type { ListOrdersFilter, OrderRepository } from "@/modules/orders/ports/order-repository";
+import type { ListOrdersFilter, OrderQueueRecord, OrderRepository } from "@/modules/orders/ports/order-repository";
 
 /** Pedido con el nombre del local al lado, que es lo que la pantalla muestra. */
-export type AdminOrder = OrderRecord & { locationName: string | null };
+export type AdminOrder = OrderQueueRecord & { locationName: string | null };
 
 export async function listAdminOrders(
   filter: ListOrdersFilter,

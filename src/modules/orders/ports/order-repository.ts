@@ -15,6 +15,16 @@ export type OrderItemInput = {
   notes?: string | null;
 };
 
+/**
+ * Un pedido leído para la **cola de trabajo**, con el instante en que empezó su etapa actual (B3).
+ *
+ * No va en `OrderRecord` porque solo la lectura de la lista lo resuelve —y lo resuelve para todos los
+ * pedidos de una sola consulta—: la urgencia de la comanda se mide dentro de la etapa (aceptado hace
+ * 20 minutos y en preparación hace 2 no está atrasado), y con `updatedAt` mentiría, porque también
+ * cambia cuando alguien edita el pedido por otro motivo. Sin historial, la etapa empezó con el pedido.
+ */
+export type OrderQueueRecord = OrderRecord & { stageChangedAt: string };
+
 /** Datos editables de una promo (T9c). El `id` y el uso acumulado los maneja el repositorio. */
 export type CouponInput = {
   code: string;
@@ -108,7 +118,7 @@ export interface OrderRepository {
   findOrderById(id: string): Promise<OrderRecord | null>;
   findOrderByOrderNumber(orderNumber: string): Promise<OrderRecord | null>;
 
-  listOrders(filter: ListOrdersFilter): Promise<OrderRecord[]>;
+  listOrders(filter: ListOrdersFilter): Promise<OrderQueueRecord[]>;
 
   updateOrderStatus(
     id: string,

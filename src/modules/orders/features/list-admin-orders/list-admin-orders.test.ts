@@ -108,3 +108,57 @@ describe("listAdminOrders · por local (T8)", () => {
     expect(result.data[0].locationName).toBeNull();
   });
 });
+
+/**
+ * B3 — cuándo empezó la etapa actual de cada pedido.
+ *
+ * La urgencia de la comanda (a los 10 y a los 15 minutos) se mide **dentro de la etapa**, no desde
+ * que entró el pedido: un pedido aceptado hace 20 minutos y en preparación hace 2 no está atrasado.
+ * Ese instante sale de `OrderStatusHistory` —no de `updatedAt`, que también cambia cuando alguien
+ * toca el pedido por otro motivo— y tiene que venir en la **misma lectura** de la lista: la pantalla
+ * no puede pedir el historial de veinte pedidos uno por uno.
+ */
+describe("listAdminOrders · el tiempo en la etapa (B3)", () => {
+  function repoWithOrder() {
+    const repo = new InMemoryOrderRepository();
+    repo.orders.push(
+      order({
+        id: "ord_1",
+        orderNumber: "P-1",
+        status: "preparing",
+        createdAt: "2026-09-12T18:00:00.000Z",
+        updatedAt: "2026-09-12T18:05:00.000Z",
+      }),
+    );
+
+    return repo;
+  }
+
+  function history(id: string, status: string, createdAt: string) {
+    return { id, orderId: "ord_1", status: status as never, note: null, createdAt };
+  }
+
+  it("usa el último cambio de estado, no el primero ni la última edición", async () => {
+    const repo = repoWithOrder();
+    repo.statusHistory.push(
+      history("h1", "confirmed", "2026-09-12T18:10:00.000Z"),
+      history("h2", "preparing", "2026-09-12T18:24:00.000Z"),
+    );
+
+    const result = await listAdminOrders(
+      {},
+      { repository: repo, locationRepository: locations() },
+    );
+
+    expect(result.data[0].stageChangedAt).toBe("2026-09-12T18:24:00.000Z");
+  });
+
+  it("sin historial, la etapa empezó con el pedido", async () => {
+    const result = await listAdminOrders(
+      {},
+      { repository: repoWithOrder(), locationRepository: locations() },
+    );
+
+    expect(result.data[0].stageChangedAt).toBe("2026-09-12T18:00:00.000Z");
+  });
+});

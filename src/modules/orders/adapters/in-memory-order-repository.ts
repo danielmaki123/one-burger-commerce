@@ -10,6 +10,7 @@ import type {
   CouponInput,
   CreateOrderInput,
   ListOrdersFilter,
+  OrderQueueRecord,
   OrderRepository,
 } from "@/modules/orders/ports/order-repository";
 
@@ -152,15 +153,30 @@ export class InMemoryOrderRepository implements OrderRepository {
     return this.orders.find((o) => o.orderNumber === orderNumber) ?? null;
   }
 
-  async listOrders(filter: ListOrdersFilter): Promise<OrderRecord[]> {
-    return this.orders.filter((o) => {
-      if (filter.type && o.type !== filter.type) return false;
-      if (filter.status && o.status !== filter.status) return false;
-      if (filter.locationIds?.length && !filter.locationIds.includes(o.locationId)) return false;
-      if (filter.dateFrom && o.createdAt < filter.dateFrom) return false;
-      if (filter.dateTo && o.createdAt > filter.dateTo) return false;
-      return true;
-    });
+  async listOrders(filter: ListOrdersFilter): Promise<OrderQueueRecord[]> {
+    return this.orders
+      .filter((o) => {
+        if (filter.type && o.type !== filter.type) return false;
+        if (filter.status && o.status !== filter.status) return false;
+        if (filter.locationIds?.length && !filter.locationIds.includes(o.locationId)) return false;
+        if (filter.dateFrom && o.createdAt < filter.dateFrom) return false;
+        if (filter.dateTo && o.createdAt > filter.dateTo) return false;
+        return true;
+      })
+      // Copia con el sello de la etapa (B3): la cola no devuelve los objetos vivos del almacén.
+      .map((order) => ({ ...order, stageChangedAt: this.stageChangedAt(order) }));
+  }
+
+  /** El último cambio de estado del pedido; si nunca cambió, la etapa empezó al crearlo. */
+  private stageChangedAt(order: OrderRecord): string {
+    const last = this.statusHistory
+      .filter((entry) => entry.orderId === order.id)
+      .reduce<OrderStatusHistoryRecord | null>(
+        (newest, entry) => (!newest || entry.createdAt > newest.createdAt ? entry : newest),
+        null,
+      );
+
+    return last?.createdAt ?? order.createdAt;
   }
 
   async updateOrderStatus(

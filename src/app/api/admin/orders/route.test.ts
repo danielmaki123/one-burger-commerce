@@ -144,4 +144,49 @@ describe("GET /api/admin/orders · alcance por sucursal (A)", () => {
     expect(status).toBe(403);
     expect(listAdminOrdersMock).not.toHaveBeenCalled();
   });
+
+  /**
+   * B3 — la comanda se dibuja con lo que devuelve esta ruta.
+   *
+   * La respuesta se arma esparciendo el resultado del caso de uso, así que es una guarda: el día que
+   * alguien mapee los campos "para no mandar de más" y se olvide de los ítems o del sello de la etapa,
+   * la pantalla se queda sin lo que necesita y el test lo dice.
+   */
+  it("la respuesta lleva los ítems con sus modificadores y el sello de la etapa (B3)", async () => {
+    requireAdminSessionMock.mockResolvedValueOnce({
+      user: { id: "admin_1", role: "owner", locationIds: [] },
+    });
+    listAdminOrdersMock.mockResolvedValueOnce({
+      data: [
+        {
+          id: "ord_1",
+          orderNumber: "P-1",
+          status: "preparing",
+          stageChangedAt: "2026-09-12T18:24:00.000Z",
+          locationName: "Principal",
+          items: [
+            {
+              id: "item_1",
+              productName: "Doble",
+              quantity: 2,
+              notes: "sin cebolla",
+              modifiers: [{ name: "Término medio" }],
+            },
+          ],
+        },
+      ],
+      meta: { count: 1 },
+    });
+
+    const { status, body } = await listOrders("http://localhost/api/admin/orders");
+
+    expect(status).toBe(200);
+    expect(body.data[0].stageChangedAt).toBe("2026-09-12T18:24:00.000Z");
+    expect(body.data[0].items[0]).toMatchObject({
+      productName: "Doble",
+      quantity: 2,
+      notes: "sin cebolla",
+    });
+    expect(body.data[0].items[0].modifiers[0].name).toBe("Término medio");
+  });
 });

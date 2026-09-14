@@ -14,6 +14,7 @@ import type {
   CouponInput,
   CreateOrderInput,
   ListOrdersFilter,
+  OrderQueueRecord,
   OrderRepository,
 } from "@/modules/orders/ports/order-repository";
 import type { CouponType } from "@prisma/client";
@@ -137,6 +138,24 @@ function mapOrder(order: any): OrderRecord {
     updatedAt: order.updatedAt.toISOString(),
     items: order.items.map(mapItem),
     orderLookupTokenHash: order.orderLookupTokenHash ?? null,
+  };
+}
+
+/**
+ * B3 — la cola, con el sello de su etapa actual.
+ *
+ * `statusHistory` viene pedido con `take: 1` y orden descendente, así que la primera fila —si la
+ * hay— es el último cambio de estado. Un pedido sin historial (los que existían antes de que la
+ * tabla se llenara) empieza su etapa al crearse: la pantalla nunca queda sin cuenta.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mapQueueOrder(order: any): OrderQueueRecord {
+  const mapped = mapOrder(order);
+  const lastChange = order.statusHistory?.[0]?.createdAt;
+
+  return {
+    ...mapped,
+    stageChangedAt: lastChange ? new Date(lastChange).toISOString() : mapped.createdAt,
   };
 }
 
@@ -279,7 +298,7 @@ export class PrismaOrderRepository implements OrderRepository {
     return order ? mapOrder(order) : null;
   }
 
-  async listOrders(filter: ListOrdersFilter): Promise<OrderRecord[]> {
+  async listOrders(filter: ListOrdersFilter): Promise<OrderQueueRecord[]> {
     const prisma = getPrismaClient();
 
     const where: {
@@ -318,10 +337,16 @@ export class PrismaOrderRepository implements OrderRepository {
             modifiers: true,
           },
         },
+        // B3: el sello de la etapa actual, en la **misma** consulta y solo la última fila. Pedirlo
+        // pedido por pedido serían veinte consultas para dibujar una pantalla.
+        statusHistory: {
+          orderBy: { createdAt: "desc" },
+          take: 1,
+        },
       },
     });
 
-    return orders.map((o: unknown) => mapOrder(o));
+    return orders.map((o: unknown) => mapQueueOrder(o));
   }
 
   async updateOrderStatus(
