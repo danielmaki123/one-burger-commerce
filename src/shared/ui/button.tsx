@@ -2,7 +2,7 @@ import * as React from "react";
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: "primary" | "secondary" | "outline" | "ghost" | "danger";
-  size?: "sm" | "md" | "lg" | "icon";
+  size?: "sm" | "md" | "lg" | "icon" | "pill";
 }
 
 export function Button({
@@ -11,7 +11,10 @@ export function Button({
   size = "md",
   ...props
 }: ButtonProps) {
-  const baseStyles = "inline-flex items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50";
+  // El radio vive en cada tamaño y no en la base: `rounded-md` y `rounded-full` son la misma
+  // propiedad y en el CSS de Tailwind `rounded-md` se emite **después** de `rounded-full`, así que un
+  // `className="rounded-full"` desde afuera pierde la cascada. Por eso el chip tiene su tamaño.
+  const baseStyles = "inline-flex items-center justify-center font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50";
 
   const variants = {
     primary: "bg-brand text-brand-foreground hover:bg-brand-strong",
@@ -22,10 +25,12 @@ export function Button({
   };
 
   const sizes = {
-    sm: "h-8 px-3 text-xs",
-    md: "h-10 px-4 py-2",
-    lg: "h-12 px-6 text-lg",
-    icon: "h-10 w-10",
+    sm: "h-8 rounded-md px-3 text-xs",
+    md: "h-10 rounded-md px-4 py-2",
+    lg: "h-12 rounded-md px-6 text-lg",
+    icon: "h-10 w-10 rounded-md",
+    /** Chip de filtro (TASK-206): pastilla con el mínimo táctil de 44 px. */
+    pill: "min-h-11 rounded-full px-4 text-sm",
   };
 
   const combinedClassName = `${baseStyles} ${variants[variant]} ${sizes[size]} ${className}`;

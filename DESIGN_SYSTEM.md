@@ -211,10 +211,11 @@ caso testigo es `src/shared/ui/button.tsx:21` (`danger: "bg-red-600 …"`) contr
 
 | Componente | Cuándo usarlo | Cuándo **no** |
 |---|---|---|
-| `Button` (`button.tsx:8`) | Toda acción con texto o ícono. Variantes: `primary`, `secondary`, `outline`, `ghost`, `danger`; tamaños `sm`, `md`, `lg`, `icon` | Nunca escribir `<button>` a mano. **Excepción legítima**: un overlay de cierre o un `role="switch"`, que no son botones de acción |
+| `Button` (`button.tsx:8`) | Toda acción con texto o ícono. Variantes: `primary`, `secondary`, `outline`, `ghost`, `danger`; tamaños `sm`, `md`, `lg`, `icon` y **`pill`** (chip de filtro: pastilla + mínimo táctil; el radio va en el tamaño porque `rounded-full` por `className` pierde la cascada contra `rounded-md`) | Nunca escribir `<button>` a mano. **Excepciones legítimas**: un overlay de cierre o un `role="switch"`, que no son botones de acción, y una **fila de lista multilínea** (ancho completo, contenido apilado y alineado a la izquierda), que no tiene primitivo todavía |
 | `Input` (`input.tsx:8`) | Campo de texto con `label` y `error` | No sirve para `type="color"` ni `type="date"`: **NO EXISTE** primitivo para esos |
+| `Select` (`select.tsx:28`) | Elección entre 4+ opciones, con `label`, `error` y `options` (o `children`); `placeholder` para el caso opcional | No para 2–3 opciones visibles (eso es `RadioGroup`) ni para elegir fecha o color, que no tienen primitivo |
 | `Checkbox` (`checkbox.tsx:7`) | Booleano | Nunca `<input type="checkbox">` a mano |
-| `RadioGroup` + `RadioGroupItem` (`radio-group.tsx:3,7`) | Elección exclusiva entre 2–3 opciones visibles | No para 4+ opciones: ahí hace falta un `select`, que **NO EXISTE** |
+| `RadioGroup` + `RadioGroupItem` (`radio-group.tsx:3,7`) | Elección exclusiva entre 2–3 opciones visibles | No para 4+ opciones: ahí va `Select` |
 | `WhatsAppInput` (`whatsapp-input.tsx:35`) | Teléfono del cliente, con prefijo | No para teléfonos internos del negocio |
 | `Card` + `CardHeader/Title/Description/Content/Footer` (`card.tsx:3-33`) | Contenedor con borde y sombra | No para filas de lista compactas (para eso, `CartLineCard` o una fila propia) |
 | `Badge` (`badge.tsx:7`) | Etiqueta corta de estado o categoría (6 variantes) | No para el estado de un pedido del panel: para eso está `AdminStatusSolid` |
@@ -259,7 +260,7 @@ Antes de escribir HTML crudo por falta de primitivo, esto es lo que falta y lo q
 
 | Falta | Estado hoy | Qué hacer mientras tanto |
 |---|---|---|
-| `Select` | **NO EXISTE**: 31 `<select>` crudos, con `SELECT_CLASS` redefinido en 8 archivos | Copiar el `className` de `SELECT_CLASS` de otro archivo y mantenerlo **idéntico** |
+| `Select` | **EXISTE desde TASK-206** (`select.tsx`): etiqueta asociada, error con `aria-describedby` y mínimo táctil de 44 px en el primitivo. Quedan **27 `<select>` crudos en `src/app`** y **5 archivos** con su propia copia literal de `SELECT_CLASS` (`locations`, `menu/categories`, `menu/marketing-blocks`, `menu/products`, `users-client`) | Usar `Select`; migrar los crudos cuando se toque cada pantalla |
 | `Textarea` | **NO EXISTE**: 6 crudos | Ídem, sin inventar variantes |
 | Cabecera pública | **NO EXISTE**: 6 implementaciones | Usar `font-heading` + la escala, no `style` inline |
 | Estado vacío público | **NO EXISTE** | Reusar el patrón de `AdminEmptyState` |
@@ -341,10 +342,18 @@ Antes de escribir HTML crudo por falta de primitivo, esto es lo que falta y lo q
 | `--brand-foreground` igual al contrato | `color-contrast.test.ts:120-126` |
 | La escala del mock llega al navegador | `tests/e2e/design-tokens.spec.ts` |
 | Contratos de UI del panel | `src/app/(admin)/admin/admin-ui-contract.test.ts` (lee el fuente) |
+| HTML crudo, `#hex` y registro de componentes | `src/shared/contracts/ui-contract.test.ts` (techos por archivo que solo bajan) |
+| Route handlers: 50 líneas y sin Prisma | `src/shared/contracts/route-contract.test.ts` |
+| Módulos: capas con archivos y dirección de las dependencias | `src/shared/contracts/module-contract.test.ts` |
+| Documentos sincronizados (`AGENTS.md` sin rutas rotas y frescura contra `schema.prisma`/`src/shared/ui/`) | `src/shared/contracts/docs-sync-contract.test.ts` |
+| La suma del total vive en un solo lugar | `src/shared/lib/order-totals-contract.test.ts` |
+| Los cinco corren como check propio, con historia completa, y bloquean `publish` | job `contracts` de `.github/workflows/publish-ghcr.yml` |
 
-**Pendiente (TASK-204):** los guardrails de §5 todavía **no** son automáticos para el grueso de las
-prohibiciones (HTML crudo, hex suelto, clases crudas, `style` inline). Hoy dependen de este documento
-y de la revisión. TASK-204 los convierte en tests que fallan.
+**Todavía sin guardrail automático:** las 70 clases de paleta cruda, los 29 `style` de tipografía y
+los 37 `rounded-[Npx]` siguen dependiendo de este documento y de la revisión (§5). Dos excepciones de
+color necesitan **aprobación del owner** porque cambian el tono visible: `Button.danger`
+(`red-600`/`red-700`) y el error de `Input` (`text-red-500`), que deberían salir de los tokens
+`--danger-*`.
 
 ---
 

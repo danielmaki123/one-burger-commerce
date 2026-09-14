@@ -104,4 +104,33 @@ test.describe("promos en celular", () => {
     // El campo del código explica dónde lo va a escribir el cliente.
     await expect(page.getByText(/Se guarda en mayúsculas/)).toBeVisible();
   });
+
+  test("los chips de filtro y los desplegables miden el mínimo táctil", async ({ page }) => {
+    await loginAsOwner(page);
+    await page.goto("/admin/promotions");
+    await expect(page.getByText("Cargando promos…")).toBeHidden();
+
+    // Los chips pasaron a `Button size="pill"` en TASK-206. El radio se mide de verdad porque es lo
+    // que podía perderse en silencio: `rounded-md` se emite después de `rounded-full` en el CSS de
+    // Tailwind, así que un `rounded-full` puesto por `className` habría dejado el chip cuadrado.
+    const chip = page.locator('button[aria-pressed="true"]').first();
+    const chipBox = await chip.boundingBox();
+    expect(chipBox, "el chip de filtro activo tiene que estar a la vista").not.toBeNull();
+    expect(chipBox!.height).toBeGreaterThanOrEqual(44);
+
+    const radius = await chip.evaluate((element) =>
+      Number.parseFloat(getComputedStyle(element).borderTopLeftRadius),
+    );
+    expect(radius).toBeGreaterThanOrEqual(chipBox!.height / 2);
+
+    // Los desplegables ahora son el primitivo `Select`, que trae el mínimo táctil en el componente.
+    // Se buscan por rol y no por etiqueta porque `getByLabel("Estado")` también matchea el
+    // `aria-label="Filtrar por estado"` de la fila de chips (es substring).
+    await page.getByRole("button", { name: "Nueva promo" }).click();
+    for (const label of ["Tipo", "Estado"]) {
+      const box = await page.getByRole("combobox", { name: label, exact: true }).boundingBox();
+      expect(box, `${label} tiene que estar a la vista`).not.toBeNull();
+      expect(box!.height).toBeGreaterThanOrEqual(44);
+    }
+  });
 });

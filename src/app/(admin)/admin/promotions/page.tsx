@@ -11,6 +11,7 @@ import type {
 import { useBusinessSettings, useCurrencyFormat } from "@/shared/lib/business-settings";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
+import { Select } from "@/shared/ui/select";
 import AdminEditSheet from "../_components/admin-edit-sheet";
 import { AdminEmptyState, AdminPageHeader } from "../_components/admin-operational-ui";
 import { pluralEs } from "../menu/categories/category-list-helpers";
@@ -40,9 +41,6 @@ type ScopeOption = { id: string; label: string };
 type CategoryOption = { id: string; name: string; isActive: boolean };
 type SubcategoryOption = { id: string; name: string; isActive: boolean };
 type ProductOption = { id: string; name: string; availability: { isActive: boolean } };
-
-const SELECT_CLASS =
-  "h-11 w-full rounded-md border border-border bg-card px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand";
 
 const STATUS_FILTERS: { id: "all" | PromotionStatus; label: string }[] = [
   { id: "all", label: "Todas" },
@@ -284,17 +282,14 @@ export default function AdminPromotionsPage() {
           const active = statusFilter === filter.id;
 
           return (
-            <button
+            <Button
               key={filter.id}
               type="button"
               aria-pressed={active}
+              variant={active ? "primary" : "secondary"}
+              size="pill"
               onClick={() => setStatusFilter(filter.id)}
-              className={[
-                "inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full px-4 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand motion-reduce:transition-none",
-                active
-                  ? "bg-brand text-brand-foreground"
-                  : "bg-secondary text-secondary-foreground hover:bg-accent",
-              ].join(" ")}
+              className="shrink-0 gap-1.5 motion-reduce:transition-none"
             >
               <span>{filter.label}</span>
               <span
@@ -305,7 +300,7 @@ export default function AdminPromotionsPage() {
               >
                 {count}
               </span>
-            </button>
+            </Button>
           );
         })}
       </div>
@@ -365,6 +360,10 @@ export default function AdminPromotionsPage() {
           </div>
 
           {visiblePromotions.map((promotion) => (
+            // Fila de lista, no un botón de acción: es multilínea, ocupa el ancho y alinea a la
+            // izquierda, y `Button` no cubre esa anatomía (sus estilos base centran el contenido y
+            // forzar los overrides sería pelear con la cascada). El design system lo dice en §3.3:
+            // las filas de lista compactas van "en una fila propia" hasta que exista el primitivo.
             <button
               key={promotion.id}
               type="button"
@@ -456,25 +455,19 @@ export default function AdminPromotionsPage() {
             Es el código que escribe el cliente en el checkout. Se guarda en mayúsculas.
           </p>
 
-          <label className="grid gap-1.5 text-sm font-medium text-foreground">
-            Tipo
-            <select
-              className={SELECT_CLASS}
-              value={form.type}
-              onChange={(event) =>
-                setForm((current) => ({
-                  ...current,
-                  type: event.target.value as PromotionFormState["type"],
-                }))
-              }
-            >
-              {(Object.keys(PROMOTION_TYPE_LABELS) as PromotionFormState["type"][]).map((type) => (
-                <option key={type} value={type}>
-                  {PROMOTION_TYPE_LABELS[type]}
-                </option>
-              ))}
-            </select>
-          </label>
+          <Select
+            label="Tipo"
+            value={form.type}
+            onChange={(event) =>
+              setForm((current) => ({
+                ...current,
+                type: event.target.value as PromotionFormState["type"],
+              }))
+            }
+            options={(Object.keys(PROMOTION_TYPE_LABELS) as PromotionFormState["type"][]).map(
+              (type) => ({ value: type, label: PROMOTION_TYPE_LABELS[type] }),
+            )}
+          />
 
           {form.type === "percentage" ? (
             <Input
@@ -532,50 +525,36 @@ export default function AdminPromotionsPage() {
                 Se aplica por bloque: con 2 y 1, el cliente lleva 3 y paga 2.
               </p>
 
-              <label className="grid gap-1.5 text-sm font-medium text-foreground">
-                Alcance
-                <select
-                  className={SELECT_CLASS}
-                  value={form.scopeType}
-                  onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      scopeType: event.target.value as BogoScopeType,
-                      scopeId: "",
-                    }))
-                  }
-                >
-                  {BOGO_SCOPE_TYPES.map((scope) => (
-                    <option key={scope} value={scope}>
-                      {SCOPE_TYPE_LABELS[scope]}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <Select
+                label="Alcance"
+                value={form.scopeType}
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    scopeType: event.target.value as BogoScopeType,
+                    scopeId: "",
+                  }))
+                }
+                options={BOGO_SCOPE_TYPES.map((scope) => ({
+                  value: scope,
+                  label: SCOPE_TYPE_LABELS[scope],
+                }))}
+              />
 
               {form.scopeType !== "all" ? (
-                <label className="grid gap-1.5 text-sm font-medium text-foreground">
-                  ¿A qué alcanza?
-                  <select
-                    className={SELECT_CLASS}
-                    value={form.scopeId}
-                    onChange={(event) =>
-                      setForm((current) => ({ ...current, scopeId: event.target.value }))
-                    }
-                  >
-                    <option value="">Elegí una opción</option>
-                    {scopeChoices.map((option) => (
-                      <option key={option.id} value={option.id}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                  {fieldErrors.scopeId ? (
-                    <span className="text-xs font-medium text-danger-strong">
-                      {fieldErrors.scopeId}
-                    </span>
-                  ) : null}
-                </label>
+                <Select
+                  label="¿A qué alcanza?"
+                  placeholder="Elegí una opción"
+                  value={form.scopeId}
+                  error={fieldErrors.scopeId}
+                  onChange={(event) =>
+                    setForm((current) => ({ ...current, scopeId: event.target.value }))
+                  }
+                  options={scopeChoices.map((option) => ({
+                    value: option.id,
+                    label: option.label,
+                  }))}
+                />
               ) : null}
             </>
           ) : null}
@@ -609,19 +588,17 @@ export default function AdminPromotionsPage() {
             Límite de usos: 0 es sin límite. La promo sirve hasta el final del día que vence.
           </p>
 
-          <label className="grid gap-1.5 text-sm font-medium text-foreground">
-            Estado
-            <select
-              className={SELECT_CLASS}
-              value={form.isActive ? "active" : "inactive"}
-              onChange={(event) =>
-                setForm((current) => ({ ...current, isActive: event.target.value === "active" }))
-              }
-            >
-              <option value="active">Activa — la promo se aplica</option>
-              <option value="inactive">Inactiva — no se aplica</option>
-            </select>
-          </label>
+          <Select
+            label="Estado"
+            value={form.isActive ? "active" : "inactive"}
+            onChange={(event) =>
+              setForm((current) => ({ ...current, isActive: event.target.value === "active" }))
+            }
+            options={[
+              { value: "active", label: "Activa — la promo se aplica" },
+              { value: "inactive", label: "Inactiva — no se aplica" },
+            ]}
+          />
         </div>
       </AdminEditSheet>
     </div>

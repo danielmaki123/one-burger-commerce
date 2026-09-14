@@ -12,7 +12,7 @@ import {
  *
  * Qué garantiza, con el inventario medido en `ops/tasks/TASK-201-ui-inventory.md`:
  *
- * 1. **No crece el HTML crudo donde ya hay primitivo.** Hoy hay 101 controles crudos
+ * 1. **No crece el HTML crudo donde ya hay primitivo.** Hoy hay 96 controles crudos
  *    (`<button>`, `<input>`, `<select>`, `<textarea>`) repartidos en 32 archivos. No se refactorizan
  *    ahora (el plan §6 prohíbe tocar los archivos grandes por deporte), pero **no pueden crecer**: el
  *    número por archivo es un techo que solo baja. Cuando un archivo llega a 0, su fila se borra (el
@@ -45,7 +45,6 @@ const LEGACY_RAW_CONTROLS: Record<string, number> = {
   "src/app/(admin)/admin/menu/categories/page.tsx": 9,
   "src/app/(admin)/admin/menu/marketing-blocks/page.tsx": 8,
   "src/app/(admin)/admin/menu/products/[id]/page.tsx": 8,
-  "src/app/(admin)/admin/promotions/page.tsx": 6,
   "src/app/(admin)/admin/settings/settings-client.tsx": 5,
   "src/app/(public)/page.tsx": 5,
   "src/app/(admin)/admin/locations/page.tsx": 4,
@@ -72,6 +71,10 @@ const LEGACY_RAW_CONTROLS: Record<string, number> = {
   "src/app/(admin)/admin/menu/products/product-dish-card.tsx": 1,
   "src/app/(admin)/admin/orders/order-actions.tsx": 1,
   "src/app/(admin)/admin/orders/order-comanda-board.tsx": 1,
+  // Fila de lista multilínea de `/admin/promotions`: no es un botón de acción y `Button` no cubre su
+  // anatomía (ver el comentario en la página y DESIGN_SYSTEM.md §3.3). Es el único control crudo que
+  // queda ahí tras TASK-206, que bajó el archivo de 6 a 1.
+  "src/app/(admin)/admin/promotions/page.tsx": 1,
   "src/app/(public)/activity/order-history-views.tsx": 1,
   "src/app/(public)/menu/menu-product-card.tsx": 1,
 };
