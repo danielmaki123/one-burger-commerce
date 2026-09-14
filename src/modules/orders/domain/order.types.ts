@@ -209,3 +209,35 @@ export type TableRecord = {
   isActive: boolean;
   locationId: string;
 };
+
+/**
+ * TASK-103 — cómo se cobró un pedido.
+ *
+ * Es distinto de `OrderPaymentMethod` (lo que el cliente **declara** en el checkout): acá entran la
+ * transferencia, el pago repartido y "otro", que son cosas que pasan en el mostrador.
+ */
+export const PAYMENT_METHOD_TYPES = {
+  cash: "cash",
+  card: "card",
+  transfer: "transfer",
+  mixed: "mixed",
+  other: "other",
+} as const;
+
+export type PaymentMethodType =
+  (typeof PAYMENT_METHOD_TYPES)[keyof typeof PAYMENT_METHOD_TYPES];
+
+export function isPaymentMethodType(value: string): value is PaymentMethodType {
+  return Object.values(PAYMENT_METHOD_TYPES).includes(value as PaymentMethodType);
+}
+
+/** Un cobro registrado sobre un pedido. Un pago mixto son varias filas. */
+export type PaymentRecord = {
+  id: string;
+  orderId: string;
+  method: PaymentMethodType;
+  amount: number;
+  tip: number;
+  reference: string | null;
+  createdAt: string;
+};

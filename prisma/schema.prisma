@@ -332,6 +332,17 @@ enum PaymentMethod {
   card
 }
 
+/// TASK-103 — los métodos que acepta un **cobro registrado**. Es más amplio que `PaymentMethod`
+/// (que declara el cliente en el checkout y sigue existiendo por compatibilidad): acá entran la
+/// transferencia, el pago mixto y "otro", que son cosas que pasan en el mostrador.
+enum PaymentMethodType {
+  cash
+  card
+  transfer
+  mixed
+  other
+}
+
 enum OrderStatus {
   new
   confirmed
@@ -455,6 +466,8 @@ model Order {
   deliveryZone         DeliveryZone?        @relation(fields: [deliveryZoneId], references: [id], onDelete: SetNull)
   items                OrderItem[]
   statusHistory        OrderStatusHistory[]
+  /// TASK-103 — los cobros registrados de este pedido (uno por pago; el mixto tiene varios).
+  payments             Payment[]
 
   @@index([type])
   @@index([status])
@@ -689,6 +702,28 @@ model BusinessSettings {
   // Auditoría
   updatedAt           DateTime @updatedAt
   updatedByUserId     String?
+}
+
+/// TASK-103 — un cobro registrado sobre un pedido.
+///
+/// `Order.paymentMethod` dice **cómo piensa pagar** el cliente (lo declara en el checkout) y no
+/// alcanza para operar un mostrador: no registra el monto cobrado, ni la propina del cobro, ni una
+/// devolución, ni un pago repartido entre efectivo y tarjeta. Por eso una tabla aparte, y por eso
+/// `Order.paymentMethod` se mantiene: la declaración del cliente y el cobro real son dos cosas.
+model Payment {
+  id        String            @id @default(cuid())
+  orderId   String
+  method    PaymentMethodType
+  amount    Decimal           @db.Decimal(10, 2)
+  /// Propina cobrada en este pago. Va aparte del monto porque en un pago mixto puede pagarse sola.
+  tip       Decimal           @default(0) @db.Decimal(10, 2)
+  /// Referencia externa del cobro (número de voucher, id de transferencia). Vacío si no aplica.
+  reference String?
+  createdAt DateTime          @default(now())
+  order     Order             @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@index([createdAt])
 }
 
 
