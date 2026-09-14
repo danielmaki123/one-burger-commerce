@@ -65,20 +65,22 @@ test.describe("admin operations", () => {
     await expect(page.getByRole("heading", { name: "Comandas" })).toBeVisible();
 
     /**
-     * B6 — la salida de la vista de comandas, con la cuenta que la encontró rota.
+     * B6 — la vuelta al panel, con la cuenta que encontró el problema.
      *
-     * La vista esconde la barra lateral (donde vive «Cerrar sesión») y el enlace «Volver al panel»
-     * mandaba a `/admin`, que para una cocina redirige a esta misma pantalla: el owner quedó en
-     * círculos y sin forma de salir. Ahora la barra del turno ofrece la salida ella misma.
+     * El owner entró con una cuenta de sucursal, tocó «Volver al panel» y volvió a la misma pantalla:
+     * el tablero se abre sin la barra lateral y no había manera de recuperarla. Ahora el control del
+     * turno dice «Ver el panel» y la devuelve, sin cerrar sesión (la sesión vive en esa barra).
      */
-    await expect(page.getByRole("button", { name: "Cerrar sesión" })).toBeVisible();
-    await expect(page.getByRole("link", { name: /Volver al panel/ })).toHaveCount(0);
+    await expect(page.locator(".admin-sidebar-shell")).toBeHidden();
+    await expect(page.getByRole("button", { name: "Cerrar sesión" })).toHaveCount(0);
 
-    await page.getByRole("button", { name: "Cerrar sesión" }).click();
-    await expect(page).toHaveURL(/\/admin\/login$/);
+    await page.getByRole("button", { name: "Ver el panel" }).click();
+
+    await expect(page.locator(".admin-sidebar-shell")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Cerrar sesión" })).toBeVisible();
 
     await page.goto("/admin/users");
-    await expect(page).toHaveURL(/\/admin\/login$/);
+    await expect(page).toHaveURL(/\/admin\/orders$/);
   });
 
   test("owner dashboard and navigation stay inside the pickup MVP", async ({ page }) => {

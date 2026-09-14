@@ -6,10 +6,12 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { COMANDA_VIEW_CLASS, useComandaView, useFullscreen } from "./use-comanda-view";
 
 /**
- * B3 — la vista de comandas esconde la barra lateral del panel mientras está montada.
+ * B3/B6 — la vista de comandas es un modo que se sale.
  *
  * La clase vive en `<html>` porque la barra lateral la dibuja el shell, fuera de esta página: si el
- * día que se desmonta no se limpia, la persona queda sin navegación en el resto del panel.
+ * día que se desmonta no se limpia, la persona queda sin navegación en el resto del panel. Y el modo
+ * tiene que poder apagarse desde la propia pantalla: es el bug que encontró el owner en producción
+ * (entró con una cuenta de sucursal y no pudo volver al panel).
  */
 afterEach(() => {
   cleanup();
@@ -19,9 +21,23 @@ afterEach(() => {
 });
 
 describe("vista de comandas (B3)", () => {
-  it("marca el documento mientras está montada y lo limpia al salir", () => {
+  it("arranca a pantalla completa (sin la barra lateral del panel)", () => {
+    renderHook(() => useComandaView());
+
+    expect(document.documentElement.classList.contains(COMANDA_VIEW_CLASS)).toBe(true);
+  });
+
+  it("«Ver el panel» devuelve la barra lateral y se puede volver a pantalla completa", () => {
+    const { result } = renderHook(() => useComandaView());
+
+    act(() => result.current.setImmersive(false));
     expect(document.documentElement.classList.contains(COMANDA_VIEW_CLASS)).toBe(false);
 
+    act(() => result.current.setImmersive(true));
+    expect(document.documentElement.classList.contains(COMANDA_VIEW_CLASS)).toBe(true);
+  });
+
+  it("marca el documento mientras está montada y lo limpia al salir", () => {
     const { unmount } = renderHook(() => useComandaView());
     expect(document.documentElement.classList.contains(COMANDA_VIEW_CLASS)).toBe(true);
 

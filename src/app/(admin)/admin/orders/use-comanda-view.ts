@@ -3,28 +3,43 @@
 import { useCallback, useEffect, useState } from "react";
 
 /**
- * B3 — la vista de comandas y el tablet de pared.
+ * B3/B6 — la vista de comandas y la vuelta al panel.
  *
- * La sección de comandas ocupa todo el ancho: la barra lateral del panel se esconde mientras se está
- * acá (§4.1) y la propia barra superior lleva el enlace para volver. Es una clase en `<html>` porque
- * la barra lateral la dibuja el shell del panel, fuera de esta página.
+ * El tablero se abre **a pantalla completa** (sin la barra lateral del panel): es lo que la cocina
+ * quiere en el tablet de pared, y era el diseño acordado. Pero el primer intento la escondía sin
+ * salida: el owner entró con una cuenta de sucursal, tocó «Volver al panel» y volvió a la misma
+ * pantalla, sin manera de recuperar el chrome del panel.
  *
- * El botón de pantalla completa entra al *Fullscreen API* —pensado para el tablet colgado en la
- * pared— y se sale con Esc, con el botón o al desmontar la vista (nadie queda encerrado).
+ * Ahora es un **modo que se sale**, no una puerta que se cierra: `immersive` arranca encendido y la
+ * barra del turno ofrece «Ver el panel», que devuelve la barra lateral —donde están la navegación y la
+ * sesión— sin cerrar sesión. Eso es lo que hace falta cuando cada tablet tiene su sección (comandas,
+ * POS, inventario) y la persona necesita volver a elegir.
+ *
+ * La clase vive en `<html>` porque la barra lateral la dibuja el shell del panel, fuera de esta página,
+ * y se limpia al desmontar: nadie queda sin navegación en el resto del panel.
  */
 
 export const COMANDA_VIEW_CLASS = "comandas-view";
 
-/** Mientras esta pantalla está montada, el panel se dibuja a lo ancho. */
-export function useComandaView(): void {
+export function useComandaView(): {
+  /** `true` = tablero a pantalla completa (sin barra lateral). */
+  immersive: boolean;
+  setImmersive: (value: boolean) => void;
+} {
+  const [immersive, setImmersive] = useState(true);
+
   useEffect(() => {
     const root = document.documentElement;
-    root.classList.add(COMANDA_VIEW_CLASS);
+
+    if (immersive) root.classList.add(COMANDA_VIEW_CLASS);
+    else root.classList.remove(COMANDA_VIEW_CLASS);
 
     return () => {
       root.classList.remove(COMANDA_VIEW_CLASS);
     };
-  }, []);
+  }, [immersive]);
+
+  return { immersive, setImmersive };
 }
 
 type FullscreenElement = Element & {

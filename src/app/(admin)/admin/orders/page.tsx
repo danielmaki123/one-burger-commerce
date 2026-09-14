@@ -8,7 +8,7 @@ import {
   BellOff,
   ClipboardList,
   Maximize2,
-  Minimize2,
+  PanelLeft,
   RefreshCw,
   ShoppingBag,
   SlidersHorizontal,
@@ -54,7 +54,6 @@ import { OrderComandaBoard } from "./order-comanda-board";
 import type { ComandaItem } from "./order-comanda-card";
 import { useComandaView, useFullscreen } from "./use-comanda-view";
 import { readOrderUrlFilters, writeOrderUrlFilters, type OrderPaymentFilter } from "./comanda-url";
-import { ComandaSessionBar } from "./comanda-session-bar";
 import {
   AdminCompactToolbar,
   AdminEmptyState,
@@ -226,7 +225,7 @@ export default function AdminOrdersPage() {
   const [lateOnly, setLateOnly] = useState(initialFilters.lateOnly);
 
   // B3: la barra lateral del panel se esconde mientras esta vista está montada.
-  useComandaView();
+  const { immersive, setImmersive } = useComandaView();
   const fullscreen = useFullscreen();
 
   // La preferencia del aviso sonoro vive en el dispositivo (el navegador exige un toque para sonar).
@@ -884,21 +883,30 @@ export default function AdminOrdersPage() {
                 Aviso sonoro
               </Button>
 
-              {fullscreen.supported ? (
-                <Button
-                  variant="outline"
-                  className="min-h-11 gap-2"
-                  aria-pressed={fullscreen.isFullscreen}
-                  onClick={() => void fullscreen.toggle()}
-                >
-                  {fullscreen.isFullscreen ? (
-                    <Minimize2 aria-hidden="true" className="h-4 w-4" />
-                  ) : (
-                    <Maximize2 aria-hidden="true" className="h-4 w-4" />
-                  )}
-                  {fullscreen.isFullscreen ? "Salir de pantalla completa" : "Pantalla completa"}
-                </Button>
-              ) : null}
+              {/*
+                B6 — un solo control para volver: el tablero se abre a pantalla completa (sin la barra
+                lateral del panel, que es lo que la cocina quiere en el tablet de pared) y este botón
+                devuelve el panel, con su navegación y su sesión, **sin cerrar sesión**. Es lo que el
+                owner necesitaba: cada tablet tiene su sección (comandas, POS, inventario) y hay que
+                poder volver a elegir. Si el navegador lo permite, además entra o sale de pantalla
+                completa de verdad.
+              */}
+              <Button
+                variant="outline"
+                className="min-h-11 gap-2"
+                aria-pressed={!immersive}
+                onClick={() => {
+                  setImmersive(!immersive);
+                  if (fullscreen.supported) void fullscreen.toggle();
+                }}
+              >
+                {immersive ? (
+                  <PanelLeft aria-hidden="true" className="h-4 w-4" />
+                ) : (
+                  <Maximize2 aria-hidden="true" className="h-4 w-4" />
+                )}
+                {immersive ? "Ver el panel" : "Pantalla completa"}
+              </Button>
 
               <Button
                 variant="outline"
@@ -908,10 +916,6 @@ export default function AdminOrdersPage() {
                 <RefreshCw aria-hidden="true" className="h-4 w-4" />
                 Actualizar
               </Button>
-
-              {/* B6: la salida de esta vista. La barra lateral del panel está escondida, así que
-                  «Cerrar sesión» y el nombre de la cuenta tienen que estar acá. */}
-              <ComandaSessionBar />
             </span>
           </div>
 
@@ -1370,5 +1374,6 @@ export default function AdminOrdersPage() {
     </div>
   );
 }
+
 
 

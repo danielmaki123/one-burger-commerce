@@ -47,7 +47,8 @@ test.describe("comandas: el tablero del turno (B3)", () => {
     await expect(topbar).toContainText("Nuevas");
     await expect(topbar).toContainText("Preparando");
     await expect(topbar).toContainText("Listas");
-    await expect(page.getByRole("link", { name: /Volver al panel/ })).toBeVisible();
+    // La vuelta al panel vive en la barra del turno (B6): el tablero se abre sin la barra lateral.
+    await expect(page.getByRole("button", { name: "Ver el panel" })).toBeVisible();
 
     // La comanda está en el carril de lo que nadie aceptó todavía.
     const pending = page.getByRole("region", { name: "Por aceptar" });
@@ -71,22 +72,25 @@ test.describe("comandas: el tablero del turno (B3)", () => {
   });
 
   /**
-   * B6 — el dueño también tiene que poder salir desde acá.
+   * B6 — la vuelta al panel desde el tablero.
    *
-   * La barra lateral está escondida en esta vista, así que el bloque de sesión (nombre y «Cerrar
-   * sesión») vive en la barra del turno. Para el dueño, además, el enlace «Volver al panel» sí tiene
-   * destino: el Resumen.
+   * La vista se abre sin la barra lateral del panel (es lo que la cocina quiere en el tablet de pared),
+   * así que el control del turno tiene que devolverla: cada tablet tiene su sección —comandas, POS,
+   * inventario— y hay que poder volver a elegir. **Sin cerrar sesión**: la sesión vive en esa barra.
    */
-  test("desde el tablero se ve con qué cuenta se está y se puede cerrar sesión (B6)", async ({ page }) => {
+  test("el tablero deja volver al panel sin cerrar sesión (B6)", async ({ page }) => {
     await openBoard(page);
 
-    const session = page.getByTestId("comandas-session");
-    await expect(session).toBeVisible();
-    await expect(session).toContainText("(owner)");
-    await expect(page.getByRole("link", { name: /Volver al panel/ })).toBeVisible();
+    await expect(page.locator(".admin-sidebar-shell")).toBeHidden();
+    await expect(page.getByRole("button", { name: "Cerrar sesión" })).toHaveCount(0);
 
-    await session.getByRole("button", { name: "Cerrar sesión" }).click();
-    await expect(page).toHaveURL(/\/admin\/login$/);
+    await page.getByRole("button", { name: "Ver el panel" }).click();
+
+    await expect(page.locator(".admin-sidebar-shell")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Cerrar sesión" })).toBeVisible();
+    // Sigue adentro: volver al panel no es salir de la sesión.
+    await expect(page).toHaveURL(/\/admin\/orders/);
+    await expect(page.getByRole("heading", { name: "Comandas" })).toBeVisible();
   });
 
   test("buscar deja solo la comanda que se está preguntando y lo deja en la URL (B4)", async ({ page }) => {
