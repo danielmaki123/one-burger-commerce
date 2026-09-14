@@ -115,7 +115,22 @@ test.describe("comandas: acciones en la bandeja (B2)", () => {
       // Y la acción funciona igual que en escritorio: no es un botón de adorno.
       await accept.click();
       await expect(page.getByTestId("orders-action-notice")).toContainText(/confirmada/i);
-      await expect(actions.getByRole("button", { name: "Preparando" })).toBeVisible();
+
+      // En celular se ve **un carril por vez**: la comanda aceptada se va del carril de nuevas, así que
+      // deja de estar en pantalla hasta que se cambia de carril con el conmutador.
+      await expect(
+        page.getByRole("region", { name: "Por aceptar" }).locator("article").filter({ hasText: customer }),
+      ).toHaveCount(0);
+
+      const switcher = page.getByRole("group", { name: "Carril de comandas" });
+      await switcher.getByRole("button", { name: /^En preparación \d+$/ }).click();
+
+      const moved = page
+        .getByRole("region", { name: "En preparación" })
+        .locator("article")
+        .filter({ hasText: customer });
+      await expect(moved).toBeVisible();
+      await expect(moved.getByRole("button", { name: "Preparando" })).toBeVisible();
     });
   });
 });

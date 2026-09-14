@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { AlarmClock, Clock, MessageSquareText } from "lucide-react";
 
 import { formatTimeInTimeZone } from "@/modules/business-settings/domain/format-time-in-timezone";
@@ -35,6 +36,8 @@ export type ComandaOrder = {
   items: ComandaItem[];
   pickupTime?: string | null;
   pickupScheduled?: boolean;
+  /** Sucursal del pedido: con una sola no aporta, con varias es lo primero que se pregunta. */
+  locationName?: string | null;
 };
 
 type OrderComandaCardProps = {
@@ -49,6 +52,8 @@ type OrderComandaCardProps = {
   isNew?: boolean;
   disabled?: boolean;
   disabledReason?: string;
+  /** Muestra la sucursal en la comanda; el tablero lo pide solo cuando el usuario ve más de una. */
+  showLocation?: boolean;
 };
 
 /**
@@ -79,6 +84,7 @@ export function OrderComandaCard({
   isNew = false,
   disabled = false,
   disabledReason,
+  showLocation = false,
 }: OrderComandaCardProps) {
   const urgency = resolveComandaUrgency({
     stageChangedAt: order.stageChangedAt,
@@ -106,49 +112,60 @@ export function OrderComandaCard({
         isNew ? "ring-2 ring-brand ring-offset-2 ring-offset-background" : "",
       ].join(" ")}
     >
-      <header className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
-        <div className="min-w-0">
-          <p className="font-heading text-title font-bold tabular-nums text-foreground">
-            {order.orderNumber}
-          </p>
-          <p className="mt-0.5 text-xs font-medium text-muted-foreground tabular-nums">
-            Entró {enteredAt ?? "—"}
-          </p>
-        </div>
-        <span
-          className={`flex shrink-0 items-center gap-1.5 text-sm font-bold tabular-nums ${URGENCY_CHIP_STYLES[urgency.level]}`}
-        >
-          <StageIcon aria-hidden="true" className="h-4 w-4" strokeWidth={2.4} />
-          {urgency.label}
-        </span>
-      </header>
+      {/*
+        El enlace cubre la información —lo que se lee— y las acciones quedan afuera: un botón dentro
+        de un enlace es HTML inválido, y el mostrador sigue necesitando abrir el detalle para cobrar.
+      */}
+      <Link
+        href={`/admin/orders/${order.id}`}
+        aria-label={`Abrir orden ${order.orderNumber}`}
+        className="flex flex-col gap-3 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+      >
+        <header className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
+          <div className="min-w-0">
+            <p className="font-heading text-title font-bold tabular-nums text-foreground">
+              {order.orderNumber}
+            </p>
+            <p className="mt-0.5 text-xs font-medium text-muted-foreground tabular-nums">
+              Entró {enteredAt ?? "—"}
+            </p>
+          </div>
+          <span
+            className={`flex shrink-0 items-center gap-1.5 text-sm font-bold tabular-nums ${URGENCY_CHIP_STYLES[urgency.level]}`}
+          >
+            <StageIcon aria-hidden="true" className="h-4 w-4" strokeWidth={2.4} />
+            {urgency.label}
+          </span>
+        </header>
 
-      <p className="text-lg font-bold leading-snug text-foreground">{order.customerName}</p>
+        <p className="text-lg font-bold leading-snug text-foreground">{order.customerName}</p>
 
-      <ul className="flex flex-col gap-2">
-        {order.items.map((item) => (
-          <li key={item.id} className="text-sm text-foreground">
-            <span className="font-semibold tabular-nums">
-              {item.quantity} × {item.productName}
-            </span>
-            {item.modifiers.length > 0 ? (
-              <span className="ml-1 text-muted-foreground">
-                ({item.modifiers.map((modifier) => modifier.name).join(", ")})
+        <ul className="flex flex-col gap-2">
+          {order.items.map((item) => (
+            <li key={item.id} className="text-sm text-foreground">
+              <span className="font-semibold tabular-nums">
+                {item.quantity} × {item.productName}
               </span>
-            ) : null}
-            {item.notes ? (
-              <span className="mt-1 flex items-start gap-1.5 text-xs font-semibold text-warning-foreground">
-                <MessageSquareText aria-hidden="true" className="mt-px h-3.5 w-3.5 shrink-0" strokeWidth={2.4} />
-                {item.notes}
-              </span>
-            ) : null}
-          </li>
-        ))}
-      </ul>
+              {item.modifiers.length > 0 ? (
+                <span className="ml-1 text-muted-foreground">
+                  ({item.modifiers.map((modifier) => modifier.name).join(", ")})
+                </span>
+              ) : null}
+              {item.notes ? (
+                <span className="mt-1 flex items-start gap-1.5 text-xs font-semibold text-warning-foreground">
+                  <MessageSquareText aria-hidden="true" className="mt-px h-3.5 w-3.5 shrink-0" strokeWidth={2.4} />
+                  {item.notes}
+                </span>
+              ) : null}
+            </li>
+          ))}
+        </ul>
 
-      <p className="text-xs font-semibold text-foreground tabular-nums">
-        {pickupLabel ?? `Retiro para hoy · ${order.type === "pickup" ? "Retiro" : order.type}`}
-      </p>
+        <p className="text-xs font-semibold text-foreground tabular-nums">
+          {pickupLabel ?? `Retiro para hoy · ${order.type === "pickup" ? "Retiro" : order.type}`}
+          {showLocation && order.locationName ? ` · ${order.locationName}` : ""}
+        </p>
+      </Link>
 
       <OrderActions
         layout="card"

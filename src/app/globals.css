@@ -316,3 +316,23 @@ body {
     font-family: var(--font-body), ui-sans-serif, system-ui, sans-serif;
   }
 }
+
+/**
+ * B3 — la vista de comandas ocupa todo el ancho.
+ *
+ * La barra lateral la dibuja el shell del panel, fuera de la página de comandas, así que se esconde
+ * con una clase en `<html>` (`useComandaView`) que se limpia al desmontar: nadie queda sin navegación
+ * en el resto del panel. El contenido deja de estar centrado en su columna porque el tablero necesita
+ * el ancho entero para las tres columnas.
+ */
+html.comandas-view .admin-sidebar-shell {
+  display: none;
+}
+
+html.comandas-view main[data-admin-main-focus-target] {
+  padding: 0.75rem 0.75rem 1.5rem;
+}
+
+html.comandas-view [data-admin-main-inner] {
+  max-width: none;
+}

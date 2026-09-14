@@ -191,7 +191,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
         tabIndex={-1}
         className="min-w-0 flex-1 px-3 py-4 pb-24 focus:outline-none sm:px-4 md:px-7 md:py-7 md:pb-7"
       >
-        <div className="mx-auto w-full min-w-0 max-w-7xl">{children}</div>
+        <div data-admin-main-inner className="mx-auto w-full min-w-0 max-w-7xl">{children}</div>
       </main>
     </div>
   );

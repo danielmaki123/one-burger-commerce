@@ -310,8 +310,8 @@ test.describe("locales del admin", () => {
       await expect(pickupSection).toContainText("Principal");
 
       await page.goto("/admin/orders");
-      await page.getByRole("button", { name: "Mostrar filtros" }).click();
-      const locationFilter = page.getByLabel("Local");
+      // El tablero de comandas (B3) lleva el filtro por sucursal en su barra superior.
+      const locationFilter = page.getByLabel("Local de las comandas");
 
       // Filtrando por el otro local, el pedido no está. **Se espera a que el refetch termine**
       // (la bandeja publica `aria-busy`): sin eso la lista se desmonta mientras carga y la

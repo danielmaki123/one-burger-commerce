@@ -62,7 +62,7 @@ test.describe("admin operations", () => {
 
     await expect(page).toHaveURL(/\/admin(?:\/orders)?$/);
     await page.goto("/admin/orders");
-    await expect(page.getByRole("heading", { name: "Órdenes" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Comandas" })).toBeVisible();
 
     await page.goto("/admin/users");
     await expect(page).toHaveURL(/\/admin\/orders$/);

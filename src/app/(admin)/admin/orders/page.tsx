@@ -6,6 +6,9 @@ import {
   Bell,
   BellOff,
   ClipboardList,
+  Maximize2,
+  Minimize2,
+  PanelLeft,
   RefreshCw,
   ShoppingBag,
   SlidersHorizontal,
@@ -39,6 +42,16 @@ import {
 } from "./admin-alert-sound";
 import { describeOrderActionFailure } from "./order-action-helpers";
 import { OrderActions } from "./order-actions";
+import {
+  DEFAULT_LATE_MINUTES,
+  comandaCounters,
+  comandaLane,
+  resolveComandaUrgency,
+  type ComandaLane,
+} from "./comanda-helpers";
+import { OrderComandaBoard } from "./order-comanda-board";
+import type { ComandaItem } from "./order-comanda-card";
+import { useComandaView, useFullscreen } from "./use-comanda-view";
 import {
   AdminCompactToolbar,
   AdminEmptyState,
@@ -77,6 +90,10 @@ type OrderSummary = {
   customerWhatsapp: string;
   total: number;
   createdAt: string;
+  /** Cuándo empezó la etapa actual (B3a): la comanda mide su urgencia con esto. */
+  stageChangedAt: string;
+  /** Lo que hay que cocinar, con modificadores y notas (B3). */
+  items: ComandaItem[];
   pickupTime?: string | null;
   /** Si el cliente programó el retiro; si no, es "lo antes posible". */
   pickupScheduled?: boolean;
@@ -106,6 +123,9 @@ type HistoryPreset = "week" | "month" | "all" | "custom";
  */
 const POLL_INTERVAL_MS = 15_000;
 const CLOCK_TICK_MS = 5_000;
+
+/** Cuánto dura el resaltado de una comanda recién llegada (B3): lo suficiente para encontrarla. */
+const HIGHLIGHT_MS = 1_200;
 
 const STATUS_FILTERS: Array<{ value: string; label: string }> = [
   { value: "all", label: "Todos" },
@@ -166,6 +186,17 @@ export default function AdminOrdersPage() {
   /** Para saber qué apareció hay que recordar qué había: no alcanza con la lista actual del render. */
   const previousOrderIdsRef = useRef<string[] | null>(null);
   const previousQueryRef = useRef<string | null>(null);
+  /** B3: qué carril se ve en celular (en escritorio se ven los tres). */
+  const [activeLane, setActiveLane] = useState<ComandaLane>("pending");
+  /** B3: las comandas que se acaban de resaltar por llegar solas (el aviso dura ~1,2 s). */
+  const [highlightIds, setHighlightIds] = useState<string[]>([]);
+  /** B3: lo que se anuncia por lector de pantalla cuando una comanda se pasa de tiempo. */
+  const [lateAnnouncement, setLateAnnouncement] = useState<string | null>(null);
+  const announcedLateIdsRef = useRef<Set<string>>(new Set());
+
+  // B3: la barra lateral del panel se esconde mientras esta vista está montada.
+  useComandaView();
+  const fullscreen = useFullscreen();
 
   // La preferencia del aviso sonoro vive en el dispositivo (el navegador exige un toque para sonar).
   useEffect(() => {
@@ -239,15 +270,21 @@ export default function AdminOrdersPage() {
     };
   }, [view, historyPreset, dateFrom, dateTo, today, timeZone]);
 
+  /**
+   * B3 — el turno se mira como **tablero de comandas**: los carriles son el filtro, así que el filtro
+   * por estado (que es del historial) no viaja en la consulta del día.
+   */
+  const showBoard = view === "today";
+
   const queryString = useMemo(() => {
     const query = new URLSearchParams();
-    if (statusFilter !== "all") query.set("status", statusFilter);
+    if (!showBoard && statusFilter !== "all") query.set("status", statusFilter);
     if (typeFilter !== "all") query.set("type", typeFilter);
     if (locationFilter !== "all") query.set("locationId", locationFilter);
     if (range.from) query.set("dateFrom", range.from);
     if (range.to) query.set("dateTo", range.to);
     return query.toString();
-  }, [range, statusFilter, typeFilter, locationFilter]);
+  }, [range, statusFilter, typeFilter, locationFilter, showBoard]);
 
   useEffect(() => {
     async function fetchOrders() {
@@ -411,7 +448,81 @@ export default function AdminOrdersPage() {
     [orders, view],
   );
 
-  const groupByBucket = view === "today" && statusFilter === "all";
+  /**
+   * La lista se agrupa por etapa cuando no hay un filtro de estado puesto. Es la forma en que el
+   * listado sigue distinguiendo lo programado para otro día de lo que es trabajo del turno, incluso
+   * cuando se llega desde el tablero con "Ver en el listado".
+   */
+  const groupByBucket = statusFilter === "all";
+
+  /**
+   * B3 — el resaltado de lo que llega solo dura un momento: si se quedara, a la media hora de turno
+   * todas las comandas estarían "nuevas" y el resaltado no diría nada.
+   */
+  useEffect(() => {
+    if (newOrderIds.length === 0) {
+      setHighlightIds([]);
+      return;
+    }
+
+    setHighlightIds(newOrderIds);
+    const timer = window.setTimeout(() => setHighlightIds([]), HIGHLIGHT_MS);
+
+    return () => window.clearTimeout(timer);
+  }, [newOrderIds]);
+
+  /**
+   * B3 — aviso para quien no está mirando la pantalla: cuando una comanda cruza el umbral de atraso se
+   * anuncia **una vez** (no en cada refresco de 15 segundos, que sería ruido puro).
+   */
+  useEffect(() => {
+    if (!showBoard) return;
+
+    const justLate = orders.filter((order) => {
+      if (!comandaLane(order.status)) return false;
+      if (announcedLateIdsRef.current.has(order.id)) return false;
+
+      return (
+        resolveComandaUrgency({ stageChangedAt: order.stageChangedAt, nowMs }).level === "late"
+      );
+    });
+
+    if (justLate.length === 0) return;
+
+    for (const order of justLate) announcedLateIdsRef.current.add(order.id);
+
+    setLateAnnouncement(
+      justLate.length === 1
+        ? `La comanda ${justLate[0].orderNumber} lleva más de ${DEFAULT_LATE_MINUTES} minutos en esta etapa.`
+        : `${justLate.length} comandas llevan más de ${DEFAULT_LATE_MINUTES} minutos en esta etapa.`,
+    );
+  }, [orders, nowMs, showBoard]);
+
+  const boardCounters = useMemo(() => comandaCounters(orders), [orders]);
+
+  /**
+   * B3 — un pedido programado para **otro día** no es trabajo de este turno: no entra en los carriles
+   * (la cocina lo empezaría hoy) y se anuncia aparte, con la salida al listado donde tiene su grupo.
+   * Es la separación de la fase 4 del checkout, que el tablero tiene que respetar igual que la lista.
+   */
+  const scheduledForAnotherDay = useMemo(
+    () =>
+      orders.filter(
+        (order) =>
+          orderBucket(order.status, {
+            pickupTime: order.pickupTime,
+            today,
+            timeZone,
+          }) === "programados",
+      ),
+    [orders, today, timeZone],
+  );
+  const boardOrders = useMemo(
+    // La cola del tablero se ordena por **hora prometida** (B0): dentro de cada carril, lo que hay que
+    // empezar ya no puede quedar debajo de un pedido comprometido para más tarde.
+    () => sortQueueOrders(orders.filter((order) => !scheduledForAnotherDay.includes(order))),
+    [orders, scheduledForAnotherDay],
+  );
   const bucketedOrders = useMemo(() => {
     const buckets = new Map<OrderBucket, OrderSummary[]>();
     for (const bucket of BUCKET_ORDER) buckets.set(bucket, []);
@@ -561,10 +672,175 @@ export default function AdminOrdersPage() {
 
   return (
     <div className="min-w-0 space-y-6" aria-busy={loading}>
-      <AdminPageHeader
-        title="Órdenes"
-        description="Bandeja de turno: prioriza ingresos nuevos y sigue cada pedido hasta su cierre."
-      />
+      {/*
+        B3 — la barra de las comandas. Es la única navegación de esta vista (la barra lateral del panel
+        se esconde, §4.1), así que lleva el enlace para volver, los contadores del turno, el estado de
+        la conexión y los tres controles: sonido, pantalla completa y refresco.
+      */}
+      {showBoard ? (
+        <div
+          data-testid="comandas-topbar"
+          className="sticky top-0 z-30 -mx-3 border-b border-border bg-background/95 px-3 py-2 backdrop-blur sm:-mx-4 md:-mx-7"
+        >
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              href="/admin"
+              className="inline-flex min-h-11 items-center gap-2 rounded-md px-2 text-sm font-semibold text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand motion-reduce:transition-none"
+            >
+              <PanelLeft aria-hidden="true" className="h-4 w-4" />
+              Volver al panel
+            </Link>
+
+            <h1 className="font-heading text-base font-bold tracking-tight text-foreground">
+              Comandas
+            </h1>
+
+            <Tabs className="min-w-0">
+              <TabsList className={CHIP_LIST_CLASS}>
+                <TabsTrigger
+                  value="today"
+                  activeValue={view}
+                  onClick={(value) => setView(value as OrdersView)}
+                  className={CHIP_TRIGGER_CLASS}
+                >
+                  Hoy
+                </TabsTrigger>
+                <TabsTrigger
+                  value="history"
+                  activeValue={view}
+                  onClick={(value) => setView(value as OrdersView)}
+                  className={CHIP_TRIGGER_CLASS}
+                >
+                  Historial
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+
+            {showLocationFilter ? (
+              <label className="flex min-h-11 items-center gap-2 text-sm">
+                <span className="sr-only sm:not-sr-only sm:text-xs sm:font-semibold sm:uppercase sm:tracking-wide sm:text-muted-foreground">
+                  Local
+                </span>
+                <select
+                  aria-label="Local de las comandas"
+                  className="h-11 rounded-md border border-border bg-card px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                  value={locationFilter}
+                  onChange={(event) => setLocationFilter(event.target.value)}
+                >
+                  <option value="all">
+                    {scopeLocationIds ? "Mis sucursales" : "Todas las sucursales"}
+                  </option>
+                  {scopedLocations.map((location) => (
+                    <option key={location.id} value={location.id}>
+                      {location.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
+
+            <p
+              className="flex flex-wrap items-center gap-x-3 text-sm font-semibold text-foreground tabular-nums"
+              aria-label="Comandas en el turno"
+            >
+              <span>
+                Nuevas <strong className="font-mono">{boardCounters.pending}</strong>
+              </span>
+              <span className="text-muted-foreground">
+                Preparando <strong className="font-mono text-foreground">{boardCounters.preparing}</strong>
+              </span>
+              <span className="text-muted-foreground">
+                Listas <strong className="font-mono text-foreground">{boardCounters.ready}</strong>
+              </span>
+            </p>
+
+            <span className="ml-auto flex flex-wrap items-center gap-2">
+              <span
+                className={`text-xs font-semibold tabular-nums ${error ? "text-warning-foreground" : "text-muted-foreground"}`}
+                data-testid="orders-freshness"
+              >
+                {error ? "Sin conexión · " : ""}Actualizado{" "}
+                {lastUpdatedAt ? formatUpdatedAgo(lastUpdatedAt, nowMs) : "…"}
+              </span>
+
+              <Button
+                variant="outline"
+                className="min-h-11 gap-2"
+                aria-pressed={soundEnabled}
+                onClick={() => {
+                  const next = !soundEnabled;
+                  setSoundEnabled(next);
+                  setAlertSoundEnabled(next);
+                }}
+              >
+                {soundEnabled ? (
+                  <Bell aria-hidden="true" className="h-4 w-4" />
+                ) : (
+                  <BellOff aria-hidden="true" className="h-4 w-4" />
+                )}
+                Aviso sonoro
+              </Button>
+
+              {fullscreen.supported ? (
+                <Button
+                  variant="outline"
+                  className="min-h-11 gap-2"
+                  aria-pressed={fullscreen.isFullscreen}
+                  onClick={() => void fullscreen.toggle()}
+                >
+                  {fullscreen.isFullscreen ? (
+                    <Minimize2 aria-hidden="true" className="h-4 w-4" />
+                  ) : (
+                    <Maximize2 aria-hidden="true" className="h-4 w-4" />
+                  )}
+                  {fullscreen.isFullscreen ? "Salir de pantalla completa" : "Pantalla completa"}
+                </Button>
+              ) : null}
+
+              <Button
+                variant="outline"
+                className="min-h-11 gap-2"
+                onClick={() => setRefreshToken((token) => token + 1)}
+              >
+                <RefreshCw aria-hidden="true" className="h-4 w-4" />
+                Actualizar
+              </Button>
+            </span>
+          </div>
+        </div>
+      ) : (
+        <AdminPageHeader
+          title="Órdenes"
+          description="Bandeja de turno: prioriza ingresos nuevos y sigue cada pedido hasta su cierre."
+        />
+      )}
+
+      {/* B3: lo que se anuncia por lector de pantalla cuando una comanda se pasa de tiempo. */}
+      <p role="status" aria-live="polite" className="sr-only" data-testid="comandas-late-announcement">
+        {lateAnnouncement ?? ""}
+      </p>
+
+      {/* B3: los programados para otro día no son trabajo del turno; se ven en el listado. */}
+      {showBoard && scheduledForAnotherDay.length > 0 ? (
+        <div
+          data-testid="comandas-scheduled-notice"
+          className="flex flex-col gap-2 rounded-2xl border border-border bg-card px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between"
+        >
+          <span className="font-semibold text-foreground">
+            {scheduledForAnotherDay.length === 1
+              ? "1 comanda programada para otro día"
+              : `${scheduledForAnotherDay.length} comandas programadas para otro día`}
+            .
+          </span>
+          <Button
+            variant="outline"
+            className="min-h-11 shrink-0"
+            onClick={() => setView("history")}
+          >
+            Ver en el listado
+          </Button>
+        </div>
+      ) : null}
 
       {/* B2: qué se acaba de hacer. Sin esto, la fila cambia de estado y nadie sabe si funcionó. */}
       {actionNotice ? (
@@ -605,7 +881,10 @@ export default function AdminOrdersPage() {
         </div>
       ) : null}
 
-      {/* B1: frescura de la lista y los dos controles del turno (actualizar y sonido). */}
+      {/* B1: frescura de la lista y los dos controles del turno (actualizar y sonido). En el tablero
+          de comandas estos controles viven en la barra superior (B3), así que acá quedan para el
+          historial. */}
+      {!showBoard ? (
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-xs text-muted-foreground" data-testid="orders-freshness">
           Actualizado{" "}
@@ -637,7 +916,12 @@ export default function AdminOrdersPage() {
           Aviso sonoro
         </Button>
       </div>
+      ) : null}
 
+      {/* La vista del turno es el tablero de comandas (B3): la lista con chips, resumen y barra de
+          filtros queda para el historial, donde sí hace falta. */}
+      {!showBoard ? (
+      <>
       <section
         aria-label="Resumen de órdenes"
         className="flex flex-col gap-3 rounded-2xl border border-border bg-card px-4 py-3 shadow-sm sm:flex-row sm:items-center sm:justify-between"
@@ -650,7 +934,7 @@ export default function AdminOrdersPage() {
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Órdenes en vista</p>
             <p className="mt-0.5 text-sm font-semibold text-foreground">
               <span className="text-2xl leading-none">{ordersStatusCounts.total}</span>
-              <span className="ml-2 text-muted-foreground">{view === "today" ? "hoy" : "historial"}</span>
+              <span className="ml-2 text-muted-foreground">historial</span>
             </p>
           </div>
         </div>
@@ -716,15 +1000,12 @@ export default function AdminOrdersPage() {
         </div>
 
         <p className="text-xs text-muted-foreground">
-          {view === "today"
-            ? `Mostrando órdenes de hoy (${today}).`
-            : `Historial · estado: ${activeStatusLabel} · tipo: ${activeTypeLabel}.`}
+          {`Historial · estado: ${activeStatusLabel} · tipo: ${activeTypeLabel}.`}
         </p>
 
         {filtersOpen ? (
           <div id="order-filters" aria-label="Filtros de órdenes" className="space-y-4 border-t border-border pt-3">
-            {view === "history" ? (
-              <div className="min-w-0 space-y-2">
+            <div className="min-w-0 space-y-2">
                 <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Rango</p>
                 <Tabs className="min-w-0">
                   <TabsList className={CHIP_LIST_CLASS}>
@@ -741,7 +1022,6 @@ export default function AdminOrdersPage() {
                   </div>
                 ) : null}
               </div>
-            ) : null}
 
             <div className="grid gap-4 md:grid-cols-2">
               <div className="min-w-0 space-y-2">
@@ -784,6 +1064,8 @@ export default function AdminOrdersPage() {
           </div>
         ) : null}
       </AdminCompactToolbar>
+      </>
+      ) : null}
 
       {showOlderOpenNotice ? (
         <div className="flex flex-col gap-2 rounded-lg border border-warning-strong/30 bg-warning p-4 text-sm text-warning-foreground sm:flex-row sm:items-center sm:justify-between">
@@ -861,18 +1143,36 @@ export default function AdminOrdersPage() {
         </div>
       ) : null}
 
-      {!loading && !authRequired && !error && orders.length === 0 ? (
+      {!showBoard && !loading && !authRequired && !error && orders.length === 0 ? (
         <AdminEmptyState
-          title={view === "today" ? "Sin órdenes hoy" : "Sin órdenes en este rango"}
-          description={
-            view === "today"
-              ? "Todavía no hay órdenes registradas hoy."
-              : "No hay órdenes para los filtros seleccionados."
-          }
+          title="Sin órdenes en este rango"
+          description="No hay órdenes para los filtros seleccionados."
         />
       ) : null}
 
-      {!authRequired && orders.length > 0 && groupByBucket ? (
+      {/* B3: el tablero del turno. Los carriles existen siempre y cada vacío explica qué va a
+          aparecer: un tablero en blanco no dice si no hay pedidos o si algo se rompió. */}
+      {showBoard && !authRequired && (!error || orders.length > 0) ? (
+        <OrderComandaBoard
+          orders={boardOrders}
+          nowMs={nowMs}
+          timeZone={timeZone}
+          newOrderIds={highlightIds}
+          activeLane={activeLane}
+          onActiveLaneChange={setActiveLane}
+          disabled={error !== null}
+          disabledReason="Sin conexión: no se puede cambiar el estado."
+          showLocation={scopedLocations.length > 1}
+          onUpdateStatus={(orderId, status, note) => {
+            const target = orders.find((order) => order.id === orderId);
+            if (!target) return Promise.resolve();
+
+            return changeOrderStatus(target, status, note);
+          }}
+        />
+      ) : null}
+
+      {!showBoard && !authRequired && orders.length > 0 && groupByBucket ? (
         <div className="min-w-0 space-y-5">
           {BUCKET_ORDER.map((bucket) => {
             const bucketOrders = bucketedOrders.get(bucket) ?? [];
@@ -894,7 +1194,7 @@ export default function AdminOrdersPage() {
         </div>
       ) : null}
 
-      {!authRequired && orders.length > 0 && !groupByBucket ? (
+      {!showBoard && !authRequired && orders.length > 0 && !groupByBucket ? (
         <div className="min-w-0 overflow-hidden rounded-2xl border border-border shadow-sm">
           {queueOrders.map(renderTicket)}
         </div>

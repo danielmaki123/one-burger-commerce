@@ -70,6 +70,17 @@ describe("comanda: lo que la cocina necesita leer (B3)", () => {
     expect(screen.getByText("hace 2 min")).toBeTruthy();
   });
 
+  it("deja abrir el detalle: el mostrador lo necesita para cobrar", () => {
+    renderCard();
+
+    const link = screen.getByRole("link", { name: "Abrir orden P-123" });
+    expect(link.getAttribute("href")).toBe("/admin/orders/ord_1");
+    // El enlace cubre la información de la comanda, no las acciones (un botón dentro de un enlace
+    // es HTML inválido).
+    expect(link.textContent).toContain("Ana Pérez");
+    expect(link.textContent).not.toContain("Aceptar");
+  });
+
   it("nombra al cliente: es lo primero que se canta", () => {
     renderCard();
 

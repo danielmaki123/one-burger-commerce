@@ -129,8 +129,18 @@ test.describe("checkout sin redundancias", () => {
     await loginAsOwner(page);
     await page.goto("/admin/orders");
     const dayPrefix = scheduledDay === "tomorrow" ? "mañana " : "";
+
+    if (scheduledDay === "tomorrow") {
+      // Programado para otro día: el tablero de comandas (B3) lo separa del turno —la cocina lo
+      // empezaría hoy— y avisa que está en el listado.
+      await expect(page.getByTestId("comandas-scheduled-notice")).toBeVisible();
+      await page.getByRole("button", { name: "Ver en el listado" }).click();
+    }
+
+    // La etiqueta se busca sin anclarla al final: cuando el usuario ve más de una sucursal, la
+    // comanda agrega de qué local es.
     await expect(
-      page.getByText(new RegExp(`^Retiro ${dayPrefix}\\d.* · Programado$`)).first(),
+      page.getByText(new RegExp(`Retiro ${dayPrefix}\\d.* · Programado`)).first(),
     ).toBeVisible();
   });
 
@@ -173,9 +183,19 @@ test.describe("checkout sin redundancias", () => {
     // La confirmación del cliente también dice el día.
     await expect(page.getByText(/mañana \d/)).toBeVisible();
 
-    // Y la bandeja del admin lo agrupa aparte del turno de hoy.
+    // Y el panel lo separa aparte del turno de hoy: el tablero de comandas (B3) avisa que hay una
+    // comanda programada para otro día en vez de ponerla en «Por aceptar» —la cocina la empezaría
+    // hoy—, y el listado la muestra en su grupo.
     await loginAsOwner(page);
     await page.goto("/admin/orders");
+    await expect(page.getByTestId("comandas-scheduled-notice")).toContainText(
+      /comandas? programadas? para otro día/,
+    );
+    await expect(
+      page.getByRole("region", { name: "Por aceptar" }).getByText("Cliente Otro Dia"),
+    ).toHaveCount(0);
+
+    await page.getByRole("button", { name: "Ver en el listado" }).click();
     await expect(page.getByText("Programados").first()).toBeVisible();
 
     const row = page

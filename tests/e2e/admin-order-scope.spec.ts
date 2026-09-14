@@ -187,9 +187,9 @@ test.describe("alcance por sucursal del staff (A)", () => {
       await logIn(page, KITCHEN_EMAIL, KITCHEN_PASSWORD);
       await expect(page).toHaveURL(/\/admin\/orders$/);
 
-      await page.getByRole("button", { name: "Mostrar filtros" }).click();
-      // Una sola sucursal en el alcance: no hay nada que filtrar y el control no se dibuja.
-      await expect(page.getByLabel("Local")).toHaveCount(0);
+      // El tablero de comandas (B3) pone el selector de sucursal en su barra, y solo cuando el usuario
+      // ve más de una: acá el alcance es una sola sucursal, así que no hay nada que filtrar.
+      await expect(page.getByLabel("Local de las comandas")).toHaveCount(0);
 
       await expect(
         page.getByRole("link", { name: /Abrir orden/ }).filter({ hasText: CUSTOMER_BRANCH }).first(),

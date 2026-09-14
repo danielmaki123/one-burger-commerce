@@ -57,8 +57,30 @@ function order(overrides: Record<string, unknown> = {}) {
     customerWhatsapp: "+50588887777",
     total: 380,
     createdAt: "2026-09-12T01:40:00.000Z",
+    // B3: la comanda mide su urgencia con esto y dibuja lo que hay que cocinar.
+    stageChangedAt: "2026-09-12T01:40:00.000Z",
+    items: [
+      {
+        id: "item_1",
+        productName: "Hamburguesa Doble",
+        quantity: 1,
+        notes: null,
+        modifiers: [],
+      },
+    ],
     ...overrides,
   };
+}
+
+/**
+ * B3 — la vista del turno es el **tablero de comandas**; la lista con sus chips, su resumen y la barra
+ * de filtros quedó en el historial. Los casos que prueban esa lista (el semáforo del retiro y los
+ * filtros) entran al historial a propósito.
+ */
+async function goToHistory() {
+  const user = userEvent.setup();
+  await user.click(screen.getByRole("button", { name: "Historial" }));
+  await screen.findByRole("button", { name: "Mostrar filtros" });
 }
 
 /**
@@ -79,7 +101,9 @@ async function renderWith(orders: unknown[]) {
   );
 
   const view = render(<AdminOrdersPage />);
-  await waitFor(() => expect(screen.getByText("OB-1")).toBeTruthy());
+  // Se espera a la barra de comandas y no a un pedido: hay casos con pedidos que el tablero **no**
+  // muestra (uno cerrado, por ejemplo) y ahí esperar por el número sería esperar para siempre.
+  await waitFor(() => expect(screen.getByTestId("comandas-topbar")).toBeTruthy());
 
   return view;
 }
@@ -137,6 +161,7 @@ describe("bandeja de órdenes: hora de retiro y semáforo", () => {
     const { container } = await renderWith([
       order({ pickupTime: "2026-09-12T02:40:00.000Z", pickupScheduled: true }),
     ]);
+    await goToHistory();
 
     expect(timingChip(container, "on-time")?.textContent).toBe("en 30 min");
   });
@@ -145,6 +170,7 @@ describe("bandeja de órdenes: hora de retiro y semáforo", () => {
     const { container } = await renderWith([
       order({ pickupTime: "2026-09-12T02:05:00.000Z", pickupScheduled: true }),
     ]);
+    await goToHistory();
 
     expect(timingChip(container, "past")?.textContent).toBe("hace 5 min");
   });
@@ -153,6 +179,7 @@ describe("bandeja de órdenes: hora de retiro y semáforo", () => {
     const { container } = await renderWith([
       order({ pickupTime: "2026-09-12T01:50:00.000Z", pickupScheduled: true }),
     ]);
+    await goToHistory();
 
     expect(timingChip(container, "late")?.textContent).toBe("hace 20 min");
   });
@@ -167,6 +194,7 @@ describe("bandeja de órdenes: hora de retiro y semáforo", () => {
         pickupScheduled: true,
       }),
     ]);
+    await goToHistory();
 
     expect(timingChip(container, "on-time")?.textContent).toBe("en 50 min");
     expect(timingChip(container, "past")).toBeNull();
@@ -181,6 +209,7 @@ describe("bandeja de órdenes: hora de retiro y semáforo", () => {
         pickupScheduled: true,
       }),
     ]);
+    await goToHistory();
 
     expect(timingChip(container, "past")).toBeNull();
     expect(timingChip(container, "late")).toBeNull();
@@ -190,9 +219,9 @@ describe("bandeja de órdenes: hora de retiro y semáforo", () => {
   it("no inventa una hora si el pedido no la tiene", async () => {
     const { container } = await renderWith([order({ pickupTime: null })]);
 
-    // Sin hora cae al dato que sí existe: cuándo entró el pedido.
+    // Sin hora prometida no se inventa una cuenta regresiva; queda el dato que sí existe: cuándo entró.
     expect(screen.queryByText(/^Retiro ~?\d/)).toBeNull();
-    expect(screen.getByText(/^Recibida /)).toBeTruthy();
+    expect(screen.getByText(/^Entró /)).toBeTruthy();
     expect(timingChip(container, "late")).toBeNull();
   });
 
@@ -201,6 +230,7 @@ describe("bandeja de órdenes: hora de retiro y semáforo", () => {
     await renderWithLocations([order()], [{ id: "loc_principal", name: "Principal", isActive: true }]);
 
     // El panel de filtros se abre a propósito: si no, la ausencia no probaría nada.
+    await goToHistory();
     await user.click(screen.getByRole("button", { name: "Mostrar filtros" }));
 
     expect(screen.queryByLabelText("Local")).toBeNull();
@@ -219,6 +249,7 @@ describe("bandeja de órdenes: hora de retiro y semáforo", () => {
     // El pedido dice de qué local es.
     expect(screen.getByText(/· Norte/)).toBeTruthy();
 
+    await goToHistory();
     await user.click(screen.getByRole("button", { name: "Mostrar filtros" }));
     await user.selectOptions(screen.getByLabelText("Local"), "loc_norte");
 
@@ -274,6 +305,7 @@ describe("bandeja de órdenes: alcance por sucursal (A)", () => {
     render(<AdminOrdersPage />);
 
     await screen.findByText("OB-1");
+    await goToHistory();
     await user.click(screen.getByRole("button", { name: "Mostrar filtros" }));
 
     const select = screen.getByLabelText("Local");
@@ -325,6 +357,7 @@ describe("bandeja de órdenes: alcance por sucursal (A)", () => {
 
     render(<AdminOrdersPage />);
     await screen.findByText("OB-1");
+    await goToHistory();
     await user.click(screen.getByRole("button", { name: "Mostrar filtros" }));
     await user.selectOptions(screen.getByLabelText("Local"), "loc_norte");
 
@@ -344,6 +377,7 @@ describe("bandeja de órdenes: alcance por sucursal (A)", () => {
     render(<AdminOrdersPage />);
 
     await screen.findByText("OB-1");
+    await goToHistory();
     await user.click(screen.getByRole("button", { name: "Mostrar filtros" }));
 
     const select = screen.getByLabelText("Local");
@@ -360,6 +394,7 @@ describe("bandeja de órdenes: alcance por sucursal (A)", () => {
     render(<AdminOrdersPage />);
 
     await screen.findByText("OB-1");
+    await goToHistory();
     await user.click(screen.getByRole("button", { name: "Mostrar filtros" }));
 
     expect(screen.queryByLabelText("Local")).toBeNull();
@@ -438,8 +473,8 @@ describe("bandeja de órdenes: sin red (B0)", () => {
 
     await screen.findByText("OB-1");
 
-    // Cambiar un filtro dispara otra lectura, que ahora falla.
-    await user.click(screen.getByRole("button", { name: /Preparando/ }));
+    // El boton del turno dispara otra lectura, que ahora falla.
+    await user.click(screen.getByRole("button", { name: "Actualizar" }));
 
     expect(await screen.findByText(/No se pudo actualizar la bandeja/)).toBeTruthy();
     expect(screen.getByText(/Última actualización/)).toBeTruthy();
@@ -494,7 +529,7 @@ describe("bandeja de órdenes: sin red (B0)", () => {
 
     render(<AdminOrdersPage />);
     await screen.findByText("OB-1");
-    await user.click(screen.getByRole("button", { name: /Preparando/ }));
+    await user.click(screen.getByRole("button", { name: "Actualizar" }));
     await screen.findByText(/No se pudo actualizar la bandeja/);
 
     await user.click(screen.getByRole("button", { name: "Reintentar" }));
@@ -863,3 +898,152 @@ describe("bandeja de órdenes: aceptar y rechazar desde la fila (B2)", () => {
     expect(screen.getAllByText(/sin conexión/i).length).toBeGreaterThan(0);
   });
 });
+
+/**
+ * B3 — el turno como tablero de comandas.
+ *
+ * La lista del historial sigue existiendo, pero el día se mira en tres carriles. Lo que se prueba acá
+ * es lo que la pantalla aporta por encima del tablero aislado: los contadores de la barra, el carril
+ * de celular, el aviso por lector de pantalla de lo que se atrasa y que el tablero vacío no mienta.
+ */
+describe("bandeja de órdenes: tablero de comandas (B3)", () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date", "setInterval", "clearInterval"] });
+    vi.setSystemTime(NOW);
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      get: () => "hidden",
+    });
+  });
+
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+  });
+
+  async function flush(times = 12) {
+    await act(async () => {
+      for (let index = 0; index < times; index += 1) {
+        await Promise.resolve();
+      }
+    });
+  }
+
+  async function renderBoardWith(orders: unknown[]) {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string) =>
+        Promise.resolve({
+          ok: true,
+          status: 200,
+          json: async () => ({ data: String(url).includes("/api/admin/locations") ? [] : orders }),
+        }),
+      ),
+    );
+
+    render(<AdminOrdersPage />);
+    await flush();
+  }
+
+  it("reparte el turno en los tres carriles y cuenta lo que hay en cada uno", async () => {
+    await renderBoardWith([
+      order({ id: "ord_1", status: "new" }),
+      order({ id: "ord_2", orderNumber: "OB-2", status: "preparing" }),
+      order({ id: "ord_3", orderNumber: "OB-3", status: "ready_for_pickup" }),
+      order({ id: "ord_4", orderNumber: "OB-4", status: "closed" }),
+    ]);
+
+    expect(screen.getByRole("heading", { name: /Por aceptar \(1\)/ })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: /En preparación \(1\)/ })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: /Listas \(1\)/ })).toBeTruthy();
+    // Lo cerrado no está en el tablero del turno.
+    expect(screen.queryByText("OB-4")).toBeNull();
+
+    const topbar = screen.getByTestId("comandas-topbar");
+    expect(topbar.textContent).toMatch(/Nuevas 1/);
+    expect(topbar.textContent).toMatch(/Preparando 1/);
+    expect(topbar.textContent).toMatch(/Listas 1/);
+  });
+
+  it("el conmutador de celular ofrece un carril por vez, con su cuenta", async () => {
+    await renderBoardWith([
+      order({ id: "ord_1", status: "new" }),
+      order({ id: "ord_2", orderNumber: "OB-2", status: "ready_for_pickup" }),
+    ]);
+
+    expect(screen.getByRole("button", { name: "Por aceptar 1" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Listas 1" })).toBeTruthy();
+  });
+
+  it("sin comandas el tablero enseña qué va a aparecer en cada carril", async () => {
+    await renderBoardWith([]);
+
+    expect(screen.getAllByText(/No hay comandas nuevas\./).length).toBeGreaterThan(0);
+    expect(screen.queryByText("No se pudieron cargar las órdenes.")).toBeNull();
+  });
+
+  it("avisa por lector de pantalla cuando una comanda se pasa de tiempo, una sola vez", async () => {
+    await renderBoardWith([
+      order({
+        id: "ord_1",
+        status: "preparing",
+        // 20 minutos en la etapa: ya está atrasada (el umbral es 15).
+        stageChangedAt: new Date(NOW.getTime() - 20 * 60_000).toISOString(),
+      }),
+    ]);
+
+    const announcement = screen.getByTestId("comandas-late-announcement");
+    expect(announcement.textContent).toMatch(/OB-1.*más de 15 minutos/);
+
+    // Otro tick del reloj no lo repite: sería ruido cada cinco segundos.
+    await act(async () => {
+      vi.advanceTimersByTime(5000);
+    });
+    await flush();
+    expect(screen.getByTestId("comandas-late-announcement").textContent).toMatch(
+      /OB-1.*más de 15 minutos/,
+    );
+  });
+
+  /**
+   * La separación de la fase 4 del checkout, que el tablero tiene que respetar igual que la lista: un
+   * pedido programado para **otro día** no puede caer en «Por aceptar» —la cocina lo empezaría hoy— ni
+   * contarse en los contadores del turno.
+   */
+  it("un pedido programado para otro día no entra en los carriles", async () => {
+    await renderBoardWith([
+      order({ id: "ord_1", status: "new" }),
+      order({
+        id: "ord_2",
+        orderNumber: "OB-2",
+        status: "new",
+        pickupTime: "2026-09-14T18:00:00.000Z",
+        pickupScheduled: true,
+      }),
+    ]);
+
+    const pending = screen.getByRole("region", { name: "Por aceptar" });
+    expect(within(pending).getByText("OB-1")).toBeTruthy();
+    expect(within(pending).queryByText("OB-2")).toBeNull();
+
+    // Y se anuncia aparte, con la salida al listado donde tiene su grupo.
+    expect(screen.getByTestId("comandas-scheduled-notice").textContent).toMatch(
+      /1 comanda programada para otro día/,
+    );
+    expect(screen.getByRole("button", { name: "Ver en el listado" })).toBeTruthy();
+  });
+
+  it("el historial conserva la lista con sus filtros, sin el tablero", async () => {    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    await renderBoardWith([order({ status: "new" })]);
+
+    await user.click(screen.getByRole("button", { name: "Historial" }));
+    await flush();
+
+    expect(screen.queryByTestId("comandas-topbar")).toBeNull();
+    expect(screen.getByRole("button", { name: "Mostrar filtros" })).toBeTruthy();
+    expect(screen.getByText("OB-1")).toBeTruthy();
+  });
+});
+
+
