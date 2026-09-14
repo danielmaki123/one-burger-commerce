@@ -133,6 +133,41 @@ describe("GET /api/admin/orders · alcance por sucursal (A)", () => {
     expect(listAdminOrdersMock).not.toHaveBeenCalled();
   });
 
+  /**
+   * B4 — la búsqueda y la forma de pago llegan al caso de uso tal cual vinieron.
+   *
+   * Es el mismo agujero que tuvo el filtro por local (viajaba en la query y la ruta lo ignoraba): acá
+   * se afirma que lo que se pide es lo que se aplica.
+   */
+  it("pasa la búsqueda recortada y la forma de pago al caso de uso (B4)", async () => {
+    requireAdminSessionMock.mockResolvedValueOnce({
+      user: { id: "admin_1", role: "owner", locationIds: [] },
+    });
+
+    const { status } = await listOrders(
+      "http://localhost/api/admin/orders?search=%20ana%20&paymentMethod=cash",
+    );
+
+    expect(status).toBe(200);
+    expect(listAdminOrdersMock).toHaveBeenCalledWith(
+      expect.objectContaining({ search: "ana", paymentMethod: "cash" }),
+      expect.anything(),
+    );
+  });
+
+  it("rechaza una búsqueda desmedida en vez de pasarla a la base (B4)", async () => {
+    requireAdminSessionMock.mockResolvedValueOnce({
+      user: { id: "admin_1", role: "owner", locationIds: [] },
+    });
+
+    const { status } = await listOrders(
+      `http://localhost/api/admin/orders?search=${"a".repeat(200)}`,
+    );
+
+    expect(status).toBe(400);
+    expect(listAdminOrdersMock).not.toHaveBeenCalled();
+  });
+
   it("devuelve 403 cuando el rol no maneja pedidos", async () => {
     requireAdminSessionMock.mockResolvedValueOnce({
       user: { id: "admin_4", role: "viewer", locationIds: [] },

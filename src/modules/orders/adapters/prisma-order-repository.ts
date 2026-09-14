@@ -17,6 +17,10 @@ import type {
   OrderQueueRecord,
   OrderRepository,
 } from "@/modules/orders/ports/order-repository";
+import {
+  normalizeOrderSearch,
+  searchDigits,
+} from "@/modules/orders/domain/order-search";
 import type { CouponType } from "@prisma/client";
 
 function decimalToNumber(d: Decimal): number {
@@ -306,6 +310,8 @@ export class PrismaOrderRepository implements OrderRepository {
       status?: OrderRecord["status"];
       locationId?: { in: string[] };
       createdAt?: { gte?: Date; lte?: Date };
+      paymentMethod?: OrderRecord["paymentMethod"];
+      OR?: Array<Record<string, unknown>>;
     } = {};
 
     if (filter.type) {
@@ -318,6 +324,9 @@ export class PrismaOrderRepository implements OrderRepository {
     if (filter.locationIds?.length) {
       where.locationId = { in: filter.locationIds };
     }
+    if (filter.paymentMethod) {
+      where.paymentMethod = filter.paymentMethod;
+    }
     if (filter.dateFrom || filter.dateTo) {
       where.createdAt = {};
       if (filter.dateFrom) {
@@ -326,6 +335,21 @@ export class PrismaOrderRepository implements OrderRepository {
       if (filter.dateTo) {
         where.createdAt.lte = new Date(filter.dateTo);
       }
+    }
+
+    // B4: la regla es la de `domain/order-search.ts` (`orderMatchesSearch`), escrita acá en SQL. Si
+    // cambia una, cambia la otra: el adaptador de memoria la aplica fila por fila y los tests del caso
+    // de uso la fijan.
+    const needle = normalizeOrderSearch(filter.search);
+    if (needle) {
+      const digits = searchDigits(needle);
+
+      where.OR = [
+        { orderNumber: { contains: needle, mode: "insensitive" } },
+        { customerName: { contains: needle, mode: "insensitive" } },
+        { customerWhatsapp: { contains: needle } },
+        ...(digits ? [{ pickupPin: { contains: digits } }] : []),
+      ];
     }
 
     const orders = await prisma.order.findMany({

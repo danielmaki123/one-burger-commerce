@@ -1046,4 +1046,143 @@ describe("bandeja de órdenes: tablero de comandas (B3)", () => {
   });
 });
 
+/**
+ * B4 — buscar y acotar el turno.
+ *
+ * El caso real: entra un pedido, el cliente llama preguntando por él, y quien atiende tiene el número,
+ * el nombre o el WhatsApp a mano. La búsqueda va al servidor (la lista del día puede ser larga y el
+ * celular de la cocina no la baja entera para filtrarla) y los filtros quedan en la URL para poder
+ * mandarle el enlace a la cocina o recargar sin perder lo que se estaba mirando.
+ */
+describe("bandeja de órdenes: buscar y filtrar (B4)", () => {
+  beforeEach(() => {
+    // Acá `setTimeout` queda real: el buscador tiene una demora propia que se espera con `waitFor`.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(NOW);
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      get: () => "hidden",
+    });
+    // La URL es del entorno, no del test: se limpia para que un caso no arrastre los filtros del otro.
+    window.history.replaceState(null, "", "/admin/orders");
+  });
+
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+  });
+
+  function stubFetchWith(orders: unknown[]) {
+    const fetchMock = vi.fn((url: string) =>
+      Promise.resolve({
+        ok: true,
+        status: 200,
+        json: async () => ({ data: String(url).includes("/api/admin/locations") ? [] : orders }),
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    return fetchMock;
+  }
+
+  function listCalls(fetchMock: ReturnType<typeof vi.fn>) {
+    return fetchMock.mock.calls
+      .map(([url]) => String(url))
+      .filter((url) => !url.includes("/api/admin/locations"));
+  }
+
+  it("busca en el servidor cuando la persona termina de escribir", async () => {
+    const user = userEvent.setup();
+    const fetchMock = stubFetchWith([order({ status: "new" })]);
+    render(<AdminOrdersPage />);
+    await screen.findByText("OB-1");
+
+    await user.type(screen.getByLabelText("Buscar comanda"), "ana");
+
+    await waitFor(() => {
+      expect(listCalls(fetchMock).some((url) => url.includes("search=ana"))).toBe(true);
+    });
+  });
+
+  it("lo que no coincide lo dice el carril, no una pantalla vacía", async () => {
+    const user = userEvent.setup();
+    stubFetchWith([]);
+    render(<AdminOrdersPage />);
+    await waitFor(() => expect(screen.getByTestId("comandas-topbar")).toBeTruthy());
+
+    await user.type(screen.getByLabelText("Buscar comanda"), "zzz");
+
+    expect(
+      await screen.findAllByText(/Ninguna comanda de este carril coincide con «zzz»\./),
+    ).not.toHaveLength(0);
+  });
+
+  it("el filtro de atrasados deja solo lo que pasó el umbral", async () => {
+    const user = userEvent.setup();
+    stubFetchWith([
+      order({
+        id: "ord_1",
+        orderNumber: "OB-1",
+        status: "preparing",
+        customerName: "Atrasada",
+        stageChangedAt: new Date(NOW.getTime() - 20 * 60_000).toISOString(),
+      }),
+      order({
+        id: "ord_2",
+        orderNumber: "OB-2",
+        status: "preparing",
+        customerName: "Al día",
+        stageChangedAt: new Date(NOW.getTime() - 2 * 60_000).toISOString(),
+      }),
+    ]);
+    render(<AdminOrdersPage />);
+    await screen.findByText("Atrasada");
+
+    await user.click(screen.getByRole("button", { name: "Atrasados" }));
+
+    expect(screen.getByText("Atrasada")).toBeTruthy();
+    expect(screen.queryByText("Al día")).toBeNull();
+    // El filtro es de la vista: queda en la URL.
+    expect(window.location.search).toContain("late=1");
+  });
+
+  it("los filtros quedan en la URL y se pueden limpiar", async () => {
+    const user = userEvent.setup();
+    stubFetchWith([order({ status: "new" })]);
+    render(<AdminOrdersPage />);
+    await screen.findByText("OB-1");
+
+    await user.type(screen.getByLabelText("Buscar comanda"), "ana");
+    await user.selectOptions(screen.getByLabelText("Forma de pago"), "cash");
+
+    await waitFor(() => {
+      expect(window.location.search).toContain("search=ana");
+      expect(window.location.search).toContain("paymentMethod=cash");
+    });
+
+    await user.click(screen.getByRole("button", { name: "Limpiar filtros" }));
+
+    await waitFor(() => {
+      expect(window.location.search).not.toContain("search=ana");
+      expect(window.location.search).not.toContain("paymentMethod=cash");
+    });
+    expect(screen.getByLabelText("Buscar comanda")).toHaveProperty("value", "");
+  });
+
+  it("abre con los filtros que trae el enlace", async () => {
+    const fetchMock = stubFetchWith([order({ status: "new" })]);
+    window.history.replaceState(null, "", "/admin/orders?search=ana&paymentMethod=card");
+
+    render(<AdminOrdersPage />);
+    await screen.findByText("OB-1");
+
+    expect(screen.getByLabelText("Buscar comanda")).toHaveProperty("value", "ana");
+    await waitFor(() => {
+      expect(listCalls(fetchMock).some((url) => url.includes("search=ana"))).toBe(true);
+      expect(listCalls(fetchMock).some((url) => url.includes("paymentMethod=card"))).toBe(true);
+    });
+  });
+});
+
 

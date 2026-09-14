@@ -82,6 +82,13 @@ export type ListOrdersFilter = {
    * del usuario (`resolveOrderListLocationIds`).
    */
   locationIds?: string[];
+  /**
+   * B4 — búsqueda por número, nombre, WhatsApp o PIN. La regla está en `domain/order-search.ts`:
+   * el adaptador de Prisma la traduce a SQL y el de memoria la aplica igual.
+   */
+  search?: string;
+  /** B4 — forma de pago declarada por el cliente, para la caja. */
+  paymentMethod?: OrderPaymentMethod;
 };
 
 export interface OrderRepository {

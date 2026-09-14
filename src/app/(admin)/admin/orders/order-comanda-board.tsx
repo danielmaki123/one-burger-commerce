@@ -25,6 +25,8 @@ type OrderComandaBoardProps = {
   lateMinutes?: number;
   /** Con más de una sucursal a la vista, cada comanda dice de dónde es. */
   showLocation?: boolean;
+  /** Término buscado: cuando el carril está vacío, el vacío explica que es por la búsqueda. */
+  searchTerm?: string;
 };
 
 /**
@@ -53,6 +55,7 @@ export function OrderComandaBoard({
   warningMinutes,
   lateMinutes,
   showLocation = false,
+  searchTerm = "",
 }: OrderComandaBoardProps) {
   const grouped = groupComandasByLane(orders);
   const counters = comandaCounters(orders);
@@ -108,7 +111,9 @@ export function OrderComandaBoard({
 
               {laneOrders.length === 0 ? (
                 <p className="rounded-panel border border-dashed border-border bg-card/60 px-4 py-6 text-sm text-muted-foreground">
-                  {lane.empty}
+                  {searchTerm
+                    ? `Ninguna comanda de este carril coincide con «${searchTerm}».`
+                    : lane.empty}
                 </p>
               ) : (
                 laneOrders.map((order) => (

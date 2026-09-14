@@ -45,6 +45,12 @@ const querySchema = z.object({
     }),
   // Local del pedido (T8): cada sucursal ve lo suyo; sin dato, todos.
   locationId: z.string().optional(),
+  // B4: búsqueda por número, nombre, WhatsApp o PIN. Se recorta y se topa: un término enorme no tiene
+  // por qué llegar a la base.
+  search: z.string().trim().max(60).optional(),
+  // B4: la caja necesita ver solo lo que se paga en efectivo (es donde hay vuelto que preparar).
+  // Las formas de pago son las del dominio (`OrderPaymentMethod`).
+  paymentMethod: z.enum(["cash", "card"]).optional(),
 });
 
 export async function GET(request: Request) {
@@ -60,6 +66,8 @@ export async function GET(request: Request) {
       status: searchParams.get("status") ?? undefined,
       dateFrom: searchParams.get("dateFrom") ?? undefined,
       dateTo: searchParams.get("dateTo") ?? undefined,
+      search: searchParams.get("search") ?? undefined,
+      paymentMethod: searchParams.get("paymentMethod") ?? undefined,
     });
 
     if (!parsed.success) {

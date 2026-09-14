@@ -162,3 +162,96 @@ describe("listAdminOrders · el tiempo en la etapa (B3)", () => {
     expect(result.data[0].stageChangedAt).toBe("2026-09-12T18:00:00.000Z");
   });
 });
+
+/**
+ * B4 — buscar una comanda en el turno.
+ *
+ * Lo que se busca es lo que la persona tiene a mano cuando pregunta: el número que se dictó por
+ * teléfono, el nombre, el WhatsApp desde el que escribió o el PIN que está esperando en el mostrador.
+ * El filtro vive en el servidor —la lista puede ser larga y el celular de la cocina no puede
+ * bajarla entera para filtrarla— y **no** cambia el alcance por sucursal.
+ */
+describe("listAdminOrders · búsqueda (B4)", () => {
+  function repoWithThree() {
+    const repo = new InMemoryOrderRepository();
+    repo.orders.push(
+      order({
+        id: "ord_1",
+        orderNumber: "P-ABC123",
+        customerName: "Ana Pérez",
+        // Un WhatsApp que **no** comparta dígitos con el de Bruno: si no, el caso de "los últimos
+        // dígitos" pasaría por el pedido equivocado y no probaría nada.
+        customerWhatsapp: "+50588881234",
+        pickupPin: "4821",
+      }),
+      order({
+        id: "ord_2",
+        orderNumber: "P-XYZ789",
+        customerName: "Bruno López",
+        customerWhatsapp: "+50577776666",
+        pickupPin: "9137",
+      }),
+      order({
+        id: "ord_3",
+        orderNumber: "D-555AAA",
+        customerName: "Carla Ruiz",
+        customerWhatsapp: "+50566665555",
+        pickupPin: "2048",
+      }),
+    );
+
+    return repo;
+  }
+
+  async function search(term: string) {
+    const result = await listAdminOrders(
+      { search: term },
+      { repository: repoWithThree(), locationRepository: locations() },
+    );
+
+    return result.data.map((entry) => entry.orderNumber);
+  }
+
+  it("por número de pedido, sin importar mayúsculas ni espacios", async () => {
+    expect(await search("  p-abc  ")).toEqual(["P-ABC123"]);
+    expect(await search("xyz")).toEqual(["P-XYZ789"]);
+  });
+
+  it("por nombre del cliente", async () => {
+    expect(await search("bruno")).toEqual(["P-XYZ789"]);
+    expect(await search("Pérez")).toEqual(["P-ABC123"]);
+  });
+
+  it("por WhatsApp completo o por los últimos dígitos", async () => {
+    expect(await search("+50577776666")).toEqual(["P-XYZ789"]);
+    expect(await search("7777")).toEqual(["P-XYZ789"]);
+  });
+
+  it("por el PIN que el cliente dicta en el mostrador", async () => {
+    expect(await search("4821")).toEqual(["P-ABC123"]);
+  });
+
+  it("varios resultados no se pisan entre sí", async () => {
+    expect(await search("P-")).toEqual(["P-ABC123", "P-XYZ789"]);
+  });
+
+  it("sin resultados devuelve vacío, no todo", async () => {
+    expect(await search("zzzz")).toEqual([]);
+  });
+
+  it("una búsqueda vacía no filtra nada", async () => {
+    expect((await search("   ")).length).toBe(3);
+  });
+
+  it("la búsqueda se combina con el alcance por sucursal", async () => {
+    const repo = repoWithThree();
+    repo.orders[0].locationId = "loc_norte";
+
+    const result = await listAdminOrders(
+      { search: "P-", locationIds: ["loc_norte"] },
+      { repository: repo, locationRepository: locations() },
+    );
+
+    expect(result.data.map((entry) => entry.orderNumber)).toEqual(["P-ABC123"]);
+  });
+});

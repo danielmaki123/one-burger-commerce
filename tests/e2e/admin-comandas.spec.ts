@@ -70,6 +70,33 @@ test.describe("comandas: el tablero del turno (B3)", () => {
     await expect(page.locator(".admin-sidebar-shell")).toBeHidden();
   });
 
+  test("buscar deja solo la comanda que se está preguntando y lo deja en la URL (B4)", async ({ page }) => {
+    // Un nombre irrepetible: la base local acumula pedidos de corridas anteriores.
+    const customer = await createOrder(page, "Cliente B4 busqueda");
+    await openBoard(page);
+
+    const search = page.getByLabel("Buscar comanda");
+    await search.fill(customer);
+
+    const pending = page.getByRole("region", { name: "Por aceptar" });
+    await expect(pending.locator("article")).toHaveCount(1);
+    await expect(pending.locator("article")).toContainText(customer);
+
+    // El filtro queda en la URL: se puede mandar el enlace a la cocina o recargar sin perderlo.
+    await expect(page).toHaveURL(/search=Cliente\+B4\+busqueda/);
+
+    // Lo que no existe no deja una pantalla vacía: lo dice el carril.
+    await search.fill("no-existe-esta-comanda");
+    await expect(
+      pending.getByText(/Ninguna comanda de este carril coincide con «no-existe-esta-comanda»\./),
+    ).toBeVisible();
+
+    // Y limpiar los filtros devuelve el turno completo.
+    await page.getByRole("button", { name: "Limpiar filtros" }).click();
+    await expect(search).toHaveValue("");
+    await expect(page).not.toHaveURL(/search=/);
+  });
+
   test.describe("en el celular de la cocina", () => {
     test.use({ viewport: { width: 375, height: 812 } });
 

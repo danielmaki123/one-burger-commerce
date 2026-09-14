@@ -6,6 +6,7 @@ import type {
   OrderStatusHistoryRecord,
   TableRecord,
 } from "@/modules/orders/domain/order.types";
+import { orderMatchesSearch } from "@/modules/orders/domain/order-search";
 import type {
   CouponInput,
   CreateOrderInput,
@@ -161,6 +162,9 @@ export class InMemoryOrderRepository implements OrderRepository {
         if (filter.locationIds?.length && !filter.locationIds.includes(o.locationId)) return false;
         if (filter.dateFrom && o.createdAt < filter.dateFrom) return false;
         if (filter.dateTo && o.createdAt > filter.dateTo) return false;
+        // La misma regla que traduce el adaptador de Prisma (B4).
+        if (filter.search && !orderMatchesSearch(o, filter.search)) return false;
+        if (filter.paymentMethod && o.paymentMethod !== filter.paymentMethod) return false;
         return true;
       })
       // Copia con el sello de la etapa (B3): la cola no devuelve los objetos vivos del almacén.

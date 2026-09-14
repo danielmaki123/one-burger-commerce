@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  AlarmClock,
   Bell,
   BellOff,
   ClipboardList,
@@ -52,6 +53,7 @@ import {
 import { OrderComandaBoard } from "./order-comanda-board";
 import type { ComandaItem } from "./order-comanda-card";
 import { useComandaView, useFullscreen } from "./use-comanda-view";
+import { readOrderUrlFilters, writeOrderUrlFilters, type OrderPaymentFilter } from "./comanda-url";
 import {
   AdminCompactToolbar,
   AdminEmptyState,
@@ -127,6 +129,9 @@ const CLOCK_TICK_MS = 5_000;
 /** Cuánto dura el resaltado de una comanda recién llegada (B3): lo suficiente para encontrarla. */
 const HIGHLIGHT_MS = 1_200;
 
+/** B4: la demora del buscador. Con 300 ms, escribir «Ana» hace un viaje en vez de tres. */
+const SEARCH_DEBOUNCE_MS = 300;
+
 const STATUS_FILTERS: Array<{ value: string; label: string }> = [
   { value: "all", label: "Todos" },
   { value: "new", label: "Nuevos" },
@@ -193,6 +198,23 @@ export default function AdminOrdersPage() {
   /** B3: lo que se anuncia por lector de pantalla cuando una comanda se pasa de tiempo. */
   const [lateAnnouncement, setLateAnnouncement] = useState<string | null>(null);
   const announcedLateIdsRef = useRef<Set<string>>(new Set());
+
+  /**
+   * B4 — los filtros del tablero. Arrancan en la URL (así un enlace a «el pedido de Ana» funciona y al
+   * recargar no se pierde lo que se estaba mirando) y se vuelven a escribir ahí cuando cambian.
+   */
+  const [initialFilters] = useState(() =>
+    typeof window === "undefined"
+      ? { search: "", paymentMethod: "all" as OrderPaymentFilter, lateOnly: false }
+      : readOrderUrlFilters(window.location.search),
+  );
+  /** Lo que se escribe en el buscador y lo que ya se pidió: sin la demora, cada tecla sería un viaje. */
+  const [searchTerm, setSearchTerm] = useState(initialFilters.search);
+  const [searchQuery, setSearchQuery] = useState(initialFilters.search);
+  const [paymentFilter, setPaymentFilter] = useState<OrderPaymentFilter>(
+    initialFilters.paymentMethod,
+  );
+  const [lateOnly, setLateOnly] = useState(initialFilters.lateOnly);
 
   // B3: la barra lateral del panel se esconde mientras esta vista está montada.
   useComandaView();
@@ -281,10 +303,40 @@ export default function AdminOrdersPage() {
     if (!showBoard && statusFilter !== "all") query.set("status", statusFilter);
     if (typeFilter !== "all") query.set("type", typeFilter);
     if (locationFilter !== "all") query.set("locationId", locationFilter);
+    if (searchQuery) query.set("search", searchQuery);
+    if (paymentFilter !== "all") query.set("paymentMethod", paymentFilter);
     if (range.from) query.set("dateFrom", range.from);
     if (range.to) query.set("dateTo", range.to);
     return query.toString();
-  }, [range, statusFilter, typeFilter, locationFilter, showBoard]);
+  }, [
+    range,
+    statusFilter,
+    typeFilter,
+    locationFilter,
+    searchQuery,
+    paymentFilter,
+    showBoard,
+  ]);
+
+  /** El buscador no dispara un viaje por tecla: espera a que la persona termine de escribir. */
+  useEffect(() => {
+    if (searchTerm === searchQuery) return;
+
+    const timer = window.setTimeout(() => setSearchQuery(searchTerm), SEARCH_DEBOUNCE_MS);
+    return () => window.clearTimeout(timer);
+  }, [searchTerm, searchQuery]);
+
+  /** La URL refleja lo que se está mirando: recargar o compartir el enlace no pierde los filtros. */
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const next = writeOrderUrlFilters(window.location.search, {
+      search: searchQuery,
+      paymentMethod: paymentFilter,
+      lateOnly,
+    });
+    window.history.replaceState(null, "", `${window.location.pathname}${next}`);
+  }, [searchQuery, paymentFilter, lateOnly]);
 
   useEffect(() => {
     async function fetchOrders() {
@@ -517,12 +569,22 @@ export default function AdminOrdersPage() {
       ),
     [orders, today, timeZone],
   );
-  const boardOrders = useMemo(
+  const boardOrders = useMemo(() => {
     // La cola del tablero se ordena por **hora prometida** (B0): dentro de cada carril, lo que hay que
     // empezar ya no puede quedar debajo de un pedido comprometido para más tarde.
-    () => sortQueueOrders(orders.filter((order) => !scheduledForAnotherDay.includes(order))),
-    [orders, scheduledForAnotherDay],
-  );
+    const queue = sortQueueOrders(
+      orders.filter((order) => !scheduledForAnotherDay.includes(order)),
+    );
+
+    // "Atrasados" se filtra en el cliente a propósito: la urgencia es el tiempo en la etapa **ahora**,
+    // y eso cambia entre lecturas; pedirlo al servidor devolvería una foto que ya venció.
+    if (!lateOnly) return queue;
+
+    return queue.filter(
+      (order) =>
+        resolveComandaUrgency({ stageChangedAt: order.stageChangedAt, nowMs }).level === "late",
+    );
+  }, [orders, scheduledForAnotherDay, lateOnly, nowMs]);
   const bucketedOrders = useMemo(() => {
     const buckets = new Map<OrderBucket, OrderSummary[]>();
     for (const bucket of BUCKET_ORDER) buckets.set(bucket, []);
@@ -680,7 +742,9 @@ export default function AdminOrdersPage() {
       {showBoard ? (
         <div
           data-testid="comandas-topbar"
-          className="sticky top-0 z-30 -mx-3 border-b border-border bg-background/95 px-3 py-2 backdrop-blur sm:-mx-4 md:-mx-7"
+          /* Pegajosa solo en escritorio: ahí las columnas scrollean **adentro** y la barra no se mueve.
+             En celular la barra envuelve en varias filas y, pegada, taparía el conmutador de carriles. */
+          className="z-30 -mx-3 border-b border-border bg-background/95 px-3 py-2 backdrop-blur sm:-mx-4 lg:sticky lg:top-0 md:-mx-7"
         >
           <div className="flex flex-wrap items-center gap-2">
             <Link
@@ -806,6 +870,65 @@ export default function AdminOrdersPage() {
                 Actualizar
               </Button>
             </span>
+          </div>
+
+          {/* B4 — buscar y acotar el turno. El buscador no dispara un viaje por tecla (300 ms) y los
+              filtros quedan en la URL: lo que se está mirando se puede compartir y sobrevive al
+              recargar. */}
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <label className="flex min-h-11 min-w-[12rem] flex-1 items-center gap-2">
+              <span className="sr-only">Buscar comanda</span>
+              <Input
+                type="search"
+                className="h-11"
+                placeholder="Número, nombre, WhatsApp o PIN"
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+              />
+            </label>
+
+            <label className="flex min-h-11 items-center gap-2">
+              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Pago
+              </span>
+              <select
+                aria-label="Forma de pago"
+                className="h-11 rounded-md border border-border bg-card px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                value={paymentFilter}
+                onChange={(event) =>
+                  setPaymentFilter(event.target.value as OrderPaymentFilter)
+                }
+              >
+                <option value="all">Todas</option>
+                <option value="cash">Efectivo</option>
+                <option value="card">Tarjeta</option>
+              </select>
+            </label>
+
+            <Button
+              variant="outline"
+              className="min-h-11 gap-2"
+              aria-pressed={lateOnly}
+              onClick={() => setLateOnly((only) => !only)}
+            >
+              <AlarmClock aria-hidden="true" className="h-4 w-4" />
+              Atrasados
+            </Button>
+
+            {searchQuery || paymentFilter !== "all" || lateOnly ? (
+              <Button
+                variant="ghost"
+                className="min-h-11"
+                onClick={() => {
+                  setSearchTerm("");
+                  setSearchQuery("");
+                  setPaymentFilter("all");
+                  setLateOnly(false);
+                }}
+              >
+                Limpiar filtros
+              </Button>
+            ) : null}
           </div>
         </div>
       ) : (
@@ -1163,6 +1286,7 @@ export default function AdminOrdersPage() {
           disabled={error !== null}
           disabledReason="Sin conexión: no se puede cambiar el estado."
           showLocation={scopedLocations.length > 1}
+          searchTerm={searchQuery}
           onUpdateStatus={(orderId, status, note) => {
             const target = orders.find((order) => order.id === orderId);
             if (!target) return Promise.resolve();

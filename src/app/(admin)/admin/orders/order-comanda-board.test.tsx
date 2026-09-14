@@ -93,6 +93,13 @@ describe("tablero de comandas (B3)", () => {
     expect(screen.getAllByText(/Todavía no hay nada listo para entregar\./).length).toBeGreaterThan(0);
   });
 
+  it("con una búsqueda puesta, el carril vacío dice que es por la búsqueda (B4)", () => {
+    renderBoard([], { searchTerm: "ana" });
+
+    expect(screen.getAllByText(/Ninguna comanda de este carril coincide con «ana»\./).length).toBe(3);
+    expect(screen.queryByText(/No hay comandas nuevas\./)).toBeNull();
+  });
+
   it("los contadores de cada carril salen de lo que hay", () => {
     renderBoard([
       comanda({ id: "a", orderNumber: "P-1", status: "new" }),
