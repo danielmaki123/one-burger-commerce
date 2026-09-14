@@ -110,15 +110,24 @@ desplegaron A-07/A-08 (`ea6be95`) y A (`982da3f`).
 
 ## 4. Cola de pendientes (en orden recomendado)
 
-**Primero está la cola de auditoría** ([`ops/audit-backlog.md`](../audit-backlog.md)): es lo que se va
-encontrando al revisar el producto. **A-01/A-07** (commit `83d7433`: la home y el footer muestran la
-información de **cada sucursal**) y **A-08** (commit `f0366c8`: la marca —isotipo + nombre— en el header
-**también en celular**) quedaron cerrados. Lo que sigue en esa cola (**A-02 a A-06**) está **bloqueado**:
-son datos, infraestructura o decisiones del owner, así que **hay que preguntarle** cuál sigue. El cierre
-de las comandas dejó además **cuatro ítems abiertos** (A-09 a A-12: el actor del cambio de estado sin
-mostrar, la home del panel que redirige a órdenes para los roles sin Resumen, los timeouts de la QA de
-solo lectura y el filtro «solo sin aceptar» que se decidió no implementar): están en el backlog con su
-detalle, para que la auditoría los mire. Después, esta lista:
+**El trabajo en curso es el plan `plna.md`** (raíz del repo, **sin versionar**: si no está en disco,
+pedíselo al owner). Cerradas **FASE 1** (TASK-101 a 105: idempotencia del alta pública, una sola
+puerta para el total, tablas `Payment` y `Shift`, rol `cashier`) y **FASE 2** (TASK-201 a 206:
+inventario de UI medido, `DESIGN_SYSTEM.md`, reglas de UI y de código en `AGENTS.md`, los cinco
+guardrails de `src/shared/contracts/` corriendo como job `contracts` del CI, y el refactor de
+`/admin/promotions` como prueba de fuego). **Ninguna de las dos está desplegada.** Lo que sigue es
+**FASE 3 (POS, TASK-301 a 308)**, cuyo detalle el plan pide escribir al terminar la FASE 2. El estado
+fino, con la verificación de cada tarea, está en `ops/project-state.md` §4 (filas 15 a 23).
+
+**La cola de auditoría** ([`ops/audit-backlog.md`](../audit-backlog.md)) sigue viva en paralelo: es lo
+que se va encontrando al revisar el producto. **A-01/A-07** (commit `83d7433`: la home y el footer
+muestran la información de **cada sucursal**) y **A-08** (commit `f0366c8`: la marca —isotipo + nombre—
+en el header **también en celular**) quedaron cerrados. Lo que sigue en esa cola (**A-02 a A-06**) está
+**bloqueado**: son datos, infraestructura o decisiones del owner. Los cierres dejaron **cinco ítems
+abiertos** (A-09 a A-13: el actor del cambio de estado sin mostrar, la home del panel que redirige a
+órdenes para los roles sin Resumen, los timeouts de la QA de solo lectura, el filtro «solo sin aceptar»
+que se decidió no implementar y los dos módulos cascarón `coupons`/`table-ordering`): están en el
+backlog con su detalle. Después, esta lista:
 
 1. **Monitoreo externo** — un uptime que pegue a `GET /api/readiness` y avise al canal del equipo.
    Receta: runbook §8.5. Necesita que el owner elija el servicio.
