@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { businessDayRange, orderBucket } from "./orders-page-helpers";
+import {
+  businessDayRange,
+  orderBucket,
+  sortQueueOrders,
+} from "./orders-page-helpers";
 
 /**
  * Fase 4 del checkout (D1) — un pedido puede ser para otro día.
@@ -109,5 +113,61 @@ describe("businessDayRange", () => {
       from: undefined,
       to: undefined,
     });
+  });
+});
+
+/**
+ * B0 — el orden de la cola del turno.
+ *
+ * La API devuelve por creación descendente, que es lo correcto para el historial, pero en la cola
+ * manda **la hora prometida**: un pedido que entró después pero se retira antes no puede quedar
+ * debajo. Antes la bandeja mostraba primero el más nuevo y el que había que empezar ya quedaba al
+ * fondo (con 10 pedidos, invisible).
+ */
+describe("sortQueueOrders", () => {
+  const order = (id: string, pickupTime: string | null, createdAt: string) => ({
+    id,
+    pickupTime,
+    createdAt,
+  });
+
+  it("ordena por la hora prometida, no por cuándo entró", () => {
+    const sorted = sortQueueOrders([
+      order("tarde", "2026-09-12T02:30:00.000Z", "2026-09-12T01:00:00.000Z"),
+      order("temprano", "2026-09-12T02:00:00.000Z", "2026-09-12T01:40:00.000Z"),
+      order("medio", "2026-09-12T02:15:00.000Z", "2026-09-12T01:20:00.000Z"),
+    ]);
+
+    expect(sorted.map((entry) => entry.id)).toEqual(["temprano", "medio", "tarde"]);
+  });
+
+  it("con la misma hora prometida gana el que entró antes", () => {
+    const sorted = sortQueueOrders([
+      order("nuevo", "2026-09-12T02:00:00.000Z", "2026-09-12T01:30:00.000Z"),
+      order("viejo", "2026-09-12T02:00:00.000Z", "2026-09-12T01:10:00.000Z"),
+    ]);
+
+    expect(sorted.map((entry) => entry.id)).toEqual(["viejo", "nuevo"]);
+  });
+
+  it("un pedido sin hora prometida queda después de los que sí la tienen", () => {
+    // El retiro siempre trae hora; si faltara, no puede adelantarse a un compromiso con reloj.
+    const sorted = sortQueueOrders([
+      order("sin-hora", null, "2026-09-12T00:30:00.000Z"),
+      order("con-hora", "2026-09-12T02:00:00.000Z", "2026-09-12T01:40:00.000Z"),
+    ]);
+
+    expect(sorted.map((entry) => entry.id)).toEqual(["con-hora", "sin-hora"]);
+  });
+
+  it("no muta la lista que recibe", () => {
+    const original = [
+      order("b", "2026-09-12T02:30:00.000Z", "2026-09-12T01:00:00.000Z"),
+      order("a", "2026-09-12T02:00:00.000Z", "2026-09-12T01:00:00.000Z"),
+    ];
+
+    sortQueueOrders(original);
+
+    expect(original.map((entry) => entry.id)).toEqual(["b", "a"]);
   });
 });

@@ -18,6 +18,7 @@ import {
   businessDayRange,
   orderBucket,
   shiftBusinessDays,
+  sortQueueOrders,
   type OrderBucket,
 } from "./orders-page-helpers";
 import {
@@ -125,6 +126,10 @@ export default function AdminOrdersPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [authRequired, setAuthRequired] = useState(false);
+  /** Cuándo se leyó la lista por última vez: el aviso de «sin actualizar» no puede mentir. */
+  const [lastUpdatedAt, setLastUpdatedAt] = useState<number | null>(null);
+  /** Cambia para volver a pedir la lista (botón Reintentar y, más adelante, el refresh manual). */
+  const [refreshToken, setRefreshToken] = useState(0);
 
   const [view, setView] = useState<OrdersView>("today");
   const [historyPreset, setHistoryPreset] = useState<HistoryPreset>("week");
@@ -221,24 +226,25 @@ export default function AdminOrdersPage() {
         }
 
         if (!response.ok) {
-          setError("No se pudieron cargar las órdenes.");
-          setOrders([]);
+          // B0: **no** se borra la lista. Un fallo de red en una cocina no puede dejar la pantalla
+          // sin pedidos; se conserva lo último que se leyó y se dice que está viejo.
+          setError("read-failed");
           return;
         }
 
         const payload = (await response.json()) as AdminOrdersResponse;
         setOrders(payload.data ?? []);
         setScopeLocationIds(payload.meta?.locationScope ?? null);
+        setLastUpdatedAt(Date.now());
       } catch {
-        setError("No se pudieron cargar las órdenes.");
-        setOrders([]);
+        setError("read-failed");
       } finally {
         setLoading(false);
       }
     }
 
     void fetchOrders();
-  }, [queryString]);
+  }, [queryString, refreshToken]);
 
   // Conteo en segundo plano de órdenes abiertas de días anteriores, para que no
   // desaparezcan al enfocar el día. Solo lectura; no bloquea la vista principal.
@@ -308,11 +314,22 @@ export default function AdminOrdersPage() {
     return () => window.clearInterval(timer);
   }, []);
 
+  /**
+   * La cola del turno se ordena por **hora prometida** (B0): la API devuelve por creación
+   * descendente, que es lo correcto para el historial, pero en el turno el que hay que empezar ya no
+   * puede quedar debajo de uno comprometido para más tarde. El historial conserva el orden del
+   * servidor (lo más reciente primero).
+   */
+  const queueOrders = useMemo(
+    () => (view === "today" ? sortQueueOrders(orders) : orders),
+    [orders, view],
+  );
+
   const groupByBucket = view === "today" && statusFilter === "all";
   const bucketedOrders = useMemo(() => {
     const buckets = new Map<OrderBucket, OrderSummary[]>();
     for (const bucket of BUCKET_ORDER) buckets.set(bucket, []);
-    for (const order of orders) {
+    for (const order of queueOrders) {
       // El día del pedido decide si es trabajo de este turno (fase 4): un retiro
       // programado para otro día va a "Programados" en vez de a "Nuevas".
       buckets
@@ -320,7 +337,7 @@ export default function AdminOrdersPage() {
         ?.push(order);
     }
     return buckets;
-  }, [orders, today, timeZone]);
+  }, [queueOrders, today, timeZone]);
 
   const STATUS_CHIP_OPTIONS: Array<{ value: string; label: string; count: number }> = [
     { value: "all", label: "Todas", count: ordersStatusCounts.total },
@@ -568,13 +585,15 @@ export default function AdminOrdersPage() {
         </div>
       ) : null}
 
-      {loading ? (
+      {/* B0: el spinner solo cuando todavía no hay nada que mostrar. Si la lista ya está, un
+          refresco (o un poll de B1) no puede borrarla de la pantalla. */}
+      {loading && orders.length === 0 ? (
         <div className="flex items-center justify-center py-12">
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-border border-t-brand" />
         </div>
       ) : null}
 
-      {!loading && authRequired ? (
+      {authRequired ? (
         <div className="rounded-md border border-warning-strong/30 bg-warning p-4 text-sm text-warning-foreground">
           <p>Sesión de administrador requerida.</p>
           <p className="mt-1">
@@ -588,9 +607,37 @@ export default function AdminOrdersPage() {
         </div>
       ) : null}
 
-      {!loading && error ? (
-        <div className="rounded-md border border-danger-strong/30 bg-danger p-4 text-sm text-danger-foreground">
-          {error}
+      {/* Sin lista que conservar, el error se explica entero. */}
+      {!authRequired && error && orders.length === 0 ? (
+        <div className="flex flex-col gap-3 rounded-md border border-danger-strong/30 bg-danger p-4 text-sm text-danger-foreground sm:flex-row sm:items-center sm:justify-between">
+          <span>No se pudieron cargar las órdenes.</span>
+          <Button
+            variant="outline"
+            className="min-h-11 shrink-0"
+            onClick={() => setRefreshToken((token) => token + 1)}
+          >
+            Reintentar
+          </Button>
+        </div>
+      ) : null}
+
+      {/* Con lista en pantalla, el fallo avisa que está vieja en vez de vaciarla (B0). */}
+      {!authRequired && error && orders.length > 0 ? (
+        <div className="flex flex-col gap-3 rounded-md border border-warning-strong/30 bg-warning p-4 text-sm text-warning-foreground sm:flex-row sm:items-center sm:justify-between">
+          <span>
+            No se pudo actualizar la bandeja.{" "}
+            <span className="text-warning-foreground/80">
+              Última actualización{" "}
+              {lastUpdatedAt ? formatAdminElapsed(new Date(lastUpdatedAt).toISOString(), nowMs) : "desconocida"}.
+            </span>
+          </span>
+          <Button
+            variant="outline"
+            className="min-h-11 shrink-0"
+            onClick={() => setRefreshToken((token) => token + 1)}
+          >
+            Reintentar
+          </Button>
         </div>
       ) : null}
 
@@ -605,7 +652,7 @@ export default function AdminOrdersPage() {
         />
       ) : null}
 
-      {!loading && !authRequired && !error && orders.length > 0 && groupByBucket ? (
+      {!authRequired && orders.length > 0 && groupByBucket ? (
         <div className="min-w-0 space-y-5">
           {BUCKET_ORDER.map((bucket) => {
             const bucketOrders = bucketedOrders.get(bucket) ?? [];
@@ -627,9 +674,9 @@ export default function AdminOrdersPage() {
         </div>
       ) : null}
 
-      {!loading && !authRequired && !error && orders.length > 0 && !groupByBucket ? (
+      {!authRequired && orders.length > 0 && !groupByBucket ? (
         <div className="min-w-0 overflow-hidden rounded-2xl border border-border shadow-sm">
-          {orders.map(renderTicket)}
+          {queueOrders.map(renderTicket)}
         </div>
       ) : null}
     </div>

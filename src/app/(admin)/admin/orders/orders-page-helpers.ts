@@ -108,3 +108,34 @@ export const BUCKET_ORDER: OrderBucket[] = [
   "otras",
   "cerradas",
 ];
+
+type QueueOrderLike = {
+  pickupTime?: string | null;
+  createdAt: string;
+};
+
+/**
+ * B0 — el orden de la cola del turno: **primero lo que se retira antes**.
+ *
+ * La API devuelve las órdenes por creación descendente, que es lo correcto para el historial, pero en
+ * la cola manda la hora prometida: un pedido que entró después y se retira antes no puede quedar
+ * debajo de uno comprometido para más tarde. Con la misma hora gana el que entró antes, y un pedido
+ * sin hora prometida queda al final: no puede adelantarse a un compromiso con reloj.
+ *
+ * Devuelve una lista nueva: el orden que llega del servidor no se toca.
+ */
+export function sortQueueOrders<T extends QueueOrderLike>(orders: readonly T[]): T[] {
+  return [...orders].sort((a, b) => {
+    const aTime = a.pickupTime ? new Date(a.pickupTime).getTime() : null;
+    const bTime = b.pickupTime ? new Date(b.pickupTime).getTime() : null;
+
+    if (aTime !== null && bTime !== null && aTime !== bTime) {
+      return aTime - bTime;
+    }
+
+    if (aTime !== null && bTime === null) return -1;
+    if (aTime === null && bTime !== null) return 1;
+
+    return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+  });
+}

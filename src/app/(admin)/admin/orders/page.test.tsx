@@ -352,3 +352,133 @@ describe("bandeja de órdenes: alcance por sucursal (A)", () => {
     });
   });
 });
+
+/**
+ * B0 — la bandeja no se vacía cuando falla la red.
+ *
+ * En una cocina un hipo de wifi no puede dejar la pantalla sin pedidos: se conserva la última lista,
+ * se dice que está vieja y se ofrece reintentar. Antes los tres caminos de error hacían
+ * `setOrders([])`, así que el turno se quedaba a ciegas justo cuando más importa.
+ */
+describe("bandeja de órdenes: sin red (B0)", () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(NOW);
+  });
+
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+  });
+
+  /**
+   * La bandeja hace **dos** lecturas: la del turno (con `dateFrom` y `dateTo`) y la de días
+   * anteriores en segundo plano (`dateTo` solo, para el aviso). Los stubs las separan para que el
+   * conteo de llamadas sea el de la lista principal y no el de las dos.
+   */
+  function isOlderOpenCall(url: string) {
+    return url.includes("dateTo=") && !url.includes("dateFrom=");
+  }
+
+  function stubFetchFailingAfterFirstLoad() {
+    let ordersCalls = 0;
+    const fetchMock = vi.fn((url: string) => {
+      const href = String(url);
+      if (href.includes("/api/admin/locations")) {
+        return Promise.resolve({ ok: true, json: async () => ({ data: [] }) });
+      }
+      if (isOlderOpenCall(href)) {
+        return Promise.resolve({ ok: true, json: async () => ({ data: [] }) });
+      }
+
+      ordersCalls += 1;
+      if (ordersCalls === 1) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ data: [order()], meta: { count: 1 } }),
+        });
+      }
+
+      return Promise.reject(new Error("sin red"));
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    return fetchMock;
+  }
+
+  it("conserva los pedidos, avisa que no se pudo actualizar y deja reintentar", async () => {
+    const user = userEvent.setup();
+    stubFetchFailingAfterFirstLoad();
+    render(<AdminOrdersPage />);
+
+    await screen.findByText("OB-1");
+
+    // Cambiar un filtro dispara otra lectura, que ahora falla.
+    await user.click(screen.getByRole("button", { name: /Preparando/ }));
+
+    expect(await screen.findByText(/No se pudo actualizar la bandeja/)).toBeTruthy();
+    expect(screen.getByText(/Última actualización/)).toBeTruthy();
+    // Lo importante: el pedido sigue a la vista.
+    expect(screen.getByText("OB-1")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Reintentar" })).toBeTruthy();
+  });
+
+  it("sin nada en pantalla, el error se explica y se puede reintentar", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string) =>
+        String(url).includes("/api/admin/locations")
+          ? Promise.resolve({ ok: true, json: async () => ({ data: [] }) })
+          : Promise.reject(new Error("sin red")),
+      ),
+    );
+
+    render(<AdminOrdersPage />);
+
+    expect(await screen.findByText("No se pudieron cargar las órdenes.")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Reintentar" })).toBeTruthy();
+  });
+
+  it("reintentar vuelve a pedir la lista", async () => {
+    const user = userEvent.setup();
+    let ordersCalls = 0;
+    const fetchMock = vi.fn((url: string) => {
+      const href = String(url);
+      if (href.includes("/api/admin/locations")) {
+        return Promise.resolve({ ok: true, json: async () => ({ data: [] }) });
+      }
+      if (isOlderOpenCall(href)) {
+        return Promise.resolve({ ok: true, json: async () => ({ data: [] }) });
+      }
+
+      ordersCalls += 1;
+      if (ordersCalls === 1) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ data: [order()], meta: { count: 1 } }),
+        });
+      }
+      if (ordersCalls === 2) return Promise.reject(new Error("sin red"));
+
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({ data: [order(), order({ id: "ord_2", orderNumber: "OB-2" })], meta: { count: 2 } }),
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<AdminOrdersPage />);
+    await screen.findByText("OB-1");
+    await user.click(screen.getByRole("button", { name: /Preparando/ }));
+    await screen.findByText(/No se pudo actualizar la bandeja/);
+
+    await user.click(screen.getByRole("button", { name: "Reintentar" }));
+
+    expect(await screen.findByText("OB-2")).toBeTruthy();
+    await waitFor(() => {
+      expect(screen.queryByText(/No se pudo actualizar la bandeja/)).toBeNull();
+    });
+  });
+});
