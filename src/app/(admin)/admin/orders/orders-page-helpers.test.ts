@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import {
   businessDayRange,
+  findNewOrderIds,
+  formatUpdatedAgo,
   orderBucket,
   sortQueueOrders,
 } from "./orders-page-helpers";
@@ -169,5 +171,66 @@ describe("sortQueueOrders", () => {
     sortQueueOrders(original);
 
     expect(original.map((entry) => entry.id)).toEqual(["b", "a"]);
+  });
+});
+
+/**
+ * B1 — qué pedidos llegaron desde la última lectura.
+ *
+ * El aviso «N pedidos nuevos» tiene que contar **lo que apareció**, no lo que hay: comparar contra
+ * la lectura anterior es lo que evita que el aviso se dispare en cada refresco. Quien llama decide
+ * si hay lectura previa: en la primera carga no hay nada "nuevo".
+ */
+describe("findNewOrderIds", () => {
+  it("devuelve solo los que no estaban", () => {
+    expect(
+      findNewOrderIds(["a", "b"], [{ id: "a" }, { id: "c" }, { id: "b" }]),
+    ).toEqual(["c"]);
+  });
+
+  it("sin novedades devuelve una lista vacía", () => {
+    expect(findNewOrderIds(["a", "b"], [{ id: "a" }, { id: "b" }])).toEqual([]);
+  });
+
+  it("un pedido que desaparece de la vista no cuenta como nuevo", () => {
+    // Pasa al filtrar o al pasar al historial: lo que importa son las altas.
+    expect(findNewOrderIds(["a", "b"], [{ id: "b" }])).toEqual([]);
+  });
+
+  it("con la lectura anterior vacía, todo lo que llega es nuevo", () => {
+    // El caso real: el turno arrancó sin pedidos y entró el primero.
+    expect(findNewOrderIds([], [{ id: "a" }])).toEqual(["a"]);
+  });
+});
+
+/**
+ * B1 — la frescura de la lista, en segundos.
+ *
+ * El poll es de segundos: un «hace 0 min» no dice nada. Pasado el minuto se resume en minutos y
+ * horas para no llenar la barra de dígitos.
+ */
+describe("formatUpdatedAgo", () => {
+  const now = new Date("2026-09-12T20:00:00.000Z").getTime();
+  const ago = (seconds: number) => formatUpdatedAgo(now - seconds * 1000, now);
+
+  it("los primeros segundos se leen como «ahora»", () => {
+    expect(ago(0)).toBe("ahora");
+    expect(ago(4)).toBe("ahora");
+  });
+
+  it("después, en segundos", () => {
+    expect(ago(5)).toBe("hace 5 s");
+    expect(ago(59)).toBe("hace 59 s");
+  });
+
+  it("pasado el minuto, en minutos y horas", () => {
+    expect(ago(60)).toBe("hace 1 min");
+    expect(ago(95)).toBe("hace 1 min");
+    expect(ago(3 * 60)).toBe("hace 3 min");
+    expect(ago(60 * 60)).toBe("hace 1 h");
+  });
+
+  it("un reloj que va para atrás no muestra tiempos negativos", () => {
+    expect(formatUpdatedAgo(now + 5000, now)).toBe("ahora");
   });
 });

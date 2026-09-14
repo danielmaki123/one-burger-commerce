@@ -139,3 +139,37 @@ export function sortQueueOrders<T extends QueueOrderLike>(orders: readonly T[]):
     return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
   });
 }
+
+/**
+ * B1 — los pedidos que **aparecieron** desde la lectura anterior.
+ *
+ * El aviso «N pedidos nuevos» cuenta altas, no el total: comparar contra lo que ya estaba es lo que
+ * evita que suene en cada refresco. Que un pedido desaparezca (filtro, historial) no es una novedad.
+ * Quien llama decide si hay lectura previa: en la primera carga no hay nada nuevo.
+ */
+export function findNewOrderIds(
+  previousIds: readonly string[],
+  incoming: readonly { id: string }[],
+): string[] {
+  const known = new Set(previousIds);
+
+  return incoming.filter((order) => !known.has(order.id)).map((order) => order.id);
+}
+
+/**
+ * B1 — hace cuánto se leyó la lista, para que la frescura no mienta.
+ *
+ * El poll es de segundos, así que los primeros segundos van en segundos; pasado el minuto se resume
+ * (nadie necesita «hace 743 s»). Un reloj que va para atrás no muestra tiempos negativos.
+ */
+export function formatUpdatedAgo(fromMs: number, nowMs: number): string {
+  const seconds = Math.max(0, Math.floor((nowMs - fromMs) / 1000));
+
+  if (seconds < 5) return "ahora";
+  if (seconds < 60) return `hace ${seconds} s`;
+
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `hace ${minutes} min`;
+
+  return `hace ${Math.floor(minutes / 60)} h`;
+}

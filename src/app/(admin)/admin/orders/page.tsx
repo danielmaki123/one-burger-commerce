@@ -1,8 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import { ClipboardList, ShoppingBag, SlidersHorizontal, Table2, Truck } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  Bell,
+  BellOff,
+  ClipboardList,
+  RefreshCw,
+  ShoppingBag,
+  SlidersHorizontal,
+  Table2,
+  Truck,
+} from "lucide-react";
 
 import { formatCurrency } from "@/shared/lib/format-currency";
 import { getAdminOrderStatusLabel } from "@/shared/lib/admin-status-labels";
@@ -16,11 +25,18 @@ import {
   BUCKET_ORDER,
   businessDate,
   businessDayRange,
+  findNewOrderIds,
+  formatUpdatedAgo,
   orderBucket,
   shiftBusinessDays,
   sortQueueOrders,
   type OrderBucket,
 } from "./orders-page-helpers";
+import {
+  isAlertSoundEnabled,
+  playNewOrderAlert,
+  setAlertSoundEnabled,
+} from "./admin-alert-sound";
 import {
   AdminCompactToolbar,
   AdminEmptyState,
@@ -79,6 +95,16 @@ type AdminOrdersResponse = {
 type OrdersView = "today" | "history";
 type HistoryPreset = "week" | "month" | "all" | "custom";
 
+/**
+ * B1 — cada cuánto se pide la lista sola, y cada cuánto late el reloj del turno.
+ *
+ * El poll va con la pestaña visible: una tablet de cocina encendida toda la noche no puede estar
+ * pidiendo datos. El reloj late más seguido que el poll porque la frescura se muestra en segundos
+ * («actualizado hace 20 s»), y el costo de repintar la lista del día es despreciable.
+ */
+const POLL_INTERVAL_MS = 15_000;
+const CLOCK_TICK_MS = 5_000;
+
 const STATUS_FILTERS: Array<{ value: string; label: string }> = [
   { value: "all", label: "Todos" },
   { value: "new", label: "Nuevos" },
@@ -128,8 +154,19 @@ export default function AdminOrdersPage() {
   const [authRequired, setAuthRequired] = useState(false);
   /** Cuándo se leyó la lista por última vez: el aviso de «sin actualizar» no puede mentir. */
   const [lastUpdatedAt, setLastUpdatedAt] = useState<number | null>(null);
-  /** Cambia para volver a pedir la lista (botón Reintentar y, más adelante, el refresh manual). */
+  /** Cambia para volver a pedir la lista (botón Actualizar, Reintentar y el poll de B1). */
   const [refreshToken, setRefreshToken] = useState(0);
+  /** Pedidos que aparecieron desde la última lectura y todavía nadie miró (B1). */
+  const [newOrderIds, setNewOrderIds] = useState<string[]>([]);
+  const [soundEnabled, setSoundEnabled] = useState(false);
+  /** Para saber qué apareció hay que recordar qué había: no alcanza con la lista actual del render. */
+  const previousOrderIdsRef = useRef<string[] | null>(null);
+  const previousQueryRef = useRef<string | null>(null);
+
+  // La preferencia del aviso sonoro vive en el dispositivo (el navegador exige un toque para sonar).
+  useEffect(() => {
+    setSoundEnabled(isAlertSoundEnabled());
+  }, []);
 
   const [view, setView] = useState<OrdersView>("today");
   const [historyPreset, setHistoryPreset] = useState<HistoryPreset>("week");
@@ -233,7 +270,28 @@ export default function AdminOrdersPage() {
         }
 
         const payload = (await response.json()) as AdminOrdersResponse;
-        setOrders(payload.data ?? []);
+        const incoming = payload.data ?? [];
+
+        /**
+         * B1 — qué llegó nuevo. Solo se compara cuando la consulta es la misma que la anterior: al
+         * cambiar un filtro la lista es otra y todo parecería nuevo. Y en la primera lectura no hay
+         * nada «nuevo»: la pantalla recién se abre.
+         */
+        const isSameQuery = previousQueryRef.current === queryString;
+        const fresh =
+          isSameQuery && previousOrderIdsRef.current !== null
+            ? findNewOrderIds(previousOrderIdsRef.current, incoming)
+            : [];
+
+        if (fresh.length > 0) {
+          setNewOrderIds((current) => [...new Set([...current, ...fresh])]);
+          playNewOrderAlert();
+        }
+
+        previousOrderIdsRef.current = incoming.map((order) => order.id);
+        previousQueryRef.current = queryString;
+
+        setOrders(incoming);
         setScopeLocationIds(payload.meta?.locationScope ?? null);
         setLastUpdatedAt(Date.now());
       } catch {
@@ -307,11 +365,35 @@ export default function AdminOrdersPage() {
     setLocationFilter("all");
   }, [locationFilter, scopedLocations]);
 
-  // Reloj del turno: refresca los "hace N min" cada 30 s.
+  // Reloj del turno: refresca los "hace N min" y la frescura de la lista.
   const [nowMs, setNowMs] = useState(() => Date.now());
   useEffect(() => {
-    const timer = window.setInterval(() => setNowMs(Date.now()), 30000);
+    const timer = window.setInterval(() => setNowMs(Date.now()), CLOCK_TICK_MS);
     return () => window.clearInterval(timer);
+  }, []);
+
+  /**
+   * B1 — el poll. Solo con la pestaña **visible**; al volver a la pestaña se refresca al instante,
+   * que es cuando el dato puede haber quedado viejo sin que nadie mirara.
+   */
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      if (document.visibilityState !== "visible") return;
+      setRefreshToken((token) => token + 1);
+    }, POLL_INTERVAL_MS);
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        setRefreshToken((token) => token + 1);
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
   }, []);
 
   /**
@@ -417,6 +499,63 @@ export default function AdminOrdersPage() {
         title="Órdenes"
         description="Bandeja de turno: prioriza ingresos nuevos y sigue cada pedido hasta su cierre."
       />
+
+      {/* B1: lo que apareció solo se anuncia; el aviso se cierra cuando alguien lo mira. */}
+      {newOrderIds.length > 0 ? (
+        <div
+          role="status"
+          className="flex flex-col gap-3 rounded-2xl border border-brand/40 bg-accent px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+        >
+          <span className="text-sm font-semibold text-foreground">
+            {newOrderIds.length === 1
+              ? "1 pedido nuevo"
+              : `${newOrderIds.length} pedidos nuevos`}
+          </span>
+          <Button
+            variant="outline"
+            className="min-h-11 shrink-0"
+            onClick={() => {
+              setNewOrderIds([]);
+              window.scrollTo({ top: 0 });
+            }}
+          >
+            Ver nuevos
+          </Button>
+        </div>
+      ) : null}
+
+      {/* B1: frescura de la lista y los dos controles del turno (actualizar y sonido). */}
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-xs text-muted-foreground" data-testid="orders-freshness">
+          Actualizado{" "}
+          {lastUpdatedAt ? formatUpdatedAgo(lastUpdatedAt, nowMs) : "…"}
+        </span>
+        <Button
+          variant="outline"
+          className="min-h-11 gap-2"
+          onClick={() => setRefreshToken((token) => token + 1)}
+        >
+          <RefreshCw aria-hidden="true" className="h-4 w-4" />
+          Actualizar
+        </Button>
+        <Button
+          variant="outline"
+          className="min-h-11 gap-2"
+          aria-pressed={soundEnabled}
+          onClick={() => {
+            const next = !soundEnabled;
+            setSoundEnabled(next);
+            setAlertSoundEnabled(next);
+          }}
+        >
+          {soundEnabled ? (
+            <Bell aria-hidden="true" className="h-4 w-4" />
+          ) : (
+            <BellOff aria-hidden="true" className="h-4 w-4" />
+          )}
+          Aviso sonoro
+        </Button>
+      </div>
 
       <section
         aria-label="Resumen de órdenes"

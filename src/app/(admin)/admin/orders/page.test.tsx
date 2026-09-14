@@ -1,10 +1,42 @@
 // @vitest-environment jsdom
 
-import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import AdminOrdersPage from "./page";
+
+/**
+ * El módulo de sonido se observa desde el test: lo que importa acá es **cuándo** se pide el aviso.
+ *
+ * `playNewOrderAlert` respeta el mismo contrato que el módulo real —decide él si suena y devuelve si
+ * sonó—, así que el doble solo registra la llamada cuando el aviso está activado. Si registrara todo
+ * lo que se le pide, el test de «no suena si está apagado» pasaría por el motivo equivocado.
+ */
+const sound = vi.hoisted(() => ({ enabled: false, play: vi.fn(), set: vi.fn() }));
+
+vi.mock("./admin-alert-sound", () => ({
+  isAlertSoundEnabled: () => sound.enabled,
+  setAlertSoundEnabled: (enabled: boolean) => {
+    sound.enabled = enabled;
+    sound.set(enabled);
+  },
+  playNewOrderAlert: () => {
+    if (!sound.enabled) return false;
+
+    sound.play();
+    return true;
+  },
+}));
+
+/**
+ * La bandeja hace **dos** lecturas: la del turno (con `dateFrom` y `dateTo`) y la de días anteriores
+ * en segundo plano (`dateTo` solo, para el aviso). Los stubs las separan para que el conteo de
+ * llamadas sea el de la lista principal y no el de las dos.
+ */
+function isOlderOpenCall(url: string) {
+  return url.includes("dateTo=") && !url.includes("dateFrom=");
+}
 
 /**
  * La bandeja de órdenes tiene que decir **para cuándo es cada retiro** y qué tan
@@ -372,15 +404,6 @@ describe("bandeja de órdenes: sin red (B0)", () => {
     vi.useRealTimers();
   });
 
-  /**
-   * La bandeja hace **dos** lecturas: la del turno (con `dateFrom` y `dateTo`) y la de días
-   * anteriores en segundo plano (`dateTo` solo, para el aviso). Los stubs las separan para que el
-   * conteo de llamadas sea el de la lista principal y no el de las dos.
-   */
-  function isOlderOpenCall(url: string) {
-    return url.includes("dateTo=") && !url.includes("dateFrom=");
-  }
-
   function stubFetchFailingAfterFirstLoad() {
     let ordersCalls = 0;
     const fetchMock = vi.fn((url: string) => {
@@ -480,5 +503,204 @@ describe("bandeja de órdenes: sin red (B0)", () => {
     await waitFor(() => {
       expect(screen.queryByText(/No se pudo actualizar la bandeja/)).toBeNull();
     });
+  });
+});
+
+/**
+ * B1 — que los pedidos caigan solos.
+ *
+ * El poll va cada 15 s y **solo con la pestaña visible** (una cocina con la tablet encendida no puede
+ * estar pidiendo datos toda la noche): al volver a la pestaña se refresca al instante. Lo que aparece
+ * se anuncia con un aviso, y el sonido suena una sola vez por pedido nuevo y solo si está activado.
+ */
+describe("bandeja de órdenes: auto-refresh y avisos (B1)", () => {
+  beforeEach(() => {
+    // Se falsean el reloj y los intervalos; `setTimeout` queda real para que `waitFor` funcione.
+    vi.useFakeTimers({ toFake: ["Date", "setInterval", "clearInterval"] });
+    vi.setSystemTime(NOW);
+    sound.enabled = false;
+    sound.play.mockClear();
+    sound.set.mockClear();
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      get: () => "visible",
+    });
+  });
+
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+  });
+
+  function setVisibility(state: "visible" | "hidden") {
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      get: () => state,
+    });
+  }
+
+  /** Primer pedido, y a partir de la segunda lectura el que llega nuevo. */
+  function stubFetchWithNewOrder() {
+    let ordersCalls = 0;
+    const fetchMock = vi.fn((url: string) => {
+      const href = String(url);
+      if (href.includes("/api/admin/locations")) {
+        return Promise.resolve({ ok: true, json: async () => ({ data: [] }) });
+      }
+      if (isOlderOpenCall(href)) {
+        return Promise.resolve({ ok: true, json: async () => ({ data: [] }) });
+      }
+
+      ordersCalls += 1;
+      const data =
+        ordersCalls === 1
+          ? [order()]
+          : [order(), order({ id: "ord_2", orderNumber: "OB-2" })];
+
+      return Promise.resolve({ ok: true, json: async () => ({ data, meta: { count: data.length } }) });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    return fetchMock;
+  }
+
+  async function advance(ms: number) {
+    await act(async () => {
+      vi.advanceTimersByTime(ms);
+    });
+  }
+
+  /**
+   * Deja correr las microtareas del fetch y del render.
+   *
+   * En este describe **no** se usan `findBy`/`waitFor`: falseamos `setInterval` para poder adelantar el
+   * poll, y las utilidades asíncronas de testing-library eligen su estrategia según los timers que
+   * detectan. Con `act` + `getBy` el test es determinista y no depende de esa detección.
+   */
+  async function flush(times = 12) {
+    await act(async () => {
+      for (let index = 0; index < times; index += 1) {
+        await Promise.resolve();
+      }
+    });
+  }
+
+  async function renderLoaded() {
+    render(<AdminOrdersPage />);
+    await flush();
+  }
+
+  it("refresca sola a los 15 s y avisa el pedido nuevo", async () => {
+    const fetchMock = stubFetchWithNewOrder();
+    await renderLoaded();
+
+    // Sin novedades todavía: nada de avisos.
+    expect(screen.queryByText(/pedido nuevo/)).toBeNull();
+    const callsAfterLoad = fetchMock.mock.calls.length;
+
+    await advance(15000);
+    await flush();
+
+    expect(
+      fetchMock.mock.calls.length,
+      `llamadas: ${fetchMock.mock.calls.map((call) => String(call[0]).slice(-45)).join(" | ")}`,
+    ).toBeGreaterThan(callsAfterLoad);
+    expect(
+      screen.queryByText("OB-2"),
+      `body: ${(document.body.textContent ?? "").slice(0, 500)}`,
+    ).toBeTruthy();
+    expect(screen.getByText(/1 pedido nuevo/)).toBeTruthy();
+  });
+
+  it("con la pestaña oculta no pide nada", async () => {
+    const fetchMock = stubFetchWithNewOrder();
+    await renderLoaded();
+    const callsAfterLoad = fetchMock.mock.calls.length;
+
+    setVisibility("hidden");
+    await advance(15000);
+    await advance(15000);
+    await flush();
+
+    expect(fetchMock.mock.calls.length).toBe(callsAfterLoad);
+  });
+
+  it("al volver a la pestaña refresca al instante", async () => {
+    const fetchMock = stubFetchWithNewOrder();
+    await renderLoaded();
+
+    setVisibility("hidden");
+    await advance(15000);
+    const callsWhileHidden = fetchMock.mock.calls.length;
+
+    setVisibility("visible");
+    await act(async () => {
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+    await flush();
+
+    expect(screen.getByText("OB-2")).toBeTruthy();
+    expect(fetchMock.mock.calls.length).toBeGreaterThan(callsWhileHidden);
+  });
+
+  it("el aviso se puede cerrar y la lista queda", async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    stubFetchWithNewOrder();
+    await renderLoaded();
+    await advance(15000);
+    await flush();
+    expect(screen.getByText(/1 pedido nuevo/)).toBeTruthy();
+
+    await user.click(screen.getByRole("button", { name: /Ver nuevos/ }));
+
+    expect(screen.queryByText(/pedido nuevo/)).toBeNull();
+    expect(screen.getByText("OB-2")).toBeTruthy();
+  });
+
+  it("no suena si el aviso sonoro está apagado", async () => {
+    stubFetchWithNewOrder();
+    await renderLoaded();
+
+    await advance(15000);
+    await flush();
+
+    expect(screen.getByText(/1 pedido nuevo/)).toBeTruthy();
+    expect(sound.play).not.toHaveBeenCalled();
+  });
+
+  it("suena una vez cuando hay un pedido nuevo y el sonido está activado", async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    stubFetchWithNewOrder();
+    await renderLoaded();
+
+    await user.click(screen.getByRole("button", { name: "Aviso sonoro" }));
+    expect(sound.set).toHaveBeenCalledWith(true);
+    expect(screen.getByRole("button", { name: "Aviso sonoro" }).getAttribute("aria-pressed")).toBe(
+      "true",
+    );
+
+    await advance(15000);
+    await flush();
+
+    expect(screen.getByText(/1 pedido nuevo/)).toBeTruthy();
+    expect(sound.play).toHaveBeenCalledTimes(1);
+  });
+
+  it("muestra hace cuánto se actualizó y deja actualizar a mano", async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    stubFetchWithNewOrder();
+    await renderLoaded();
+
+    expect(screen.getByText(/Actualizado ahora/)).toBeTruthy();
+
+    // Con la pestaña oculta no hay poll, así el paso del tiempo se mide sin que se refresque sola.
+    setVisibility("hidden");
+    await advance(20000);
+    expect(screen.getByText(/Actualizado hace 20 s/)).toBeTruthy();
+
+    await user.click(screen.getByRole("button", { name: "Actualizar" }));
+    await flush();
+    expect(screen.getByText(/Actualizado ahora/)).toBeTruthy();
   });
 });
