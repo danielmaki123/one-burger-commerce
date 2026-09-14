@@ -110,6 +110,18 @@ describe("deploy runtime contract", () => {
     expect(workflow).toMatch(/publish:[\s\S]*needs:[\s\S]*verify/);
   });
 
+  it("corre los contratos de UI, rutas, módulos y docs como check propio, con historia completa", () => {
+    const workflow = readRepoFile(".github/workflows/publish-ghcr.yml");
+
+    // El job `verify` ya corre `npm test`, pero ahí el checkout es superficial (depth 1) y la guarda
+    // de frescura de `docs-sync-contract.test.ts` no puede correr: necesita saber cuándo se tocó cada
+    // archivo. Por eso hay un job propio, con `fetch-depth: 0`, y `publish` depende de él.
+    expect(workflow).toMatch(/contracts:[\s\S]*?fetch-depth: 0/);
+    expect(workflow).toContain("npx vitest run src/shared/contracts");
+    expect(workflow).toContain("order-totals-contract.test.ts");
+    expect(workflow).toMatch(/publish:[\s\S]*needs:[\s\S]*contracts/);
+  });
+
   it("guarda la salida en un archivo antes de grep para no morir por SIGPIPE", () => {
     const workflow = readRepoFile(".github/workflows/publish-ghcr.yml");
 

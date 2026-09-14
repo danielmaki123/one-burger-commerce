@@ -46,6 +46,32 @@ jobs:
         env:
           APP_BUILD_VERSION: ${{ github.sha }}
 
+  contracts:
+    runs-on: ubuntu-latest
+    steps:
+      # `fetch-depth: 0` no es decorativo: `docs-sync-contract.test.ts` compara la fecha del último
+      # commit que tocó `prisma/schema.prisma` y `src/shared/ui/` contra la de `DESIGN_SYSTEM.md`, y
+      # con el clon superficial por defecto (depth 1) esa historia no existe y la guarda se saltea.
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Los guardrails de `AGENTS.md` como check propio: UI (primitivos, tokens y registro de
+      # componentes), route handlers (50 líneas y sin Prisma), módulos (capas y dirección de las
+      # dependencias), documentos sincronizados y la fuente única del total.
+      - name: Contract tests
+        run: npx vitest run src/shared/contracts src/shared/lib/order-totals-contract.test.ts
+
   migrations:
     runs-on: ubuntu-latest
     services:
@@ -180,6 +206,7 @@ jobs:
   publish:
     needs:
       - verify
+      - contracts
       - migrations
       - container
     runs-on: ubuntu-latest
