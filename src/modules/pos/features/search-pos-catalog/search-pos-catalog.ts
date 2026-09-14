@@ -1,14 +1,13 @@
-import { normalizeSearchText } from "@/shared/lib/normalize-search-text";
-
+import { filterPosProducts } from "../../domain/search-pos-products";
 import type { PosCatalogPort, PosCatalogProduct } from "../../ports/pos-catalog";
 
 /**
  * TASK-301 — el cajero busca en el catálogo del local.
  *
- * Filtra **en memoria** sobre el catálogo ya resuelto para el local: una consulta por tecla sería un
- * viaje a la base por cada letra, y el catálogo de un local entra cómodo en memoria. La comparación
- * usa la normalización compartida (`normalizeSearchText`), la misma del menú público y la home, así
- * que "cafe" y "café" dan lo mismo en todas las pantallas.
+ * Lee el catálogo **una sola vez** y filtra en memoria con la regla compartida
+ * (`filterPosProducts`, TASK-302): una consulta por tecla sería un viaje a la base por cada letra, y
+ * el catálogo de un local entra cómodo en memoria. La pantalla del mostrador usa la misma función
+ * sobre lo que ya tiene, así que no hay dos criterios de búsqueda.
  */
 
 export interface PosCatalogSearchResult {
@@ -29,14 +28,7 @@ export async function searchPosCatalog(params: {
     return { products, total: products.length, query };
   }
 
-  const needle = normalizeSearchText(query);
-  const matches = products.filter(
-    (product) =>
-      normalizeSearchText(product.name).includes(needle) ||
-      normalizeSearchText(product.categoryName).includes(needle),
-  );
+  const matches = filterPosProducts(products, query);
 
-  // Se conserva el orden del catálogo (el que el local definió): reordenar por "relevancia" acá
-  // haría que el mostrador viera las cosas en otro orden que el menú.
   return { products: matches, total: matches.length, query };
 }
