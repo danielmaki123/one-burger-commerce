@@ -70,6 +70,25 @@ test.describe("comandas: el tablero del turno (B3)", () => {
     await expect(page.locator(".admin-sidebar-shell")).toBeHidden();
   });
 
+  /**
+   * B6 — el dueño también tiene que poder salir desde acá.
+   *
+   * La barra lateral está escondida en esta vista, así que el bloque de sesión (nombre y «Cerrar
+   * sesión») vive en la barra del turno. Para el dueño, además, el enlace «Volver al panel» sí tiene
+   * destino: el Resumen.
+   */
+  test("desde el tablero se ve con qué cuenta se está y se puede cerrar sesión (B6)", async ({ page }) => {
+    await openBoard(page);
+
+    const session = page.getByTestId("comandas-session");
+    await expect(session).toBeVisible();
+    await expect(session).toContainText("(owner)");
+    await expect(page.getByRole("link", { name: /Volver al panel/ })).toBeVisible();
+
+    await session.getByRole("button", { name: "Cerrar sesión" }).click();
+    await expect(page).toHaveURL(/\/admin\/login$/);
+  });
+
   test("buscar deja solo la comanda que se está preguntando y lo deja en la URL (B4)", async ({ page }) => {
     // Un nombre irrepetible: la base local acumula pedidos de corridas anteriores.
     const customer = await createOrder(page, "Cliente B4 busqueda");

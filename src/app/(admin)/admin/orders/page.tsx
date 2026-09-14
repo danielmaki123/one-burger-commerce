@@ -9,7 +9,6 @@ import {
   ClipboardList,
   Maximize2,
   Minimize2,
-  PanelLeft,
   RefreshCw,
   ShoppingBag,
   SlidersHorizontal,
@@ -55,6 +54,7 @@ import { OrderComandaBoard } from "./order-comanda-board";
 import type { ComandaItem } from "./order-comanda-card";
 import { useComandaView, useFullscreen } from "./use-comanda-view";
 import { readOrderUrlFilters, writeOrderUrlFilters, type OrderPaymentFilter } from "./comanda-url";
+import { ComandaSessionBar } from "./comanda-session-bar";
 import {
   AdminCompactToolbar,
   AdminEmptyState,
@@ -783,14 +783,6 @@ export default function AdminOrdersPage() {
           className="z-30 -mx-3 border-b border-border bg-background/95 px-3 py-2 backdrop-blur sm:-mx-4 lg:sticky lg:top-0 md:-mx-7"
         >
           <div className="flex flex-wrap items-center gap-2">
-            <Link
-              href="/admin"
-              className="inline-flex min-h-11 items-center gap-2 rounded-md px-2 text-sm font-semibold text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand motion-reduce:transition-none"
-            >
-              <PanelLeft aria-hidden="true" className="h-4 w-4" />
-              Volver al panel
-            </Link>
-
             <h1 className="font-heading text-base font-bold tracking-tight text-foreground">
               Comandas
             </h1>
@@ -916,6 +908,10 @@ export default function AdminOrdersPage() {
                 <RefreshCw aria-hidden="true" className="h-4 w-4" />
                 Actualizar
               </Button>
+
+              {/* B6: la salida de esta vista. La barra lateral del panel está escondida, así que
+                  «Cerrar sesión» y el nombre de la cuenta tienen que estar acá. */}
+              <ComandaSessionBar />
             </span>
           </div>
 
@@ -1374,4 +1370,5 @@ export default function AdminOrdersPage() {
     </div>
   );
 }
+
 

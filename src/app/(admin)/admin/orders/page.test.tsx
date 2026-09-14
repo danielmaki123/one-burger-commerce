@@ -7,6 +7,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import AdminOrdersPage from "./page";
 
 /**
+ * El tablero monta la barra de sesión (B6). Acá se **aísla**: su comportamiento (quién está, cerrar
+ * sesión, a quién se le ofrece volver al panel) tiene su propio test, y su `fetch` de sesión
+ * ensuciaría los dobles de esta página —que cuentan lecturas de órdenes y se correrían de lugar—.
+ * El doble deja una marca para poder comprobar que el tablero la monta en su barra superior.
+ */
+vi.mock("./comanda-session-bar", () => ({
+  ComandaSessionBar: () => <span data-testid="comanda-session-bar" />,
+}));
+
+/**
  * El módulo de sonido se observa desde el test: lo que importa acá es **cuándo** se pide el aviso.
  *
  * `playNewOrderAlert` respeta el mismo contrato que el módulo real —decide él si suena y devuelve si
@@ -964,6 +974,21 @@ describe("bandeja de órdenes: tablero de comandas (B3)", () => {
     expect(topbar.textContent).toMatch(/Nuevas 1/);
     expect(topbar.textContent).toMatch(/Preparando 1/);
     expect(topbar.textContent).toMatch(/Listas 1/);
+  });
+
+  /**
+   * B6 — la salida está en la barra del turno.
+   *
+   * El bug lo encontró el owner en producción: en esta vista la barra lateral está escondida (y con
+   * ella «Cerrar sesión»), así que la salida tiene que vivir acá. Su comportamiento se prueba en
+   * `comanda-session-bar.test.tsx`; lo que se afirma es que el tablero la monta donde corresponde.
+   */
+  it("la barra del turno trae la salida de la vista (B6)", async () => {
+    await renderBoardWith([order({ status: "new" })]);
+
+    expect(
+      within(screen.getByTestId("comandas-topbar")).getByTestId("comanda-session-bar"),
+    ).toBeTruthy();
   });
 
   it("el conmutador de celular ofrece un carril por vez, con su cuenta", async () => {
