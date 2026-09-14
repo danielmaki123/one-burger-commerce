@@ -112,11 +112,65 @@ esquema de aviso (`warning`) que la bandeja ya usa para lo que pide atención: *
 actualización» · sin conexión (el banner no miente: dice que no se pudo actualizar) · transición
 vieja (409 → refresca y explica).
 
-## 5. Decisiones que necesito del owner
+## 5. Crítica de la idea (2026-09-13): qué le mejoraría
 
-1. **«Aceptar»**: ¿un toque = `Nueva → Confirmada` y después «Empezar» (`→ Preparando`), o un solo
-   botón «Aceptar y empezar» (`Nueva → Preparando`, salteando «Confirmada»)? Lo segundo cambia la
-   máquina de estados y el historial.
+El owner define la sección como **«comandas»: lo que ve cada sucursal y con lo que trabaja**. La
+dirección es correcta (deja de ser un visor y pasa a ser la herramienta del turno), pero hay cinco
+cosas que le cambiaría antes de codear, ordenadas por impacto y con la evidencia del código:
+
+1. **Son dos trabajos, no uno.** Una comanda es de **cocina**; la **caja/mostrador** necesita otra
+   cosa (cobrar el vuelto, dictar/verificar el PIN, entregar). Hoy la misma pantalla sirve a los dos
+   con el mismo layout. Mejora: un solo lugar, **dos vistas con default por rol** (cocina aterriza en
+   Comandas; gerente/dueño en Pedidos) y un **traspaso explícito**: la cocina termina en «Lista» y la
+   caja entrega. Sin eso, el modo cocina va a ser una versión recortada de la vista del mostrador
+   —mediocre para los dos—.
+2. **La cola está al revés.** `listOrders` ordena por `createdAt desc`, así que dentro de cada grupo
+   el pedido **más nuevo aparece primero**. En una cocina manda la **hora prometida**: el que hay que
+   empezar ya, primero. Mejora: ordenar por `pickupTime` ascendente (desempate por creación) y, para
+   responder de verdad «qué se está preparando ahora», sumar una **vista por plato** (agregada: «2 ×
+   Doble, 3 × Birria») además de la vista por pedido. Con 10 pedidos abiertos, el cocinero no lee 10
+   comandas: mira la producción.
+3. **«Aceptar» puede ser fricción pura.** Si el negocio no rechaza pedidos (cobra al retirar, no hay
+   delivery ni pago online), un pedido esperando aceptación **no está en la comanda**: es exactamente
+   la confusión que querés resolver. Mejora: interruptor **por local** «Aceptar pedidos
+   automáticamente» —el pedido nace «Confirmada» y cae directo a la comanda— y el modo manual sigue
+   disponible para quien quiera la puerta. No lo doy por hecho: es decisión de producto.
+4. **Un hipo de wifi borra la bandeja.** En los tres caminos de error la pantalla hace
+   `setOrders([])`: con la conexión floja del local, la cocina se queda **sin comandas** y sin saber
+   si hay pedidos. Mejora: conservar la última lista y mostrar «sin conexión · última actualización
+   hace X» (el aviso no miente), más dos cosas que una cocina real necesita: **pantalla que no se
+   duerme** (`wakeLock`, con fallback) y un **ticket imprimible** (`window.print` con hoja de
+   impresión) como respaldo de papel cuando no hay pantalla.
+5. **Nadie sabe quién hizo qué.** `OrderStatusHistory` guarda estado, nota y fecha, **pero no el
+   usuario**. Si las acciones pasan a la fila y la cocina comparte una cuenta, «¿quién aceptó esto?»
+   queda sin respuesta. Mejora: guardar el actor (`changedByUserId`) en la misma migración de B5; el
+   dato ya está en la sesión y es barato ahora.
+
+**Detalles chicos que también cambiaría**
+
+- **Nombres**: «Comandas» es palabra de cocina; para el mostrador, «Pedidos». Propongo etiqueta **por
+  rol** (cocina ve «Comandas», el resto «Pedidos») sin tocar la ruta `/admin/orders`.
+- **Modo cocina sin tablero**: en esa vista no van las métricas, ni los chips de estado, ni el botón
+  «Mostrar filtros». La cocina necesita la cola, no un panel de control.
+- **Tipografía de comanda**: número e ítems con la escala grande (se lee a un brazo de distancia); hoy
+  la fila es `text-xs` y está pensada para leer de cerca.
+- **Ruido disciplinado**: un sonido para «pedido nuevo» (una vez por pedido, recordando los ids ya
+  vistos en el dispositivo) y **nada** para los cambios de etapa; si todo suena, deja de significar.
+- **Número corto y dictable** para cantar la comanda (el `OB-…` es largo); el PIN sigue siendo de caja.
+- **Un número que vas a pedir la semana que viene**: tiempo promedio de preparación de hoy, que sale
+  del historial y es barato de calcular.
+
+**Lo que NO haría**: websockets/SSE (con `replicas: 1` y sin store compartido, el polling documentado
+alcanza), notificar al cliente, rehacer el detalle del pedido, ni «asignar la comanda a un cocinero»
+si la cocina es de dos personas: agrega datos y hoy no resuelve nada.
+
+## 6. Decisiones que necesito del owner
+
+De la idea original:
+
+1. **«Aceptar»**: ¿un toque = `Nueva → Confirmada` y después «Empezar», o un solo botón «Aceptar y
+   empezar» (`Nueva → Preparando`, salteando «Confirmada»)? Lo segundo cambia la máquina de estados y
+   el historial.
 2. **Umbrales por defecto** de B5 (propuesta: 3 min sin aceptar, 15 min en cocina) y confirmar que se
    editan en `/admin/locations`.
 3. **Modo cocina**: ¿ocultamos precios/total y el PIN? (propuesta: sí; el detalle los sigue mostrando).
@@ -124,7 +178,15 @@ vieja (409 → refresca y explica).
    el navegador).
 5. **Telegram**: ¿se retoma, con un chat por sucursal? Necesita bot token + chat ids.
 
-## 6. Fuera de alcance
+De la crítica de esta sección:
+
+6. **¿Aceptación automática por local** (interruptor) o se queda manual?
+7. **¿Vista agregada por plato** además de la vista por pedido?
+8. **¿Guardamos quién cambió el estado** (`changedByUserId`, migración chica)?
+9. **¿Ticket imprimible + pantalla que no se duerme?** (recomiendo sí para los dos).
+10. **Nombres por rol** (cocina «Comandas», resto «Pedidos»): ¿ok?
+
+## 7. Fuera de alcance
 
 - Realtime con websockets/SSE (replicas 1, sin store compartido): se usa polling documentado.
 - Notificar al cliente (WhatsApp/SMS): no está pedido; el seguimiento ya existe en la web.
