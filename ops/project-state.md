@@ -2515,6 +2515,46 @@ su §7 completa:
 375 px la palabra "Abierta" no entraba en 32 px, así que la grilla de KPIs pasa a 1 / 2 / 4 columnas
 (560 y 900 px) y el número del KPI se mantiene en 32 px.
 
+### El mockup, mejorado con el skill de diseño (2026-09-15)
+
+El owner pidió pasar el mockup por el skill **Impeccable**. Su setup encontró que el repo **ya tiene
+`PRODUCT.md`** con el registro correcto —**product**: dashboard/admin, staff de pie con prisa— y sus
+dos anti-referencias textuales: *"paneles de operación decorativos: métricas que nadie mira mientras
+hay pedidos esperando"* y *"grillas saturadas de copy"*. Eso dio el criterio para mejorarlo **sin
+romper el ADN**. El detector de señales del skill sobre el HTML dio `[]` (ningún defecto mecánico).
+
+**Lo que se cambió, y por qué:**
+
+1. **Fuera el eyebrow.** El `OPERACIÓN` en 11 px uppercase arriba del `h1` era exactamente el tell que
+   el skill prohíbe (kicker diminuto con tracking ancho sobre cada sección). El label del hero se movió
+   **a etiquetar el número** ("Ventas de hoy" pegado a `C$ 12.480`, no como adorno de sección).
+2. **La banda de KPIs dejó de ser 4 tarjetas idénticas.** Cuatro cards iguales con ícono + label +
+   número es el patrón que el registro product marca como ruido. Ahora es **una sola superficie con
+   divisores**: se leen como una fila de datos del turno, no como cuatro widgets. Además baja la cuenta
+   de tarjetas a **2 tipos** (la del turno con tinte de info y las neutras), que es lo que pide el ADN.
+3. **La card del turno dejó el gradiente** por un tinte de info plano: un gradiente decorativo en una
+   superficie de datos es justo lo que la anti-referencia del `PRODUCT.md` señala.
+4. **El sparkline ahora se dibuja completo.** Tenía dos bugs reales que solo se ven en el navegador: el
+   trazo no llenaba la caja (`viewBox` sin `preserveAspectRatio: none`) y el `stroke-dasharray` estaba
+   **hardcodeado en 420**, así que la línea quedaba dibujada a medias. Ahora el largo se **mide** con
+   `getTotalLength()` y se recalcula al redimensionar.
+5. **Movimiento con propósito, no coreografía.** El trazo del sparkline se dibuja en 900 ms con curva
+   exponencial y los cambios de estado entran con un crossfade de 180 ms. Los dos tienen su
+   `prefers-reduced-motion` alternativo.
+6. **Tipografía**: `text-wrap: balance` en el título, `pretty` en los párrafos, y el tracking del hero
+   bajó de `-0.03em` a `-0.02em` (el skill pone el piso en `-0.04em`; en 56 px no hace falta apretar más).
+
+**Tres fricciones entre el ADN y el registro product, resueltas a favor del ADN** (es pedido explícito
+del owner y `DESIGN_REFERENCES.md` gana sobre los skills): el registro recomienda **una sola familia**
+en UI y el ADN pide Fraunces para los números (se mantiene: son datos, no labels ni botones); el
+registro pide un **ratio tipográfico 1.125-1.2** y el ADN usa 1.43-1.75; y "número grande + label chico"
+es un patrón que el skill marca como cliché de SaaS, mientras el ADN lo pide como **Patrón 1**. Las tres
+quedan anotadas acá para que no se "corrijan" por error en una oleada futura.
+
+**Medido después de los cambios**: contraste real de las etiquetas chicas contra **su propio** fondo
+(no contra el del body): label de KPI **5.87:1**, label del turno **5.14:1**, detalle de fila **5.87:1**,
+metadato **5.58:1**. Sigue en 32 px exactos entre secciones y sin scroll horizontal en los dos anchos.
+
 **C1-4b NO se arranca hasta que el owner valide el mockup.** Al aprobarse, la implementación reemplaza
 `admin-overview-client.tsx` (615 líneas) respetando el techo congelado de ese archivo.
 

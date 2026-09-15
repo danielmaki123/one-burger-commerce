@@ -104,7 +104,8 @@
         font-size: 3.5rem;
         line-height: 3.75rem;
         font-weight: 700;
-        letter-spacing: -0.03em;
+        /* Techo del skill: nunca más apretado que -0.04em. En 56 px, -0.02 alcanza. */
+        letter-spacing: -0.02em;
         font-variant-numeric: tabular-nums;
       }
       .t-kpi {
@@ -182,20 +183,23 @@
         padding: 16px 16px 48px;
       }
 
+      /* Cabecera: el título y la acción. Sin eyebrow decorativo arriba del h1. */
       header.page {
         display: flex;
         flex-wrap: wrap;
         gap: 12px;
-        align-items: flex-start;
+        align-items: flex-end;
         justify-content: space-between;
         padding-bottom: var(--gap-section);
       }
       .page-title {
-        margin: 4px 0 0;
+        margin: 0;
+        text-wrap: balance;
       }
       .page-sub {
-        margin: 4px 0 0;
+        margin: 2px 0 0;
         color: var(--muted-foreground);
+        text-wrap: pretty;
       }
 
       .btn {
@@ -237,34 +241,39 @@
         padding: var(--pad-card);
       }
 
-      /* ── Card tipo B: la del turno, con el tinte de info (Patrón 2: solo 2 tipos de card) ── */
+      /* ── Card tipo B: la del turno, con tinte de info plano (Patrón 2: 2 tipos de card) ── */
       .card-turno {
-        background: linear-gradient(180deg, var(--info-soft), var(--card) 60%);
+        background: var(--info-soft);
         border: 1px solid var(--border);
         border-radius: var(--radius-panel);
         padding: var(--pad-card);
       }
 
-      /* ── Patrón 1: el hero domina, con su badge y su sparkline ── */
-      .hero {
+      /* ── Patrón 1: el hero domina. La etiqueta va al costado (no como eyebrow arriba) ── */
+      .turno-top {
         display: flex;
         flex-wrap: wrap;
         gap: 16px 32px;
         align-items: flex-end;
         justify-content: space-between;
       }
-      .hero-main {
-        min-width: 0;
+      .hero {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 16px;
+        align-items: baseline;
       }
-      .hero-value {
-        margin: 8px 0 0;
+      .turno-label {
+        color: var(--muted-foreground);
+      }
+      .hero-number {
         display: flex;
         flex-wrap: wrap;
         align-items: baseline;
         gap: 12px;
       }
-      .hero-meta {
-        margin: 8px 0 0;
+      .turno-meta {
+        margin: 6px 0 0;
         color: var(--muted-foreground);
       }
 
@@ -295,13 +304,35 @@
         background: var(--info-soft);
         color: var(--info-strong);
       }
+      /* Sobre la propia superficie de info, el badge de info necesita su borde para leerse. */
+      .card-turno .badge-info {
+        border: 1px solid var(--info-strong);
+      }
 
-      /* ── Patrón 7: sparkline ── */
+      /* ── Patrón 7: sparkline. El `preserveAspectRatio: none` + alto 100% hace que la línea
+             llene su caja: sin eso, el `viewBox` la deja dibujada en el tercio de arriba. ── */
       .sparkline {
-        flex: 0 0 auto;
+        flex: 1 1 220px;
         width: 100%;
-        max-width: 260px;
-        height: 64px;
+        max-width: 300px;
+        height: 72px;
+        align-self: stretch;
+      }
+      /* El largo del trazo lo mide el JS (`getTotalLength()`) y lo escribe como `strokeDasharray`;
+         acá solo se anima el offset y **sin** `fill-mode: both`: con `both`, si el JS re-mide
+         después, el estado inicial congelado deja la línea a medio dibujar. */
+      .sparkline polyline {
+        animation: draw 900ms cubic-bezier(0.22, 1, 0.36, 1);
+      }
+      @keyframes draw {
+        from {
+          stroke-dashoffset: var(--line-length, 420);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .sparkline polyline {
+          animation: none;
+        }
       }
 
       /* ── Patrón 3: íconos con fondo de color, 48×48, radio 12 ── */
@@ -335,11 +366,16 @@
         color: var(--danger-strong);
       }
 
-      /* ── Patrón 4: color con significado + Patrón 8: spacing ── */
+      /* ── Los KPIs van en UNA banda con divisores, no en 4 tarjetas iguales.
+             Registro product: densidad sin ruido; y evita la grilla de cards idénticas. ── */
       .kpis {
         display: grid;
         grid-template-columns: minmax(0, 1fr);
-        gap: var(--gap-item);
+        margin-top: var(--gap-section);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-card);
+        background: var(--card);
+        overflow: hidden;
       }
       @media (min-width: 560px) {
         .kpis {
@@ -356,10 +392,39 @@
         align-items: center;
         gap: var(--gap-item);
         padding: 16px;
-        background: var(--card);
-        border: 1px solid var(--border);
-        border-radius: var(--radius-card);
         min-width: 0;
+        border-top: 1px solid var(--border);
+      }
+      .kpi-text {
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start; /* el valor sale siempre desde el mismo borde */
+        min-height: 48px; /* el alto del ícono: así los cuatro labels quedan a la misma altura */
+        min-width: 0;
+      }
+      .kpi:first-child {
+        border-top: 0;
+      }
+      @media (min-width: 560px) {
+        .kpi {
+          border-top: 0;
+          border-left: 1px solid var(--border);
+        }
+        .kpi:nth-child(2n + 1) {
+          border-left: 0;
+        }
+        .kpi:nth-child(n + 3) {
+          border-top: 1px solid var(--border);
+        }
+      }
+      @media (min-width: 900px) {
+        .kpi {
+          border-top: 0;
+          border-left: 1px solid var(--border);
+        }
+        .kpi:first-child {
+          border-left: 0;
+        }
       }
       .kpi-label {
         color: var(--muted-foreground);
@@ -408,6 +473,7 @@
       .row-title {
         display: block;
         font-weight: 600;
+        text-wrap: pretty;
       }
       .row-detail {
         display: block;
@@ -490,6 +556,22 @@
         margin: 0 auto 16px;
         max-width: 34ch;
         color: var(--muted-foreground);
+        text-wrap: pretty;
+      }
+      /* Los estados entran con un crossfade corto (150-250 ms y ease-out): cambiar de estado
+         es feedback, no coreografía. Con `prefers-reduced-motion` no hay transición. */
+      @keyframes state-in {
+        from {
+          opacity: 0;
+        }
+      }
+      .stack > [data-state]:not([hidden]) {
+        animation: state-in 180ms cubic-bezier(0.22, 1, 0.36, 1) both;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .stack > [data-state]:not([hidden]) {
+          animation: none;
+        }
       }
       .error-box {
         display: flex;
@@ -527,7 +609,6 @@
     <div class="shell">
       <header class="page">
         <div>
-          <p class="t-label muted" style="margin: 0">Operación</p>
           <h1 class="t-title page-title">Inicio</h1>
           <p class="t-body page-sub">Lo que pasa hoy en Principal.</p>
         </div>
@@ -545,17 +626,23 @@
           <!-- Card tipo B: el turno, con el tinte de info -->
           <section class="card-turno" aria-labelledby="turno-title">
             <h2 id="turno-title" class="sr-only">Turno de hoy</h2>
-            <div class="hero">
-              <div class="hero-main">
-                <p class="t-label muted" style="margin: 0">Ventas de hoy</p>
-                <div class="hero-value">
+            <div class="turno-top">
+              <div>
+                <p class="t-label turno-label" style="margin: 0">Ventas de hoy</p>
+                <div class="hero">
                   <span class="t-hero">C$ 12.480</span>
                   <span class="badge badge-success">↑ 18 % vs. ayer</span>
                 </div>
-                <p class="t-body hero-meta">36 pedidos · promedio C$ 347</p>
+                <p class="t-body turno-meta">36 pedidos · promedio C$ 347</p>
               </div>
               <!-- Patrón 7: la serie del día, sin ejes ni decoración -->
-              <svg class="sparkline" viewBox="0 0 260 64" role="img" aria-label="Ventas de hoy por hora">
+              <svg
+                class="sparkline"
+                viewBox="0 0 260 64"
+                preserveAspectRatio="none"
+                role="img"
+                aria-label="Ventas de hoy por hora"
+              >
                 <polyline
                   fill="none"
                   stroke="var(--brand)"
@@ -567,8 +654,8 @@
               </svg>
             </div>
 
-            <!-- Patrón 3 + 4: cada KPI con su ícono de color y su número en 32 -->
-            <div class="kpis" style="margin-top: var(--gap-section)">
+            <!-- Patrón 3 + 4: la banda de KPIs, cada uno con su ícono de color y su número en 32 -->
+            <div class="kpis">
               <div class="kpi">
                 <span class="icon-box icon-warning" aria-hidden="true">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
@@ -576,7 +663,7 @@
                     <path d="M12 7v5l3 2" />
                   </svg>
                 </span>
-                <div>
+                <div class="kpi-text">
                   <p class="t-label kpi-label" style="margin: 0">En cocina</p>
                   <p class="t-kpi kpi-value">4</p>
                 </div>
@@ -588,7 +675,7 @@
                     <path d="M4 6h16M4 12h16M4 18h10" />
                   </svg>
                 </span>
-                <div>
+                <div class="kpi-text">
                   <p class="t-label kpi-label" style="margin: 0">Por aceptar</p>
                   <p class="t-kpi kpi-value">2</p>
                 </div>
@@ -600,7 +687,7 @@
                     <path d="M20 7l-11 11-5-5" />
                   </svg>
                 </span>
-                <div>
+                <div class="kpi-text">
                   <p class="t-label kpi-label" style="margin: 0">Listas</p>
                   <p class="t-kpi kpi-value">3</p>
                 </div>
@@ -613,7 +700,7 @@
                     <path d="M3 10h18" />
                   </svg>
                 </span>
-                <div>
+                <div class="kpi-text">
                   <p class="t-label kpi-label" style="margin: 0">Caja</p>
                   <p class="t-kpi kpi-value">Abierta</p>
                 </div>
@@ -774,6 +861,31 @@
       for (const button of stateButtons) {
         button.addEventListener("click", () => setState(button.dataset.state));
       }
+
+      /**
+       * El trazo del sparkline se dibuja al entrar. El largo del recorrido se **mide**
+       * (`getTotalLength()`) en vez de escribir un número fijo: con `preserveAspectRatio: none` el
+       * trazo se estira con la caja y un `stroke-dasharray` hardcodeado deja la línea a medio
+       * dibujar. Se recalcula al cambiar el tamaño de la ventana.
+       */
+      const sparklines = [...document.querySelectorAll(".sparkline polyline")];
+
+      function measureSparklines() {
+        for (const line of sparklines) {
+          const length = Math.ceil(line.getTotalLength());
+          line.style.strokeDasharray = `${length}`;
+          line.style.setProperty("--line-length", `${length}`);
+          // Reinicia la animación para que se vuelva a dibujar con el largo nuevo. Se limpia con
+          // `requestAnimationFrame` para que el navegador registre el reinicio.
+          line.style.animation = "none";
+          requestAnimationFrame(() => {
+            line.style.animation = "";
+          });
+        }
+      }
+
+      measureSparklines();
+      window.addEventListener("resize", measureSparklines);
     </script>
   </body>
 </html>
