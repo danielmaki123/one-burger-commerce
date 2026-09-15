@@ -5,14 +5,14 @@ import * as React from "react";
 import {
   addPosLine,
   createPosDraft,
-  posDraftSubtotal,
+  posDraftTotals,
   removePosLine,
   setPosLineQuantity,
   type PosDraft,
 } from "@/modules/pos/domain/pos-draft";
 import { filterPosProducts } from "@/modules/pos/domain/search-pos-products";
 import type { PosCatalogProduct } from "@/modules/pos/ports/pos-catalog";
-import { useCurrencyFormat } from "@/shared/lib/business-settings";
+import { useBusinessSettings, useCurrencyFormat } from "@/shared/lib/business-settings";
 import { formatCurrency } from "@/shared/lib/format-currency";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
@@ -20,11 +20,13 @@ import { Select } from "@/shared/ui/select";
 import { AdminEmptyState, AdminPageHeader } from "../_components/admin-operational-ui";
 
 /**
- * TASK-302 — el mostrador: catálogo del local a un lado, borrador de la venta al otro.
+ * TASK-302 + TASK-303b — el mostrador: catálogo del local a un lado, venta al otro.
  *
- * Lo que esta pantalla **no** hace todavía, a propósito: cobrar. El cobro con `Payment` es TASK-303,
- * así que no hay botón de cobrar (un botón que no cobra es un control que miente, y en el repo está
- * prohibido). Acá se arma el borrador y se ve su subtotal.
+ * Se pide y se paga **de una vez** (decisión del owner): el cajero arma la venta, deja el nombre y el
+ * número del cliente (el correo es opcional) y cobra. El total que se muestra sale de la misma
+ * fórmula que usa el servidor (`posDraftTotals`) y **el que manda es el del servidor**: si el menú
+ * cambió entre que se cargó el catálogo y se cobró, la respuesta del servidor lo dice con el número
+ * de pedido en vez de guardar un cobro que no alcanza.
  *
  * La búsqueda filtra en memoria con la regla compartida (`filterPosProducts`): el catálogo del local
  * se trae **una vez** y escribir no dispara una consulta por tecla.
@@ -32,12 +34,19 @@ import { AdminEmptyState, AdminPageHeader } from "../_components/admin-operation
 
 export type PosLocationOption = { id: string; name: string };
 
+type PosSaleSummary = {
+  orderNumber: string;
+  total: number;
+  change: number | null;
+};
+
 function catalogUrl(locationId: string) {
   return `/api/admin/pos/catalog?locationId=${encodeURIComponent(locationId)}`;
 }
 
 export default function PosClient({ locations }: { locations: PosLocationOption[] }) {
   const currency = useCurrencyFormat();
+  const settings = useBusinessSettings();
 
   const [locationId, setLocationId] = React.useState(locations[0]?.id ?? "");
   const [products, setProducts] = React.useState<PosCatalogProduct[]>([]);
@@ -46,6 +55,17 @@ export default function PosClient({ locations }: { locations: PosLocationOption[
   const [query, setQuery] = React.useState("");
   const [draft, setDraft] = React.useState<PosDraft>(() => createPosDraft(locations[0]?.id ?? ""));
   const [reloadKey, setReloadKey] = React.useState(0);
+  const [customer, setCustomer] = React.useState({ name: "", whatsapp: "", email: "" });
+  const [method, setMethod] = React.useState<"cash" | "card">("cash");
+  const [paymentCurrency, setPaymentCurrency] = React.useState(settings.currencyCode);
+  const [paidAmount, setPaidAmount] = React.useState("");
+  const [charging, setCharging] = React.useState(false);
+  const [saleError, setSaleError] = React.useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = React.useState<Record<string, string>>({});
+  const [lastSale, setLastSale] = React.useState<PosSaleSummary | null>(null);
+  // La clave de la operación se renueva solo cuando la venta salió bien: si el cobro falla y el cajero
+  // reintenta, el servidor reconoce el mismo intento y no crea dos pedidos (TASK-101).
+  const [attemptKey, setAttemptKey] = React.useState(() => crypto.randomUUID());
 
   React.useEffect(() => {
     if (locationId === "") {
@@ -83,13 +103,15 @@ export default function PosClient({ locations }: { locations: PosLocationOption[
   // Cambiar de local empieza una venta nueva: el borrador lleva el local y sus precios.
   React.useEffect(() => {
     setDraft(createPosDraft(locationId));
+    setPaidAmount("");
+    setLastSale(null);
   }, [locationId]);
 
   const visibleProducts = React.useMemo(
     () => filterPosProducts(products, query),
     [products, query],
   );
-  const subtotal = posDraftSubtotal(draft);
+  const totals = posDraftTotals(draft);
 
   const addProduct = (product: PosCatalogProduct) => {
     setDraft((current) =>
@@ -97,8 +119,67 @@ export default function PosClient({ locations }: { locations: PosLocationOption[
         productId: product.id,
         name: product.name,
         unitPrice: product.price,
+        packagingUnitAmount: product.packagingFeeAmount,
       }),
     );
+  };
+
+  const charge = async () => {
+    const problems: Record<string, string> = {};
+    if (draft.lines.length === 0) problems.lines = "Agregá al menos un producto.";
+    if (customer.name.trim() === "") problems.name = "Escribí el nombre del cliente.";
+    if (customer.whatsapp.trim() === "") problems.whatsapp = "Escribí el número del cliente.";
+    if (!(Number(paidAmount) > 0)) problems.amount = "Escribí con cuánto paga el cliente.";
+
+    setFieldErrors(problems);
+    setSaleError(null);
+
+    if (Object.keys(problems).length > 0) {
+      setSaleError("Revisá los datos marcados.");
+      return;
+    }
+
+    setCharging(true);
+    try {
+      const response = await fetch("/api/admin/pos/sale", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          locationId,
+          customer: {
+            name: customer.name,
+            whatsapp: customer.whatsapp,
+            email: customer.email.trim() === "" ? null : customer.email,
+          },
+          lines: draft.lines,
+          payments: [
+            { method, currency: paymentCurrency, amount: Number(paidAmount) },
+          ],
+          idempotencyKey: attemptKey,
+        }),
+      });
+
+      const body = (await response.json()) as {
+        data?: PosSaleSummary;
+        error?: { message?: string; fields?: Record<string, string> };
+      };
+
+      if (!response.ok || !body.data) {
+        setFieldErrors(body.error?.fields ?? {});
+        setSaleError(body.error?.message ?? "No se pudo cobrar la venta.");
+        return;
+      }
+
+      setLastSale(body.data);
+      setDraft(createPosDraft(locationId));
+      setCustomer({ name: "", whatsapp: "", email: "" });
+      setPaidAmount("");
+      setAttemptKey(crypto.randomUUID());
+    } catch {
+      setSaleError("No se pudo cobrar: revisá la conexión y reintentá.");
+    } finally {
+      setCharging(false);
+    }
   };
 
   return (
@@ -274,11 +355,135 @@ export default function PosClient({ locations }: { locations: PosLocationOption[
               </ul>
             )}
 
-            <div className="flex items-baseline justify-between border-t border-border pt-3">
-              <p className="text-sm font-medium text-foreground">Subtotal</p>
-              <p className="text-title font-bold tabular-nums text-foreground" aria-live="polite">
-                {formatCurrency(subtotal, currency)}
-              </p>
+            <dl className="space-y-1 border-t border-border pt-3 text-sm">
+              <div className="flex items-baseline justify-between">
+                <dt className="text-muted-foreground">Subtotal</dt>
+                <dd className="tabular-nums text-foreground">{formatCurrency(totals.subtotal, currency)}</dd>
+              </div>
+              {totals.packagingAmount > 0 ? (
+                <div className="flex items-baseline justify-between">
+                  <dt className="text-muted-foreground">Empaque</dt>
+                  <dd className="tabular-nums text-foreground">
+                    {formatCurrency(totals.packagingAmount, currency)}
+                  </dd>
+                </div>
+              ) : null}
+              <div className="flex items-baseline justify-between">
+                <dt className="font-medium text-foreground">Total</dt>
+                <dd className="text-title font-bold tabular-nums text-foreground" aria-live="polite">
+                  {formatCurrency(totals.total, currency)}
+                </dd>
+              </div>
+            </dl>
+
+            {fieldErrors.lines ? (
+              <p className="text-sm font-medium text-danger-strong">{fieldErrors.lines}</p>
+            ) : null}
+
+            <div className="space-y-3 border-t border-border pt-3">
+              <Input
+                label="Nombre del cliente"
+                value={customer.name}
+                error={fieldErrors.name ?? fieldErrors.customerName}
+                onChange={(event) =>
+                  setCustomer((current) => ({ ...current, name: event.target.value }))
+                }
+              />
+              <Input
+                label="Número del cliente"
+                inputMode="tel"
+                value={customer.whatsapp}
+                error={fieldErrors.whatsapp ?? fieldErrors.customerWhatsapp}
+                onChange={(event) =>
+                  setCustomer((current) => ({ ...current, whatsapp: event.target.value }))
+                }
+              />
+              <Input
+                label="Correo (opcional)"
+                type="email"
+                value={customer.email}
+                error={fieldErrors.customerEmail}
+                onChange={(event) =>
+                  setCustomer((current) => ({ ...current, email: event.target.value }))
+                }
+              />
+
+              <div className="space-y-1.5">
+                <p className="text-sm font-medium leading-none text-foreground">¿Cómo paga?</p>
+                <div className="flex flex-wrap gap-2">
+                  {(
+                    [
+                      { id: "cash", label: "Efectivo" },
+                      { id: "card", label: "Tarjeta" },
+                    ] as const
+                  ).map((option) => (
+                    <Button
+                      key={option.id}
+                      type="button"
+                      size="pill"
+                      variant={method === option.id ? "primary" : "secondary"}
+                      aria-pressed={method === option.id}
+                      onClick={() => setMethod(option.id)}
+                    >
+                      {option.label}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              {settings.usdExchangeRate !== null ? (
+                <Select
+                  label="Moneda del cobro"
+                  value={paymentCurrency}
+                  onChange={(event) => setPaymentCurrency(event.target.value)}
+                  options={[
+                    { value: settings.currencyCode, label: settings.currencyCode },
+                    { value: "USD", label: "USD" },
+                  ]}
+                />
+              ) : null}
+
+              <Input
+                label={
+                  paymentCurrency === settings.currencyCode
+                    ? "Con cuánto paga"
+                    : `Con cuánto paga (en ${paymentCurrency})`
+                }
+                type="number"
+                inputMode="decimal"
+                min={0}
+                step="0.01"
+                value={paidAmount}
+                error={fieldErrors.amount ?? fieldErrors.payments}
+                onChange={(event) => setPaidAmount(event.target.value)}
+              />
+
+              <Button
+                type="button"
+                className="min-h-12 w-full"
+                disabled={charging}
+                onClick={() => void charge()}
+              >
+                {charging ? "Cobrando…" : `Cobrar ${formatCurrency(totals.total, currency)}`}
+              </Button>
+
+              {saleError ? (
+                <p role="alert" className="text-sm font-medium text-danger-strong">
+                  {saleError}
+                </p>
+              ) : null}
+
+              {lastSale ? (
+                <div
+                  role="status"
+                  className="rounded-card border border-success-strong/30 bg-success px-3 py-2 text-sm text-success-foreground"
+                >
+                  Venta {lastSale.orderNumber} cobrada por {formatCurrency(lastSale.total, currency)}
+                  {lastSale.change !== null && lastSale.change > 0
+                    ? ` · Cambio ${formatCurrency(lastSale.change, currency)}`
+                    : " · Sin cambio"}
+                </div>
+              ) : null}
             </div>
           </section>
         </div>

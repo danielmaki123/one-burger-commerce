@@ -48,6 +48,7 @@ function seedPayment(
     orderId,
     method: "cash",
     amount,
+    currency: null,
     tip,
     reference: null,
     createdAt,

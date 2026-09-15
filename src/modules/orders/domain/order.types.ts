@@ -100,6 +100,8 @@ export type OrderRecord = {
   idempotencyKey?: string | null;
   customerName: string;
   customerWhatsapp: string;
+  /** TASK-303b — correo del cliente, si lo dejó (la venta de mostrador lo pide opcional). */
+  customerEmail?: string | null;
   customerId?: string | null;
   items: OrderItemRecord[];
   subtotal: number;
@@ -237,6 +239,11 @@ export type PaymentRecord = {
   orderId: string;
   method: PaymentMethodType;
   amount: number;
+  /**
+   * TASK-303b — moneda en la que entró este cobro. `null` = la moneda del negocio (los cobros que
+   * existen desde TASK-103 no la declaran).
+   */
+  currency: string | null;
   tip: number;
   reference: string | null;
   createdAt: string;

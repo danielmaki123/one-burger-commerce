@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 import {
   ADMIN_PASSWORD,
@@ -9,17 +9,25 @@ import {
 } from "./helpers";
 
 /**
- * TASK-302 — el punto de venta.
+ * TASK-302 + TASK-303b — el punto de venta.
  *
- * Lo que se mide de verdad en el navegador: que el catálogo del local llegue a la pantalla, que se
- * pueda armar la venta, que los controles táctiles midan lo que tienen que medir y que **todavía no
- * exista un cobro** (eso es TASK-303: un botón que no cobra es un control que miente).
+ * Lo que se mide de verdad en el navegador: que el catálogo del local llegue a la pantalla, que el
+ * total que se muestra sea el que se cobra (con empaque), que los controles táctiles midan lo que
+ * tienen que medir y que **cobrar cree el pedido de verdad**: la venta de mostrador se paga en un
+ * solo paso y el pedido aparece en comandas.
  */
 
-async function horizontalOverflow(page: import("@playwright/test").Page) {
+async function horizontalOverflow(page: Page) {
   return page.evaluate(
     () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
   );
+}
+
+/** Primer producto vendible del seed, ya en el borrador. */
+async function addFirstProduct(page: Page) {
+  const agregar = page.getByRole("button", { name: /^Agregar .+ a la venta$/ }).first();
+  await expect(agregar).toBeVisible();
+  await agregar.click();
 }
 
 test.describe("punto de venta", () => {
@@ -47,11 +55,16 @@ test.describe("punto de venta", () => {
       await expect(
         venta.getByText("Agregá productos del catálogo para armar la venta."),
       ).toBeHidden();
-      // El subtotal sale del borrador y se muestra formateado con la moneda configurada.
-      await expect(venta.locator("p[aria-live='polite']")).toContainText("C$");
+      // El desglose muestra subtotal, empaque (cuando lo hay) y el total con la moneda configurada.
+      // `exact: true` porque "Total" también matchea "Subtotal" (Playwright no distingue mayúsculas).
+      await expect(venta.getByText("Subtotal")).toBeVisible();
+      await expect(venta.getByText("Total", { exact: true })).toBeVisible();
+      await expect(venta.locator("dd[aria-live='polite']")).toContainText("C$");
 
-      // TASK-303: el cobro todavía no existe.
-      await expect(page.getByRole("button", { name: /cobrar/i })).toHaveCount(0);
+      // El cobro existe (TASK-303b) y mide el mínimo táctil.
+      const cobrar = page.getByRole("button", { name: /^Cobrar / });
+      const botonCobrar = await cobrar.boundingBox();
+      expect(botonCobrar!.height).toBeGreaterThanOrEqual(44);
 
       expect(await horizontalOverflow(page)).toBeLessThanOrEqual(1);
     });
@@ -76,6 +89,35 @@ test.describe("punto de venta", () => {
       expect(cajaVenta!.x).toBeGreaterThan(cajaCatalogo!.x + cajaCatalogo!.width - 2);
       expect(await horizontalOverflow(page)).toBeLessThanOrEqual(1);
     });
+  });
+
+  test("el cajero cobra la venta y el pedido llega a comandas", async ({ page }) => {
+    test.skip(!mutationsAllowed, "Order creation is disabled unless E2E_ALLOW_MUTATIONS=true.");
+
+    await loginAsOwner(page);
+    await page.goto("/admin/pos");
+    await addFirstProduct(page);
+
+    // Se paga el doble del total mostrado, para que haya cambio que verificar.
+    const etiqueta = await page.getByRole("button", { name: /^Cobrar / }).textContent();
+    const total = Number((etiqueta ?? "").replace(/[^\d.]/g, ""));
+    expect(total).toBeGreaterThan(0);
+
+    await page.getByLabel("Nombre del cliente").fill("Cliente POS E2E");
+    await page.getByLabel("Número del cliente").fill("88887777");
+    await page.getByLabel("Con cuánto paga").fill(String(total * 2));
+    await page.getByRole("button", { name: /^Cobrar / }).click();
+
+    const confirmacion = page.getByRole("status");
+    await expect(confirmacion).toContainText("Venta P-");
+    await expect(confirmacion).toContainText("Cambio");
+
+    const numero = (await confirmacion.textContent())?.match(/P-[A-Z0-9]+/)?.[0];
+    expect(numero, "la confirmación trae el número de pedido").toBeTruthy();
+
+    // El camino real: el pedido cobrado en el mostrador está en el tablero de la cocina.
+    await page.goto("/admin/orders");
+    await expect(page.getByText(numero!)).toBeVisible();
   });
 
   test("cocina no entra al punto de venta (vuelve a comandas)", async ({ page }) => {

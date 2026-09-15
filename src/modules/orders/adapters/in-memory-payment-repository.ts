@@ -44,6 +44,7 @@ export class InMemoryPaymentRepository implements PaymentRepository {
       // El monto y la propina se guardan redondeados, igual que en la base (DECIMAL(10,2)): si el
       // doble guardara 33.333 y Prisma 33.33, los tests de los dos adaptadores mentirían distinto.
       amount: roundCurrency(input.amount),
+      currency: input.currency ?? null,
       tip: roundCurrency(input.tip ?? 0),
       reference: input.reference ?? null,
       createdAt: new Date().toISOString(),

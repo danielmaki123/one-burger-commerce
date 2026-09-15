@@ -17,6 +17,7 @@ function mapPayment(payment: {
   orderId: string;
   method: string;
   amount: Decimal;
+  currency: string | null;
   tip: Decimal;
   reference: string | null;
   createdAt: Date;
@@ -26,6 +27,7 @@ function mapPayment(payment: {
     orderId: payment.orderId,
     method: payment.method as PaymentMethodType,
     amount: decimalToNumber(payment.amount),
+    currency: payment.currency,
     tip: decimalToNumber(payment.tip),
     reference: payment.reference,
     createdAt: payment.createdAt.toISOString(),
@@ -55,6 +57,7 @@ export class PrismaPaymentRepository implements PaymentRepository {
         orderId: input.orderId,
         method: input.method,
         amount: input.amount,
+        currency: input.currency ?? null,
         tip: input.tip ?? 0,
         reference: input.reference ?? null,
       },

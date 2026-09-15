@@ -12,6 +12,12 @@ export interface PosCatalogProduct {
   name: string;
   /** Precio final para ese local, ya resuelto por el módulo de menú. */
   price: number;
+  /**
+   * TASK-303b — empaque por unidad. El mostrador tiene que ver el **total** que va a cobrar y el
+   * servidor suma el empaque aparte (`packagingTotalAmount`): si el POS mostrara solo el precio, el
+   * cajero cobraría de menos. Es la misma clase de bug de dinero mostrado que arregló T5.
+   */
+  packagingFeeAmount: number;
   categoryId: string;
   categoryName: string;
   /** El producto exige elegir opciones: no se puede vender de un toque desde el mostrador. */

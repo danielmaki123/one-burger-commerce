@@ -52,6 +52,8 @@ export type CreateOrderInput = {
   locationId: string;
   customerName: string;
   customerWhatsapp: string;
+  /** TASK-303b — correo del cliente (opcional; hoy lo pide el POS, no el checkout). */
+  customerEmail?: string | null;
   customerId?: string | null;
   items: OrderItemInput[];
   couponCode?: string | null;

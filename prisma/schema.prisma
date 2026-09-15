@@ -437,6 +437,8 @@ model Order {
   status               OrderStatus          @default(new)
   customerName         String
   customerWhatsapp     String
+  /// TASK-303b — correo del cliente, **opcional** (lo pidió el owner para la venta de mostrador).
+  customerEmail        String?
   customerId           String?
   address              String?
   deliveryNotes        String?
@@ -729,6 +731,9 @@ model Payment {
   orderId   String
   method    PaymentMethodType
   amount    Decimal           @db.Decimal(10, 2)
+  /// TASK-303b — moneda en la que entró **este** cobro (el cliente puede pagar en dólares).
+  /// `null` = la moneda del negocio: un cobro viejo no declara moneda y se cuenta como tal.
+  currency  String?
   /// Propina cobrada en este pago. Va aparte del monto porque en un pago mixto puede pagarse sola.
   tip       Decimal           @default(0) @db.Decimal(10, 2)
   /// Referencia externa del cobro (número de voucher, id de transferencia). Vacío si no aplica.

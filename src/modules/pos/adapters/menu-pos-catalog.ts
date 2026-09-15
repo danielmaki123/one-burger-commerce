@@ -34,6 +34,7 @@ export function buildPosCatalog(categories: PublicMenuCategory[]): PosCatalogPro
       id: product.id,
       name: product.name,
       price: product.basePrice,
+      packagingFeeAmount: product.packagingFeeAmount ?? 0,
       categoryId: category.id,
       categoryName: category.name,
       requiresOptions: !canQuickAddProduct(product),

@@ -1,4 +1,4 @@
-import { roundCurrency } from "@/shared/lib/order-totals";
+import { calculateOrderTotals, roundCurrency } from "@/shared/lib/order-totals";
 
 import { PosError } from "./pos-errors";
 
@@ -19,6 +19,8 @@ export interface PosDraftLine {
   /** Nombre al momento de agregarlo: el mostrador no depende de una lectura posterior del catálogo. */
   name: string;
   unitPrice: number;
+  /** TASK-303b — empaque por unidad. Sin dato es 0 (un producto que no cobra empaque). */
+  packagingUnitAmount?: number;
   quantity: number;
   notes?: string;
 }
@@ -46,6 +48,13 @@ function assertLine(line: Omit<PosDraftLine, "quantity"> & { quantity: number })
   if (!Number.isFinite(line.unitPrice) || line.unitPrice < 0) {
     throw new PosError(422, "VALIDATION_ERROR", "El precio de la línea no puede ser negativo.", {
       unitPrice: "El precio de la línea no puede ser negativo.",
+    });
+  }
+
+  const packaging = line.packagingUnitAmount ?? 0;
+  if (!Number.isFinite(packaging) || packaging < 0) {
+    throw new PosError(422, "VALIDATION_ERROR", "El empaque de la línea no puede ser negativo.", {
+      packagingUnitAmount: "El empaque de la línea no puede ser negativo.",
     });
   }
 }
@@ -109,6 +118,40 @@ export function posDraftSubtotal(draft: PosDraft): number {
   return roundCurrency(
     draft.lines.reduce((sum, line) => sum + line.unitPrice * line.quantity, 0),
   );
+}
+
+/**
+ * TASK-303b — el total que el cajero va a cobrar, con la **misma fórmula que el servidor**
+ * (`calculateOrderTotals`, la fuente única del total) y sin propina ni descuentos: el POS no los usa.
+ *
+ * Se calcula acá y no en la pantalla porque el cliente tiene que ver el número que se le va a
+ * cobrar: mostrar solo el subtotal hacía que el empaque apareciera recién en la comanda.
+ */
+export function posDraftTotals(draft: PosDraft): {
+  subtotal: number;
+  packagingAmount: number;
+  total: number;
+} {
+  const items = draft.lines.map((line) => ({
+    packagingTotalAmount: (line.packagingUnitAmount ?? 0) * line.quantity,
+  }));
+
+  const subtotal = posDraftSubtotal(draft);
+
+  const totals = calculateOrderTotals({
+    subtotal,
+    discount: 0,
+    deliveryFeeAmount: 0,
+    items,
+    tipOptIn: false,
+    orderType: "pickup",
+  });
+
+  return {
+    subtotal,
+    packagingAmount: totals.packagingAmount,
+    total: totals.total,
+  };
 }
 
 /** Un borrador sin líneas o sin local no se puede cobrar; el error dice cuál de las dos cosas falta. */

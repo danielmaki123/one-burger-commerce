@@ -5,6 +5,11 @@ export type CreatePaymentInput = {
   method: PaymentMethodType;
   /** Monto cobrado en **este** pago. En un pago mixto, la parte que entró por este medio. */
   amount: number;
+  /**
+   * TASK-303b — moneda del cobro (el cliente puede pagar en dólares). Sin dato, la moneda del
+   * negocio: es lo que asumen los cobros anteriores a esta tarea.
+   */
+  currency?: string | null;
   /** Propina cobrada en este pago. Opcional: sin dato es 0. */
   tip?: number;
   /** Referencia externa (voucher, id de transferencia). Sin dato queda vacía. */

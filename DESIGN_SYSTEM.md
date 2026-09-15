@@ -315,6 +315,17 @@ Antes de escribir HTML crudo por falta de primitivo, esto es lo que falta y lo q
 <button className="flex min-h-14 w-full flex-col gap-1 border-t border-border px-4 py-3 text-left transition-colors hover:bg-accent/60 focus-visible:ring-2 focus-visible:ring-brand">
 ```
 
+**Bloque de cobro del POS** (TASK-303b, `/admin/pos`): el método de pago son **dos chips**
+(`Button size="pill"` con `aria-pressed`, 2 opciones visibles), la moneda es un `Select` que solo
+aparece cuando hay tipo de cambio cargado, el monto es un `Input` numérico y el desglose va en un
+`<dl>` con el **total** en `aria-live` para que el lector de pantalla anuncie el número que se cobra:
+
+```tsx
+<Button size="pill" aria-pressed={method === "cash"} variant={method === "cash" ? "primary" : "secondary"}>Efectivo</Button>
+<Input label="Con cuánto paga" type="number" error={fieldErrors.amount} />
+<dl><dt>Total</dt><dd aria-live="polite">{formatCurrency(totals.total, currency)}</dd></dl>
+```
+
 ---
 
 ## 5. Do NOT

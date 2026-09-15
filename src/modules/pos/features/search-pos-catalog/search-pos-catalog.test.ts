@@ -17,6 +17,7 @@ const product = (over: Partial<PosCatalogProduct>): PosCatalogProduct => ({
   id: "prod_x",
   name: "Producto",
   price: 35,
+  packagingFeeAmount: 0,
   categoryId: "cat_x",
   categoryName: "Categoría",
   requiresOptions: false,

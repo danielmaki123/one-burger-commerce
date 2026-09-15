@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
 
+import { calculateOrderTotals } from "@/shared/lib/order-totals";
+
 import { PosError } from "./pos-errors";
 import {
   addPosLine,
   assertPosDraftReady,
   createPosDraft,
   posDraftSubtotal,
+  posDraftTotals,
   removePosLine,
   setPosLineQuantity,
 } from "./pos-draft";
@@ -99,6 +102,29 @@ describe("borrador del POS", () => {
     );
 
     expect(posDraftSubtotal(draft)).toBe(130);
+  });
+
+  it("el total del borrador incluye el empaque y sale de la fórmula del servidor (TASK-303b)", () => {
+    const draft = addPosLine(createPosDraft("loc_centro"), {
+      ...taco,
+      quantity: 2,
+      packagingUnitAmount: 5,
+    });
+
+    const totals = posDraftTotals(draft);
+
+    expect(totals).toEqual({ subtotal: 70, packagingAmount: 10, total: 80 });
+    // El contrato que importa: es la MISMA fórmula que usa el servidor al crear el pedido.
+    expect(totals.total).toBe(
+      calculateOrderTotals({
+        subtotal: 70,
+        discount: 0,
+        deliveryFeeAmount: 0,
+        items: [{ packagingTotalAmount: 10 }],
+        tipOptIn: false,
+        orderType: "pickup",
+      }).total,
+    );
   });
 
   it("no deja confirmar un borrador vacío ni sin local", () => {

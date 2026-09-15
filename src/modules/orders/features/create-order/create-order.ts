@@ -59,6 +59,8 @@ export type CreateOrderRequest = {
   type: "delivery" | "pickup" | "table";
   customerName: string;
   customerWhatsapp: string;
+  /** TASK-303b — correo opcional (la venta de mostrador lo pide y el cliente puede dejarlo vacío). */
+  customerEmail?: string | null;
   items: OrderItemRequest[];
   couponCode?: string | null;
   address?: string | null;
@@ -159,6 +161,16 @@ export async function createOrder(
   const normalizedWhatsapp = normalizeWhatsapp(input.customerWhatsapp);
   if (!normalizedWhatsapp) {
     throw new OrderError(400, "BAD_REQUEST", "Invalid payload", { customerWhatsapp: "Invalid format" });
+  }
+
+  // TASK-303b — el correo es opcional (lo pide el POS): vacío es `null`, y con algo adentro tiene
+  // que parecer un correo. No se guarda un dato a medio escribir que después nadie puede usar.
+  const rawEmail = input.customerEmail?.trim() ?? "";
+  const normalizedCustomerEmail = rawEmail === "" ? null : rawEmail;
+  if (normalizedCustomerEmail !== null && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedCustomerEmail)) {
+    throw new OrderError(400, "BAD_REQUEST", "Invalid payload", {
+      customerEmail: "Revisá el correo",
+    });
   }
 
   if (!Array.isArray(input.items) || input.items.length === 0) {
@@ -490,6 +502,7 @@ export async function createOrder(
         locationId,
         customerName,
         customerWhatsapp: normalizedWhatsapp,
+        customerEmail: normalizedCustomerEmail,
         customerId,
         items: input.items,
         couponCode: appliedCouponCode,
