@@ -39,6 +39,14 @@ import {
 
 export type PosLocationOption = { id: string; name: string };
 
+/**
+ * TASK-306 — cada cuánto se refresca el mostrador solo.
+ *
+ * Decisión del owner (2026-09-14): **polling**, no SSE. Con una sola réplica y un catálogo chico, dos
+ * consultas cada 3 s no necesitan conexiones largas ni tocar los timeouts del proxy.
+ */
+export const POS_REFRESH_MS = 3000;
+
 type PosShift = {
   id: string;
   openedAt: string;
@@ -92,39 +100,50 @@ export default function PosClient({ locations }: { locations: PosLocationOption[
   const [countValues, setCountValues] = React.useState<CashCountValues>({});
   const [shiftBusy, setShiftBusy] = React.useState(false);
   const [closedShift, setClosedShift] = React.useState<ClosedShiftSummary | null>(null);
+  // El local actual, para que un refresco que llega tarde no pise el catálogo del local nuevo.
+  const locationRef = React.useRef(locationId);
 
   const cashCurrencies = React.useMemo(
     () => [settings.currencyCode, ...(settings.usdExchangeRate !== null ? ["USD"] : [])],
     [settings.currencyCode, settings.usdExchangeRate],
   );
 
-  const loadShift = React.useCallback(async (targetLocationId: string) => {
-    if (targetLocationId === "") {
-      setShiftLoading(false);
-      return;
-    }
+  const loadShift = React.useCallback(
+    async (targetLocationId: string, options: { silent?: boolean } = {}) => {
+      if (targetLocationId === "") {
+        setShiftLoading(false);
+        return;
+      }
 
-    setShiftLoading(true);
-    setShiftError(null);
+      if (!options.silent) {
+        setShiftLoading(true);
+        setShiftError(null);
+      }
 
-    try {
-      const response = await fetch(
-        `/api/admin/pos/shift?locationId=${encodeURIComponent(targetLocationId)}`,
-      );
-      const body = (await response.json()) as {
-        data?: PosShift | null;
-        error?: { message?: string };
-      };
+      try {
+        const response = await fetch(
+          `/api/admin/pos/shift?locationId=${encodeURIComponent(targetLocationId)}`,
+        );
+        const body = (await response.json()) as {
+          data?: PosShift | null;
+          error?: { message?: string };
+        };
 
-      if (!response.ok) throw new Error(body.error?.message ?? "No se pudo leer la caja.");
-      setShift(body.data ?? null);
-    } catch (error) {
-      setShift(null);
-      setShiftError(error instanceof Error ? error.message : "No se pudo leer la caja.");
-    } finally {
-      setShiftLoading(false);
-    }
-  }, []);
+        if (!response.ok) throw new Error(body.error?.message ?? "No se pudo leer la caja.");
+        setShift(body.data ?? null);
+      } catch (error) {
+        // El refresco de fondo no pisa una pantalla que está funcionando: el error de la caja se
+        // muestra cuando la acción es del cajero (abrir o cerrar), no cuando la dispara el reloj.
+        if (options.silent) return;
+
+        setShift(null);
+        setShiftError(error instanceof Error ? error.message : "No se pudo leer la caja.");
+      } finally {
+        if (!options.silent) setShiftLoading(false);
+      }
+    },
+    [],
+  );
 
   React.useEffect(() => {
     setCountValues({});
@@ -132,38 +151,68 @@ export default function PosClient({ locations }: { locations: PosLocationOption[
     void loadShift(locationId);
   }, [locationId, loadShift]);
 
-  React.useEffect(() => {
-    if (locationId === "") {
-      setLoading(false);
-      return;
-    }
+  /**
+   * Trae el catálogo del local. `silent` es el refresco de fondo (TASK-306): no muestra "Cargando…"
+   * ni borra lo que el cajero ya tiene en pantalla si la red falla.
+   */
+  const applyCatalog = React.useCallback(
+    async (targetLocationId: string, options: { silent?: boolean } = {}) => {
+      if (targetLocationId === "") {
+        setLoading(false);
+        return;
+      }
 
-    let cancelled = false;
-    setLoading(true);
-    setLoadError(null);
+      if (!options.silent) {
+        setLoading(true);
+        setLoadError(null);
+      }
 
-    void (async () => {
       try {
-        const response = await fetch(catalogUrl(locationId));
+        const response = await fetch(catalogUrl(targetLocationId));
         if (!response.ok) throw new Error("No se pudo cargar el catálogo de ese local.");
 
         const body = (await response.json()) as { data: { products: PosCatalogProduct[] } };
-        if (cancelled) return;
+        // Una respuesta de un local que el cajero ya dejó no puede pisar el catálogo del actual.
+        if (locationRef.current !== targetLocationId) return;
 
-        setProducts(body.data.products);
+        // Solo se reemplaza si cambió: refrescar cada 3 s no tiene que re-renderizar la pantalla.
+        setProducts((current) =>
+          JSON.stringify(current) === JSON.stringify(body.data.products)
+            ? current
+            : body.data.products,
+        );
       } catch (error) {
-        if (cancelled) return;
+        if (options.silent) return;
+
         setProducts([]);
         setLoadError(error instanceof Error ? error.message : "No se pudo cargar el catálogo.");
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!options.silent) setLoading(false);
       }
-    })();
+    },
+    [],
+  );
 
-    return () => {
-      cancelled = true;
-    };
-  }, [locationId, reloadKey]);
+  React.useEffect(() => {
+    locationRef.current = locationId;
+    void applyCatalog(locationId);
+  }, [locationId, reloadKey, applyCatalog]);
+
+  /**
+   * TASK-306 — el POS se refresca solo cada 3 s: el catálogo (precios y disponibilidad pueden
+   * cambiar en el menú) y la caja (otra terminal puede abrirla o cerrarla). **No toca el borrador, ni
+   * la búsqueda, ni el conteo**: lo que el cajero está escribiendo queda donde está.
+   */
+  React.useEffect(() => {
+    if (locationId === "") return;
+
+    const timer = setInterval(() => {
+      void applyCatalog(locationId, { silent: true });
+      void loadShift(locationId, { silent: true });
+    }, POS_REFRESH_MS);
+
+    return () => clearInterval(timer);
+  }, [locationId, applyCatalog, loadShift]);
 
   // Cambiar de local empieza una venta nueva: el borrador lleva el local y sus precios.
   React.useEffect(() => {

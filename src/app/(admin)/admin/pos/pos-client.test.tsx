@@ -1,13 +1,13 @@
 // @vitest-environment jsdom
 
-import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { BusinessSettingsProvider } from "@/shared/lib/business-settings";
 import { DEFAULT_BUSINESS_SETTINGS } from "@/modules/business-settings/domain/business-settings-defaults";
 
-import PosClient from "./pos-client";
+import PosClient, { POS_REFRESH_MS } from "./pos-client";
 
 /**
  * TASK-302 + TASK-303b — la pantalla del mostrador.
@@ -376,6 +376,41 @@ describe("PosClient", () => {
     expect(resumen.textContent).toContain("Caja cerrada");
     expect(resumen.textContent).toContain("esperado");
     expect(resumen.textContent).toContain("diferencia");
+  });
+
+  it("se refresca solo cada 3 s sin pisar lo que el cajero está armando (TASK-306)", async () => {
+    // Se falsean **solo** los intervalos: `waitFor` y `userEvent` siguen con el reloj real.
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+    const user = userEvent.setup();
+
+    try {
+      render(<PosClient locations={locations} />);
+
+      await screen.findByText("Taco de birria");
+      await user.click(screen.getByRole("button", { name: "Agregar Taco de birria a la venta" }));
+      await user.type(screen.getByLabelText("Buscar en el catálogo"), "cola");
+      await user.type(screen.getByLabelText("Cantidad de billetes de NIO 100"), "7");
+
+      const callsBefore = fetchMock.mock.calls.length;
+      await act(async () => {
+        vi.advanceTimersByTime(POS_REFRESH_MS);
+      });
+
+      const refreshed = fetchMock.mock.calls.slice(callsBefore).map(([input]) => String(input));
+      expect(refreshed.some((url) => url.startsWith("/api/admin/pos/catalog"))).toBe(true);
+      expect(refreshed.some((url) => url.startsWith("/api/admin/pos/shift?"))).toBe(true);
+
+      // Lo que el cajero estaba escribiendo sigue donde estaba: el refresco no toca su estado.
+      expect((screen.getByLabelText("Buscar en el catálogo") as HTMLInputElement).value).toBe("cola");
+      expect(
+        (screen.getByLabelText("Cantidad de billetes de NIO 100") as HTMLInputElement).value,
+      ).toBe("7");
+      expect(
+        within(screen.getByRole("region", { name: "Venta en curso" })).getByText("Taco de birria"),
+      ).toBeTruthy();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("sin locales activos lo dice y no pide catálogo", () => {
