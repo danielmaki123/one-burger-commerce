@@ -2457,6 +2457,50 @@ del mismo commit. Ahora compara por **día UTC** y sigue detectando lo que tiene
 **Verificación**: **2039 unitarios en 301 archivos** (todos verdes), `test:contracts` **22/22**, `lint`,
 `typecheck`, `build` y `security:secrets` en verde. **E2E**: ver el hallazgo del arnés más abajo.
 
+### CAPA 1 · C1-2 y C1-3 — guardrails y tokens muertos — **cerradas (2026-09-15)**
+
+- **C1-2** (`41876bb`): los tres defectos que el design system tenía marcados como "todavía sin
+  guardrail automático" (paleta cruda, `fontFamily` inline, radios/tamaños/sombras arbitrarios) más
+  `window.confirm`, los `role` a mano y el HTML crudo quedan medidos por
+  `src/shared/contracts/design-guardrails-contract.test.ts` con **techo por archivo que solo baja**
+  (`src/shared/config/design-tokens.allow.json`). Números del primer congelamiento: **36** de paleta
+  cruda en 12 archivos, **29** `fontFamily` inline en 15, **36** radios arbitrarios en 17, **97**
+  tamaños de texto arbitrarios en 33, **26** sombras arbitrarias en 16, **4** `window.confirm`, **8**
+  `role` a mano en 7 y **97** controles HTML crudos en 34. La regla se probó **en rojo** con dos
+  mutaciones de la lista. `rounded-full` queda afuera a propósito (es legítimo en las piezas
+  circulares); lo prohibido es el radio **arbitrario**.
+- **C1-3** (`55a4986`): se eliminaron los **16 tokens muertos** (`--primary`, `--popover`,
+  `--destructive`, `--ring`, `--ink-green-foreground` y `--sidebar-*`) y el **bloque `.dark`** con sus
+  31 tokens, más la variante `@custom-variant dark`. **Hallazgo**: `--ring` no era gratis — la regla
+  base aplicaba `outline-ring/50`, que Tailwind compila a `outline-color: var(--ring)` **literal**, así
+  que borrarlo sin tocar esa línea rompía el contorno en runtime **sin fallar el build**; se quitó esa
+  aplicación (los 75 anillos del producto usan `ring-brand`). Contrato nuevo
+  `dead-tokens-contract.test.ts`.
+
+### CAPA 1 · C1-4a — el mockup de `/admin` — **LISTO, esperando validación del owner (stop humano)**
+
+`ops/tasks/audit-ui/mockup-admin-inicio.html` (estático, sin backend) + **8 capturas** en la misma
+carpeta (los 4 estados × 375 px y 1280 px, renderizadas en Chromium real). Decisiones tomadas, para que
+el owner apruebe o corrija:
+
+1. **La pantalla se llama «Inicio» y no «Resumen»**, y contesta *«¿qué hago ahora?»*. El dato principal
+   es **Ventas de hoy** en `text-display` (C$ 12 480 con ↑18 % vs. ayer); `Órdenes activas` y `Nuevas`,
+   que hoy compiten con él, bajan a cuatro hechos secundarios cortos (en cocina, por aceptar, listas,
+   caja).
+2. **«Necesita atención» es la sección con más peso después del hero**: filas tocables con la hora de
+   retiro y el semáforo (`--pickup-*`), sin abrir el detalle.
+3. **Los filtros de período/canal salen de la home**: son consulta, no operación del turno, y con
+   cuatro tamaños de fuente no se sostiene la jerarquía. Queda como decisión del owner: si los quiere,
+   van en un bloque plegable.
+4. **Una sola acción primaria**: «Ir a la caja».
+5. **Los cuatro estados se ven desde la barra del mockup** (con datos / cargando / sin datos / error);
+   la barra oscura no es producto.
+6. **Medido en el navegador**: 4 tamaños de fuente en el contenido (30 / 17 / 14 / 12 px) contra los
+   **8 `text-[11px]`** que tiene hoy la pantalla real, y **cero scroll horizontal** a 375 y 1280 px.
+
+**C1-4b NO se arranca hasta que el owner valide.** Al aprobarse, la implementación reemplaza
+`admin-overview-client.tsx` (615 líneas) respetando el techo congelado de ese archivo.
+
 ### Hallazgo del arnés E2E local (2026-09-15) — **no es un bug del código**
 
 El E2E completo local dejó de ser reproducible **por el estado de la base de desarrollo**, no por el

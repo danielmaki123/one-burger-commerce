@@ -1,0 +1,637 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Mockup — Inicio del panel · One Burger</title>
+
+    <!--
+      C1-4a de `plan2uiux.md` — MOCKUP ESTÁTICO. No es producto:
+      · Sin backend, sin datos reales, sin fetch. El estado se cambia con los botones de la barra.
+      · Los tokens están copiados de `src/app/globals.css` (con los mismos valores) porque este
+        archivo tiene que abrirse con doble click, sin build.
+      · Ningún `#hex` nuevo: solo los valores de los tokens del sistema.
+      · Al terminar: PARÁ y esperá la validación del owner (es el único stop humano del plan).
+    -->
+    <style>
+      :root {
+        --brand: #2b6c96;
+        --brand-strong: color-mix(in srgb, var(--brand) 84%, black);
+        --brand-foreground: #f7fafc;
+        --terracotta: #b85f3a;
+        --cream: #f2ece0;
+        --gold: #c8a96a;
+        --coal: #16212a;
+
+        --background: #fbf9f5;
+        --foreground: #23303a;
+        --card: #ffffff;
+        --card-foreground: var(--foreground);
+        --secondary: #f1ece2;
+        --secondary-foreground: var(--brand-strong);
+        --muted: #eef0f2;
+        --muted-foreground: #5b6670;
+        --accent: #eaf1f6;
+        --border: #e4e2dc;
+
+        --success: #e8f3ea;
+        --success-foreground: #1f5c3f;
+        --warning: #f7ecd6;
+        --warning-foreground: #7a5518;
+        --danger: #f7e4dc;
+        --danger-foreground: #8a3220;
+
+        --status-nueva: var(--brand);
+        --status-preparando: #b5701c;
+        --status-lista: #1f7a4d;
+        --status-cerrada: var(--muted-foreground);
+        --status-alerta: #b23c2a;
+        --pickup-on-time: #1f7a4d;
+        --pickup-past: #b5701c;
+        --pickup-late: #b23c2a;
+
+        --radius-panel: 1rem;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: var(--background);
+        color: var(--foreground);
+        font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+        font-size: 16px;
+        line-height: 1.5;
+      }
+
+      /* Escala tipográfica del sistema (globals.css): solo estos pasos. */
+      .t-display {
+        font-size: 1.875rem;
+        line-height: 2.375rem;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+      }
+      .t-headline {
+        font-size: 1.375rem;
+        line-height: 1.75rem;
+        font-weight: 700;
+        letter-spacing: -0.01em;
+      }
+      .t-title {
+        font-size: 1.0625rem;
+        line-height: 1.375rem;
+        font-weight: 700;
+      }
+      .t-body-sm {
+        font-size: 0.875rem;
+        line-height: 1.25rem;
+      }
+      .t-label {
+        font-size: 0.875rem;
+        line-height: 1.125rem;
+        font-weight: 700;
+        letter-spacing: 0.01em;
+      }
+      .t-label-sm {
+        font-size: 0.75rem;
+        line-height: 1rem;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+      }
+      .t-caption {
+        font-size: 0.75rem;
+        line-height: 1rem;
+      }
+      .muted {
+        color: var(--muted-foreground);
+      }
+      .nums {
+        font-variant-numeric: tabular-nums;
+      }
+
+      /* Barra del mockup: NO es producto, es la herramienta para que el owner vea los estados. */
+      .demo-bar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        align-items: center;
+        padding: 0.75rem 1rem;
+        background: var(--coal);
+        color: var(--cream);
+      }
+      .demo-bar p {
+        margin: 0 auto 0 0;
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+      .demo-bar button {
+        min-height: 44px;
+        padding: 0 0.75rem;
+        border: 1px solid color-mix(in srgb, var(--cream) 40%, transparent);
+        border-radius: var(--radius);
+        background: transparent;
+        color: var(--cream);
+        font: inherit;
+        font-size: 0.875rem;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .demo-bar button[aria-pressed="true"] {
+        background: var(--cream);
+        color: var(--coal);
+      }
+
+      .shell {
+        max-width: 1120px;
+        margin: 0 auto;
+        padding: 1rem 1rem 3rem;
+      }
+
+      header.page {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        align-items: flex-start;
+        justify-content: space-between;
+        padding-bottom: 1rem;
+      }
+      .page-label {
+        color: var(--muted-foreground);
+      }
+      .page-title {
+        margin: 0.25rem 0 0;
+      }
+      .page-sub {
+        margin: 0.25rem 0 0;
+        color: var(--muted-foreground);
+      }
+
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        min-height: 44px;
+        padding: 0 1rem;
+        border: 1px solid transparent;
+        border-radius: var(--radius);
+        font: inherit;
+        font-size: 0.875rem;
+        font-weight: 700;
+        text-decoration: none;
+        cursor: pointer;
+      }
+      .btn-primary {
+        background: var(--brand);
+        color: var(--brand-foreground);
+      }
+      .btn-secondary {
+        background: var(--card);
+        border-color: var(--border);
+        color: var(--foreground);
+      }
+
+      section {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-panel);
+        margin-top: 1rem;
+      }
+      .pad {
+        padding: 1rem;
+      }
+
+      /* 1. EL DATO PRINCIPAL: ventas de hoy, protagonista y sin competencia. */
+      .hero {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem 1.5rem;
+        align-items: baseline;
+        padding: 1.25rem 1rem;
+        border-bottom: 1px solid var(--border);
+      }
+      .hero .delta {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.375rem;
+        padding: 0.125rem 0.5rem;
+        border-radius: var(--radius);
+        background: var(--success);
+        color: var(--success-foreground);
+        font-size: 0.75rem;
+        font-weight: 700;
+      }
+      .hero .delta.down {
+        background: var(--warning);
+        color: var(--warning-foreground);
+      }
+      .hero .when {
+        color: var(--muted-foreground);
+      }
+
+      /* 2. DATOS SECUNDARIOS: cuatro etiquetas cortas, un número cada una. */
+      .facts {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        border-top: 1px solid var(--border);
+      }
+      @media (min-width: 720px) {
+        .facts {
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+        }
+      }
+      .fact {
+        padding: 0.75rem 1rem;
+        border-top: 1px solid var(--border);
+      }
+      .fact:nth-child(-n + 2) {
+        border-top: 0;
+      }
+      @media (min-width: 720px) {
+        .fact {
+          border-top: 0;
+          border-left: 1px solid var(--border);
+        }
+        .fact:first-child {
+          border-left: 0;
+        }
+      }
+      .fact dt {
+        color: var(--muted-foreground);
+      }
+      .fact dd {
+        margin: 0.25rem 0 0;
+      }
+
+      .section-title {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 0.75rem;
+        padding: 1rem 1rem 0.5rem;
+      }
+      .section-title h2 {
+        margin: 0;
+      }
+
+      /* 3. LO QUE PIDE ACCIÓN: filas tocables de una decisión cada una. */
+      ul.rows {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+      ul.rows li + li {
+        border-top: 1px solid var(--border);
+      }
+      ul.rows a {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        min-height: 56px;
+        padding: 0.5rem 1rem;
+        color: inherit;
+        text-decoration: none;
+      }
+      ul.rows a:hover {
+        background: color-mix(in srgb, var(--accent) 60%, transparent);
+      }
+      .row-icon {
+        flex: 0 0 auto;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        border-radius: var(--radius);
+        background: var(--danger);
+        color: var(--danger-foreground);
+        font-weight: 800;
+        font-size: 1rem;
+      }
+      .row-icon.info {
+        background: var(--muted);
+        color: var(--foreground);
+      }
+      .row-main {
+        min-width: 0;
+        flex: 1 1 auto;
+      }
+      .row-title {
+        display: block;
+        font-weight: 700;
+        font-size: 0.875rem;
+      }
+      .row-detail {
+        display: block;
+        color: var(--muted-foreground);
+        font-size: 0.75rem;
+      }
+      .chip {
+        flex: 0 0 auto;
+        padding: 0.125rem 0.5rem;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        font-size: 0.75rem;
+        font-weight: 700;
+        white-space: nowrap;
+      }
+      .chip.late {
+        border-color: var(--pickup-late);
+        color: var(--pickup-late);
+      }
+      .chip.past {
+        border-color: var(--pickup-past);
+        color: var(--pickup-past);
+      }
+      .chip.ok {
+        border-color: var(--pickup-on-time);
+        color: var(--pickup-on-time);
+      }
+
+      /* 4. APOYO: top de productos, barra + número (nada que decidir acá). */
+      ol.products {
+        list-style: none;
+        margin: 0;
+        padding: 0 1rem 1rem;
+        display: grid;
+        gap: 0.75rem;
+      }
+      ol.products li {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 0.25rem 0.75rem;
+        align-items: center;
+      }
+      .bar {
+        grid-column: 1 / -1;
+        height: 6px;
+        background: var(--muted);
+        border-radius: var(--radius);
+        overflow: hidden;
+      }      .bar span {
+        display: block;
+        height: 100%;
+        background: var(--brand);
+      }
+
+      /* 5. LOS CUATRO ESTADOS: cargando (skeleton), vacío y con datos. */
+      .skeleton-card {
+        padding: 1rem;
+      }
+      .bone {
+        background: var(--muted);
+        border-radius: var(--radius);
+        animation: pulse 1.4s ease-in-out infinite;
+      }
+      @keyframes pulse {
+        50% {
+          opacity: 0.55;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .bone {
+          animation: none;
+        }
+      }
+      .bone.h28 {
+        height: 28px;
+      }
+      .bone.h44 {
+        height: 44px;
+      }
+      .bone.w40 {
+        width: 40%;
+      }
+      .bone.w70 {
+        width: 70%;
+      }
+      .bone + .bone {
+        margin-top: 0.75rem;
+      }
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
+        border: 0;
+      }
+      .empty {
+        padding: 2rem 1rem;
+        text-align: center;
+      }
+      .empty h3 {
+        margin: 0.5rem 0 0.25rem;
+      }
+      .empty p {
+        margin: 0 auto 1rem;
+        max-width: 32ch;
+        color: var(--muted-foreground);
+      }
+      .error-box {
+        margin-top: 1rem;
+        padding: 0.75rem 1rem;
+        border: 1px solid var(--danger-foreground);
+        border-radius: var(--radius);
+        background: var(--danger);
+        color: var(--danger-foreground);
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .error-box p {
+        margin: 0;
+        font-weight: 600;
+        font-size: 0.875rem;
+      }
+
+      footer.mock {
+        margin-top: 1.5rem;
+        color: var(--muted-foreground);
+        font-size: 0.75rem;
+      }
+      [hidden] {
+        display: none !important;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="demo-bar">
+      <p>Mockup C1-4a · estado</p>
+      <button type="button" data-state="data" aria-pressed="true">Con datos</button>
+      <button type="button" data-state="loading" aria-pressed="false">Cargando</button>
+      <button type="button" data-state="empty" aria-pressed="false">Sin datos</button>
+      <button type="button" data-state="error" aria-pressed="false">Error</button>
+    </div>
+
+    <div class="shell">
+      <header class="page">
+        <div>
+          <p class="t-label-sm page-label">OPERACIÓN</p>
+          <h1 class="t-title page-title">Inicio</h1>
+          <p class="t-body-sm page-sub">Lo que pasa hoy en Principal.</p>
+        </div>
+        <a class="btn btn-primary" href="#">Ir a la caja</a>
+      </header>
+
+      <div class="error-box" data-state="error" hidden>
+        <p>No se pudieron cargar los datos de hoy. Revisá tu conexión.</p>
+        <button type="button" class="btn btn-secondary">Reintentar</button>
+      </div>
+
+      <section aria-labelledby="turno-title" data-state="data">
+        <h2 id="turno-title" class="sr-only">Turno de hoy</h2>
+
+        <div class="hero">
+          <p class="t-caption page-label" style="margin: 0">Ventas de hoy</p>
+          <p class="t-display nums" style="margin: 0">C$ 12 480</p>
+          <span class="delta">↑ 18 % vs. ayer</span>
+          <p class="t-body-sm when" style="margin: 0">36 pedidos · promedio C$ 347</p>
+        </div>
+
+        <dl class="facts">
+          <div class="fact">
+            <dt class="t-label-sm">EN COCINA</dt>
+            <dd class="t-title nums">4</dd>
+          </div>
+          <div class="fact">
+            <dt class="t-label-sm">POR ACEPTAR</dt>
+            <dd class="t-title nums">2</dd>
+          </div>
+          <div class="fact">
+            <dt class="t-label-sm">LISTAS</dt>
+            <dd class="t-title nums">3</dd>
+          </div>
+          <div class="fact">
+            <dt class="t-label-sm">CAJA</dt>
+            <dd class="t-title nums">Abierta</dd>
+          </div>
+        </dl>
+      </section>
+
+      <!-- CARGANDO -->
+      <section class="skeleton-card" data-state="loading" hidden aria-label="Cargando el turno de hoy">
+        <p class="sr-only" role="status">Cargando el turno de hoy…</p>
+        <div class="bone h28 w40"></div>
+        <div class="bone h44"></div>
+        <div class="bone h44 w70"></div>
+        <div class="bone h44"></div>
+      </section>
+
+      <!-- SIN DATOS -->
+      <section class="empty" data-state="empty" hidden>
+        <h3 class="t-title">Todavía no hay ventas hoy</h3>
+        <p class="t-body-sm">
+          Cuando entre el primer pedido, acá vas a ver el turno completo.
+        </p>
+        <a class="btn btn-secondary" href="#">Ver el menú</a>
+      </section>
+
+      <div data-state="data">
+
+      <section aria-labelledby="atencion-title">
+        <div class="section-title">
+          <h2 id="atencion-title" class="t-title">Necesita atención</h2>
+          <span class="t-caption muted nums">3 pedidos</span>
+        </div>
+        <ul class="rows">
+          <li>
+            <a href="#">
+              <span class="row-icon" aria-hidden="true">!</span>
+              <span class="row-main">
+                <span class="row-title">P-0042 · retiro 12:30</span>
+                <span class="row-detail">Cliente esperando hace 12 min</span>
+              </span>
+              <span class="chip late">Tarde</span>
+            </a>
+          </li>
+          <li>
+            <a href="#">
+              <span class="row-icon" aria-hidden="true">!</span>
+              <span class="row-main">
+                <span class="row-title">P-0039 · sin aceptar</span>
+                <span class="row-detail">Entró hace 6 min</span>
+              </span>
+              <span class="chip past">Sin aceptar</span>
+            </a>
+          </li>
+          <li>
+            <a href="#">
+              <span class="row-icon info" aria-hidden="true">i</span>
+              <span class="row-main">
+                <span class="row-title">Caja abierta hace 9 h</span>
+                <span class="row-detail">Se cerró por última vez ayer 22:10</span>
+              </span>
+              <span class="chip ok">Sin cerrar</span>
+            </a>
+          </li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="top-title">
+        <div class="section-title">
+          <h2 id="top-title" class="t-title">Más vendidos hoy</h2>
+          <span class="t-caption muted">unidades</span>
+        </div>
+        <ol class="products">
+          <li>
+            <span class="t-body-sm">Taco de Birria</span>
+            <span class="t-body-sm nums">14</span>
+            <span class="bar"><span style="width: 100%"></span></span>
+          </li>
+          <li>
+            <span class="t-body-sm">Hamburguesa clásica</span>
+            <span class="t-body-sm nums">9</span>
+            <span class="bar"><span style="width: 64%"></span></span>
+          </li>
+          <li>
+            <span class="t-body-sm">Sangría</span>
+            <span class="t-body-sm nums">6</span>
+            <span class="bar"><span style="width: 43%"></span></span>
+          </li>
+        </ol>
+      </section>
+      </div>
+
+      <footer class="mock">
+        <p>
+          Mockup estático (C1-4a de <code>plan2uiux.md</code>). Datos inventados: no hay backend. Los
+          tokens son los de <code>src/app/globals.css</code> y la escala tipográfica es la del
+          design system.
+        </p>
+      </footer>
+    </div>
+
+    <script>
+      /**
+       * Único JavaScript del mockup: cambia el estado visible para que el owner vea los cuatro.
+       *
+       * Ojo con el selector: los botones de la barra **no** son pantallas del producto, así que la
+       * barra queda afuera del barrido (`:not(.demo-bar *)`). Sin eso, el primer click esconde la
+       * propia barra y no se puede volver atrás.
+       */
+      const buttons = [...document.querySelectorAll(".demo-bar button")];
+
+      function show(state) {
+        for (const node of document.querySelectorAll("[data-state]:not(.demo-bar *)")) {
+          node.hidden = node.dataset.state !== state;
+        }
+        for (const button of buttons) {
+          button.setAttribute("aria-pressed", String(button.dataset.state === state));
+        }
+      }
+
+      for (const button of buttons) {
+        button.addEventListener("click", () => show(button.dataset.state));
+      }
+    </script>
+  </body>
+</html>
