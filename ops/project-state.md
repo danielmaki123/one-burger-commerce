@@ -1,8 +1,9 @@
 # Estado del proyecto — One Burger Commerce
 
-> Actualizado: 2026-09-13 · Último deploy a producción: 2026-09-13, commit `982da3f`
-> (build `build-20260913-191302`, deploy manual por API sobre el servicio `oneburguerweb`). Lleva
-> **A**, el alcance por sucursal del staff, con la migración `add_admin_user_locations`.
+> Actualizado: 2026-09-15 · Último deploy a producción: 2026-09-15, commit `3708f40` (el código es
+> `9018839`; build `build-20260915-121551`, deploy manual por API sobre el servicio `oneburguerweb`).
+> Lleva la **FASE 1, FASE 2 y FASE 3** del plan `plna.md`: el POS de mostrador completo y el
+> interruptor del mostrador por local, con la migración aditiva `add_pos_enabled`.
 > Este documento es el punto de entrada para retomar el trabajo. Mantenerlo al día al cerrar cada tarea.
 > Para arrancar en un chat nuevo: `ops/tasks/START-HERE.md`.
 
@@ -2252,6 +2253,48 @@ Verificación: **1783 unitarios en 263 archivos**, lint, typecheck, `build` y `b
 comprobando que el tablero abre sin barra lateral, que ahí **no** hay «Cerrar sesión», que «Ver el
 panel» la devuelve y que se sigue adentro (misma URL, misma pantalla).
 
+### Deploy de la FASE 3 (POS) a producción (2026-09-15, commit `3708f40`, código `9018839`) — **verificado**
+
+Una sola llamada a `deployService` (proyecto `brunobot`, servicio `oneburguerweb`, `forceRebuild:true`),
+como manda el runbook §2 y con el OK explícito del owner. Lleva la **FASE 1, la FASE 2 y la FASE 3**
+completas (TASK-101 a 105, 201 a 206 y 301 a 308): el cobro del mostrador en un solo paso, el arqueo por
+denominación y moneda, el refresco cada 3 s, el recibo como imagen y el **interruptor del mostrador por
+local**. Una migración aditiva nueva —`20260915035655_add_pos_enabled`— que el contenedor aplicó al
+arrancar.
+
+Qué se comprobó, y con qué:
+
+- El POST respondió **HTTP 200 `{}` a los 257 s** (el panel sostiene el build; el runbook ya avisa que el
+  cliente puede cortar por timeout).
+- La acción `Deploy service: …la linea de base de la FASE 3 completa` quedó en **`done`** (12:18:30).
+- `commit.sha` del panel = **`3708f40…`**, el tip de `main` (el código de la feature es `9018839`).
+- `/api/health` pasó de `build-20260914-151459` a **`build-20260915-121551`**.
+- Las rutas nuevas están en producción: `/api/admin/pos/availability` y `/api/admin/pos/catalog`
+  responden **401** (la primera era 404 antes del deploy) y `/admin/pos` responde 307 al login.
+- `/api/locations` responde 200 con el esquema nuevo: la migración corrió en producción (el pedido
+  público de locales lee la tabla completa).
+- Smoke productivo **7/7** y dominios **6/6**, los dos de solo lectura del runbook §2.
+
+⚠️ **La QA de solo lectura encontró 4 casos mal planteados y se arreglaron en el mismo push** (era de los
+tests, no del producto): los tres del "+" (home y menú) y el de hidratación del CSP asumían que el primer
+producto agregable de la carta está en la grilla que se dibuja primero. Con la carta real eso dejó de ser
+cierto —las hamburguesas tienen grupo obligatorio, las bebidas son otra categoría, y la home solo muestra
+los **cuatro populares**—, así que ahora el caso entra por la categoría del producto (`?category=`, el
+enlace real del riel) o lo trae con el buscador de la home, y **se saltea diciendo por qué** si la carta no
+da para ese caso. Después del arreglo: **31 pasaron / 2 salteados / 0 fallos**, más `design-tokens` repetido
+(la primera corrida cortó un `page.goto` a los 30 s por carga —la flakiness de A-11 ya anotada—: al
+repetirlo pasó **5/5**).
+
+⚠️ **El panel devuelve los secretos del servicio en claro** en `inspectService` (la `DATABASE_URL` con su
+contraseña, `NEXTAUTH_SECRET` y el token del servicio). Se comprobó en esta sesión al inspeccionar el commit
+desplegado: para eso está el `grep -o '"sha":"[^"]*"'` que recomienda el runbook §2 — no volcar la
+respuesta completa.
+
+⚠️ **Lo que no se pudo verificar desde acá**: el POS funcionando con una **sesión de admin** (este entorno
+no tiene credenciales del panel). La evidencia funcional es el E2E local —**105 pasaron / 6 salteados / 0
+fallos**, con el cobro, la caja y el interruptor por local— más la revisión a ojo del owner en
+`https://admin.oneburgernic.com/admin/pos`.
+
 ## 3. Infraestructura y secretos
 
 > ✅ **RESUELTO (2026-09-15) — el CI volvió al hacer público el repositorio.** *(Era un bloqueo de facturación de GitHub, no del código.)* Desde el run `34917504691`
@@ -2316,7 +2359,7 @@ panel» la devuelve y que se sigue adentro (misma URL, misma pantalla).
 | 16 | **TASK-101 a TASK-105 — FASE 1 del plan `plna.md` (bloqueantes del POS)** | **Cerrada el 2026-09-14** (6 commits, **sin desplegar**) | `plna.md` §5. **TASK-101** `8764adc`: idempotencia del alta pública (`Order.idempotencyKey` + header `x-idempotency-key`; el reintento devuelve el mismo pedido con 200 y la carrera P2002 se recupera). **TASK-102** `10cc7a3`: una sola puerta para el total + test de contrato. **TASK-103** `2fbcdae`: tabla `Payment` y puerto de cobros con dos adaptadores. **TASK-104** `e3cdc4d`: tabla `Shift` con arqueo, el índice único **parcial** que impide dos cajas abiertas por local, y el esperado calculado por el servidor. **TASK-105** `d6ea709`: rol `cashier` + `canUsePOS`. Corrección de test: `40d220b` (un `.test.tsx` hermano de un `.test.ts` con el mismo nombre base queda fuera del programa de `tsc` y rompe `lint`). Validación: **270 archivos / 1852 tests**, typecheck, lint, `build`, `security:secrets` y —fuera de la suite— las **24 migraciones en base limpia sin drift**, más la verificación contra Postgres real de cada adaptador nuevo (cascada de `Payment`, índice parcial de `Shift`, el cierre que no pisa el conteo, el enum de roles). **Pusheado**: `origin/main` = `18d838a` con **CI verde** (run `34877774363`: `verify` + `migrations` + `container` + `publish`). |
 | 17 | **TASK-201: inventario de la UI real, medido** | **Hecha el 2026-09-14** (commit local) | `plna.md` §5, FASE 2. `ops/tasks/TASK-201-ui-inventory.md` (549 líneas, solo lectura, sin tocar código): 58 tokens en `:root` con **15 huérfanos** (26 %) y 7 que no son del sistema sino configurables por el negocio; bloque `.dark` de 31 tokens que **nunca se aplica**; 26 componentes (3 huérfanos, 2 sin importadores, solo 6 con test propio); **111 elementos HTML crudos**, y en 22 archivos el componente ya estaba importado; **31 `<select>` y 6 `<textarea>` sin primitivo equivalente**; 10 hex de UI, 35 `rgba()`, 70 clases de paleta cruda, 29 `fontFamily` inline y 15 patrones de `className` duplicados (el `SELECT_CLASS` redefinido en 8 archivos). Commit `692a02f`. |
 | 18 | **TASK-202: un solo design system, versionado** | **Hecho el 2026-09-14** (commit local) | `plna.md` §5, FASE 2. `DESIGN_SYSTEM.md` (362 líneas) en la **raíz y versionado** —**no** en `docs/`: esa carpeta está en `.gitignore` y `AGENTS.md:44-49` la declara material heredado, y el propio §6 del plan prohíbe tocar `docs/` (el plan se contradice: `plna.md:351/361` vs `plna.md:553`). La desviación queda resuelta a favor de la raíz y las tareas 203–206 se leen con esa ruta. Contenido: frontmatter YAML con los 58 tokens (configurable / surface / brand_derived / accent_limited / semantic / order_status / pickup_timing / charts), catálogo de 26 componentes **con la columna "cuándo NO usarlo"**, tabla de lo que **NO EXISTE**, ejemplos reales de composición y 15 filas de `Do NOT`. Los 3 DESIGN.md viejos quedaron marcados `> OBSOLETO` **solo en el disco** (viven en carpetas ignoradas, así que la marca no es verificable en el repo). Commit `0944798`. **Decisión de paleta del owner: abierta y sin registrar** en ningún documento (el cuerpo original del commit afirmaba que estaba anotada acá; la auditoría del 2026-09-14 comprobó que no lo estaba y el mensaje se corrigió antes del push). |
-| 19 | **Plan de ejecución `plna.md` (orden + design system + POS)** | **Cerrado el 2026-09-15** (las tres fases) | El contrato de trabajo es `plna.md` (raíz, **sin versionar**) y su base es `AUDITORIA-ESTADO-2026-09-14.md` (**sin versionar**): un chat nuevo no los ve desde `START-HERE.md`. **FASE 1 cerrada** (TASK-101 a 105), **FASE 2 cerrada** (TASK-201 a 206, ver filas 20 a 23) y **FASE 3 (POS, TASK-301 a 308) cerrada** (filas 24 a 36): el POS cobra, imprime el recibo, cierra la caja contando y se prende por local. Queda **pendiente de deploy** (nada de esto está en producción, que sigue en `build-20260914-151459`; hace falta confirmación del owner). **Contradicción de gobernanza resuelta en TASK-203**: un plan aprobado ya resuelve el alcance (se ejecuta de corrido, una tarea por vez, sin pedir validación entre tareas) y se sigue preguntando por lo que el plan no decide y nunca se despliega sin confirmación del owner. |
+| 19 | **Plan de ejecución `plna.md` (orden + design system + POS)** | **Cerrado y desplegado el 2026-09-15** | El contrato de trabajo es `plna.md` (raíz, **sin versionar**) y su base es `AUDITORIA-ESTADO-2026-09-14.md` (**sin versionar**): un chat nuevo no los ve desde `START-HERE.md`. **FASE 1 cerrada** (TASK-101 a 105), **FASE 2 cerrada** (TASK-201 a 206, ver filas 20 a 23) y **FASE 3 (POS, TASK-301 a 308) cerrada** (filas 24 a 36): el POS cobra, imprime el recibo, cierra la caja contando y se prende por local. **Todo eso está en producción** desde el 2026-09-15 (commit `3708f40`, código `9018839`, build `build-20260915-121551`), con el OK del owner y verificado con los dos smokes de solo lectura. **Contradicción de gobernanza resuelta en TASK-203**: un plan aprobado ya resuelve el alcance (se ejecuta de corrido, una tarea por vez, sin pedir validación entre tareas) y se sigue preguntando por lo que el plan no decide y nunca se despliega sin confirmación del owner. |
 | 20 | **TASK-203: reglas de UI y de código en `AGENTS.md`** | **Cerrada el 2026-09-14** | `plna.md` §5, FASE 2. `d0ae72a` (62 líneas netas, 250 en total contra el tope de 300): secciones **UI y design system** (primitivo antes que HTML crudo, prohibido `#hex`/paleta cruda, los 15 tokens huérfanos, registro obligatorio en `DESIGN_SYSTEM.md`, ningún control ni texto decorativo, verificación a 375 px y 1280 px) y **Reglas de código** (fuente única de totales y de estado, route handlers de 50 líneas sin Prisma, módulos con las cuatro capas, 400/80 líneas), más seis prohibiciones nuevas y la fila de `DESIGN_SYSTEM.md` en la tabla de estado. `230f081`: saca la cita a `plna.md`, que un clon limpio no tiene. |
 | 21 | **TASK-204: guardrails como tests de contrato** | **Cerrada el 2026-09-14** | `plna.md` §5, FASE 2. `9727f5b`: `src/shared/contracts/` con `ui-contract`, `route-contract`, `module-contract`, `docs-sync-contract` y el helper `contract-files.ts`. La whitelist es un **techo por archivo que solo baja** (la deuda no se refactoriza: plan §6), medido el 2026-09-14: **101 controles crudos en 32 archivos**, **49 de 64** route handlers sobre 50 líneas, **3** con Prisma directo, 12 componentes de `_components/` (los 12 registrados). El contrato de totales **no se duplicó**: ya existía desde TASK-102 en `src/shared/lib/order-totals-contract.test.ts`. Las ocho reglas se probaron **en rojo** con mutaciones temporales antes de cerrar. |
 | 22 | **TASK-205: job `contracts` en CI** | **Cerrada el 2026-09-14** | `plna.md` §5, FASE 2. `9a80217`: job propio con **`fetch-depth: 0`** (la guarda de frescura necesita la historia) y `publish` depende de él. TDD: el caso de `deploy-runtime-contract.test.ts` que lee el workflow se confirmó **rojo** primero. El primer run en CI **falló donde local pasaba** y encontró un bug del propio guardrail: medía si el **directorio** de la capa existía, y `coupons` y `table-ordering` tienen sus cuatro capas vacías (git no versiona carpetas vacías) → en un clon son solo un `README.md`. Corregido en `bb106c9` (una capa cuenta solo si tiene archivos, `listFiles` tolera directorios ausentes) y los dos cascarones quedan como **A-13** del backlog, para decisión del owner. |
@@ -2333,7 +2376,7 @@ panel» la devuelve y que se sigue adentro (misma URL, misma pantalla).
 | 33 | **CI caído por facturación de GitHub** | **Resuelto (2026-09-15)** | Desde el 2026-09-15 **ningún job de Actions arranca**: fallan en ~2 s con **0 pasos** y sin logs. La anotación del check run dice: *"The job was not started because recent account payments have failed or your spending limit needs to be increased"*. El repo es privado (minutos facturados); `actions/permissions.enabled = true`, repo no archivado y workflow `active`, así que no es configuración del workflow. En el mismo push en que se rompió, `verify`/`contracts`/`migrations`/`container` **pasaron** y solo `publish` falló. **Destraba**: arreglar el pago/límite en *Billing & plans → Actions*, hacer público el repo o esperar el reinicio mensual. Mientras dure, ninguna tarea se cierra (regla de CI verde) aunque la validación local esté en verde. |
 | 34 | **TASK-306: el mostrador se refresca solo** | **Cerrada el 2026-09-15** | `plna.md` §5, FASE 3. **Polling cada 3 s** (decisión del owner): se refrescan el **catálogo** del local y **la caja** (otra terminal puede abrirla o cerrarla). **No toca** el borrador, la búsqueda ni el conteo —el caso de test lo fija—, **no muestra "Cargando…"** en cada vuelta (el estado de carga es de la primera lectura o del reintento), **descarta el fallo de un refresco de fondo** sin borrar los últimos datos buenos, **solo reemplaza el catálogo si cambió** y una respuesta de un local que el cajero ya dejó **no pisa** el actual (ref). **+1 test con dientes** (rojo al quitar el refresco, verde al restaurarlo) y **suite E2E local 104 / 6 / 0**. |
 | 35 | **TASK-307: el recibo como imagen** | **Cerrada el 2026-09-15** | `plna.md` §5, FASE 3. Sin API de WhatsApp (decisión del owner): el recibo se genera como **JPG en el dispositivo** (`src/shared/lib/receipt-image.ts`) y se ofrece **enviar** (hoja de compartir del sistema, donde están WhatsApp y —en Android— «Imprimir») o **descargar**. El texto del ticket lo arma una función **pura** y probada (negocio, dirección, retiro, cliente, líneas con precio e importe, subtotal, empaque, descuento, propina, total, con qué pagó y el cambio; los renglones que no aplican no se imprimen); el dibujo va a un `<canvas>` y sale como JPEG. El símbolo de la moneda entra por parámetro (configuración del negocio) y un cobro en otra moneda se muestra con **su código** (`USD 3.00`). En el POS, el panel de confirmación ofrece **«Enviar recibo»** tras cobrar. **Dos cosas que el repo me atajó**: el guardrail de UI por dos `#hex` en el canvas (ahora el recibo va en blanco y negro con palabras CSS, porque es un documento y no una superficie de la interfaz) y dos errores míos de arnés (`vi.hoisted` para el mock y la comprobación puesta después de navegar al tablero). **+6 tests** (**1990**) y **E2E del POS 5/5**, con el caso de cobro **descargando el JPG de verdad** en Chromium (nombre `recibo-P-XXXXXX.jpg`). |
-| 36 | **TASK-308: el punto de venta se prende por local** | **Cerrada el 2026-09-15** | `plna.md` §5, FASE 3 (la última). `Location.posEnabled` (Boolean, default **true**, migración aditiva `20260915035655` **sin drift**): el mostrador es del local, no del rol, así que una sucursal puede vender en el mostrador y otra no. La regla vive en dos lugares y en ninguno más: `pickPosLocations` (dominio, encendido + POS prendido + alcance por sucursal) decide **qué locales ofrece**, y `ensurePosEnabled` (caso de uso sobre el puerto de locales que ya existía) **corta el request con 403** antes de leer el catálogo, cobrar o tocar la caja. Las cinco rutas del POS comparten `requirePosLocation` (rol → alcance → POS prendido): quedaron en 38/44/31/39/41 líneas y el tope de 50 otra vez obligó a ordenar, no a copiar. **La entrada «Caja» no existía en la navegación**: ahora está para dueño, gerente y cajero —con su pestaña en la barra móvil, que es la pantalla del cajero— y se esconde cuando ningún local del staff tiene mostrador (`GET /api/admin/pos/availability`, el único dato que pregunta el shell). En `/admin/locations` está el interruptor. **Dos cosas que el repo me atajó**: los dos `route.ts` de locales estaban **exactamente en su techo** (113 y 125 líneas contra 113 y 125) y el campo nuevo no entraba, así que el esquema zod duplicado se fue a `locations/location-payload.ts` (los techos bajaron a 56 y 71) y de paso los dos `<select>` del formulario pasaron al `Select` de TASK-206 (el techo de controles crudos de esa pantalla bajó de 4 a 2); y `prisma/schema.prisma` obligó a tocar `DESIGN_SYSTEM.md` por el guardrail de frescura. **+20 tests** (**2010** en 294 archivos) y el caso E2E que apaga el POS en todos los locales, comprueba los tres efectos (sin entrada, sin pantalla, 403 en la API) y **lo vuelve a prender**. |
+| 36 | **TASK-308: el punto de venta se prende por local** | **Cerrada el 2026-09-15** | `plna.md` §5, FASE 3 (la última). `Location.posEnabled` (Boolean, default **true**, migración aditiva `20260915035655` **sin drift**): el mostrador es del local, no del rol, así que una sucursal puede vender en el mostrador y otra no. La regla vive en dos lugares y en ninguno más: `pickPosLocations` (dominio, encendido + POS prendido + alcance por sucursal) decide **qué locales ofrece**, y `ensurePosEnabled` (caso de uso sobre el puerto de locales que ya existía) **corta el request con 403** antes de leer el catálogo, cobrar o tocar la caja. Las cinco rutas del POS comparten `requirePosLocation` (rol → alcance → POS prendido): quedaron en 38/44/31/39/41 líneas y el tope de 50 otra vez obligó a ordenar, no a copiar. **La entrada «Caja» no existía en la navegación**: ahora está para dueño, gerente y cajero —con su pestaña en la barra móvil, que es la pantalla del cajero— y se esconde cuando ningún local del staff tiene mostrador (`GET /api/admin/pos/availability`, el único dato que pregunta el shell). En `/admin/locations` está el interruptor. **Dos cosas que el repo me atajó**: los dos `route.ts` de locales estaban **exactamente en su techo** (113 y 125 líneas contra 113 y 125) y el campo nuevo no entraba, así que el esquema zod duplicado se fue a `locations/location-payload.ts` (los techos bajaron a 56 y 71) y de paso los dos `<select>` del formulario pasaron al `Select` de TASK-206 (el techo de controles crudos de esa pantalla bajó de 4 a 2); y `prisma/schema.prisma` obligó a tocar `DESIGN_SYSTEM.md` por el guardrail de frescura. **+20 tests** (**2010** en 294 archivos) y el caso E2E que apaga el POS en todos los locales, comprueba los tres efectos (sin entrada, sin pantalla, 403 en la API) y **lo vuelve a prender**. **Desplegada el 2026-09-15** en `build-20260915-121551` (sección del deploy, §2). |
 
 ## 5. Cómo continuar
 
@@ -2384,17 +2427,17 @@ BASE_URL=https://menu.oneburgernic.com npx playwright test \
 # latencia de las superficies antes de culpar al código (runbook §0 y A-11 del backlog).
 ```
 
-**Antes de tocar nada, el estado en una línea (2026-09-15)**: producción sirve `build-20260914-151459`
-(commit `0072531`), con A (alcance por sucursal) y B (comandas B0–B6) desplegadas. Sobre eso corrió el
-plan `plna.md`: **FASE 1 (bloqueantes del POS), FASE 2 (UI + design system) y FASE 3 (POS, TASK-301 a
-308) cerradas**, las tres **sin desplegar** —el deploy necesita confirmación del owner y es lo único
-que queda del plan—. La cola de auditoría sigue viva en
+**Antes de tocar nada, el estado en una línea (2026-09-15)**: producción sirve `build-20260915-121551`
+(commit `3708f40`, código `9018839`), con **A, B y las tres fases del plan `plna.md`** desplegadas: el POS
+de mostrador completo (cobro, caja, recibo y el mostrador por local). La cola de auditoría sigue viva en
 [`ops/audit-backlog.md`](audit-backlog.md) —A-02…A-06 bloqueados por el owner, A-09…A-14 abiertos—
 con el prompt en [`ops/tasks/START-HERE.md`](tasks/START-HERE.md) §1b. La última línea de base
 verificada: **2010 unitarios en 294 archivos**, lint, typecheck, `build`, `build:webpack` y
 `security:secrets` en verde, **E2E local 105 pasaron / 6 salteados / 0 fallos** (con los specs nuevos
 `admin-pos.spec.ts` y `admin-exchange-rate.spec.ts`), y los cinco guardrails
-de `src/shared/contracts/` corriendo como job propio del CI.
+de `src/shared/contracts/` corriendo como job propio del CI. **Contra producción**, la QA de solo
+lectura de las superficies públicas quedó en **31 pasaron / 2 salteados / 0 fallos** después del
+despliegue.
 
 ## 6. Límites conocidos (resumen)
 
