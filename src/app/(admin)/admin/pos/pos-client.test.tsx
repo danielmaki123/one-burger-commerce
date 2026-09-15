@@ -7,6 +7,18 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { BusinessSettingsProvider } from "@/shared/lib/business-settings";
 import { DEFAULT_BUSINESS_SETTINGS } from "@/modules/business-settings/domain/business-settings-defaults";
 
+// `vi.hoisted`: las fábricas de `vi.mock` se elevan al tope del archivo, así que las referencias
+// tienen que existir antes de que el módulo se importe.
+const { renderReceiptJpegMock, shareOrDownloadReceiptMock } = vi.hoisted(() => ({
+  renderReceiptJpegMock: vi.fn(async (_data: unknown) => new Blob(["jpg"], { type: "image/jpeg" })),
+  shareOrDownloadReceiptMock: vi.fn(async (_blob: Blob, _fileName: string) => "downloaded" as const),
+}));
+
+vi.mock("@/shared/lib/receipt-image", () => ({
+  renderReceiptJpeg: renderReceiptJpegMock,
+  shareOrDownloadReceipt: shareOrDownloadReceiptMock,
+}));
+
 import PosClient, { POS_REFRESH_MS } from "./pos-client";
 
 /**
@@ -411,6 +423,35 @@ describe("PosClient", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it("genera el recibo del último cobro y lo ofrece para enviar (TASK-307)", async () => {
+    const user = userEvent.setup();
+    render(<PosClient locations={locations} />);
+
+    await screen.findByText("Taco de birria");
+    await user.click(screen.getByRole("button", { name: "Agregar Taco de birria a la venta" }));
+    await fillCustomer(user);
+    await user.type(screen.getByLabelText("Con cuánto paga"), "100");
+    await user.click(screen.getByRole("button", { name: /^Cobrar / }));
+
+    await screen.findByRole("status");
+    await user.click(screen.getByRole("button", { name: "Enviar recibo" }));
+
+    expect(renderReceiptJpegMock).toHaveBeenCalledTimes(1);
+    const receipt = renderReceiptJpegMock.mock.calls[0][0] as {
+      orderNumber: string;
+      businessCurrencyCode: string;
+      lines: { name: string }[];
+      payments: { methodLabel: string; amount: number }[];
+    };
+    expect(receipt.orderNumber).toBe("P-ABC123");
+    expect(receipt.businessCurrencyCode).toBe("NIO");
+    expect(receipt.lines[0].name).toBe("Taco de birria");
+    expect(receipt.payments[0]).toMatchObject({ methodLabel: "Efectivo", amount: 100 });
+
+    expect(shareOrDownloadReceiptMock).toHaveBeenCalledWith(expect.anything(), "recibo-P-ABC123.jpg");
+    expect(await screen.findByText("Recibo listo para enviar o imprimir.")).toBeTruthy();
   });
 
   it("sin locales activos lo dice y no pide catálogo", () => {

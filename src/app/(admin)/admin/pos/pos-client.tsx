@@ -17,6 +17,12 @@ import { formatCurrency } from "@/shared/lib/format-currency";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Select } from "@/shared/ui/select";
+import { PAYMENT_METHOD_LABELS } from "@/modules/orders/domain/order.types";
+import {
+  renderReceiptJpeg,
+  shareOrDownloadReceipt,
+  type ReceiptData,
+} from "@/shared/lib/receipt-image";
 import { AdminEmptyState, AdminPageHeader } from "../_components/admin-operational-ui";
 import {
   CashCountGrid,
@@ -65,6 +71,14 @@ type PosSaleSummary = {
   orderNumber: string;
   total: number;
   change: number | null;
+  /** Lo que hace falta para reimprimir el recibo cuando el cajero lo pide (TASK-307). */
+  receipt: {
+    customerName: string;
+    lines: { name: string; quantity: number; unitPrice: number; lineTotal: number }[];
+    subtotal: number;
+    packagingAmount: number;
+    payments: { methodLabel: string; amount: number; currency: string | null }[];
+  };
 };
 
 function catalogUrl(locationId: string) {
@@ -100,6 +114,7 @@ export default function PosClient({ locations }: { locations: PosLocationOption[
   const [countValues, setCountValues] = React.useState<CashCountValues>({});
   const [shiftBusy, setShiftBusy] = React.useState(false);
   const [closedShift, setClosedShift] = React.useState<ClosedShiftSummary | null>(null);
+  const [receiptState, setReceiptState] = React.useState<"idle" | "busy" | "done" | "error">("idle");
   // El local actual, para que un refresco que llega tarde no pise el catálogo del local nuevo.
   const locationRef = React.useRef(locationId);
 
@@ -238,6 +253,46 @@ export default function PosClient({ locations }: { locations: PosLocationOption[
     );
   };
 
+  /**
+   * TASK-307 — arma el recibo del último cobro y lo ofrece: hoja de compartir (WhatsApp, imprimir) o
+   * descarga del JPG. Sin API ni credenciales: la imagen se genera en el dispositivo.
+   */
+  const sendReceipt = async () => {
+    if (!lastSale) return;
+
+    setReceiptState("busy");
+    try {
+      const data: ReceiptData = {
+        businessName: settings.name,
+        addressLine: settings.addressLine,
+        phone: settings.phone,
+        businessCurrencyCode: settings.currencyCode,
+        orderNumber: lastSale.orderNumber,
+        createdAtLabel: new Date().toLocaleString(settings.locale, {
+          dateStyle: "short",
+          timeStyle: "short",
+        }),
+        locationName: locations.find((location) => location.id === locationId)?.name ?? null,
+        customerName: lastSale.receipt.customerName,
+        lines: lastSale.receipt.lines,
+        subtotal: lastSale.receipt.subtotal,
+        packagingAmount: lastSale.receipt.packagingAmount,
+        discount: 0,
+        deliveryFeeAmount: 0,
+        tipAmount: 0,
+        total: lastSale.total,
+        payments: lastSale.receipt.payments,
+        change: lastSale.change,
+      };
+
+      const blob = await renderReceiptJpeg(data);
+      await shareOrDownloadReceipt(blob, `recibo-${lastSale.orderNumber}.jpg`);
+      setReceiptState("done");
+    } catch {
+      setReceiptState("error");
+    }
+  };
+
   const openBox = async () => {
     setShiftBusy(true);
     setShiftError(null);
@@ -340,7 +395,9 @@ export default function PosClient({ locations }: { locations: PosLocationOption[
       });
 
       const body = (await response.json()) as {
-        data?: PosSaleSummary;
+        data?: PosSaleSummary & {
+          payments?: { method: "cash" | "card"; amount: number; currency: string | null }[];
+        };
         error?: { message?: string; fields?: Record<string, string> };
       };
 
@@ -350,7 +407,26 @@ export default function PosClient({ locations }: { locations: PosLocationOption[
         return;
       }
 
-      setLastSale(body.data);
+      setLastSale({
+        ...body.data,
+        // El recibo se arma con lo que se acaba de cobrar: el borrador se limpia enseguida.
+        receipt: {
+          customerName: customer.name,
+          lines: draft.lines.map((line) => ({
+            name: line.name,
+            quantity: line.quantity,
+            unitPrice: line.unitPrice,
+            lineTotal: line.unitPrice * line.quantity,
+          })),
+          subtotal: totals.subtotal,
+          packagingAmount: totals.packagingAmount,
+          payments: (body.data.payments ?? []).map((payment) => ({
+            methodLabel: PAYMENT_METHOD_LABELS[payment.method],
+            amount: payment.amount,
+            currency: payment.currency,
+          })),
+        },
+      });
       setDraft(createPosDraft(locationId));
       setCustomer({ name: "", whatsapp: "", email: "" });
       setPaidAmount("");
@@ -729,6 +805,26 @@ export default function PosClient({ locations }: { locations: PosLocationOption[
                   {lastSale.change !== null && lastSale.change > 0
                     ? ` · Cambio ${formatCurrency(lastSale.change, currency)}`
                     : " · Sin cambio"}
+
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="min-h-11"
+                      disabled={receiptState === "busy"}
+                      onClick={() => void sendReceipt()}
+                    >
+                      {receiptState === "busy" ? "Generando…" : "Enviar recibo"}
+                    </Button>
+                    {receiptState === "done" ? (
+                      <span className="text-sm">Recibo listo para enviar o imprimir.</span>
+                    ) : null}
+                    {receiptState === "error" ? (
+                      <span className="text-sm font-medium text-danger-strong">
+                        No se pudo generar el recibo en este dispositivo.
+                      </span>
+                    ) : null}
+                  </div>
                 </div>
               ) : null}
             </div>

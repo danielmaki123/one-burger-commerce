@@ -115,6 +115,14 @@ test.describe("punto de venta", () => {
     const numero = (await confirmacion.textContent())?.match(/P-[A-Z0-9]+/)?.[0];
     expect(numero, "la confirmación trae el número de pedido").toBeTruthy();
 
+    // TASK-307: el recibo se genera como imagen en el dispositivo **desde la confirmación del cobro**
+    // (es donde está el botón). En Chromium headless no hay hoja de compartir, así que el camino real
+    // es la descarga: se comprueba que el JPG sale con su nombre.
+    const descarga = page.waitForEvent("download");
+    await page.getByRole("button", { name: "Enviar recibo" }).click();
+    expect((await descarga).suggestedFilename()).toBe(`recibo-${numero}.jpg`);
+    await expect(page.getByText("Recibo listo para enviar o imprimir.")).toBeVisible();
+
     // El camino real: el pedido cobrado en el mostrador está en el tablero de la cocina...
     await page.goto("/admin/orders");
     await expect(page.getByText(numero!)).toBeVisible();
