@@ -32,16 +32,20 @@ hace falta nada de conversaciones anteriores. Si algo acá contradice a `AGENTS.
 > **jamás a producción sin pedirle confirmación al owner**. Después de desplegar: `test:e2e:prod` y
 > `test:e2e:prod:hosts` (los dos son de solo lectura).
 >
-> **Por dónde empezar:** **el plan `plna.md` está completo y desplegado** (FASE 1, 2 y 3), así que no hay
-> tareas de plan en la cola. Preguntale al owner **qué task quiere** de la cola de
-> [`ops/audit-backlog.md`](../audit-backlog.md): las **A-15 a A-23** salen de las tres consultas del
-> 2026-09-15 (caja/POS, fiscal/recibo, design system) y **cinco de ellas necesitan una decisión suya**
-> (A-15 cobros de pedidos cancelados, A-17 tarjeta/transferencia, A-19 movimientos de caja, A-20 fiscal,
-> A-23 la cuenta de prueba con rol owner); las otras cuatro son trabajo técnico ya acotado. Ojo: **casi
-> todo lo que queda necesita algo del owner** (elegir el servicio de monitoreo, corregir datos de los
-> locales, cargar la carta, el OK para rotar el token), así que lo primero es preguntarle — no inventes
-> trabajo para no quedar quieto. Si el owner dice «procedé con lo que puedas», tomá el pendiente que menos
-> dependa de él y explicá qué falta cuando lo cierres. Si algo del brief no cierra, decilo antes de codear.
+> **Por dónde empezar:** hay **dos** frentes y el owner elige. **(a) El plan de UI `plan2uiux.md`**
+> (raíz, sin versionar): la **CAPA 0 ya está cerrada y pusheada** (`AGENTS.md` con la jerarquía de
+> fuentes y el checklist de UI, `DESIGN_SYSTEM.md` con los 5 ejemplos reales, `src/shared/ui/registry.json`
+> con su contrato y los tres docs obsoletos borrados). Sigue la **CAPA 1** —C1-1 primitivos faltantes,
+> C1-2 guardrails de paleta/tipografía/radios, C1-3 bloque `.dark`, **C1-4a el mockup de `/admin` (el
+> único stop humano del plan)** y C1-4b—, y se ejecuta de corrido hasta ese mockup. **(b) El plan
+> `plna.md` está completo y desplegado** (FASE 1, 2 y 3), así que por ese lado no hay tareas de plan en la
+> cola: lo que queda es la cola de [`ops/audit-backlog.md`](../audit-backlog.md), donde las **A-15 a
+> A-23** salen de las tres consultas del 2026-09-15 (caja/POS, fiscal/recibo, design system) y **cinco
+> de ellas necesitan una decisión del owner** (A-15 cobros de pedidos cancelados, A-17
+> tarjeta/transferencia, A-19 movimientos de caja, A-20 fiscal, A-23 la cuenta de prueba con rol owner);
+> las otras cuatro son trabajo técnico ya acotado. **No inventes trabajo para no quedar quieto**: si el
+> owner ya entregó un plan (como `plan2uiux.md`), ese plan manda y se ejecuta de corrido; si no, se
+> pregunta antes de codear. Si algo del brief no cierra, decilo antes de codear.
 
 ## 1b. Prompt para un chat de **auditoría**
 
@@ -115,8 +119,12 @@ denominación y moneda, refresco cada 3 s, recibo como imagen y mostrador prendi
 `yes`): el detalle está en `ops/project-state.md` §2. Antes: `0072531` (`build-20260914-151459`, comandas
 B6), `ea6be95` (A-07/A-08) y `982da3f` (A).
 
-**Estado (2026-09-15)**: el plan `plna.md` quedó **sin tareas pendientes**. Lo que sigue es lo que el owner
-elija de la cola de auditoría, que creció con **tres consultas** que él pidió el 2026-09-15 (caja/POS,
+**Estado (2026-09-15)**: el plan `plna.md` quedó **sin tareas pendientes**. El frente nuevo es el
+**plan de UI `plan2uiux.md`** (raíz, sin versionar), con su **CAPA 0 ya cerrada**: contexto en `AGENTS.md`
+(jerarquía de fuentes + checklist de UI), `DESIGN_SYSTEM.md` con 5 ejemplos reales, el registro
+`src/shared/ui/registry.json` con su contrato y los tres docs obsoletos borrados. Sigue la **CAPA 1**
+(hasta el mockup de `/admin`, el único stop humano del plan). Lo otro que sigue es lo que el owner elija
+de la cola de auditoría, que creció con **tres consultas** que él pidió el 2026-09-15 (caja/POS,
 fiscal/recibo y design system) y que se respondieron **sin plan y sin código**: el inventario medido de las
 tres quedó resumido en `ops/project-state.md` §2 y desglosado como **A-15 a A-23** en el backlog.
 
@@ -184,8 +192,9 @@ npm run test && npm run lint && npm run typecheck && npm run build && npm run se
 npx prisma generate   # solo si el build local falla por el cliente de Prisma
 ```
 
-Y la última línea de base conocida, para comparar: **2010 tests unitarios en 294 archivos**
-(2026-09-15, cierre de TASK-308), CI (`verify` + `contracts` + `migrations` + `container` + `publish`)
+Y la última línea de base conocida, para comparar: **2016 tests unitarios en 295 archivos**
+(2026-09-15, cierre de la CAPA 0 del plan de UI; antes: 2010 en 294), CI (`verify` + `contracts` +
+`migrations` + `container` + `publish`)
 verde en cada push, **E2E completo local 105 pasaron / 6 salteados / 0 fallos**, smoke productivo **7/7**,
 hosts **6/6** y la QA pública de solo lectura contra `menu.oneburgernic.com` **31 / 2 / 0**.
 

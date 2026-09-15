@@ -6,6 +6,10 @@
 > interruptor del mostrador por local, con la migración aditiva `add_pos_enabled`.
 > Este documento es el punto de entrada para retomar el trabajo. Mantenerlo al día al cerrar cada tarea.
 > Para arrancar en un chat nuevo: `ops/tasks/START-HERE.md`.
+>
+> **Plan de UI en curso**: `plan2uiux.md` (raíz, **sin versionar**, como `plna.md`). Su **CAPA 0**
+> (contexto: `AGENTS.md`, `DESIGN_SYSTEM.md`, `src/shared/ui/registry.json` y sus guardrails) está
+> **cerrada**; sigue la **CAPA 1**. Detalle y excepciones del plan en §2.
 
 ## 1. Qué está vivo hoy
 
@@ -2379,6 +2383,49 @@ medido, para no volver a medirlo:
   carga" (hay 18), `§2.1:164` dice 15 huérfanos (hay 16), `AGENTS.md:109` manda a `§5` por la lista de
   copy decorativo y **§5 no la tiene**, y `plna.md:546` afirma un `Payment.shiftId` que **no existe**.
 
+### CAPA 0 del plan de UI (`plan2uiux.md`) — **cerrada (2026-09-15)**
+
+El owner entregó el **contrato de trabajo `plan2uiux.md`** (raíz, **sin versionar**, como `plna.md`)
+para el próximo bloque: un **roadmap de UI en 5 capas** (contexto → guardrails y primitivos → auditoría →
+oleadas de refactor → legadas). La **CAPA 0** quedó cerrada; lo que el plan choca con la gobernanza del
+repo está anotado como excepción en `AGENTS.md` ("Excepciones anotadas del plan de UI"):
+
+- **C0-1 · contexto en `AGENTS.md`**: sección **"Jerarquía de fuentes"** (1. `DESIGN_SYSTEM.md` para UI ·
+  2. `AGENTS.md` para todo lo demás, y sigue mandando cuando el conflicto no es visual · 3. skills de
+  diseño como referencia **secundaria** —si contradicen el sistema, gana el sistema— · 4. humano) y
+  **"Checklist de UI antes de cerrar una tarea con pantalla"** (9 puntos: primitivos, cero `text-[Npx]`,
+  cero paleta cruda, cero `rounded-[Npx]`/`shadow-[...]`, dato principal en `text-display` con una sola
+  acción primaria, 2 líneas por card, los 4 estados, verificación en navegador real a 375/1280 px y gates).
+- **C0-2 · `DESIGN_SYSTEM.md`**: §3 declara que `src/shared/ui/registry.json` es su **espejo declarado**;
+  §4 pasa a **5 ejemplos reales con `ruta:línea`** leídos del código en producción (`promotions:252`,
+  `orders:751`, `promotions:313`, `users-client:490`, `pos-client:746/696`); §7 se reescribe porque
+  **C0-5 borró los tres docs obsoletos**.
+- **C0-3 · registro**: **`src/shared/ui/registry.json`** (nuevo) con **31 filas** (13 de
+  `src/shared/ui/`, 12 de `admin/_components/`, 3 del público), cada una con `layer`, `kind`, `status`
+  (`in-use`/`orphan`), `exports` y sus dos criterios ("cuándo SÍ" / "cuándo NO"). Guardrail nuevo
+  **`src/shared/contracts/registry-contract.test.ts`** (6 casos, +6 tests): forma, que los exports
+  declarados existan en el archivo declarado, sin duplicados, toda ruta existente y **todo archivo de UI
+  que exporta un componente registrado**. Se probó **en rojo** primero: el primer caso detectó que el
+  detector de exports no reconocía `export default function` (5 archivos de `_components/`).
+- **C0-4 · 5 ejemplos reales**: en §4 de `DESIGN_SYSTEM.md`, con la ruta y la línea exactas.
+- **C0-5 · docs obsoletos**: `design/DESIGN.md`, `design/DESIGN_SYSTEM.md` y
+  `docs/ui/admin-design-system.md` **borrados del disco**. Los tres vivían en `design/` y `docs/`,
+  carpetas **enteras en `.gitignore`** (`.gitignore:43-44`), así que **no había nada versionado que
+  borrar**: el commit no puede mostrar su eliminación (el plan daba por hecho que sí). El resto de
+  `design/` (139 archivos: mockups, capturas de QA, auditorías) y los otros 8 `docs/ui/*.md` **no** se
+  tocaron.
+- **El gate que el plan escribe como `npm run test:contracts`** —no existía—: se agregó a `package.json`
+  como **alias de los cinco contratos** de `src/shared/contracts/`, que ya corrían dentro de `npm test` y
+  en el job `contracts` de CI. No duplica nada: el plan lo pedía con ese nombre.
+
+**Verificación de la CAPA 0** (2026-09-15): `npm run test:contracts` **9/9**, `npm run test` **2016 tests
+en 295 archivos** (línea base previa: 2010 en 294), `lint`, `typecheck`, `build` y `security:secrets` en
+verde. Sin dependencias nuevas. **Lo que sigue es la CAPA 1**: C1-1 (los primitivos que faltan: Toggle,
+Modal, Textarea, Dropdown, Tooltip, Skeleton, Toast, HelpText), C1-2 (guardrails de paleta cruda,
+`fontFamily` inline y radios/sombras arbitrarios — hoy medidos en `DESIGN_SYSTEM.md` §6 como "todavía sin
+guardrail"), C1-3 (bloque `.dark` + tokens huérfanos), **C1-4a (el mockup de `/admin`, el único stop
+humano del plan)** y C1-4b (su implementación).
+
 ## 3. Infraestructura y secretos
 
 > ✅ **RESUELTO (2026-09-15) — el CI volvió al hacer público el repositorio.** *(Era un bloqueo de facturación de GitHub, no del código.)* Desde el run `34917504691`
@@ -2461,6 +2508,10 @@ medido, para no volver a medirlo:
 | 34 | **TASK-306: el mostrador se refresca solo** | **Cerrada el 2026-09-15** | `plna.md` §5, FASE 3. **Polling cada 3 s** (decisión del owner): se refrescan el **catálogo** del local y **la caja** (otra terminal puede abrirla o cerrarla). **No toca** el borrador, la búsqueda ni el conteo —el caso de test lo fija—, **no muestra "Cargando…"** en cada vuelta (el estado de carga es de la primera lectura o del reintento), **descarta el fallo de un refresco de fondo** sin borrar los últimos datos buenos, **solo reemplaza el catálogo si cambió** y una respuesta de un local que el cajero ya dejó **no pisa** el actual (ref). **+1 test con dientes** (rojo al quitar el refresco, verde al restaurarlo) y **suite E2E local 104 / 6 / 0**. |
 | 35 | **TASK-307: el recibo como imagen** | **Cerrada el 2026-09-15** | `plna.md` §5, FASE 3. Sin API de WhatsApp (decisión del owner): el recibo se genera como **JPG en el dispositivo** (`src/shared/lib/receipt-image.ts`) y se ofrece **enviar** (hoja de compartir del sistema, donde están WhatsApp y —en Android— «Imprimir») o **descargar**. El texto del ticket lo arma una función **pura** y probada (negocio, dirección, retiro, cliente, líneas con precio e importe, subtotal, empaque, descuento, propina, total, con qué pagó y el cambio; los renglones que no aplican no se imprimen); el dibujo va a un `<canvas>` y sale como JPEG. El símbolo de la moneda entra por parámetro (configuración del negocio) y un cobro en otra moneda se muestra con **su código** (`USD 3.00`). En el POS, el panel de confirmación ofrece **«Enviar recibo»** tras cobrar. **Dos cosas que el repo me atajó**: el guardrail de UI por dos `#hex` en el canvas (ahora el recibo va en blanco y negro con palabras CSS, porque es un documento y no una superficie de la interfaz) y dos errores míos de arnés (`vi.hoisted` para el mock y la comprobación puesta después de navegar al tablero). **+6 tests** (**1990**) y **E2E del POS 5/5**, con el caso de cobro **descargando el JPG de verdad** en Chromium (nombre `recibo-P-XXXXXX.jpg`). |
 | 36 | **TASK-308: el punto de venta se prende por local** | **Cerrada el 2026-09-15** | `plna.md` §5, FASE 3 (la última). `Location.posEnabled` (Boolean, default **true**, migración aditiva `20260915035655` **sin drift**): el mostrador es del local, no del rol, así que una sucursal puede vender en el mostrador y otra no. La regla vive en dos lugares y en ninguno más: `pickPosLocations` (dominio, encendido + POS prendido + alcance por sucursal) decide **qué locales ofrece**, y `ensurePosEnabled` (caso de uso sobre el puerto de locales que ya existía) **corta el request con 403** antes de leer el catálogo, cobrar o tocar la caja. Las cinco rutas del POS comparten `requirePosLocation` (rol → alcance → POS prendido): quedaron en 38/44/31/39/41 líneas y el tope de 50 otra vez obligó a ordenar, no a copiar. **La entrada «Caja» no existía en la navegación**: ahora está para dueño, gerente y cajero —con su pestaña en la barra móvil, que es la pantalla del cajero— y se esconde cuando ningún local del staff tiene mostrador (`GET /api/admin/pos/availability`, el único dato que pregunta el shell). En `/admin/locations` está el interruptor. **Dos cosas que el repo me atajó**: los dos `route.ts` de locales estaban **exactamente en su techo** (113 y 125 líneas contra 113 y 125) y el campo nuevo no entraba, así que el esquema zod duplicado se fue a `locations/location-payload.ts` (los techos bajaron a 56 y 71) y de paso los dos `<select>` del formulario pasaron al `Select` de TASK-206 (el techo de controles crudos de esa pantalla bajó de 4 a 2); y `prisma/schema.prisma` obligó a tocar `DESIGN_SYSTEM.md` por el guardrail de frescura. **+20 tests** (**2010** en 294 archivos) y el caso E2E que apaga el POS en todos los locales, comprueba los tres efectos (sin entrada, sin pantalla, 403 en la API) y **lo vuelve a prender**. **Desplegada el 2026-09-15** en `build-20260915-121551` (sección del deploy, §2). |
+| 37 | **C0-1 y C0-2: el contexto de UI en los dos documentos** | **Cerradas el 2026-09-15** | `plan2uiux.md` CAPA 0. `AGENTS.md`: **jerarquía de fuentes** (UI manda `DESIGN_SYSTEM.md`; lo demás, `AGENTS.md`; los skills de diseño son referencia secundaria y nunca ganan al sistema) y el **checklist de UI de 9 puntos** antes de cerrar una tarea con pantalla. `DESIGN_SYSTEM.md`: §3 declara el espejo `registry.json`, §4 queda con **5 ejemplos reales con `ruta:línea`** verificadas contra el código en producción, y §7 se reescribe por C0-5. Las tres excepciones que el plan choca con la gobernanza (el stop humano de C1-4a, el alias `test:contracts` y el espejo `registry.json` en vez de un registro único) quedaron anotadas en `AGENTS.md`. |
+| 38 | **C0-3 y C0-4: el registro de componentes y sus 5 ejemplos** | **Cerradas el 2026-09-15** | `plan2uiux.md` CAPA 0. `src/shared/ui/registry.json` (nuevo, **31 filas** con capa, tipo, estado, exports y los dos criterios) + guardrail `src/shared/contracts/registry-contract.test.ts` (**+6 tests**: forma, exports reales, sin duplicados, rutas existentes y **todo archivo de UI registrado**). Es **espejo declarado** de `DESIGN_SYSTEM.md` §3, que sigue siendo el catálogo que exige `ui-contract.test.ts`. **+6 tests** (2016 en 295 archivos). |
+| 39 | **C0-5: los tres documentos obsoletos, borrados** | **Cerrada el 2026-09-15** | `plan2uiux.md` CAPA 0. `design/DESIGN.md`, `design/DESIGN_SYSTEM.md` y `docs/ui/admin-design-system.md` **borrados del disco**; los tres vivían en carpetas enteras en `.gitignore`, así que **no hay cambio versionado que mostrar** (el plan suponía que sí). El resto de `design/` y los otros 8 `docs/ui/*.md` no se tocaron. |
+| 40 | **CAPA 1 del plan de UI (`plan2uiux.md`)** | **Pendiente (siguiente bloque)** | C1-1 primitivos que faltan (Toggle, Modal, Textarea, Dropdown, Tooltip, Skeleton, Toast, HelpText) · C1-2 guardrails de paleta cruda, `fontFamily` inline y radios/sombras arbitrarios (hoy "sin guardrail automático" en `DESIGN_SYSTEM.md` §6) · C1-3 bloque `.dark` + tokens huérfanos · **C1-4a el mockup de `/admin` (único stop humano del plan)** · C1-4b su implementación con gates. Después: CAPA 1.5 (auditoría de páginas), 1.6/1.7/1.8 (oleadas de refactor) y 1.9 (legadas). |
 
 ## 5. Cómo continuar
 

@@ -17,6 +17,19 @@ explícito del humano, gana el humano; después de resolverlo, actualizá este a
   preguntando por lo que el plan **no** decide: alcance nuevo, producto, dependencias nuevas y
   deploy. Si el plan choca con este archivo, gana el plan y la excepción se anota acá, en el mismo
   commit.
+- **Excepciones anotadas del plan de UI** (`plan2uiux.md`, 2026-09-15; se anotan acá porque el plan
+  choca con este archivo):
+  - El plan pide un **stop humano** en `C1-4a` (mockup de `/admin` antes de implementarlo). Se
+    respeta: es la única tarea del plan que espera validación del owner.
+  - El plan escribe el gate como `npm run test:contracts` y el registro de componentes como
+    `registry.json`: en este repo el comando es un alias de los cinco contratos de
+    `src/shared/contracts/` (que ya corren en `npm run test` y en el job `contracts` de CI) y el
+    registro de componentes es `DESIGN_SYSTEM.md` §3 **más** `src/shared/ui/registry.json`, que es un
+    **espejo declarado** de ese catálogo: un test de contrato exige que los dos tengan los mismos
+    componentes. El catálogo sigue siendo el de `DESIGN_SYSTEM.md` (así lo exige
+    `ui-contract.test.ts`).
+  - El plan dice «21 E2E»: acá son **23 specs** en `tests/e2e/` y la línea de base vigente está en
+    `ops/tasks/START-HERE.md` §5.
 - El punto de entrada para un chat nuevo es
   [`ops/tasks/START-HERE.md`](ops/tasks/START-HERE.md): tiene el prompt listo para pegar, el
   mapa de documentos y la cola de pendientes en orden.
@@ -83,6 +96,19 @@ src/infrastructure/** prisma, event bus
 - Errores de dominio tipados por módulo (`OrderError`, `AuthError`, …) y mapeados en
   `src/shared/lib/http/error-response.ts`.
 
+## Jerarquía de fuentes (qué gana cuando hay conflicto)
+
+1. **`DESIGN_SYSTEM.md`** — fuente de verdad de **UI**: tokens, tipografía, espaciado, forma,
+   estados y catálogo de componentes. Si una decisión es visual o de componente, manda este archivo.
+2. **`AGENTS.md`** (este archivo) — todo lo demás: alcance, arquitectura, TDD, validación, git/CI,
+   deploy, idioma y prohibiciones. **Sigue mandando sobre `DESIGN_SYSTEM.md`** cuando el conflicto no
+   es visual (alcance, arquitectura, proceso): en ese caso gana este archivo y `DESIGN_SYSTEM.md` se
+   corrige en el mismo commit.
+3. **Skills de diseño** (Impeccable, Frontend design, UI/UX Pro Max, …) — **referencia secundaria, no
+   fuente de verdad**. Si un skill contradice `DESIGN_SYSTEM.md`, **gana `DESIGN_SYSTEM.md`**: se
+   reporta el conflicto y **no** se cambia el código.
+4. **Humano** — si sigue sin estar claro, se para y se pregunta.
+
 ## UI y design system
 
 La fuente única es [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md) (raíz, versionado), que deriva de este
@@ -144,6 +170,22 @@ Reglas de test:
   o, mejor, con el job de CI que **construye y ejecuta la imagen**.
 - Los flujos de usuario se cubren en `tests/e2e/` (público y admin).
 - No mockees lo que podés probar de verdad; no inventes tests que no verifican nada.
+
+## Checklist de UI antes de cerrar una tarea con pantalla
+
+Ninguna tarea que toque UI se cierra con un "no" acá. El ideal es `src/shared/ui/`; el catálogo y el
+"cuándo NO" de cada componente están en `DESIGN_SYSTEM.md` §3.
+
+- [ ] ¿Usé los primitivos de `src/shared/ui/` donde ya existían? (si falta uno, se registra en
+      `DESIGN_SYSTEM.md` §3.4, no se inventa el sexto `className`)
+- [ ] ¿Cero `text-[Npx]`? (escala semántica: `text-display` / `text-headline` / `text-title` / `text-label`)
+- [ ] ¿Cero paleta cruda de Tailwind (`bg-white`, `text-red-700`, `border-stone-200`) donde hay token?
+- [ ] ¿Cero `rounded-[Npx]` y cero `shadow-[...]`? (`rounded-card`, `rounded-panel`, `shadow-card`)
+- [ ] ¿El dato principal de la pantalla va en `text-display` y hay **una sola** acción primaria?
+- [ ] ¿Cada tarjeta entra en **2 líneas** de texto y ningún texto es decorativo?
+- [ ] ¿Están los **4 estados** de toda pantalla con datos: cargando, vacío, error y con datos?
+- [ ] ¿La verifiqué en **navegador real a 375 px y 1280 px** (Playwright), no en HTML estático?
+- [ ] ¿Corrí los gates (`npm run test:contracts`, `npm run test`) y el E2E si toqué flujos?
 
 ## Validación mínima antes de cerrar
 

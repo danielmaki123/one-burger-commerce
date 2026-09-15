@@ -13,6 +13,7 @@
     "security:secrets": "node scripts/check-no-secrets.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:contracts": "vitest run src/shared/contracts",
     "test:e2e": "playwright test",
     "test:e2e:prod": "playwright test tests/e2e/production-smoke.spec.ts",
     "test:e2e:prod:full": "playwright test tests/e2e",

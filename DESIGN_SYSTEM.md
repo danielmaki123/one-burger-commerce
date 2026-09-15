@@ -213,6 +213,12 @@ caso testigo es `src/shared/ui/button.tsx:21` (`danger: "bg-red-600 …"`) contr
 
 ## 3. Catálogo de componentes
 
+Este catálogo es **la fuente humana** y `src/shared/ui/registry.json` es su **espejo declarado** (C0-3
+de `plan2uiux.md`): el mismo inventario con la metadata en JSON, para que una herramienta o un agente
+lo lean sin parsear markdown. `src/shared/contracts/registry-contract.test.ts` exige que los dos
+tengan los mismos componentes y que cada fila tenga su "cuándo SÍ" y su "cuándo NO"; ningún archivo
+nuevo de UI queda sin fila.
+
 ### 3.1 `src/shared/ui/` — usar siempre que exista
 
 | Componente | Cuándo usarlo | Cuándo **no** |
@@ -230,6 +236,12 @@ caso testigo es `src/shared/ui/button.tsx:21` (`danger: "bg-red-600 …"`) contr
 | `PublicLocationsList` (`public-locations-list.tsx:29`) | Lista de sucursales del público | — |
 | `PublicMobileBottomNav` (`public-mobile-bottom-nav.tsx:10`) | Navegación inferior móvil del público | No en el admin ni en las rutas de túnel de conversión |
 | `Tabs` + `TabsList` + `TabsTrigger` (`tabs.tsx:3,7,15`) | Pestañas del panel | **`TabsContent` no se usa y es huérfano: no introducirlo** |
+| `Modal` (`modal.tsx:30`) **C1-1** | Diálogo y confirmaciones: `<dialog>` nativo con el foco atrapado, `Escape` y `::backdrop` del navegador. Título obligatorio (nombra al diálogo). | No para editar un formulario largo (para eso está `AdminEditSheet`) ni para avisos que no piden decisión (para eso, `Toast`) |
+| `Toggle` (`toggle.tsx:28`) **C1-1** | Interruptor de encendido/apagado sobre un dato que se guarda al tocarlo (`role="switch"`, `aria-checked`, 44 px y `saving`) | No para elegir entre dos opciones de un formulario (eso es `RadioGroup`) ni para un booleano que se guarda al enviar (eso es `Checkbox`) |
+| `Textarea` (`textarea.tsx:23`) **C1-1** | Texto de varias líneas, con `label`, `error` y `description` | No para una línea: eso es `Input` |
+| `Skeleton` (`skeleton.tsx:26`) + `SkeletonAnnouncement` (`skeleton.tsx:42`) **C1-1** | Estado de carga de una pantalla con datos: huesos + el anuncio en una sola línea | No para «no hay datos» (eso es `AdminEmptyState`) ni para esperas de una acción (eso es el `saving` del botón) |
+| `Toast` (`toast.tsx:31`) **C1-1** | Resultado de una acción que acaba de hacer el usuario, con su tono (`success`/`error`/`warning`/`info`) | No para errores de validación de un campo (van en el `error` del control) ni para información permanente en pantalla |
+| `HelpText` (`help-text.tsx:22`) **C1-1** | Aclaración bajo un campo, referenciada por el `id` del control (`aria-describedby`) | No para mensajes de error (para eso, el `error` del control) ni para copy decorativo |
 | `PublicConfirmationShell` (`public-confirmation-shell.tsx:15`) | **NO USAR: es huérfano** (nadie lo importa) y tiene el literal `OB` hardcodeado | — |
 
 ### 3.2 `(admin)/admin/_components/` — panel
@@ -282,7 +294,11 @@ Antes de escribir HTML crudo por falta de primitivo, esto es lo que falta y lo q
 
 ## 4. Ejemplos reales de composición
 
-**Cabecera de pantalla del panel** (`AdminPageHeader`, usado en 11 pantallas):
+Cinco casos tomados del código que ya está en producción, con su `ruta:línea` para que se puedan
+leer tal como están en el repo. Son la referencia de composición: copy y estructura salen de acá.
+
+**1. Cabecera de pantalla del panel** (`AdminPageHeader`, usado en 11 pantallas) —
+`src/app/(admin)/admin/promotions/page.tsx:252`:
 
 ```tsx
 <AdminPageHeader
@@ -293,7 +309,8 @@ Antes de escribir HTML crudo por falta de primitivo, esto es lo que falta y lo q
 />
 ```
 
-**Píldora de estado de un pedido** (no escribir clases a mano):
+**2. Píldora de estado de un pedido** (clases fuera; el estado lo resuelve el dominio) —
+`src/app/(admin)/admin/orders/page.tsx:751`:
 
 ```tsx
 <AdminStatusSolid status={getAdminOrderSolidStatus(order.status)}>
@@ -301,7 +318,19 @@ Antes de escribir HTML crudo por falta de primitivo, esto es lo que falta y lo q
 </AdminStatusSolid>
 ```
 
-**Formulario dentro de la hoja de edición** (label + control, patrón que hoy se repite 18 veces):
+**3. Estado vacío del panel con su CTA** (`AdminEmptyState`) —
+`src/app/(admin)/admin/promotions/page.tsx:313`:
+
+```tsx
+<AdminEmptyState
+  title="Todavía no hay promos"
+  description="Cuando crees la primera, el cliente la puede aplicar en el checkout."
+  action={<Button onClick={openSheet}>Nueva promo</Button>}
+/>
+```
+
+**4. Formulario dentro de la hoja de edición** (label + control) —
+`src/app/(admin)/admin/users/users-client.tsx:490`:
 
 ```tsx
 <label className="grid gap-1.5 text-sm font-medium text-foreground">
@@ -310,16 +339,9 @@ Antes de escribir HTML crudo por falta de primitivo, esto es lo que falta y lo q
 </label>
 ```
 
-**Fila de lista tocable** (respeta el mínimo táctil):
-
-```tsx
-<button className="flex min-h-14 w-full flex-col gap-1 border-t border-border px-4 py-3 text-left transition-colors hover:bg-accent/60 focus-visible:ring-2 focus-visible:ring-brand">
-```
-
-**Bloque de cobro del POS** (TASK-303b, `/admin/pos`): el método de pago son **dos chips**
-(`Button size="pill"` con `aria-pressed`, 2 opciones visibles), la moneda es un `Select` que solo
-aparece cuando hay tipo de cambio cargado, el monto es un `Input` numérico y el desglose va en un
-`<dl>` con el **total** en `aria-live` para que el lector de pantalla anuncie el número que se cobra:
+**5. Bloque de cobro del POS con los chips de medio de pago** — `/admin/pos`
+(`pos-client.tsx:746`): dos opciones visibles con `Button size="pill"` y `aria-pressed`, el total en
+`aria-live` para que el lector de pantalla anuncie el número que se cobra (`pos-client.tsx:696`):
 
 ```tsx
 <Button size="pill" aria-pressed={method === "cash"} variant={method === "cash" ? "primary" : "secondary"}>Efectivo</Button>
@@ -360,7 +382,8 @@ aparece cuando hay tipo de cambio cargado, el monto es un `Input` numérico y el
 | `--brand-foreground` igual al contrato | `color-contrast.test.ts:120-126` |
 | La escala del mock llega al navegador | `tests/e2e/design-tokens.spec.ts` |
 | Contratos de UI del panel | `src/app/(admin)/admin/admin-ui-contract.test.ts` (lee el fuente) |
-| HTML crudo, `#hex` y registro de componentes | `src/shared/contracts/ui-contract.test.ts` (techos por archivo que solo bajan) |
+| HTML crudo, `#hex`, registro de componentes en `DESIGN_SYSTEM.md` | `src/shared/contracts/ui-contract.test.ts` (techos por archivo que solo bajan) |
+| El registro JSON y el catálogo dicen lo mismo | `src/shared/contracts/registry-contract.test.ts` (forma, exports reales y todo archivo de UI registrado) |
 | Route handlers: 50 líneas y sin Prisma | `src/shared/contracts/route-contract.test.ts` |
 | Módulos: capas con archivos y dirección de las dependencias | `src/shared/contracts/module-contract.test.ts` |
 | Documentos sincronizados (`AGENTS.md` sin rutas rotas y frescura contra `schema.prisma`/`src/shared/ui/`) | `src/shared/contracts/docs-sync-contract.test.ts` |
@@ -375,15 +398,16 @@ color necesitan **aprobación del owner** porque cambian el tono visible: `Butto
 
 ---
 
-## 7. Documentos obsoletos
+## 7. Documentos obsoletos: eliminados (C0-5)
 
-Estos tres describen el sistema visual **antes** de este archivo y contienen afirmaciones que el
-código ya no cumple. Se conservan como historia; **no son fuente de verdad**:
+Tres documentos describían el sistema visual **antes** de este archivo y afirmaban cosas que el
+código ya no cumple: `design/DESIGN.md` (su línea base apuntaba a `origin/staging @ bc98c04`, una rama
+y un commit que no existen en este repo), `design/DESIGN_SYSTEM.md` (declaraba `shadcn/ui` en el stack
+—no está instalado— e incluía "QR ordering", fuera del MVP) y `docs/ui/admin-design-system.md` (se
+autodeclaraba "ley del admin" desde una carpeta no versionada).
 
-| Documento | Por qué queda obsoleto |
-|---|---|
-| `design/DESIGN.md` | Su línea base apunta a `origin/staging @ bc98c04`, una rama y un commit que **no existen** en este repo; reporta hallazgos ya resueltos |
-| `design/DESIGN_SYSTEM.md` | Declara `shadcn/ui` en el stack (no está instalado) e incluye "QR ordering", que está fuera del MVP |
-| `docs/ui/admin-design-system.md` | Se autodeclara "ley del admin" desde una carpeta no versionada; este archivo toma ese rol |
+Los tres vivían en `design/` y `docs/`, carpetas **enteras en `.gitignore`**: no están en el repo ni
+en un clon, así que C0-5 los borró del disco y **no** deja un commit que los elimine (no había nada
+versionado que borrar). Este documento toma su rol desde TASK-202. El cuarto
+(`stitch_full_pwa_builder/.../DESIGN.md`) es del **mock**, no del producto: no se toca.
 
-El cuarto (`stitch_full_pwa_builder/.../DESIGN.md`) es del **mock**, no del producto: no se toca.
