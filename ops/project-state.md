@@ -2426,6 +2426,64 @@ Modal, Textarea, Dropdown, Tooltip, Skeleton, Toast, HelpText), C1-2 (guardrails
 guardrail"), C1-3 (bloque `.dark` + tokens huérfanos), **C1-4a (el mockup de `/admin`, el único stop
 humano del plan)** y C1-4b (su implementación).
 
+### CAPA 1 · C1-1 — los primitivos que faltaban — **cerrada (2026-09-15, `36beec6`)**
+
+El plan pedía ocho primitivos. Se implementaron **seis**, con su test cada uno, y dos quedan esperando
+consumidor con el motivo escrito:
+
+| Primitivo | Qué resuelve hoy (medido) |
+|---|---|
+| `Toggle` (`toggle.tsx`) | El `role="switch"` escrito a mano de la grilla de productos |
+| `Modal` (`modal.tsx`) | Los 3 `role="dialog"` a mano (uno sin focus trap ni Escape) y los 3 `window.confirm` |
+| `Textarea` (`textarea.tsx`) | Los 4 `<textarea>` crudos |
+| `Skeleton` + `SkeletonAnnouncement` (`skeleton.tsx`) | Los 17 literales de "Cargando…" distintos |
+| `Toast` (`toast.tsx`) | Los 26 bloques de aviso inline de 11 pantallas |
+| `HelpText` (`help-text.tsx`) | El texto de ayuda bajo un campo; `Input` ahora acepta `description` |
+
+**`Dropdown` y `Tooltip` NO se implementaron**: el repo no tiene un solo caso de uso (cero
+`role="menu"`, cero `role="listbox"`, cero `role="tooltip"`) y el plan prohíbe inventar reglas o
+componentes sin consumidor: serían API muerta. Se implementan cuando la pantalla que los pida exista
+(C1-4b o la oleada que corresponda). **La migración de las pantallas a los primitivos nuevos es una
+tarea aparte (C1-1b)**: el plan prohíbe refactorizar más de una página por tarea y los E2E de locales y
+promos dependen de los diálogos nativos (`page.once("dialog")`), así que ese cambio va con sus specs.
+
+**Hallazgo del camino (guardrail, no código)**: el contrato de frescura de documentos
+(`src/shared/contracts/docs-sync-contract.test.ts`) **rechazaba el commit que cumple la regla**.
+Comparaba segundo a segundo la fecha de `src/shared/ui/` contra la de `DESIGN_SYSTEM.md`, y la regla de
+`AGENTS.md` es actualizar el design system **en el mismo commit** (misma fecha); encima, enmendar un
+commit le pone fecha nueva a todos sus archivos, así que la UI quedó **104 segundos "más nueva"** dentro
+del mismo commit. Ahora compara por **día UTC** y sigue detectando lo que tiene que detectar.
+
+**Verificación**: **2039 unitarios en 301 archivos** (todos verdes), `test:contracts` **22/22**, `lint`,
+`typecheck`, `build` y `security:secrets` en verde. **E2E**: ver el hallazgo del arnés más abajo.
+
+### Hallazgo del arnés E2E local (2026-09-15) — **no es un bug del código**
+
+El E2E completo local dejó de ser reproducible **por el estado de la base de desarrollo**, no por el
+código. Los tres problemas medidos, con su evidencia:
+
+1. **Un local de prueba con pedidos no se puede borrar**: `DELETE /api/admin/locations/:id` responde
+   **409** con "Este local tiene 22 pedidos: apagalo si no querés ofrecerlo, pero no se puede borrar"
+   (`admin-locations.spec.ts` deja `Local de prueba E2E` y otros specs le crean pedidos, así que su
+   limpieza —y el `finally` que restaura— falla). Se arregla **recreando la base local** (nunca
+   producción) o borrando esos pedidos.
+2. **Los horarios del local cierran el checkout**: `Location.businessHours` de *Principal* estaba en
+   **12:00-22:00** (la configuración del negocio sí está 24 h), así que el checkout decía "Estamos
+   cerrados" y el botón de confirmar quedaba deshabilitado fuera de esa franja. Con el local abierto, los
+   **16 casos de checkout y confirmación pasan** contra `next start`.
+3. **Un spec puede dejar un local apagado**: `makeOnlyActiveLocation` desactiva los demás locales y, si
+   la corrida falla antes del `finally`, *Principal* queda inactivo y **12 specs** de checkout caen en
+   cascada. Se restaura con `update "Location" set "isActive" = true where name = 'Principal'`.
+
+**Con la base recién migrada y sembrada, el local abierto y activo**: **102 pasaron / 2 fallaron / 7
+salteados**. Los 2 que fallan son `public-order.spec.ts:154` y `:257`, **los dos solos pasan** (16/16 con
+`public-confirmation.spec.ts`) y los dos vienen de un spec anterior que apaga *Principal* y lo vuelve a
+prender (`admin-locations.spec.ts` y el caso "el local que dejó de aceptar pedidos…"): es dependencia de
+orden entre specs, no del producto. La corrida anterior, con *Principal* apagado por ese spec, dio 100/4/7.
+Antes de la limpieza eran 21 fallos, todos por los puntos 1 y 2. **Conclusión**: el E2E local necesita una
+receta de preparación (base limpia + horarios abiertos + local activo) y **no** es confiable corriendo los
+specs con estado compartido; es deuda del arnés, no del producto.
+
 ## 3. Infraestructura y secretos
 
 > ✅ **RESUELTO (2026-09-15) — el CI volvió al hacer público el repositorio.** *(Era un bloqueo de facturación de GitHub, no del código.)* Desde el run `34917504691`
