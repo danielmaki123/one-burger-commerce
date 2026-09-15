@@ -185,3 +185,44 @@ describe("detalle de la orden: local de retiro", () => {
     ).toBeTruthy();
   });
 });
+
+/**
+ * TASK-304 — lo que cobró el mostrador.
+ *
+ * Un pedido del checkout se paga al retirar y no tiene cobros; una venta de mostrador sí, y la caja
+ * necesita ver con qué pagó el cliente. Un cobro en otra moneda se muestra con **su código**: ponerle
+ * el símbolo del negocio a un cobro de US$3 sería un número falso.
+ */
+describe("detalle de la orden: cobros registrados", () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(NOW);
+  });
+
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+  });
+
+  it("muestra los cobros del mostrador con su moneda", async () => {
+    await renderWith({
+      ...detail(),
+      pickupTime: "2026-09-12T02:30:00.000Z",
+      payments: [
+        { id: "pay_1", method: "cash", amount: 100, currency: "NIO" },
+        { id: "pay_2", method: "card", amount: 3, currency: "USD" },
+      ],
+    });
+
+    expect(screen.getByText("Cobrado en el mostrador")).toBeTruthy();
+    expect(screen.getByText(/Efectivo C\$100\.00/)).toBeTruthy();
+    expect(screen.getByText(/Tarjeta USD 3\.00/)).toBeTruthy();
+  });
+
+  it("un pedido sin cobros (pago al retirar) no muestra el bloque", async () => {
+    await renderWith({ ...detail(), pickupTime: "2026-09-12T02:30:00.000Z" });
+
+    expect(screen.queryByText("Cobrado en el mostrador")).toBeNull();
+  });
+});

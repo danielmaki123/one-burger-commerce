@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { createInMemoryLocation, InMemoryLocationRepository } from "@/modules/locations/adapters/in-memory-location-repository";
 import { InMemoryOrderRepository } from "@/modules/orders/adapters/in-memory-order-repository";
+import { InMemoryPaymentRepository } from "@/modules/orders/adapters/in-memory-payment-repository";
 import type { OrderRecord } from "@/modules/orders/domain/order.types";
 
 import { getOrder } from "./get-order";
@@ -50,7 +51,11 @@ describe("getOrder (detalle del admin)", () => {
       }),
     ]);
 
-    const result = await getOrder("ord_1", { repository, locationRepository });
+    const result = await getOrder("ord_1", {
+      repository,
+      locationRepository,
+      paymentRepository: new InMemoryPaymentRepository(),
+    });
 
     expect(result.data.orderNumber).toBe("P-ABC123");
     expect(result.data.pickupLocation).toEqual({
@@ -69,6 +74,7 @@ describe("getOrder (detalle del admin)", () => {
     const result = await getOrder("ord_1", {
       repository,
       locationRepository: new InMemoryLocationRepository(),
+      paymentRepository: new InMemoryPaymentRepository(),
     });
 
     expect(result.data.pickupLocation).toBeNull();
@@ -79,7 +85,42 @@ describe("getOrder (detalle del admin)", () => {
       getOrder("ord_fantasma", {
         repository: new InMemoryOrderRepository(),
         locationRepository: new InMemoryLocationRepository(),
+        paymentRepository: new InMemoryPaymentRepository(),
       }),
     ).rejects.toMatchObject({ status: 404, code: "NOT_FOUND" });
+  });
+
+  it("trae los cobros registrados de la venta de mostrador (TASK-304)", async () => {
+    const repository = new InMemoryOrderRepository();
+    repository.orders.push(order({ total: 40 }));
+    const paymentRepository = new InMemoryPaymentRepository();
+    await paymentRepository.createPayment({
+      orderId: "ord_1",
+      method: "cash",
+      amount: 100,
+      currency: "NIO",
+    });
+
+    const result = await getOrder("ord_1", {
+      repository,
+      locationRepository: new InMemoryLocationRepository(),
+      paymentRepository,
+    });
+
+    expect(result.data.payments).toHaveLength(1);
+    expect(result.data.payments[0]).toMatchObject({ method: "cash", amount: 100, currency: "NIO" });
+  });
+
+  it("un pedido del checkout (pago al retirar) no tiene cobros", async () => {
+    const repository = new InMemoryOrderRepository();
+    repository.orders.push(order());
+
+    const result = await getOrder("ord_1", {
+      repository,
+      locationRepository: new InMemoryLocationRepository(),
+      paymentRepository: new InMemoryPaymentRepository(),
+    });
+
+    expect(result.data.payments).toEqual([]);
   });
 });

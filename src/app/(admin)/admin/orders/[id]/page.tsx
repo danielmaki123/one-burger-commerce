@@ -101,6 +101,16 @@ type OrderDetail = {
   paidWithAmount?: number | null;
   /** PIN de retiro para dictar en caja (T13). */
   pickupPin?: string | null;
+  /**
+   * Cobros registrados (TASK-304): una venta de mostrador los tiene; un pedido del checkout no,
+   * porque se paga al retirar. Es lo que la caja necesita para saber con qué pagó el cliente.
+   */
+  payments?: {
+    id: string;
+    method: OrderPaymentMethod;
+    amount: number;
+    currency: string | null;
+  }[];
   /** Local del que sale el pedido (T8 fase 7); `null` si el local ya no existe. */
   pickupLocation?: PickupLocation | null;
 };
@@ -147,7 +157,7 @@ export default function AdminOrderDetailPage() {
   const [submitting, setSubmitting] = useState(false);
   const [reviewMode, setReviewMode] = useState<ReviewMode>(null);
   const currency = useCurrencyFormat();
-  const { timezone: timeZone } = useBusinessSettings();
+  const { timezone: timeZone, currencyCode: businessCurrencyCode } = useBusinessSettings();
   const isCancelling = nextStatus === "cancelled";
 
   const loadOrder = useCallback(async () => {
@@ -397,6 +407,36 @@ export default function AdminOrderDetailPage() {
                     PIN {order.pickupPin}
                   </span>
                 ) : null}
+              </div>
+            ) : null}
+
+            {/*
+              TASK-304: los cobros registrados. Un pedido del checkout no tiene ninguno (se paga al
+              retirar); una venta de mostrador sí, y la caja necesita ver con qué y en qué moneda
+              pagó. El monto en otra moneda se muestra con **su código**, no con el símbolo del
+              negocio: "C$3.00" por un cobro de US$3 sería un número falso.
+            */}
+            {order.payments && order.payments.length > 0 ? (
+              <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-card px-3 py-2">
+                <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Cobrado en el mostrador
+                </span>
+                {order.payments.map((payment) => {
+                  const isBusinessCurrency =
+                    payment.currency === null || payment.currency === businessCurrencyCode;
+
+                  return (
+                    <span
+                      key={payment.id}
+                      className="rounded-full border border-border bg-accent/60 px-2.5 py-1 text-xs font-semibold tabular-nums text-foreground"
+                    >
+                      {PAYMENT_METHOD_LABELS[payment.method]}{" "}
+                      {isBusinessCurrency
+                        ? formatCurrency(payment.amount, currency)
+                        : `${payment.currency} ${payment.amount.toFixed(2)}`}
+                    </span>
+                  );
+                })}
               </div>
             ) : null}
 

@@ -115,9 +115,20 @@ test.describe("punto de venta", () => {
     const numero = (await confirmacion.textContent())?.match(/P-[A-Z0-9]+/)?.[0];
     expect(numero, "la confirmación trae el número de pedido").toBeTruthy();
 
-    // El camino real: el pedido cobrado en el mostrador está en el tablero de la cocina.
+    // El camino real: el pedido cobrado en el mostrador está en el tablero de la cocina...
     await page.goto("/admin/orders");
     await expect(page.getByText(numero!)).toBeVisible();
+
+    // ...y **avanza con las mismas reglas** que uno del checkout (TASK-304): se acepta desde la fila.
+    const acciones = page.getByRole("group", { name: `Acciones de la orden ${numero}` });
+    await acciones.getByRole("button", { name: "Aceptar" }).click();
+    await expect(acciones.getByRole("button", { name: "Preparando" })).toBeVisible();
+
+    // Y la caja ve lo que cobró, con el medio y la moneda (TASK-304). Se abre por **número**: el
+    // nombre del cliente se repite entre corridas y el locator tiene que ser uno solo.
+    await page.getByRole("link", { name: /Abrir orden/ }).filter({ hasText: numero! }).first().click();
+    await expect(page.getByText("Cobrado en el mostrador")).toBeVisible();
+    await expect(page.getByText(/Efectivo C\$/)).toBeVisible();
   });
 
   test("cocina no entra al punto de venta (vuelve a comandas)", async ({ page }) => {
