@@ -32,6 +32,7 @@ function mapShift(shift: {
   notes: string | null;
   createdAt: Date;
   updatedAt: Date;
+  cashCounts?: { kind: string; currency: string; denomination: Decimal; quantity: number }[];
 }): ShiftRecord {
   return {
     id: shift.id,
@@ -47,6 +48,14 @@ function mapShift(shift: {
     notes: shift.notes,
     createdAt: shift.createdAt.toISOString(),
     updatedAt: shift.updatedAt.toISOString(),
+    // TASK-305: los conteos llegan solo si la consulta los pide (include); sin ellos la lista queda
+    // vacía en vez de romper el turno.
+    cashCounts: (shift.cashCounts ?? []).map((count) => ({
+      kind: count.kind as "opening" | "closing",
+      currency: count.currency,
+      denomination: decimalToNumber(count.denomination),
+      quantity: count.quantity,
+    })),
   };
 }
 
@@ -68,7 +77,18 @@ export class PrismaShiftRepository implements ShiftRepository {
           userId: input.userId,
           openingAmount: input.openingAmount ?? 0,
           notes: input.notes ?? null,
+          cashCounts: input.openingCounts?.length
+            ? {
+                create: input.openingCounts.map((count) => ({
+                  kind: "opening" as const,
+                  currency: count.currency.trim().toUpperCase(),
+                  denomination: count.denomination,
+                  quantity: count.quantity,
+                })),
+              }
+            : undefined,
         },
+        include: { cashCounts: true },
       });
 
       return mapShift(shift);
@@ -96,6 +116,7 @@ export class PrismaShiftRepository implements ShiftRepository {
     const prisma = getPrismaClient();
     const shift = await prisma.shift.findFirst({
       where: { locationId, status: "open" },
+      include: { cashCounts: true },
     });
 
     return shift ? mapShift(shift) : null;
@@ -103,7 +124,7 @@ export class PrismaShiftRepository implements ShiftRepository {
 
   async findShiftById(id: string): Promise<ShiftRecord | null> {
     const prisma = getPrismaClient();
-    const shift = await prisma.shift.findUnique({ where: { id } });
+    const shift = await prisma.shift.findUnique({ where: { id }, include: { cashCounts: true } });
 
     return shift ? mapShift(shift) : null;
   }
@@ -130,6 +151,21 @@ export class PrismaShiftRepository implements ShiftRepository {
 
     if (result.count === 0) return null;
 
+    // TASK-305: el conteo del cierre se guarda tal como se contó (billete por billete), no solo el
+    // total: así el arqueo se puede reconstruir y volver a revisar.
+    if (input.closingCounts?.length) {
+      await prisma.shiftCashCount.createMany({
+        data: input.closingCounts.map((count) => ({
+          shiftId: id,
+          kind: "closing" as const,
+          currency: count.currency.trim().toUpperCase(),
+          denomination: count.denomination,
+          quantity: count.quantity,
+        })),
+        skipDuplicates: true,
+      });
+    }
+
     return this.findShiftById(id);
   }
 
@@ -137,6 +173,7 @@ export class PrismaShiftRepository implements ShiftRepository {
     const prisma = getPrismaClient();
     const shifts = await prisma.shift.findMany({
       where: { locationId },
+      include: { cashCounts: true },
       orderBy: { openedAt: "desc" },
     });
 

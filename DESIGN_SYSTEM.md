@@ -273,6 +273,7 @@ Antes de escribir HTML crudo por falta de primitivo, esto es lo que falta y lo q
 | Estado de carga | **NO EXISTE**: 2 literales distintos | Usar el literal de `rounded-2xl` con borde |
 | Barra fija de CTA | **NO EXISTE**: 5 implementaciones con offsets y `z-index` distintos | Reusar `publicCheckoutScaleClasses` |
 | Selector de fecha / color | **NO EXISTE** | `<input type="date">` / `type="color"` crudo |
+| Grilla de conteo de billetes | **NO EXISTE** (TASK-305): el arqueo se cuenta por denominación y moneda | Una fila por billete con `Input` numérico y una etiqueta con el valor (`10 × C$100`), agrupada por moneda; el total lo calcula el dominio (`cashCountsTotal`), no la pantalla |
 
 > Registrar en esta tabla lo que falta es parte de la tarea: si un agente necesita un primitivo y no
 > está, se documenta acá en vez de crear el 6.º `className` distinto.

@@ -10,6 +10,11 @@ export type CreatePaymentInput = {
    * negocio: es lo que asumen los cobros anteriores a esta tarea.
    */
   currency?: string | null;
+  /**
+   * TASK-305 — vuelto que se le devolvió al cliente con este cobro, en moneda del negocio. Sin dato
+   * es 0 (no hubo vuelto). Es un hecho del momento y el arqueo lo descuenta del cajón.
+   */
+  changeAmount?: number;
   /** Propina cobrada en este pago. Opcional: sin dato es 0. */
   tip?: number;
   /** Referencia externa (voucher, id de transferencia). Sin dato queda vacía. */

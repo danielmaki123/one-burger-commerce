@@ -87,6 +87,10 @@ export async function registerPosSale(
     })),
     // La forma de pago del pedido es la del primer cobro: el detalle real está en los cobros.
     paymentMethod: input.payments[0]?.method ?? "cash",
+    // TASK-305: lo que el cliente puso sobre el mostrador, en moneda del negocio. Se guarda porque el
+    // arqueo necesita saber cuánto salió de vuelto: sin eso, un día con vueltos parecería que falta
+    // plata. `createOrder` lo vuelve a validar contra el total que calcula él.
+    paidWithAmount: paidInBusinessCurrency,
     // "Lo antes posible": el servidor completa la hora con su reloj y la preparación configurada.
     pickupTime: null,
     pickupScheduled: false,
@@ -109,6 +113,11 @@ export async function registerPosSale(
   }
 
   const payments: PaymentRecord[] = [];
+  const change = calculateOrderChange({ paidWithAmount: paidInBusinessCurrency, total: order.total });
+  // El vuelto sale del cajón en efectivo: se registra en el cobro cuando la venta tiene uno solo y es
+  // en efectivo. En un pago mixto queda en 0 y la caja lo explica en las notas del cierre.
+  const changeBelongsToCash = input.payments.length === 1 && input.payments[0].method === "cash";
+
   for (const payment of input.payments) {
     payments.push(
       await deps.paymentRepository.createPayment({
@@ -116,6 +125,7 @@ export async function registerPosSale(
         method: payment.method,
         amount: payment.amount,
         currency: payment.currency.trim().toUpperCase(),
+        changeAmount: changeBelongsToCash ? (change ?? 0) : 0,
       }),
     );
   }
@@ -124,6 +134,6 @@ export async function registerPosSale(
     order,
     payments,
     paidInBusinessCurrency,
-    change: calculateOrderChange({ paidWithAmount: paidInBusinessCurrency, total: order.total }),
+    change,
   };
 }

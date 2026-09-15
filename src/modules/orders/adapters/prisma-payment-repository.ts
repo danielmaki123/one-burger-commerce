@@ -18,6 +18,7 @@ function mapPayment(payment: {
   method: string;
   amount: Decimal;
   currency: string | null;
+  changeAmount: Decimal;
   tip: Decimal;
   reference: string | null;
   createdAt: Date;
@@ -28,6 +29,7 @@ function mapPayment(payment: {
     method: payment.method as PaymentMethodType,
     amount: decimalToNumber(payment.amount),
     currency: payment.currency,
+    changeAmount: decimalToNumber(payment.changeAmount),
     tip: decimalToNumber(payment.tip),
     reference: payment.reference,
     createdAt: payment.createdAt.toISOString(),
@@ -58,6 +60,7 @@ export class PrismaPaymentRepository implements PaymentRepository {
         method: input.method,
         amount: input.amount,
         currency: input.currency ?? null,
+        changeAmount: input.changeAmount ?? 0,
         tip: input.tip ?? 0,
         reference: input.reference ?? null,
       },

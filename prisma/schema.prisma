@@ -736,6 +736,10 @@ model Payment {
   currency  String?
   /// Propina cobrada en este pago. Va aparte del monto porque en un pago mixto puede pagarse sola.
   tip       Decimal           @default(0) @db.Decimal(10, 2)
+  /// TASK-305 — vuelto que salió del cajón con este cobro, en la **moneda del negocio**. Es un hecho
+  /// del momento (lo que se le devolvió al cliente), y el arqueo lo necesita: sin él, un día con
+  /// vueltos parecería que falta plata. El detalle del pedido sigue **derivando** el cambio (T12).
+  changeAmount Decimal        @default(0) @db.Decimal(10, 2)
   /// Referencia externa del cobro (número de voucher, id de transferencia). Vacío si no aplica.
   reference String?
   createdAt DateTime          @default(now())
@@ -773,10 +777,38 @@ model Shift {
   updatedAt      DateTime    @updatedAt
   location       Location    @relation(fields: [locationId], references: [id], onDelete: Restrict)
   user           AdminUser   @relation(fields: [userId], references: [id], onDelete: Restrict)
+  cashCounts     ShiftCashCount[]
 
   @@index([locationId, status])
   @@index([userId])
   @@index([openedAt])
+}
+
+/// TASK-305 — con qué billetes se abrió y con qué se cerró, **por moneda**.
+///
+/// El owner lo pidió así: el arqueo no es un número, es un conteo (10 × C$100, 4 × US$20). Guardar
+/// las denominaciones permite reconstruir la suma, volver a contar y ver de dónde salió la
+/// diferencia; un total suelto no dice nada.
+enum ShiftCountKind {
+  opening
+  closing
+}
+
+model ShiftCashCount {
+  id           String          @id @default(cuid())
+  shiftId      String
+  kind         ShiftCountKind
+  /// Código ISO de la moneda contada (`NIO`, `USD`): la caja puede tener las dos.
+  currency     String
+  denomination Decimal         @db.Decimal(10, 2)
+  quantity     Int
+  createdAt    DateTime        @default(now())
+  shift        Shift           @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+
+  /// Una sola fila por billete y por tipo de conteo: contar dos veces el mismo billete es un error de
+  /// carga, no un dato.
+  @@unique([shiftId, kind, currency, denomination])
+  @@index([shiftId, kind])
 }
 
 

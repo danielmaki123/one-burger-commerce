@@ -44,6 +44,12 @@ export class InMemoryShiftRepository implements ShiftRepository {
       closingAmount: null,
       expectedAmount: null,
       difference: null,
+      cashCounts: (input.openingCounts ?? []).map((count) => ({
+        kind: "opening" as const,
+        currency: count.currency.trim().toUpperCase(),
+        denomination: count.denomination,
+        quantity: count.quantity,
+      })),
       notes: input.notes ?? null,
       createdAt: now,
       updatedAt: now,
@@ -81,6 +87,15 @@ export class InMemoryShiftRepository implements ShiftRepository {
         ? null
         : roundCurrency(shift.closingAmount! - shift.expectedAmount);
     if (input.notes !== undefined) shift.notes = input.notes;
+    shift.cashCounts = [
+      ...(shift.cashCounts ?? []).filter((count) => count.kind !== "closing"),
+      ...(input.closingCounts ?? []).map((count) => ({
+        kind: "closing" as const,
+        currency: count.currency.trim().toUpperCase(),
+        denomination: count.denomination,
+        quantity: count.quantity,
+      })),
+    ];
     shift.updatedAt = now;
 
     return shift;

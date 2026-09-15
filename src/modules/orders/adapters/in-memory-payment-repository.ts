@@ -45,6 +45,7 @@ export class InMemoryPaymentRepository implements PaymentRepository {
       // doble guardara 33.333 y Prisma 33.33, los tests de los dos adaptadores mentirían distinto.
       amount: roundCurrency(input.amount),
       currency: input.currency ?? null,
+      changeAmount: roundCurrency(input.changeAmount ?? 0),
       tip: roundCurrency(input.tip ?? 0),
       reference: input.reference ?? null,
       createdAt: new Date().toISOString(),

@@ -114,6 +114,43 @@ describe("venta de mostrador", () => {
     expect(result.change).toBe(29.5);
   });
 
+  it("deja registrado el vuelto que salió del cajón (TASK-305)", async () => {
+    const { createPosOrder, paymentRepository, deps } = setup();
+
+    // El pedido guarda lo que el cliente puso (para el detalle y el arqueo)…
+    await registerPosSale(
+      { draft: draftWithTaco(), customer, payments: [{ method: "cash", currency: "NIO", amount: 100 }] },
+      deps,
+    );
+
+    expect(createPosOrder).toHaveBeenCalledWith(
+      expect.objectContaining({ paidWithAmount: 100 }),
+    );
+
+    // …y el cobro en efectivo guarda el vuelto (20), que es lo que el arqueo descuenta del cajón.
+    const payments = await paymentRepository.listPaymentsByOrder("ord_01");
+    expect(payments[0].changeAmount).toBe(20);
+  });
+
+  it("en un pago mixto el vuelto queda en 0: lo explica la caja al cerrar (TASK-305)", async () => {
+    const { paymentRepository, deps } = setup();
+
+    await registerPosSale(
+      {
+        draft: draftWithTaco(),
+        customer,
+        payments: [
+          { method: "cash", currency: "NIO", amount: 50 },
+          { method: "card", currency: "NIO", amount: 30 },
+        ],
+      },
+      deps,
+    );
+
+    const payments = await paymentRepository.listPaymentsByOrder("ord_01");
+    expect(payments.map((payment) => payment.changeAmount)).toEqual([0, 0]);
+  });
+
   it("un pago mixto deja un cobro por medio", async () => {
     const { paymentRepository, deps } = setup();
 

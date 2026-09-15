@@ -1,3 +1,4 @@
+import type { ShiftCashCountInput } from "@/modules/orders/domain/shift-cash";
 import type { ShiftRecord } from "@/modules/orders/domain/order.types";
 
 export type OpenShiftInput = {
@@ -6,6 +7,11 @@ export type OpenShiftInput = {
   userId: string;
   /** Fondo con el que arranca. Sin dato es 0. */
   openingAmount?: number;
+  /**
+   * TASK-305 — con qué billetes se abre, por moneda. Si viene, el fondo se **deriva** del conteo:
+   * el total y los billetes no pueden discrepar.
+   */
+  openingCounts?: ShiftCashCountInput[];
   notes?: string | null;
 };
 
@@ -19,6 +25,8 @@ export type CloseShiftInput = {
   closingAmount: number | null;
   /** Lo que el sistema esperaba según los cobros, congelado al cerrar. */
   expectedAmount: number;
+  /** TASK-305 — con qué billetes se cerró, por moneda (se guarda el conteo, no solo el total). */
+  closingCounts?: ShiftCashCountInput[];
   notes?: string | null;
 };
 

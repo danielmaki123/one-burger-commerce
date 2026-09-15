@@ -41,6 +41,7 @@ const OPEN_SHIFT_ROW = {
   expectedAmount: null,
   difference: null,
   notes: null,
+  cashCounts: [],
   createdAt: new Date("2026-09-14T08:00:00.000Z"),
   updatedAt: new Date("2026-09-14T08:00:00.000Z"),
 };
@@ -72,7 +73,9 @@ describe("PrismaShiftRepository", () => {
         userId: "user_01",
         openingAmount: 500,
         notes: null,
+        cashCounts: undefined,
       },
+      include: { cashCounts: true },
     });
   });
 
@@ -181,6 +184,7 @@ describe("PrismaShiftRepository", () => {
     expect(shifts).toHaveLength(1);
     expect(findManyMock).toHaveBeenCalledWith({
       where: { locationId: "loc_principal" },
+      include: { cashCounts: true },
       orderBy: { openedAt: "desc" },
     });
   });

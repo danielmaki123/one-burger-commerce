@@ -25,30 +25,33 @@ function buildDeps() {
     createInMemoryLocation({ id: "loc_principal", name: "Principal" }),
   ]);
 
-  return { shiftRepository, paymentRepository, locationRepository };
+  return {
+    shiftRepository,
+    paymentRepository,
+    locationRepository,
+    // TASK-305: el arqueo convierte los cobros en dólares con la tasa configurada.
+    businessCurrencyCode: "NIO",
+    usdExchangeRate: 36.5,
+  };
 }
 
-/**
- * Un cobro dentro de la ventana del turno.
- *
- * El turno se abre y se cierra en el mismo milisegundo (los dos son "ahora" en el test), así que
- * para que la ventana contenga al cobro se retrocede `openedAt` un minuto: es lo que hace un turno
- * real, que dura horas.
- */
+/** Un cobro dentro de la ventana del turno. */
 function seedPayment(
   paymentRepository: InMemoryPaymentRepository,
   amount: number,
   tip: number,
   createdAt: string,
+  options: { method?: "cash" | "card"; currency?: string | null; changeAmount?: number } = {},
 ) {
   const orderId = `ord_${paymentRepository.payments.length + 1}`;
   paymentRepository.seedOrderLocation(orderId, "loc_principal");
   paymentRepository.payments.push({
     id: `pay_${paymentRepository.payments.length + 1}`,
     orderId,
-    method: "cash",
+    method: options.method ?? "cash",
     amount,
-    currency: null,
+    currency: options.currency ?? null,
+    changeAmount: options.changeAmount ?? 0,
     tip,
     reference: null,
     createdAt,
@@ -194,6 +197,94 @@ describe("closeShift", () => {
 
     await expect(
       closeShift({ shiftId: opened.data.id, closingAmount: -5 }, deps),
+    ).rejects.toMatchObject({ code: "VALIDATION_ERROR", status: 422 });
+  });
+
+  it("la tarjeta no entra al cajón (TASK-305)", async () => {
+    const deps = buildDeps();
+    const opened = await openShift(
+      { locationId: "loc_principal", userId: "user_01", openingAmount: 500 },
+      deps,
+    );
+    const openedAtMs = backdateOpen(opened.data.id, 60, deps.shiftRepository);
+
+    seedPayment(deps.paymentRepository, 200, 0, new Date(openedAtMs + 10_000).toISOString());
+    seedPayment(deps.paymentRepository, 500, 0, new Date(openedAtMs + 20_000).toISOString(), {
+      method: "card",
+    });
+
+    const result = await closeShift({ shiftId: opened.data.id, closingAmount: 700 }, deps);
+
+    // Antes el arqueo sumaba todos los cobros y la caja "sobraba" por la tarjeta.
+    expect(result.data?.expectedAmount).toBe(700);
+    expect(result.data?.difference).toBe(0);
+  });
+
+  it("convierte los dólares y descuenta el vuelto (TASK-305)", async () => {
+    const deps = buildDeps();
+    const opened = await openShift(
+      { locationId: "loc_principal", userId: "user_01", openingAmount: 0 },
+      deps,
+    );
+    const openedAtMs = backdateOpen(opened.data.id, 60, deps.shiftRepository);
+
+    // Un cobro en dólares (3 × 36.5 = 109.50) y uno en córdobas con 60 de vuelto (entran 40).
+    seedPayment(deps.paymentRepository, 3, 0, new Date(openedAtMs + 10_000).toISOString(), {
+      currency: "USD",
+    });
+    seedPayment(deps.paymentRepository, 100, 0, new Date(openedAtMs + 20_000).toISOString(), {
+      changeAmount: 60,
+    });
+
+    const result = await closeShift({ shiftId: opened.data.id, closingAmount: 149.5 }, deps);
+
+    expect(result.data?.expectedAmount).toBe(149.5);
+    expect(result.meta.expectedByCurrency).toEqual({ NIO: 40, USD: 3 });
+  });
+
+  it("el conteo de la apertura deriva el fondo y el del cierre deriva lo contado (TASK-305)", async () => {
+    const deps = buildDeps();
+    const opened = await openShift(
+      {
+        locationId: "loc_principal",
+        userId: "user_01",
+        openingCounts: [
+          { currency: "NIO", denomination: 100, quantity: 10 },
+          { currency: "USD", denomination: 20, quantity: 2 },
+        ],
+      },
+      deps,
+    );
+
+    // 10 × C$100 + 2 × US$20 × 36.5 = 1000 + 1460.
+    expect(opened.data.openingAmount).toBe(2460);
+    expect(opened.data.cashCounts).toHaveLength(2);
+
+    const result = await closeShift(
+      {
+        shiftId: opened.data.id,
+        closingCounts: [{ currency: "NIO", denomination: 100, quantity: 24 }],
+      },
+      deps,
+    );
+
+    // 24 × C$100: el total sale del conteo, no de un número aparte.
+    expect(result.data?.closingAmount).toBe(2400);
+    expect(result.data?.cashCounts?.filter((count) => count.kind === "closing")).toHaveLength(1);
+  });
+
+  it("rechaza un conteo con un billete que no existe", async () => {
+    const deps = buildDeps();
+
+    await expect(
+      openShift(
+        {
+          locationId: "loc_principal",
+          userId: "user_01",
+          openingCounts: [{ currency: "NIO", denomination: 25, quantity: 1 }],
+        },
+        deps,
+      ),
     ).rejects.toMatchObject({ code: "VALIDATION_ERROR", status: 422 });
   });
 });

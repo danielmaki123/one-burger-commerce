@@ -244,6 +244,8 @@ export type PaymentRecord = {
    * existen desde TASK-103 no la declaran).
    */
   currency: string | null;
+  /** TASK-305 — vuelto que salió del cajón con este cobro, en moneda del negocio (0 si no hubo). */
+  changeAmount: number;
   tip: number;
   reference: string | null;
   createdAt: string;
@@ -277,6 +279,16 @@ export type ShiftRecord = {
   expectedAmount: number | null;
   /** `closingAmount - expectedAmount`. Negativo = faltó plata. */
   difference: number | null;
+  /**
+   * TASK-305 — el conteo billete por billete, de apertura y de cierre, con su moneda. El total dice
+   * cuánto hay; esto dice **de dónde salió**, que es lo que permite revisar un arqueo.
+   */
+  cashCounts?: {
+    kind: "opening" | "closing";
+    currency: string;
+    denomination: number;
+    quantity: number;
+  }[];
   notes: string | null;
   createdAt: string;
   updatedAt: string;
