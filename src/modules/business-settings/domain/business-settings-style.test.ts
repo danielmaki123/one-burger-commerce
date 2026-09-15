@@ -108,14 +108,17 @@ describe("tipografías elegibles", () => {
 });
 
 /**
- * T1.3 — escala tipográfica, radios y sombras del mock (`DESIGN.md` de
- * "Artisanal Appetite") mapeados a tokens de `globals.css`.
+ * `DESIGN_REFERENCES.md` §3 Patrón 5 — la escala tipográfica del ADN visual.
  *
- * El mock no se versiona (es material de referencia), así que la especificación
- * vive acá: estos números son los del contrato de diseño medido en
- * `ops/audit-checkout-mock.md`. `globals.css` es la única fuente de verdad para
- * el runtime, y este test es lo que impide que los tokens se aflojen sin que
- * nadie se entere.
+ * **Cambió el contrato (2026-09-15)**: antes esta tabla fijaba los pasos del mock "Artisanal Appetite"
+ * (T1.3, 13 pasos de 10 a 40 px). El owner reemplazó ese ADN por el de `DESIGN_REFERENCES.md`, que
+ * define **cinco niveles** (Hero 56, KPI 32, Título 20, Body 14, Label 11) más un metadato de apoyo.
+ * Los nombres viejos siguen existiendo porque el público los usa, pero ahora **mapean a esos cinco
+ * niveles**: `display`/`display-lg` = Hero, `headline*` = Título, `title`/`title-sm` = KPI,
+ * `body-sm` = Body, `label*` = Label.
+ *
+ * `globals.css` es la única fuente de verdad para el runtime, y este test es lo que impide que la
+ * escala se afloje sin que nadie se entere.
  */
 const GLOBALS_CSS = path.resolve(__dirname, "../../../app/globals.css");
 
@@ -140,38 +143,39 @@ function remValue(tokens: Map<string, string>, token: string): number {
   return Number(match![1]);
 }
 
-const MOCK_TYPE_SCALE: {
+const ADN_TYPE_SCALE: {
   token: string;
   size: string;
   lineHeight: string;
   weight: string;
   tracking?: string;
 }[] = [
-  // display-lg-mobile / display-lg
-  { token: "display", size: "1.875rem", lineHeight: "2.375rem", weight: "800", tracking: "-0.02em" },
-  { token: "display-lg", size: "2.5rem", lineHeight: "3rem", weight: "800", tracking: "-0.03em" },
-  // headline-lg-mobile / headline-lg / headline-md
-  { token: "headline", size: "1.375rem", lineHeight: "1.75rem", weight: "700", tracking: "-0.01em" },
-  { token: "headline-lg", size: "1.75rem", lineHeight: "2.25rem", weight: "700", tracking: "-0.02em" },
-  { token: "headline-md", size: "1.25rem", lineHeight: "1.625rem", weight: "700", tracking: "-0.01em" },
-  // title-lg / title-md
-  { token: "title", size: "1.0625rem", lineHeight: "1.375rem", weight: "700" },
-  { token: "title-sm", size: "0.9375rem", lineHeight: "1.25rem", weight: "600" },
-  // body-lg / body-md / body-sm
-  { token: "body", size: "1rem", lineHeight: "1.5rem", weight: "400" },
-  { token: "body-sm", size: "0.875rem", lineHeight: "1.25rem", weight: "400" },
+  // Hero — el dato principal (56 px) y su alias de escritorio.
+  { token: "display", size: "3.5rem", lineHeight: "3.75rem", weight: "700", tracking: "-0.03em" },
+  { token: "display-lg", size: "3.5rem", lineHeight: "3.75rem", weight: "700", tracking: "-0.03em" },
+  // KPI — datos secundarios (32 px) en Fraunces.
+  { token: "kpi", size: "2rem", lineHeight: "2.5rem", weight: "700", tracking: "-0.02em" },
+  { token: "title", size: "2rem", lineHeight: "2.5rem", weight: "700", tracking: "-0.02em" },
+  { token: "title-sm", size: "1.25rem", lineHeight: "1.625rem", weight: "600" },
+  // Título de sección (20 px, Inter 600).
+  { token: "headline", size: "1.25rem", lineHeight: "1.625rem", weight: "600", tracking: "-0.01em" },
+  { token: "headline-md", size: "1.25rem", lineHeight: "1.625rem", weight: "600", tracking: "-0.01em" },
+  { token: "headline-lg", size: "1.5rem", lineHeight: "1.875rem", weight: "600", tracking: "-0.01em" },
+  // Body (14 px).
+  { token: "body", size: "0.875rem", lineHeight: "1.375rem", weight: "400" },
+  { token: "body-sm", size: "0.875rem", lineHeight: "1.375rem", weight: "400" },
+  // Label (11 px, uppercase con tracking ancho) y el metadato de apoyo.
+  { token: "label", size: "0.6875rem", lineHeight: "1rem", weight: "600", tracking: "0.08em" },
+  { token: "label-sm", size: "0.6875rem", lineHeight: "1rem", weight: "600", tracking: "0.08em" },
+  { token: "label-xs", size: "0.6875rem", lineHeight: "1rem", weight: "700", tracking: "0.08em" },
   { token: "caption", size: "0.75rem", lineHeight: "1rem", weight: "400" },
-  // label-lg / label-md / label-sm
-  { token: "label", size: "0.875rem", lineHeight: "1.125rem", weight: "700", tracking: "0.01em" },
-  { token: "label-sm", size: "0.75rem", lineHeight: "1rem", weight: "600", tracking: "0.02em" },
-  { token: "label-xs", size: "0.75rem", lineHeight: "1rem", weight: "700", tracking: "0.04em" },
 ];
 
-describe("tokens del mock (escala tipográfica, radios y sombras)", () => {
+describe("tokens del ADN visual (escala tipográfica, radios y sombras)", () => {
   const tokens = themeTokens(readFileSync(GLOBALS_CSS, "utf8"));
 
-  it("define la escala tipográfica del mock con su tamaño, interlineado y peso", () => {
-    for (const step of MOCK_TYPE_SCALE) {
+  it("define la escala del ADN con su tamaño, interlineado y peso", () => {
+    for (const step of ADN_TYPE_SCALE) {
       const { token, size, lineHeight, weight, tracking } = step;
       expect(tokens.get(`--text-${token}`), `falta --text-${token}`).toBe(size);
       expect(
@@ -195,36 +199,37 @@ describe("tokens del mock (escala tipográfica, radios y sombras)", () => {
     for (const reserved of ["sm", "base", "lg", "xl", "2xl", "3xl", "4xl"]) {
       expect(
         tokens.has(`--text-${reserved}`),
-        `--text-${reserved} es de Tailwind: la escala del mock usa nombres propios`,
+        `--text-${reserved} es de Tailwind: la escala del ADN usa nombres propios`,
       ).toBe(false);
     }
   });
 
-  it("cada variante de escritorio es más grande que su base mobile-first", () => {
-    for (const [base, desktop] of [
-      ["--text-display", "--text-display-lg"],
-      ["--text-headline", "--text-headline-lg"],
-    ]) {
-      expect(remValue(tokens, desktop)).toBeGreaterThan(remValue(tokens, base));
-    }
-    expect(remValue(tokens, "--text-label-xs")).toBeGreaterThanOrEqual(remValue(tokens, "--text-label-sm"));
+  it("los cinco niveles nunca se mezclan: el Hero es el techo y el Label el piso", () => {
+    const hero = remValue(tokens, "--text-display");
+    const kpi = remValue(tokens, "--text-kpi");
+    const title = remValue(tokens, "--text-headline");
+    const body = remValue(tokens, "--text-body");
+    const label = remValue(tokens, "--text-label");
+
+    // El orden del ADN: Hero > KPI > Título > Body > Label. Un paso intermedio que se cuele
+    // rompe la jerarquía de 5 niveles que pide el Patrón 5.
+    expect(hero).toBeGreaterThan(kpi);
+    expect(kpi).toBeGreaterThan(title);
+    expect(title).toBeGreaterThan(body);
+    expect(body).toBeGreaterThan(label);
   });
 
-  it("el paso más chico no baja de los 12 px del mock", () => {
-    const smallest = MOCK_TYPE_SCALE.map((step) => remValue(tokens, `--text-${step.token}`)).reduce(
-      (min, value) => Math.min(min, value),
-    );
-
-    // El mock usa 10 px en los badges (`label-sm`); en un teléfono real no se lee.
-    expect(smallest).toBeGreaterThanOrEqual(0.75);
+  it("el dato principal es 56 px y el label 11 px, como dice el ADN", () => {
+    expect(remValue(tokens, "--text-display")).toBe(3.5);
+    expect(remValue(tokens, "--text-label")).toBe(0.6875);
   });
 
-  it("define las curvaturas del mock (tarjeta 16 px, panel 24 px)", () => {
+  it("define las curvaturas del ADN (tarjeta 16 px, panel 24 px)", () => {
     expect(tokens.get("--radius-card")).toBe("1rem");
     expect(tokens.get("--radius-panel")).toBe("1.5rem");
   });
 
-  it("define las tres elevaciones del mock teñidas con el color configurado", () => {
+  it("define las tres elevaciones teñidas con el color configurado", () => {
     for (const token of ["--shadow-card", "--shadow-raised", "--shadow-float"]) {
       const value = tokens.get(token);
       expect(value, `falta ${token}`).toBeDefined();

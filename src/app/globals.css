@@ -33,24 +33,35 @@
   --chart-3: var(--gold);
   --chart-4: #4f8a68;          /* verde mediterráneo suave */
   --chart-5: #7f95a3;          /* gris azulado apagado */
-  --success: #e8f3ea;
-  --success-foreground: #1f5c3f;
-  --success-strong: var(--chart-4);
-  --warning: #f7ecd6;
-  --warning-foreground: #7a5518;
-  --warning-strong: var(--gold);
-  --danger: #f7e4dc;
-  --danger-foreground: #8a3220;
-  --danger-strong: #b8422b;    /* mantiene --terracotta reservado a promos */
+  --success-soft: #e8f3ea;         /* fondo de éxito */
+  --success-strong: #1f5c3f;       /* texto/dato de éxito */
+  --warning-soft: #f7ecd6;         /* fondo de alerta */
+  --warning-strong: #7a5518;       /* texto/dato de alerta */
+  --danger-soft: #f7e4dc;          /* fondo de peligro */
+  --danger-strong: #8a3220;        /* texto/dato de peligro */
+  --info-soft: #eaf1f6;            /* fondo de información neutral */
+  --info-strong: #2b6c96;          /* texto/dato de información neutral */
+  /* Alias de compatibilidad: los nombres viejos siguen vivos porque ~220 clases del
+     código los usan. El fondo es el mismo color; el `-foreground` apunta al `-strong`
+     nuevo, así el modo oscuro arregla de una todos esos usos (antes tenían un literal
+     oscuro que no se veía sobre el fondo oscuro). Se eliminan cuando las oleadas de la
+     Capa 1.6-1.8 pasen cada pantalla a los nombres de `DESIGN_REFERENCES.md` §4. */
+  --success: var(--success-soft);
+  --success-foreground: var(--success-strong);
+  --warning: var(--warning-soft);
+  --warning-foreground: var(--warning-strong);
+  --danger: var(--danger-soft);
+  --danger-foreground: var(--danger-strong);
   /* Admin — vocabulario de estados sólidos (legible a contraluz del salón) */
   --status-nueva: var(--brand); /* recién ingresada, pide confirmación */
-  --status-preparando: #b5701c; /* ámbar oscuro: en cocina */
+  --status-preparando: #a36519; /* ámbar oscuro: en cocina (bajado del #b5701c: con blanco daba 3.78:1) */
   --status-lista: #1f7a4d;      /* verde profundo: lista para servir */
-  --status-cerrada: var(--muted-foreground); /* pagada/cerrada */
+  --status-cerrada: #526069;    /* pagada/cerrada (bajado del muted: con blanco daba 5.14:1 y se veía lavado) */
   --status-alerta: #b23c2a;     /* requiere atención ya */
-  /* Admin — semáforo del retiro prometido (no confundir con el estado del pedido) */
+  /* Admin — semáforo del retiro prometido (no confundir con el estado del pedido).
+     Se usan como TEXTO sobre una píldora con su mismo color al 12-15% de fondo. */
   --pickup-on-time: #1f7a4d;    /* todavía no es la hora */
-  --pickup-past: #b5701c;       /* pasó la hora, con margen */
+  --pickup-past: #a36519;       /* pasó la hora, con margen (mismo ajuste que preparando) */
   --pickup-late: #b23c2a;       /* muy tardado */
   --radius: 0.625rem;
 }
@@ -126,15 +137,20 @@ body {
   --color-chart-1: var(--chart-1);
   --color-input: var(--input);
   --color-border: var(--border);
+  --color-success-soft: var(--success-soft);
+  --color-success-strong: var(--success-strong);
   --color-success: var(--success);
   --color-success-foreground: var(--success-foreground);
-  --color-success-strong: var(--success-strong);
+  --color-warning-soft: var(--warning-soft);
+  --color-warning-strong: var(--warning-strong);
   --color-warning: var(--warning);
   --color-warning-foreground: var(--warning-foreground);
-  --color-warning-strong: var(--warning-strong);
+  --color-danger-soft: var(--danger-soft);
+  --color-danger-strong: var(--danger-strong);
   --color-danger: var(--danger);
   --color-danger-foreground: var(--danger-foreground);
-  --color-danger-strong: var(--danger-strong);
+  --color-info-soft: var(--info-soft);
+  --color-info-strong: var(--info-strong);
   --color-status-nueva: var(--status-nueva);
   --color-status-preparando: var(--status-preparando);
   --color-status-lista: var(--status-lista);
@@ -169,66 +185,79 @@ body {
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-/* ── Escala del mock "Artisanal Appetite" (T1.3) ──
-   Tamaño, interlineado, peso y tracking de cada paso tal como los declara su
-   `DESIGN.md`, en `rem` y nunca en `px` para que el zoom del navegador y el
-   tamaño de fuente del usuario sigan funcionando (el mock bloquea el zoom: eso
-   no se copia). Los pasos `-lg` son la variante de escritorio y se usan con un
-   prefijo de breakpoint (`text-display lg:text-display-lg`), porque el mock solo
-   define la versión mobile.
-   Única desviación, a propósito: su `label-sm` de 10 px entra como 12 px, que es
-   el piso legible en un teléfono real. */
+/* ── Escala tipográfica del ADN visual (`DESIGN_REFERENCES.md` §3 Patrón 5) ──
+   Cinco niveles, y una pantalla usa esos cinco: Hero (56) para el dato principal, KPI (32) para los
+   secundarios, Título (20), Body (14) y Label (11, uppercase con tracking ancho). En `rem` y nunca en
+   `px`, para que el zoom del navegador y el tamaño de fuente del usuario sigan funcionando.
+
+   Los nombres viejos del mock "Artisanal Appetite" (T1.3) siguen existiendo porque el público los usa
+   en 300+ lugares; quedan **mapeados a los cinco niveles del ADN**, así el público hereda la escala
+   nueva sin un refactor masivo: `display`/`display-lg` = Hero, `headline*` = Título,
+   `title`/`title-sm` = KPI (número grande), `body-sm` = Body, `label*` = Label.
+
+   Única desviación del documento, a propósito: su Label de 11 px entra como 11 px, pero su caption
+   de 11 px entra como 12 px, que es el piso legible en un teléfono real. */
 @theme inline {
-  --text-display: 1.875rem;
-  --text-display--line-height: 2.375rem;
-  --text-display--font-weight: 800;
-  --text-display--letter-spacing: -0.02em;
-  --text-display-lg: 2.5rem;
-  --text-display-lg--line-height: 3rem;
-  --text-display-lg--font-weight: 800;
+  /* Hero — el dato principal (56 px) */
+  --text-display: 3.5rem;
+  --text-display--line-height: 3.75rem;
+  --text-display--font-weight: 700;
+  --text-display--letter-spacing: -0.03em;
+  --text-display-lg: 3.5rem;
+  --text-display-lg--line-height: 3.75rem;
+  --text-display-lg--font-weight: 700;
   --text-display-lg--letter-spacing: -0.03em;
-  --text-headline: 1.375rem;
-  --text-headline--line-height: 1.75rem;
-  --text-headline--font-weight: 700;
+  /* KPI — datos secundarios (32 px, números en Fraunces) */
+  --text-kpi: 2rem;
+  --text-kpi--line-height: 2.5rem;
+  --text-kpi--font-weight: 700;
+  --text-kpi--letter-spacing: -0.02em;
+  --text-title: 2rem;
+  --text-title--line-height: 2.5rem;
+  --text-title--font-weight: 700;
+  --text-title--letter-spacing: -0.02em;
+  --text-title-sm: 1.25rem;
+  --text-title-sm--line-height: 1.625rem;
+  --text-title-sm--font-weight: 600;
+  /* Título de sección (20 px, Inter 600) */
+  --text-headline: 1.25rem;
+  --text-headline--line-height: 1.625rem;
+  --text-headline--font-weight: 600;
   --text-headline--letter-spacing: -0.01em;
-  --text-headline-lg: 1.75rem;
-  --text-headline-lg--line-height: 2.25rem;
-  --text-headline-lg--font-weight: 700;
-  --text-headline-lg--letter-spacing: -0.02em;
+  --text-headline-lg: 1.5rem;
+  --text-headline-lg--line-height: 1.875rem;
+  --text-headline-lg--font-weight: 600;
+  --text-headline-lg--letter-spacing: -0.01em;
   --text-headline-md: 1.25rem;
   --text-headline-md--line-height: 1.625rem;
-  --text-headline-md--font-weight: 700;
+  --text-headline-md--font-weight: 600;
   --text-headline-md--letter-spacing: -0.01em;
-  --text-title: 1.0625rem;
-  --text-title--line-height: 1.375rem;
-  --text-title--font-weight: 700;
-  --text-title-sm: 0.9375rem;
-  --text-title-sm--line-height: 1.25rem;
-  --text-title-sm--font-weight: 600;
-  --text-body: 1rem;
-  --text-body--line-height: 1.5rem;
+  /* Body (14 px) */
+  --text-body: 0.875rem;
+  --text-body--line-height: 1.375rem;
   --text-body--font-weight: 400;
   --text-body-sm: 0.875rem;
-  --text-body-sm--line-height: 1.25rem;
+  --text-body-sm--line-height: 1.375rem;
   --text-body-sm--font-weight: 400;
+  /* Label (11 px, uppercase, tracking ancho) + caption de apoyo */
+  --text-label: 0.6875rem;
+  --text-label--line-height: 1rem;
+  --text-label--font-weight: 600;
+  --text-label--letter-spacing: 0.08em;
+  --text-label-sm: 0.6875rem;
+  --text-label-sm--line-height: 1rem;
+  --text-label-sm--font-weight: 600;
+  --text-label-sm--letter-spacing: 0.08em;
+  --text-label-xs: 0.6875rem;
+  --text-label-xs--line-height: 1rem;
+  --text-label-xs--font-weight: 700;
+  --text-label-xs--letter-spacing: 0.08em;
+  /* Metadato de apoyo: el único paso fuera de los cinco niveles del ADN, para fechas y ayudas cortas. */
   --text-caption: 0.75rem;
   --text-caption--line-height: 1rem;
   --text-caption--font-weight: 400;
-  --text-label: 0.875rem;
-  --text-label--line-height: 1.125rem;
-  --text-label--font-weight: 700;
-  --text-label--letter-spacing: 0.01em;
-  --text-label-sm: 0.75rem;
-  --text-label-sm--line-height: 1rem;
-  --text-label-sm--font-weight: 600;
-  --text-label-sm--letter-spacing: 0.02em;
-  --text-label-xs: 0.75rem;
-  --text-label-xs--line-height: 1rem;
-  --text-label-xs--font-weight: 700;
-  --text-label-xs--letter-spacing: 0.04em;
 
-  /* Curvaturas del mock: las tarjetas usan 16 px y los paneles 24 px. No se toca
-     la cadena `--radius-*` global para no re-vestir el admin, que no está en el mock. */
+  /* Curvaturas: las tarjetas usan 16 px y los paneles 24 px (`DESIGN_REFERENCES.md` §3 Patrón 9). */
   --radius-card: 1rem;
   --radius-panel: 1.5rem;
 
@@ -237,6 +266,72 @@ body {
   --shadow-card: 0 4px 16px -2px color-mix(in srgb, var(--brand) 8%, transparent);
   --shadow-raised: 0 6px 20px -4px color-mix(in srgb, var(--brand) 14%, transparent);
   --shadow-float: 0 12px 32px -6px color-mix(in srgb, var(--brand) 22%, transparent);
+}
+
+/**
+ * DARK MODE — aprobado por el owner el 2026-09-15 (`DESIGN_REFERENCES.md` §3 Patrón 10 y §4).
+ *
+ * Se activa con `class="dark"` en `<html>`: no hay detección del sistema, el interruptor es explícito.
+ * Valores exactos del documento, con **una** desviación medida y anotada:
+ *
+ * - `--brand-strong` del documento es `#4A8BB5` y sobre `--card` (#16212A) da **4.40:1**, por debajo
+ *   del 4.5:1 que exige el proyecto para texto. Se usa `#518FBA` (**4.85:1** medido), el azul más
+ *   cercano que cumple. Es la única diferencia contra §4.
+ *
+ * Todo par texto/fondo de este bloque está medido: `dark-mode-contract.test.ts` falla si alguno baja
+ * de 4.5:1.
+ */
+.dark {
+  color-scheme: dark;
+
+  --background: #0f161c;
+  --foreground: #e8ebef;
+  --card: #16212a;
+  --card-foreground: #e8ebef;
+  --secondary: #1c262e;
+  --secondary-foreground: #e8ebef;
+  --muted: #1c262e;
+  --muted-foreground: #8a97a3;
+  --accent: #15232e;
+  --border: #263239;
+  --input: var(--border);
+
+  --brand: #2b6c96;
+  --brand-strong: #518fba;
+  --brand-foreground: #f7fafc;
+  --terracotta: #d07a54;
+  --ink-green: #12351f;
+  --cream: #1c262e;
+  --gold: #c8a96a;
+  --coal: #0b1116;
+
+  --success-soft: #12351f;
+  --success-strong: #6fd89c;
+  --warning-soft: #2a1f0e;
+  --warning-strong: #f0c56a;
+  --danger-soft: #2a1612;
+  --danger-strong: #f58b7a;
+  --info-soft: #15232e;
+  --info-strong: #6fafd5;
+
+  /* Estados sólidos del panel: los chips usan texto blanco sobre estos fondos. Los tonos del modo
+     claro ya cumplen 4.5:1 con blanco, así que se reusan (y así un pedido "en cocina" se ve igual en
+     los dos modos). */
+  --status-nueva: var(--brand);
+  --status-preparando: #a36519;
+  --status-lista: #1f7a4d;
+  --status-cerrada: #526069;
+  --status-alerta: #b23c2a;
+  /* El semáforo del retiro va como TEXTO sobre la tarjeta oscura: acá sí hacen falta tonos claros. */
+  --pickup-on-time: #4c9571;
+  --pickup-past: #b9792a;
+  --pickup-late: #c66f61;
+
+  --chart-1: #6fafd5;
+  --chart-2: #d07a54;
+  --chart-3: #c8a96a;
+  --chart-4: #6fd89c;
+  --chart-5: #8a97a3;
 }
 
 @layer base {

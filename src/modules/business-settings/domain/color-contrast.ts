@@ -11,7 +11,7 @@ import { HEX_COLOR_PATTERN } from "@/modules/business-settings/domain/business-s
 export const BRAND_FOREGROUND_COLOR = "#f7fafc";
 
 /** Mínimos de WCAG 2.1 AA: 4.5:1 para texto, 3:1 para elementos de interfaz. */
-const TEXT_CONTRAST_MIN = 4.5;
+export const TEXT_CONTRAST_MIN = 4.5;
 const UI_CONTRAST_MIN = 3;
 
 export type ContrastWarning = {

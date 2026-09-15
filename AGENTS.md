@@ -59,7 +59,8 @@ sin aprobación explícita.
 | `ops/project-state.md` | Estado real: qué está desplegado, qué se cerró, qué falta, cómo continuar. **Leer primero.** |
 | `ops/production-readiness.md` | Runbook: entorno, deploy, backups, rollback, notificaciones, primer arranque, límites conocidos. |
 | `ops/tasks/*.md` | Briefs de tareas acordadas con el owner (decisiones ya resueltas). |
-| `DESIGN_SYSTEM.md` | **UI**: tokens, catálogo de componentes y "cuándo NO usar" cada uno. Fuente única (raíz, versionado). |
+| `DESIGN_REFERENCES.md` | **UI — ADN visual**: los 10 patrones que deciden cómo se ve una pantalla. Se lee antes de escribir UI; gana sobre los demás documentos de diseño. |
+| `DESIGN_SYSTEM.md` | **UI — catálogo**: tokens (light y dark), componentes y "cuándo NO usar" cada uno. Deriva del ADN. |
 | `README.md` | Alcance y comandos de validación. |
 
 `docs/` y `handoffs/` están en `.gitignore` (material histórico heredado de otro
@@ -98,20 +99,25 @@ src/infrastructure/** prisma, event bus
 
 ## Jerarquía de fuentes (qué gana cuando hay conflicto)
 
-1. **`DESIGN_SYSTEM.md`** — fuente de verdad de **UI**: tokens, tipografía, espaciado, forma,
-   estados y catálogo de componentes. Si una decisión es visual o de componente, manda este archivo.
-2. **`AGENTS.md`** (este archivo) — todo lo demás: alcance, arquitectura, TDD, validación, git/CI,
-   deploy, idioma y prohibiciones. **Sigue mandando sobre `DESIGN_SYSTEM.md`** cuando el conflicto no
-   es visual (alcance, arquitectura, proceso): en ese caso gana este archivo y `DESIGN_SYSTEM.md` se
-   corrige en el mismo commit.
-3. **Skills de diseño** (Impeccable, Frontend design, UI/UX Pro Max, …) — **referencia secundaria, no
-   fuente de verdad**. Si un skill contradice `DESIGN_SYSTEM.md`, **gana `DESIGN_SYSTEM.md`**: se
-   reporta el conflicto y **no** se cambia el código.
-4. **Humano** — si sigue sin estar claro, se para y se pregunta.
+1. **`DESIGN_REFERENCES.md`** — el **ADN visual**: los 10 patrones que deciden cómo se ve una pantalla
+   (números grandes, cards con personalidad, íconos con fondo, color con significado, jerarquía de 5
+   niveles, badges, visualización, spacing, radius y **dark mode siempre**). Se lee **antes de escribir
+   cualquier UI**. Si la decisión es visual, manda este archivo.
+2. **`DESIGN_SYSTEM.md`** — el **catálogo**: qué tokens existen, qué componentes hay y cuándo NO usar
+   cada uno. No contradice al ADN: lo aterriza.
+3. **`AGENTS.md`** (este archivo) — todo lo demás: alcance, arquitectura, TDD, validación, git/CI,
+   deploy, idioma y prohibiciones. **Sigue mandando sobre los dos documentos de diseño** cuando el
+   conflicto no es visual (alcance, arquitectura, proceso): en ese caso gana este archivo y el
+   documento de diseño se corrige en el mismo commit.
+4. **Skills de diseño** (Impeccable, Frontend design, UI/UX Pro Max, …) — **referencia secundaria, no
+   fuente de verdad**. Si un skill contradice el ADN o el catálogo, **ganan los documentos del repo**:
+   se reporta el conflicto y **no** se cambia el código.
+5. **Humano** — si sigue sin estar claro, se para y se pregunta.
 
 ## UI y design system
 
-La fuente única es [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md) (raíz, versionado), que deriva de este
+El **ADN visual** es [`DESIGN_REFERENCES.md`](DESIGN_REFERENCES.md) (raíz, versionado). El **catálogo**
+de tokens y componentes es [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md) (raíz, versionado), que deriva de este
 archivo y del inventario medido en [`ops/tasks/TASK-201-ui-inventory.md`](ops/tasks/TASK-201-ui-inventory.md).
 
 - **Componente que existe, componente que se usa**: primero `src/shared/ui/`, después
@@ -126,8 +132,11 @@ archivo y del inventario medido en [`ops/tasks/TASK-201-ui-inventory.md`](ops/ta
   `sky-*`) ni `fontFamily` inline que duplique `font-heading` (29). Solo tokens de `globals.css`.
 - **Los 16 tokens muertos están prohibidos y ya no existen** (C1-3): `--primary`, `--popover`,
   `--destructive`, `--ring` y la familia `--sidebar-*` se eliminaron de `globals.css` porque nadie los
-  consumía; el bloque `.dark` (31 tokens que nunca se aplicaban) también. Un contrato lo verifica: si
-  necesitás uno de verdad, se declara **con su consumidor** en el mismo commit.
+  consumía. Un contrato lo verifica: si necesitás uno de verdad, se declara **con su consumidor** en el
+  mismo commit.
+- **El modo oscuro es obligatorio** (aprobado el 2026-09-15, `DESIGN_REFERENCES.md` §3 Patrón 10): todo
+  token nuevo necesita su valor en `.dark` y todo par texto/fondo tiene que dar **4.5:1** en los dos
+  modos. `src/shared/contracts/dark-mode-contract.test.ts` lo mide.
 - **Componente nuevo = registro previo**: un archivo nuevo en `_components/` se registra en
   `DESIGN_SYSTEM.md` **en el mismo commit**, con su "cuándo SÍ" y su "cuándo NO". El espejo legible por
   máquina es `src/shared/ui/registry.json`, y un contrato exige que los dos tengan los mismos componentes.
@@ -180,16 +189,26 @@ Reglas de test:
 
 ## Checklist de UI antes de cerrar una tarea con pantalla
 
-Ninguna tarea que toque UI se cierra con un "no" acá. El ideal es `src/shared/ui/`; el catálogo y el
-"cuándo NO" de cada componente están en `DESIGN_SYSTEM.md` §3.
+Ninguna tarea que toque UI se cierra con un "no" acá. El ADN está en `DESIGN_REFERENCES.md` §3 y el
+catálogo con el "cuándo NO" de cada componente, en `DESIGN_SYSTEM.md` §3.
+
+**ADN visual (los 10 patrones):**
+
+- [ ] ¿El dato principal **domina** (Hero 56 px Fraunces 700) y los secundarios van en KPI 32 px?
+- [ ] ¿La pantalla usa los **5 niveles** (Hero, KPI, Título, Body, Label) y ninguno intermedio?
+- [ ] ¿Los **íconos tienen fondo de color** (48×48, radio 12) y los colores **significan** algo?
+- [ ] ¿Hay **máximo 2 tipos de card** por pantalla (no todas blancas)?
+- [ ] ¿El spacing es **32 px entre secciones** y 24 px dentro de las cards?
+- [ ] ¿Los badges de tendencia/estado usan `-soft` de fondo y `-strong` de texto?
+- [ ] ¿Donde hay datos hay **visualización** (sparkline / donut / barras), y sin datos hay estado vacío?
+- [ ] ¿Se ve bien en **light Y dark** (`class="dark"` en `<html>`) y el par texto/fondo da ≥4.5:1?
+
+**Código y componentes:**
 
 - [ ] ¿Usé los primitivos de `src/shared/ui/` donde ya existían? (si falta uno, se registra en
       `DESIGN_SYSTEM.md` §3.4, no se inventa el sexto `className`)
-- [ ] ¿Cero `text-[Npx]`? (escala semántica: `text-display` / `text-headline` / `text-title` / `text-label`)
-- [ ] ¿Cero paleta cruda de Tailwind (`bg-white`, `text-red-700`, `border-stone-200`) donde hay token?
-- [ ] ¿Cero `rounded-[Npx]` y cero `shadow-[...]`? (`rounded-card`, `rounded-panel`, `shadow-card`)
-- [ ] ¿El dato principal de la pantalla va en `text-display` y hay **una sola** acción primaria?
-- [ ] ¿Cada tarjeta entra en **2 líneas** de texto y ningún texto es decorativo?
+- [ ] ¿Cero `text-[Npx]`, cero paleta cruda, cero `rounded-[Npx]` y cero `shadow-[...]`?
+- [ ] ¿Hay **una sola** acción primaria y ningún texto decorativo?
 - [ ] ¿Están los **4 estados** de toda pantalla con datos: cargando, vacío, error y con datos?
 - [ ] ¿La verifiqué en **navegador real a 375 px y 1280 px** (Playwright), no en HTML estático?
 - [ ] ¿Corrí los gates (`npm run test:contracts`, `npm run test`) y el E2E si toqué flujos?

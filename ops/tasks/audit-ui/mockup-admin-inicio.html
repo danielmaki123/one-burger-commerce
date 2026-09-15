@@ -6,12 +6,14 @@
     <title>Mockup — Inicio del panel · One Burger</title>
 
     <!--
-      C1-4a de `plan2uiux.md` — MOCKUP ESTÁTICO. No es producto:
-      · Sin backend, sin datos reales, sin fetch. El estado se cambia con los botones de la barra.
-      · Los tokens están copiados de `src/app/globals.css` (con los mismos valores) porque este
-        archivo tiene que abrirse con doble click, sin build.
-      · Ningún `#hex` nuevo: solo los valores de los tokens del sistema.
-      · Al terminar: PARÁ y esperá la validación del owner (es el único stop humano del plan).
+      C1-4a de `plan2uiux.md`, **recreado con el ADN de `DESIGN_REFERENCES.md`** (2026-09-15).
+
+      · MOCKUP ESTÁTICO: sin backend, sin datos reales, sin build. Se abre con doble click.
+      · Los tokens están copiados de `src/app/globals.css` (mismos valores, light y dark).
+      · Los 10 patrones se aplican: Hero 56 / KPI 32 / Título 20 / Body 14 / Label 11, íconos con
+        fondo de color 48×48 radio 12, badges soft/strong, sparkline, spacing 32/24, radius 16/20/12
+        y dark mode de verdad (el botón cambia `class="dark"` en <html>).
+      · Al terminar: PARÁ y esperá la validación del owner (único stop humano del plan).
     -->
     <style>
       :root {
@@ -19,14 +21,12 @@
         --brand-strong: color-mix(in srgb, var(--brand) 84%, black);
         --brand-foreground: #f7fafc;
         --terracotta: #b85f3a;
-        --cream: #f2ece0;
         --gold: #c8a96a;
         --coal: #16212a;
 
         --background: #fbf9f5;
         --foreground: #23303a;
         --card: #ffffff;
-        --card-foreground: var(--foreground);
         --secondary: #f1ece2;
         --secondary-foreground: var(--brand-strong);
         --muted: #eef0f2;
@@ -34,23 +34,55 @@
         --accent: #eaf1f6;
         --border: #e4e2dc;
 
-        --success: #e8f3ea;
-        --success-foreground: #1f5c3f;
-        --warning: #f7ecd6;
-        --warning-foreground: #7a5518;
-        --danger: #f7e4dc;
-        --danger-foreground: #8a3220;
+        --success-soft: #e8f3ea;
+        --success-strong: #1f5c3f;
+        --warning-soft: #f7ecd6;
+        --warning-strong: #7a5518;
+        --danger-soft: #f7e4dc;
+        --danger-strong: #8a3220;
+        --info-soft: #eaf1f6;
+        --info-strong: #2b6c96;
 
-        --status-nueva: var(--brand);
-        --status-preparando: #b5701c;
-        --status-lista: #1f7a4d;
-        --status-cerrada: var(--muted-foreground);
-        --status-alerta: #b23c2a;
-        --pickup-on-time: #1f7a4d;
-        --pickup-past: #b5701c;
-        --pickup-late: #b23c2a;
+        /* Radius del ADN: cards 16-20, íconos 12, badges pill, inputs 12 */
+        --radius-icon: 12px;
+        --radius-input: 12px;
+        --radius-card: 16px;
+        --radius-panel: 20px;
+        --radius-pill: 999px;
 
-        --radius-panel: 1rem;
+        /* Spacing del ADN: 32 entre secciones, 24 en cards, 12-16 entre items */
+        --gap-section: 32px;
+        --pad-card: 24px;
+        --gap-item: 12px;
+      }
+
+      /* Dark mode: los valores de DESIGN_REFERENCES.md §4 (clase en <html>, interruptor explícito). */
+      html.dark {
+        --brand: #2b6c96;
+        --brand-strong: #518fba;
+        --brand-foreground: #f7fafc;
+        --terracotta: #d07a54;
+        --gold: #c8a96a;
+        --coal: #0b1116;
+
+        --background: #0f161c;
+        --foreground: #e8ebef;
+        --card: #16212a;
+        --secondary: #1c262e;
+        --secondary-foreground: #e8ebef;
+        --muted: #1c262e;
+        --muted-foreground: #8a97a3;
+        --accent: #15232e;
+        --border: #263239;
+
+        --success-soft: #12351f;
+        --success-strong: #6fd89c;
+        --warning-soft: #2a1f0e;
+        --warning-strong: #f0c56a;
+        --danger-soft: #2a1612;
+        --danger-strong: #f58b7a;
+        --info-soft: #15232e;
+        --info-strong: #6fafd5;
       }
 
       * {
@@ -62,122 +94,118 @@
         background: var(--background);
         color: var(--foreground);
         font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-        font-size: 16px;
-        line-height: 1.5;
+        font-size: 14px; /* Body del ADN */
+        line-height: 1.375rem;
       }
 
-      /* Escala tipográfica del sistema (globals.css): solo estos pasos. */
-      .t-display {
-        font-size: 1.875rem;
-        line-height: 2.375rem;
-        font-weight: 800;
-        letter-spacing: -0.02em;
-      }
-      .t-headline {
-        font-size: 1.375rem;
-        line-height: 1.75rem;
+      /* ── Los 5 niveles del ADN (más el metadato de apoyo) ── */
+      .t-hero {
+        font-family: ui-serif, Georgia, "Times New Roman", serif;
+        font-size: 3.5rem;
+        line-height: 3.75rem;
         font-weight: 700;
-        letter-spacing: -0.01em;
+        letter-spacing: -0.03em;
+        font-variant-numeric: tabular-nums;
+      }
+      .t-kpi {
+        font-family: ui-serif, Georgia, "Times New Roman", serif;
+        font-size: 2rem;
+        line-height: 2.5rem;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        font-variant-numeric: tabular-nums;
       }
       .t-title {
-        font-size: 1.0625rem;
-        line-height: 1.375rem;
-        font-weight: 700;
+        font-size: 1.25rem;
+        line-height: 1.625rem;
+        font-weight: 600;
+        letter-spacing: -0.01em;
       }
-      .t-body-sm {
+      .t-body {
         font-size: 0.875rem;
-        line-height: 1.25rem;
+        line-height: 1.375rem;
+        font-weight: 400;
       }
       .t-label {
-        font-size: 0.875rem;
-        line-height: 1.125rem;
-        font-weight: 700;
-        letter-spacing: 0.01em;
-      }
-      .t-label-sm {
-        font-size: 0.75rem;
+        font-size: 0.6875rem;
         line-height: 1rem;
         font-weight: 600;
-        letter-spacing: 0.02em;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
       }
       .t-caption {
         font-size: 0.75rem;
         line-height: 1rem;
+        font-weight: 400;
       }
       .muted {
         color: var(--muted-foreground);
       }
-      .nums {
-        font-variant-numeric: tabular-nums;
-      }
 
-      /* Barra del mockup: NO es producto, es la herramienta para que el owner vea los estados. */
+      /* ── Barra del mockup: NO es producto, es la herramienta de validación ── */
       .demo-bar {
         display: flex;
         flex-wrap: wrap;
-        gap: 0.5rem;
+        gap: 8px;
         align-items: center;
-        padding: 0.75rem 1rem;
+        padding: 12px 16px;
         background: var(--coal);
-        color: var(--cream);
+        color: #f2ece0;
       }
-      .demo-bar p {
+      .demo-bar .demo-title {
         margin: 0 auto 0 0;
-        font-size: 0.75rem;
-        font-weight: 700;
-        letter-spacing: 0.04em;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.08em;
         text-transform: uppercase;
       }
       .demo-bar button {
         min-height: 44px;
-        padding: 0 0.75rem;
-        border: 1px solid color-mix(in srgb, var(--cream) 40%, transparent);
-        border-radius: var(--radius);
+        padding: 0 12px;
+        border: 1px solid color-mix(in srgb, #f2ece0 40%, transparent);
+        border-radius: var(--radius-input);
         background: transparent;
-        color: var(--cream);
+        color: #f2ece0;
         font: inherit;
-        font-size: 0.875rem;
+        font-size: 13px;
         font-weight: 600;
         cursor: pointer;
       }
       .demo-bar button[aria-pressed="true"] {
-        background: var(--cream);
+        background: #f2ece0;
         color: var(--coal);
       }
 
       .shell {
         max-width: 1120px;
         margin: 0 auto;
-        padding: 1rem 1rem 3rem;
+        padding: 16px 16px 48px;
       }
 
       header.page {
         display: flex;
         flex-wrap: wrap;
-        gap: 0.75rem;
+        gap: 12px;
         align-items: flex-start;
         justify-content: space-between;
-        padding-bottom: 1rem;
-      }
-      .page-label {
-        color: var(--muted-foreground);
+        padding-bottom: var(--gap-section);
       }
       .page-title {
-        margin: 0.25rem 0 0;
+        margin: 4px 0 0;
       }
       .page-sub {
-        margin: 0.25rem 0 0;
+        margin: 4px 0 0;
         color: var(--muted-foreground);
       }
 
       .btn {
         display: inline-flex;
         align-items: center;
-        gap: 0.5rem;
+        gap: 8px;
         min-height: 44px;
-        padding: 0 1rem;
+        padding: 0 16px;
         border: 1px solid transparent;
-        border-radius: var(--radius);
+        border-radius: var(--radius-input);
         font: inherit;
         font-size: 0.875rem;
         font-weight: 700;
@@ -194,126 +222,184 @@
         color: var(--foreground);
       }
 
-      section {
+      /* ── Spacing del ADN: 32 px entre secciones ── */
+      .stack > * + * {
+        margin-top: var(--gap-section);
+      }
+
+      /* ── Card tipo A: superficie neutra (la mayoría) ── */
+      .card {
         background: var(--card);
         border: 1px solid var(--border);
         border-radius: var(--radius-panel);
-        margin-top: 1rem;
       }
-      .pad {
-        padding: 1rem;
+      .card-pad {
+        padding: var(--pad-card);
       }
 
-      /* 1. EL DATO PRINCIPAL: ventas de hoy, protagonista y sin competencia. */
+      /* ── Card tipo B: la del turno, con el tinte de info (Patrón 2: solo 2 tipos de card) ── */
+      .card-turno {
+        background: linear-gradient(180deg, var(--info-soft), var(--card) 60%);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-panel);
+        padding: var(--pad-card);
+      }
+
+      /* ── Patrón 1: el hero domina, con su badge y su sparkline ── */
       .hero {
         display: flex;
         flex-wrap: wrap;
-        gap: 0.5rem 1.5rem;
+        gap: 16px 32px;
+        align-items: flex-end;
+        justify-content: space-between;
+      }
+      .hero-main {
+        min-width: 0;
+      }
+      .hero-value {
+        margin: 8px 0 0;
+        display: flex;
+        flex-wrap: wrap;
         align-items: baseline;
-        padding: 1.25rem 1rem;
-        border-bottom: 1px solid var(--border);
+        gap: 12px;
       }
-      .hero .delta {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.375rem;
-        padding: 0.125rem 0.5rem;
-        border-radius: var(--radius);
-        background: var(--success);
-        color: var(--success-foreground);
-        font-size: 0.75rem;
-        font-weight: 700;
-      }
-      .hero .delta.down {
-        background: var(--warning);
-        color: var(--warning-foreground);
-      }
-      .hero .when {
+      .hero-meta {
+        margin: 8px 0 0;
         color: var(--muted-foreground);
       }
 
-      /* 2. DATOS SECUNDARIOS: cuatro etiquetas cortas, un número cada una. */
-      .facts {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        border-top: 1px solid var(--border);
+      /* ── Patrón 6: badges de tendencia y estado (soft de fondo, strong de texto) ── */
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 2px 10px;
+        border-radius: var(--radius-pill);
+        font-size: 0.75rem;
+        font-weight: 700;
+        white-space: nowrap;
       }
-      @media (min-width: 720px) {
-        .facts {
+      .badge-success {
+        background: var(--success-soft);
+        color: var(--success-strong);
+      }
+      .badge-warning {
+        background: var(--warning-soft);
+        color: var(--warning-strong);
+      }
+      .badge-danger {
+        background: var(--danger-soft);
+        color: var(--danger-strong);
+      }
+      .badge-info {
+        background: var(--info-soft);
+        color: var(--info-strong);
+      }
+
+      /* ── Patrón 7: sparkline ── */
+      .sparkline {
+        flex: 0 0 auto;
+        width: 100%;
+        max-width: 260px;
+        height: 64px;
+      }
+
+      /* ── Patrón 3: íconos con fondo de color, 48×48, radio 12 ── */
+      .icon-box {
+        flex: 0 0 auto;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 48px;
+        height: 48px;
+        border-radius: var(--radius-icon);
+      }
+      .icon-box svg {
+        width: 24px;
+        height: 24px;
+      }
+      .icon-warning {
+        background: var(--warning-soft);
+        color: var(--warning-strong);
+      }
+      .icon-info {
+        background: var(--info-soft);
+        color: var(--info-strong);
+      }
+      .icon-success {
+        background: var(--success-soft);
+        color: var(--success-strong);
+      }
+      .icon-danger {
+        background: var(--danger-soft);
+        color: var(--danger-strong);
+      }
+
+      /* ── Patrón 4: color con significado + Patrón 8: spacing ── */
+      .kpis {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: var(--gap-item);
+      }
+      @media (min-width: 560px) {
+        .kpis {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+      @media (min-width: 900px) {
+        .kpis {
           grid-template-columns: repeat(4, minmax(0, 1fr));
         }
       }
-      .fact {
-        padding: 0.75rem 1rem;
-        border-top: 1px solid var(--border);
+      .kpi {
+        display: flex;
+        align-items: center;
+        gap: var(--gap-item);
+        padding: 16px;
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-card);
+        min-width: 0;
       }
-      .fact:nth-child(-n + 2) {
-        border-top: 0;
-      }
-      @media (min-width: 720px) {
-        .fact {
-          border-top: 0;
-          border-left: 1px solid var(--border);
-        }
-        .fact:first-child {
-          border-left: 0;
-        }
-      }
-      .fact dt {
+      .kpi-label {
         color: var(--muted-foreground);
       }
-      .fact dd {
-        margin: 0.25rem 0 0;
+      .kpi-value {
+        margin: 2px 0 0;
+        overflow-wrap: anywhere;
       }
 
-      .section-title {
+      .section-head {
         display: flex;
         align-items: baseline;
         justify-content: space-between;
-        gap: 0.75rem;
-        padding: 1rem 1rem 0.5rem;
+        gap: 12px;
+        margin-bottom: 12px;
       }
-      .section-title h2 {
+      .section-head h2 {
         margin: 0;
       }
 
-      /* 3. LO QUE PIDE ACCIÓN: filas tocables de una decisión cada una. */
       ul.rows {
         list-style: none;
         margin: 0;
         padding: 0;
       }
       ul.rows li + li {
-        border-top: 1px solid var(--border);
+        margin-top: var(--gap-item);
       }
       ul.rows a {
         display: flex;
         align-items: center;
-        gap: 0.75rem;
+        gap: var(--gap-item);
         min-height: 56px;
-        padding: 0.5rem 1rem;
+        padding: 8px;
+        border-radius: var(--radius-card);
         color: inherit;
         text-decoration: none;
       }
       ul.rows a:hover {
-        background: color-mix(in srgb, var(--accent) 60%, transparent);
-      }
-      .row-icon {
-        flex: 0 0 auto;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 40px;
-        height: 40px;
-        border-radius: var(--radius);
-        background: var(--danger);
-        color: var(--danger-foreground);
-        font-weight: 800;
-        font-size: 1rem;
-      }
-      .row-icon.info {
-        background: var(--muted);
-        color: var(--foreground);
+        background: color-mix(in srgb, var(--accent) 70%, transparent);
       }
       .row-main {
         min-width: 0;
@@ -321,69 +407,48 @@
       }
       .row-title {
         display: block;
-        font-weight: 700;
-        font-size: 0.875rem;
+        font-weight: 600;
       }
       .row-detail {
         display: block;
         color: var(--muted-foreground);
-        font-size: 0.75rem;
-      }
-      .chip {
-        flex: 0 0 auto;
-        padding: 0.125rem 0.5rem;
-        border: 1px solid var(--border);
-        border-radius: var(--radius);
-        font-size: 0.75rem;
-        font-weight: 700;
-        white-space: nowrap;
-      }
-      .chip.late {
-        border-color: var(--pickup-late);
-        color: var(--pickup-late);
-      }
-      .chip.past {
-        border-color: var(--pickup-past);
-        color: var(--pickup-past);
-      }
-      .chip.ok {
-        border-color: var(--pickup-on-time);
-        color: var(--pickup-on-time);
       }
 
-      /* 4. APOYO: top de productos, barra + número (nada que decidir acá). */
-      ol.products {
-        list-style: none;
-        margin: 0;
-        padding: 0 1rem 1rem;
+      /* ── Patrón 7: barras para comparar ── */
+      .products {
         display: grid;
-        gap: 0.75rem;
+        gap: var(--gap-item);
+        margin: 0;
+        padding: 0;
+        list-style: none;
       }
-      ol.products li {
+      .product {
         display: grid;
         grid-template-columns: minmax(0, 1fr) auto;
-        gap: 0.25rem 0.75rem;
+        gap: 4px 12px;
         align-items: center;
+      }
+      .product-value {
+        font-variant-numeric: tabular-nums;
+        font-weight: 700;
       }
       .bar {
         grid-column: 1 / -1;
-        height: 6px;
+        height: 8px;
         background: var(--muted);
-        border-radius: var(--radius);
+        border-radius: var(--radius-pill);
         overflow: hidden;
-      }      .bar span {
+      }
+      .bar span {
         display: block;
         height: 100%;
         background: var(--brand);
       }
 
-      /* 5. LOS CUATRO ESTADOS: cargando (skeleton), vacío y con datos. */
-      .skeleton-card {
-        padding: 1rem;
-      }
+      /* ── Los cuatro estados ── */
       .bone {
         background: var(--muted);
-        border-radius: var(--radius);
+        border-radius: var(--radius-input);
         animation: pulse 1.4s ease-in-out infinite;
       }
       @keyframes pulse {
@@ -396,20 +461,12 @@
           animation: none;
         }
       }
-      .bone.h28 {
-        height: 28px;
+      .bone.hero-bone {
+        height: 56px;
+        width: 60%;
       }
-      .bone.h44 {
-        height: 44px;
-      }
-      .bone.w40 {
-        width: 40%;
-      }
-      .bone.w70 {
-        width: 70%;
-      }
-      .bone + .bone {
-        margin-top: 0.75rem;
+      .bone.kpi-bone {
+        height: 48px;
       }
       .sr-only {
         position: absolute;
@@ -423,40 +480,33 @@
         border: 0;
       }
       .empty {
-        padding: 2rem 1rem;
+        padding: 40px 24px;
         text-align: center;
       }
       .empty h3 {
-        margin: 0.5rem 0 0.25rem;
+        margin: 12px 0 4px;
       }
       .empty p {
-        margin: 0 auto 1rem;
-        max-width: 32ch;
+        margin: 0 auto 16px;
+        max-width: 34ch;
         color: var(--muted-foreground);
       }
       .error-box {
-        margin-top: 1rem;
-        padding: 0.75rem 1rem;
-        border: 1px solid var(--danger-foreground);
-        border-radius: var(--radius);
-        background: var(--danger);
-        color: var(--danger-foreground);
         display: flex;
         flex-wrap: wrap;
-        gap: 0.75rem;
+        gap: 12px;
         align-items: center;
         justify-content: space-between;
-      }
-      .error-box p {
-        margin: 0;
-        font-weight: 600;
-        font-size: 0.875rem;
+        padding: 16px;
+        border: 1px solid var(--danger-strong);
+        border-radius: var(--radius-card);
+        background: var(--danger-soft);
+        color: var(--danger-strong);
       }
 
       footer.mock {
-        margin-top: 1.5rem;
+        margin-top: var(--gap-section);
         color: var(--muted-foreground);
-        font-size: 0.75rem;
       }
       [hidden] {
         display: none !important;
@@ -465,7 +515,9 @@
   </head>
   <body>
     <div class="demo-bar">
-      <p>Mockup C1-4a · estado</p>
+      <p class="demo-title">Mockup C1-4a · ADN nuevo</p>
+      <button type="button" data-theme="light" aria-pressed="true">Light</button>
+      <button type="button" data-theme="dark" aria-pressed="false">Dark</button>
       <button type="button" data-state="data" aria-pressed="true">Con datos</button>
       <button type="button" data-state="loading" aria-pressed="false">Cargando</button>
       <button type="button" data-state="empty" aria-pressed="false">Sin datos</button>
@@ -475,162 +527,252 @@
     <div class="shell">
       <header class="page">
         <div>
-          <p class="t-label-sm page-label">OPERACIÓN</p>
+          <p class="t-label muted" style="margin: 0">Operación</p>
           <h1 class="t-title page-title">Inicio</h1>
-          <p class="t-body-sm page-sub">Lo que pasa hoy en Principal.</p>
+          <p class="t-body page-sub">Lo que pasa hoy en Principal.</p>
         </div>
         <a class="btn btn-primary" href="#">Ir a la caja</a>
       </header>
 
-      <div class="error-box" data-state="error" hidden>
-        <p>No se pudieron cargar los datos de hoy. Revisá tu conexión.</p>
-        <button type="button" class="btn btn-secondary">Reintentar</button>
+      <div class="stack">
+        <div class="error-box t-body" data-state="error" hidden>
+          <span>No se pudieron cargar los datos de hoy. Revisá tu conexión.</span>
+          <button type="button" class="btn btn-secondary">Reintentar</button>
+        </div>
+
+        <!-- CON DATOS -->
+        <div class="stack" data-state="data">
+          <!-- Card tipo B: el turno, con el tinte de info -->
+          <section class="card-turno" aria-labelledby="turno-title">
+            <h2 id="turno-title" class="sr-only">Turno de hoy</h2>
+            <div class="hero">
+              <div class="hero-main">
+                <p class="t-label muted" style="margin: 0">Ventas de hoy</p>
+                <div class="hero-value">
+                  <span class="t-hero">C$ 12.480</span>
+                  <span class="badge badge-success">↑ 18 % vs. ayer</span>
+                </div>
+                <p class="t-body hero-meta">36 pedidos · promedio C$ 347</p>
+              </div>
+              <!-- Patrón 7: la serie del día, sin ejes ni decoración -->
+              <svg class="sparkline" viewBox="0 0 260 64" role="img" aria-label="Ventas de hoy por hora">
+                <polyline
+                  fill="none"
+                  stroke="var(--brand)"
+                  stroke-width="3"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  points="4,48 32,44 60,50 88,34 116,38 144,22 172,26 200,14 228,18 256,8"
+                />
+              </svg>
+            </div>
+
+            <!-- Patrón 3 + 4: cada KPI con su ícono de color y su número en 32 -->
+            <div class="kpis" style="margin-top: var(--gap-section)">
+              <div class="kpi">
+                <span class="icon-box icon-warning" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                    <circle cx="12" cy="12" r="9" />
+                    <path d="M12 7v5l3 2" />
+                  </svg>
+                </span>
+                <div>
+                  <p class="t-label kpi-label" style="margin: 0">En cocina</p>
+                  <p class="t-kpi kpi-value">4</p>
+                </div>
+              </div>
+
+              <div class="kpi">
+                <span class="icon-box icon-info" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                    <path d="M4 6h16M4 12h16M4 18h10" />
+                  </svg>
+                </span>
+                <div>
+                  <p class="t-label kpi-label" style="margin: 0">Por aceptar</p>
+                  <p class="t-kpi kpi-value">2</p>
+                </div>
+              </div>
+
+              <div class="kpi">
+                <span class="icon-box icon-success" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                    <path d="M20 7l-11 11-5-5" />
+                  </svg>
+                </span>
+                <div>
+                  <p class="t-label kpi-label" style="margin: 0">Listas</p>
+                  <p class="t-kpi kpi-value">3</p>
+                </div>
+              </div>
+
+              <div class="kpi">
+                <span class="icon-box icon-success" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                    <rect x="3" y="6" width="18" height="13" rx="2" />
+                    <path d="M3 10h18" />
+                  </svg>
+                </span>
+                <div>
+                  <p class="t-label kpi-label" style="margin: 0">Caja</p>
+                  <p class="t-kpi kpi-value">Abierta</p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- Card tipo A: lo que pide acción -->
+          <section aria-labelledby="atencion-title">
+            <div class="section-head">
+              <h2 id="atencion-title" class="t-title">Necesita atención</h2>
+              <span class="t-caption muted" style="font-variant-numeric: tabular-nums">3 pedidos</span>
+            </div>
+            <div class="card card-pad">
+              <ul class="rows">
+                <li>
+                  <a href="#">
+                    <span class="icon-box icon-danger" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                        <path d="M12 9v4M12 17h.01" />
+                        <path d="M10.3 4l-7 12A2 2 0 005 19h14a2 2 0 001.7-3l-7-12a2 2 0 00-3.4 0z" />
+                      </svg>
+                    </span>
+                    <span class="row-main">
+                      <span class="row-title t-body">P-0042 · retiro 12:30</span>
+                      <span class="row-detail t-caption">Cliente esperando hace 12 min</span>
+                    </span>
+                    <span class="badge badge-danger">Tarde</span>
+                  </a>
+                </li>
+                <li>
+                  <a href="#">
+                    <span class="icon-box icon-warning" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                        <circle cx="12" cy="12" r="9" />
+                        <path d="M12 7v5l3 2" />
+                      </svg>
+                    </span>
+                    <span class="row-main">
+                      <span class="row-title t-body">P-0039 · sin aceptar</span>
+                      <span class="row-detail t-caption">Entró hace 6 min</span>
+                    </span>
+                    <span class="badge badge-warning">Sin aceptar</span>
+                  </a>
+                </li>
+                <li>
+                  <a href="#">
+                    <span class="icon-box icon-info" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                        <circle cx="12" cy="12" r="9" />
+                        <path d="M12 11v5M12 8h.01" />
+                      </svg>
+                    </span>
+                    <span class="row-main">
+                      <span class="row-title t-body">Caja abierta hace 9 h</span>
+                      <span class="row-detail t-caption">Último cierre: ayer 22:10</span>
+                    </span>
+                    <span class="badge badge-info">Sin cerrar</span>
+                  </a>
+                </li>
+              </ul>
+            </div>
+          </section>
+
+          <!-- Card tipo A: comparación con barras -->
+          <section aria-labelledby="top-title">
+            <div class="section-head">
+              <h2 id="top-title" class="t-title">Más vendidos hoy</h2>
+              <span class="t-label muted">Unidades</span>
+            </div>
+            <div class="card card-pad">
+              <ol class="products">
+                <li class="product">
+                  <span class="t-body">Taco de Birria</span>
+                  <span class="product-value t-body">14</span>
+                  <span class="bar"><span style="width: 100%"></span></span>
+                </li>
+                <li class="product">
+                  <span class="t-body">Hamburguesa clásica</span>
+                  <span class="product-value t-body">9</span>
+                  <span class="bar"><span style="width: 64%"></span></span>
+                </li>
+                <li class="product">
+                  <span class="t-body">Sangría</span>
+                  <span class="product-value t-body">6</span>
+                  <span class="bar"><span style="width: 43%"></span></span>
+                </li>
+              </ol>
+            </div>
+          </section>
+        </div>
+
+        <!-- CARGANDO -->
+        <section class="card card-pad" data-state="loading" hidden aria-label="Cargando el turno de hoy">
+          <p class="sr-only" role="status">Cargando el turno de hoy…</p>
+          <div class="bone hero-bone"></div>
+          <div class="kpis" style="margin-top: var(--gap-section)">
+            <div class="bone kpi-bone"></div>
+            <div class="bone kpi-bone"></div>
+            <div class="bone kpi-bone"></div>
+            <div class="bone kpi-bone"></div>
+          </div>
+        </section>
+
+        <!-- SIN DATOS -->
+        <section class="card empty" data-state="empty" hidden>
+          <span class="icon-box icon-info" aria-hidden="true" style="margin: 0 auto">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <rect x="3" y="6" width="18" height="13" rx="2" />
+              <path d="M3 10h18" />
+            </svg>
+          </span>
+          <h3 class="t-title">Todavía no hay ventas hoy</h3>
+          <p class="t-body">Cuando entre el primer pedido, acá vas a ver el turno completo.</p>
+          <a class="btn btn-secondary" href="#">Ver el menú</a>
+        </section>
       </div>
 
-      <section aria-labelledby="turno-title" data-state="data">
-        <h2 id="turno-title" class="sr-only">Turno de hoy</h2>
-
-        <div class="hero">
-          <p class="t-caption page-label" style="margin: 0">Ventas de hoy</p>
-          <p class="t-display nums" style="margin: 0">C$ 12 480</p>
-          <span class="delta">↑ 18 % vs. ayer</span>
-          <p class="t-body-sm when" style="margin: 0">36 pedidos · promedio C$ 347</p>
-        </div>
-
-        <dl class="facts">
-          <div class="fact">
-            <dt class="t-label-sm">EN COCINA</dt>
-            <dd class="t-title nums">4</dd>
-          </div>
-          <div class="fact">
-            <dt class="t-label-sm">POR ACEPTAR</dt>
-            <dd class="t-title nums">2</dd>
-          </div>
-          <div class="fact">
-            <dt class="t-label-sm">LISTAS</dt>
-            <dd class="t-title nums">3</dd>
-          </div>
-          <div class="fact">
-            <dt class="t-label-sm">CAJA</dt>
-            <dd class="t-title nums">Abierta</dd>
-          </div>
-        </dl>
-      </section>
-
-      <!-- CARGANDO -->
-      <section class="skeleton-card" data-state="loading" hidden aria-label="Cargando el turno de hoy">
-        <p class="sr-only" role="status">Cargando el turno de hoy…</p>
-        <div class="bone h28 w40"></div>
-        <div class="bone h44"></div>
-        <div class="bone h44 w70"></div>
-        <div class="bone h44"></div>
-      </section>
-
-      <!-- SIN DATOS -->
-      <section class="empty" data-state="empty" hidden>
-        <h3 class="t-title">Todavía no hay ventas hoy</h3>
-        <p class="t-body-sm">
-          Cuando entre el primer pedido, acá vas a ver el turno completo.
-        </p>
-        <a class="btn btn-secondary" href="#">Ver el menú</a>
-      </section>
-
-      <div data-state="data">
-
-      <section aria-labelledby="atencion-title">
-        <div class="section-title">
-          <h2 id="atencion-title" class="t-title">Necesita atención</h2>
-          <span class="t-caption muted nums">3 pedidos</span>
-        </div>
-        <ul class="rows">
-          <li>
-            <a href="#">
-              <span class="row-icon" aria-hidden="true">!</span>
-              <span class="row-main">
-                <span class="row-title">P-0042 · retiro 12:30</span>
-                <span class="row-detail">Cliente esperando hace 12 min</span>
-              </span>
-              <span class="chip late">Tarde</span>
-            </a>
-          </li>
-          <li>
-            <a href="#">
-              <span class="row-icon" aria-hidden="true">!</span>
-              <span class="row-main">
-                <span class="row-title">P-0039 · sin aceptar</span>
-                <span class="row-detail">Entró hace 6 min</span>
-              </span>
-              <span class="chip past">Sin aceptar</span>
-            </a>
-          </li>
-          <li>
-            <a href="#">
-              <span class="row-icon info" aria-hidden="true">i</span>
-              <span class="row-main">
-                <span class="row-title">Caja abierta hace 9 h</span>
-                <span class="row-detail">Se cerró por última vez ayer 22:10</span>
-              </span>
-              <span class="chip ok">Sin cerrar</span>
-            </a>
-          </li>
-        </ul>
-      </section>
-
-      <section aria-labelledby="top-title">
-        <div class="section-title">
-          <h2 id="top-title" class="t-title">Más vendidos hoy</h2>
-          <span class="t-caption muted">unidades</span>
-        </div>
-        <ol class="products">
-          <li>
-            <span class="t-body-sm">Taco de Birria</span>
-            <span class="t-body-sm nums">14</span>
-            <span class="bar"><span style="width: 100%"></span></span>
-          </li>
-          <li>
-            <span class="t-body-sm">Hamburguesa clásica</span>
-            <span class="t-body-sm nums">9</span>
-            <span class="bar"><span style="width: 64%"></span></span>
-          </li>
-          <li>
-            <span class="t-body-sm">Sangría</span>
-            <span class="t-body-sm nums">6</span>
-            <span class="bar"><span style="width: 43%"></span></span>
-          </li>
-        </ol>
-      </section>
-      </div>
-
-      <footer class="mock">
+      <footer class="mock t-caption">
         <p>
-          Mockup estático (C1-4a de <code>plan2uiux.md</code>). Datos inventados: no hay backend. Los
-          tokens son los de <code>src/app/globals.css</code> y la escala tipográfica es la del
-          design system.
+          Mockup estático (C1-4a de <code>plan2uiux.md</code>) recreado con el ADN de
+          <code>DESIGN_REFERENCES.md</code>. Datos inventados: no hay backend. Probá
+          <strong>Light</strong> y <strong>Dark</strong>, y los cuatro estados.
         </p>
       </footer>
     </div>
 
     <script>
       /**
-       * Único JavaScript del mockup: cambia el estado visible para que el owner vea los cuatro.
+       * Único JavaScript del mockup: cambia el tema (light/dark) y el estado visible.
        *
        * Ojo con el selector: los botones de la barra **no** son pantallas del producto, así que la
        * barra queda afuera del barrido (`:not(.demo-bar *)`). Sin eso, el primer click esconde la
        * propia barra y no se puede volver atrás.
        */
-      const buttons = [...document.querySelectorAll(".demo-bar button")];
+      const themeButtons = [...document.querySelectorAll(".demo-bar button[data-theme]")];
+      const stateButtons = [...document.querySelectorAll(".demo-bar button[data-state]")];
 
-      function show(state) {
+      function setTheme(theme) {
+        document.documentElement.classList.toggle("dark", theme === "dark");
+        for (const button of themeButtons) {
+          button.setAttribute("aria-pressed", String(button.dataset.theme === theme));
+        }
+      }
+
+      function setState(state) {
         for (const node of document.querySelectorAll("[data-state]:not(.demo-bar *)")) {
           node.hidden = node.dataset.state !== state;
         }
-        for (const button of buttons) {
+        for (const button of stateButtons) {
           button.setAttribute("aria-pressed", String(button.dataset.state === state));
         }
       }
 
-      for (const button of buttons) {
-        button.addEventListener("click", () => show(button.dataset.state));
+      for (const button of themeButtons) {
+        button.addEventListener("click", () => setTheme(button.dataset.theme));
+      }
+      for (const button of stateButtons) {
+        button.addEventListener("click", () => setState(button.dataset.state));
       }
     </script>
   </body>

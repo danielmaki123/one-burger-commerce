@@ -2477,28 +2477,45 @@ del mismo commit. Ahora compara por **día UTC** y sigue detectando lo que tiene
   aplicación (los 75 anillos del producto usan `ring-brand`). Contrato nuevo
   `dead-tokens-contract.test.ts`.
 
-### CAPA 1 · C1-4a — el mockup de `/admin` — **LISTO, esperando validación del owner (stop humano)**
+### CAPA 1 · C1-4a — el mockup, **recreado con el ADN visual nuevo** (2026-09-15)
 
-`ops/tasks/audit-ui/mockup-admin-inicio.html` (estático, sin backend) + **8 capturas** en la misma
-carpeta (los 4 estados × 375 px y 1280 px, renderizadas en Chromium real). Decisiones tomadas, para que
-el owner apruebe o corrija:
+**El owner rechazó el primer mockup** y su agente de diseño entregó
+[`DESIGN_REFERENCES.md`](../../DESIGN_REFERENCES.md): **el ADN visual como fuente de verdad**, con 10
+patrones traducidos a reglas (las 3 imágenes de referencia quedan en `ops/references/`, solo para
+humanos). Lo aprobado en ese documento: **8 tokens nuevos, dark mode sí y probar en dark**. Se ejecutó
+su §7 completa:
 
-1. **La pantalla se llama «Inicio» y no «Resumen»**, y contesta *«¿qué hago ahora?»*. El dato principal
-   es **Ventas de hoy** en `text-display` (C$ 12 480 con ↑18 % vs. ayer); `Órdenes activas` y `Nuevas`,
-   que hoy compiten con él, bajan a cuatro hechos secundarios cortos (en cocina, por aceptar, listas,
-   caja).
-2. **«Necesita atención» es la sección con más peso después del hero**: filas tocables con la hora de
-   retiro y el semáforo (`--pickup-*`), sin abrir el detalle.
-3. **Los filtros de período/canal salen de la home**: son consulta, no operación del turno, y con
-   cuatro tamaños de fuente no se sostiene la jerarquía. Queda como decisión del owner: si los quiere,
-   van en un bloque plegable.
-4. **Una sola acción primaria**: «Ir a la caja».
-5. **Los cuatro estados se ven desde la barra del mockup** (con datos / cargando / sin datos / error);
-   la barra oscura no es producto.
-6. **Medido en el navegador**: 4 tamaños de fuente en el contenido (30 / 17 / 14 / 12 px) contra los
-   **8 `text-[11px]`** que tiene hoy la pantalla real, y **cero scroll horizontal** a 375 y 1280 px.
+1. **`globals.css`**: los 8 tokens del ADN (`--success|warning|danger|info-soft|-strong`) con su valor
+   light **y** dark, y el bloque `.dark` **de vuelta** (ahora es funcionalidad, no scaffold). Los 16
+   tokens muertos de C1-3 siguen borrados.
+2. **Mapeo sin refactor masivo**: los nombres viejos (`--success`, `--warning`, `--danger`,
+   `-foreground`) quedan como **alias** del `-soft`, y el `-foreground` se re-apunta al `-strong`
+   **nuevo**. Así los ~220 usos que ya existen en el código heredan el modo oscuro **sin tocar 40
+   archivos**, y se limpian cuando cada oleada (Capa 1.6-1.8) pase por cada pantalla.
+3. **Escala tipográfica del ADN**: Hero 56 / KPI 32 / Título 20 / Body 14 / Label 11 (uppercase con
+   tracking 0.08em) + el metadato de apoyo de 12. Los nombres viejos del mock "Artisanal Appetite"
+   **mapean a esos cinco niveles** (`display` = Hero, `title` = KPI, `headline` = Título, …), así el
+   público también hereda el ADN. El contrato de tipografía
+   (`business-settings-style.test.ts`) se actualizó **explicando por qué**: el ADN reemplazó al mock.
+4. **Contraste medido, no supuesto**: los 40 pares texto/fondo (20 por modo) están en verde. Dos
+   ajustes con número: el `--brand-strong` oscuro del documento (`#4a8bb5`) daba **4.40:1** sobre
+   `--card`, así que se usa `#518fba` (**4.66:1**); y `--status-preparando` bajó de `#b5701c` a
+   `#a36519` porque con texto blanco daba **3.78:1**.
+5. **Guardrail nuevo** (`dark-mode-contract.test.ts`, reemplaza al de C1-3): el bloque `.dark` existe
+   con `color-scheme: dark`, **todos** los tokens del ADN están en los dos modos, ningún par baja de
+   4.5:1 y los 16 tokens muertos no vuelven.
+6. **El mockup recreado** (`ops/tasks/audit-ui/mockup-admin-inicio.html`): Hero en 56 con badge de
+   tendencia y **sparkline**, 4 KPIs en 32 con **ícono de color 48×48 radio 12**, la sección de
+   atención con badges soft/strong, los más vendidos con **barras**, spacing de 32/24 y **espaciado
+   medido** (32 px exactos entre secciones). Botones para **Light/Dark** y para los **4 estados**.
+   **16 capturas** (4 estados × 2 temas × 375/1280) en la misma carpeta.
 
-**C1-4b NO se arranca hasta que el owner valide.** Al aprobarse, la implementación reemplaza
+**Medido en Chromium real**, no a ojo: los 5 niveles exactos (56/32/20/14/11), íconos 48×48 radio 12,
+**cero scroll horizontal** a 375 y 1280 px. **Una desviación, solo en celular**: con 4 columnas a
+375 px la palabra "Abierta" no entraba en 32 px, así que la grilla de KPIs pasa a 1 / 2 / 4 columnas
+(560 y 900 px) y el número del KPI se mantiene en 32 px.
+
+**C1-4b NO se arranca hasta que el owner valide el mockup.** Al aprobarse, la implementación reemplaza
 `admin-overview-client.tsx` (615 líneas) respetando el techo congelado de ese archivo.
 
 **Verificación del cambio de CSS de C1-3 en el navegador (2026-09-15)**: la eliminación de tokens y del
