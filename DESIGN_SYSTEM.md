@@ -40,7 +40,6 @@ tokens:
     - { name: "--muted-foreground",  value: "#5b6670",            role: "texto secundario (≥4.5:1)" }
     - { name: "--border",            value: "#e4e2dc",            role: "borde por defecto" }
     - { name: "--input",             value: "var(--border)",      role: "borde de campo" }
-    - { name: "--ring",              value: "var(--brand)",       role: "anillo de foco" }
   brand_derived:
     - { name: "--brand-strong",      value: "color-mix(in srgb, var(--brand) 84%, black)", role: "hover del primario" }
     - { name: "--brand-foreground",  value: "#f7fafc",            role: "texto sobre el primario", note: "un test de contrato lo compara con BRAND_FOREGROUND_COLOR" }
@@ -77,9 +76,11 @@ tokens:
     - { name: "--chart-4", value: "#4f8a68",          role: "serie 4" }
     - { name: "--chart-5", value: "#7f95a3",          role: "serie 5" }
 
-  # NO USAR: están declarados pero ningún archivo los consume (26 % de los tokens).
-  # Ver `ops/tasks/TASK-201-ui-inventory.md` §1.2. Son sobrante de un scaffold tipo shadcn.
-  orphan_forbidden:
+  # NO USAR: existieron y se ELIMINARON en C1-3 (plan2uiux.md) porque ningún archivo los consumía.
+  # Ver `ops/tasks/TASK-201-ui-inventory.md` §1.2 y el contrato
+  # `src/shared/contracts/dead-tokens-contract.test.ts`, que falla si alguno vuelve a declararse
+  # sin un consumidor real en el mismo commit.
+  removed_dead_tokens_forbidden:
     - --primary
     - --primary-foreground
     - --popover
@@ -87,6 +88,7 @@ tokens:
     - --accent-foreground
     - --destructive
     - --ink-green-foreground
+    - --ring
     - --sidebar
     - --sidebar-foreground
     - --sidebar-primary
@@ -161,12 +163,19 @@ Los 7 primeros son **del negocio**: su valor efectivo lo elige el owner en `/adm
 demás son del sistema. La tabla completa con evidencia está en el frontmatter de este archivo y en
 `ops/tasks/TASK-201-ui-inventory.md` §1.
 
-### 2.1 Los 15 tokens prohibidos
+### 2.1 Los 16 tokens muertos: eliminados en C1-3
 
 `--primary`, `--primary-foreground`, `--popover`, `--popover-foreground`, `--accent-foreground`,
-`--destructive`, `--ink-green-foreground` y la familia `--sidebar-*` (8) **están declarados y nadie
-los usa**. Son sobrante de un scaffold tipo shadcn. **No usarlos**: agregan superficie sin agregar
-sistema (el inventario §1.2 tiene la búsqueda negativa).
+`--destructive`, `--ink-green-foreground`, `--ring` y la familia `--sidebar-*` (8) **existían
+declarados y nadie los consumía**: sobrante de un scaffold tipo shadcn (el inventario §1.2 tiene la
+búsqueda negativa). **C1-3 los borró** de `:root` y de `@theme`, junto con el bloque `.dark` (31
+tokens que nunca se aplicaban: no hay clase `dark` en el DOM y el modo oscuro está fuera de alcance).
+`src/shared/contracts/dead-tokens-contract.test.ts` falla si alguno vuelve sin un consumidor real.
+
+**Ojo con `--ring`**: no era gratis borrarlo. La regla base aplicaba `outline-ring/50`, que Tailwind
+compila a un `outline-color: var(--ring)` literal —borrar el token sin tocar esa línea dejaba el
+contorno **roto en runtime sin fallar el build**—. Se quitó esa aplicación: los 75 anillos de foco del
+producto usan `focus-visible:ring-2 focus-visible:ring-brand`, que es explícito y no depende del token.
 
 ### 2.2 Cuándo usar qué color
 
@@ -360,7 +369,7 @@ leer tal como están en el repo. Son la referencia de composición: copy y estru
 | **NO** paleta cruda de Tailwind donde hay token | 70 apariciones (`red-*`, `stone-*`, `amber-*`, `emerald-*`, `sky-*`, `text-white`) |
 | **NO** `style={{ fontFamily }}` | La utilidad `font-heading` existe; el público lo hace 29 veces y el admin usa la clase |
 | **NO** `rounded-[Npx]` nuevos | 37 arbitrarios con 9 valores; existen `rounded-card` y `rounded-panel` |
-| **NO** usar los 15 tokens huérfanos | §2.1 |
+| **NO** volver a declarar los 16 tokens muertos | §2.1: se eliminaron en C1-3 y el contrato los rechaza |
 | **NO** usar `text-display-lg`, `text-headline-lg`, `text-body`, `shadow-raised`, `shadow-float`, `rounded-4xl` | Declarados y sin uso: suman superficie sin sumar sistema |
 | **NO** `font-mono` | **NO EXISTE** el token; usar `tabular-nums` |
 | **NO** hardcodear datos del negocio (nombre, iniciales, colores, contacto, precios) | `anti-hardcode-contract.test.ts`; el caso vivo es el `OB` de `public-confirmation-shell.tsx:55` |
@@ -368,7 +377,7 @@ leer tal como están en el repo. Son la referencia de composición: copy y estru
 | **NO** crear un componente nuevo sin registrarlo acá | §3 es el catálogo; un componente sin fila es una fuga |
 | **NO** duplicar la hoja de edición | `AdminEditSheet` existe; hoy hay 2 reimplementaciones, una sin focus trap ni Escape |
 | **NO** dos `<h1>` en la misma página | `admin/orders/page.tsx:785` convive con `AdminPageHeader` (`:982`) |
-| **NO** reactivar el bloque `.dark` | 31 tokens que **nunca se aplican** (no hay clase `dark` en el DOM) |
+| **NO** reactivar el bloque `.dark` | Existía con 31 tokens que **nunca se aplicaban** (no hay clase `dark` en el DOM) y C1-3 lo eliminó: el modo oscuro está fuera de alcance |
 | **NO** tocar el tema oscuro ni los tokens del mock sin pedido | El mock vive fuera del producto |
 
 ---
@@ -385,6 +394,7 @@ leer tal como están en el repo. Son la referencia de composición: copy y estru
 | HTML crudo, `#hex`, registro de componentes en `DESIGN_SYSTEM.md` | `src/shared/contracts/ui-contract.test.ts` (techos por archivo que solo bajan) |
 | El registro JSON y el catálogo dicen lo mismo | `src/shared/contracts/registry-contract.test.ts` (forma, exports reales y todo archivo de UI registrado) |
 | Paleta cruda, `fontFamily` inline, radios/tamaños/sombras arbitrarios, `window.confirm`, `role="dialog"`/`role="switch"` a mano y HTML crudo | `src/shared/contracts/design-guardrails-contract.test.ts` sobre los **techos por archivo** de `src/shared/config/design-tokens.allow.json` (C1-2): un techo nunca sube, si baja se baja en el mismo commit y al terminar la Capa 1.9 todas las tablas quedan vacías |
+| Los 16 tokens muertos y el bloque `.dark` no vuelven | `src/shared/contracts/dead-tokens-contract.test.ts` (C1-3) |
 | Route handlers: 50 líneas y sin Prisma | `src/shared/contracts/route-contract.test.ts` |
 | Módulos: capas con archivos y dirección de las dependencias | `src/shared/contracts/module-contract.test.ts` |
 | Documentos sincronizados (`AGENTS.md` sin rutas rotas y frescura contra `schema.prisma`/`src/shared/ui/`) | `src/shared/contracts/docs-sync-contract.test.ts` |

@@ -124,9 +124,10 @@ archivo y del inventario medido en [`ops/tasks/TASK-201-ui-inventory.md`](ops/ta
 - **Prohibido el color fuera de token**: nada de `#hex` (hoy hay 10 de UI), `rgba()` (35), paleta
   cruda de Tailwind donde hay token (70 apariciones de `red-*`, `stone-*`, `amber-*`, `emerald-*`,
   `sky-*`) ni `fontFamily` inline que duplique `font-heading` (29). Solo tokens de `globals.css`.
-- **Los 15 tokens huérfanos están prohibidos**: se leen en `DESIGN_SYSTEM.md` §2.1 antes de usar un
-  color o un espaciado "nuevo". El bloque `.dark` (31 tokens) **nunca se aplica** y no sirve de base
-  para un modo oscuro.
+- **Los 16 tokens muertos están prohibidos y ya no existen** (C1-3): `--primary`, `--popover`,
+  `--destructive`, `--ring` y la familia `--sidebar-*` se eliminaron de `globals.css` porque nadie los
+  consumía; el bloque `.dark` (31 tokens que nunca se aplicaban) también. Un contrato lo verifica: si
+  necesitás uno de verdad, se declara **con su consumidor** en el mismo commit.
 - **Componente nuevo = registro previo**: un archivo nuevo en `_components/` se registra en
   `DESIGN_SYSTEM.md` **en el mismo commit**, con su "cuándo SÍ" y su "cuándo NO". El espejo legible por
   máquina es `src/shared/ui/registry.json`, y un contrato exige que los dos tengan los mismos componentes.
