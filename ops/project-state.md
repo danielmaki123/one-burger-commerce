@@ -2290,10 +2290,94 @@ contraseña, `NEXTAUTH_SECRET` y el token del servicio). Se comprobó en esta se
 desplegado: para eso está el `grep -o '"sha":"[^"]*"'` que recomienda el runbook §2 — no volcar la
 respuesta completa.
 
-⚠️ **Lo que no se pudo verificar desde acá**: el POS funcionando con una **sesión de admin** (este entorno
-no tiene credenciales del panel). La evidencia funcional es el E2E local —**105 pasaron / 6 salteados / 0
-fallos**, con el cobro, la caja y el interruptor por local— más la revisión a ojo del owner en
-`https://admin.oneburgernic.com/admin/pos`.
+### Verificación del POS en producción **con sesión real** (2026-09-15) — **hecha**
+
+El owner pasó una cuenta de prueba (`tester@oneburgernic.com`, rol **owner**, 3 locales asignados) y con
+ella se verificó lo que faltaba: **el POS funcionando en producción con sesión**, sin tocar datos (solo
+lectura; ningún cobro, ninguna apertura de caja). Evidencia, toda en vivo:
+
+| Comprobación | Resultado |
+|---|---|
+| `/api/auth/admin/session` | 200 · `owner`, locales: Camino de Oriente, Carretera Masaya, Casa Antigua |
+| `GET /api/admin/pos/availability` (TASK-308) | 200 · `{"available":true}` |
+| `GET /api/admin/pos/catalog?locationId=…` | 200 · local **Camino de Oriente**, `posEnabled: true`, **6 productos** (DOBLE, TRIPLE, KIDS BURGER, MONSTER FRIES, COCA COLA, COCA ZERO) |
+| Entrada **«Caja»** en la navegación del panel | existe y abre `/admin/pos` |
+| Pantalla `/admin/pos` | renderiza «Punto de venta», **Catálogo**, **Venta en curso**, **Caja** y los botones «Agregar … a la venta» |
+| Interruptor **«Punto de venta»** en la ficha del local | presente y en **`yes`** (se miró y se canceló: no se guardó nada) |
+| Casos de lectura de `admin-pos.spec.ts` contra producción | **2/2** (catálogo a 375 px sin scroll horizontal; dos columnas a 1280 px) |
+
+Los otros 4 casos de ese spec (cobro, abrir/cerrar caja, cocina, apagar el POS) **se saltean solos**: son
+los que mutan datos y solo corren con `E2E_ALLOW_MUTATIONS=true`, que el runbook prohíbe contra producción.
+
+⚠️ **Dos cosas del arnés que aprendimos acá**: (1) el login del panel tiene **rate limit** (10/min por IP;
+`src/app/api/auth/admin/login/route.ts:26`) y al hacer varias corridas seguidas los casos se **saltean** con
+el mensaje "faltan credenciales", que engaña — el login por UI responde 200; el diagnóstico está abajo.
+(2) El `waitForURL` de **10 s** del helper `tryLoginAsOwner` (`tests/e2e/helpers.ts`) es corto para
+producción (las pantallas tardaron 8–20 s en la QA): el chequeo se hizo entrando con espera de 30 s.
+
+⚠️ **Existe una cuenta de prueba con rol `owner` en producción**. Conviene que el owner decida si la deja
+así, la degrada (p. ej. a `cashier`) o la borra: es un acceso total más (A-23 del backlog).
+
+### Tres auditorías del 2026-09-15 (pedidas por el owner: **consulta, sin plan y sin código**)
+
+El owner preguntó, antes de escribir el próximo plan, por tres frentes. Se respondió **solo con
+inventario y evidencia** (`archivo:línea`); **no se escribió plan ni se tocó código**, y lo que quedó
+abierto se registró como **A-15 a A-23** en [`ops/audit-backlog.md`](audit-backlog.md). Resumen de lo
+medido, para no volver a medirlo:
+
+**Caja / POS (lo que falta para operar plata de verdad)**
+
+- El arqueo **es solo efectivo** y la tarjeta **no se reporta en ningún lado** al cerrar: se filtra en
+  `src/modules/orders/features/shift/close-shift.ts:139` y no hay vista que la sume.
+- **No hay historial de cajas**: `get-current-shift.ts:21` devuelve solo la abierta y `listShifts`
+  (`ports/shift-repository.ts:49`, ya con `include: {cashCounts:true}` en el adaptador) **no lo usa
+  nadie** — no hay API ni pantalla. Al cerrar, si recargás, el arqueo **desaparece de la UI**.
+- **`expectedByCurrency` no se persiste** (viaja solo en `meta`, `close-shift.ts:113`): el detalle por
+  moneda de un cierre viejo se recomputa con la **tasa de hoy**.
+- **No existe `Payment.shiftId`** (`schema.prisma:732-753`): la atribución es por **ventana de tiempo**
+  (`prisma-payment-repository.ts:85-97`), **sin filtrar el estado del pedido** → un pedido cobrado y
+  luego cancelado **sigue contando** en el esperado (y no hay `Refund` ni reversa: A-15).
+- **No existe `CashMovement`** (retiros/ingresos), ni `Refund`, ni **configuración de caja** en ningún
+  lado (ni global ni por local).
+- El cobro real acepta **transferencia/mixto/otro** en el enum (`PaymentMethodType`,
+  `schema.prisma:347-353`) pero el POS **solo manda `cash|card`** (`sale-payload.ts:30`).
+- La propina en efectivo **entra al cajón** por decisión implícita del código (`close-shift.ts:143-144`).
+
+**Fiscal y recibo** (para facturar)
+
+- **No hay un solo campo fiscal**: cero coincidencias de `ruc`/`taxId`/`fiscal`/`legalName`/`NIT`/
+  `documentNumber` en `prisma/` + `src/**`. `BusinessSettings` tiene identidad visual y contacto
+  (`schema.prisma:677-704`) pero nada fiscal; `Customer` solo tiene `fullName` + `whatsappNormalized`
+  (`:59-69`).
+- El recibo (`src/shared/lib/receipt-image.ts`, 183 líneas) es un **JPG de texto** dibujado en canvas:
+  **sin logo** (no lee `logoUrl`), **sin RUC**, con líneas/totales/cobros/cambio. El texto lo arma la
+  función pura `buildReceiptTextLines` (`:56-102`), reutilizable; el archivo se genera/descarga con
+  `shareOrDownloadReceipt` (`:146-167`). **No hay librería de PDF** (deps: `@prisma/client`,
+  `lucide-react`, `next`, `react`, `react-dom`, `zod`).
+- El recibo se emite **solo desde el POS al cobrar** (`pos-client.tsx:260-294`): **desde el detalle del
+  pedido no se puede** (lo que el plan de TASK-307 pedía como "al cobrar y desde el detalle").
+
+**Design system (los números de hoy, medidos con scripts)**
+
+- `src/app/globals.css` (338 líneas): **58 tokens** en `:root` (`:5-136`), puente `@theme` (`:137-204`),
+  escala tipográfica completa de **13 pasos con line-height + font-weight + tracking** (`:215-262`),
+  radios (`:65,197-203,266-267`) y 3 sombras (`:271-273`); bloque `.dark` con **31 tokens que nunca se
+  aplican** (`:276-309`).
+- **16 tokens declarados y sin uso** (los 15 que prohíbe §2.1 **+ `--ring`**, cuyo único `var()` está en
+  el propio `globals.css:153`).
+- En la práctica: **94 controles crudos** en 32 archivos (los techos del contrato están **en sync**, 0
+  ofensas), **15 `#hex` de UI** (los del contrato), **70 clases de paleta cruda** de Tailwind, **30
+  `style={{ fontFamily }}`**, **37 `rounded-[Npx]`** con 9 valores, ~20 sombras `rgba()` a mano, **46
+  valores arbitrarios** de espaciado y **18 literales de "Cargando…"** distintos (con `...` y `…`
+  mezclados).
+- Componentes: **14 archivos / 19 exports** en `src/shared/ui` (con `PublicConfirmationShell` y
+  `TabsContent` sin uso), **8 archivos** en `admin/_components` (`AdminMetricStrip`, `AdminStatusPill` y
+  `AdminStatusDonut` sin uso) y **3** en `(public)/_components`. Sin primitivo de **Textarea, Toggle,
+  Modal, Dropdown, Tooltip, Toast ni Skeleton**; la "sección" del panel no tiene primitivo (la misma
+  cadena de clases **32 veces en 5 variantes**).
+- **Documentación que miente en cuatro puntos** (A-21): `DESIGN_SYSTEM.md §3.4:273` dice "2 literales de
+  carga" (hay 18), `§2.1:164` dice 15 huérfanos (hay 16), `AGENTS.md:109` manda a `§5` por la lista de
+  copy decorativo y **§5 no la tiene**, y `plna.md:546` afirma un `Payment.shiftId` que **no existe**.
 
 ## 3. Infraestructura y secretos
 
@@ -2429,8 +2513,11 @@ BASE_URL=https://menu.oneburgernic.com npx playwright test \
 
 **Antes de tocar nada, el estado en una línea (2026-09-15)**: producción sirve `build-20260915-121551`
 (commit `3708f40`, código `9018839`), con **A, B y las tres fases del plan `plna.md`** desplegadas: el POS
-de mostrador completo (cobro, caja, recibo y el mostrador por local). La cola de auditoría sigue viva en
-[`ops/audit-backlog.md`](audit-backlog.md) —A-02…A-06 bloqueados por el owner, A-09…A-14 abiertos—
+de mostrador completo (cobro, caja, recibo y el mostrador por local), **verificado con sesión real de
+admin** (sección del deploy, §2). **El plan no tiene tareas pendientes**: lo que sigue es lo que el owner
+decida, y para eso ya están las **tres auditorías del 2026-09-15** (caja, fiscal/recibo y design system,
+resumidas en §2) con sus hallazgos en la cola. La cola de auditoría sigue viva en
+[`ops/audit-backlog.md`](audit-backlog.md) —A-02…A-06 bloqueados por el owner, **A-09…A-23 abiertos**—
 con el prompt en [`ops/tasks/START-HERE.md`](tasks/START-HERE.md) §1b. La última línea de base
 verificada: **2010 unitarios en 294 archivos**, lint, typecheck, `build`, `build:webpack` y
 `security:secrets` en verde, **E2E local 105 pasaron / 6 salteados / 0 fallos** (con los specs nuevos

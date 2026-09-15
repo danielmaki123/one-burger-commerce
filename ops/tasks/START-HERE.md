@@ -32,12 +32,16 @@ hace falta nada de conversaciones anteriores. Si algo acá contradice a `AGENTS.
 > **jamás a producción sin pedirle confirmación al owner**. Después de desplegar: `test:e2e:prod` y
 > `test:e2e:prod:hosts` (los dos son de solo lectura).
 >
-> **Por dónde empezar:** preguntale al owner qué tarea sigue, o tomá la primera de la cola de §4
-> (abajo). Ojo: **hoy los pendientes que quedan necesitan algo del owner** (elegir el servicio de
-> monitoreo, corregir datos de los locales, cargar la carta, el OK para rotar el token), así que lo
-> primero es preguntarle — no inventes trabajo para no quedar quieto. Si el owner dice «procedé con lo
-> que puedas», tomá el pendiente que menos dependa de él y explicá qué falta cuando lo cierres. Si algo
-> del brief no cierra, decilo antes de codear.
+> **Por dónde empezar:** **el plan `plna.md` está completo y desplegado** (FASE 1, 2 y 3), así que no hay
+> tareas de plan en la cola. Preguntale al owner **qué task quiere** de la cola de
+> [`ops/audit-backlog.md`](../audit-backlog.md): las **A-15 a A-23** salen de las tres consultas del
+> 2026-09-15 (caja/POS, fiscal/recibo, design system) y **cinco de ellas necesitan una decisión suya**
+> (A-15 cobros de pedidos cancelados, A-17 tarjeta/transferencia, A-19 movimientos de caja, A-20 fiscal,
+> A-23 la cuenta de prueba con rol owner); las otras cuatro son trabajo técnico ya acotado. Ojo: **casi
+> todo lo que queda necesita algo del owner** (elegir el servicio de monitoreo, corregir datos de los
+> locales, cargar la carta, el OK para rotar el token), así que lo primero es preguntarle — no inventes
+> trabajo para no quedar quieto. Si el owner dice «procedé con lo que puedas», tomá el pendiente que menos
+> dependa de él y explicá qué falta cuando lo cierres. Si algo del brief no cierra, decilo antes de codear.
 
 ## 1b. Prompt para un chat de **auditoría**
 
@@ -102,32 +106,50 @@ y promedio de preparación del día. El menú real lo está cargando el owner y 
 base está probado** (drill de restore hecho el 2026-09-12: el respaldo restauró completo en un Postgres
 temporal). Detalle y prioridades en `ops/project-state.md` §4.
 
-**Desplegado el 2026-09-14** (tres deploys, todos verificados con `commit.sha` idéntico al tip de
-`main`, smoke 7/7 y dominios 6/6): `0124784` (`build-20260914-113152`, las comandas B0–B5), `0c3aa35`
-(`build-20260914-145114`, primer intento de B6, revertido) y **`0072531` (`build-20260914-151459`, el
-estado actual: B6 — «Ver el panel» devuelve la barra lateral sin cerrar sesión)**. El 2026-09-13 se
-desplegaron A-07/A-08 (`ea6be95`) y A (`982da3f`).
+**Desplegado el 2026-09-15** (una sola llamada a `deployService`, `commit.sha` idéntico al tip de `main`,
+smoke 7/7 y dominios 6/6): **`3708f40` (código `9018839`), `build-20260915-121551`**, que lleva **A, B y
+las tres fases del plan `plna.md`**: el **POS de mostrador completo** —cobro en un paso, arqueo por
+denominación y moneda, refresco cada 3 s, recibo como imagen y mostrador prendido por local—. El POS quedó
+**verificado con sesión real de admin en producción** (`/api/admin/pos/availability` 200, catálogo con los
+6 productos reales, entrada «Caja» en la navegación, pantalla completa y el interruptor del local en
+`yes`): el detalle está en `ops/project-state.md` §2. Antes: `0072531` (`build-20260914-151459`, comandas
+B6), `ea6be95` (A-07/A-08) y `982da3f` (A).
+
+**Estado (2026-09-15)**: el plan `plna.md` quedó **sin tareas pendientes**. Lo que sigue es lo que el owner
+elija de la cola de auditoría, que creció con **tres consultas** que él pidió el 2026-09-15 (caja/POS,
+fiscal/recibo y design system) y que se respondieron **sin plan y sin código**: el inventario medido de las
+tres quedó resumido en `ops/project-state.md` §2 y desglosado como **A-15 a A-23** en el backlog.
 
 ## 4. Cola de pendientes (en orden recomendado)
 
-**El trabajo en curso es el plan `plna.md`** (raíz del repo, **sin versionar**: si no está en disco,
-pedíselo al owner). Cerradas **FASE 1** (TASK-101 a 105: idempotencia del alta pública, una sola
-puerta para el total, tablas `Payment` y `Shift`, rol `cashier`) y **FASE 2** (TASK-201 a 206:
-inventario de UI medido, `DESIGN_SYSTEM.md`, reglas de UI y de código en `AGENTS.md`, los cinco
-guardrails de `src/shared/contracts/` corriendo como job `contracts` del CI, y el refactor de
-`/admin/promotions` como prueba de fuego). **Ninguna de las dos está desplegada.** Lo que sigue es
-**FASE 3 (POS, TASK-301 a 308)**, cuyo detalle el plan pide escribir al terminar la FASE 2. El estado
-fino, con la verificación de cada tarea, está en `ops/project-state.md` §4 (filas 15 a 23).
+**No hay tareas de plan pendientes.** La cola viva es
+[`ops/audit-backlog.md`](../audit-backlog.md). Cerrados **A-01/A-07** (`83d7433`) y **A-08** (`f0366c8`).
+**A-02 a A-06** están **bloqueados** (datos, infraestructura o decisiones del owner). **A-09 a A-14** los
+registró el agente al cerrar las comandas. **A-15 a A-23** salen de las tres consultas del 2026-09-15:
 
-**La cola de auditoría** ([`ops/audit-backlog.md`](../audit-backlog.md)) sigue viva en paralelo: es lo
-que se va encontrando al revisar el producto. **A-01/A-07** (commit `83d7433`: la home y el footer
-muestran la información de **cada sucursal**) y **A-08** (commit `f0366c8`: la marca —isotipo + nombre—
-en el header **también en celular**) quedaron cerrados. Lo que sigue en esa cola (**A-02 a A-06**) está
-**bloqueado**: son datos, infraestructura o decisiones del owner. Los cierres dejaron **cinco ítems
-abiertos** (A-09 a A-13: el actor del cambio de estado sin mostrar, la home del panel que redirige a
-órdenes para los roles sin Resumen, los timeouts de la QA de solo lectura, el filtro «solo sin aceptar»
-que se decidió no implementar y los dos módulos cascarón `coupons`/`table-ordering`): están en el
-backlog con su detalle. Después, esta lista:
+**Necesitan una decisión del owner (no se implementan sin respuesta):**
+
+1. **A-15 (P1)** — un cobro de un pedido **cancelado** sigue contando en el arqueo y no hay devolución ni
+   movimiento que lo compense. Es el ítem de plata más importante de la cola.
+2. **A-17** — la **tarjeta** no se reporta al cerrar y **transferencia/mixto** no se pueden cobrar (el enum
+   ya los tiene; el POS solo manda `cash|card`).
+3. **A-19** — **movimientos de caja** (retiro/ingreso), propina al cajón, y si se exige caja abierta para
+   cobrar (hoy no se exige).
+4. **A-20** — **fiscal**: no hay RUC ni documento del cliente en ningún lado; el recibo es un JPG sin logo
+   y solo se emite desde el POS al cobrar.
+5. **A-23** — la cuenta `tester@oneburgernic.com` tiene rol **owner** en producción: mantener, degradar o
+   borrar.
+6. **A-10 y A-12** — siguen de antes: la home del panel por rol y el filtro «solo sin aceptar».
+
+**Trabajo técnico ya acotado (se puede atacar sin decisión de producto):** **A-16** historial de cajas
+(`listShifts` existe y el adaptador ya trae los conteos: falta la API/pantalla) · **A-18** persistir el
+arqueo por moneda (hoy `expectedByCurrency` vive solo en la respuesta) · **A-21** corregir cuatro
+documentos que mienten (números de `DESIGN_SYSTEM.md`, el puntero de `AGENTS.md:109` y el `shiftId` que
+`plna.md` da por hecho) · **A-22** guardrails de UI (paleta cruda, `fontFamily` inline, radios/sombras
+arbitrarios) · **A-13/A-14** deuda vieja.
+
+**Antes de arrancar, preguntale al owner qué task quiere** (el ciclo de auditoría es una por vez, la
+primera de la cola, y cada una cierra entera). Los otros pendientes operativos siguen igual:
 
 1. **Monitoreo externo** — un uptime que pegue a `GET /api/readiness` y avise al canal del equipo.
    Receta: runbook §8.5. Necesita que el owner elija el servicio.
@@ -142,15 +164,18 @@ backlog con su detalle. Después, esta lista:
 5. **Rotar el `EASYPANEL_TOKEN`** (se pasó por chat cinco veces; da acceso total al servidor).
 
 **QA interactiva que necesita la sesión del owner** (el recorrido está cubierto por el E2E local, pero
-conviene verlo con sus ojos): asignarle una sucursal a la cuenta de cocina en `/admin/users` y entrar con
-ella para ver la bandeja acotada (**A**), y recorrer el tablero de comandas con una cuenta de sucursal —
-«Ver el panel» tiene que devolver la barra lateral sin cerrar sesión (**B6**).
+conviene verlo con sus ojos): **cobrar una venta real en el mostrador** y ver el pedido en comandas —es lo
+único que no se hizo desde acá, porque crea un pedido de verdad y entra al arqueo del día—; asignarle una
+sucursal a una cuenta de cocina en `/admin/users` y entrar con ella para ver la bandeja acotada (**A**); y
+recorrer el tablero de comandas con una cuenta de sucursal («Ver el panel» devuelve la barra lateral sin
+cerrar sesión, **B6**). Lo demás del POS ya se verificó **con sesión real en producción** (ver §3).
 
 **En pausa por decisión del owner:** notificaciones a cocina (Telegram) — la operación es 100 % panel
 (runbook §8.2). **Fuera de alcance sin pedido explícito:** reseñas, favoritos, delivery, mesas,
-inventario y reportes avanzados. **Anunciado como próximo por el owner (2026-09-14): POS e inventario,
-pensados para tablets separadas** — cuando lleguen, el panel necesita una home por rol (hoy `/admin`
-redirige a `/admin/orders` a todo el que no sea dueño: es A-10 del backlog).
+inventario y reportes avanzados. **Anunciado como próximo por el owner:** el **POS completo** (4-5
+semanas: caja con historial, devoluciones, medios de pago, cierre del día) y **inventario**, pensados para
+tablets separadas — cuando lleguen, el panel necesita una home por rol (hoy `/admin` redirige a
+`/admin/orders` a todo el que no sea dueño: es A-10 del backlog).
 
 ## 5. Cómo verificar que el repo está sano (5 minutos)
 
@@ -159,26 +184,32 @@ npm run test && npm run lint && npm run typecheck && npm run build && npm run se
 npx prisma generate   # solo si el build local falla por el cliente de Prisma
 ```
 
-Y la última línea de base conocida, para comparar: **1783 tests unitarios en 263 archivos** (2026-09-14,
-cierre de B6), CI (`verify` + `migrations` + `container` + `publish`) verde en cada push, **E2E completo
-local 97 pasaron / 6 salteados / 0 fallos** (el arnés local corre con `E2E_APEX_HOST`, ver §5 de
-`project-state.md`), smoke productivo **7/7** y hosts **6/6**.
+Y la última línea de base conocida, para comparar: **2010 tests unitarios en 294 archivos**
+(2026-09-15, cierre de TASK-308), CI (`verify` + `contracts` + `migrations` + `container` + `publish`)
+verde en cada push, **E2E completo local 105 pasaron / 6 salteados / 0 fallos**, smoke productivo **7/7**,
+hosts **6/6** y la QA pública de solo lectura contra `menu.oneburgernic.com` **31 / 2 / 0**.
 
-⚠️ Dos advertencias del arnés, aprendidas a golpes (están en el runbook §2 con el detalle):
+⚠️ Tres advertencias del arnés, aprendidas a golpes (están en el runbook §2 con el detalle):
 
-- **La QA de solo lectura contra producción puede dar timeouts de carga** en ráfaga (pasó dos veces el
-  2026-09-14: una en masa). Si vuelve a pasar, **medí antes de culpar al código**: las superficies
-  públicas respondían en 0,7 s de media y las seis en 200, y al repetir la suite pasó. Es saturación del
-  burst (una réplica, muchos navegadores en paralelo) o de la red de quien la corre.
+- **La QA de solo lectura contra producción puede dar timeouts de carga** en ráfaga (pasó tres veces: dos
+  el 2026-09-14 y una el 2026-09-15 con `design-tokens.spec.ts`, que al repetirse pasó 5/5). Si vuelve a
+  pasar, **medí antes de culpar al código**: las superficies públicas respondían en 0,7–0,8 s y las seis
+  en 200. Es saturación del burst (una réplica, muchos navegadores en paralelo) o de la red de quien la corre.
 - **El `sha` del panel puede quedar atrás de `main`** si el último push fue solo de documentación: el
-  artefacto desplegado es el commit del código (hoy `0072531`), mientras `main` va por `8ba51ec`. La
+  artefacto desplegado es el commit del **código** (hoy `9018839`), mientras `main` va por `634dc4e`. La
   comparación honesta es `commit.sha` del panel contra el commit que se quiso desplegar, no contra `HEAD`.
+- **El login del panel tiene rate limit (10/min por IP)** y varios E2E seguidos hacen que los casos se
+  **salteen** con el mensaje «faltan credenciales», que engaña: el login por UI responde 200. Además
+  `tryLoginAsOwner` espera la URL **10 s**, que en producción es corto (las pantallas tardaron 8–20 s).
 
 ## 6. Qué pedirle a Daniel si falta algo
 
 - `EASYPANEL_URL` y `EASYPANEL_TOKEN` para desplegar o mirar el panel (solo por entorno, nunca en el
-  repo ni en un commit). El token da acceso total al servidor.
+  repo ni en un commit). El token da acceso total al servidor. **Ojo**: la respuesta de `inspectService`
+  devuelve los secretos del servicio **en claro** (la `DATABASE_URL` con su contraseña, `NEXTAUTH_SECRET`
+  y el token del servicio): usar el `grep -o '"sha":"[^"]*"'` del runbook §2, no volcar todo.
 - Credenciales de la cuenta owner para entrar al admin (`admin@oneburgernic.com`; la contraseña la
-  administra él).
+  administra él). Para QA contra producción ya existe `tester@oneburgernic.com` (rol **owner**, creada por
+  él el 2026-09-15; es A-23 del backlog): no hace falta pedirla de nuevo si sigue vigente.
 - Bot token + chat id de Telegram **solo si algún día se retoman las notificaciones** (hoy están en
   pausa a propósito).

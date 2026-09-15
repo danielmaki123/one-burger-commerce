@@ -20,12 +20,17 @@
 > 6. La UI se verifica a **375 px y 1280 px en navegador real** (Playwright), no en HTML estático.
 > 7. **Producción no se toca ni se despliega sin confirmación explícita del owner.**
 >
-> **Fecha de apertura**: 2026-09-12 · **Rama**: `main` · **Estado (2026-09-14)**: **A-01/A-07**
+> **Fecha de apertura**: 2026-09-12 · **Rama**: `main` · **Estado (2026-09-15)**: **A-01/A-07**
 > (commit `83d7433`) y **A-08** (commit `f0366c8`) cerrados. **A-02 a A-06** están **bloqueados**: son
 > datos, infraestructura o decisiones del owner, así que no hay task técnica para atacar sin que él diga
-> cuál. **A-09 a A-12** los registró el **agente** al cerrar la consola de comandas (B0–B6): son cosas
-> que quedaron abiertas a propósito y que conviene que mire una auditoría **antes** de decidir si se
-> atacan.
+> cuál. **A-09 a A-14** los registró el **agente** al cerrar la consola de comandas (B0–B6). **A-15 a
+> A-23** los registró el agente el **2026-09-15**, al responder **tres consultas del owner** (caja/POS,
+> fiscal/recibo y design system) que se pidieron **sin plan y sin código**: son el inventario medido de
+> esos tres frentes, con su evidencia, para que el próximo plan salga de ahí y no de una re-lectura.
+> **A-15, A-17, A-19, A-20 y A-23 son decisiones de producto o de operación: no se implementan sin
+> respuesta del owner.** **A-16, A-18, A-21 y A-22 son trabajo técnico** ya acotado (historial de cajas,
+> persistencia del arqueo por moneda, corrección de cuatro documentos y guardrails de UI).
+> **El plan `plna.md` (FASE 1-3) está completo y desplegado**: no queda trabajo pendiente de ese plan.
 
 ## 1. Índice
 
@@ -48,6 +53,15 @@ Estados: `reportado` · `a reproducir` · `en curso` · `cerrado` · `no-repro` 
 | A-12 | **El filtro «solo sin aceptar»** del brief B4 **no se implementó**: los carriles ya separan lo nuevo, así que se decidió no duplicarlo. Falta que el owner lo confirme (si lo quiere igual, es un toggle de la vista) | decisión | P3 | `decisión-pendiente` | — |
 | A-13 | **Dos módulos cascarón** (`coupons`, `table-ordering`): versionan solo su `README.md`, con las carpetas `adapters/domain/features/ports` **vacías** en el disco de quien las creó (git no versiona carpetas vacías, así que en un clon no existen). El motor de cupones vive en `orders` y el bootstrap de mesas en `tables/lib` | deuda | P3 | `reportado` (agente) | — |
 | A-14 | **El mapeo de errores repite el mismo bloque 12 veces**: `src/shared/lib/http/error-response.ts` tiene un `if (error instanceof XError)` idéntico por módulo (11 antes de TASK-301). Se puede resolver con una tabla de constructores sin cambiar el comportamiento | deuda | P3 | `reportado` (agente) | — |
+| A-15 | **Un cobro de un pedido cancelado sigue contando en el arqueo**: `listPaymentsInRange` filtra por local y ventana **sin mirar el estado del pedido** (`src/modules/orders/adapters/prisma-payment-repository.ts:92`) y `update-order-status.ts` no toca pagos; **no existe `Refund`** ni movimiento que compense. Si el cajero devuelve la plata, el cierre marca faltante sin forma de registrarlo | decisión + bug de plata | **P1** | `decisión-pendiente` (owner) | — |
+| A-16 | **No hay historial de cajas**: `get-current-shift.ts:21` devuelve solo la caja **abierta** y `listShifts` (`ports/shift-repository.ts:49`; el adaptador ya trae `include: {cashCounts:true}`) **no lo usa ninguna API ni pantalla**. Al cerrar y recargar, el arqueo desaparece de la UI aunque los datos están en `Shift` + `ShiftCashCount` | feat / deuda | P2 | `reportado` (agente) | — |
+| A-17 | **La tarjeta no se reporta y la transferencia no se puede cobrar**: el cierre filtra `method === "cash"` (`close-shift.ts:139`) y no hay vista que sume tarjeta del día; el enum `PaymentMethodType` ya tiene `transfer`/`mixed`/`other` (`schema.prisma:347-353`) pero el POS solo acepta `cash\|card` (`sale-payload.ts:30`) | decisión | P2 | `decisión-pendiente` (owner) | — |
+| A-18 | **El detalle por moneda del cierre no se persiste**: `expectedByCurrency` viaja solo en `meta` (`close-shift.ts:113`) y `Shift` no tiene columnas por moneda; recomputar un cierre viejo usa la **tasa de hoy**. Tampoco hay `Payment.shiftId` (`schema.prisma:732-753`): la atribución es por ventana de tiempo | deuda / dato | P3 | `reportado` (agente) | — |
+| A-19 | **No existen los movimientos de caja**: sin `CashMovement` (retiro/ingreso con motivo y responsable) ni configuración de caja en ningún lado; la propina en efectivo entra al cajón por decisión implícita (`close-shift.ts:143-144`) y la caja puede quedar abierta para siempre | decisión | P3 | `decisión-pendiente` (owner) | — |
+| A-20 | **No hay un solo campo fiscal** (`ruc`/`taxId`/`fiscal`/`legalName`/`documentNumber`: cero coincidencias en `prisma/` + `src/**`) y `Customer` solo tiene nombre + WhatsApp (`schema.prisma:59-69`). El recibo es un **JPG sin logo y sin RUC** (`src/shared/lib/receipt-image.ts`) y **solo se emite desde el POS al cobrar**, no desde el detalle del pedido | decisión | P3 | `decisión-pendiente` (owner) | — |
+| A-21 | **Documentación desactualizada en cuatro puntos verificados**: `DESIGN_SYSTEM.md §3.4:273` dice "2 literales de carga" (hay **18** distintos), `§2.1:164` dice 15 tokens huérfanos (hay **16**: también `--ring`, `globals.css:40`), `AGENTS.md:109` manda a `DESIGN_SYSTEM.md §5` por la lista de copy decorativo y **§5 no la tiene**, y `plna.md:546` afirma un `Payment.shiftId` que no existe | documentación | P3 | `reportado` (agente) | — |
+| A-22 | **Lo que no tiene guardrail se degrada**: la paleta cruda de Tailwind (**70** usos, igual que en TASK-201), `style={{ fontFamily }}` (**30**), `rounded-[Npx]` (**37** con 9 valores), ~20 sombras `rgba()` a mano y **46** valores arbitrarios de espaciado no tienen test; `DESIGN_SYSTEM.md §6:370` lo admite. En cambio lo que sí tiene contrato (`#hex`, controles crudos, registro de componentes) se mantiene estable | deuda | P3 | `reportado` (agente) | — |
+| A-23 | **Cuenta de prueba con rol `owner` en producción** (`tester@oneburgernic.com`, 3 locales): es un acceso total más. Decidir si se mantiene, se degrada (p. ej. a `cashier`) o se borra | dato / infra | P3 | `decisión-pendiente` (owner) | — |
 
 > Las **limitaciones conocidas y aceptadas** de `ops/production-readiness.md` §7 **no** son ítems de
 > este backlog (rate limiting en memoria, `replicas: 1`, `X-Powered-By` cosmético, `style-src` con
@@ -315,6 +329,111 @@ Estados: `reportado` · `a reproducir` · `en curso` · `cerrado` · `no-repro` 
   devuelva lo mismo, con el test que ya existe (`src/shared/lib/http/error-response.test.ts`) como red.
   Criterio de activación: cuando haya que tocar la forma de la respuesta de error o cuando entre un
   módulo más.
+
+### A-15 · Un cobro de un pedido cancelado sigue contando en el arqueo — `decisión-pendiente` (owner)
+
+- **Qué es**: el arqueo del turno trae los cobros por local y ventana de tiempo
+  (`src/modules/orders/adapters/prisma-payment-repository.ts:85-97`) y **no mira el estado del pedido**.
+  `update-order-status.ts` no toca pagos y **no existe `Refund`** ni ningún movimiento que compense. Si se
+  cobra en el mostrador y después se rechaza/cancela el pedido, el esperado **sigue contando esa plata**;
+  si el cajero la devuelve, el cierre marca **faltante** y no hay forma de registrarlo.
+- **Reproducción**: cobrar una venta de mostrador (`POST /api/admin/pos/sale`), rechazar el pedido
+  (`PATCH /api/admin/orders/[id]/status`) y cerrar la caja contando lo que hay. El `expectedAmount` incluye
+  el cobro del pedido cancelado. (No se ejecutó contra producción: muta datos; el código está citado.)
+- **Qué falta decidir**: si al cancelar un pedido cobrado se devuelve la plata (y cómo se registra: ¿una
+  fila de devolución del medio original, un movimiento de caja, o se excluye el pedido del esperado?).
+  Sin esa respuesta, cualquier implementación inventa producto.
+
+### A-16 · No hay historial de cajas — `reportado` (agente)
+
+- **Qué es**: `getCurrentShift` (`src/modules/orders/features/shift/get-current-shift.ts:21`) devuelve
+  **solo la caja abierta**. `ShiftRepository.listShifts` (`ports/shift-repository.ts:49`) existe y el
+  adaptador de Prisma ya devuelve los conteos (`prisma-shift-repository.ts:172-181`, con
+  `include: {cashCounts: true}`), pero **ninguna API ni pantalla lo usa** (solo port, adaptadores y tests).
+- **Consecuencia**: al cerrar, el resumen se ve en pantalla (estado del cliente) y **si se recarga
+  desaparece**. Los datos están guardados en `Shift` + `ShiftCashCount` con el esperado **congelado**
+  (`expectedAmount`), así que lo que falta es superficie de lectura, no datos.
+- **Qué falta**: la pantalla/endpoint de historial y decidir si el detalle por moneda se recomputa o se
+  guarda al cerrar (ver A-18).
+
+### A-17 · La tarjeta no se reporta y la transferencia no se puede cobrar — `decisión-pendiente` (owner)
+
+- **Qué es**: el cierre calcula el esperado **solo con efectivo** (`close-shift.ts:138-139`) —correcto,
+  la tarjeta no está en el cajón— pero **nada** suma la tarjeta del día: ni la respuesta del cierre ni el
+  reporte diario (`src/modules/dashboard/features/get-daily-report/get-daily-report.ts` solo agrega
+  `Order`: totales, cantidad y estados de pedidos/reservas). Y el enum del cobro real
+  (`PaymentMethodType`, `schema.prisma:347-353`) ya tiene `transfer`, `mixed` y `other`, pero el payload
+  del POS solo acepta `cash|card` (`src/app/api/admin/pos/sale/sale-payload.ts:30`).
+- **Qué falta decidir**: si el mostrador cobra transferencia y pago mixto, y qué se espera ver al cerrar
+  de lo que **no** pasó por el cajón (¿informativo? ¿cuadre contra el banco/POS?).
+
+### A-18 · El detalle por moneda del cierre no se persiste y no hay `Payment.shiftId` — `reportado` (agente)
+
+- **Qué es**: `expectedByCurrency` se calcula al cerrar y viaja **solo en `meta`**
+  (`close-shift.ts:113`); `Shift` no tiene columnas por moneda (`schema.prisma:762-788`) y `closeShift` del
+  adaptador escribe `status`, `closedAt`, `closingAmount`, `expectedAmount`, `difference`, `notes` y los
+  conteos (`prisma-shift-repository.ts:137-167`). Recomputar un cierre viejo usa la **tasa de hoy**.
+- **Además**: `Payment` **no tiene `shiftId`** (`schema.prisma:732-753`; el único `shiftId` del esquema es
+  `ShiftCashCount:802`) — la atribución es por ventana de tiempo, lo que hace que un cobro corregido o
+  tardío caiga en el turno en curso. `plna.md:546` afirma lo contrario (desviación documental: A-21).
+- **Qué falta**: decidir si el arqueo se congela por moneda al cerrar y si el cobro se ata al turno.
+
+### A-19 · No existen los movimientos de caja — `decisión-pendiente` (owner)
+
+- **Qué es**: no hay modelo `CashMovement` (ni equivalente) en `prisma/schema.prisma`; tampoco hay
+  configuración de caja en ningún lado (ni en `BusinessSettings` ni en `Location`): no se puede expresar
+  "se sacaron C$500 para el proveedor", "se ingresó cambio", "la propina no entra al cajón". Hoy la
+  propina en efectivo **sí** entra al cajón (decisión implícita, `close-shift.ts:143-144`) y una caja
+  abierta puede quedar abierta indefinidamente (no hay cierre automático ni aviso).
+- **Qué falta decidir**: si hay retiros/ingresos con motivo y responsable, si la propina se queda o se
+  reparte, y si se exige caja abierta para cobrar (hoy **no** se exige y esos cobros no entran a ningún
+  arqueo).
+
+### A-20 · No hay datos fiscales y el recibo solo se emite en el mostrador — `decisión-pendiente` (owner)
+
+- **Qué es**: cero campos fiscales en el código (búsqueda de `ruc`, `taxId`, `fiscal`, `legalName`, `NIT`,
+  `documentNumber`, `tax_id` en `prisma/` + `src/**`: **sin coincidencias**). `BusinessSettings` tiene
+  identidad visual y contacto (`schema.prisma:677-704`) y `Customer` solo `fullName` + `whatsappNormalized`
+  (`:59-69`). El recibo (`src/shared/lib/receipt-image.ts`, 183 líneas) es un **JPG de texto** en canvas
+  (`renderReceiptJpeg:108-139`), **sin logo** (no lee `logoUrl`) y **sin RUC**; el texto lo arma la función
+  pura `buildReceiptTextLines` (`:56-102`) y el archivo se comparte/descarga con
+  `shareOrDownloadReceipt` (`:146-167`). **No hay librería de PDF** en las dependencias. El recibo se emite
+  **solo desde el POS al cobrar** (`pos-client.tsx:260-294`): desde el detalle del pedido no se puede.
+- **Qué falta decidir**: si se emite factura (implica RUC del negocio, documento del cliente y numeración),
+  si el recibo debe salir del detalle, y si se acepta imprimir/PDF con la hoja del sistema (sin
+  dependencia nueva) o se agrega una librería.
+
+### A-21 · Cuatro documentos desactualizados (verificado) — `reportado` (agente)
+
+| Documento | Dice | Realidad medida |
+|---|---|---|
+| `DESIGN_SYSTEM.md §3.4:273` | «2 literales distintos» de carga | **18** literales distintos de «Cargando…», con `...` y `…` mezclados |
+| `DESIGN_SYSTEM.md §2.1:164` | 15 tokens huérfanos | **16**: también `--ring` (`globals.css:40`; su único `var()` está en `globals.css:153`) |
+| `AGENTS.md:109` | «`DESIGN_SYSTEM.md` §5 lo lista» (copy decorativo) | §5 **no** contiene esa lista (0 menciones de «decorativ» en el archivo) |
+| `plna.md:546` | El cobro guarda «su `shiftId` nullable» | **No existe** `Payment.shiftId` (`schema.prisma:732-753`) |
+
+Arreglable sin decisión de producto (es corregir el texto o el código); el orden lo elige el owner.
+
+### A-22 · Lo que no tiene guardrail se degrada — `reportado` (agente)
+
+- **Qué es**: la paleta cruda de Tailwind (**70** apariciones, el mismo número que midió TASK-201),
+  `style={{ fontFamily }}` (**30**), `rounded-[Npx]` (**37** con 9 valores), ~20 sombras `rgba()` a mano y
+  **46** valores arbitrarios de espaciado **no tienen test**; `DESIGN_SYSTEM.md §6:370` lo admite. En
+  cambio, lo que sí tiene contrato se mantiene: `#hex` de UI estable en **15**, **94** controles crudos con
+  los techos del contrato **en sync (0 ofensas)** y los componentes de `_components/` registrados.
+- **Además**: no existe primitivo de **Textarea, Toggle/switch, Modal, Dropdown, Tooltip, Toast ni
+  Skeleton**, y la "sección" del panel no tiene primitivo (la misma cadena de clases **32 veces en 5
+  variantes**), así que copiar `className` sigue siendo la ruta de menor resistencia.
+- **Criterio de activación**: cuando se empiece UI nueva grande (el POS completo) y se quiera que no
+  nazca con paleta cruda y radios arbitrarios.
+
+### A-23 · Cuenta de prueba con rol `owner` en producción — `decisión-pendiente` (owner)
+
+- **Qué es**: para verificar el POS con sesión se usó la cuenta `tester@oneburgernic.com`, que tiene rol
+  **owner** y 3 locales asignados. Es un acceso total más (puede tocar configuración, usuarios y menú).
+- **Qué falta decidir**: si se mantiene para QA, se degrada (por ejemplo a `cashier`, que es el rol que
+  necesita el POS) o se borra cuando termine la puesta a punto. **La contraseña no se registra en el repo**;
+  la administra el owner.
 
 ## 3. Registro de lo cerrado
 
