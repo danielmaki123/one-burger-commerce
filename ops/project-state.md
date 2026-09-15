@@ -2254,6 +2254,26 @@ panel» la devuelve y que se sigue adentro (misma URL, misma pantalla).
 
 ## 3. Infraestructura y secretos
 
+> ⚠️ **BLOQUEO DE CI (2026-09-15) — facturación de GitHub, no el código.** Desde el run `34917504691`
+> (push de `8f7cb4a`) **ningún job de Actions arranca**: los cinco fallan en ~2 segundos con **0 pasos
+> ejecutados** y sin logs (`BlobNotFound`). La anotación del check run lo dice con todas las letras:
+>
+> > *"The job was not started because recent account payments have failed or your spending limit needs
+> > to be increased. Please check the 'Billing & plans' section in your settings."*
+>
+> Evidencia: en ese mismo push, `verify` (1983 tests), `contracts`, `migrations` y `container`
+> **pasaron** entre las 01:30 y las 01:34, y `publish` falló a las 01:34:31; un `workflow_dispatch`
+> dos minutos después (`34917962530`) ya falló **entero**; y el repo es **privado** (los minutos de
+> Actions se facturan). `enabled: true` en `actions/permissions`, repo no archivado y workflow
+> `active`: la única causa posible es el pago o el límite de gasto de la cuenta.
+>
+> **Qué lo destraba (decisión del owner)**: (1) arreglar el medio de pago o subir el límite de gasto
+> en GitHub → *Settings → Billing & plans → Actions*; o (2) hacer público el repo (los públicos no
+> consumen minutos); o (3) esperar el reinicio mensual de los minutos incluidos. Mientras tanto
+> **ninguna tarea nueva se considera cerrada** (regla de `AGENTS.md`: sin CI verde no está lista),
+> aunque la validación local completa —tests, lint, typecheck, `build`, `build:webpack`,
+> `security:secrets` y E2E— siga dando verde.
+
 - `EASYPANEL_URL` y `EASYPANEL_TOKEN`: solo en el entorno de quien ejecuta el deploy (nunca
   en el repo). El token da acceso total al servidor: **rotarlo** si se compartió por chat.
   ⚠️ El 2026-09-10 el token se pasó por chat para desplegar la personalización, **el 2026-09-12**
@@ -2313,6 +2333,7 @@ TASK-307 (recibo JPG para enviar o imprimir) y TASK-308 (flag por sucursal). **C
 | 30 | **TASK-305a: el motor del arqueo por denominación y moneda** | **Cerrada el 2026-09-14** | `plna.md` §5, FASE 3 (primer corte de la 305: el motor primero, las pantallas de caja después). Al abrirla aparecieron **tres agujeros reales del arqueo de TASK-104**: (1) el esperado sumaba **todos** los cobros, así que una venta con **tarjeta** hacía que la caja "sobrara"; (2) un cobro de **US$3** sumaba `3` a una expectativa en córdobas; (3) el **vuelto** no se descontaba, así que un día con vueltos parecía que faltaba plata. Esquema: `ShiftCashCount` (billete por billete, por moneda y tipo, con único por turno+tipo+moneda+billete) y `Payment.changeAmount` (el vuelto que salió), dos migraciones aditivas **sin drift**. Dominio `orders/domain/shift-cash.ts` (denominaciones, validación del conteo, totales por moneda y **esperado por moneda**) y la conversión movida a `shared/lib/money-conversion.ts` (la usan el POS y la caja). `openShift`/`closeShift` aceptan el conteo y **derivan** el fondo y lo contado de los billetes; el cierre devuelve el esperado por moneda. El POS ahora registra `paidWithAmount` y el vuelto del cobro en efectivo. **+12 tests** (1970 en total) y los dos casos del arqueo se confirmaron **rojos** contra el código viejo. |
 | 31 | **TASK-305b (1/2): la caja del POS por API** | **Cerrada el 2026-09-14** | `plna.md` §5, FASE 3. Tres rutas con `canUsePOS` y alcance por sucursal: `GET /api/admin/pos/shift?locationId=` (la caja abierta o `null`), `POST …/shift/open` (abrir con el conteo) y `POST …/shift/close` (cerrar y devolver el esperado **por moneda** + la diferencia). **El total se deriva del conteo** (la pantalla no puede declarar un total que no coincida con los billetes); una fila con cantidad 0 no se guarda y un billete inexistente se rechaza con su campo. Cerrar es una operación **del POS**: `closePosShift` resuelve el turno del local y sin caja abierta responde 409 con motivo. El tope de 50 líneas por ruta obligó a extraer el permiso (`assertCanUsePos`) y la composición con Prisma (`production-pos-shift.ts`): quedaron en 36/42/44 líneas. **+8 tests** (1978 en total, el ciclo abrir → consultar → cerrar incluido). **Falta 305b-2**: la grilla de billetes en `/admin/pos` (abrir/cerrar con esperado y diferencia) y **exigir caja abierta para cobrar** — no se cambia el comportamiento del producto sin la pantalla que lo explique. |
 | 32 | **TASK-305b (2/2): la caja en la pantalla del POS** | **Cerrada el 2026-09-14** | `plna.md` §5, FASE 3. `/admin/pos` tiene el bloque **Caja**: dice si hay caja abierta y con qué fondo (derivado del conteo por el servidor), muestra la **grilla de conteo** (`cash-count-grid.tsx`, una fila por billete agrupada por moneda, con el total de cada moneda; las denominaciones salen del **dominio**, así la pantalla y el servidor no discrepan) y permite **abrir contando** y **cerrar contando**, con el resumen de contado / esperado / diferencia. Los dólares aparecen **solo si hay tipo de cambio cargado**. **Decisión anotada**: no se exige caja abierta para cobrar —sería un cambio de comportamiento que necesita su contraparte en el servidor—; el estado de la caja se muestra para que el cajero sepa que un cobro con la caja cerrada no entra al arqueo. **+5 tests** (1983) y **E2E del POS 5/5** con el caso nuevo que abre y cierra contando en el navegador; **suite E2E completa 103 / 6 / 0**. |
+| 33 | **CI caído por facturación de GitHub** | **Bloqueado (owner)** | Desde el 2026-09-15 **ningún job de Actions arranca**: fallan en ~2 s con **0 pasos** y sin logs. La anotación del check run dice: *"The job was not started because recent account payments have failed or your spending limit needs to be increased"*. El repo es privado (minutos facturados); `actions/permissions.enabled = true`, repo no archivado y workflow `active`, así que no es configuración del workflow. En el mismo push en que se rompió, `verify`/`contracts`/`migrations`/`container` **pasaron** y solo `publish` falló. **Destraba**: arreglar el pago/límite en *Billing & plans → Actions*, hacer público el repo o esperar el reinicio mensual. Mientras dure, ninguna tarea se cierra (regla de CI verde) aunque la validación local esté en verde. |
 
 ## 5. Cómo continuar
 
