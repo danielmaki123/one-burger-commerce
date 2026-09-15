@@ -384,17 +384,23 @@ leer tal como están en el repo. Son la referencia de composición: copy y estru
 | Contratos de UI del panel | `src/app/(admin)/admin/admin-ui-contract.test.ts` (lee el fuente) |
 | HTML crudo, `#hex`, registro de componentes en `DESIGN_SYSTEM.md` | `src/shared/contracts/ui-contract.test.ts` (techos por archivo que solo bajan) |
 | El registro JSON y el catálogo dicen lo mismo | `src/shared/contracts/registry-contract.test.ts` (forma, exports reales y todo archivo de UI registrado) |
+| Paleta cruda, `fontFamily` inline, radios/tamaños/sombras arbitrarios, `window.confirm`, `role="dialog"`/`role="switch"` a mano y HTML crudo | `src/shared/contracts/design-guardrails-contract.test.ts` sobre los **techos por archivo** de `src/shared/config/design-tokens.allow.json` (C1-2): un techo nunca sube, si baja se baja en el mismo commit y al terminar la Capa 1.9 todas las tablas quedan vacías |
 | Route handlers: 50 líneas y sin Prisma | `src/shared/contracts/route-contract.test.ts` |
 | Módulos: capas con archivos y dirección de las dependencias | `src/shared/contracts/module-contract.test.ts` |
 | Documentos sincronizados (`AGENTS.md` sin rutas rotas y frescura contra `schema.prisma`/`src/shared/ui/`) | `src/shared/contracts/docs-sync-contract.test.ts` |
 | La suma del total vive en un solo lugar | `src/shared/lib/order-totals-contract.test.ts` |
-| Los cinco corren como check propio, con historia completa, y bloquean `publish` | job `contracts` de `.github/workflows/publish-ghcr.yml` |
+| Los contratos corren como check propio, con historia completa, y bloquean `publish` | job `contracts` de `.github/workflows/publish-ghcr.yml` |
 
-**Todavía sin guardrail automático:** las 70 clases de paleta cruda, los 29 `style` de tipografía y
-los 37 `rounded-[Npx]` siguen dependiendo de este documento y de la revisión (§5). Dos excepciones de
-color necesitan **aprobación del owner** porque cambian el tono visible: `Button.danger`
+**Los números medidos el 2026-09-15 (C1-2, primer congelamiento)**, para saber cuánto falta: **36**
+apariciones de paleta cruda en **12 archivos**, **29** `fontFamily` inline en **15**, **36** radios
+arbitrarios en **17**, **97** tamaños de texto arbitrarios en **33**, **26** sombras arbitrarias en **16**,
+**4** `window.confirm`, **8** `role` a mano en **7** y **97** controles HTML crudos en **34**. La meta de
+la Capa 1.9 es que todas esas tablas queden vacías.
+
+**Todavía sin guardrail automático:** nada de la lista de §5, que es lo que C1-2 cierra. Dos excepciones
+de color necesitan **aprobación del owner** porque cambian el tono visible: `Button.danger`
 (`red-600`/`red-700`) y el error de `Input` (`text-red-500`), que deberían salir de los tokens
-`--danger-*`.
+`--danger-*` (hoy están congelados como techo, no se pueden sumar usos nuevos).
 
 ---
 

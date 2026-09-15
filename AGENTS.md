@@ -128,7 +128,13 @@ archivo y del inventario medido en [`ops/tasks/TASK-201-ui-inventory.md`](ops/ta
   color o un espaciado "nuevo". El bloque `.dark` (31 tokens) **nunca se aplica** y no sirve de base
   para un modo oscuro.
 - **Componente nuevo = registro previo**: un archivo nuevo en `_components/` se registra en
-  `DESIGN_SYSTEM.md` **en el mismo commit**, con su "cuándo SÍ" y su "cuándo NO".
+  `DESIGN_SYSTEM.md` **en el mismo commit**, con su "cuándo SÍ" y su "cuándo NO". El espejo legible por
+  máquina es `src/shared/ui/registry.json`, y un contrato exige que los dos tengan los mismos componentes.
+- **Los techos de UI solo bajan** (C1-2, `plan2uiux.md`): `src/shared/config/design-tokens.allow.json`
+  congela, por archivo, las violaciones que todavía quedan (paleta cruda, `fontFamily` inline,
+  radios/tamaños/sombras arbitrarios, `window.confirm`, `role` a mano y HTML crudo). **Un techo nunca
+  sube**; si un archivo baja sus violaciones, baja el número en el mismo commit; un archivo nuevo no
+  agrega fila, arregla el archivo. Al terminar la Capa 1.9 del plan de UI, todas las tablas quedan vacías.
 - **Ningún control decorativo**: cada control se implementa con su estado/API **y su test**, o se
   elimina con el motivo escrito en el commit.
 - **Nada de texto decorativo**: copy que no cambia una decisión del usuario ("Bienvenido",
