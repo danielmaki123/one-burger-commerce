@@ -1,6 +1,11 @@
 import { expect, test, type Page } from "@playwright/test";
 
-import { tryLoginAsOwner } from "./helpers";
+import {
+  findCategorySlugForProduct,
+  pickQuickAddProduct,
+  readPublicMenu,
+  tryLoginAsOwner,
+} from "./helpers";
 
 /**
  * CSP con nonce (endurecimiento).
@@ -64,7 +69,7 @@ test.describe("CSP del sitio", () => {
     expect(violations).toEqual([]);
   });
 
-  test("la hidratacion sigue viva: el '+' del menu agrega de verdad", async ({ page }) => {
+  test("la hidratacion sigue viva: el '+' del menu agrega de verdad", async ({ page, request }) => {
     const violations: string[] = [];
     page.on("console", (message) => {
       const text = message.text();
@@ -73,8 +78,18 @@ test.describe("CSP del sitio", () => {
       }
     });
 
-    await page.goto("/menu");
-    const quickAdd = page.getByRole("button", { name: /Agregar .* al carrito/ }).first();
+    // El "+" es el de un producto que se puede agregar sin elegir nada, y se entra por **su**
+    // categoría: el menú dibuja una por vez, así que "el primer + de la página" dependía de en qué
+    // categoría hubiera quedado ese producto en la carta real.
+    const menu = await readPublicMenu(request);
+    const product = pickQuickAddProduct(menu.products);
+    test.skip(!product, "la carta no tiene productos sin opciones obligatorias: no hay '+' que probar");
+
+    const categorySlug = findCategorySlugForProduct(menu.categories, product!.id);
+    test.skip(!categorySlug, "la carta no expone el slug de la categoría: no hay riel que abrir");
+
+    await page.goto(`/menu?category=${categorySlug}`);
+    const quickAdd = page.getByRole("button", { name: `Agregar ${product!.name} al carrito` });
     await quickAdd.click();
 
     await expect(page.getByRole("status").getByText("Agregado al carrito")).toBeVisible();

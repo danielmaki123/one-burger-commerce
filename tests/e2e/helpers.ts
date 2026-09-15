@@ -32,13 +32,14 @@ export type MenuProduct = {
 export type MenuCategory = {
   id?: string;
   name?: string;
+  slug?: string | null;
   products?: MenuProduct[] | null;
   subcategories?: { products?: MenuProduct[] | null }[] | null;
 };
 
 export type PublicMenu = {
   /** Productos de cada categoría, ya aplanados (subcategorías incluidas). */
-  categories: Array<{ id: string; name: string; products: MenuProduct[] }>;
+  categories: Array<{ id: string; name: string; slug: string | null; products: MenuProduct[] }>;
   /** Todos los productos, en el orden en que los muestra el sitio. */
   products: MenuProduct[];
 };
@@ -67,11 +68,30 @@ export async function readPublicMenu(request: APIRequestContext): Promise<Public
     .map((category, index) => ({
       id: category.id ?? `category-${index}`,
       name: category.name ?? "",
+      slug: category.slug ?? null,
       products: categoryProducts(category),
     }))
     .filter((category) => category.products.length > 0);
 
   return { categories, products: categories.flatMap((category) => category.products) };
+}
+
+/**
+ * El slug de la categoría que contiene un producto, para poder abrir su riel (`/menu?category=`).
+ *
+ * El menú público dibuja **una categoría por vez** (la primera, o la que dice la URL), así que un
+ * caso que busca el "+" de un producto tiene que entrar por la categoría donde vive: si no, el
+ * resultado depende de en qué categoría quedó el producto y de cuántos populares muestra la home.
+ */
+export function findCategorySlugForProduct(
+  categories: PublicMenu["categories"],
+  productId: string,
+): string | null {
+  const category = categories.find((entry) =>
+    entry.products.some((product) => product.id === productId),
+  );
+
+  return category?.slug ?? null;
 }
 
 /**

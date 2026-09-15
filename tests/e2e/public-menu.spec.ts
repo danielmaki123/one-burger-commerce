@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import {
+  findCategorySlugForProduct,
   pickProductWithRequiredChoices,
   pickQuickAddProduct,
   pickSearchableProduct,
@@ -22,13 +23,22 @@ test.describe("menú público", () => {
   test.use({ viewport: { width: 375, height: 812 } });
 
   test("el '+' agrega al carrito, mide 44 px y se anuncia", async ({ page, request }) => {
-    const product = pickQuickAddProduct((await readPublicMenu(request)).products);
+    const menu = await readPublicMenu(request);
+    const product = pickQuickAddProduct(menu.products);
     test.skip(
       !product,
       "la carta no tiene productos sin opciones obligatorias: no hay '+' que verificar",
     );
 
-    await page.goto("/menu");
+    // El menú dibuja **una categoría por vez** (la primera, o la de la URL). El "+" del producto
+    // elegido puede vivir en otra, así que se entra por su categoría con el enlace real del riel
+    // (`?category=`): sin esto, el caso dependía de que el primer producto agregable estuviera en la
+    // primera categoría de la carta — y con la carta real (las hamburguesas obligan a elegir y las
+    // bebidas son otra categoría) dejó de estarlo.
+    const categorySlug = findCategorySlugForProduct(menu.categories, product!.id);
+    test.skip(!categorySlug, "la carta no expone el slug de la categoría: no hay riel que abrir");
+
+    await page.goto(`/menu?category=${categorySlug}`);
 
     const quickAdd = page.getByRole("button", { name: `Agregar ${product!.name} al carrito` });
     await expect(quickAdd).toBeVisible();

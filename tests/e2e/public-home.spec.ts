@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 import {
   pickQuickAddProduct,
@@ -10,9 +10,25 @@ import {
  * T2 — la home adopta el orden del mock (TASK-mock-adoption, ola 1).
  *
  * Se verifica en un navegador real y en los dos anchos que exige el repo: el
- * mock **no tiene versión de escritorio** (su home vive en un marco fijo de
+ * mock **no tiene versión de pantalla de escritorio** (su home vive en un marco fijo de
  * 844 px), así que la de 1280 px la diseñamos nosotros y hay que comprobarla.
  */
+
+/**
+ * Deja el producto a la vista en la home.
+ *
+ * La grilla de portada muestra los **cuatro populares** (los primeros de la carta), así que un
+ * producto agregable sin elegir nada puede quedar afuera —con la carta real, los cuatro primeros son
+ * hamburguesas que obligan a elegir—. Se lo trae con el buscador de la home, que es una pantalla real
+ * del producto y no un atajo: los resultados usan la misma tarjeta, con el mismo "+" y el mismo enlace.
+ */
+async function revealProductOnHome(page: Page, productName: string): Promise<void> {
+  await page.goto("/");
+  await page.getByLabel("Buscar en el menú").fill(productName);
+  await expect(
+    page.getByRole("button", { name: `Agregar ${productName} al carrito` }),
+  ).toBeVisible();
+}
 test.describe("home pública", () => {
   test.use({ viewport: { width: 375, height: 812 } });
 
@@ -59,8 +75,9 @@ test.describe("home pública", () => {
 
   /**
    * Estas tarjetas se prueban **contra el catálogo real** (`/api/menu`), no contra el seed local:
-   * el producto que dibuja el "+" es el primero que se puede pedir sin elegir nada. Así el caso
-   * corre igual en local y contra producción.
+   * el producto que dibuja el "+" es el primero que se puede pedir sin elegir nada y se lo trae con el
+   * buscador de la home (la portada muestra solo los cuatro populares). Así el caso corre igual en
+   * local y contra producción.
    */
   test("las tarjetas de producto llevan al producto y el '+' cumple el mínimo táctil", async ({
     page,
@@ -72,7 +89,7 @@ test.describe("home pública", () => {
       "la carta no tiene productos sin opciones obligatorias: no hay '+' que verificar",
     );
 
-    await page.goto("/");
+    await revealProductOnHome(page, product!.name);
 
     const card = page.getByRole("link", { name: `Ver ${product!.name}` });
     await expect(card).toBeVisible();
@@ -95,7 +112,7 @@ test.describe("home pública", () => {
       "la carta no tiene productos sin opciones obligatorias: no hay '+' que verificar",
     );
 
-    await page.goto("/");
+    await revealProductOnHome(page, product!.name);
 
     await page.getByRole("button", { name: `Agregar ${product!.name} al carrito` }).click();
     await expect(page.getByText("Agregado al carrito")).toBeAttached();
