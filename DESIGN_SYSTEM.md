@@ -7,7 +7,7 @@
 # `configurable: true` = el valor lo elige el negocio en `/admin/settings` y se inyecta por
 # request; NO lo trates como valor fijo. El resto son del sistema.
 version: 1
-updated: 2026-09-14
+updated: 2026-09-15
 source_of_truth: AGENTS.md
 tokens_file: src/app/globals.css
 inventory: ops/tasks/TASK-201-ui-inventory.md
@@ -219,7 +219,7 @@ caso testigo es `src/shared/ui/button.tsx:21` (`danger: "bg-red-600 …"`) contr
 |---|---|---|
 | `Button` (`button.tsx:8`) | Toda acción con texto o ícono. Variantes: `primary`, `secondary`, `outline`, `ghost`, `danger`; tamaños `sm`, `md`, `lg`, `icon` y **`pill`** (chip de filtro: pastilla + mínimo táctil; el radio va en el tamaño porque `rounded-full` por `className` pierde la cascada contra `rounded-md`) | Nunca escribir `<button>` a mano. **Excepciones legítimas**: un overlay de cierre o un `role="switch"`, que no son botones de acción, y una **fila de lista multilínea** (ancho completo, contenido apilado y alineado a la izquierda), que no tiene primitivo todavía |
 | `Input` (`input.tsx:8`) | Campo de texto con `label` y `error` | No sirve para `type="color"` ni `type="date"`: **NO EXISTE** primitivo para esos |
-| `Select` (`select.tsx:28`) | Elección entre 4+ opciones, con `label`, `error` y `options` (o `children`); `placeholder` para el caso opcional | No para 2–3 opciones visibles (eso es `RadioGroup`) ni para elegir fecha o color, que no tienen primitivo |
+| `Select` (`select.tsx:28`) | Elección entre 4+ opciones, con `label`, `error` y `options` (o `children`); `placeholder` para el caso opcional. Lo usa `/admin/locations` para los interruptores del local (acepta pedidos, **punto de venta** desde TASK-308, estado) | No para 2–3 opciones visibles (eso es `RadioGroup`) ni para elegir fecha o color, que no tienen primitivo |
 | `Checkbox` (`checkbox.tsx:7`) | Booleano | Nunca `<input type="checkbox">` a mano |
 | `RadioGroup` + `RadioGroupItem` (`radio-group.tsx:3,7`) | Elección exclusiva entre 2–3 opciones visibles | No para 4+ opciones: ahí va `Select` |
 | `WhatsAppInput` (`whatsapp-input.tsx:35`) | Teléfono del cliente, con prefijo | No para teléfonos internos del negocio |
@@ -266,7 +266,7 @@ Antes de escribir HTML crudo por falta de primitivo, esto es lo que falta y lo q
 
 | Falta | Estado hoy | Qué hacer mientras tanto |
 |---|---|---|
-| `Select` | **EXISTE desde TASK-206** (`select.tsx`): etiqueta asociada, error con `aria-describedby` y mínimo táctil de 44 px en el primitivo. Quedan **27 `<select>` crudos en `src/app`** y **5 archivos** con su propia copia literal de `SELECT_CLASS` (`locations`, `menu/categories`, `menu/marketing-blocks`, `menu/products`, `users-client`) | Usar `Select`; migrar los crudos cuando se toque cada pantalla |
+| `Select` | **EXISTE desde TASK-206** (`select.tsx`): etiqueta asociada, error con `aria-describedby` y mínimo táctil de 44 px en el primitivo. Quedan **25 `<select>` crudos en `src/app`** y **6 archivos** con su propia copia literal de `SELECT_CLASS` (`locations/[id]`, `menu/categories`, `menu/marketing-blocks`, `menu/modifier-groups/[id]`, `menu/products`, `users-client`); TASK-308 migró los dos de `locations` y bajó su techo de 4 a 2 controles crudos | Usar `Select`; migrar los crudos cuando se toque cada pantalla |
 | `Textarea` | **NO EXISTE**: 6 crudos | Ídem, sin inventar variantes |
 | Cabecera pública | **NO EXISTE**: 6 implementaciones | Usar `font-heading` + la escala, no `style` inline |
 | Estado vacío público | **NO EXISTE** | Reusar el patrón de `AdminEmptyState` |

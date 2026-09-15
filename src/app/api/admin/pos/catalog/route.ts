@@ -1,10 +1,8 @@
 import { NextResponse } from "next/server";
 
-import { canUsePOS } from "@/modules/auth/domain/admin-permissions";
+import { requirePosLocation } from "@/app/api/admin/pos/pos-route-helpers";
 import { requireAdminSession } from "@/modules/auth/features/require-admin-session/require-admin-session";
-import { resolveOrderLocationScope } from "@/modules/orders/domain/order-visibility";
 import { createProductionPosCatalog } from "@/modules/pos/adapters/production-pos-catalog";
-import { resolvePosLocationId } from "@/modules/pos/domain/pos-location";
 import { searchPosCatalog } from "@/modules/pos/features/search-pos-catalog/search-pos-catalog";
 import { createErrorResponse } from "@/shared/lib/http/error-response";
 
@@ -18,21 +16,11 @@ export const revalidate = 0;
 export async function GET(request: Request) {
   try {
     const session = await requireAdminSession();
-
-    if (!canUsePOS(session.user.role)) {
-      return NextResponse.json(
-        { error: { code: "FORBIDDEN", message: "Insufficient permissions" } },
-        { status: 403 },
-      );
-    }
-
     const { searchParams } = new URL(request.url);
-    const locationId = resolvePosLocationId({
+    const locationId = await requirePosLocation({
+      role: session.user.role,
+      assignedLocationIds: session.user.locationIds,
       requested: searchParams.get("locationId") ?? "",
-      scope: resolveOrderLocationScope({
-        role: session.user.role,
-        assignedLocationIds: session.user.locationIds,
-      }),
     });
 
     const result = await searchPosCatalog({

@@ -27,10 +27,12 @@ const LEGACY_ROUTE_LINES: Record<string, number> = {
   "src/app/api/orders/route.ts": 201,
   "src/app/api/internal/outbox/process/route.ts": 155,
   "src/app/api/admin/orders/route.ts": 127,
-  "src/app/api/admin/locations/[id]/route.ts": 125,
+  // TASK-308 bajó estas dos: el esquema del local (que estaba duplicado en las dos) se fue a
+  // `locations/location-payload.ts`, así que las rutas quedaron en 56 y 71 líneas.
+  "src/app/api/admin/locations/[id]/route.ts": 71,
   "src/app/api/admin/tables/route.ts": 123,
   "src/app/api/admin/menu/products/[id]/route.ts": 122,
-  "src/app/api/admin/locations/route.ts": 113,
+  "src/app/api/admin/locations/route.ts": 56,
   "src/app/api/admin/menu/products/route.ts": 112,
   "src/app/api/admin/menu/marketing-blocks/route.ts": 111,
   "src/app/api/admin/orders/[id]/status/route.ts": 107,

@@ -27,6 +27,7 @@ const shiftRepository = new InMemoryShiftRepository();
 const paymentRepository = new InMemoryPaymentRepository();
 const locationRepository = new InMemoryLocationRepository([
   createInMemoryLocation({ id: "loc_norte", name: "Norte" }),
+  createInMemoryLocation({ id: "loc_apagado", name: "Apagado", posEnabled: false }),
 ]);
 
 vi.mock("@/modules/pos/adapters/production-pos-shift", () => ({
@@ -37,6 +38,11 @@ vi.mock("@/modules/pos/adapters/production-pos-shift", () => ({
     businessCurrencyCode: "NIO",
     usdExchangeRate: 36.5,
   }),
+}));
+
+// TASK-308: la caja también pregunta si el POS está prendido en ese local.
+vi.mock("@/modules/pos/adapters/production-pos-location", () => ({
+  createProductionPosLocationDependencies: () => ({ repository: locationRepository }),
 }));
 
 const conteo = [
@@ -96,6 +102,17 @@ describe("rutas de la caja del POS", () => {
     const response = await callGet("");
 
     expect(response.status).toBe(400);
+  });
+
+  // TASK-308: con el POS apagado en el local no hay caja, ni para consultar ni para abrir.
+  it("un local con el punto de venta apagado responde 403", async () => {
+    const response = await callGet("?locationId=loc_apagado");
+    const body = await response.json();
+
+    expect(response.status).toBe(403);
+    expect(body.error.code).toBe("FORBIDDEN");
+    expect((await callOpen({ locationId: "loc_apagado", counts: conteo })).status).toBe(403);
+    expect(shiftRepository.shifts).toHaveLength(0);
   });
 
   it("sin caja abierta devuelve null", async () => {

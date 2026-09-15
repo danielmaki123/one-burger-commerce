@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import * as React from "react";
 
+import { canUsePOS } from "@/modules/auth/domain/admin-permissions";
 import { isAdminRole } from "@/modules/auth/domain/admin-role";
 import { BrandMark } from "@/shared/ui/brand-mark";
 import { useBusinessSettings } from "@/shared/lib/business-settings";
@@ -77,7 +78,44 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
   }, [isLoginRoute]);
 
   const role = session.status === "authenticated" ? session.user.role : undefined;
-  const navGroups = React.useMemo(() => getAdminNavGroups(role), [role]);
+  // TASK-308: la caja depende del local, no del rol. Se pregunta una sola vez y, mientras no se
+  // sepa, la entrada no se ofrece: la navegación no inventa un permiso que el servidor va a negar.
+  const canUsePos = role ? canUsePOS(role) : false;
+  const [posAvailable, setPosAvailable] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!canUsePos) {
+      setPosAvailable(false);
+      return;
+    }
+
+    let isCurrent = true;
+
+    const loadPosAvailability = async () => {
+      try {
+        const response = await fetch("/api/admin/pos/availability", {
+          method: "GET",
+          cache: "no-store",
+        });
+        if (!response.ok) return;
+
+        const payload = (await response.json()) as { data?: { available?: boolean } };
+        if (isCurrent) setPosAvailable(payload.data?.available === true);
+      } catch {
+        // Sin respuesta no hay mostrador que ofrecer: el POS sigue entrando por URL.
+      }
+    };
+
+    void loadPosAvailability();
+    return () => {
+      isCurrent = false;
+    };
+  }, [canUsePos]);
+
+  const navGroups = React.useMemo(
+    () => getAdminNavGroups(role, { posAvailable }),
+    [role, posAvailable],
+  );
   const homeHref = role === "owner" ? "/admin" : "/admin/orders";
 
   if (isLoginRoute) {

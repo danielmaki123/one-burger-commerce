@@ -15,6 +15,7 @@ import type { ProductRecord, PublicMenuCategory } from "@/modules/menu/domain/me
 const requireAdminSessionMock = vi.fn();
 const canUsePOSMock = vi.fn();
 const getPublicMenuMock = vi.fn();
+const findLocationByIdMock = vi.fn();
 
 vi.mock("@/modules/auth/features/require-admin-session/require-admin-session", () => ({
   requireAdminSession: requireAdminSessionMock,
@@ -32,8 +33,12 @@ vi.mock("@/modules/menu/adapters/prisma-menu-repository", () => ({
   PrismaMenuRepository: class {},
 }));
 
-vi.mock("@/modules/locations/adapters/prisma-location-repository", () => ({
-  PrismaLocationRepository: class {},
+// TASK-308: la ruta resuelve el local y después pregunta si el POS está prendido ahí. El doble
+// devuelve la fila que el test arme, para poder probar el local apagado sin tocar la base.
+vi.mock("@/modules/pos/adapters/production-pos-location", () => ({
+  createProductionPosLocationDependencies: () => ({
+    repository: { findLocationById: findLocationByIdMock },
+  }),
 }));
 
 function product(over: Partial<ProductRecord> & { id: string; name: string }): ProductRecord {
@@ -84,6 +89,7 @@ describe("admin pos catalog route", () => {
     });
     canUsePOSMock.mockReturnValue(true);
     getPublicMenuMock.mockResolvedValue(menu);
+    findLocationByIdMock.mockResolvedValue({ id: "loc_norte", posEnabled: true });
   });
 
   it("sin sesión responde 401 (no arma el catálogo)", async () => {
@@ -152,6 +158,18 @@ describe("admin pos catalog route", () => {
 
     expect(response.status).toBe(403);
     expect(body.error.fields.locationId).toContain("acceso");
+    expect(getPublicMenuMock).not.toHaveBeenCalled();
+  });
+
+  // TASK-308: el local con el POS apagado no lee el catálogo ni por URL directa.
+  it("un local con el punto de venta apagado responde 403", async () => {
+    findLocationByIdMock.mockResolvedValue({ id: "loc_norte", posEnabled: false });
+
+    const response = await callRoute("?locationId=loc_norte");
+    const body = await response.json();
+
+    expect(response.status).toBe(403);
+    expect(body.error.code).toBe("FORBIDDEN");
     expect(getPublicMenuMock).not.toHaveBeenCalled();
   });
 });

@@ -37,6 +37,7 @@ const principal = {
   acceptAlertMinutes: 10,
   prepAlertMinutes: 15,
   isAcceptingOrders: true,
+  posEnabled: true,
   closedMessage: null,
   createdAt: "2026-09-12T00:00:00.000Z",
   updatedAt: "2026-09-12T00:00:00.000Z",
@@ -137,6 +138,7 @@ describe("locationToForm", () => {
       prepAlertMinutes: "15",
       isActive: true,
       isAcceptingOrders: true,
+  posEnabled: true,
     });
 
     const roundTrip = locationFormToInput(form);

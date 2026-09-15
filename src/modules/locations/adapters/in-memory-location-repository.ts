@@ -44,6 +44,8 @@ export function createInMemoryLocation(
     acceptAlertMinutes: 10,
     prepAlertMinutes: 15,
     isAcceptingOrders: true,
+    // TASK-308: el mismo default que la base (el POS nace prendido en cada local).
+    posEnabled: true,
     closedMessage: null,
     createdAt: "2026-09-12T00:00:00.000Z",
     updatedAt: "2026-09-12T00:00:00.000Z",

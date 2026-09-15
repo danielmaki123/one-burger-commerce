@@ -48,6 +48,7 @@ function location(overrides: Partial<LocationRecord> & { id: string; name: strin
     acceptAlertMinutes: 10,
     prepAlertMinutes: 15,
     isAcceptingOrders: true,
+    posEnabled: true,
     closedMessage: null,
     createdAt: "2026-09-12T00:00:00.000Z",
     updatedAt: "2026-09-12T00:00:00.000Z",

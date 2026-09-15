@@ -1,9 +1,6 @@
 import { z } from "zod";
 
-import type { AdminRole } from "@/modules/auth/domain/admin-role";
-import { resolveOrderLocationScope } from "@/modules/orders/domain/order-visibility";
 import { PosError } from "@/modules/pos/domain/pos-errors";
-import { resolvePosLocationId } from "@/modules/pos/domain/pos-location";
 import type { PosDraft } from "@/modules/pos/domain/pos-draft";
 import type {
   RegisterPosSaleInput,
@@ -50,22 +47,10 @@ const saleSchema = z.object({
 export type PosSalePayload = z.infer<typeof saleSchema>;
 
 /**
- * El local de la venta, con el alcance por sucursal aplicado (A). Vive acá y no en la ruta porque la
- * ruta solo orquesta y tiene un tope de 50 líneas (contrato de TASK-204).
+ * El local de la venta lo resuelve `requirePosLocation` (`pos-route-helpers`, TASK-308): el alcance
+ * por sucursal y el punto de venta prendido en ese local son las mismas tres preguntas para todas las
+ * rutas del POS, así que no hay una versión propia acá que se pueda desincronizar.
  */
-export function resolveSaleLocationId(input: {
-  requested: string;
-  role: AdminRole;
-  assignedLocationIds?: readonly string[] | null;
-}): string {
-  return resolvePosLocationId({
-    requested: input.requested,
-    scope: resolveOrderLocationScope({
-      role: input.role,
-      assignedLocationIds: input.assignedLocationIds,
-    }),
-  });
-}
 
 /** La respuesta del cobro: lo que el mostrador necesita mostrar y nada más. */
 export function toPosSaleResponse(result: RegisterPosSaleResult) {

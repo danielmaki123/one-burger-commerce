@@ -30,6 +30,39 @@ async function addFirstProduct(page: Page) {
   await agregar.click();
 }
 
+/**
+ * TASK-308 — prende o apaga el punto de venta en **todos** los locales que hagan falta.
+ *
+ * Se recorre la pantalla real (la ficha del local, que es donde el owner lo hace) y se devuelven los
+ * nombres que se tocaron. No se asume cuántos locales hay: la suite crea y borra sucursales, así que
+ * preguntar el estado actual es lo único que mantiene el caso repetible.
+ */
+async function setPosEnabledForEveryLocation(page: Page, enabled: boolean) {
+  const names = await page.evaluate(async (expected) => {
+    const response = await fetch("/api/admin/locations", { cache: "no-store" });
+    const payload = (await response.json()) as {
+      data: Array<{ name: string; posEnabled: boolean }>;
+    };
+
+    return payload.data
+      .filter((location) => location.posEnabled !== expected)
+      .map((location) => location.name);
+  }, enabled);
+
+  for (const name of names) {
+    await page.goto("/admin/locations");
+    await expect(page.getByText("Cargando locales…")).toBeHidden();
+    await page.getByRole("button", { name: `Editar local ${name}` }).click();
+    await page
+      .getByRole("combobox", { name: "Punto de venta" })
+      .selectOption(enabled ? "yes" : "no");
+    await page.getByRole("button", { name: "Guardar cambios" }).click();
+    await expect(page.getByText("Local actualizado.")).toBeVisible();
+  }
+
+  return names;
+}
+
 test.describe("punto de venta", () => {
   test.describe("en celular", () => {
     test.use({ viewport: { width: 375, height: 812 } });
@@ -195,5 +228,74 @@ test.describe("punto de venta", () => {
 
     await page.goto("/admin/pos");
     await expect(page).toHaveURL(/\/admin\/orders$/);
+  });
+
+  /**
+   * TASK-308 — el mostrador se prende por local, de punta a punta.
+   *
+   * Se apaga el POS en los locales que lo tengan prendido y se comprueban las tres cosas que pidió el
+   * owner: la navegación deja de ofrecer «Caja», la pantalla por URL directa vuelve a comandas y la API
+   * contesta 403 con el motivo (la terminal que tenía la pantalla abierta no puede seguir cobrando).
+   * Al final se restaura: el resto de la suite —y esta misma corrida— cuenta con el mostrador prendido.
+   */
+  test("apagar el punto de venta cierra la caja y su entrada en la navegación", async ({ page }) => {
+    test.skip(!mutationsAllowed, "Order creation is disabled unless E2E_ALLOW_MUTATIONS=true.");
+
+    await loginAsOwner(page);
+
+    // Con mostrador: la entrada está en la navegación y se llega desde ahí (no por URL directa).
+    const entradaCaja = page.getByRole("link", { name: /^Caja/ });
+    await expect(entradaCaja).toBeVisible();
+    await entradaCaja.click();
+    await expect(page).toHaveURL(/\/admin\/pos$/);
+    await expect(page.getByRole("heading", { name: "Punto de venta" })).toBeVisible();
+
+    try {
+      const apagados = await setPosEnabledForEveryLocation(page, false);
+      expect(apagados.length, "tiene que haber algún local con mostrador").toBeGreaterThan(0);
+
+      // 1) La navegación ya no la ofrece. Se espera a que el menú esté dibujado (Órdenes está) para no
+      // confundir "todavía no cargó" con "no corresponde".
+      await page.goto("/admin/locations");
+      await expect(page.getByRole("link", { name: /^Órdenes/ })).toBeVisible();
+      await expect(page.getByRole("link", { name: /^Caja/ })).toHaveCount(0);
+
+      // 2) La pantalla no existe sin mostrador: la URL directa vuelve a comandas.
+      await page.goto("/admin/pos");
+      await expect(page).toHaveURL(/\/admin\/orders$/);
+
+      // 3) La API tampoco deja cobrar ese local.
+      const locations = await page.evaluate(async () => {
+        const response = await fetch("/api/admin/locations", { cache: "no-store" });
+        const payload = (await response.json()) as {
+          data: Array<{ id: string; posEnabled: boolean }>;
+        };
+
+        return payload.data;
+      });
+      const apagado = locations.find((location) => !location.posEnabled);
+      expect(apagado, "quedó al menos un local con el POS apagado").toBeTruthy();
+
+      const catalogo = await page.evaluate(async (locationId) => {
+        const response = await fetch(
+          `/api/admin/pos/catalog?locationId=${encodeURIComponent(locationId)}`,
+          { cache: "no-store" },
+        );
+
+        return {
+          status: response.status,
+          code: ((await response.json()) as { error?: { code?: string } }).error?.code,
+        };
+      }, apagado!.id);
+
+      expect(catalogo.status).toBe(403);
+      expect(catalogo.code).toBe("FORBIDDEN");
+    } finally {
+      await setPosEnabledForEveryLocation(page, true);
+    }
+
+    // Y vuelve: el interruptor no es de una sola dirección.
+    await page.goto("/admin/locations");
+    await expect(page.getByRole("link", { name: /^Caja/ })).toBeVisible();
   });
 });

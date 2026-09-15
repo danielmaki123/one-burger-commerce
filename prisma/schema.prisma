@@ -196,6 +196,9 @@ model Location {
   /// B5: minutos que puede estar un pedido **en cocina** (aceptado, preparando o listo) antes de avisar.
   prepAlertMinutes   Int                @default(15)
   isAcceptingOrders Boolean             @default(true)
+  /// TASK-308 — si este local usa el punto de venta (mostrador). Nace prendido para no cambiarle
+  /// nada al negocio de un solo local; apagado, la API del POS responde 403 en ese local.
+  posEnabled        Boolean             @default(true)
   closedMessage     String?
   createdAt         DateTime            @default(now())
   updatedAt         DateTime            @updatedAt

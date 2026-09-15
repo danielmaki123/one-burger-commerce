@@ -2,9 +2,9 @@ import { redirect } from "next/navigation";
 
 import { canUsePOS } from "@/modules/auth/domain/admin-permissions";
 import { requireAdminSession } from "@/modules/auth/features/require-admin-session/require-admin-session";
-import { PrismaLocationRepository } from "@/modules/locations/adapters/prisma-location-repository";
-import { listPublicLocations } from "@/modules/locations/features/list-public-locations/list-public-locations";
 import { resolveOrderLocationScope } from "@/modules/orders/domain/order-visibility";
+import { createProductionPosLocationDependencies } from "@/modules/pos/adapters/production-pos-location";
+import { pickPosLocations } from "@/modules/pos/domain/pos-locations";
 
 import PosClient from "./pos-client";
 
@@ -13,8 +13,11 @@ import PosClient from "./pos-client";
  *
  * El permiso se resuelve en el servidor (`canUsePOS`: dueño, gerente y cajero; cocina no) y el
  * alcance por sucursal reusa la regla que ya existe (A): quien tiene sucursales asignadas solo ve
- * las suyas, el dueño ve todas. El catálogo llega después por la API del POS, que aplica el mismo
- * alcance: la pantalla no es la que decide.
+ * las suyas, el dueño ve todas.
+ *
+ * TASK-308: la lista de locales sale de `pickPosLocations`, la misma regla que usa la navegación para
+ * ofrecer la entrada. Un local con el POS apagado no se puede elegir acá —y si no queda ninguno, la
+ * pantalla no existe para ese admin: vuelve a órdenes—.
  */
 export default async function AdminPosPage() {
   const session = await requireAdminSession();
@@ -23,15 +26,18 @@ export default async function AdminPosPage() {
     redirect("/admin/orders");
   }
 
-  const scope = resolveOrderLocationScope({
-    role: session.user.role,
-    assignedLocationIds: session.user.locationIds,
-  });
-
-  const { data } = await listPublicLocations({ repository: new PrismaLocationRepository() });
-  const locations = (
-    scope.kind === "all" ? data : data.filter((location) => scope.locationIds.includes(location.id))
+  const { repository } = createProductionPosLocationDependencies();
+  const locations = pickPosLocations(
+    await repository.listLocations(),
+    resolveOrderLocationScope({
+      role: session.user.role,
+      assignedLocationIds: session.user.locationIds,
+    }),
   ).map((location) => ({ id: location.id, name: location.name }));
+
+  if (locations.length === 0) {
+    redirect("/admin/orders");
+  }
 
   return <PosClient locations={locations} />;
 }

@@ -32,6 +32,8 @@ const principal = {
   pickupLeadMinutes: 25,
   pickupMaxMinutes: 40,
   isAcceptingOrders: true,
+  // TASK-308: el mostrador del local. Nace prendido, igual que el default de la base.
+  posEnabled: true,
   closedMessage: null,
   createdAt: "2026-09-12T00:00:00.000Z",
   updatedAt: "2026-09-12T00:00:00.000Z",
@@ -149,8 +151,56 @@ describe("AdminLocationsPage", () => {
       pickupLeadMinutes: 25,
       pickupMaxMinutes: null,
       isAcceptingOrders: true,
+      posEnabled: true,
     });
     expect(Object.keys(body.businessHours as object)).toHaveLength(7);
+  });
+
+  /**
+   * TASK-308 — el mostrador se prende por local.
+   *
+   * El flag viaja con el resto del local (el PATCH es completo) y apagarlo guarda `false`: es la
+   * decisión que hace que la API del POS conteste 403 en ese local.
+   */
+  it("apaga el punto de venta del local y lo guarda", async () => {
+    const user = userEvent.setup();
+    render(<AdminLocationsPage />);
+
+    await user.click(await screen.findByRole("button", { name: "Editar local Norte" }));
+    await user.selectOptions(screen.getByLabelText("Punto de venta"), "no");
+    await user.click(screen.getByRole("button", { name: "Guardar cambios" }));
+
+    expect(await screen.findByText("Local actualizado.")).toBeTruthy();
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/admin/locations/loc_norte",
+      expect.objectContaining({
+        method: "PATCH",
+        body: expect.stringContaining('"posEnabled":false'),
+      }),
+    );
+  });
+
+  it("abre el formulario con el punto de venta tal como está el local", async () => {
+    const user = userEvent.setup();
+    fetchMock.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = requestUrl(input);
+      const method = init?.method ?? "GET";
+
+      if (url === "/api/admin/locations" && method === "GET") {
+        return jsonResponse({ data: [principal, { ...norte, posEnabled: false }] });
+      }
+      if (url === "/api/admin/business-settings") {
+        return jsonResponse({ data: { timezone: "America/Managua" } });
+      }
+
+      return jsonResponse({ data: { id: "loc_nueva" } });
+    });
+
+    render(<AdminLocationsPage />);
+
+    await user.click(await screen.findByRole("button", { name: "Editar local Norte" }));
+
+    expect((screen.getByLabelText("Punto de venta") as HTMLSelectElement).value).toBe("no");
   });
 
   it("abre un local guardado con sus valores y guarda el cambio", async () => {

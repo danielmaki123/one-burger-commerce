@@ -154,6 +154,33 @@ describe("admin locations route", () => {
     );
   });
 
+  /**
+   * TASK-308 — el interruptor del mostrador viaja con el local.
+   *
+   * Dos mitades de la misma regla: apagado se guarda `false`, y un payload que no trae el campo (una
+   * terminal con la pantalla vieja) deja el POS **prendido**, que es como venía el negocio.
+   */
+  it("POST guarda el punto de venta apagado y lo deja prendido si el payload no lo trae", async () => {
+    requireAdminSessionMock.mockResolvedValue({ user: { id: "u_1", role: "owner" } });
+    canManageBusinessSettingsMock.mockReturnValue(true);
+    createLocationMock.mockResolvedValue({ data: { id: "loc_norte" }, meta: {} });
+
+    const { POST } = await import("./route");
+    await POST(postRequest({ ...validPayload, posEnabled: false }));
+    await POST(postRequest(validPayload));
+
+    expect(createLocationMock).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ posEnabled: false }),
+      expect.anything(),
+    );
+    expect(createLocationMock).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ posEnabled: true }),
+      expect.anything(),
+    );
+  });
+
   it("POST returns 400 con el campo señalado cuando el payload no tiene forma de local", async () => {
     requireAdminSessionMock.mockResolvedValueOnce({ user: { id: "u_1", role: "owner" } });
     canManageBusinessSettingsMock.mockReturnValueOnce(true);

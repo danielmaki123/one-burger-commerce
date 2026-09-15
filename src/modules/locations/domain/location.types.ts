@@ -39,6 +39,12 @@ export type LocationRecord = {
   /** B5 — minutos en cocina (aceptado, preparando o listo) antes de que la comanda avise. */
   prepAlertMinutes: number;
   isAcceptingOrders: boolean;
+  /**
+   * TASK-308 — si este local usa el punto de venta (mostrador). Nace prendido, así el negocio de un
+   * solo local no configura nada; apagado, la API del POS contesta 403 en ese local y la entrada de
+   * «Caja» no se ofrece al staff que solo atiende ese local.
+   */
+  posEnabled: boolean;
   closedMessage: string | null;
   createdAt: string;
   updatedAt: string;

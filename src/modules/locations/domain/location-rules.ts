@@ -55,6 +55,8 @@ export type LocationInput = {
   acceptAlertMinutes: number;
   prepAlertMinutes: number;
   isAcceptingOrders: boolean;
+  /** TASK-308 — si este local usa el punto de venta (mostrador). */
+  posEnabled: boolean;
   closedMessage: string | null;
 };
 

@@ -11,6 +11,7 @@ import { useBusinessSettings } from "@/shared/lib/business-settings";
 import { Button } from "@/shared/ui/button";
 import { Checkbox } from "@/shared/ui/checkbox";
 import { Input } from "@/shared/ui/input";
+import { Select } from "@/shared/ui/select";
 import AdminEditSheet from "../_components/admin-edit-sheet";
 import { AdminEmptyState, AdminPageHeader } from "../_components/admin-operational-ui";
 import { pluralEs } from "../menu/categories/category-list-helpers";
@@ -32,9 +33,10 @@ import {
  * Es la pantalla que faltaba para que el owner no dependa de la API: crear un local, cargar
  * dónde se retira, su horario y si está recibiendo pedidos. El menú y los precios por local
  * llegan en la fase 4; acá está todo lo que hace a la operación del local.
+ *
+ * TASK-308 sumó el interruptor del **punto de venta** por local y cambió los dos selects crudos del
+ * formulario por el `Select` de TASK-206 (mismo control, con etiqueta asociada y error anunciado).
  */
-const SELECT_CLASS =
-  "h-11 w-full rounded-md border border-border bg-card px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand";
 
 export default function AdminLocationsPage() {
   const settings = useBusinessSettings();
@@ -643,19 +645,29 @@ export default function AdminLocationsPage() {
             </div>
           </div>
 
-          <label className="grid gap-1.5 text-sm font-medium text-foreground">
-            Aceptando pedidos
-            <select
-              className={SELECT_CLASS}
-              value={form.isAcceptingOrders ? "yes" : "no"}
-              onChange={(event) =>
-                setForm((current) => ({ ...current, isAcceptingOrders: event.target.value === "yes" }))
-              }
-            >
-              <option value="yes">Sí, está recibiendo pedidos</option>
-              <option value="no">No, pausado</option>
-            </select>
-          </label>
+          <Select
+            label="Aceptando pedidos"
+            value={form.isAcceptingOrders ? "yes" : "no"}
+            onChange={(event) =>
+              setForm((current) => ({ ...current, isAcceptingOrders: event.target.value === "yes" }))
+            }
+            options={[
+              { value: "yes", label: "Sí, está recibiendo pedidos" },
+              { value: "no", label: "No, pausado" },
+            ]}
+          />
+
+          <Select
+            label="Punto de venta"
+            value={form.posEnabled ? "yes" : "no"}
+            onChange={(event) =>
+              setForm((current) => ({ ...current, posEnabled: event.target.value === "yes" }))
+            }
+            options={[
+              { value: "yes", label: "Encendido — el local cobra en el mostrador" },
+              { value: "no", label: "Apagado — solo pedidos en línea" },
+            ]}
+          />
 
           <Input
             label="Mensaje cuando no acepta"
@@ -677,19 +689,17 @@ export default function AdminLocationsPage() {
               error={fieldErrors.sortOrder}
               onChange={(event) => setForm((current) => ({ ...current, sortOrder: event.target.value }))}
             />
-            <label className="grid gap-1.5 text-sm font-medium text-foreground">
-              Estado
-              <select
-                className={SELECT_CLASS}
-                value={form.isActive ? "active" : "inactive"}
-                onChange={(event) =>
-                  setForm((current) => ({ ...current, isActive: event.target.value === "active" }))
-                }
-              >
-                <option value="active">Activo — se puede elegir para retirar</option>
-                <option value="inactive">Apagado — no se ofrece</option>
-              </select>
-            </label>
+            <Select
+              label="Estado"
+              value={form.isActive ? "active" : "inactive"}
+              onChange={(event) =>
+                setForm((current) => ({ ...current, isActive: event.target.value === "active" }))
+              }
+              options={[
+                { value: "active", label: "Activo — se puede elegir para retirar" },
+                { value: "inactive", label: "Apagado — no se ofrece" },
+              ]}
+            />
           </div>
         </div>
       </AdminEditSheet>

@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server";
 
 import {
+  assertCanUsePos,
+  requirePosLocation,
+} from "@/app/api/admin/pos/pos-route-helpers";
+import {
   parsePosSalePayload,
-  resolveSaleLocationId,
   toPosSaleResponse,
 } from "@/app/api/admin/pos/sale/sale-payload";
-import { canUsePOS } from "@/modules/auth/domain/admin-permissions";
 import { requireAdminSession } from "@/modules/auth/features/require-admin-session/require-admin-session";
 import { createProductionPosSaleDependencies } from "@/modules/pos/adapters/production-pos-sale";
 import { registerPosSale } from "@/modules/pos/features/register-pos-sale/register-pos-sale";
@@ -17,19 +19,15 @@ export const dynamic = "force-dynamic";
 export async function POST(request: Request) {
   try {
     const session = await requireAdminSession();
-
-    if (!canUsePOS(session.user.role)) {
-      return NextResponse.json(
-        { error: { code: "FORBIDDEN", message: "Insufficient permissions" } },
-        { status: 403 },
-      );
-    }
+    // Primero el permiso y después el payload: un rol que no cobra no tiene por qué recibir
+    // correcciones sobre los datos de una venta que no puede hacer.
+    assertCanUsePos(session.user.role);
 
     const { input, locationId } = parsePosSalePayload(await request.json());
-    resolveSaleLocationId({
-      requested: locationId,
+    await requirePosLocation({
       role: session.user.role,
       assignedLocationIds: session.user.locationIds,
+      requested: locationId,
     });
 
     const result = await registerPosSale(input, await createProductionPosSaleDependencies());

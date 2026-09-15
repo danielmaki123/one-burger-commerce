@@ -1,4 +1,5 @@
 import {
+  Calculator,
   ClipboardList,
   LayoutDashboard,
   MapPin,
@@ -47,18 +48,49 @@ export const ADMIN_SECONDARY_NAV_ITEMS: AdminNavItem[] = [];
 
 export const ADMIN_NAV_ITEMS = ADMIN_NAV_GROUPS.flatMap((group) => group.items);
 
-export function getAdminNavGroups(role?: AdminRole): AdminNavGroup[] {
-  if (role === "owner") return ADMIN_NAV_GROUPS;
+/**
+ * TASK-308 — la caja del local.
+ *
+ * No está en `ADMIN_NAV_GROUPS` porque **no depende del rol sino del local**: el POS se prende por
+ * sucursal, así que la entrada existe solo si algún local del staff lo tiene prendido. La navegación
+ * lo pregunta una vez (`/api/admin/pos/availability`) y lo inyecta en Operación, que es donde está el
+ * trabajo del día.
+ */
+export const ADMIN_POS_NAV_ITEM: AdminNavItem = {
+  href: "/admin/pos",
+  label: "Caja",
+  description: "Venta de mostrador",
+  icon: Calculator,
+};
+
+function withPosItem(groups: AdminNavGroup[], posAvailable: boolean): AdminNavGroup[] {
+  if (!posAvailable) return groups;
+
+  return groups.map((group) =>
+    group.label === "Operación" ? { ...group, items: [...group.items, ADMIN_POS_NAV_ITEM] } : group,
+  );
+}
+
+export function getAdminNavGroups(
+  role?: AdminRole,
+  options: { posAvailable?: boolean } = {},
+): AdminNavGroup[] {
+  const posAvailable = options.posAvailable ?? false;
+
+  if (role === "owner") return withPosItem(ADMIN_NAV_GROUPS, posAvailable);
 
   if (role === "manager") {
-    return ADMIN_NAV_GROUPS.map((group) => ({
+    const groups = ADMIN_NAV_GROUPS.map((group) => ({
       ...group,
       items: group.items.filter((item) =>
         item.href === "/admin/orders" || item.href === "/admin/menu",
       ),
     })).filter((group) => group.items.length > 0);
+
+    return withPosItem(groups, posAvailable);
   }
 
+  // Cocina no cobra: no ve la caja ni con el POS prendido.
   if (role === "kitchen") {
     return [
       {
@@ -68,12 +100,16 @@ export function getAdminNavGroups(role?: AdminRole): AdminNavGroup[] {
     ];
   }
 
-  return [
-    {
-      label: "Operación",
-      items: ADMIN_NAV_ITEMS.filter((item) => item.href === "/admin/orders"),
-    },
-  ];
+  // Cajero (y el rato en que el rol todavía no se sabe): órdenes y, si hay mostrador, la caja.
+  return withPosItem(
+    [
+      {
+        label: "Operación",
+        items: ADMIN_NAV_ITEMS.filter((item) => item.href === "/admin/orders"),
+      },
+    ],
+    posAvailable,
+  );
 }
 
 export function isAdminNavItemActive(pathname: string, href: string) {

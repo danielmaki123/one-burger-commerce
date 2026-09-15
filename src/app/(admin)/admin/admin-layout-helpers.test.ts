@@ -12,6 +12,11 @@ function flattenNav(role?: "owner" | "manager" | "kitchen") {
   return getAdminNavGroups(role).flatMap((group) => group.items);
 }
 
+/** TASK-308: la navegación solo ofrece la caja cuando el POS está prendido en algún local. */
+function flattenNavWithPos(role: "owner" | "manager" | "cashier" | "kitchen") {
+  return getAdminNavGroups(role, { posAvailable: true }).flatMap((group) => group.items);
+}
+
 describe("admin layout helpers", () => {
   it("shows Resumen and Usuarios to owner", () => {
     expect(flattenNav("owner")).toContainEqual(
@@ -60,6 +65,32 @@ describe("admin layout helpers", () => {
 
   it("lets kitchen see only orders", () => {
     expect(flattenNav("kitchen").map((item) => item.href)).toEqual(["/admin/orders"]);
+  });
+
+  /**
+   * TASK-308 — la caja en la navegación.
+   *
+   * Dos cosas distintas: que **no** aparezca cuando ningún local del staff tiene el POS prendido (una
+   * entrada que lleva a un 403 es peor que no tenerla) y que aparezca para los tres roles que cobran.
+   * Cocina no la ve ni con el POS prendido: la navegación no es el lugar donde se descubre el permiso.
+   */
+  it("no ofrece la caja si ningún local tiene el POS prendido", () => {
+    expect(flattenNav("owner")).not.toContainEqual(
+      expect.objectContaining({ href: "/admin/pos" }),
+    );
+  });
+
+  it.each(["owner", "manager", "cashier"] as const)(
+    "ofrece la caja a %s cuando hay un local con el POS prendido",
+    (role) => {
+      expect(flattenNavWithPos(role)).toContainEqual(
+        expect.objectContaining({ href: "/admin/pos", label: "Caja" }),
+      );
+    },
+  );
+
+  it("no le ofrece la caja a cocina ni con el POS prendido", () => {
+    expect(flattenNavWithPos("kitchen").map((item) => item.href)).toEqual(["/admin/orders"]);
   });
 
   it("keeps /admin/dashboard active for the Resumen compatibility redirect", () => {

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import {
+  Calculator,
   ClipboardList,
   Ellipsis,
   LayoutDashboard,
@@ -50,6 +51,8 @@ type AdminMobileTab = {
 const ADMIN_MOBILE_TAB_DEFS: AdminMobileTab[] = [
   { href: "/admin", label: "Turno", icon: LayoutDashboard },
   { href: "/admin/orders", label: "Órdenes", icon: ClipboardList },
+  // TASK-308: la caja es la pantalla del cajero, así que va en la barra y no escondida en «Más».
+  { href: "/admin/pos", label: "Caja", icon: Calculator },
   { href: "/admin/menu", label: "Menú", icon: UtensilsCrossed },
   { href: "/admin/tables", label: "Mesas", icon: Table2 },
 ];

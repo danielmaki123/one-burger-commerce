@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AuthError } from "@/modules/auth/domain/auth-errors";
+import {
+  createInMemoryLocation,
+  InMemoryLocationRepository,
+} from "@/modules/locations/adapters/in-memory-location-repository";
 import type { OrderRecord } from "@/modules/orders/domain/order.types";
 import { InMemoryPaymentRepository } from "@/modules/orders/adapters/in-memory-payment-repository";
 
@@ -35,6 +39,16 @@ vi.mock("@/modules/pos/adapters/production-pos-sale", () => ({
   }),
 }));
 
+// TASK-308: el cobro también pregunta si el POS está prendido en ese local.
+const locationRepository = new InMemoryLocationRepository([
+  createInMemoryLocation({ id: "loc_norte", name: "Norte" }),
+  createInMemoryLocation({ id: "loc_apagado", name: "Apagado", posEnabled: false }),
+]);
+
+vi.mock("@/modules/pos/adapters/production-pos-location", () => ({
+  createProductionPosLocationDependencies: () => ({ repository: locationRepository }),
+}));
+
 const venta = {
   locationId: "loc_norte",
   customer: { name: "Cliente Mostrador", whatsapp: "88887777", email: "cliente@ejemplo.com" },
@@ -64,6 +78,7 @@ async function callRoute(body: unknown) {
 describe("admin pos sale route", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    paymentRepository.payments.length = 0;
     requireAdminSessionMock.mockResolvedValue({
       user: { id: "admin_1", role: "cashier", locationIds: [] },
     });
@@ -104,6 +119,17 @@ describe("admin pos sale route", () => {
     expect(response.status).toBe(403);
     expect(body.error.fields.locationId).toContain("acceso");
     expect(createPosOrderMock).not.toHaveBeenCalled();
+  });
+
+  // TASK-308: cobrar en un local con el POS apagado es 403, aunque el payload sea válido.
+  it("un local con el punto de venta apagado responde 403", async () => {
+    const response = await callRoute({ ...venta, locationId: "loc_apagado" });
+    const body = await response.json();
+
+    expect(response.status).toBe(403);
+    expect(body.error.code).toBe("FORBIDDEN");
+    expect(createPosOrderMock).not.toHaveBeenCalled();
+    expect(paymentRepository.payments).toHaveLength(0);
   });
 
   it("un payload sin cobros responde 422 con el campo señalado", async () => {

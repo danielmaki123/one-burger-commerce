@@ -56,6 +56,8 @@ export type LocationFormState = {
   acceptAlertMinutes: string;
   prepAlertMinutes: string;
   isAcceptingOrders: boolean;
+  /** TASK-308 — si el local cobra en el mostrador. */
+  posEnabled: boolean;
   closedMessage: string;
 };
 
@@ -89,6 +91,8 @@ export function createEmptyLocationForm(): LocationFormState {
     acceptAlertMinutes: "10",
     prepAlertMinutes: "15",
     isAcceptingOrders: true,
+    // TASK-308: el mostrador nace prendido, igual que en la base.
+    posEnabled: true,
     closedMessage: "",
   };
 }
@@ -134,6 +138,7 @@ export function locationFormToInput(form: LocationFormState): LocationInput {
     acceptAlertMinutes: integerOrNull(form.acceptAlertMinutes) ?? 10,
     prepAlertMinutes: integerOrNull(form.prepAlertMinutes) ?? 15,
     isAcceptingOrders: form.isAcceptingOrders,
+    posEnabled: form.posEnabled,
     closedMessage: textOrNull(form.closedMessage),
   };
 }
@@ -158,6 +163,7 @@ export function locationToForm(location: LocationRecord): LocationFormState {
     acceptAlertMinutes: String(location.acceptAlertMinutes),
     prepAlertMinutes: String(location.prepAlertMinutes),
     isAcceptingOrders: location.isAcceptingOrders,
+    posEnabled: location.posEnabled,
     closedMessage: location.closedMessage ?? "",
   };
 }

@@ -44,6 +44,7 @@ function input(overrides: Partial<LocationInput> = {}): LocationInput {
     acceptAlertMinutes: 10,
     prepAlertMinutes: 15,
     isAcceptingOrders: true,
+    posEnabled: true,
     closedMessage: null,
     ...overrides,
   };
