@@ -2501,6 +2501,15 @@ el owner apruebe o corrija:
 **C1-4b NO se arranca hasta que el owner valide.** Al aprobarse, la implementación reemplaza
 `admin-overview-client.tsx` (615 líneas) respetando el techo congelado de ese archivo.
 
+**Verificación del cambio de CSS de C1-3 en el navegador (2026-09-15)**: la eliminación de tokens y del
+bloque `.dark` es el único cambio de la CAPA 1 que puede alterar lo que ve el usuario, así que se
+corrieron contra el server de producción local (`next start -p 3210`, commit `41876bb`) los specs que
+miden exactamente eso: **16/16** (`production-smoke` 7, `design-tokens` 6 —escala tipográfica, radios y
+sombras con el color configurado—, `security-csp` 3 —política sin violaciones, admin y hidratación
+vivas—) y **25 pasaron / 8 salteados / 0 fallos** en las superficies públicas (`public-home`,
+`public-menu`, `public-product`, `public-header`, `public-cart`, `public-confirmation`, `public-activity`;
+los 8 saltos son los casos que necesitan la sesión del owner). **41 casos corridos, 0 fallos.**
+
 ### Hallazgo del arnés E2E local (2026-09-15) — **no es un bug del código**
 
 El E2E completo local dejó de ser reproducible **por el estado de la base de desarrollo**, no por el
