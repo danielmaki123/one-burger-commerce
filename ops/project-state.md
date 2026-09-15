@@ -2384,16 +2384,15 @@ BASE_URL=https://menu.oneburgernic.com npx playwright test \
 # latencia de las superficies antes de culpar al código (runbook §0 y A-11 del backlog).
 ```
 
-**Antes de tocar nada, el estado en una línea (2026-09-14)**: producción sirve `build-20260914-151459`
-(commit `0072531`), con A (alcance por sucursal) y B (comandas B0–B6) desplegadas. Sobre eso corre el
-plan `plna.md`: **FASE 1 (bloqueantes del POS) y FASE 2 (UI + design system) cerradas**, las dos
-**sin desplegar**; de la **FASE 3 (POS, TASK-301 a 308)** están cerradas TASK-301, TASK-302, TASK-303a,
-TASK-303b y TASK-304 (filas 24, 25, 27, 28 y 29) y lo que sigue es **TASK-305** (apertura y cierre de
-caja con conteo por denominación y moneda). La cola de auditoría sigue viva en
+**Antes de tocar nada, el estado en una línea (2026-09-15)**: producción sirve `build-20260914-151459`
+(commit `0072531`), con A (alcance por sucursal) y B (comandas B0–B6) desplegadas. Sobre eso corrió el
+plan `plna.md`: **FASE 1 (bloqueantes del POS), FASE 2 (UI + design system) y FASE 3 (POS, TASK-301 a
+308) cerradas**, las tres **sin desplegar** —el deploy necesita confirmación del owner y es lo único
+que queda del plan—. La cola de auditoría sigue viva en
 [`ops/audit-backlog.md`](audit-backlog.md) —A-02…A-06 bloqueados por el owner, A-09…A-14 abiertos—
 con el prompt en [`ops/tasks/START-HERE.md`](tasks/START-HERE.md) §1b. La última línea de base
-verificada: **1990 unitarios en 288 archivos**, lint, typecheck, `build`, `build:webpack` y
-`security:secrets` en verde, **E2E local 104 pasaron / 6 salteados / 0 fallos** (con los specs nuevos
+verificada: **2010 unitarios en 294 archivos**, lint, typecheck, `build`, `build:webpack` y
+`security:secrets` en verde, **E2E local 105 pasaron / 6 salteados / 0 fallos** (con los specs nuevos
 `admin-pos.spec.ts` y `admin-exchange-rate.spec.ts`), y los cinco guardrails
 de `src/shared/contracts/` corriendo como job propio del CI.
 
