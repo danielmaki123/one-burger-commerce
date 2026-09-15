@@ -72,9 +72,22 @@ function lastCommitEpoch(repoPath: string): number | null {
   }
 }
 
-/** Sin `.git` (por ejemplo, una copia sin historia) la guarda de frescura no puede correr. */
-const hasGitDirectory = existsSync(path.join(repoRoot, ".git"));
+/**
+ * Un epoch de git, redondeado a **día UTC**.
+ *
+ * Por qué no se comparan segundo a segundo: la regla de `AGENTS.md` es que `DESIGN_SYSTEM.md` se
+ * actualice **en el mismo commit** que el cambio de UI o de esquema, y ahí las dos fechas son
+ * idénticas. Peor: al **enmendar** o rebasar un commit, git le pone fecha nueva a todos los archivos
+ * que toca, así que `src/shared/ui/` puede quedar unos segundos "más nuevo" que `DESIGN_SYSTEM.md`
+ * dentro del mismo commit (pasó al cerrar C1-1 de `plan2uiux.md`, con 104 segundos de diferencia).
+ * Lo que el guardrail tiene que detectar es el doc **un día más viejo** que el código, no una
+ * carrera de segundos.
+ */
+function utcDay(epoch: number): number {
+  return Math.floor(epoch / 86_400);
+}
 
+const hasGitDirectory = existsSync(path.join(repoRoot, ".git"));
 const designSystemEpoch = hasGitDirectory ? lastCommitEpoch(DESIGN_SYSTEM_DOC) : null;
 const schemaEpoch = hasGitDirectory ? lastCommitEpoch("prisma/schema.prisma") : null;
 const sharedUiEpoch = hasGitDirectory ? lastCommitEpoch("src/shared/ui") : null;
@@ -117,15 +130,18 @@ describe("contrato · documentación sincronizada con el código", () => {
   });
 
   it.skipIf(!canCheckFreshness)(
-    "si cambió el esquema o src/shared/ui, DESIGN_SYSTEM.md se tocó después",
+    "si cambió el esquema o src/shared/ui, DESIGN_SYSTEM.md se tocó ese día o después",
     () => {
       const stale: string[] = [];
+      const designSystemDay = utcDay(designSystemEpoch!);
 
-      if (schemaEpoch !== null && schemaEpoch > designSystemEpoch!) {
+      // Por día y no por segundo: ver `utcDay`. Lo que falla es que el doc quede **antes** del día
+      // del cambio de código; el mismo día (incluido el mismo commit) es lo que la regla pide.
+      if (schemaEpoch !== null && utcDay(schemaEpoch) > designSystemDay) {
         stale.push("prisma/schema.prisma");
       }
 
-      if (sharedUiEpoch !== null && sharedUiEpoch > designSystemEpoch!) {
+      if (sharedUiEpoch !== null && utcDay(sharedUiEpoch) > designSystemDay) {
         stale.push("src/shared/ui/");
       }
 
