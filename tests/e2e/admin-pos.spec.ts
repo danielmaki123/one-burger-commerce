@@ -131,6 +131,41 @@ test.describe("punto de venta", () => {
     await expect(page.getByText(/Efectivo C\$/)).toBeVisible();
   });
 
+  test("la caja se abre y se cierra contando billetes (TASK-305b)", async ({ page }) => {
+    test.skip(!mutationsAllowed, "Order creation is disabled unless E2E_ALLOW_MUTATIONS=true.");
+
+    await loginAsOwner(page);
+    await page.goto("/admin/pos");
+
+    // `exact` porque "NIO 100" también matchea "NIO 1000" (Playwright busca por substring).
+    const billetes = page.getByRole("spinbutton", {
+      name: "Cantidad de billetes de NIO 100",
+      exact: true,
+    });
+    const caja = page.getByRole("region", { name: "Caja" });
+
+    // Estado de partida: si una corrida anterior dejó la caja abierta, se cierra contando cero (deja
+    // una diferencia, que es un dato del test, no del producto).
+    if ((await page.getByRole("button", { name: "Cerrar caja" }).count()) > 0) {
+      await page.getByRole("button", { name: "Cerrar caja" }).click();
+      await expect(caja.getByRole("status")).toContainText("Caja cerrada");
+    }
+
+    // Abrir contando: 10 × C$100. El fondo lo deriva el servidor.
+    await billetes.fill("10");
+    await page.getByRole("button", { name: "Abrir caja" }).click();
+    await expect(caja.getByText(/Abierta · fondo/)).toBeVisible();
+
+    // Cerrar contando lo mismo: sin ventas en el turno, no hay diferencia.
+    await billetes.fill("10");
+    await page.getByRole("button", { name: "Cerrar caja" }).click();
+
+    const resumen = caja.getByRole("status");
+    await expect(resumen).toContainText("Caja cerrada");
+    await expect(resumen).toContainText("esperado");
+    await expect(resumen).toContainText("sin diferencia");
+  });
+
   test("cocina no entra al punto de venta (vuelve a comandas)", async ({ page }) => {
     test.skip(!mutationsAllowed, "Order creation is disabled unless E2E_ALLOW_MUTATIONS=true.");
 

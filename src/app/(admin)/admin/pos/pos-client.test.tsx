@@ -96,6 +96,25 @@ describe("PosClient", () => {
       const url = String(input);
       if (url.startsWith("/api/admin/pos/catalog")) return jsonResponse(productos);
       if (url === "/api/admin/pos/sale" && init?.method === "POST") return jsonResponse(ventaCobrada, true, 201);
+      if (url.startsWith("/api/admin/pos/shift?")) return jsonResponse({ data: null });
+      if (url === "/api/admin/pos/shift/open" && init?.method === "POST") {
+        return jsonResponse(
+          { data: { id: "shift_1", openedAt: "2026-09-15T14:00:00.000Z", openingAmount: 1000 } },
+          true,
+          201,
+        );
+      }
+      if (url === "/api/admin/pos/shift/close" && init?.method === "POST") {
+        return jsonResponse({
+          data: {
+            closingAmount: 900,
+            expectedAmount: 1000,
+            difference: -100,
+            expectedByCurrency: { NIO: 1000 },
+          },
+          meta: { expectedByCurrency: { NIO: 1000 } },
+        });
+      }
       return jsonResponse({ data: [] });
     });
     vi.stubGlobal("fetch", fetchMock);
@@ -289,6 +308,74 @@ describe("PosClient", () => {
     await userEvent.setup().selectOptions(moneda, "USD");
 
     expect(screen.getByRole("option", { name: "USD" })).toBeTruthy();
+  });
+
+  it("abre la caja con el conteo de billetes (TASK-305b)", async () => {
+    const user = userEvent.setup();
+    render(<PosClient locations={locations} />);
+
+    expect(await screen.findByText("Sin caja abierta en este local.")).toBeTruthy();
+
+    await user.type(screen.getByLabelText("Cantidad de billetes de NIO 100"), "10");
+    await user.click(screen.getByRole("button", { name: "Abrir caja" }));
+
+    const openCall = fetchMock.mock.calls.find(([input]) => String(input) === "/api/admin/pos/shift/open");
+    expect(openCall).toBeTruthy();
+    const body = JSON.parse(String((openCall![1] as RequestInit).body));
+
+    expect(body.locationId).toBe("loc_norte");
+    expect(body.counts).toEqual([{ currency: "NIO", denomination: 100, quantity: 10 }]);
+    // El fondo lo deriva el servidor del conteo, así que la pantalla solo muestra lo que devolvió.
+    expect(await screen.findByText(/Abierta · fondo/)).toBeTruthy();
+  });
+
+  it("cierra la caja y muestra el arqueo con la diferencia (TASK-305b)", async () => {
+    const user = userEvent.setup();
+    fetchMock.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.startsWith("/api/admin/pos/catalog")) return jsonResponse(productos);
+      if (url.startsWith("/api/admin/pos/shift?") && init?.method !== "POST") {
+        return jsonResponse({
+          data: {
+            id: "shift_1",
+            openedAt: "2026-09-15T14:00:00.000Z",
+            openingAmount: 1000,
+            cashCounts: [
+              { kind: "opening", currency: "NIO", denomination: 100, quantity: 10 },
+            ],
+          },
+        });
+      }
+      if (url === "/api/admin/pos/shift/close") {
+        return jsonResponse({
+          data: {
+            closingAmount: 900,
+            expectedAmount: 1000,
+            difference: -100,
+            expectedByCurrency: { NIO: 1000 },
+          },
+          meta: { expectedByCurrency: { NIO: 1000 } },
+        });
+      }
+      return jsonResponse({ data: null });
+    });
+
+    render(<PosClient locations={locations} />);
+
+    expect(await screen.findByText(/Abierta · fondo/)).toBeTruthy();
+
+    await user.type(screen.getByLabelText("Cantidad de billetes de NIO 100"), "9");
+    await user.click(screen.getByRole("button", { name: "Cerrar caja" }));
+
+    const closeCall = fetchMock.mock.calls.find(([input]) => String(input) === "/api/admin/pos/shift/close");
+    expect(JSON.parse(String((closeCall![1] as RequestInit).body)).counts).toEqual([
+      { currency: "NIO", denomination: 100, quantity: 9 },
+    ]);
+
+    const resumen = await screen.findByRole("status");
+    expect(resumen.textContent).toContain("Caja cerrada");
+    expect(resumen.textContent).toContain("esperado");
+    expect(resumen.textContent).toContain("diferencia");
   });
 
   it("sin locales activos lo dice y no pide catálogo", () => {

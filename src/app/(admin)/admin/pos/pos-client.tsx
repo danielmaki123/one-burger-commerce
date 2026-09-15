@@ -18,6 +18,11 @@ import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Select } from "@/shared/ui/select";
 import { AdminEmptyState, AdminPageHeader } from "../_components/admin-operational-ui";
+import {
+  CashCountGrid,
+  toCashCountRows,
+  type CashCountValues,
+} from "./cash-count-grid";
 
 /**
  * TASK-302 + TASK-303b — el mostrador: catálogo del local a un lado, venta al otro.
@@ -33,6 +38,20 @@ import { AdminEmptyState, AdminPageHeader } from "../_components/admin-operation
  */
 
 export type PosLocationOption = { id: string; name: string };
+
+type PosShift = {
+  id: string;
+  openedAt: string;
+  openingAmount: number;
+  cashCounts?: { kind: "opening" | "closing"; currency: string; denomination: number; quantity: number }[];
+};
+
+type ClosedShiftSummary = {
+  closingAmount: number | null;
+  expectedAmount: number | null;
+  difference: number | null;
+  expectedByCurrency: Record<string, number>;
+};
 
 type PosSaleSummary = {
   orderNumber: string;
@@ -66,6 +85,52 @@ export default function PosClient({ locations }: { locations: PosLocationOption[
   // La clave de la operación se renueva solo cuando la venta salió bien: si el cobro falla y el cajero
   // reintenta, el servidor reconoce el mismo intento y no crea dos pedidos (TASK-101).
   const [attemptKey, setAttemptKey] = React.useState(() => crypto.randomUUID());
+  // TASK-305b — la caja del local.
+  const [shift, setShift] = React.useState<PosShift | null>(null);
+  const [shiftLoading, setShiftLoading] = React.useState(true);
+  const [shiftError, setShiftError] = React.useState<string | null>(null);
+  const [countValues, setCountValues] = React.useState<CashCountValues>({});
+  const [shiftBusy, setShiftBusy] = React.useState(false);
+  const [closedShift, setClosedShift] = React.useState<ClosedShiftSummary | null>(null);
+
+  const cashCurrencies = React.useMemo(
+    () => [settings.currencyCode, ...(settings.usdExchangeRate !== null ? ["USD"] : [])],
+    [settings.currencyCode, settings.usdExchangeRate],
+  );
+
+  const loadShift = React.useCallback(async (targetLocationId: string) => {
+    if (targetLocationId === "") {
+      setShiftLoading(false);
+      return;
+    }
+
+    setShiftLoading(true);
+    setShiftError(null);
+
+    try {
+      const response = await fetch(
+        `/api/admin/pos/shift?locationId=${encodeURIComponent(targetLocationId)}`,
+      );
+      const body = (await response.json()) as {
+        data?: PosShift | null;
+        error?: { message?: string };
+      };
+
+      if (!response.ok) throw new Error(body.error?.message ?? "No se pudo leer la caja.");
+      setShift(body.data ?? null);
+    } catch (error) {
+      setShift(null);
+      setShiftError(error instanceof Error ? error.message : "No se pudo leer la caja.");
+    } finally {
+      setShiftLoading(false);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    setCountValues({});
+    setClosedShift(null);
+    void loadShift(locationId);
+  }, [locationId, loadShift]);
 
   React.useEffect(() => {
     if (locationId === "") {
@@ -122,6 +187,72 @@ export default function PosClient({ locations }: { locations: PosLocationOption[
         packagingUnitAmount: product.packagingFeeAmount,
       }),
     );
+  };
+
+  const openBox = async () => {
+    setShiftBusy(true);
+    setShiftError(null);
+
+    try {
+      const response = await fetch("/api/admin/pos/shift/open", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          locationId,
+          counts: toCashCountRows(countValues, cashCurrencies),
+        }),
+      });
+      const body = (await response.json()) as {
+        data?: PosShift;
+        error?: { message?: string; fields?: Record<string, string> };
+      };
+
+      if (!response.ok || !body.data) {
+        setShiftError(body.error?.message ?? "No se pudo abrir la caja.");
+        return;
+      }
+
+      setShift(body.data);
+      setCountValues({});
+    } catch {
+      setShiftError("No se pudo abrir la caja: revisá la conexión.");
+    } finally {
+      setShiftBusy(false);
+    }
+  };
+
+  const closeBox = async () => {
+    setShiftBusy(true);
+    setShiftError(null);
+
+    try {
+      const response = await fetch("/api/admin/pos/shift/close", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          locationId,
+          counts: toCashCountRows(countValues, cashCurrencies),
+        }),
+      });
+      const body = (await response.json()) as {
+        data?: ClosedShiftSummary;
+        meta?: { expectedByCurrency?: Record<string, number> };
+        error?: { message?: string; fields?: Record<string, string> };
+      };
+
+      if (!response.ok || !body.data) {
+        setShiftError(body.error?.message ?? "No se pudo cerrar la caja.");
+        return;
+      }
+
+      setClosedShift({ ...body.data, expectedByCurrency: body.meta?.expectedByCurrency ?? {} });
+      setShift(null);
+      setCountValues({});
+    } catch {
+      setShiftError("No se pudo cerrar la caja: revisá la conexión.");
+    } finally {
+      setShiftBusy(false);
+    }
   };
 
   const charge = async () => {
@@ -189,6 +320,73 @@ export default function PosClient({ locations }: { locations: PosLocationOption[
         title="Punto de venta"
         description="Armá la venta del mostrador con el catálogo del local."
       />
+
+      {locations.length === 0 ? null : (
+        <section
+          className="space-y-3 rounded-panel border border-border bg-card p-4"
+          aria-label="Caja"
+        >
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="text-headline text-foreground">Caja</h2>
+            {shiftLoading ? (
+              <p className="text-sm text-muted-foreground">Leyendo la caja…</p>
+            ) : shift ? (
+              <p className="text-sm text-muted-foreground">
+                Abierta · fondo {formatCurrency(shift.openingAmount, currency)}
+              </p>
+            ) : (
+              <p className="text-sm text-muted-foreground">Sin caja abierta en este local.</p>
+            )}
+          </div>
+
+          {closedShift ? (
+            <div
+              role="status"
+              className="rounded-card border border-success-strong/30 bg-success px-3 py-2 text-sm text-success-foreground"
+            >
+              Caja cerrada · contado {formatCurrency(closedShift.closingAmount ?? 0, currency)} ·
+              esperado {formatCurrency(closedShift.expectedAmount ?? 0, currency)} ·{" "}
+              {closedShift.difference === 0
+                ? "sin diferencia"
+                : `diferencia ${formatCurrency(closedShift.difference ?? 0, currency)}`}
+            </div>
+          ) : null}
+
+          {shiftError ? (
+            <p role="alert" className="text-sm font-medium text-danger-strong">
+              {shiftError}
+            </p>
+          ) : null}
+
+          {shiftLoading ? null : (
+            <>
+              <p className="text-sm text-muted-foreground">
+                {shift
+                  ? "Contá lo que hay en la caja para cerrarla."
+                  : "Contá con cuánto abrís la caja."}
+              </p>
+              <CashCountGrid
+                currencies={cashCurrencies}
+                values={countValues}
+                onChange={(key, quantity) =>
+                  setCountValues((current) => ({ ...current, [key]: quantity }))
+                }
+                disabled={shiftBusy}
+                formatAmount={(value) => formatCurrency(value, currency)}
+              />
+              <Button
+                type="button"
+                variant={shift ? "outline" : "primary"}
+                className="min-h-11"
+                disabled={shiftBusy}
+                onClick={() => void (shift ? closeBox() : openBox())}
+              >
+                {shiftBusy ? "Guardando…" : shift ? "Cerrar caja" : "Abrir caja"}
+              </Button>
+            </>
+          )}
+        </section>
+      )}
 
       {locations.length === 0 ? (
         <AdminEmptyState
