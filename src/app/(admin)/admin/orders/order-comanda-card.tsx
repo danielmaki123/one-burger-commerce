@@ -9,6 +9,7 @@ import type { OrderStatus, OrderType } from "@/modules/orders/domain/order.types
 import { describeAdminPickup } from "../_components/admin-pickup-timing";
 import { OrderActions } from "./order-actions";
 import { resolveComandaUrgency } from "./comanda-helpers";
+import { orderTypePresentation } from "./orders-page-helpers";
 
 export type ComandaItem = {
   id: string;
@@ -57,20 +58,34 @@ type OrderComandaCardProps = {
 };
 
 /**
- * El borde y el fondo de la urgencia. Se usan **tokens** y nunca un `border-left` de color
- * (prohibido por la guía): la etapa se ve por el fondo completo y por el chip, que además dice el
- * tiempo en palabras.
+ * La tarjeta de comanda del KDS, con el sistema Stitch (`design-system.md` §6.2 y §7).
+ *
+ * Tres decisiones que salieron de traducir la referencia:
+ *
+ * 1. **La urgencia no pinta la tarjeta entera**: la tarjeta es una superficie del sistema
+ *    (`--bg-surface-card`) y el estado entra por el borde y el tinte del propio estado. La única
+ *    tarjeta que **late** es la que pasó el SLA, que es lo que el sistema pide (§8.3) y además
+ *    respeta `prefers-reduced-motion`.
+ * 2. **El número de pedido, el cronómetro y las cantidades van en `font-mono` con `tabular-nums`**
+ *    (§2.1): son valores que cambian o que se leen de un vistazo a dos metros.
+ * 3. **El canal** (Mostrador / Retiro / Mesa) va al lado del número, como en la referencia: en la
+ *    cocina, saber de dónde sale el pedido es la primera pregunta.
+ *
+ * Lo que la referencia muestra y acá **no** va, con su motivo: el monto de la comanda y el PIN no
+ * existen en el payload de la bandeja —y la cocina no los necesita—; el "Pagado (Efectivo)" y el
+ * teléfono enmascarado tampoco viajan en el carril de cocina. El tracker por estación
+ * (Plancha/Armado/Empaque) no existe en el backend: no hay modelo de estaciones.
  */
 const URGENCY_STYLES = {
-  normal: "bg-card border-border",
-  warning: "bg-warning border-warning-strong",
-  late: "bg-danger border-danger-strong",
+  normal: "border-line-subtle bg-surface-card hover:bg-surface-elevated",
+  warning: "border-status-prep-border bg-status-prep-bg",
+  late: "border-status-sla-border bg-status-sla-bg shadow-glow-critical motion-safe:animate-pulse",
 } as const;
 
 const URGENCY_CHIP_STYLES = {
-  normal: "text-muted-foreground",
-  warning: "text-warning-foreground",
-  late: "text-danger-foreground",
+  normal: "bg-canvas/70 text-ink-secondary",
+  warning: "bg-status-prep-bg text-status-prep-text",
+  late: "bg-status-sla-bg text-status-sla-text",
 } as const;
 
 /** B3 — una comanda del tablero: lo que hay que cocinar, para quién y desde cuándo espera. */
@@ -100,6 +115,7 @@ export function OrderComandaCard({
     nowMs,
   });
   const StageIcon = urgency.level === "late" ? AlarmClock : Clock;
+  const { label: channelLabel } = orderTypePresentation(order.type);
 
   return (
     <article
@@ -107,9 +123,9 @@ export function OrderComandaCard({
       data-order={order.id}
       {...(isNew ? { "data-new-order": "true" } : {})}
       className={[
-        "flex flex-col gap-3 rounded-panel border-2 p-4 shadow-sm transition-colors duration-200 motion-reduce:transition-none",
+        "flex flex-col gap-3 rounded-stitch-lg border p-4 transition-colors duration-200 motion-reduce:transition-none",
         URGENCY_STYLES[urgency.level],
-        isNew ? "ring-2 ring-brand ring-offset-2 ring-offset-background" : "",
+        isNew ? "ring-2 ring-line-focus ring-offset-2 ring-offset-canvas" : "",
       ].join(" ")}
     >
       {/*
@@ -119,50 +135,58 @@ export function OrderComandaCard({
       <Link
         href={`/admin/orders/${order.id}`}
         aria-label={`Abrir orden ${order.orderNumber}`}
-        className="flex flex-col gap-3 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+        className="flex flex-col gap-3 rounded-stitch-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-line-focus"
       >
-        <header className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
+        <header className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="font-heading text-title font-bold tabular-nums text-foreground">
-              {order.orderNumber}
-            </p>
-            <p className="mt-0.5 text-xs font-medium text-muted-foreground tabular-nums">
-              Entró {enteredAt ?? "—"}
-            </p>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="font-mono text-st-h2 font-bold tracking-tight tabular-nums text-brand-primary">
+                {order.orderNumber}
+              </span>
+              <span className="rounded-stitch-sm bg-brand-primary-muted px-1.5 py-0.5 text-st-overline font-bold uppercase tracking-wider text-brand-primary">
+                {channelLabel}
+              </span>
+            </div>
+            <p className="mt-0.5 truncate text-st-body font-semibold text-ink">{order.customerName}</p>
+            <p className="font-mono text-st-caption tabular-nums text-ink-muted">Entró {enteredAt ?? "—"}</p>
           </div>
+
           <span
-            className={`flex shrink-0 items-center gap-1.5 text-sm font-bold tabular-nums ${URGENCY_CHIP_STYLES[urgency.level]}`}
+            className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 font-mono text-st-caption font-semibold tabular-nums ${URGENCY_CHIP_STYLES[urgency.level]}`}
           >
-            <StageIcon aria-hidden="true" className="h-4 w-4" strokeWidth={2.4} />
+            <StageIcon aria-hidden="true" className="h-3.5 w-3.5" strokeWidth={2.4} />
             {urgency.label}
           </span>
         </header>
 
-        <p className="text-lg font-bold leading-snug text-foreground">{order.customerName}</p>
-
-        <ul className="flex flex-col gap-2">
+        <ul className="flex flex-col gap-2 rounded-stitch-md bg-canvas/60 p-3">
           {order.items.map((item) => (
-            <li key={item.id} className="text-sm text-foreground">
-              <span className="font-semibold tabular-nums">
-                {item.quantity} × {item.productName}
+            <li key={item.id} className="flex items-start gap-2">
+              {/* El sistema pide la cantidad en un badge ámbar translúcido, en mono (§6.2). */}
+              <span className="shrink-0 rounded-stitch-sm bg-brand-amber-soft px-2 py-0.5 font-mono text-st-caption font-bold tabular-nums text-brand-amber">
+                {item.quantity}x
               </span>
-              {item.modifiers.length > 0 ? (
-                <span className="ml-1 text-muted-foreground">
-                  ({item.modifiers.map((modifier) => modifier.name).join(", ")})
-                </span>
-              ) : null}
-              {item.notes ? (
-                <span className="mt-1 flex items-start gap-1.5 text-xs font-semibold text-warning-foreground">
-                  <MessageSquareText aria-hidden="true" className="mt-px h-3.5 w-3.5 shrink-0" strokeWidth={2.4} />
-                  {item.notes}
-                </span>
-              ) : null}
+              <div className="min-w-0 flex-1">
+                <p className="text-st-body font-bold text-ink">{item.productName}</p>
+                {item.modifiers.length > 0 ? (
+                  <p className="text-st-caption font-medium text-brand-amber">
+                    {item.modifiers.map((modifier) => `• ${modifier.name}`).join(" ")}
+                  </p>
+                ) : null}
+                {item.notes ? (
+                  // La nota del chef es un llamado aparte, entre comillas y en el ámbar de cocina (§6.2).
+                  <p className="mt-1 flex items-start gap-1.5 rounded-stitch-sm bg-status-prep-bg px-2 py-1 text-st-caption italic text-status-prep-text">
+                    <MessageSquareText aria-hidden="true" className="mt-px h-3.5 w-3.5 shrink-0" strokeWidth={2.4} />
+                    «{item.notes}»
+                  </p>
+                ) : null}
+              </div>
             </li>
           ))}
         </ul>
 
-        <p className="text-xs font-semibold text-foreground tabular-nums">
-          {pickupLabel ?? `Retiro para hoy · ${order.type === "pickup" ? "Retiro" : order.type}`}
+        <p className="text-st-caption font-medium tabular-nums text-ink-secondary">
+          {pickupLabel ?? `Retiro para hoy · ${channelLabel}`}
           {showLocation && order.locationName ? ` · ${order.locationName}` : ""}
         </p>
       </Link>

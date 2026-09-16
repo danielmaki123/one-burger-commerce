@@ -27,7 +27,11 @@ describe("Textarea", () => {
 
     expect(field.getAttribute("aria-invalid")).toBe("true");
     expect(document.getElementById(describedBy)?.textContent).toBe("Contá el motivo en una línea");
-    expect(document.getElementById(describedBy)?.className).toContain("text-danger-strong");
+    // Cambió el contrato (2026-09-16): el error sale del token de peligro **del sistema Stitch**
+    // (`--status-sla-text`), no del alias viejo `--danger-strong`. Además ahora se anuncia solo
+    // (`role="alert"`), que es lo que el sistema pide para cualquier error de campo.
+    expect(document.getElementById(describedBy)?.className).toContain("text-status-sla-text");
+    expect(document.getElementById(describedBy)?.getAttribute("role")).toBe("alert");
   });
 
   it("la ayuda y el error viajan juntos en aria-describedby", () => {

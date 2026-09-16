@@ -5,6 +5,7 @@ import { Check, X } from "lucide-react";
 
 import type { OrderStatus, OrderType } from "@/modules/orders/domain/order.types";
 import { Button } from "@/shared/ui/button";
+import { Textarea } from "@/shared/ui/textarea";
 
 import {
   buildStatusUpdateBody,
@@ -119,7 +120,7 @@ export function OrderActions({
         {rejectable ? (
           <Button
             variant="outline"
-            className={`min-h-11 gap-2 border-danger/40 text-danger-foreground hover:bg-danger/10 ${layout === "card" ? "w-full" : ""}`}
+            className={`min-h-11 gap-2 border-status-sla-border text-status-sla-text hover:bg-status-sla-bg ${layout === "card" ? "w-full" : ""}`}
             aria-expanded={rejecting}
             aria-controls={rejecting ? noteId : undefined}
             disabled={blocked}
@@ -136,17 +137,13 @@ export function OrderActions({
       </div>
 
       {rejecting ? (
-        <div className="space-y-2 rounded-xl border border-border bg-card p-3">
-          <label htmlFor={noteId} className="block text-sm font-medium text-foreground">
-            Motivo del rechazo (obligatorio)
-          </label>
-          <textarea
+        <div className="space-y-2 rounded-stitch-md border border-line-subtle bg-surface-low p-3">
+          <Textarea
             id={noteId}
-            value={note}
+            label="Motivo del rechazo (obligatorio)"
+            error={noteError ?? undefined}
             rows={2}
-            aria-invalid={noteError ? true : undefined}
-            aria-describedby={noteError ? `${noteId}-error` : undefined}
-            className="w-full rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:opacity-50"
+            value={note}
             placeholder="Ej.: se acabó el pan, el cliente pidió cancelar…"
             disabled={blocked}
             onChange={(event) => {
@@ -154,15 +151,10 @@ export function OrderActions({
               setNoteError(null);
             }}
           />
-          {noteError ? (
-            <p id={`${noteId}-error`} role="alert" className="text-sm font-medium text-danger-foreground">
-              {noteError}
-            </p>
-          ) : null}
           <div className="flex flex-wrap gap-2">
             <Button
               variant="outline"
-              className="min-h-11 border-danger/40 text-danger-foreground hover:bg-danger/10"
+              className="min-h-11 border-status-sla-border text-status-sla-text hover:bg-status-sla-bg"
               aria-busy={submitting === "cancelled"}
               disabled={blocked}
               onClick={confirmRejection}
@@ -181,20 +173,20 @@ export function OrderActions({
               Cancelar
             </Button>
           </div>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-st-caption text-ink-muted">
             El pedido queda cancelado y el historial se conserva.
           </p>
         </div>
       ) : null}
 
       {failure ? (
-        <p role="alert" className="text-sm font-medium text-danger-foreground">
+        <p role="alert" className="text-st-body font-medium text-status-sla-text">
           {failure}
         </p>
       ) : null}
 
       {disabled && disabledReason ? (
-        <p className="text-xs text-muted-foreground">{disabledReason}</p>
+        <p className="text-st-caption text-ink-muted">{disabledReason}</p>
       ) : null}
     </div>
   );

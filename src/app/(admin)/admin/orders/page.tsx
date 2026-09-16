@@ -10,10 +10,7 @@ import {
   Maximize2,
   PanelLeft,
   RefreshCw,
-  ShoppingBag,
   SlidersHorizontal,
-  Table2,
-  Truck,
 } from "lucide-react";
 
 import { formatCurrency } from "@/shared/lib/format-currency";
@@ -31,6 +28,7 @@ import {
   findNewOrderIds,
   formatUpdatedAgo,
   orderBucket,
+  orderTypePresentation,
   shiftBusinessDays,
   sortQueueOrders,
   type OrderBucket,
@@ -161,12 +159,6 @@ const OPEN_STATUSES: ReadonlySet<OrderStatus> = new Set<OrderStatus>([
   "ready_for_pickup",
   "out_for_delivery",
 ]);
-
-function orderTypePresentation(type: OrderType) {
-  if (type === "delivery") return { label: "Delivery", Icon: Truck };
-  if (type === "pickup") return { label: "Retiro", Icon: ShoppingBag };
-  return { label: "Mesa", Icon: Table2 };
-}
 
 // Buckets de turno: viven en `orders-page-helpers` para poder probarlos solos.
 // Un pedido abierto para otro día va a "Programados".
@@ -831,17 +823,25 @@ export default function AdminOrdersPage() {
             ) : null}
 
             <p
-              className="flex flex-wrap items-center gap-x-3 text-sm font-semibold text-foreground tabular-nums"
+              className="flex flex-wrap items-center gap-2"
               aria-label="Comandas en el turno"
             >
-              <span>
-                Nuevas <strong className="font-mono">{boardCounters.pending}</strong>
+              {/* Los contadores del sistema: una píldora por estado, con su punto y el número en
+                  mono (`design-system.md` §6.5 y §2.1), para leer el turno de un vistazo. */}
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-status-pending-bg px-2.5 py-1 font-mono text-st-caption font-semibold tabular-nums text-status-pending-text">
+                <span
+                  aria-hidden="true"
+                  className="h-1.5 w-1.5 rounded-full bg-status-pending-dot motion-safe:animate-pulse"
+                />
+                Nuevas: {boardCounters.pending}
               </span>
-              <span className="text-muted-foreground">
-                Preparando <strong className="font-mono text-foreground">{boardCounters.preparing}</strong>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-status-prep-bg px-2.5 py-1 font-mono text-st-caption font-semibold tabular-nums text-status-prep-text">
+                <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-status-prep-dot" />
+                Preparando: {boardCounters.preparing}
               </span>
-              <span className="text-muted-foreground">
-                Listas <strong className="font-mono text-foreground">{boardCounters.ready}</strong>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-status-ready-bg px-2.5 py-1 font-mono text-st-caption font-semibold tabular-nums text-status-ready-text">
+                <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-status-ready-dot" />
+                Listas: {boardCounters.ready}
               </span>
             </p>
 
@@ -850,7 +850,7 @@ export default function AdminOrdersPage() {
                   porque un "0 min" se leería como una cocina instantánea. */}
               <span
                 data-testid="orders-average-prep"
-                className="text-xs font-semibold text-muted-foreground tabular-nums"
+                className="font-mono text-st-caption font-semibold text-ink-secondary tabular-nums"
               >
                 {averagePrepMinutes === null
                   ? "Preparación promedio: sin datos todavía"

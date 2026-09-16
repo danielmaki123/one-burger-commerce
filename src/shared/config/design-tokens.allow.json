@@ -1,7 +1,7 @@
 {
   "$comment": "Techos por archivo de las violaciones de UI (C1-2 de plan2uiux.md). Un techo NUNCA sube: si un archivo suma violaciones, el contrato falla. Si baja, se baja el numero aca en el mismo commit. Al terminar la Capa 1.9 todas las tablas quedan vacias (techos en 0). Lo verifica src/shared/contracts/design-guardrails-contract.test.ts.",
   "version": 1,
-  "updated": "2026-09-15",
+  "updated": "2026-09-16",
   "rules": {
     "raw-palette": {
       "src/app/(public)/activity/order-history-views.tsx": 6,
@@ -12,8 +12,6 @@
       "src/app/(public)/menu/page.tsx": 1,
       "src/app/(public)/orders/page.tsx": 1,
       "src/app/(public)/orders/track/page.tsx": 2,
-      "src/shared/ui/button.tsx": 2,
-      "src/shared/ui/input.tsx": 1,
       "src/shared/ui/public-confirmation-shell.tsx": 4,
       "src/shared/ui/whatsapp-input.tsx": 1
     },
@@ -141,7 +139,6 @@
       "src/app/(admin)/admin/menu/products/page.tsx": 3,
       "src/app/(admin)/admin/menu/products/product-dish-card.tsx": 1,
       "src/app/(admin)/admin/orders/[id]/page.tsx": 2,
-      "src/app/(admin)/admin/orders/order-actions.tsx": 1,
       "src/app/(admin)/admin/orders/order-comanda-board.tsx": 1,
       "src/app/(admin)/admin/orders/page.tsx": 4,
       "src/app/(admin)/admin/promotions/page.tsx": 1,

@@ -962,9 +962,9 @@ describe("bandeja de órdenes: tablero de comandas (B3)", () => {
     expect(screen.queryByText("OB-4")).toBeNull();
 
     const topbar = screen.getByTestId("comandas-topbar");
-    expect(topbar.textContent).toMatch(/Nuevas 1/);
-    expect(topbar.textContent).toMatch(/Preparando 1/);
-    expect(topbar.textContent).toMatch(/Listas 1/);
+    expect(topbar.textContent).toMatch(/Nuevas: 1/);
+    expect(topbar.textContent).toMatch(/Preparando: 1/);
+    expect(topbar.textContent).toMatch(/Listas: 1/);
   });
 
   /**

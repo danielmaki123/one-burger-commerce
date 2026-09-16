@@ -21,7 +21,9 @@ export function Button({
     secondary: "bg-secondary text-secondary-foreground hover:brightness-95",
     outline: "border border-border bg-transparent text-foreground hover:bg-cream",
     ghost: "text-muted-foreground hover:bg-cream hover:text-foreground",
-    danger: "bg-red-600 text-white hover:bg-red-700",
+    // El peligro sale del sistema Stitch (`--status-sla-pulse`, el rojo de la alerta SLA) en vez del
+    // `red-600` crudo: es el mismo tono con nombre, y en el panel oscuro queda medido.
+    danger: "bg-status-sla-pulse text-white hover:brightness-95",
   };
 
   const sizes = {

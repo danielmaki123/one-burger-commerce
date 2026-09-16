@@ -90,7 +90,7 @@ test.describe("comandas: el tablero del turno (B3)", () => {
     await expect(page.getByRole("button", { name: "Cerrar sesión" })).toBeVisible();
     // Sigue adentro: volver al panel no es salir de la sesión.
     await expect(page).toHaveURL(/\/admin\/orders/);
-    await expect(page.getByRole("heading", { name: "Comandas" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Comandas", exact: true })).toBeVisible();
   });
 
   test("buscar deja solo la comanda que se está preguntando y lo deja en la URL (B4)", async ({ page }) => {

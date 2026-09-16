@@ -64,7 +64,7 @@ test.describe("CSP del sitio", () => {
     });
 
     await page.goto("/admin/orders");
-    await expect(page.getByRole("heading", { name: "Comandas" }).first()).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Comandas", exact: true }).first()).toBeVisible();
 
     expect(violations).toEqual([]);
   });

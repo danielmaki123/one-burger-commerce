@@ -1,8 +1,11 @@
+import { ShoppingBag, Table2, Truck } from "lucide-react";
+
 import {
   addDays,
   dateInTimeZone,
   pickupInstant,
 } from "@/modules/business-settings/domain/pickup-days";
+import type { OrderType } from "@/modules/orders/domain/order.types";
 
 /**
  * Helpers de la bandeja de órdenes: día del negocio y grupos del turno.
@@ -15,6 +18,22 @@ import {
  * su offset `-06:00` escrito a mano: un negocio en otra zona veía el turno del día
  * equivocado y los rangos de la API no cubrían su día.
  */
+
+/**
+ * Cómo se llama cada tipo de pedido en el panel y con qué ícono.
+ *
+ * Vive acá y no en la página porque lo usan **dos**: la fila de la bandeja y la tarjeta del KDS,
+ * donde el canal va al lado del número (saber de dónde sale un pedido es la primera pregunta de la
+ * cocina).
+ */
+export function orderTypePresentation(type: OrderType): {
+  label: string;
+  Icon: typeof Truck;
+} {
+  if (type === "delivery") return { label: "Delivery", Icon: Truck };
+  if (type === "pickup") return { label: "Retiro", Icon: ShoppingBag };
+  return { label: "Mesa", Icon: Table2 };
+}
 
 /** El día natural (`YYYY-MM-DD`) del negocio para un instante. */
 export function businessDate(date: Date, timeZone: string): string {

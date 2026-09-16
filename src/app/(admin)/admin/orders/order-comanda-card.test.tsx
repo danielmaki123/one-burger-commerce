@@ -90,9 +90,13 @@ describe("comanda: lo que la cocina necesita leer (B3)", () => {
   it("lista los items con su cantidad, sus modificadores y la nota del cliente", () => {
     renderCard();
 
-    expect(screen.getByText("2 × Hamburguesa Doble")).toBeTruthy();
-    expect(screen.getByText("(Término medio, Extra queso)")).toBeTruthy();
-    expect(screen.getByText("Sin cebolla")).toBeTruthy();
+    // La referencia del KDS separa la cantidad en un badge (`2x`, en ámbar y mono) del nombre del
+    // producto, y los modificadores van como sub-balas ámbar debajo.
+    expect(screen.getByText("2x")).toBeTruthy();
+    expect(screen.getByText("Hamburguesa Doble")).toBeTruthy();
+    expect(screen.getByText(/Término medio/)).toBeTruthy();
+    expect(screen.getByText(/Extra queso/)).toBeTruthy();
+    expect(screen.getByText(/Sin cebolla/)).toBeTruthy();
   });
 
   it("no muestra precios ni el PIN: eso es del mostrador", () => {

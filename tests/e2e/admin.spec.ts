@@ -62,7 +62,7 @@ test.describe("admin operations", () => {
 
     await expect(page).toHaveURL(/\/admin(?:\/orders)?$/);
     await page.goto("/admin/orders");
-    await expect(page.getByRole("heading", { name: "Comandas" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Comandas", exact: true })).toBeVisible();
 
     /**
      * B6 — la vuelta al panel, con la cuenta que encontró el problema.

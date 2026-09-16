@@ -52,12 +52,13 @@ export function Textarea({
         rows={props.rows ?? 3}
         aria-invalid={error ? true : undefined}
         aria-describedby={describedBy || undefined}
-        className={`flex min-h-24 w-full rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:cursor-not-allowed disabled:opacity-50 ${className}`}
+        className={`flex min-h-24 w-full rounded-md border border-line-control bg-surface-input px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:cursor-not-allowed disabled:opacity-50 ${className}`}
         {...props}
       />
       {description && <HelpText id={textareaId}>{description}</HelpText>}
       {error && (
-        <p id={errorId} className="text-xs font-medium text-danger-strong">
+        // `role="alert"`: el motivo del rechazo tiene que anunciarse, no solo verse.
+        <p id={errorId} role="alert" className="text-xs font-medium text-status-sla-text">
           {error}
         </p>
       )}

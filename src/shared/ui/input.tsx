@@ -33,12 +33,13 @@ export function Input({ className = "", label, error, description, id, ...props 
         id={inputId}
         aria-invalid={error ? true : undefined}
         aria-describedby={describedBy || undefined}
-        className={`flex h-11 w-full rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:border-brand disabled:cursor-not-allowed disabled:opacity-50 ${className}`}
+        className={`flex h-11 w-full rounded-md border border-line-control bg-surface-input px-3 py-2 text-sm text-foreground ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:border-brand disabled:cursor-not-allowed disabled:opacity-50 ${className}`}
         {...props}
       />
       {description && <HelpText id={inputId}>{description}</HelpText>}
       {error && (
-        <p id={errorId} className="text-xs font-medium text-red-500">
+        // `role="alert"`: un error de campo tiene que anunciarse, no solo verse.
+        <p id={errorId} role="alert" className="text-xs font-medium text-status-sla-text">
           {error}
         </p>
       )}
