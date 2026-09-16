@@ -3,13 +3,19 @@ import { expect, test, type Page } from "@playwright/test";
 import { tryLoginAsOwner } from "./helpers";
 
 /**
- * T1.3 — la escala del mock tiene que llegar al navegador de verdad.
+ * La escala tipográfica del **ADN vigente** (`DESIGN_REFERENCES.md` §3 Patrón 5) tiene que llegar al
+ * navegador de verdad.
  *
- * Que el token exista en `globals.css` no alcanza: Tailwind solo emite las
- * utilidades que alguien usa, y el tamaño, el interlineado y el peso viajan
- * juntos dentro del token. Estas pruebas montan un elemento de sondeo con la
- * clase y miden lo que el navegador calculó, en los dos anchos que exige el
+ * Que el token exista en `globals.css` no alcanza: Tailwind solo emite las utilidades que alguien usa,
+ * y el tamaño, el interlineado y el peso viajan juntos dentro del token. Estas pruebas montan un
+ * elemento de sondeo con la clase y miden lo que el navegador calculó, en los dos anchos que exige el
  * repo (375 px y 1280 px).
+ *
+ * **Cambio de contrato (2026-09-15)**: este archivo medía la escala del mock "Artisanal Appetite"
+ * (display 30 px en celular, 40 px en escritorio, weight 800 y el paso más chico en 12 px). El owner
+ * reemplazó ese ADN por el de `DESIGN_REFERENCES.md`: Hero **56 px** weight **700** en los dos anchos,
+ * Label **11 px** y caption 12 px. Los números de acá son los del ADN nuevo; los del mock quedaron
+ * viejos y por eso el spec fallaba.
  */
 type Measurement = {
   fontSize: string;
@@ -42,41 +48,88 @@ async function measure(page: Page, className: string): Promise<Measurement> {
   }, className);
 }
 
-test.describe("escala tipográfica del mock", () => {
-  test("en celular el paso display mide 30 px con su interlineado y su peso", async ({
-    page,
-  }) => {
+/** El valor de un token de `@theme`, leído del documento (no de un archivo). */
+async function themeToken(page: Page, name: string): Promise<string> {
+  return page.evaluate(
+    (token) =>
+      window.getComputedStyle(document.documentElement).getPropertyValue(token).trim(),
+    name,
+  );
+}
+
+/** `-1.68px` → `-1.68`, para comparar con tolerancia en vez de exigir el string exacto. */
+function px(value: string): number {
+  return Number.parseFloat(value);
+}
+
+test.describe("escala tipográfica del ADN", () => {
+  test("el hero mide 56 px en celular, con su interlineado y su peso", async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 812 });
     await page.goto("/");
 
     const style = await measure(page, "text-display");
 
-    expect(style.fontSize).toBe("30px");
-    expect(style.lineHeight).toBe("38px");
-    expect(style.fontWeight).toBe("800");
-    expect(style.letterSpacing).toBe("-0.6px");
+    expect(style.fontSize).toBe("56px");
+    expect(style.lineHeight).toBe("60px");
+    expect(style.fontWeight).toBe("700");
+    expect(px(style.letterSpacing)).toBeCloseTo(-1.68, 1);
   });
 
-  test("en escritorio la variante -lg sube el paso display a 40 px", async ({ page }) => {
+  test("en escritorio el hero sigue en 56 px y el Título mide 20 px", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.goto("/");
 
-    const style = await measure(page, "text-display lg:text-display-lg");
+    // El mock subía el hero a 40 px por breakpoint; el ADN fija el Hero en 56 px y deja
+    // `text-display-lg` como alias del mismo paso (la home pública lo usa en `lg:`).
+    const hero = await measure(page, "text-display lg:text-display-lg");
+    expect(hero.fontSize).toBe("56px");
+    expect(hero.fontWeight).toBe("700");
 
-    expect(style.fontSize).toBe("40px");
-    expect(style.lineHeight).toBe("48px");
-    expect(style.fontWeight).toBe("800");
-    expect(style.letterSpacing).toBe("-1.2px");
+    const headline = await measure(page, "text-headline");
+    expect(headline.fontSize).toBe("20px");
+    expect(headline.lineHeight).toBe("26px");
+    expect(headline.fontWeight).toBe("600");
   });
 
-  test("el paso más chico queda en 12 px, no en los 10 px del mock", async ({ page }) => {
+  test("el paso más chico es el Label del ADN (11 px) y el metadato queda en 12 px", async ({
+    page,
+  }) => {
     await page.goto("/");
 
-    const style = await measure(page, "text-label-xs");
+    const label = await measure(page, "text-label-xs");
+    expect(label.fontSize).toBe("11px");
+    expect(label.fontWeight).toBe("700");
+    expect(px(label.letterSpacing)).toBeCloseTo(0.88, 1);
 
-    // El mock usa 10 px en los badges; en un teléfono real no se lee.
-    expect(style.fontSize).toBe("12px");
-    expect(style.fontWeight).toBe("700");
+    // El ADN pide 11 px para los metadatos; el caption sube a 12 px porque a 11 px no se lee en un
+    // teléfono real. Es la única desviación del documento y está declarada en `globals.css`.
+    const caption = await measure(page, "text-caption");
+    expect(caption.fontSize).toBe("12px");
+  });
+
+  test("los nombres viejos apuntan a los tokens del ADN (el puente del modo oscuro)", async ({
+    page,
+  }) => {
+    await page.goto("/");
+
+    // Los 8 tokens del ADN todavía no tienen consumidor directo: Tailwind no emite `bg-success-soft`
+    // porque ninguna pantalla la usa (los paneles siguen con los alias viejos, que son ~220 clases), y
+    // `text-kpi` no lo usa nadie (los números grandes van en `text-3xl` hasta la Capa 1.6). Lo que sí
+    // se puede —y se debe— verificar en el navegador es el **puente**: el alias vale lo mismo que el
+    // `-soft`/`-strong` nuevo. Si ese puente se rompe, el modo oscuro deja de arreglar esas 220 clases.
+    for (const [alias, target] of [
+      ["--danger", "--danger-soft"],
+      ["--success", "--success-soft"],
+      ["--warning", "--warning-soft"],
+      ["--danger-foreground", "--danger-strong"],
+      ["--warning-foreground", "--warning-strong"],
+      ["--success-foreground", "--success-strong"],
+    ]) {
+      const value = await themeToken(page, alias);
+
+      expect(value, `${alias} no está declarado`).not.toBe("");
+      expect(value, `${alias} dejó de apuntar a ${target}`).toBe(await themeToken(page, target));
+    }
   });
 });
 
