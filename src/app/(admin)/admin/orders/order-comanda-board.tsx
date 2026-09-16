@@ -142,7 +142,7 @@ export function OrderComandaBoard({
         })}
       </div>
 
-      <div className="grid min-h-0 gap-3 lg:grid-cols-3">
+      <div className="grid min-h-0 min-w-0 gap-3 lg:grid-cols-3">
         {COMANDA_LANES.map((lane) => {
           const laneOrders = grouped[lane.id];
           // En celular se ve el carril elegido; en escritorio, los tres.
@@ -154,7 +154,7 @@ export function OrderComandaBoard({
             <section
               key={lane.id}
               aria-label={lane.label}
-              className={`min-h-0 flex-col gap-3 lg:max-h-[calc(100dvh-13rem)] lg:overflow-y-auto lg:pr-1 ${visibility}`}
+              className={`min-h-0 min-w-0 flex-col gap-3 lg:max-h-[calc(100dvh-13rem)] lg:overflow-y-auto lg:pr-1 ${visibility}`}
             >
               <h2
                 className={`sticky top-0 z-10 -mx-1 flex items-center justify-between gap-2 rounded-stitch-md border px-3 py-2 backdrop-blur ${style.header}`}

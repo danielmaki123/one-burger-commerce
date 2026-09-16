@@ -166,7 +166,7 @@ const OPEN_STATUSES: ReadonlySet<OrderStatus> = new Set<OrderStatus>([
 const CHIP_LIST_CLASS =
   "flex flex-wrap gap-2 bg-transparent p-0";
 const CHIP_TRIGGER_CLASS =
-  "min-h-11 flex-none whitespace-nowrap rounded-xl border border-border bg-card px-3";
+  "min-h-11 flex-none whitespace-nowrap rounded-stitch-md border border-line-subtle bg-surface-card px-3";
 
 export default function AdminOrdersPage() {
   const { timezone: timeZone } = useBusinessSettings();
@@ -770,11 +770,13 @@ export default function AdminOrdersPage() {
         <div
           data-testid="comandas-topbar"
           /* Pegajosa solo en escritorio: ahí las columnas scrollean **adentro** y la barra no se mueve.
-             En celular la barra envuelve en varias filas y, pegada, taparía el conmutador de carriles. */
-          className="z-30 -mx-3 border-b border-border bg-background/95 px-3 py-2 backdrop-blur sm:-mx-4 lg:sticky lg:top-0 md:-mx-7"
+             En celular la barra envuelve en varias filas y, pegada, taparía el conmutador de carriles.
+             Sin márgenes negativos: la barra vive en el mismo ancho que el tablero, así no empuja la
+             página a lo ancho (con `-mx-*` se pasaba 16 px del viewport a 1280). */
+          className="z-30 border-b border-line-subtle bg-canvas/95 py-2 backdrop-blur lg:sticky lg:top-0"
         >
           <div className="flex flex-wrap items-center gap-2">
-            <h1 className="font-heading text-base font-bold tracking-tight text-foreground">
+            <h1 className="font-heading text-st-h3 font-bold tracking-tight text-ink">
               Comandas
             </h1>
 

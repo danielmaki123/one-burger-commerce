@@ -137,7 +137,7 @@ export function OrderComandaCard({
         aria-label={`Abrir orden ${order.orderNumber}`}
         className="flex flex-col gap-3 rounded-stitch-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-line-focus"
       >
-        <header className="flex items-start justify-between gap-3">
+        <header className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1.5">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-1.5">
               <span className="font-mono text-st-h2 font-bold tracking-tight tabular-nums text-brand-primary">
