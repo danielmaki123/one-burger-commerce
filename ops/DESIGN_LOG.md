@@ -1,0 +1,23 @@
+# DESIGN_LOG.md
+
+> Registro de cambios de UI/UX. Un entry por cambio significativo.
+> Orden: más reciente arriba.
+
+## 2026-09-15 — C0-0 a C0-5 — Capa 0 cerrada: las reglas van al sistema, no al mockup
+**Tipo:** sistema (docs + tokens + registro + contratos)
+**Qué:** `DESIGN_REFERENCES.md` como fuente de verdad visual (10 patrones, los 8 tokens, las reglas del agente y el checklist, con su estado de aplicación); `AGENTS.md` en **300 líneas** con la sección de UI apuntando al ADN y al catálogo, el checklist con los **5 estados** y sin punteros rotos ni docs obsoletos citados; `DESIGN_SYSTEM.md` reescrito en **250 líneas** con las **20 reglas** de la sesión de Impeccable (§2) y las 5 composiciones reales con `ruta:línea` (§4); `src/shared/ui/registry.json` **v2** con `file`, `variants`, `sizes`, `use_when` y `dont_use_when` en sus 38 filas.
+**Por qué:** lo aprendido en el mockup de `/admin`, aplicado al mockup, hay que repetirlo 40 veces; aplicado al sistema, se aplica solo. El score del mockup (27/40, 0 P0) no sube con más pulido: sube cuando la regla vive en el sistema y la próxima pantalla nace cumpliéndola.
+**Archivos:** `DESIGN_REFERENCES.md`, `AGENTS.md`, `DESIGN_SYSTEM.md`, `src/shared/ui/registry.json`, `src/shared/contracts/ui-rules-contract.test.ts` (nuevo, 7 casos), `src/shared/contracts/registry-contract.test.ts`
+**Reglas nuevas:** 20 (`R1`-`R20`) con qué, por qué y cómo verificar: 3 de producto ("Tarde" = hora prometida de retiro · "Cobrado hoy" = `Payment` · si falta el dato el copy no miente), 12 de accesibilidad (foco propio ≥3:1, contraste ≥4.99:1, 44 px, sin scroll 320-1280, teclado, `aria-live`, reduced-motion), 3 de estados (5 por pantalla, esqueleto real, overlays sin desbordar) y 2 de performance (fuentes sin bloquear el paint, sin `@import` remoto).
+**Guardrails:** `ui-rules-contract.test.ts` falla si los 8 tokens no están en los dos modos **y** como utilidad, si el registro y el catálogo se separan, si `AGENTS.md` cita una sección que no existe, si los documentos pasan los topes de 300/250 líneas, si desaparece alguna de las 20 reglas o de las reglas de producto, o si vuelven los 3 docs obsoletos.
+**Y el E2E:** `tests/e2e/design-tokens.spec.ts` seguía midiendo la escala del mock viejo (30/40 px, weight 800): se reescribió contra el ADN (Hero 56, Título 20, Label 11 y el puente alias→`-soft`/`-strong` que hace funcionar el modo oscuro). El **E2E completo local queda 106 pasaron / 6 salteados / 0 fallos**; los 2-3 casos de checkout que fallaban de a ratos no eran del producto: el arnés no levantaba el servidor con `ORDER_CREATE_RATE_LIMIT=200`, así que medía el limitador de altas (10/min por IP), no el checkout.
+**Pendiente:** `R12` (borde de control 3:1, hoy 1.23-1.39:1) sigue esperando la decisión del owner porque `--border` es un token del ADN; los 6 primitivos de C1-1 quedan como `pending-migration` (0 consumidores) hasta las oleadas 1.6-1.8, igual que los 8 tokens del ADN, que hoy no tienen consumidor directo (el código usa los alias viejos).
+
+## 2026-09-15 — C1-4a — Inicio del panel: pipeline de Impeccable (3 fixes + 5 comandos)
+**Tipo:** mockup
+**Qué:** copy accesible y veraz ("Cobrado hoy" = plata cobrada + KPI "Por cobrar" + (i)), accesibilidad (role=alert, foco propio con halo, progressbar, aria-live, `main`, menú con teclado ARIA), layout móvil (la cola primero, clamp del hero), aterrizaje al sistema (Fraunces/Inter sin bloquear el render, radius 16/24, esqueleto con la estructura real, barra legible en dark) y el estado de calma "Nada pendiente".
+**Por qué:** la crítica inicial dio 25/40 con 4 P1 y un bug (la clase `.card` no existía); este mockup es la puerta de aprobación de C1-4a.
+**Archivos:** `ops/tasks/audit-ui/mockup-admin-inicio.html` (+20 capturas), `ops/DESIGN_LOG.md`
+**Comandos impeccable:** `critique` ×3 · `audit` · `adapt` · `clarify` · `layout` · `polish`
+**Score:** 25 → 24 → **27/40** (0 P0, 3 P1, 4 P2, 5 P3). Medido: 0 fallas de contraste de texto en 752 pares, 0 controles <44px, 0 overflow en 12 anchos, FCP 52 ms.
+**Pendiente:** el borde de control a 1.23–1.39:1 (conflicto ADN vs WCAG 1.4.11, es `R12`). Las otras dos decisiones (la regla de "tarde" y de dónde sale el conteo cobrado) las **resolvió el owner** en la Capa 0 y quedaron como reglas del sistema: `R1` y `R2` de `DESIGN_SYSTEM.md` §2.

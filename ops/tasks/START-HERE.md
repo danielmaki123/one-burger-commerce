@@ -33,11 +33,14 @@ hace falta nada de conversaciones anteriores. Si algo acá contradice a `AGENTS.
 > `test:e2e:prod:hosts` (los dos son de solo lectura).
 >
 > **Por dónde empezar:** hay **dos** frentes y el owner elige. **(a) El plan de UI `plan2uiux.md`**
-> (raíz, sin versionar): la **CAPA 0 ya está cerrada y pusheada** (`AGENTS.md` con la jerarquía de
-> fuentes y el checklist de UI, `DESIGN_SYSTEM.md` con los 5 ejemplos reales, `src/shared/ui/registry.json`
-> con su contrato y los tres docs obsoletos borrados). Sigue la **CAPA 1** —C1-1 primitivos faltantes,
-> C1-2 guardrails de paleta/tipografía/radios, C1-3 bloque `.dark`, **C1-4a el mockup de `/admin` (el
-> único stop humano del plan)** y C1-4b—, y se ejecuta de corrido hasta ese mockup. **(b) El plan
+> (raíz, sin versionar): la **CAPA 0 está cerrada y pusheada** —`DESIGN_REFERENCES.md` como fuente de
+> verdad visual, `AGENTS.md` en 300 líneas con la sección de UI y el checklist, `DESIGN_SYSTEM.md` en 250
+> líneas con las **20 reglas de interfaz** (producto, accesibilidad, estados y performance) y los 5
+> ejemplos reales, `src/shared/ui/registry.json` con la metadata por componente y los tres docs obsoletos
+> borrados—. De la **CAPA 1** ya están **C1-1** (los 6 primitivos que faltaban), **C1-2** (guardrails con
+> techo por archivo) y **C1-3** (los 16 tokens muertos); **C1-4a (el mockup de `/admin`, el único stop
+> humano del plan) está hecho y esperando la validación del owner**, y después va C1-4b (su
+> implementación). **(b) El plan
 > `plna.md` está completo y desplegado** (FASE 1, 2 y 3), así que por ese lado no hay tareas de plan en la
 > cola: lo que queda es la cola de [`ops/audit-backlog.md`](../audit-backlog.md), donde las **A-15 a
 > A-23** salen de las tres consultas del 2026-09-15 (caja/POS, fiscal/recibo, design system) y **cinco
@@ -120,10 +123,14 @@ denominación y moneda, refresco cada 3 s, recibo como imagen y mostrador prendi
 B6), `ea6be95` (A-07/A-08) y `982da3f` (A).
 
 **Estado (2026-09-15)**: el plan `plna.md` quedó **sin tareas pendientes**. El frente nuevo es el
-**plan de UI `plan2uiux.md`** (raíz, sin versionar), con su **CAPA 0 ya cerrada**: contexto en `AGENTS.md`
-(jerarquía de fuentes + checklist de UI), `DESIGN_SYSTEM.md` con 5 ejemplos reales, el registro
-`src/shared/ui/registry.json` con su contrato y los tres docs obsoletos borrados. Sigue la **CAPA 1**
-(hasta el mockup de `/admin`, el único stop humano del plan). Lo otro que sigue es lo que el owner elija
+**plan de UI `plan2uiux.md`** (raíz, sin versionar), con su **CAPA 0 cerrada del todo**: `DESIGN_REFERENCES.md`
+como ADN, `AGENTS.md` (300 líneas, sección de UI + checklist de 5 estados), `DESIGN_SYSTEM.md` (250 líneas,
+**20 reglas de interfaz** con qué/por qué/cómo verificar + 5 ejemplos reales con `ruta:línea`), el registro
+`src/shared/ui/registry.json` con `file`/`variants`/`sizes`/`use_when`/`dont_use_when`, los tres docs
+obsoletos borrados y el contrato `src/shared/contracts/ui-rules-contract.test.ts` que lo sostiene. De la
+**CAPA 1** ya están C1-1/C1-2/C1-3 y **C1-4a**: el mockup de `/admin` está hecho, con su pipeline de
+Impeccable corrido (**27/40**, 0 P0) y **esperando la validación del owner**, que es el único stop humano
+del plan. Lo otro que sigue es lo que el owner elija
 de la cola de auditoría, que creció con **tres consultas** que él pidió el 2026-09-15 (caja/POS,
 fiscal/recibo y design system) y que se respondieron **sin plan y sin código**: el inventario medido de las
 tres quedó resumido en `ops/project-state.md` §2 y desglosado como **A-15 a A-23** en el backlog.
@@ -151,10 +158,10 @@ registró el agente al cerrar las comandas. **A-15 a A-23** salen de las tres co
 
 **Trabajo técnico ya acotado (se puede atacar sin decisión de producto):** **A-16** historial de cajas
 (`listShifts` existe y el adaptador ya trae los conteos: falta la API/pantalla) · **A-18** persistir el
-arqueo por moneda (hoy `expectedByCurrency` vive solo en la respuesta) · **A-21** corregir cuatro
-documentos que mienten (números de `DESIGN_SYSTEM.md`, el puntero de `AGENTS.md:109` y el `shiftId` que
-`plna.md` da por hecho) · **A-22** guardrails de UI (paleta cruda, `fontFamily` inline, radios/sombras
-arbitrarios) · **A-13/A-14** deuda vieja.
+arqueo por moneda (hoy `expectedByCurrency` vive solo en la respuesta) · **A-22** guardrails de UI
+(paleta cruda, `fontFamily` inline, radios/sombras arbitrarios) · **A-13/A-14** deuda vieja.
+**A-21 quedó cerrado el 2026-09-15** con la Capa 0 del plan de UI: los documentos que mentían se
+reescribieron y un contrato lo verifica.
 
 **Antes de arrancar, preguntale al owner qué task quiere** (el ciclo de auditoría es una por vez, la
 primera de la cola, y cada una cierra entera). Los otros pendientes operativos siguen igual:
@@ -192,11 +199,20 @@ npm run test && npm run lint && npm run typecheck && npm run build && npm run se
 npx prisma generate   # solo si el build local falla por el cliente de Prisma
 ```
 
-Y la última línea de base conocida, para comparar: **2016 tests unitarios en 295 archivos**
-(2026-09-15, cierre de la CAPA 0 del plan de UI; antes: 2010 en 294), CI (`verify` + `contracts` +
-`migrations` + `container` + `publish`)
-verde en cada push, **E2E completo local 105 pasaron / 6 salteados / 0 fallos**, smoke productivo **7/7**,
-hosts **6/6** y la QA pública de solo lectura contra `menu.oneburgernic.com` **31 / 2 / 0**.
+Y la última línea de base conocida, para comparar: **2055 tests unitarios en 304 archivos**
+(2026-09-15, cierre de la Capa 0 del plan de UI; antes de esa ronda: 2016 en 295 y 2010 en 294), CI
+(`verify` + `contracts` + `migrations` + `container` + `publish`)
+verde en cada push, **E2E completo local 106 pasaron / 6 salteados / 0 fallos** (con
+`E2E_APEX_HOST=oneburgernic.com` y `E2E_APEX_PORT=3210` para que el apex no quede salteado), smoke
+productivo **7/7**, hosts **6/6** y la QA pública de solo lectura contra `menu.oneburgernic.com` **31 / 2 / 0**.
+
+⚠️ **El E2E local necesita Docker arriba** (Postgres) y **dos límites de tasa altos al levantar el
+servidor**: `ADMIN_LOGIN_RATE_LIMIT=200` y `ORDER_CREATE_RATE_LIMIT=200`. El alta pública de pedidos tiene
+tope de **10/min por IP** (`src/app/api/orders/route.ts:31`) y la suite crea varios pedidos seguidos desde
+127.0.0.1: sin esa variable, 2-3 casos de `public-order.spec.ts` fallan por corrida con «No pudimos
+confirmar el pedido» **y pasan en aislamiento** (13/13) — se estaba midiendo el limitador, no el checkout.
+Corré **una sola suite a la vez**: si la máquina está compilando o linteando en paralelo, algún caso se cae
+por el timeout de 5 s de `toHaveURL` o por el de 30 s al abrir la página.
 
 ⚠️ Tres advertencias del arnés, aprendidas a golpes (están en el runbook §2 con el detalle):
 

@@ -28,8 +28,10 @@
 > fiscal/recibo y design system) que se pidieron **sin plan y sin código**: son el inventario medido de
 > esos tres frentes, con su evidencia, para que el próximo plan salga de ahí y no de una re-lectura.
 > **A-15, A-17, A-19, A-20 y A-23 son decisiones de producto o de operación: no se implementan sin
-> respuesta del owner.** **A-16, A-18, A-21 y A-22 son trabajo técnico** ya acotado (historial de cajas,
-> persistencia del arqueo por moneda, corrección de cuatro documentos y guardrails de UI).
+> respuesta del owner.** **A-16, A-18 y A-22 son trabajo técnico** ya acotado (historial de cajas,
+> persistencia del arqueo por moneda y guardrails de UI). **A-21 se cerró el 2026-09-15** con la Capa 0
+> del plan de UI: los documentos del repo que mentían se reescribieron y hay un contrato que lo verifica
+> (el cuarto punto era de `plna.md`, que no está versionado).
 > **El plan `plna.md` (FASE 1-3) está completo y desplegado**: no queda trabajo pendiente de ese plan.
 
 ## 1. Índice
@@ -59,7 +61,7 @@ Estados: `reportado` · `a reproducir` · `en curso` · `cerrado` · `no-repro` 
 | A-18 | **El detalle por moneda del cierre no se persiste**: `expectedByCurrency` viaja solo en `meta` (`close-shift.ts:113`) y `Shift` no tiene columnas por moneda; recomputar un cierre viejo usa la **tasa de hoy**. Tampoco hay `Payment.shiftId` (`schema.prisma:732-753`): la atribución es por ventana de tiempo | deuda / dato | P3 | `reportado` (agente) | — |
 | A-19 | **No existen los movimientos de caja**: sin `CashMovement` (retiro/ingreso con motivo y responsable) ni configuración de caja en ningún lado; la propina en efectivo entra al cajón por decisión implícita (`close-shift.ts:143-144`) y la caja puede quedar abierta para siempre | decisión | P3 | `decisión-pendiente` (owner) | — |
 | A-20 | **No hay un solo campo fiscal** (`ruc`/`taxId`/`fiscal`/`legalName`/`documentNumber`: cero coincidencias en `prisma/` + `src/**`) y `Customer` solo tiene nombre + WhatsApp (`schema.prisma:59-69`). El recibo es un **JPG sin logo y sin RUC** (`src/shared/lib/receipt-image.ts`) y **solo se emite desde el POS al cobrar**, no desde el detalle del pedido | decisión | P3 | `decisión-pendiente` (owner) | — |
-| A-21 | **Documentación desactualizada en cuatro puntos verificados**: `DESIGN_SYSTEM.md §3.4:273` dice "2 literales de carga" (hay **18** distintos), `§2.1:164` dice 15 tokens huérfanos (hay **16**: también `--ring`, `globals.css:40`), `AGENTS.md:109` manda a `DESIGN_SYSTEM.md §5` por la lista de copy decorativo y **§5 no la tiene**, y `plna.md:546` afirma un `Payment.shiftId` que no existe | documentación | P3 | `reportado` (agente) | — |
+| A-21 | **Documentación desactualizada en cuatro puntos verificados**: `DESIGN_SYSTEM.md §3.4:273` decía "2 literales de carga" (había **18** distintos), `§2.1:164` decía 15 tokens huérfanos (había **16**: también `--ring`, `globals.css:40`), `AGENTS.md:109` mandaba a `DESIGN_SYSTEM.md §5` por la lista de copy decorativo y **§5 no la tenía**, y `plna.md:546` afirma un `Payment.shiftId` que no existe. **Cerrado el 2026-09-15** (Capa 0 del plan de UI): los tres puntos del repo se corrigieron reescribiendo `DESIGN_SYSTEM.md` (los números viejos ya no existen: §2.1 y §3.4 se reescribieron) y `AGENTS.md` (el puntero a `§5` ahora es verdadero), y un contrato falla si `AGENTS.md` cita una sección que no existe. El cuarto punto es de `plna.md`, un documento **no versionado**: queda anotado en A-18 | documentación | P3 | `cerrado` | commit de la Capa 0 |
 | A-22 | **Lo que no tiene guardrail se degrada**: la paleta cruda de Tailwind (**70** usos, igual que en TASK-201), `style={{ fontFamily }}` (**30**), `rounded-[Npx]` (**37** con 9 valores), ~20 sombras `rgba()` a mano y **46** valores arbitrarios de espaciado no tienen test; `DESIGN_SYSTEM.md §6:370` lo admite. En cambio lo que sí tiene contrato (`#hex`, controles crudos, registro de componentes) se mantiene estable | deuda | P3 | `reportado` (agente) | — |
 | A-23 | **Cuenta de prueba con rol `owner` en producción** (`tester@oneburgernic.com`, 3 locales): es un acceso total más. Decidir si se mantiene, se degrada (p. ej. a `cashier`) o se borra | dato / infra | P3 | `decisión-pendiente` (owner) | — |
 
@@ -403,16 +405,19 @@ Estados: `reportado` · `a reproducir` · `en curso` · `cerrado` · `no-repro` 
   si el recibo debe salir del detalle, y si se acepta imprimir/PDF con la hoja del sistema (sin
   dependencia nueva) o se agrega una librería.
 
-### A-21 · Cuatro documentos desactualizados (verificado) — `reportado` (agente)
+### A-21 · Cuatro documentos desactualizados (verificado) — `cerrado` (2026-09-15, Capa 0)
 
-| Documento | Dice | Realidad medida |
-|---|---|---|
-| `DESIGN_SYSTEM.md §3.4:273` | «2 literales distintos» de carga | **18** literales distintos de «Cargando…», con `...` y `…` mezclados |
-| `DESIGN_SYSTEM.md §2.1:164` | 15 tokens huérfanos | **16**: también `--ring` (`globals.css:40`; su único `var()` está en `globals.css:153`) |
-| `AGENTS.md:109` | «`DESIGN_SYSTEM.md` §5 lo lista» (copy decorativo) | §5 **no** contiene esa lista (0 menciones de «decorativ» en el archivo) |
-| `plna.md:546` | El cobro guarda «su `shiftId` nullable» | **No existe** `Payment.shiftId` (`schema.prisma:732-753`) |
+| Documento | Decía | Realidad medida | Estado |
+|---|---|---|---|
+| `DESIGN_SYSTEM.md §3.4:273` | «2 literales distintos» de carga | **18** literales distintos de «Cargando…», con `...` y `…` mezclados | **corregido**: §3.4 se reescribió y el número ya no existe |
+| `DESIGN_SYSTEM.md §2.1:164` | 15 tokens huérfanos | **16**: también `--ring` (`globals.css:40`; su único `var()` está en `globals.css:153`) | **corregido**: §1.7 dice **16** |
+| `AGENTS.md:109` | «`DESIGN_SYSTEM.md` §5 lo lista» (copy decorativo) | §5 **no** contenía esa lista | **corregido**: la lista está en `DESIGN_SYSTEM.md` §5 y un contrato lo verifica |
+| `plna.md:546` | El cobro guarda «su `shiftId` nullable» | **No existe** `Payment.shiftId` (`schema.prisma:732-753`) | **no se puede corregir acá**: `plna.md` no está versionado. La falta del campo sigue anotada en **A-18** |
 
-Arreglable sin decisión de producto (es corregir el texto o el código); el orden lo elige el owner.
+Los tres primeros se cerraron reescribiendo `DESIGN_SYSTEM.md` (484 → 250 líneas) y `AGENTS.md` (319 → 300):
+los números y el puntero roto desaparecieron con el texto viejo, y
+`src/shared/contracts/ui-rules-contract.test.ts` falla ahora si `AGENTS.md` cita una sección que no existe,
+si los documentos pasan su tope de líneas o si el catálogo deja de tener la lista de copy decorativo.
 
 ### A-22 · Lo que no tiene guardrail se degrada — `reportado` (agente)
 

@@ -2379,9 +2379,12 @@ medido, para no volver a medirlo:
   `AdminStatusDonut` sin uso) y **3** en `(public)/_components`. Sin primitivo de **Textarea, Toggle,
   Modal, Dropdown, Tooltip, Toast ni Skeleton**; la "sección" del panel no tiene primitivo (la misma
   cadena de clases **32 veces en 5 variantes**).
-- **Documentación que miente en cuatro puntos** (A-21): `DESIGN_SYSTEM.md §3.4:273` dice "2 literales de
-  carga" (hay 18), `§2.1:164` dice 15 huérfanos (hay 16), `AGENTS.md:109` manda a `§5` por la lista de
-  copy decorativo y **§5 no la tiene**, y `plna.md:546` afirma un `Payment.shiftId` que **no existe**.
+- **Documentación que mentía en cuatro puntos** (A-21): `DESIGN_SYSTEM.md §3.4:273` decía "2 literales de
+  carga" (había 18), `§2.1:164` decía 15 huérfanos (había 16), `AGENTS.md:109` mandaba a `§5` por la lista de
+  copy decorativo y **§5 no la tenía**, y `plna.md:546` afirma un `Payment.shiftId` que **no existe**. Los
+  tres primeros quedaron **corregidos por la reescritura de la Capa 0** (los números viejos ya no existen
+  porque §2.1 y §3.4 se reescribieron, y la lista de copy decorativo **está** en `DESIGN_SYSTEM.md` §5);
+  el cuarto es de `plna.md`, un documento **sin versionar**, y lo cubre A-18 del backlog.
 
 ### CAPA 0 del plan de UI (`plan2uiux.md`) — **cerrada (2026-09-15)**
 
@@ -2420,11 +2423,51 @@ repo está anotado como excepción en `AGENTS.md` ("Excepciones anotadas del pla
 
 **Verificación de la CAPA 0** (2026-09-15): `npm run test:contracts` **9/9**, `npm run test` **2016 tests
 en 295 archivos** (línea base previa: 2010 en 294), `lint`, `typecheck`, `build` y `security:secrets` en
-verde. Sin dependencias nuevas. **Lo que sigue es la CAPA 1**: C1-1 (los primitivos que faltan: Toggle,
-Modal, Textarea, Dropdown, Tooltip, Skeleton, Toast, HelpText), C1-2 (guardrails de paleta cruda,
-`fontFamily` inline y radios/sombras arbitrarios — hoy medidos en `DESIGN_SYSTEM.md` §6 como "todavía sin
-guardrail"), C1-3 (bloque `.dark` + tokens huérfanos), **C1-4a (el mockup de `/admin`, el único stop
-humano del plan)** y C1-4b (su implementación).
+verde. Sin dependencias nuevas.
+
+#### CAPA 0 **re-verificada y cerrada del todo** (2026-09-15, sesión de reencuadre)
+
+El owner reencuadró el trabajo: *"los aprendizajes de impeccable sobre el mockup de `/admin` NO se aplican
+al mockup; se aplican como **REGLAS en el sistema**, para que valgan para TODAS las páginas. Si las
+aplicamos al mockup, después hay que re-aplicarlas 40 veces; si las aplicamos al sistema, se aplican
+solas."* Eso agregó **C0-2b** (las 20 reglas) y volvió a pasar por C0-0 a C0-5 con topes de tamaño:
+
+- **C0-0 · `DESIGN_REFERENCES.md`**: ya existía con los 10 patrones, los tokens y el checklist; se le
+  agregó el **estado de aplicación** de sus 6 puntos (los seis hechos) para que no se lea como trabajo
+  pendiente. Es la **fuente de verdad visual** y gana sobre cualquier otro doc.
+- **C0-1 · `AGENTS.md`**: **319 → 300 líneas** (el tope). La sección de UI ahora dice que **las 20 reglas
+  de interfaz de `DESIGN_SYSTEM.md` §2 se aplican a toda pantalla nueva**, el registro se describe con sus
+  5 campos, el checklist pasó a **5 estados** y sumó el ítem de accesibilidad (foco propio ≥3:1, 44 px,
+  contraste ≥4.99:1, sin scroll horizontal 320-1280). Se fueron la cita a `.dark`, los nombres de los
+  documentos obsoletos y los números que envejecían (26 componentes, 111 HTML crudos, 70 usos de paleta).
+- **C0-2 y C0-2b · `DESIGN_SYSTEM.md`**: **484 → 250 líneas** (el tope del plan), con el catálogo completo
+  (20 primitivos + 12 archivos de `_components/` con su "cuándo SÍ / cuándo NO"), los 5 ejemplos reales y
+  las **20 reglas nuevas** (`R1`-`R20`) con **qué, por qué y cómo verificar**: 3 de producto, 12 de
+  accesibilidad, 3 de estados y 2 de performance. Las dos decisiones que el owner tenía pendientes quedan
+  resueltas **como regla**: "Tarde" = pasó la **hora prometida de retiro** (`pickupTime`), no `createdAt`;
+  "Cobrado hoy" = **plata cobrada** (`Payment`), no `completedOrderValue`; y si el backend no tiene el
+  dato, **el copy no miente** (se usa el nombre real y se anota el pendiente).
+- **C0-3 · `registry.json` v2**: **38 filas** con los cinco campos que pide C0-3 (`file`, `variants`,
+  `sizes`, `use_when`, `dont_use_when`) y `field_notes` que los explica; 11 filas con eje de variantes y 2
+  con eje de tamaño, **medidos en el código** (un contrato exige que cada variante declarada exista como
+  literal en el archivo). **Hallazgo**: los 6 primitivos de C1-1 (Modal, Toggle, Textarea, Skeleton,
+  Toast, HelpText) tienen **0 consumidores** en `src/app` —`git grep` sobre los 20 primitivos—, así que
+  pasan de `in-use` a un estado nuevo y honesto: **`pending-migration`** (existe, tiene test y es el
+  destino de la migración de la Capa 1.6-1.8), distinto de `orphan`.
+- **C0-4 · los 5 ejemplos**: son **KPI, alerta, formulario con error, lista con estado vacío y modal de
+  confirmación**, con `ruta:línea`. El quinto **no existe** como composición real y el documento lo dice
+  con la evidencia (0 consumidores de `Modal`, 4 `window.confirm` vivos) en vez de inventar un ejemplo.
+- **C0-5 · docs obsoletos**: los tres siguen borrados del disco y un contrato falla si reaparecen.
+- **Guardrails nuevos**: `src/shared/contracts/ui-rules-contract.test.ts` (**7 casos**): los 8 tokens del
+  ADN en los dos modos **y expuestos como utilidad**, el registro cubriendo los primitivos y el catálogo
+  citando cada fila, los `§` que cita `AGENTS.md` existiendo de verdad (la clase de error de A-21), los
+  topes de 300/250 líneas, las reglas de Tarde/Cobrado/5 estados escritas, las 20 reglas con sus tres
+  columnas y el ADN con sus 10 patrones. `registry-contract.test.ts` se reescribió para el esquema v2.
+
+**La CAPA 1 ya está arrancada y avanzada**: C1-1 (seis primitivos), C1-2 (guardrails con techo por
+archivo) y C1-3 (tokens muertos) están **cerradas**, y **C1-4a** (el mockup de `/admin`) está **hecho y
+esperando la validación del owner**, que es el único stop humano del plan; después van C1-4b (su
+implementación) y las capas 1.5 a 1.9.
 
 ### CAPA 1 · C1-1 — los primitivos que faltaban — **cerrada (2026-09-15, `36beec6`)**
 
@@ -2679,7 +2722,9 @@ specs con estado compartido; es deuda del arnés, no del producto.
 | 37 | **C0-1 y C0-2: el contexto de UI en los dos documentos** | **Cerradas el 2026-09-15** | `plan2uiux.md` CAPA 0. `AGENTS.md`: **jerarquía de fuentes** (UI manda `DESIGN_SYSTEM.md`; lo demás, `AGENTS.md`; los skills de diseño son referencia secundaria y nunca ganan al sistema) y el **checklist de UI de 9 puntos** antes de cerrar una tarea con pantalla. `DESIGN_SYSTEM.md`: §3 declara el espejo `registry.json`, §4 queda con **5 ejemplos reales con `ruta:línea`** verificadas contra el código en producción, y §7 se reescribe por C0-5. Las tres excepciones que el plan choca con la gobernanza (el stop humano de C1-4a, el alias `test:contracts` y el espejo `registry.json` en vez de un registro único) quedaron anotadas en `AGENTS.md`. |
 | 38 | **C0-3 y C0-4: el registro de componentes y sus 5 ejemplos** | **Cerradas el 2026-09-15** | `plan2uiux.md` CAPA 0. `src/shared/ui/registry.json` (nuevo, **31 filas** con capa, tipo, estado, exports y los dos criterios) + guardrail `src/shared/contracts/registry-contract.test.ts` (**+6 tests**: forma, exports reales, sin duplicados, rutas existentes y **todo archivo de UI registrado**). Es **espejo declarado** de `DESIGN_SYSTEM.md` §3, que sigue siendo el catálogo que exige `ui-contract.test.ts`. **+6 tests** (2016 en 295 archivos). |
 | 39 | **C0-5: los tres documentos obsoletos, borrados** | **Cerrada el 2026-09-15** | `plan2uiux.md` CAPA 0. `design/DESIGN.md`, `design/DESIGN_SYSTEM.md` y `docs/ui/admin-design-system.md` **borrados del disco**; los tres vivían en carpetas enteras en `.gitignore`, así que **no hay cambio versionado que mostrar** (el plan suponía que sí). El resto de `design/` y los otros 8 `docs/ui/*.md` no se tocaron. |
-| 40 | **CAPA 1 del plan de UI (`plan2uiux.md`)** | **Pendiente (siguiente bloque)** | C1-1 primitivos que faltan (Toggle, Modal, Textarea, Dropdown, Tooltip, Skeleton, Toast, HelpText) · C1-2 guardrails de paleta cruda, `fontFamily` inline y radios/sombras arbitrarios (hoy "sin guardrail automático" en `DESIGN_SYSTEM.md` §6) · C1-3 bloque `.dark` + tokens huérfanos · **C1-4a el mockup de `/admin` (único stop humano del plan)** · C1-4b su implementación con gates. Después: CAPA 1.5 (auditoría de páginas), 1.6/1.7/1.8 (oleadas de refactor) y 1.9 (legadas). |
+| 40 | **C0-0 y C0-1: el ADN visual y el contexto en `AGENTS.md`** | **Cerradas el 2026-09-15** | `plan2uiux.md` CAPA 0, **re-verificada y terminada del todo** en la sesión de reencuadre. `DESIGN_REFERENCES.md` (raíz, versionado) queda como **fuente de verdad visual** —los 10 patrones con su ejemplo correcto e incorrecto, los tokens base más los 8 nuevos (`-soft`/`-strong`), las reglas que el agente sigue siempre, el **checklist antes de terminar UI** y el estado de aplicación de sus 6 puntos— y gana sobre cualquier otro documento. `AGENTS.md` bajó de **319 a 300 líneas** (su tope): la sección de UI apunta al ADN y al catálogo, dice que **las 20 reglas de interfaz se aplican a toda pantalla nueva**, describe el registro con sus 5 campos, el checklist pasó de 4 a **5 estados** y sumó el ítem de accesibilidad (foco propio ≥3:1, 44 px, contraste ≥4.99:1, sin scroll 320-1280 px); se fueron la cita a `.dark`, los nombres de los documentos obsoletos y los números que envejecían. |
+| 41 | **C0-2, C0-2b y C0-4: el catálogo en 250 líneas, con las 20 reglas** | **Cerradas el 2026-09-15** | `DESIGN_SYSTEM.md` pasó de **484 a 250 líneas** (el tope del plan): frontmatter declarativo, los 10 patrones en una tabla, los tokens (los 8 del ADN con su par, los alias viejos, cuándo usar qué color, la escala de 5 niveles, radios/sombras/espaciado y los 16 muertos), el **catálogo con "cuándo SÍ / cuándo NO"** de los 20 primitivos de `src/shared/ui/` y los 12 archivos de `_components/`, los 5 ejemplos reales con `ruta:línea`, el `Do NOT` (ahora **con** la lista de copy decorativo, que era el puntero roto de A-21) y los guardrails. **C0-2b**: las **20 reglas nuevas** (`R1`-`R20`) que salieron de medir el mockup —3 de producto, 12 de accesibilidad, 3 de estados, 2 de performance— cada una con **qué, por qué y cómo verificar**; las dos decisiones que el owner tenía pendientes quedan como regla ("Tarde" = hora prometida de retiro y no `createdAt`; "Cobrado hoy" = `Payment` y no `completedOrderValue`) más la tercera: si el backend no tiene el dato, **el copy no miente**. **C0-4**: los 5 ejemplos son **KPI, alerta, formulario con error, lista con estado vacío y modal de confirmación**; el quinto **no existe** como composición real y el documento lo dice con la evidencia (0 consumidores de `Modal`, 4 `window.confirm` vivos) en vez de inventarlo. |
+| 42 | **CAPA 1 del plan de UI (`plan2uiux.md`)** | **C1-1, C1-2 y C1-3 cerradas; C1-4a esperando al owner** | C1-1 (los 6 primitivos que faltaban, `36beec6`), C1-2 (guardrails con techo por archivo, `41876bb`) y C1-3 (los 16 tokens muertos, `55a4986`) están cerradas. **C1-4a** —el mockup de `/admin`, el **único stop humano del plan**— está hecho y con su pipeline de Impeccable corrido (`e4b0201`, `5e1447d`, `64c4ad8`): espera la validación del owner antes de C1-4b. Después: CAPA 1.5 (auditoría de páginas), 1.6/1.7/1.8 (oleadas de refactor que migran las pantallas a los primitivos nuevos y a los nombres del ADN) y 1.9 (legadas). |
 
 ## 5. Cómo continuar
 
@@ -2702,7 +2747,12 @@ DATABASE_URL="postgresql://postgres:postgres@127.0.0.1:5432/oneburger?schema=pub
 # ADMIN_LOGIN_RATE_LIMIT alto: la suite entra al admin muchas veces y con el límite de
 # producción (10/min por IP) dos corridas seguidas se pisan y el test del manager falla
 # por rate limit en vez de por permisos.
-DATABASE_URL="..." APP_ENV=production NODE_ENV=production ADMIN_LOGIN_RATE_LIMIT=200 npx next start -p 3210
+# ORDER_CREATE_RATE_LIMIT alto, por el mismo motivo y con el mismo síntoma: el alta pública de
+# pedidos tiene tope de 10/min por IP (`src/app/api/orders/route.ts:31`) y la suite crea varios
+# pedidos seguidos desde 127.0.0.1. Sin esta variable, 2-3 casos de `public-order.spec.ts` fallan
+# por corrida con «No pudimos confirmar el pedido» **y pasan en aislamiento**: se estaba midiendo
+# el limitador, no el checkout.
+DATABASE_URL="..." APP_ENV=production NODE_ENV=production ADMIN_LOGIN_RATE_LIMIT=200 ORDER_CREATE_RATE_LIMIT=200 npx next start -p 3210
 # E2E_APEX_HOST hace que el navegador resuelva el dominio de marca contra el server local, así
 # que la suite verifica TAMBIÉN el rewrite del apex (el landing en `/` y el botón al subdominio),
 # que es lo que en el suite quedaba salteado. Sale gratis: el server ya está en 3210.
