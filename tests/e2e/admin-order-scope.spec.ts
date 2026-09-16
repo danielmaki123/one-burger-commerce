@@ -171,7 +171,9 @@ test.describe("alcance por sucursal del staff (A)", () => {
       // 1) Sucursal de prueba y un pedido en cada sucursal (uno por local, cliente distinto).
       await ensureBranch(page);
       await placeOrder(page, CUSTOMER_BRANCH, BRANCH);
-      await placeOrder(page, CUSTOMER_MAIN);
+      // El pedido del principal se manda **al principal**: con dos locales activos, cuál queda
+      // seleccionado por defecto depende del orden del catálogo y el test no puede depender de eso.
+      await placeOrder(page, CUSTOMER_MAIN, "Principal");
 
       const orders = await orderIdsByCustomer(page);
       mainOrderId = orders.find((order) => order.customerName === CUSTOMER_MAIN)?.id ?? "";
@@ -202,15 +204,19 @@ test.describe("alcance por sucursal del staff (A)", () => {
       await page.goto(`/admin/orders/${mainOrderId}`);
       await expect(page.getByText(/de otra sucursal/)).toBeVisible();
 
-      // 5) El dueño sigue viendo las dos sucursales.
+      // 5) El dueño sigue viendo las dos sucursales. Se comprueba por la API y no en el tablero:
+      //    cerca de la medianoche, un pedido del principal con minutos de preparación cae en el turno
+      //    de mañana y el tablero de «Hoy» no lo muestra (el alcance es el mismo dato).
       await logIn(page, E2E_ADMIN_EMAIL, ADMIN_PASSWORD);
-      await page.goto("/admin/orders");
-      await expect(
-        page.getByRole("link", { name: /Abrir orden/ }).filter({ hasText: CUSTOMER_MAIN }).first(),
-      ).toBeVisible();
-      await expect(
-        page.getByRole("link", { name: /Abrir orden/ }).filter({ hasText: CUSTOMER_BRANCH }).first(),
-      ).toBeVisible();
+      const ownerOrders = await orderIdsByCustomer(page);
+      expect(
+        ownerOrders.some((order) => order.customerName === CUSTOMER_MAIN),
+        "el dueño tiene que ver el pedido del principal",
+      ).toBe(true);
+      expect(
+        ownerOrders.some((order) => order.customerName === CUSTOMER_BRANCH),
+        "el dueño tiene que ver el pedido de la sucursal",
+      ).toBe(true);
 
       // 6) Un usuario **sin asignar** ve todas: el admin lo dice explícito.
       await createKitchen(page, { name: AGENT_NAME, email: AGENT_EMAIL });

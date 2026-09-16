@@ -51,7 +51,6 @@ const LEGACY_RAW_CONTROLS: Record<string, number> = {
   // `locations/page.tsx` bajó a 0 en la Fase 2: la fila pasó a `location-row.tsx` con los primitivos
   // (`Button` + `Link`) y el formulario a `location-form-sheet.tsx`.
   "src/app/(admin)/admin/orders/page.tsx": 4,
-  "src/app/(admin)/admin/users/users-client.tsx": 4,
   "src/app/(public)/activity/page.tsx": 4,
   "src/app/(admin)/admin/inventory/receive/page.tsx": 3,
   "src/app/(admin)/admin/inventory/waste/page.tsx": 3,

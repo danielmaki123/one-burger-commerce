@@ -131,9 +131,11 @@ test.describe("locales del admin", () => {
     await expect(page.getByText("Local creado.")).toBeVisible();
     const row = page.getByRole("button", { name: `Editar local ${NAME}` });
     await expect(row).toBeVisible();
-    // La fila muestra la ciudad y la preparación; editar es una acción aparte de la fila.
-    await expect(page.getByText("Diriamba")).toBeVisible();
-    await expect(page.getByText(/preparación 30 min/)).toBeVisible();
+    // La fila muestra la ciudad y la preparación; editar es una acción aparte de la fila. Se acota a
+    // la fila del local nuevo: otra corrida puede haber dejado una sucursal en la misma ciudad.
+    const createdRow = page.getByRole("article").filter({ hasText: NAME });
+    await expect(createdRow).toContainText("Diriamba");
+    await expect(createdRow).toContainText("preparación 30 min");
 
     // El formulario avisa si el identificador ya está en uso.
     await page.getByRole("button", { name: "Nuevo local" }).click();

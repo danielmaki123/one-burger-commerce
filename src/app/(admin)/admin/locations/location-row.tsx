@@ -46,7 +46,7 @@ export function LocationRow({
   const status = locationStatus(location);
 
   return (
-    <div className="flex flex-col gap-2 border-t border-line-subtle px-3 py-3 first:border-t-0 md:flex-row md:items-center md:justify-between md:px-4">
+    <article className="flex flex-col gap-2 border-t border-line-subtle px-3 py-3 first:border-t-0 md:flex-row md:items-center md:justify-between md:px-4">
       <div className="flex min-w-0 items-start gap-3">
         <span
           aria-hidden="true"
@@ -128,6 +128,6 @@ export function LocationRow({
           Catálogo
         </Link>
       </div>
-    </div>
+    </article>
   );
 }

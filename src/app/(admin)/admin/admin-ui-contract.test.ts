@@ -418,6 +418,38 @@ describe("admin ui contracts", () => {
     expect(rowSource).toContain("font-mono");
   });
 
+  it("el panel de Usuarios usa el sistema y conserva los accesos nombrados", () => {
+    const legacy = [
+      'bg-card"',
+      'border-border"',
+      "text-foreground",
+      "text-muted-foreground",
+      "text-[",
+      "rounded-2xl",
+      "shadow-sm",
+    ];
+
+    for (const file of [
+      "users/users-client.tsx",
+      "users/user-row.tsx",
+      "users/user-create-form.tsx",
+    ]) {
+      const source = readAdminFile(file);
+
+      for (const legacyClass of legacy) {
+        expect(source, `${file} usa ${legacyClass}`).not.toContain(legacyClass);
+      }
+    }
+
+    const rowSource = readAdminFile("users/user-row.tsx");
+    expect(rowSource).toContain("aria-label={`Rol de ${user.name}`}");
+    expect(rowSource).toContain("aria-label={`Revocar acceso de ${user.name}`}");
+    expect(rowSource).toContain("Cambiar sucursales de {user.name}");
+    expect(readAdminFile("users/user-create-form.tsx")).toContain(
+      'aria-label="Rol del nuevo usuario"',
+    );
+  });
+
   it("usa compact operational rows for secondary admin lists", () => {
     const tablesSource = readAdminFile("tables/page.tsx");
     const zonesSource = readAdminFile("delivery-zones/page.tsx");
