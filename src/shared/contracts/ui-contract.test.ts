@@ -46,7 +46,6 @@ const LEGACY_RAW_CONTROLS: Record<string, number> = {
   "src/app/(admin)/admin/menu/categories/page.tsx": 9,
   "src/app/(admin)/admin/menu/marketing-blocks/page.tsx": 8,
   "src/app/(admin)/admin/menu/products/[id]/page.tsx": 8,
-  "src/app/(admin)/admin/settings/settings-client.tsx": 5,
   "src/app/(public)/page.tsx": 5,
   // `locations/page.tsx` bajó a 0 en la Fase 2: la fila pasó a `location-row.tsx` con los primitivos
   // (`Button` + `Link`) y el formulario a `location-form-sheet.tsx`.
@@ -105,7 +104,6 @@ const LEGACY_HEX: Record<string, number> = {
   "src/app/(landing)/landing/landing.css": 9,
   "src/app/(admin)/admin/menu/categories/page.tsx": 2,
   "src/app/(admin)/admin/inventory/receive/page.tsx": 1,
-  "src/app/(admin)/admin/settings/settings-client.tsx": 1,
   "src/app/(public)/reservations/reservation-success-view.tsx": 1,
   "src/app/(public)/success/[orderId]/order-success-view.tsx": 1,
 };

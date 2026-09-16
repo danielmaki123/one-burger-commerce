@@ -5,6 +5,7 @@ import Link from "next/link";
 
 import { formatBusinessHoursSummary } from "@/modules/business-settings/domain/business-hours-format";
 import {
+  BRAND_FOREGROUND_COLOR,
   checkBusinessSettingsContrast,
   type BusinessSettingsColors,
 } from "@/modules/business-settings/domain/color-contrast";
@@ -19,8 +20,10 @@ import {
 import { BrandMark } from "@/shared/ui/brand-mark";
 import type { BusinessSettingsValue } from "@/shared/lib/business-settings";
 import { Button } from "@/shared/ui/button";
+import { ColorInput } from "@/shared/ui/color-input";
 import { Input } from "@/shared/ui/input";
 import { Checkbox } from "@/shared/ui/checkbox";
+import { Select } from "@/shared/ui/select";
 import { PickupPreviewPanel } from "./pickup-preview";
 
 /**
@@ -53,6 +56,17 @@ export const COLOR_FIELDS: {
   { field: "surfaceColor", label: "Fondo de las tarjetas" },
   { field: "accentColor", label: "Acento suave", hint: "Tintes y fondos secundarios." },
 ];
+
+/**
+ * La tipografía elegida aplicada a la vista previa. Es un mapa de datos y no un template de CSS: la
+ * regla del repo prohíbe un `fontFamily` con comilla inline, y así el valor sigue siendo la variable
+ * de `next/font` (`var(--font-jakarta)`).
+ */
+const FONT_FAMILY_STYLE: Record<BusinessSettingsDraft["headingFont"], string> = {
+  fraunces: "var(--font-fraunces)",
+  inter: "var(--font-inter)",
+  jakarta: "var(--font-jakarta)",
+};
 
 type FieldErrors = Record<string, string>;
 
@@ -115,10 +129,10 @@ function SettingsSection({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-      <h2 className="font-heading text-lg font-semibold text-foreground">{title}</h2>
+    <section className="rounded-stitch-lg border border-line-subtle bg-surface-card p-5 shadow-elevation-1">
+      <h2 className="font-heading text-lg font-semibold text-ink">{title}</h2>
       {description ? (
-        <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+        <p className="mt-1 text-st-body text-ink-secondary">{description}</p>
       ) : null}
       <div className="mt-4 grid gap-4 sm:grid-cols-2">{children}</div>
     </section>
@@ -145,26 +159,27 @@ function SettingsField({
   return (
     <div className={className ?? "space-y-1.5"}>
       <div className="flex items-center justify-between gap-2">
-        <label htmlFor={id} className="text-sm font-medium text-foreground">
+        <label htmlFor={id} className="text-st-body font-medium text-ink">
           {label}
         </label>
         {onReset ? (
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            className="min-h-11 px-2 text-st-caption font-medium text-ink-secondary underline-offset-2 hover:text-ink hover:underline"
             onClick={onReset}
-            className="min-h-11 rounded-md px-2 text-xs font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
           >
             Restablecer
-          </button>
+          </Button>
         ) : null}
       </div>
       {children}
       {error ? (
-        <p role="alert" className="text-xs font-medium text-danger-strong">
+        <p role="alert" className="text-st-caption font-medium text-status-sla-text">
           {error}
         </p>
       ) : hint ? (
-        <p className="text-xs text-muted-foreground">{hint}</p>
+        <p className="text-st-caption text-ink-secondary">{hint}</p>
       ) : null}
     </div>
   );
@@ -255,10 +270,10 @@ export default function AdminSettingsClientPage({
   return (
     <form onSubmit={handleSubmit} className="space-y-6 pb-24">
       <header className="space-y-1">
-        <h1 className="font-heading text-2xl font-semibold text-foreground">
+        <h1 className="font-heading text-2xl font-semibold text-ink">
           Personalización del negocio
         </h1>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-st-body text-ink-secondary">
           Todo lo que se muestra en el sitio público sale de acá. Los cambios se ven al
           instante, sin volver a desplegar.
         </p>
@@ -514,11 +529,11 @@ export default function AdminSettingsClientPage({
         description="Son informativos: se muestran en el footer y en el checkout."
       >
         <div className="sm:col-span-2">
-          <p className="rounded-xl border border-border bg-accent/60 px-4 py-3 text-sm font-medium text-foreground">
+          <p className="rounded-stitch-md border border-line-subtle bg-accent/60 px-4 py-3 text-st-body font-medium text-ink">
             {hoursSummary}
           </p>
           {fieldErrors.businessHours ? (
-            <p role="alert" className="mt-2 text-xs font-medium text-danger-strong">
+            <p role="alert" className="mt-2 text-st-caption font-medium text-status-sla-text">
               {fieldErrors.businessHours}
             </p>
           ) : null}
@@ -527,15 +542,15 @@ export default function AdminSettingsClientPage({
             {WEEKDAY_KEYS.map((weekday) => (
               <div
                 key={weekday}
-                className="flex flex-wrap items-end gap-3 rounded-xl border border-border bg-background/60 p-3"
+                className="flex flex-wrap items-end gap-3 rounded-stitch-md border border-line-subtle bg-canvas/60 p-3"
               >
-                <span className="min-w-24 text-sm font-medium text-foreground">
+                <span className="min-w-24 text-st-body font-medium text-ink">
                   {WEEKDAY_LABELS[weekday]}
                 </span>
                 <div className="space-y-1.5">
                   <label
                     htmlFor={`hours-${weekday}-open`}
-                    className="block text-xs text-muted-foreground"
+                    className="block text-st-caption text-ink-secondary"
                   >
                     Abre
                   </label>
@@ -551,7 +566,7 @@ export default function AdminSettingsClientPage({
                 <div className="space-y-1.5">
                   <label
                     htmlFor={`hours-${weekday}-close`}
-                    className="block text-xs text-muted-foreground"
+                    className="block text-st-caption text-ink-secondary"
                   >
                     Cierra
                   </label>
@@ -753,7 +768,7 @@ export default function AdminSettingsClientPage({
             (la migración crea el primario) manda el del local y este no cambiaba nada.
             Los valores guardados siguen viajando en el payload porque son el respaldo
             del servidor cuando el negocio no tiene ningún local. */}
-        <p className="text-sm text-muted-foreground sm:col-span-2">
+        <p className="text-st-body text-ink-secondary sm:col-span-2">
           Si aceptás pedidos, el horario de retiro y los minutos de preparación se
           configuran por local:{" "}
           <Link href="/admin/locations" className="font-semibold text-brand hover:underline">
@@ -768,7 +783,7 @@ export default function AdminSettingsClientPage({
         description="Colores y tipografías del sitio. Los avisos de contraste no bloquean el guardado."
       >
         <div className="space-y-2 sm:col-span-2">
-          <p className="text-sm font-medium text-foreground">Presets</p>
+          <p className="text-st-body font-medium text-ink">Presets</p>
           <div className="flex flex-wrap gap-2">
             {COLOR_PRESETS.map((preset) => {
               const isActive = Object.entries(preset.colors).every(
@@ -777,19 +792,18 @@ export default function AdminSettingsClientPage({
               );
 
               return (
-                <button
+                <Button
                   key={preset.id}
                   type="button"
+                  variant="outline"
                   aria-pressed={isActive}
                   title={preset.description}
                   onClick={() => {
                     setDraft((current) => ({ ...current, ...preset.colors }));
                     setStatus("idle");
                   }}
-                  className={`flex min-h-11 items-center gap-2 rounded-xl border px-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${
-                    isActive
-                      ? "border-brand bg-accent text-foreground"
-                      : "border-border bg-card text-foreground hover:border-brand/40"
+                  className={`min-h-11 gap-2 ${
+                    isActive ? "border-brand-primary bg-brand-primary-muted text-ink" : ""
                   }`}
                 >
                   <span className="flex gap-0.5" aria-hidden="true">
@@ -800,13 +814,13 @@ export default function AdminSettingsClientPage({
                     ].map((color) => (
                       <span
                         key={color}
-                        className="h-4 w-4 rounded-full border border-border"
+                        className="h-4 w-4 rounded-full border border-line-subtle"
                         style={{ backgroundColor: color }}
                       />
                     ))}
                   </span>
                   {preset.label}
-                </button>
+                </Button>
               );
             })}
           </div>
@@ -822,12 +836,11 @@ export default function AdminSettingsClientPage({
             onReset={() => resetField(field)}
           >
             <div className="flex items-center gap-2">
-              <input
+              <ColorInput
                 id={`settings-${field}`}
-                type="color"
+                aria-label={`${label} en muestra`}
                 value={draft[field]}
                 onChange={(event) => setField(field, event.target.value)}
-                className="h-11 w-14 shrink-0 cursor-pointer rounded-lg border border-input bg-card p-1"
               />
               <Input
                 aria-label={`${label} en hexadecimal`}
@@ -841,9 +854,9 @@ export default function AdminSettingsClientPage({
         ))}
 
         <div className="space-y-2 sm:col-span-2">
-          <p className="text-sm font-medium text-foreground">Contraste</p>
+          <p className="text-st-body font-medium text-ink">Contraste</p>
           {contrastWarnings.length === 0 ? (
-            <p className="rounded-xl border border-border bg-success/60 px-4 py-3 text-sm text-success-foreground">
+            <p className="rounded-stitch-md border border-status-ready-border bg-status-ready-bg px-4 py-3 text-st-body text-status-ready-text">
               Los colores elegidos cumplen el contraste mínimo (WCAG AA). ✓
             </p>
           ) : (
@@ -851,7 +864,7 @@ export default function AdminSettingsClientPage({
               {contrastWarnings.map((warning) => (
                 <li
                   key={warning.id}
-                  className="rounded-xl border border-warning-strong/50 bg-warning/70 px-4 py-3 text-sm text-warning-foreground"
+                  className="rounded-stitch-md border border-status-pending-border bg-status-pending-bg px-4 py-3 text-st-body text-status-pending-text"
                 >
                   <strong className="font-semibold">{warning.label}</strong>: contraste{" "}
                   {warning.ratio}:1, hace falta {warning.required}:1. El sitio puede quedar
@@ -868,20 +881,14 @@ export default function AdminSettingsClientPage({
           error={fieldErrors.headingFont}
           onReset={() => resetField("headingFont")}
         >
-          <select
+          <Select
             id="settings-heading-font"
             value={draft.headingFont}
             onChange={(event) =>
               setField("headingFont", event.target.value as BusinessSettingsDraft["headingFont"])
             }
-            className="min-h-11 w-full rounded-lg border border-input bg-card px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-          >
-            {FONT_CHOICES.map((font) => (
-              <option key={font} value={font}>
-                {FONT_LABELS[font]}
-              </option>
-            ))}
-          </select>
+            options={FONT_CHOICES.map((font) => ({ value: font, label: FONT_LABELS[font] }))}
+          />
         </SettingsField>
 
         <SettingsField
@@ -890,41 +897,35 @@ export default function AdminSettingsClientPage({
           error={fieldErrors.bodyFont}
           onReset={() => resetField("bodyFont")}
         >
-          <select
+          <Select
             id="settings-body-font"
             value={draft.bodyFont}
             onChange={(event) =>
               setField("bodyFont", event.target.value as BusinessSettingsDraft["bodyFont"])
             }
-            className="min-h-11 w-full rounded-lg border border-input bg-card px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-          >
-            {FONT_CHOICES.map((font) => (
-              <option key={font} value={font}>
-                {FONT_LABELS[font]}
-              </option>
-            ))}
-          </select>
+            options={FONT_CHOICES.map((font) => ({ value: font, label: FONT_LABELS[font] }))}
+          />
         </SettingsField>
       </SettingsSection>
 
       {/* La barra sangra hasta los bordes del `<main>` del admin, que tiene px-3 / sm:px-4 /
           md:px-7. Con -mx-4 como estaba, a 375 px se salía 4 px y la página scrolleaba de
           costado. */}
-      <div className="sticky bottom-0 -mx-3 border-t border-border bg-card/95 px-3 py-3 backdrop-blur sm:-mx-4 sm:px-4 md:-mx-7 md:px-7">
+      <div className="sticky bottom-0 -mx-3 border-t border-line-subtle bg-surface-card/95 px-3 py-3 backdrop-blur sm:-mx-4 sm:px-4 md:-mx-7 md:px-7">
         {formError ? (
-          <p role="alert" className="mb-2 text-sm font-medium text-danger-strong">
+          <p role="alert" className="mb-2 text-st-body font-medium text-status-sla-text">
             {formError}
           </p>
         ) : null}
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="text-xs text-muted-foreground">
+          <p className="text-st-caption text-ink-secondary">
             {audit.updatedByUserId
               ? `Última edición: ${new Date(audit.updatedAt).toLocaleString("es-NI")} · ${audit.updatedByUserId}`
               : `Última edición: ${new Date(audit.updatedAt).toLocaleString("es-NI")}`}
           </p>
           <div className="flex items-center gap-3">
             {status === "saved" ? (
-              <span className="text-sm font-medium text-success-foreground">
+              <span className="text-st-body font-medium text-status-ready-text">
                 Cambios guardados ✓
               </span>
             ) : null}
@@ -943,7 +944,7 @@ function PreviewCard({ draft }: { draft: BusinessSettingsDraft }) {
   return (
     <section
       aria-label="Vista previa"
-      className="rounded-2xl border border-border p-5"
+      className="rounded-stitch-lg border border-line-subtle p-5"
       style={
         {
           "--brand": draft.primaryColor,
@@ -954,14 +955,14 @@ function PreviewCard({ draft }: { draft: BusinessSettingsDraft }) {
         } as React.CSSProperties
       }
     >
-      <h2 className="font-heading text-lg font-semibold text-foreground">
+      <h2 className="font-heading text-lg font-semibold text-ink">
         Vista previa
       </h2>
-      <p className="mt-1 text-sm text-muted-foreground">
+      <p className="mt-1 text-st-body text-ink-secondary">
         Así se va a ver el sitio con lo que estás editando (todavía sin guardar).
       </p>
 
-      <div className="mt-4 overflow-hidden rounded-xl border border-border">
+      <div className="mt-4 overflow-hidden rounded-stitch-md border border-line-subtle">
         <div
           className="flex items-center gap-3 px-4 py-3"
           style={{ backgroundColor: draft.backgroundColor }}
@@ -970,7 +971,7 @@ function PreviewCard({ draft }: { draft: BusinessSettingsDraft }) {
             brand={draft}
             variant="full"
             className="h-9 w-9 shrink-0 rounded-lg object-cover"
-            fallbackClassName="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-sm font-bold"
+            fallbackClassName="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-st-body font-bold"
           />
           <span
             className="font-semibold"
@@ -978,7 +979,7 @@ function PreviewCard({ draft }: { draft: BusinessSettingsDraft }) {
               color: draft.foregroundColor,
               // Se deriva de la elección: con un ternario, la tercera
               // tipografía se previsualizaba como Inter.
-              fontFamily: `var(--font-${draft.headingFont})`,
+              fontFamily: FONT_FAMILY_STYLE[draft.headingFont],
             }}
           >
             {draft.name || "Nombre del negocio"}
@@ -990,21 +991,21 @@ function PreviewCard({ draft }: { draft: BusinessSettingsDraft }) {
           style={{ backgroundColor: draft.backgroundColor }}
         >
           <div
-            className="rounded-xl border border-border p-3"
+            className="rounded-stitch-md border border-line-subtle p-3"
             style={{ backgroundColor: draft.surfaceColor }}
           >
-            <p className="text-sm font-semibold" style={{ color: draft.foregroundColor }}>
+            <p className="text-st-body font-semibold" style={{ color: draft.foregroundColor }}>
               {draft.tagline || "Frase corta del negocio"}
             </p>
             {draft.paymentInstructions ? (
-              <p className="mt-1 text-xs" style={{ color: draft.foregroundColor, opacity: 0.7 }}>
+              <p className="mt-1 text-st-caption" style={{ color: draft.foregroundColor, opacity: 0.7 }}>
                 {draft.paymentInstructions}
               </p>
             ) : null}
           </div>
           <span
-            className="inline-flex min-h-11 items-center rounded-xl px-4 text-sm font-semibold"
-            style={{ backgroundColor: draft.primaryColor, color: "#ffffff" }}
+            className="inline-flex min-h-11 items-center rounded-stitch-md px-4 text-st-body font-semibold"
+            style={{ backgroundColor: draft.primaryColor, color: BRAND_FOREGROUND_COLOR }}
           >
             Confirmar pedido
           </span>

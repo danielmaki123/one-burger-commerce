@@ -450,6 +450,36 @@ describe("admin ui contracts", () => {
     );
   });
 
+  it("el panel de Personalización usa el sistema y el primitivo de color", () => {
+    const legacy = [
+      'bg-card"',
+      'border-border"',
+      "text-foreground",
+      "text-muted-foreground",
+      "text-[",
+      "rounded-2xl",
+      "shadow-sm",
+    ];
+
+    for (const file of ["settings/settings-client.tsx", "settings/pickup-preview.tsx"]) {
+      const source = readAdminFile(file);
+
+      for (const legacyClass of legacy) {
+        expect(source, `${file} usa ${legacyClass}`).not.toContain(legacyClass);
+      }
+    }
+
+    const settingsSource = readAdminFile("settings/settings-client.tsx");
+    // El color se elige con el primitivo y la vista previa toma la tipografía de un mapa de datos.
+    expect(settingsSource).toContain("<ColorInput");
+    expect(settingsSource).toContain("FONT_FAMILY_STYLE[draft.headingFont]");
+    expect(settingsSource).not.toContain("#ffffff");
+    // Los tres textos que el E2E usa como ancla siguen en la pantalla.
+    expect(settingsSource).toContain('"Guardar cambios"');
+    expect(settingsSource).toContain("Cambios guardados ✓");
+    expect(readAdminFile("settings/page.tsx")).toContain("canManageBusinessSettings");
+  });
+
   it("usa compact operational rows for secondary admin lists", () => {
     const tablesSource = readAdminFile("tables/page.tsx");
     const zonesSource = readAdminFile("delivery-zones/page.tsx");

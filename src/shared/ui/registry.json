@@ -162,6 +162,18 @@
       "dont_use_when": "No en el admin ni en las rutas de túnel de conversión."
     },
     {
+      "name": "ColorInput",
+      "file": "src/shared/ui/color-input.tsx",
+      "layer": "shared",
+      "kind": "control",
+      "status": "in-use",
+      "exports": ["ColorInput"],
+      "variants": [],
+      "sizes": [],
+      "use_when": "Muestra de color editable (`type=color` nativo) con etiqueta asociada, error anunciado y 44 px. El hex se sigue editando en un campo de texto aparte.",
+      "dont_use_when": "No para elegir colores de datos del negocio por su cuenta: la pantalla de Personalización lo acompaña siempre del hex en texto y del aviso de contraste."
+    },
+    {
       "name": "Tabs",
       "file": "src/shared/ui/tabs.tsx",
       "layer": "shared",

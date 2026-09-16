@@ -41,12 +41,12 @@ export function PickupPreviewPanel({
     return (
       <section
         aria-label="Vista previa del retiro"
-        className="rounded-xl border border-border bg-secondary/40 p-4"
+        className="rounded-stitch-md border border-line-subtle bg-surface-low/40 p-4"
       >
-        <p className="text-xs font-semibold uppercase tracking-wide text-brand">
+        <p className="text-st-caption font-semibold uppercase tracking-wide text-brand">
           Así lo ve el cliente
         </p>
-        <p className="mt-1 text-sm text-muted-foreground">Calculando turnos…</p>
+        <p className="mt-1 text-st-body text-ink-secondary">Calculando turnos…</p>
       </section>
     );
   }
@@ -62,13 +62,13 @@ export function PickupPreviewPanel({
   return (
     <section
       aria-label="Vista previa del retiro"
-      className="rounded-xl border border-border bg-secondary/40 p-4"
+      className="rounded-stitch-md border border-line-subtle bg-surface-low/40 p-4"
     >
-      <p className="text-xs font-semibold uppercase tracking-wide text-brand">
+      <p className="text-st-caption font-semibold uppercase tracking-wide text-brand">
         Así lo ve el cliente
       </p>
 
-      <p className="mt-1.5 text-sm text-foreground">
+      <p className="mt-1.5 text-st-body text-ink">
         Lo antes posible · {preview.soonestLabel}
       </p>
 
@@ -77,21 +77,21 @@ export function PickupPreviewPanel({
           {preview.slots.map((slot) => (
             <li
               key={slot.value}
-              className="rounded-full bg-card px-3 py-1 text-xs font-medium text-foreground"
+              className="rounded-full bg-surface-card px-3 py-1 text-st-caption font-medium text-ink"
             >
               {slot.label}
             </li>
           ))}
         </ul>
       ) : (
-        <p className="mt-2 text-sm text-muted-foreground">{preview.notice}</p>
+        <p className="mt-2 text-st-body text-ink-secondary">{preview.notice}</p>
       )}
 
-      <p className="mt-3 text-sm text-foreground">
+      <p className="mt-3 text-st-body text-ink">
         Hasta qué hora entra un pedido hoy:{" "}
         <strong className="font-semibold">{preview.lastOrderLabel ?? "—"}</strong>
       </p>
-      <p className="mt-1 text-xs leading-5 text-muted-foreground">
+      <p className="mt-1 text-st-caption leading-5 text-ink-secondary">
         Nada de esto se guarda: es la configuración que tenés en pantalla. El precio y la hora
         definitivos los calcula el servidor cuando el cliente confirma.
       </p>
