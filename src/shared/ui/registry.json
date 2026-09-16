@@ -1,9 +1,9 @@
 {
-  "$comment": "Registro de componentes de UI (C0-3 de plan2uiux.md). El catálogo humano sigue siendo DESIGN_SYSTEM.md §3: este archivo es su espejo declarado y `src/shared/contracts/registry-contract.test.ts` exige que los dos tengan los mismos componentes. Un archivo real sin fila acá, o una fila acá sin archivo real, hace fallar el contrato.",
+  "$comment": "Registro de componentes de UI (C0-3 de plan2uiux.md). Este archivo ES el catálogo de componentes desde el 2026-09-16 (los documentos de diseño viejos se borraron al declararse el sistema de Stitch). `src/shared/contracts/registry-contract.test.ts` exige que todo archivo de UI real tenga su fila y que los exports declarados existan: un archivo sin fila hace fallar el contrato.",
   "version": 2,
   "updated": "2026-09-15",
-  "source_of_truth": "DESIGN_SYSTEM.md",
-  "catalog": "DESIGN_SYSTEM.md#3-catálogo-de-componentes",
+  "source_of_truth": "ops/references/stitch/design-system.md",
+  "catalog": "ops/references/stitch/design-system.md",
   "layers": {
     "shared": "src/shared/ui/ — usar siempre que exista",
     "admin": "src/app/(admin)/admin/_components/ — panel",

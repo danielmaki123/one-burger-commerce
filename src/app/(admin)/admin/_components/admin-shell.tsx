@@ -119,11 +119,13 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
   const homeHref = role === "owner" ? "/admin" : "/admin/orders";
 
   if (isLoginRoute) {
-    return <div className="min-h-screen bg-background text-foreground">{children}</div>;
+    // El panel es oscuro (sistema Stitch): `dark` acá activa los tokens del modo oscuro para todo
+    // el subárbol del admin, sin tocar el sitio público, que sigue claro (decisión C3 del owner).
+    return <div className="dark min-h-screen bg-background text-foreground">{children}</div>;
   }
 
   return (
-    <div className="flex min-h-screen bg-background text-foreground">
+    <div className="dark flex min-h-screen bg-background text-foreground">
       <AdminMobileNav pathname={pathname} groups={navGroups} session={session} />
 
       <aside data-admin-background className="admin-sidebar-shell hidden md:sticky md:top-0 md:flex md:h-screen md:w-64 md:shrink-0 md:flex-col md:border-r md:border-border md:bg-card/95 md:backdrop-blur">

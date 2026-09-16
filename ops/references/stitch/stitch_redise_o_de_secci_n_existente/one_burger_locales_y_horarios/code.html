@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="es"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><link href="https://fonts.googleapis.com" rel="preconnect"/><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;family=Plus+Jakarta+Sans:wght@600;700&amp;display=swap" rel="stylesheet"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config={darkMode:"class",theme:{extend:{"colors":{"on-secondary-fixed-variant":"#653e00","on-surface-variant":"#bdc8d1","on-background":"#d3e4fe","surface-tint":"#7bd0ff","secondary-fixed-dim":"#ffb95f","on-error-container":"#ffdad6","surface-container":"#102034","on-error":"#690005","on-primary-fixed-variant":"#004c69","on-tertiary-fixed-variant":"#92002a","inverse-primary":"#00668a","tertiary-container":"#ff929a","outline-variant":"#3e484f","tertiary":"#ffbcbf","surface-container-highest":"#26364a","background":"#031427","on-tertiary":"#67001b","outline":"#87929a","on-secondary-fixed":"#2a1700","secondary-fixed":"#ffddb8","secondary-container":"#ee9800","surface-container-low":"#0b1c30","surface-container-high":"#1b2b3f","on-secondary":"#472a00","on-surface":"#d3e4fe","secondary":"#ffb95f","primary-fixed-dim":"#7bd0ff","primary-fixed":"#c4e7ff","tertiary-fixed-dim":"#ffb2b7","on-primary-fixed":"#001e2c","error":"#ffb4ab","surface-variant":"#26364a","surface-dim":"#031427","surface-container-lowest":"#000f21","surface":"#031427","tertiary-fixed":"#ffdadb","inverse-surface":"#d3e4fe","on-primary-container":"#004965","inverse-on-surface":"#213145","on-tertiary-container":"#8c0028","primary":"#8ed5ff","on-secondary-container":"#5b3800","on-primary":"#00354a","error-container":"#93000a","primary-container":"#38bdf8","on-tertiary-fixed":"#40000d","surface-bright":"#2a3a4f"},"borderRadius":{"DEFAULT":"0.125rem","lg":"0.25rem","xl":"0.5rem","full":"0.75rem"},"spacing":{"gutter-md":"1rem","gutter":"0.75rem","space-xl":"1.5rem","margin-lg":"1.5rem","space-lg":"1rem","space-xs":"0.25rem","space-md":"0.75rem","space-sm":"0.5rem","margin":"1rem"},"fontFamily":{"body-lg":["Inter"],"label-md":["Inter"],"counter-lg":["Inter"],"body-md":["Inter"],"label-lg":["Inter"],"headline-lg":["Plus Jakarta Sans"],"headline-md":["Plus Jakarta Sans"],"headline-sm":["Plus Jakarta Sans"],"body-sm":["Inter"],"label-sm":["Inter"],"counter-md":["Inter"]},"fontSize":{"body-lg":["1rem",{"lineHeight":"1.5rem","fontWeight":"400"}],"label-md":["0.75rem",{"lineHeight":"1rem","letterSpacing":"0.02em","fontWeight":"600"}],"counter-lg":["1.5rem",{"lineHeight":"1.75rem","letterSpacing":"-0.02em","fontWeight":"700"}],"body-md":["0.875rem",{"lineHeight":"1.25rem","fontWeight":"400"}],"label-lg":["0.875rem",{"lineHeight":"1.25rem","letterSpacing":"0.01em","fontWeight":"600"}],"headline-lg":["1.75rem",{"lineHeight":"2.25rem","letterSpacing":"-0.02em","fontWeight":"700"}],"headline-md":["1.25rem",{"lineHeight":"1.75rem","letterSpacing":"-0.015em","fontWeight":"600"}],"headline-sm":["1.125rem",{"lineHeight":"1.5rem","letterSpacing":"-0.01em","fontWeight":"600"}],"body-sm":["0.75rem",{"lineHeight":"1rem","fontWeight":"400"}],"label-sm":["0.6875rem",{"lineHeight":"0.875rem","letterSpacing":"0.04em","fontWeight":"600"}],"counter-md":["1rem",{"lineHeight":"1.25rem","letterSpacing":"0","fontWeight":"700"}]}}}};</script></head><body class="bg-surface font-body-md text-body-md text-on-surface antialiased"><aside class="fixed left-0 top-0 h-screen w-64 bg-surface-container-lowest z-50 flex flex-col justify-between overflow-hidden"><div class="flex flex-col flex-1 overflow-y-auto"><div class="p-space-lg flex items-center gap-space-md bg-surface-container-lowest/90"><div class="w-10 h-10 rounded-full bg-secondary-container flex items-center justify-center shadow-inner shrink-0"><span class="material-symbols-outlined text-on-secondary-container text-[22px]">lunch_dining</span></div><div class="flex flex-col min-w-0"><span class="font-headline-sm text-headline-sm text-on-surface truncate">One Burger</span><span class="font-label-sm text-label-sm text-secondary-fixed-dim uppercase tracking-wider truncate">Admin operativo</span></div></div><div class="px-space-md py-space-sm"><div class="px-space-sm py-space-xs font-label-sm text-label-sm text-outline uppercase tracking-wider">Operación</div><nav class="space-y-space-xs mt-space-xs" data-active-classes="bg-surface-container-highest text-on-surface font-semibold"><a class="flex items-center justify-between px-space-md py-space-sm rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors" data-path="resumen" href="#"><div class="flex items-center gap-space-md min-w-0"><span class="material-symbols-outlined text-[20px]">dashboard</span><div class="flex flex-col truncate"><span class="font-label-lg text-label-lg">Resumen</span><span class="font-body-sm text-body-sm text-outline truncate">Operación y rendimiento</span></div></div></a><a class="flex items-center justify-between px-space-md py-space-sm rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors" data-path="ordenes" href="#"><div class="flex items-center gap-space-md min-w-0"><span class="material-symbols-outlined text-[20px]">receipt_long</span><div class="flex flex-col truncate"><span class="font-label-lg text-label-lg">Órdenes</span><span class="font-body-sm text-body-sm text-outline truncate">Cocina y servicio / KDS</span></div></div><span class="px-space-xs py-0.5 rounded-full bg-secondary text-on-secondary font-label-sm text-label-sm">12</span></a><a class="flex items-center justify-between px-space-md py-space-sm rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors" data-path="caja" href="#"><div class="flex items-center gap-space-md min-w-0"><span class="material-symbols-outlined text-[20px]">point_of_sale</span><div class="flex flex-col truncate"><span class="font-label-lg text-label-lg">Caja</span><span class="font-body-sm text-body-sm text-outline truncate">Venta mostrador / POS</span></div></div></a></nav></div><div class="px-space-md py-space-sm"><div class="px-space-sm py-space-xs font-label-sm text-label-sm text-outline uppercase tracking-wider">Configuración</div><nav class="space-y-space-xs mt-space-xs" data-active-classes="bg-surface-container-highest text-on-surface font-semibold"><a class="flex items-center gap-space-md px-space-md py-space-sm rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors" data-path="menu" href="#"><span class="material-symbols-outlined text-[20px]">restaurant_menu</span><div class="flex flex-col truncate"><span class="font-label-lg text-label-lg">Menú</span><span class="font-body-sm text-body-sm text-outline truncate">Catálogo y promos</span></div></a><a aria-current="page" class="flex items-center gap-space-md px-space-md py-space-sm rounded-lg transition-colors bg-surface-container-highest text-on-surface font-semibold" data-path="locales" href="#"><span class="material-symbols-outlined text-[20px]">storefront</span><div class="flex flex-col truncate"><span class="font-label-lg text-label-lg">Locales</span><span class="font-body-sm text-body-sm text-outline truncate">Retiro, horario y contacto</span></div></a><a class="flex items-center gap-space-md px-space-md py-space-sm rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors" data-path="usuarios" href="#"><span class="material-symbols-outlined text-[20px]">group</span><div class="flex flex-col truncate"><span class="font-label-lg text-label-lg">Usuarios</span><span class="font-body-sm text-body-sm text-outline truncate">Roles y accesos</span></div></a><a class="flex items-center gap-space-md px-space-md py-space-sm rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors" data-path="personalizacion" href="#"><span class="material-symbols-outlined text-[20px]">tune</span><div class="flex flex-col truncate"><span class="font-label-lg text-label-lg">Personalización</span><span class="font-body-sm text-body-sm text-outline truncate">Marca y operación</span></div></a></nav></div></div><div class="p-space-md bg-surface-container-low/60 flex flex-col gap-space-md shrink-0"><div class="flex items-center gap-space-md p-space-sm rounded-lg bg-surface-container"><div class="w-9 h-9 rounded-full bg-secondary flex items-center justify-center shrink-0"><span class="font-headline-sm text-headline-sm text-on-secondary">D</span></div><div class="flex flex-col min-w-0 flex-1"><div class="flex items-center justify-between gap-space-xs"><span class="font-label-md text-label-md text-on-surface truncate">Daniel</span><span class="px-space-xs py-0.5 rounded bg-surface-container-highest text-secondary-fixed-dim font-label-sm text-label-sm">Master</span></div><span class="font-body-sm text-body-sm text-outline truncate">admin@oneburgernic.com</span><div class="flex items-center gap-1.5 mt-1"><span class="w-2 h-2 rounded-full bg-secondary animate-pulse"></span><span class="font-label-sm text-label-sm text-secondary-fixed-dim">Turno activo</span></div></div></div><a class="flex items-center justify-center gap-space-sm py-space-sm px-space-md rounded-lg bg-surface-container text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors font-label-md text-label-md" data-path="cerrar-sesion" href="#"><span class="material-symbols-outlined text-[18px]">logout</span><span>Cerrar sesión</span></a></div></aside><div class="pl-64"><header class="fixed top-0 left-64 right-0 h-14 bg-surface/90 backdrop-blur-md z-40 px-space-xl flex items-center justify-between shadow-[0_1px_8px_rgba(0,0,0,0.04)]"><div class="flex items-center gap-space-md"><div class="flex items-center gap-space-xs font-label-md text-label-md text-outline"><span class="material-symbols-outlined text-[18px]">fastfood</span><span>One Burger</span><span>/</span><span class="text-on-surface font-label-md text-label-md">Sucursal Central</span></div><span class="inline-flex items-center gap-1.5 px-space-sm py-0.5 rounded-full bg-surface-container-high text-primary font-label-sm text-label-sm"><span class="w-1.5 h-1.5 rounded-full bg-primary"></span>Sincronizado</span></div><div class="flex items-center gap-space-lg"><div class="flex items-center gap-space-xs px-space-md py-1.5 rounded-lg bg-surface-container-low text-on-surface-variant font-body-sm text-body-sm"><span class="material-symbols-outlined text-[18px]">search</span><span>Buscar comanda o producto...</span><kbd class="px-1.5 py-0.5 rounded bg-surface-container-highest text-outline font-label-sm text-label-sm">/</kbd></div><div class="flex items-center gap-space-sm"><button class="w-8 h-8 rounded-lg bg-surface-container-low hover:bg-surface-container flex items-center justify-center text-on-surface-variant hover:text-on-surface transition-colors"><span class="material-symbols-outlined text-[20px]">notifications</span></button><button class="w-8 h-8 rounded-lg bg-surface-container-low hover:bg-surface-container flex items-center justify-center text-on-surface-variant hover:text-on-surface transition-colors"><span class="material-symbols-outlined text-[20px]">help</span></button></div><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></header><main class="w-full pt-14 px-space-xl pb-space-xl bg-surface min-h-screen"><div class="flex flex-col w-full">
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const localesLink = document.querySelector('aside a[data-path="locales"]');
+      if (localesLink) {
+        localesLink.classList.add("bg-surface-container-highest", "text-on-surface", "font-semibold");
+        localesLink.classList.remove("text-on-surface-variant");
+      }
+    });
+
+    function toggleModal(show) {
+      const modal = document.getElementById('edit-modal');
+      if (modal) {
+        if (show) {
+          modal.classList.remove('hidden');
+          modal.classList.add('flex');
+          document.body.style.overflow = 'hidden';
+        } else {
+          modal.classList.add('hidden');
+          modal.classList.remove('flex');
+          document.body.style.overflow = '';
+        }
+      }
+    }
+
+    function toggleDay(checkbox, rowId) {
+      const row = document.getElementById(rowId);
+      if (!row) return;
+      const inputs = row.querySelectorAll('input[type="text"]');
+      if (checkbox.checked) {
+        inputs.forEach(i => {
+          i.disabled = true;
+          i.classList.add('opacity-40', 'bg-surface-container-lowest/40', 'cursor-not-allowed');
+        });
+      } else {
+        inputs.forEach(i => {
+          i.disabled = false;
+          i.classList.remove('opacity-40', 'bg-surface-container-lowest/40', 'cursor-not-allowed');
+        });
+      }
+    }
+
+    function handleToggleState(btn) {
+      const indicator = btn.querySelector('.status-dot');
+      const text = btn.querySelector('.status-text');
+      const isOff = btn.getAttribute('data-active') === 'false';
+      
+      if (isOff) {
+        btn.setAttribute('data-active', 'true');
+        btn.className = "px-space-md py-space-xs rounded-lg bg-surface-container-high hover:bg-surface-container-highest text-on-surface transition-colors flex items-center gap-space-xs font-label-md text-label-md";
+        text.innerText = "Apagar";
+        const badge = btn.closest('.branch-card').querySelector('.branch-status-badge');
+        badge.className = "branch-status-badge px-space-sm py-0.5 rounded-full bg-surface-container-high text-primary font-label-sm text-label-sm inline-flex items-center gap-1.5 shadow-sm";
+        badge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>Activo';
+      } else {
+        btn.setAttribute('data-active', 'false');
+        btn.className = "px-space-md py-space-xs rounded-lg bg-error-container/30 hover:bg-error-container/50 text-error transition-colors flex items-center gap-space-xs font-label-md text-label-md";
+        text.innerText = "Encender";
+        const badge = btn.closest('.branch-card').querySelector('.branch-status-badge');
+        badge.className = "branch-status-badge px-space-sm py-0.5 rounded-full bg-surface-container-high text-outline font-label-sm text-label-sm inline-flex items-center gap-1.5 shadow-sm";
+        badge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-outline"></span>Inactivo';
+      }
+    }
+  </script>
+<div class="flex flex-col gap-space-xl">
+<!-- Top Header Module -->
+<div class="flex flex-col md:flex-row md:items-center justify-between gap-space-md pt-space-xs">
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-space-xs font-label-sm text-label-sm text-secondary-fixed-dim uppercase tracking-wider">
+<span>Configuración</span>
+<span>/</span>
+<span class="text-primary font-bold tracking-widest">Sedes Operativas</span>
+</div>
+<div class="flex items-baseline gap-space-md mt-1">
+<h1 class="font-headline-lg text-headline-lg text-on-surface">Locales</h1>
+<span class="px-space-sm py-0.5 rounded-full bg-surface-container-high text-secondary-fixed-dim font-label-sm text-label-sm shadow-sm">3 sedes en línea</span>
+</div>
+<p class="font-body-md text-body-md text-outline mt-0.5">
+          Dónde se retira, en qué horario y si el local está recibiendo pedidos.
+        </p>
+</div>
+<div class="flex items-center gap-space-md shrink-0">
+<button class="inline-flex items-center gap-space-sm px-space-lg py-space-sm rounded-lg bg-primary-container hover:bg-primary text-on-primary-container hover:text-on-primary transition-all font-label-lg text-label-lg shadow-md hover:shadow-primary/20" onclick="toggleModal(true)">
+<span class="material-symbols-outlined text-[20px]">add_circle</span>
+<span>+ Nuevo local</span>
+</button>
+</div>
+</div>
+<!-- Quick Metrics Strip / KDS Dispatch Pulse -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-space-md">
+<div class="p-space-md rounded-xl bg-surface-container-low flex items-center justify-between shadow-sm relative overflow-hidden">
+<div class="flex flex-col min-w-0">
+<span class="font-label-sm text-label-sm text-outline uppercase tracking-wider">Capacidad Global</span>
+<span class="font-counter-lg text-counter-lg text-on-surface mt-1">60 <span class="font-body-sm text-body-sm text-outline">pedidos / hr</span></span>
+</div>
+<div class="w-12 h-12 rounded-lg bg-surface-container flex items-center justify-center text-primary">
+<svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path>
+</svg>
+</div>
+</div>
+<div class="p-space-md rounded-xl bg-surface-container-low flex items-center justify-between shadow-sm relative overflow-hidden">
+<div class="flex flex-col min-w-0">
+<span class="font-label-sm text-label-sm text-outline uppercase tracking-wider">Tiempo Estimado</span>
+<span class="font-counter-lg text-counter-lg text-secondary-fixed-dim mt-1">18 - 22 <span class="font-body-sm text-body-sm text-outline">minutos</span></span>
+</div>
+<div class="w-12 h-12 rounded-lg bg-surface-container flex items-center justify-center text-secondary-container">
+<svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<circle cx="12" cy="12" r="10"></circle>
+<polyline points="12 6 12 12 16 14"></polyline>
+</svg>
+</div>
+</div>
+<div class="p-space-md rounded-xl bg-surface-container-low flex items-center justify-between shadow-sm relative overflow-hidden">
+<div class="flex flex-col min-w-0">
+<span class="font-label-sm text-label-sm text-outline uppercase tracking-wider">Disponibilidad Retiro</span>
+<span class="font-counter-lg text-counter-lg text-primary mt-1">100% <span class="font-body-sm text-body-sm text-outline">Pickup activo</span></span>
+</div>
+<div class="w-12 h-12 rounded-lg bg-surface-container flex items-center justify-center text-primary-fixed-dim">
+<svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+<polyline points="22 4 12 14.01 9 11.01"></polyline>
+</svg>
+</div>
+</div>
+</div>
+<!-- Main Container: LOCALES DEL NEGOCIO -->
+<div class="flex flex-col rounded-xl bg-surface-container shadow-md overflow-hidden">
+<!-- Section Header -->
+<div class="px-space-xl py-space-md bg-surface-container-high/80 flex items-center justify-between">
+<div class="flex items-center gap-space-md">
+<span class="material-symbols-outlined text-secondary-fixed-dim text-[22px]">storefront</span>
+<div class="flex items-center gap-space-sm">
+<h2 class="font-label-lg text-label-lg text-on-surface uppercase tracking-wider">Locales del Negocio</h2>
+<span class="px-space-sm py-0.5 rounded-full bg-surface-container-highest text-outline font-label-sm text-label-sm">3 locales · 3 activos</span>
+</div>
+</div>
+<div class="flex items-center gap-space-xs text-outline font-body-sm text-body-sm">
+<span class="w-2 h-2 rounded-full bg-primary"></span>
+<span>Despacho unificado</span>
+</div>
+</div>
+<!-- Locales List -->
+<div class="flex flex-col divide-y divide-transparent space-y-space-xs p-space-md bg-surface-container">
+<!-- Local 1: Camino de Oriente -->
+<div class="branch-card p-space-lg rounded-xl bg-surface-container-low hover:bg-surface-container-high/90 transition-all flex flex-col lg:flex-row lg:items-center justify-between gap-space-lg shadow-sm">
+<div class="flex items-start gap-space-lg min-w-0">
+<div class="w-12 h-12 rounded-xl bg-surface-container-highest flex items-center justify-center shrink-0 shadow-inner">
+<span class="material-symbols-outlined text-secondary text-[24px]">store</span>
+</div>
+<div class="flex flex-col min-w-0">
+<div class="flex items-center flex-wrap gap-space-sm">
+<h3 class="font-headline-sm text-headline-sm text-on-surface truncate">Camino de Oriente</h3>
+<span class="branch-status-badge px-space-sm py-0.5 rounded-full bg-surface-container-high text-primary font-label-sm text-label-sm inline-flex items-center gap-1.5 shadow-sm">
+<span class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
+                  Activo
+                </span>
+<span class="px-space-xs py-0.5 rounded bg-surface-container-highest text-secondary-fixed-dim font-label-sm text-label-sm uppercase">Sede Central</span>
+</div>
+<div class="flex items-center gap-space-xs text-on-surface-variant font-body-md text-body-md mt-1">
+<span class="material-symbols-outlined text-outline text-[18px]">location_on</span>
+<span class="truncate">Cinemas VIP, 3c al oeste., Managua</span>
+</div>
+<div class="flex items-center flex-wrap gap-space-md text-outline font-body-sm text-body-sm mt-2">
+<div class="flex items-center gap-space-xs bg-surface-container-highest/60 px-space-sm py-0.5 rounded">
+<span class="material-symbols-outlined text-[16px] text-secondary">schedule</span>
+<span class="text-on-surface-variant font-medium">Hoy 12:00 a 22:00</span>
+</div>
+<span>·</span>
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-[16px] text-primary">timer</span>
+<span>preparación 20 min</span>
+</div>
+<span>·</span>
+<span class="text-outline">Caja POS: Terminal 01</span>
+</div>
+</div>
+</div>
+<!-- Actions Panel -->
+<div class="flex items-center gap-space-sm self-end lg:self-center shrink-0">
+<button class="px-space-md py-space-xs rounded-lg bg-surface-container-high hover:bg-surface-container-highest text-on-surface transition-colors flex items-center gap-space-xs font-label-md text-label-md" data-active="true" onclick="handleToggleState(this)">
+<span class="material-symbols-outlined text-[18px] text-error">power_settings_new</span>
+<span class="status-text">Apagar</span>
+</button>
+<button class="px-space-md py-space-xs rounded-lg bg-surface-container-high hover:bg-surface-container-highest text-on-surface-variant hover:text-on-surface transition-colors flex items-center gap-space-xs font-label-md text-label-md">
+<span class="material-symbols-outlined text-[18px]">menu_book</span>
+<span>Catálogo</span>
+</button>
+<button class="px-space-md py-space-xs rounded-lg bg-primary-container/20 hover:bg-primary-container text-primary hover:text-on-primary-container transition-all flex items-center gap-space-xs font-label-md text-label-md" onclick="toggleModal(true)">
+<span class="material-symbols-outlined text-[18px]">edit_calendar</span>
+<span>Editar horario</span>
+</button>
+</div>
+</div>
+<!-- Local 2: Carretera Masaya -->
+<div class="branch-card p-space-lg rounded-xl bg-surface-container-low hover:bg-surface-container-high/90 transition-all flex flex-col lg:flex-row lg:items-center justify-between gap-space-lg shadow-sm">
+<div class="flex items-start gap-space-lg min-w-0">
+<div class="w-12 h-12 rounded-xl bg-surface-container-highest flex items-center justify-center shrink-0 shadow-inner">
+<span class="material-symbols-outlined text-secondary text-[24px]">store</span>
+</div>
+<div class="flex flex-col min-w-0">
+<div class="flex items-center flex-wrap gap-space-sm">
+<h3 class="font-headline-sm text-headline-sm text-on-surface truncate">Carretera Masaya</h3>
+<span class="branch-status-badge px-space-sm py-0.5 rounded-full bg-surface-container-high text-primary font-label-sm text-label-sm inline-flex items-center gap-1.5 shadow-sm">
+<span class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
+                  Activo
+                </span>
+</div>
+<div class="flex items-center gap-space-xs text-on-surface-variant font-body-md text-body-md mt-1">
+<span class="material-symbols-outlined text-outline text-[18px]">location_on</span>
+<span class="truncate">Plaza Alarca, carretera Masaya. Km 10.2, Managua</span>
+</div>
+<div class="flex items-center flex-wrap gap-space-md text-outline font-body-sm text-body-sm mt-2">
+<div class="flex items-center gap-space-xs bg-surface-container-highest/60 px-space-sm py-0.5 rounded">
+<span class="material-symbols-outlined text-[16px] text-secondary">schedule</span>
+<span class="text-on-surface-variant font-medium">Hoy 12:00 a 22:00</span>
+</div>
+<span>·</span>
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-[16px] text-primary">timer</span>
+<span>preparación 20 min</span>
+</div>
+<span>·</span>
+<span class="text-outline">Auto-servicio activo</span>
+</div>
+</div>
+</div>
+<!-- Actions Panel -->
+<div class="flex items-center gap-space-sm self-end lg:self-center shrink-0">
+<button class="px-space-md py-space-xs rounded-lg bg-surface-container-high hover:bg-surface-container-highest text-on-surface transition-colors flex items-center gap-space-xs font-label-md text-label-md" data-active="true" onclick="handleToggleState(this)">
+<span class="material-symbols-outlined text-[18px] text-error">power_settings_new</span>
+<span class="status-text">Apagar</span>
+</button>
+<button class="px-space-md py-space-xs rounded-lg bg-surface-container-high hover:bg-surface-container-highest text-on-surface-variant hover:text-on-surface transition-colors flex items-center gap-space-xs font-label-md text-label-md">
+<span class="material-symbols-outlined text-[18px]">menu_book</span>
+<span>Catálogo</span>
+</button>
+<button class="px-space-md py-space-xs rounded-lg bg-primary-container/20 hover:bg-primary-container text-primary hover:text-on-primary-container transition-all flex items-center gap-space-xs font-label-md text-label-md" onclick="toggleModal(true)">
+<span class="material-symbols-outlined text-[18px]">edit_calendar</span>
+<span>Editar horario</span>
+</button>
+</div>
+</div>
+<!-- Local 3: Casa Antigua -->
+<div class="branch-card p-space-lg rounded-xl bg-surface-container-low hover:bg-surface-container-high/90 transition-all flex flex-col lg:flex-row lg:items-center justify-between gap-space-lg shadow-sm">
+<div class="flex items-start gap-space-lg min-w-0">
+<div class="w-12 h-12 rounded-xl bg-surface-container-highest flex items-center justify-center shrink-0 shadow-inner">
+<span class="material-symbols-outlined text-secondary text-[24px]">store</span>
+</div>
+<div class="flex flex-col min-w-0">
+<div class="flex items-center flex-wrap gap-space-sm">
+<h3 class="font-headline-sm text-headline-sm text-on-surface truncate">Casa Antigua</h3>
+<span class="branch-status-badge px-space-sm py-0.5 rounded-full bg-surface-container-high text-primary font-label-sm text-label-sm inline-flex items-center gap-1.5 shadow-sm">
+<span class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
+                  Activo
+                </span>
+<span class="px-space-xs py-0.5 rounded bg-surface-container-highest text-outline font-label-sm text-label-sm">Jinotepe</span>
+</div>
+<div class="flex items-center gap-space-xs text-on-surface-variant font-body-md text-body-md mt-1">
+<span class="material-symbols-outlined text-outline text-[18px]">location_on</span>
+<span class="truncate">Bac 2C al oeste, 1/2c al norte, Jinotepe</span>
+</div>
+<div class="flex items-center flex-wrap gap-space-md text-outline font-body-sm text-body-sm mt-2">
+<div class="flex items-center gap-space-xs bg-surface-container-highest/60 px-space-sm py-0.5 rounded">
+<span class="material-symbols-outlined text-[16px] text-secondary">schedule</span>
+<span class="text-on-surface-variant font-medium">Hoy 12:00 a 22:00</span>
+</div>
+<span>·</span>
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-[16px] text-primary">timer</span>
+<span>preparación 20 min</span>
+</div>
+<span>·</span>
+<span class="text-outline">Mesa &amp; Takeout</span>
+</div>
+</div>
+</div>
+<!-- Actions Panel -->
+<div class="flex items-center gap-space-sm self-end lg:self-center shrink-0">
+<button class="px-space-md py-space-xs rounded-lg bg-surface-container-high hover:bg-surface-container-highest text-on-surface transition-colors flex items-center gap-space-xs font-label-md text-label-md" data-active="true" onclick="handleToggleState(this)">
+<span class="material-symbols-outlined text-[18px] text-error">power_settings_new</span>
+<span class="status-text">Apagar</span>
+</button>
+<button class="px-space-md py-space-xs rounded-lg bg-surface-container-high hover:bg-surface-container-highest text-on-surface-variant hover:text-on-surface transition-colors flex items-center gap-space-xs font-label-md text-label-md">
+<span class="material-symbols-outlined text-[18px]">menu_book</span>
+<span>Catálogo</span>
+</button>
+<button class="px-space-md py-space-xs rounded-lg bg-primary-container/20 hover:bg-primary-container text-primary hover:text-on-primary-container transition-all flex items-center gap-space-xs font-label-md text-label-md" onclick="toggleModal(true)">
+<span class="material-symbols-outlined text-[18px]">edit_calendar</span>
+<span>Editar horario</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Footer Info -->
+<div class="px-space-xl py-space-md bg-surface-container-low/60 flex flex-col sm:flex-row sm:items-center justify-between gap-space-md text-outline font-body-sm text-body-sm">
+<div class="flex items-center gap-space-sm">
+<span class="material-symbols-outlined text-[18px] text-secondary">info</span>
+<span>Los cambios de estado 'Apagar' suspenden inmediatamente la recepción en KDS y Web.</span>
+</div>
+<div class="flex items-center gap-space-xs">
+<span>Tiempo promedio sincronizado:</span>
+<span class="text-on-surface font-semibold">20 ms</span>
+</div>
+</div>
+</div>
+<!-- Visual Location Context Bento Section -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-space-md">
+<div class="lg:col-span-2 p-space-lg rounded-xl bg-surface-container-low flex flex-col justify-between shadow-sm relative overflow-hidden">
+<div class="flex items-center justify-between mb-space-md">
+<div>
+<span class="font-label-sm text-label-sm text-secondary uppercase tracking-wider">Cobertura Geográfica</span>
+<h4 class="font-headline-sm text-headline-sm text-on-surface mt-1">Zonas de Retiro Habilitadas</h4>
+</div>
+<span class="px-space-sm py-0.5 rounded bg-surface-container text-on-surface-variant font-label-sm text-label-sm">Managua - Carazo</span>
+</div>
+<div class="w-full h-48 bg-cover bg-center rounded-lg relative overflow-hidden shadow-inner flex items-end p-space-md" data-location="Managua, Nicaragua" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDLk5l8bIzFSplEnlhDj28qrMeqMSM_l24TRkn_Tr0npeKQOu61Oux3o_uG8Z2oUK-WlADSrz-uEtNsKKrAFzQrVwJ_dT6OPJWUXqsaD2n7Vprmttbm6L5ml0qq2PqFTuxJpczuOG6KutzUkipjrVnbdgwe1T25D17SPXZO7xuYBwyGdyYGtuRYkOJ1Mg52ci75nx2tGgFNNE2qV4LCwI3jQDpaWewHanQDthABOXLzhw4102GL2wI')">
+<div class="p-space-sm rounded-lg bg-surface-container-lowest/90 backdrop-blur-md flex items-center gap-space-md">
+<span class="w-2.5 h-2.5 rounded-full bg-primary animate-ping"></span>
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-on-surface">3 Puntos de Retiro Clave</span>
+<span class="font-body-sm text-body-sm text-outline">Radio consolidado de 45 km</span>
+</div>
+</div>
+</div>
+</div>
+<div class="p-space-lg rounded-xl bg-surface-container-low flex flex-col justify-between shadow-sm">
+<div>
+<span class="font-label-sm text-label-sm text-outline uppercase tracking-wider">Flujo de Cocina</span>
+<h4 class="font-headline-sm text-headline-sm text-on-surface mt-1">Capacidad y Carga</h4>
+<p class="font-body-sm text-body-sm text-outline mt-1">Despacho sin cuellos de botella en horas pico.</p>
+</div>
+<div class="my-space-md">
+<div class="flex items-center justify-between font-label-sm text-label-sm mb-1.5">
+<span class="text-on-surface-variant">C. de Oriente</span>
+<span class="text-primary font-bold">78%</span>
+</div>
+<div class="w-full h-2 rounded-full bg-surface-container-highest overflow-hidden">
+<div class="h-full rounded-full bg-primary" style="width: 78%"></div>
+</div>
+<div class="flex items-center justify-between font-label-sm text-label-sm mt-3 mb-1.5">
+<span class="text-on-surface-variant">Carr. Masaya</span>
+<span class="text-secondary font-bold">45%</span>
+</div>
+<div class="w-full h-2 rounded-full bg-surface-container-highest overflow-hidden">
+<div class="h-full rounded-full bg-secondary" style="width: 45%"></div>
+</div>
+<div class="flex items-center justify-between font-label-sm text-label-sm mt-3 mb-1.5">
+<span class="text-on-surface-variant">Casa Antigua</span>
+<span class="text-primary-fixed-dim font-bold">30%</span>
+</div>
+<div class="w-full h-2 rounded-full bg-surface-container-highest overflow-hidden">
+<div class="h-full rounded-full bg-primary-fixed-dim" style="width: 30%"></div>
+</div>
+</div>
+<div class="pt-space-sm border-t border-transparent flex items-center justify-between font-label-sm text-label-sm text-outline">
+<span>Actualización en tiempo real</span>
+<span class="material-symbols-outlined text-[16px] text-primary">sync</span>
+</div>
+</div>
+</div>
+</div>
+<!-- MODAL FLOTANTE INTERACTIVO: EDITAR LOCAL / HORARIO (Fiel a IMAGE_4) -->
+<div class="fixed inset-0 z-50 hidden items-center justify-center bg-surface-container-lowest/80 backdrop-blur-sm p-space-md" id="edit-modal">
+<div class="relative w-full max-w-2xl rounded-xl bg-surface-container shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+<!-- Modal Header -->
+<div class="px-space-xl py-space-lg bg-surface-container-high flex items-center justify-between">
+<div class="flex items-center gap-space-md">
+<div class="w-9 h-9 rounded-full bg-secondary-container flex items-center justify-center text-on-secondary-container">
+<span class="material-symbols-outlined text-[20px]">edit_location_alt</span>
+</div>
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-space-xs font-label-sm text-label-sm text-secondary-fixed-dim uppercase tracking-wider">
+<span>Configuración</span>
+<span>/</span>
+<span>Sede</span>
+</div>
+<h2 class="font-headline-sm text-headline-sm text-on-surface truncate">EDITAR LOCAL: Camino de Oriente</h2>
+</div>
+</div>
+<button class="w-9 h-9 rounded-lg bg-surface-container hover:bg-surface-container-highest text-on-surface-variant hover:text-on-surface flex items-center justify-center transition-colors" onclick="toggleModal(false)">
+<span class="material-symbols-outlined text-[20px]">close</span>
+</button>
+</div>
+<!-- Modal Body -->
+<div class="p-space-xl overflow-y-auto space-y-space-lg flex-1">
+<!-- General Info Banner -->
+<div class="p-space-md rounded-lg bg-surface-container-low flex items-start gap-space-md">
+<span class="material-symbols-outlined text-secondary text-[22px] shrink-0 mt-0.5">schedule</span>
+<div class="flex flex-col">
+<span class="font-label-md text-label-md text-on-surface">Horario del local</span>
+<p class="font-body-sm text-body-sm text-outline mt-0.5">
+              Configura los rangos de atención y retiro de comandas para cada día de la semana. Los días marcados como cerrados no aceptarán órdenes automáticas en mostrador o delivery.
+            </p>
+</div>
+</div>
+<!-- Weekly Schedule Table / Grid (Monday to Friday from original image) -->
+<div class="flex flex-col space-y-space-sm">
+<!-- Lunes -->
+<div class="p-space-md rounded-xl bg-surface-container-low flex flex-col md:flex-row md:items-center justify-between gap-space-md" id="row-lunes">
+<div class="w-28 shrink-0 flex items-center gap-space-xs">
+<span class="font-label-lg text-label-lg text-on-surface">Lunes</span>
+</div>
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-space-md flex-1">
+<div class="flex flex-col gap-1">
+<label class="font-label-sm text-label-sm text-outline">Lunes abre</label>
+<div class="relative flex items-center">
+<span class="material-symbols-outlined absolute left-3 text-outline text-[18px]">wb_twilight</span>
+<input class="w-full bg-surface-container-lowest text-on-surface font-body-md text-body-md pl-10 pr-space-md py-2 rounded-lg focus:outline-none focus:bg-surface-container-high transition-colors" type="text" value="12:00 PM"/>
+</div>
+</div>
+<div class="flex flex-col gap-1">
+<label class="font-label-sm text-label-sm text-outline">Lunes cierra</label>
+<div class="relative flex items-center">
+<span class="material-symbols-outlined absolute left-3 text-outline text-[18px]">dark_mode</span>
+<input class="w-full bg-surface-container-lowest text-on-surface font-body-md text-body-md pl-10 pr-space-md py-2 rounded-lg focus:outline-none focus:bg-surface-container-high transition-colors" type="text" value="10:00 PM"/>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-space-xs shrink-0 self-end md:self-center">
+<label class="inline-flex items-center gap-2 cursor-pointer select-none">
+<input class="w-4 h-4 rounded bg-surface-container-highest text-secondary focus:ring-0 cursor-pointer accent-secondary" onchange="toggleDay(this, 'row-lunes')" type="checkbox"/>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Cerrado Lunes</span>
+</label>
+</div>
+</div>
+<!-- Martes -->
+<div class="p-space-md rounded-xl bg-surface-container-low flex flex-col md:flex-row md:items-center justify-between gap-space-md" id="row-martes">
+<div class="w-28 shrink-0 flex items-center gap-space-xs">
+<span class="font-label-lg text-label-lg text-on-surface">Martes</span>
+</div>
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-space-md flex-1">
+<div class="flex flex-col gap-1">
+<label class="font-label-sm text-label-sm text-outline">Martes abre</label>
+<div class="relative flex items-center">
+<span class="material-symbols-outlined absolute left-3 text-outline text-[18px]">wb_twilight</span>
+<input class="w-full bg-surface-container-lowest text-on-surface font-body-md text-body-md pl-10 pr-space-md py-2 rounded-lg focus:outline-none focus:bg-surface-container-high transition-colors" type="text" value="12:00 PM"/>
+</div>
+</div>
+<div class="flex flex-col gap-1">
+<label class="font-label-sm text-label-sm text-outline">Martes cierra</label>
+<div class="relative flex items-center">
+<span class="material-symbols-outlined absolute left-3 text-outline text-[18px]">dark_mode</span>
+<input class="w-full bg-surface-container-lowest text-on-surface font-body-md text-body-md pl-10 pr-space-md py-2 rounded-lg focus:outline-none focus:bg-surface-container-high transition-colors" type="text" value="10:00 PM"/>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-space-xs shrink-0 self-end md:self-center">
+<label class="inline-flex items-center gap-2 cursor-pointer select-none">
+<input class="w-4 h-4 rounded bg-surface-container-highest text-secondary focus:ring-0 cursor-pointer accent-secondary" onchange="toggleDay(this, 'row-martes')" type="checkbox"/>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Cerrado Martes</span>
+</label>
+</div>
+</div>
+<!-- Miércoles -->
+<div class="p-space-md rounded-xl bg-surface-container-low flex flex-col md:flex-row md:items-center justify-between gap-space-md" id="row-miercoles">
+<div class="w-28 shrink-0 flex items-center gap-space-xs">
+<span class="font-label-lg text-label-lg text-on-surface">Miércoles</span>
+</div>
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-space-md flex-1">
+<div class="flex flex-col gap-1">
+<label class="font-label-sm text-label-sm text-outline">Miércoles abre</label>
+<div class="relative flex items-center">
+<span class="material-symbols-outlined absolute left-3 text-outline text-[18px]">wb_twilight</span>
+<input class="w-full bg-surface-container-lowest text-on-surface font-body-md text-body-md pl-10 pr-space-md py-2 rounded-lg focus:outline-none focus:bg-surface-container-high transition-colors" type="text" value="12:00 PM"/>
+</div>
+</div>
+<div class="flex flex-col gap-1">
+<label class="font-label-sm text-label-sm text-outline">Miércoles cierra</label>
+<div class="relative flex items-center">
+<span class="material-symbols-outlined absolute left-3 text-outline text-[18px]">dark_mode</span>
+<input class="w-full bg-surface-container-lowest text-on-surface font-body-md text-body-md pl-10 pr-space-md py-2 rounded-lg focus:outline-none focus:bg-surface-container-high transition-colors" type="text" value="10:00 PM"/>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-space-xs shrink-0 self-end md:self-center">
+<label class="inline-flex items-center gap-2 cursor-pointer select-none">
+<input class="w-4 h-4 rounded bg-surface-container-highest text-secondary focus:ring-0 cursor-pointer accent-secondary" onchange="toggleDay(this, 'row-miercoles')" type="checkbox"/>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Cerrado Miércoles</span>
+</label>
+</div>
+</div>
+<!-- Jueves -->
+<div class="p-space-md rounded-xl bg-surface-container-low flex flex-col md:flex-row md:items-center justify-between gap-space-md" id="row-jueves">
+<div class="w-28 shrink-0 flex items-center gap-space-xs">
+<span class="font-label-lg text-label-lg text-on-surface">Jueves</span>
+</div>
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-space-md flex-1">
+<div class="flex flex-col gap-1">
+<label class="font-label-sm text-label-sm text-outline">Jueves abre</label>
+<div class="relative flex items-center">
+<span class="material-symbols-outlined absolute left-3 text-outline text-[18px]">wb_twilight</span>
+<input class="w-full bg-surface-container-lowest text-on-surface font-body-md text-body-md pl-10 pr-space-md py-2 rounded-lg focus:outline-none focus:bg-surface-container-high transition-colors" type="text" value="12:00 PM"/>
+</div>
+</div>
+<div class="flex flex-col gap-1">
+<label class="font-label-sm text-label-sm text-outline">Jueves cierra</label>
+<div class="relative flex items-center">
+<span class="material-symbols-outlined absolute left-3 text-outline text-[18px]">dark_mode</span>
+<input class="w-full bg-surface-container-lowest text-on-surface font-body-md text-body-md pl-10 pr-space-md py-2 rounded-lg focus:outline-none focus:bg-surface-container-high transition-colors" type="text" value="10:00 PM"/>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-space-xs shrink-0 self-end md:self-center">
+<label class="inline-flex items-center gap-2 cursor-pointer select-none">
+<input class="w-4 h-4 rounded bg-surface-container-highest text-secondary focus:ring-0 cursor-pointer accent-secondary" onchange="toggleDay(this, 'row-jueves')" type="checkbox"/>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Cerrado Jueves</span>
+</label>
+</div>
+</div>
+<!-- Viernes -->
+<div class="p-space-md rounded-xl bg-surface-container-low flex flex-col md:flex-row md:items-center justify-between gap-space-md" id="row-viernes">
+<div class="w-28 shrink-0 flex items-center gap-space-xs">
+<span class="font-label-lg text-label-lg text-on-surface">Viernes</span>
+</div>
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-space-md flex-1">
+<div class="flex flex-col gap-1">
+<label class="font-label-sm text-label-sm text-outline">Viernes abre</label>
+<div class="relative flex items-center">
+<span class="material-symbols-outlined absolute left-3 text-outline text-[18px]">wb_twilight</span>
+<input class="w-full bg-surface-container-lowest text-on-surface font-body-md text-body-md pl-10 pr-space-md py-2 rounded-lg focus:outline-none focus:bg-surface-container-high transition-colors" type="text" value="12:00 PM"/>
+</div>
+</div>
+<div class="flex flex-col gap-1">
+<label class="font-label-sm text-label-sm text-outline">Viernes cierra</label>
+<div class="relative flex items-center">
+<span class="material-symbols-outlined absolute left-3 text-outline text-[18px]">dark_mode</span>
+<input class="w-full bg-surface-container-lowest text-on-surface font-body-md text-body-md pl-10 pr-space-md py-2 rounded-lg focus:outline-none focus:bg-surface-container-high transition-colors" type="text" value="10:00 PM"/>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-space-xs shrink-0 self-end md:self-center">
+<label class="inline-flex items-center gap-2 cursor-pointer select-none">
+<input class="w-4 h-4 rounded bg-surface-container-highest text-secondary focus:ring-0 cursor-pointer accent-secondary" onchange="toggleDay(this, 'row-viernes')" type="checkbox"/>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Cerrado Viernes</span>
+</label>
+</div>
+</div>
+</div>
+</div>
+<!-- Modal Actions Footer -->
+<div class="px-space-xl py-space-md bg-surface-container-high flex items-center justify-between">
+<button class="px-space-md py-space-sm rounded-lg bg-error-container/20 hover:bg-error-container/40 text-error transition-colors font-label-md text-label-md flex items-center gap-space-xs" onclick="toggleModal(false)">
+<span class="material-symbols-outlined text-[18px]">delete</span>
+<span>Eliminar</span>
+</button>
+<div class="flex items-center gap-space-sm">
+<button class="px-space-lg py-space-sm rounded-lg bg-surface-container hover:bg-surface-container-highest text-on-surface-variant hover:text-on-surface transition-colors font-label-md text-label-md" onclick="toggleModal(false)">
+            Cancelar
+          </button>
+<button class="px-space-xl py-space-sm rounded-lg bg-primary-container hover:bg-primary text-on-primary-container hover:text-on-primary font-label-md text-label-md transition-all shadow-md flex items-center gap-space-xs" onclick="toggleModal(false)">
+<span class="material-symbols-outlined text-[18px]">save</span>
+<span>Guardar cambios</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</div></main></div></body></html>

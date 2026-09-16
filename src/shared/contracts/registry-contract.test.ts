@@ -5,10 +5,10 @@ import { fileExists, listFiles, readRepoFile } from "./contract-files";
 /**
  * C0-3 de `plan2uiux.md` — el registro de componentes (`src/shared/ui/registry.json`).
  *
- * El catálogo humano sigue siendo `DESIGN_SYSTEM.md` §3 (así lo exige `ui-contract.test.ts`, que
- * rechaza cualquier componente de `_components/` sin fila ahí). Este archivo es su **espejo
- * declarado**: mismo inventario, con la metadata en un JSON que un agente o una herramienta puede
- * leer sin parsear markdown.
+ * El catálogo es este registro (desde el 2026-09-16: los documentos viejos
+ * `DESIGN_REFERENCES.md`/`DESIGN_SYSTEM.md` se borraron al declararse el sistema de Stitch, y
+ * `ui-contract.test.ts` exige que todo componente de `_components/` tenga su fila acá). Es un JSON
+ * que un agente o una herramienta puede leer sin parsear markdown.
  *
  * Cada fila trae `file`, `variants`, `sizes`, `use_when` y `dont_use_when` (los cinco campos que
  * pide C0-3) más la capa, el tipo, el estado y los exports reales. Lo que garantiza, de la más
@@ -140,8 +140,8 @@ describe("contrato · registro de componentes (src/shared/ui/registry.json)", ()
 
     expect(registry.version).toBe(2);
     expect(registry.updated).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-    expect(registry.source_of_truth).toBe("DESIGN_SYSTEM.md");
-    expect(registry.catalog).toContain("DESIGN_SYSTEM.md");
+    expect(registry.source_of_truth).toBe("ops/references/stitch/design-system.md");
+    expect(registry.catalog).toContain("ops/references/stitch/design-system.md");
     expect(Object.keys(registry.layers).sort()).toEqual([...LAYERS].sort());
     expect(registry.components.length).toBeGreaterThan(0);
 

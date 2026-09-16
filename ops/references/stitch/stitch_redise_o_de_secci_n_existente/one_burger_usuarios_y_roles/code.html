@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="es"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><link href="https://fonts.googleapis.com" rel="preconnect"/><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;family=Plus+Jakarta+Sans:wght@600;700&amp;display=swap" rel="stylesheet"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config={darkMode:"class",theme:{extend:{"colors":{"on-secondary-fixed-variant":"#653e00","on-surface-variant":"#bdc8d1","on-background":"#d3e4fe","surface-tint":"#7bd0ff","secondary-fixed-dim":"#ffb95f","on-error-container":"#ffdad6","surface-container":"#102034","on-error":"#690005","on-primary-fixed-variant":"#004c69","on-tertiary-fixed-variant":"#92002a","inverse-primary":"#00668a","tertiary-container":"#ff929a","outline-variant":"#3e484f","tertiary":"#ffbcbf","surface-container-highest":"#26364a","background":"#031427","on-tertiary":"#67001b","outline":"#87929a","on-secondary-fixed":"#2a1700","secondary-fixed":"#ffddb8","secondary-container":"#ee9800","surface-container-low":"#0b1c30","surface-container-high":"#1b2b3f","on-secondary":"#472a00","on-surface":"#d3e4fe","secondary":"#ffb95f","primary-fixed-dim":"#7bd0ff","primary-fixed":"#c4e7ff","tertiary-fixed-dim":"#ffb2b7","on-primary-fixed":"#001e2c","error":"#ffb4ab","surface-variant":"#26364a","surface-dim":"#031427","surface-container-lowest":"#000f21","surface":"#031427","tertiary-fixed":"#ffdadb","inverse-surface":"#d3e4fe","on-primary-container":"#004965","inverse-on-surface":"#213145","on-tertiary-container":"#8c0028","primary":"#8ed5ff","on-secondary-container":"#5b3800","on-primary":"#00354a","error-container":"#93000a","primary-container":"#38bdf8","on-tertiary-fixed":"#40000d","surface-bright":"#2a3a4f"},"borderRadius":{"DEFAULT":"0.125rem","lg":"0.25rem","xl":"0.5rem","full":"0.75rem"},"spacing":{"gutter-md":"1rem","gutter":"0.75rem","space-xl":"1.5rem","margin-lg":"1.5rem","space-lg":"1rem","space-xs":"0.25rem","space-md":"0.75rem","space-sm":"0.5rem","margin":"1rem"},"fontFamily":{"body-lg":["Inter"],"label-md":["Inter"],"counter-lg":["Inter"],"body-md":["Inter"],"label-lg":["Inter"],"headline-lg":["Plus Jakarta Sans"],"headline-md":["Plus Jakarta Sans"],"headline-sm":["Plus Jakarta Sans"],"body-sm":["Inter"],"label-sm":["Inter"],"counter-md":["Inter"]},"fontSize":{"body-lg":["1rem",{"lineHeight":"1.5rem","fontWeight":"400"}],"label-md":["0.75rem",{"lineHeight":"1rem","letterSpacing":"0.02em","fontWeight":"600"}],"counter-lg":["1.5rem",{"lineHeight":"1.75rem","letterSpacing":"-0.02em","fontWeight":"700"}],"body-md":["0.875rem",{"lineHeight":"1.25rem","fontWeight":"400"}],"label-lg":["0.875rem",{"lineHeight":"1.25rem","letterSpacing":"0.01em","fontWeight":"600"}],"headline-lg":["1.75rem",{"lineHeight":"2.25rem","letterSpacing":"-0.02em","fontWeight":"700"}],"headline-md":["1.25rem",{"lineHeight":"1.75rem","letterSpacing":"-0.015em","fontWeight":"600"}],"headline-sm":["1.125rem",{"lineHeight":"1.5rem","letterSpacing":"-0.01em","fontWeight":"600"}],"body-sm":["0.75rem",{"lineHeight":"1rem","fontWeight":"400"}],"label-sm":["0.6875rem",{"lineHeight":"0.875rem","letterSpacing":"0.04em","fontWeight":"600"}],"counter-md":["1rem",{"lineHeight":"1.25rem","letterSpacing":"0","fontWeight":"700"}]}}}};</script></head><body class="bg-surface font-body-md text-body-md text-on-surface antialiased"><aside class="fixed left-0 top-0 h-screen w-64 bg-surface-container-lowest z-50 flex flex-col justify-between overflow-hidden"><div class="flex flex-col flex-1 overflow-y-auto"><div class="p-space-lg flex items-center gap-space-md bg-surface-container-lowest/90"><div class="w-10 h-10 rounded-full bg-secondary-container flex items-center justify-center shadow-inner shrink-0"><span class="material-symbols-outlined text-on-secondary-container text-[22px]">lunch_dining</span></div><div class="flex flex-col min-w-0"><span class="font-headline-sm text-headline-sm text-on-surface truncate">One Burger</span><span class="font-label-sm text-label-sm text-secondary-fixed-dim uppercase tracking-wider truncate">Admin operativo</span></div></div><div class="px-space-md py-space-sm"><div class="px-space-sm py-space-xs font-label-sm text-label-sm text-outline uppercase tracking-wider">Operación</div><nav class="space-y-space-xs mt-space-xs" data-active-classes="bg-surface-container-highest text-on-surface font-semibold"><a class="flex items-center justify-between px-space-md py-space-sm rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors" data-path="resumen" href="#"><div class="flex items-center gap-space-md min-w-0"><span class="material-symbols-outlined text-[20px]">dashboard</span><div class="flex flex-col truncate"><span class="font-label-lg text-label-lg">Resumen</span><span class="font-body-sm text-body-sm text-outline truncate">Operación y rendimiento</span></div></div></a><a class="flex items-center justify-between px-space-md py-space-sm rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors" data-path="ordenes" href="#"><div class="flex items-center gap-space-md min-w-0"><span class="material-symbols-outlined text-[20px]">receipt_long</span><div class="flex flex-col truncate"><span class="font-label-lg text-label-lg">Órdenes</span><span class="font-body-sm text-body-sm text-outline truncate">Cocina y servicio / KDS</span></div></div><span class="px-space-xs py-0.5 rounded-full bg-secondary text-on-secondary font-label-sm text-label-sm">12</span></a><a class="flex items-center justify-between px-space-md py-space-sm rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors" data-path="caja" href="#"><div class="flex items-center gap-space-md min-w-0"><span class="material-symbols-outlined text-[20px]">point_of_sale</span><div class="flex flex-col truncate"><span class="font-label-lg text-label-lg">Caja</span><span class="font-body-sm text-body-sm text-outline truncate">Venta mostrador / POS</span></div></div></a></nav></div><div class="px-space-md py-space-sm"><div class="px-space-sm py-space-xs font-label-sm text-label-sm text-outline uppercase tracking-wider">Configuración</div><nav class="space-y-space-xs mt-space-xs" data-active-classes="bg-surface-container-highest text-on-surface font-semibold"><a class="flex items-center gap-space-md px-space-md py-space-sm rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors" data-path="menu" href="#"><span class="material-symbols-outlined text-[20px]">restaurant_menu</span><div class="flex flex-col truncate"><span class="font-label-lg text-label-lg">Menú</span><span class="font-body-sm text-body-sm text-outline truncate">Catálogo y promos</span></div></a><a class="flex items-center gap-space-md px-space-md py-space-sm rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors" data-path="locales" href="#"><span class="material-symbols-outlined text-[20px]">storefront</span><div class="flex flex-col truncate"><span class="font-label-lg text-label-lg">Locales</span><span class="font-body-sm text-body-sm text-outline truncate">Retiro, horario y contacto</span></div></a><a aria-current="page" class="flex items-center gap-space-md px-space-md py-space-sm rounded-lg transition-colors bg-surface-container-highest text-on-surface font-semibold" data-path="usuarios" href="#"><span class="material-symbols-outlined text-[20px]">group</span><div class="flex flex-col truncate"><span class="font-label-lg text-label-lg">Usuarios</span><span class="font-body-sm text-body-sm text-outline truncate">Roles y accesos</span></div></a><a class="flex items-center gap-space-md px-space-md py-space-sm rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors" data-path="personalizacion" href="#"><span class="material-symbols-outlined text-[20px]">tune</span><div class="flex flex-col truncate"><span class="font-label-lg text-label-lg">Personalización</span><span class="font-body-sm text-body-sm text-outline truncate">Marca y operación</span></div></a></nav></div></div><div class="p-space-md bg-surface-container-low/60 flex flex-col gap-space-md shrink-0"><div class="flex items-center gap-space-md p-space-sm rounded-lg bg-surface-container"><div class="w-9 h-9 rounded-full bg-secondary flex items-center justify-center shrink-0"><span class="font-headline-sm text-headline-sm text-on-secondary">D</span></div><div class="flex flex-col min-w-0 flex-1"><div class="flex items-center justify-between gap-space-xs"><span class="font-label-md text-label-md text-on-surface truncate">Daniel</span><span class="px-space-xs py-0.5 rounded bg-surface-container-highest text-secondary-fixed-dim font-label-sm text-label-sm">Master</span></div><span class="font-body-sm text-body-sm text-outline truncate">admin@oneburgernic.com</span><div class="flex items-center gap-1.5 mt-1"><span class="w-2 h-2 rounded-full bg-secondary animate-pulse"></span><span class="font-label-sm text-label-sm text-secondary-fixed-dim">Turno activo</span></div></div></div><a class="flex items-center justify-center gap-space-sm py-space-sm px-space-md rounded-lg bg-surface-container text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors font-label-md text-label-md" data-path="cerrar-sesion" href="#"><span class="material-symbols-outlined text-[18px]">logout</span><span>Cerrar sesión</span></a></div></aside><div class="pl-64"><header class="fixed top-0 left-64 right-0 h-14 bg-surface/90 backdrop-blur-md z-40 px-space-xl flex items-center justify-between shadow-[0_1px_8px_rgba(0,0,0,0.04)]"><div class="flex items-center gap-space-md"><div class="flex items-center gap-space-xs font-label-md text-label-md text-outline"><span class="material-symbols-outlined text-[18px]">fastfood</span><span>One Burger</span><span>/</span><span class="text-on-surface font-label-md text-label-md">Sucursal Central</span></div><span class="inline-flex items-center gap-1.5 px-space-sm py-0.5 rounded-full bg-surface-container-high text-primary font-label-sm text-label-sm"><span class="w-1.5 h-1.5 rounded-full bg-primary"></span>Sincronizado</span></div><div class="flex items-center gap-space-lg"><div class="flex items-center gap-space-xs px-space-md py-1.5 rounded-lg bg-surface-container-low text-on-surface-variant font-body-sm text-body-sm"><span class="material-symbols-outlined text-[18px]">search</span><span>Buscar comanda o producto...</span><kbd class="px-1.5 py-0.5 rounded bg-surface-container-highest text-outline font-label-sm text-label-sm">/</kbd></div><div class="flex items-center gap-space-sm"><button class="w-8 h-8 rounded-lg bg-surface-container-low hover:bg-surface-container flex items-center justify-center text-on-surface-variant hover:text-on-surface transition-colors"><span class="material-symbols-outlined text-[20px]">notifications</span></button><button class="w-8 h-8 rounded-lg bg-surface-container-low hover:bg-surface-container flex items-center justify-center text-on-surface-variant hover:text-on-surface transition-colors"><span class="material-symbols-outlined text-[20px]">help</span></button></div><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></header><main class="w-full pt-14 px-space-xl pb-space-xl bg-surface min-h-screen"><div class="flex flex-col w-full">
+<script>
+    (() => {
+      const activeLink = document.querySelector('aside nav a[data-path="usuarios"]');
+      if (activeLink) {
+        document.querySelectorAll('aside nav a').forEach(el => {
+          el.classList.remove('bg-surface-container-highest', 'text-on-surface', 'font-semibold');
+          el.classList.add('text-on-surface-variant');
+        });
+        activeLink.classList.remove('text-on-surface-variant');
+        activeLink.classList.add('bg-surface-container-highest', 'text-on-surface', 'font-semibold');
+      }
+    })();
+  </script>
+<!-- Context / Command Bar -->
+<div class="flex flex-col md:flex-row md:items-center justify-between gap-space-md mb-space-lg">
+<div class="flex items-center gap-space-md">
+<div class="w-10 h-10 rounded-xl bg-surface-container-high flex items-center justify-center text-primary shadow-sm">
+<span class="material-symbols-outlined text-[22px]">manage_accounts</span>
+</div>
+<div class="flex flex-col">
+<div class="flex items-center gap-space-xs">
+<span class="font-label-sm text-label-sm text-primary uppercase tracking-wider">Control de Personal</span>
+<span class="text-outline text-[12px]">•</span>
+<span class="font-label-sm text-label-sm text-secondary-fixed-dim">RBAC Activo</span>
+</div>
+<h1 class="font-headline-md text-headline-md text-on-surface tracking-tight">Gestión de Usuarios y Accesos</h1>
+</div>
+</div>
+<!-- Quick Stats Bar -->
+<div class="flex items-center gap-space-sm bg-surface-container-low p-1.5 rounded-xl shadow-sm">
+<div class="px-space-md py-1 rounded-lg bg-surface-container flex items-center gap-space-xs">
+<span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
+<span class="font-label-sm text-label-sm text-outline">Operadores:</span>
+<span class="font-counter-md text-counter-md text-on-surface">6</span>
+</div>
+<div class="px-space-md py-1 rounded-lg bg-surface-container flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-[16px] text-secondary">storefront</span>
+<span class="font-label-sm text-label-sm text-outline">Sucursales:</span>
+<span class="font-counter-md text-counter-md text-secondary">3</span>
+</div>
+<div class="px-space-md py-1 rounded-lg bg-surface-container flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-[16px] text-tertiary">shield</span>
+<span class="font-label-sm text-label-sm text-outline">Dueños:</span>
+<span class="font-counter-md text-counter-md text-tertiary">2</span>
+</div>
+</div>
+</div>
+<!-- Main 2-Column Responsive Bento Layout -->
+<div class="grid grid-cols-1 xl:grid-cols-12 gap-space-lg items-start">
+<!-- LEFT COLUMN: EQUIPO / Cuentas activas (7 cols desktop) -->
+<div class="xl:col-span-7 flex flex-col gap-space-md">
+<!-- Section Header -->
+<div class="flex items-center justify-between p-space-md rounded-xl bg-surface-container-low shadow-sm">
+<div class="flex items-center gap-space-sm">
+<div class="w-8 h-8 rounded-lg bg-surface-container-highest flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-[18px]">group</span>
+</div>
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-outline uppercase tracking-wider">Equipo</span>
+<span class="font-headline-sm text-headline-sm text-on-surface">Cuentas activas</span>
+</div>
+</div>
+<span class="px-space-sm py-0.5 rounded-full bg-surface-container-highest text-primary font-label-sm text-label-sm flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">verified_user</span> 6 perfiles
+        </span>
+</div>
+<!-- User Cards List -->
+<div class="flex flex-col gap-space-sm" id="user-cards-container">
+<!-- User 1: Daniel -->
+<div class="p-space-md rounded-xl bg-surface-container hover:bg-surface-container-high transition-all shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-space-md">
+<div class="flex items-start sm:items-center gap-space-md min-w-0">
+<div class="w-10 h-10 rounded-full bg-secondary text-on-secondary flex items-center justify-center font-headline-sm text-headline-sm shrink-0 shadow-inner">
+              D
+            </div>
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-space-xs flex-wrap">
+<span class="font-label-lg text-label-lg text-on-surface font-semibold truncate">Daniel</span>
+<span class="px-1.5 py-0.5 rounded bg-secondary-container/20 text-secondary-fixed-dim font-label-sm text-label-sm">Master</span>
+</div>
+<span class="font-body-sm text-body-sm text-outline truncate">admin@oneburgernic.com</span>
+<div class="flex items-center gap-1 mt-1 text-primary">
+<span class="material-symbols-outlined text-[14px]">domain</span>
+<span class="font-label-sm text-label-sm">Ve todas las sucursales</span>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-space-sm shrink-0 self-end sm:self-center">
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-outline mb-0.5">Rol</span>
+<select class="bg-surface-container-highest text-on-surface font-label-md text-label-md px-space-sm py-1.5 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer">
+<option selected="" value="dueno">Dueño</option>
+<option value="cocina">Cocina</option>
+<option value="cajero">Cajero / POS</option>
+</select>
+</div>
+<button class="h-9 px-space-sm rounded-lg bg-surface-container-highest hover:bg-error-container text-error hover:text-on-error transition-all flex items-center gap-1 font-label-md text-label-md self-end" onclick="simulateRevoke(this, 'Daniel')" title="Revocar credencial">
+<span class="material-symbols-outlined text-[16px]">shield</span>
+<span>Revocar</span>
+</button>
+</div>
+</div>
+<!-- User 2: Kris Malmsteen -->
+<div class="p-space-md rounded-xl bg-surface-container hover:bg-surface-container-high transition-all shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-space-md">
+<div class="flex items-start sm:items-center gap-space-md min-w-0">
+<div class="w-10 h-10 rounded-full bg-primary-fixed text-on-primary-fixed flex items-center justify-center font-headline-sm text-headline-sm shrink-0 shadow-inner">
+              K
+            </div>
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-space-xs flex-wrap">
+<span class="font-label-lg text-label-lg text-on-surface font-semibold truncate">Kris Malmsteen</span>
+<span class="px-1.5 py-0.5 rounded bg-surface-container-highest text-on-surface-variant font-label-sm text-label-sm">Socio</span>
+</div>
+<span class="font-body-sm text-body-sm text-outline truncate">kris@oneburgernic.com</span>
+<div class="flex items-center gap-1 mt-1 text-primary">
+<span class="material-symbols-outlined text-[14px]">domain</span>
+<span class="font-label-sm text-label-sm">Ve todas las sucursales</span>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-space-sm shrink-0 self-end sm:self-center">
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-outline mb-0.5">Rol</span>
+<select class="bg-surface-container-highest text-on-surface font-label-md text-label-md px-space-sm py-1.5 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer">
+<option selected="" value="dueno">Dueño</option>
+<option value="cocina">Cocina</option>
+<option value="cajero">Cajero / POS</option>
+</select>
+</div>
+<button class="h-9 px-space-sm rounded-lg bg-surface-container-highest hover:bg-error-container text-error hover:text-on-error transition-all flex items-center gap-1 font-label-md text-label-md self-end" onclick="simulateRevoke(this, 'Kris Malmsteen')" title="Revocar credencial">
+<span class="material-symbols-outlined text-[16px]">shield</span>
+<span>Revocar</span>
+</button>
+</div>
+</div>
+<!-- User 3: Camino de Oriente -->
+<div class="p-space-md rounded-xl bg-surface-container hover:bg-surface-container-high transition-all shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-space-md">
+<div class="flex items-start sm:items-center gap-space-md min-w-0">
+<div class="w-10 h-10 rounded-full bg-surface-container-highest text-on-surface flex items-center justify-center font-headline-sm text-headline-sm shrink-0">
+<span class="material-symbols-outlined text-[20px]">skillet</span>
+</div>
+<div class="flex flex-col min-w-0">
+<span class="font-label-lg text-label-lg text-on-surface font-semibold truncate">Camino de Oriente</span>
+<span class="font-body-sm text-body-sm text-outline truncate">caminooriente@oneburgernic.com</span>
+<div class="flex flex-col gap-0.5 mt-1">
+<span class="font-body-sm text-body-sm text-on-surface-variant flex items-center gap-1 truncate">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary-fixed-dim"></span>
+                  Asignado a: <strong class="text-on-surface font-semibold">Camino de Oriente</strong>
+</span>
+<button class="inline-flex items-center gap-1 font-label-sm text-label-sm text-primary hover:underline w-fit text-left" onclick="openModal('Camino de Oriente')">
+<span>▶ Cambiar sucursales de Camino de Oriente</span>
+</button>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-space-sm shrink-0 self-end sm:self-center">
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-outline mb-0.5">Rol</span>
+<select class="bg-surface-container-highest text-on-surface font-label-md text-label-md px-space-sm py-1.5 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer">
+<option value="dueno">Dueño</option>
+<option selected="" value="cocina">Cocina</option>
+<option value="cajero">Cajero / POS</option>
+</select>
+</div>
+<button class="h-9 px-space-sm rounded-lg bg-surface-container-highest hover:bg-error-container text-error hover:text-on-error transition-all flex items-center gap-1 font-label-md text-label-md self-end" onclick="simulateRevoke(this, 'Camino de Oriente')" title="Revocar credencial">
+<span class="material-symbols-outlined text-[16px]">shield</span>
+<span>Revocar</span>
+</button>
+</div>
+</div>
+<!-- User 4: Plaza Alarca -->
+<div class="p-space-md rounded-xl bg-surface-container hover:bg-surface-container-high transition-all shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-space-md">
+<div class="flex items-start sm:items-center gap-space-md min-w-0">
+<div class="w-10 h-10 rounded-full bg-surface-container-highest text-on-surface flex items-center justify-center font-headline-sm text-headline-sm shrink-0">
+<span class="material-symbols-outlined text-[20px]">skillet</span>
+</div>
+<div class="flex flex-col min-w-0">
+<span class="font-label-lg text-label-lg text-on-surface font-semibold truncate">Plaza Alarca</span>
+<span class="font-body-sm text-body-sm text-outline truncate">plazaalarca@oneburgernic.com</span>
+<div class="flex flex-col gap-0.5 mt-1">
+<span class="font-body-sm text-body-sm text-on-surface-variant flex items-center gap-1 truncate">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary-fixed-dim"></span>
+                  Asignado a: <strong class="text-on-surface font-semibold">Carretera Masaya</strong>
+</span>
+<button class="inline-flex items-center gap-1 font-label-sm text-label-sm text-primary hover:underline w-fit text-left" onclick="openModal('Plaza Alarca')">
+<span>▶ Cambiar sucursales de Plaza Alarca</span>
+</button>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-space-sm shrink-0 self-end sm:self-center">
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-outline mb-0.5">Rol</span>
+<select class="bg-surface-container-highest text-on-surface font-label-md text-label-md px-space-sm py-1.5 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer">
+<option value="dueno">Dueño</option>
+<option selected="" value="cocina">Cocina</option>
+<option value="cajero">Cajero / POS</option>
+</select>
+</div>
+<button class="h-9 px-space-sm rounded-lg bg-surface-container-highest hover:bg-error-container text-error hover:text-on-error transition-all flex items-center gap-1 font-label-md text-label-md self-end" onclick="simulateRevoke(this, 'Plaza Alarca')" title="Revocar credencial">
+<span class="material-symbols-outlined text-[16px]">shield</span>
+<span>Revocar</span>
+</button>
+</div>
+</div>
+<!-- User 5: Casa Antigua -->
+<div class="p-space-md rounded-xl bg-surface-container hover:bg-surface-container-high transition-all shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-space-md">
+<div class="flex items-start sm:items-center gap-space-md min-w-0">
+<div class="w-10 h-10 rounded-full bg-surface-container-highest text-on-surface flex items-center justify-center font-headline-sm text-headline-sm shrink-0">
+<span class="material-symbols-outlined text-[20px]">skillet</span>
+</div>
+<div class="flex flex-col min-w-0">
+<span class="font-label-lg text-label-lg text-on-surface font-semibold truncate">Casa Antigua</span>
+<span class="font-body-sm text-body-sm text-outline truncate">casaantigua@oneburgernic.com</span>
+<div class="flex flex-col gap-0.5 mt-1">
+<span class="font-body-sm text-body-sm text-on-surface-variant flex items-center gap-1 truncate">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary-fixed-dim"></span>
+                  Asignado a: <strong class="text-on-surface font-semibold">Casa Antigua</strong>
+</span>
+<button class="inline-flex items-center gap-1 font-label-sm text-label-sm text-primary hover:underline w-fit text-left" onclick="openModal('Casa Antigua')">
+<span>▶ Cambiar sucursales de Casa Antigua</span>
+</button>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-space-sm shrink-0 self-end sm:self-center">
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-outline mb-0.5">Rol</span>
+<select class="bg-surface-container-highest text-on-surface font-label-md text-label-md px-space-sm py-1.5 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer">
+<option value="dueno">Dueño</option>
+<option selected="" value="cocina">Cocina</option>
+<option value="cajero">Cajero / POS</option>
+</select>
+</div>
+<button class="h-9 px-space-sm rounded-lg bg-surface-container-highest hover:bg-error-container text-error hover:text-on-error transition-all flex items-center gap-1 font-label-md text-label-md self-end" onclick="simulateRevoke(this, 'Casa Antigua')" title="Revocar credencial">
+<span class="material-symbols-outlined text-[16px]">shield</span>
+<span>Revocar</span>
+</button>
+</div>
+</div>
+<!-- User 6: tester -->
+<div class="p-space-md rounded-xl bg-surface-container hover:bg-surface-container-high transition-all shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-space-md">
+<div class="flex items-start sm:items-center gap-space-md min-w-0">
+<div class="w-10 h-10 rounded-full bg-surface-container-highest text-secondary-fixed-dim flex items-center justify-center font-headline-sm text-headline-sm shrink-0">
+<span class="material-symbols-outlined text-[20px]">science</span>
+</div>
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-space-xs">
+<span class="font-label-lg text-label-lg text-on-surface font-semibold truncate">tester</span>
+<span class="px-1.5 py-0.5 rounded bg-surface-container-highest text-outline font-label-sm text-label-sm">Sandbox</span>
+</div>
+<span class="font-body-sm text-body-sm text-outline truncate">tester@oneburgernic.com</span>
+<span class="font-label-sm text-label-sm text-outline-variant mt-1">Sin sucursales fijas</span>
+</div>
+</div>
+<div class="flex items-center gap-space-sm shrink-0 self-end sm:self-center">
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-outline mb-0.5">Rol</span>
+<select class="bg-surface-container-highest text-on-surface font-label-md text-label-md px-space-sm py-1.5 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer">
+<option value="dueno">Dueño</option>
+<option selected="" value="cocina">Cocina</option>
+<option value="cajero">Cajero / POS</option>
+</select>
+</div>
+<button class="h-9 px-space-sm rounded-lg bg-surface-container-highest hover:bg-error-container text-error hover:text-on-error transition-all flex items-center gap-1 font-label-md text-label-md self-end" onclick="simulateRevoke(this, 'tester')" title="Revocar credencial">
+<span class="material-symbols-outlined text-[16px]">shield</span>
+<span>Revocar</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Quick Tips Card -->
+<div class="p-space-md rounded-xl bg-surface-container-lowest/60 flex items-start gap-space-md">
+<span class="material-symbols-outlined text-primary text-[20px] shrink-0 mt-0.5">info</span>
+<div class="flex flex-col gap-0.5 text-on-surface-variant">
+<span class="font-label-md text-label-md text-on-surface">Jerarquía de permisos</span>
+<p class="font-body-sm text-body-sm text-outline">
+            Los perfiles de <span class="text-secondary-fixed-dim font-semibold">Dueño</span> tienen control integral sobre menú, ventas e inventario. Los de <span class="text-primary font-semibold">Cocina</span> solo interactúan con la pantalla KDS y flujo comanda de sus locales autorizados.
+          </p>
+</div>
+</div>
+</div>
+<!-- RIGHT COLUMN: NUEVO USUARIO / Crear acceso (5 cols desktop) -->
+<div class="xl:col-span-5 flex flex-col gap-space-md">
+<!-- Creation Card -->
+<div class="p-space-lg rounded-xl bg-surface-container shadow-md flex flex-col">
+<!-- Header -->
+<div class="flex items-center gap-space-sm pb-space-md mb-space-md bg-surface-container-high/40 -mx-space-lg -mt-space-lg p-space-lg rounded-t-xl">
+<div class="w-9 h-9 rounded-lg bg-primary-container text-on-primary-container flex items-center justify-center font-headline-sm text-headline-sm shadow-inner">
+<span class="material-symbols-outlined text-[20px]">person_add</span>
+</div>
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-primary uppercase tracking-wider">Nuevo Usuario</span>
+<span class="font-headline-sm text-headline-sm text-on-surface">Crear acceso</span>
+</div>
+</div>
+<!-- Form Elements -->
+<form class="flex flex-col gap-space-md" id="newUserForm" onsubmit="handleCreateUser(event)">
+<!-- Field: Nombre -->
+<div class="flex flex-col gap-space-xs">
+<label class="font-label-md text-label-md text-on-surface flex items-center justify-between" for="userName">
+<span>Nombre</span>
+<span class="text-outline font-label-sm text-label-sm">Requerido</span>
+</label>
+<div class="relative flex items-center">
+<span class="material-symbols-outlined absolute left-space-md text-outline text-[18px]">badge</span>
+<input class="w-full pl-10 pr-space-md py-2.5 rounded-lg bg-surface-container-lowest text-on-surface font-body-md text-body-md placeholder-outline focus:outline-none focus:bg-surface-container-high focus:text-on-surface transition-colors" id="userName" placeholder="Ej. Chef Rodrigo" required="" type="text"/>
+</div>
+</div>
+<!-- Field: Correo -->
+<div class="flex flex-col gap-space-xs">
+<label class="font-label-md text-label-md text-on-surface flex items-center justify-between" for="userEmail">
+<span>Correo electrónico</span>
+<span class="text-outline font-label-sm text-label-sm">Identificador</span>
+</label>
+<div class="relative flex items-center">
+<span class="material-symbols-outlined absolute left-space-md text-outline text-[18px]">alternate_email</span>
+<input class="w-full pl-10 pr-space-md py-2.5 rounded-lg bg-surface-container-lowest text-on-surface font-body-md text-body-md placeholder-outline focus:outline-none focus:bg-surface-container-high focus:text-on-surface transition-colors" id="userEmail" required="" type="email" value="tester@oneburgernic.com"/>
+</div>
+</div>
+<!-- Field: Contraseña temporal -->
+<div class="flex flex-col gap-space-xs">
+<label class="font-label-md text-label-md text-on-surface flex items-center justify-between" for="userPassword">
+<span>Contraseña temporal</span>
+<span class="text-outline font-label-sm text-label-sm">Min. 8 carácteres</span>
+</label>
+<div class="relative flex items-center">
+<span class="material-symbols-outlined absolute left-space-md text-outline text-[18px]">key</span>
+<input class="w-full pl-10 pr-10 py-2.5 rounded-lg bg-surface-container-lowest text-on-surface font-body-md text-body-md focus:outline-none focus:bg-surface-container-high focus:text-on-surface transition-colors" id="userPassword" placeholder="••••••••••••" required="" type="password" value="secret12345"/>
+<button class="absolute right-space-md text-outline hover:text-on-surface transition-colors" onclick="togglePasswordVisibility()" type="button">
+<span class="material-symbols-outlined text-[18px]" id="pwToggleIcon">visibility</span>
+</button>
+</div>
+</div>
+<!-- Field: Rol -->
+<div class="flex flex-col gap-space-xs">
+<label class="font-label-md text-label-md text-on-surface" for="userRole">
+              Rol en el sistema
+            </label>
+<div class="relative">
+<select class="w-full px-space-md py-2.5 rounded-lg bg-surface-container-lowest text-on-surface font-body-md text-body-md focus:outline-none focus:bg-surface-container-high transition-colors appearance-none cursor-pointer" id="userRole" onchange="handleRoleChange(this.value)">
+<option selected="" value="cocina">Cocina (KDS)</option>
+<option value="dueno">Dueño (Administrador Total)</option>
+<option value="cajero">Cajero / Mostrador (POS)</option>
+</select>
+<span class="material-symbols-outlined absolute right-space-md top-3 text-outline pointer-events-none text-[18px]">expand_more</span>
+</div>
+<!-- Explanatory role badge -->
+<div class="flex items-center gap-space-sm p-space-sm rounded-lg bg-surface-container-low text-on-surface-variant mt-1" id="roleExplanation">
+<span class="material-symbols-outlined text-secondary text-[16px] shrink-0">check_circle</span>
+<span class="font-body-sm text-body-sm">Puede aceptar y avanzar órdenes en pantalla de producción.</span>
+</div>
+</div>
+<!-- Field: Sucursales Checkboxes -->
+<div class="flex flex-col gap-space-xs pt-space-xs">
+<div class="flex items-center justify-between">
+<span class="font-label-md text-label-md text-on-surface">Sucursales asignadas</span>
+<button class="font-label-sm text-label-sm text-primary hover:underline" onclick="selectAllBranches()" type="button">Marcar todas</button>
+</div>
+<div class="flex flex-col gap-1.5 p-space-md rounded-xl bg-surface-container-lowest">
+<label class="flex items-center gap-space-sm p-space-xs rounded-lg hover:bg-surface-container cursor-pointer select-none transition-colors">
+<input class="w-4 h-4 rounded bg-surface-container-highest accent-primary text-primary focus:ring-0 cursor-pointer" name="branch" type="checkbox" value="Camino de Oriente"/>
+<span class="font-body-md text-body-md text-on-surface">Camino de Oriente</span>
+</label>
+<label class="flex items-center gap-space-sm p-space-xs rounded-lg hover:bg-surface-container cursor-pointer select-none transition-colors">
+<input class="w-4 h-4 rounded bg-surface-container-highest accent-primary text-primary focus:ring-0 cursor-pointer" name="branch" type="checkbox" value="Carretera Masaya"/>
+<span class="font-body-md text-body-md text-on-surface">Carretera Masaya</span>
+</label>
+<label class="flex items-center gap-space-sm p-space-xs rounded-lg hover:bg-surface-container cursor-pointer select-none transition-colors">
+<input class="w-4 h-4 rounded bg-surface-container-highest accent-primary text-primary focus:ring-0 cursor-pointer" name="branch" type="checkbox" value="Casa Antigua"/>
+<span class="font-body-md text-body-md text-on-surface">Casa Antigua</span>
+</label>
+</div>
+<p class="font-body-sm text-body-sm text-outline px-space-xs pt-1 flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">tune</span>
+<span>Sin ninguna marcada, el usuario ve todas las sucursales.</span>
+</p>
+</div>
+<!-- Submit Button -->
+<div class="pt-space-sm">
+<button class="w-full py-3 px-space-lg rounded-xl bg-primary text-on-primary hover:bg-primary-container font-label-lg text-label-lg transition-all shadow-md flex items-center justify-center gap-space-sm active:scale-[0.99]" type="submit">
+<span class="material-symbols-outlined text-[20px]">how_to_reg</span>
+<span>Crear acceso</span>
+</button>
+</div>
+</form>
+</div>
+<!-- Audit & Security Snapshot -->
+<div class="p-space-md rounded-xl bg-surface-container-low flex items-center justify-between gap-space-md">
+<div class="flex items-center gap-space-sm min-w-0">
+<span class="material-symbols-outlined text-secondary text-[22px]">lock_clock</span>
+<div class="flex flex-col truncate">
+<span class="font-label-md text-label-md text-on-surface">Sesiones cifradas</span>
+<span class="font-body-sm text-body-sm text-outline truncate">Última revocación: Hoy, 11:42 AM</span>
+</div>
+</div>
+<span class="font-label-sm text-label-sm text-primary px-space-sm py-1 rounded bg-surface-container">2FA Opcional</span>
+</div>
+</div>
+</div>
+<!-- Interactive Modal for 'Cambiar sucursales' -->
+<div class="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-space-md" id="branchModal">
+<div class="w-full max-w-md bg-surface-container p-space-lg rounded-xl shadow-xl flex flex-col gap-space-md">
+<div class="flex items-center justify-between pb-space-sm">
+<div class="flex items-center gap-space-sm">
+<span class="material-symbols-outlined text-primary text-[20px]">store</span>
+<h3 class="font-headline-sm text-headline-sm text-on-surface" id="modalUserName">Asignar Sucursales</h3>
+</div>
+<button class="w-8 h-8 rounded-lg bg-surface-container-highest flex items-center justify-center text-outline hover:text-on-surface" onclick="closeModal()">
+<span class="material-symbols-outlined text-[18px]">close</span>
+</button>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant">
+        Seleccione los puntos de venta que este operador podrá monitorear en KDS y despachar pedidos:
+      </p>
+<div class="flex flex-col gap-2 p-space-md rounded-xl bg-surface-container-lowest">
+<label class="flex items-center gap-space-sm p-space-xs rounded-lg hover:bg-surface-container cursor-pointer select-none">
+<input checked="" class="w-4 h-4 rounded bg-surface-container-highest accent-primary text-primary" id="modBranch1" type="checkbox"/>
+<span class="font-body-md text-body-md text-on-surface">Camino de Oriente</span>
+</label>
+<label class="flex items-center gap-space-sm p-space-xs rounded-lg hover:bg-surface-container cursor-pointer select-none">
+<input class="w-4 h-4 rounded bg-surface-container-highest accent-primary text-primary" id="modBranch2" type="checkbox"/>
+<span class="font-body-md text-body-md text-on-surface">Carretera Masaya</span>
+</label>
+<label class="flex items-center gap-space-sm p-space-xs rounded-lg hover:bg-surface-container cursor-pointer select-none">
+<input class="w-4 h-4 rounded bg-surface-container-highest accent-primary text-primary" id="modBranch3" type="checkbox"/>
+<span class="font-body-md text-body-md text-on-surface">Casa Antigua</span>
+</label>
+</div>
+<div class="flex items-center justify-end gap-space-sm pt-space-xs">
+<button class="px-space-md py-2 rounded-lg bg-surface-container-highest text-on-surface font-label-md text-label-md hover:bg-surface-container-high transition-colors" onclick="closeModal()">
+          Cancelar
+        </button>
+<button class="px-space-md py-2 rounded-lg bg-primary text-on-primary font-label-md text-label-md hover:bg-primary-container transition-colors shadow-sm" onclick="saveModalChanges()">
+          Guardar cambios
+        </button>
+</div>
+</div>
+</div>
+<!-- Toast Notification System -->
+<div class="fixed bottom-space-lg right-space-lg z-50 translate-y-24 opacity-0 transition-all duration-300 pointer-events-none" id="toastNotification">
+<div class="flex items-center gap-space-sm px-space-md py-space-sm rounded-xl bg-surface-container-highest text-on-surface shadow-xl">
+<span class="material-symbols-outlined text-primary text-[20px]" id="toastIcon">check_circle</span>
+<span class="font-body-md text-body-md font-medium" id="toastMessage">Operación completada</span>
+</div>
+</div>
+<script>
+    function showToast(message, icon = 'check_circle', isError = false) {
+      const toast = document.getElementById('toastNotification');
+      const msg = document.getElementById('toastMessage');
+      const ico = document.getElementById('toastIcon');
+      
+      msg.textContent = message;
+      ico.textContent = icon;
+      ico.className = isError 
+        ? 'material-symbols-outlined text-error text-[20px]' 
+        : 'material-symbols-outlined text-primary text-[20px]';
+
+      toast.classList.remove('translate-y-24', 'opacity-0');
+      toast.classList.add('translate-y-0', 'opacity-100');
+
+      setTimeout(() => {
+        toast.classList.remove('translate-y-0', 'opacity-100');
+        toast.classList.add('translate-y-24', 'opacity-0');
+      }, 3500);
+    }
+
+    function togglePasswordVisibility() {
+      const input = document.getElementById('userPassword');
+      const icon = document.getElementById('pwToggleIcon');
+      if (input.type === 'password') {
+        input.type = 'text';
+        icon.textContent = 'visibility_off';
+      } else {
+        input.type = 'password';
+        icon.textContent = 'visibility';
+      }
+    }
+
+    function handleRoleChange(role) {
+      const explanation = document.getElementById('roleExplanation');
+      if (role === 'dueno') {
+        explanation.innerHTML = '<span class="material-symbols-outlined text-secondary text-[16px] shrink-0">admin_panel_settings</span><span class="font-body-sm text-body-sm">Control total de sucursales, facturación, cierres de turno y personal.</span>';
+      } else if (role === 'cajero') {
+        explanation.innerHTML = '<span class="material-symbols-outlined text-primary text-[16px] shrink-0">point_of_sale</span><span class="font-body-sm text-body-sm">Toma de pedidos en mostrador, arqueos de caja y cobros directos.</span>';
+      } else {
+        explanation.innerHTML = '<span class="material-symbols-outlined text-secondary text-[16px] shrink-0">check_circle</span><span class="font-body-sm text-body-sm">Puede aceptar y avanzar órdenes en pantalla de producción.</span>';
+      }
+    }
+
+    function selectAllBranches() {
+      const checkboxes = document.querySelectorAll('input[name="branch"]');
+      const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+      checkboxes.forEach(cb => cb.checked = !allChecked);
+      showToast(allChecked ? 'Sucursales desmarcadas' : 'Todas las sucursales seleccionadas');
+    }
+
+    function simulateRevoke(button, userName) {
+      if (confirm(`¿Estás seguro de que deseas revocar el acceso a "${userName}"?`)) {
+        const card = button.closest('.bg-surface-container');
+        if (card) {
+          card.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+          card.style.opacity = '0.4';
+          card.style.filter = 'grayscale(1)';
+          button.disabled = true;
+          button.innerHTML = '<span class="material-symbols-outlined text-[16px]">lock_reset</span><span>Revocado</span>';
+          button.classList.remove('text-error', 'hover:bg-error-container');
+          button.classList.add('text-outline', 'cursor-not-allowed');
+          showToast(`Acceso revocado a ${userName}`, 'shield', true);
+        }
+      }
+    }
+
+    let activeModalTarget = '';
+    function openModal(userName) {
+      activeModalTarget = userName;
+      document.getElementById('modalUserName').textContent = `Sucursales: ${userName}`;
+      document.getElementById('branchModal').classList.remove('hidden');
+    }
+
+    function closeModal() {
+      document.getElementById('branchModal').classList.add('hidden');
+    }
+
+    function saveModalChanges() {
+      closeModal();
+      showToast(`Sucursales actualizadas para ${activeModalTarget}`);
+    }
+
+    function handleCreateUser(e) {
+      e.preventDefault();
+      const name = document.getElementById('userName').value.trim();
+      const email = document.getElementById('userEmail').value.trim();
+      const roleSelect = document.getElementById('userRole');
+      const roleText = roleSelect.options[roleSelect.selectedIndex].text.split(' ')[0];
+
+      if (!name || !email) {
+        showToast('Complete los campos requeridos', 'error', true);
+        return;
+      }
+
+      // Append new card dynamically
+      const container = document.getElementById('userCardsContainer') || document.getElementById('user-cards-container');
+      const initial = name.charAt(0).toUpperCase();
+
+      const newCard = document.createElement('div');
+      newCard.className = 'p-space-md rounded-xl bg-surface-container hover:bg-surface-container-high transition-all shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-space-md animate-fadeIn';
+      newCard.innerHTML = `
+        <div class="flex items-start sm:items-center gap-space-md min-w-0">
+          <div class="w-10 h-10 rounded-full bg-primary text-on-primary flex items-center justify-center font-headline-sm text-headline-sm shrink-0 shadow-inner">
+            ${initial}
+          </div>
+          <div class="flex flex-col min-w-0">
+            <div class="flex items-center gap-space-xs flex-wrap">
+              <span class="font-label-lg text-label-lg text-on-surface font-semibold truncate">${name}</span>
+              <span class="px-1.5 py-0.5 rounded bg-surface-container-highest text-primary font-label-sm text-label-sm">Nuevo</span>
+            </div>
+            <span class="font-body-sm text-body-sm text-outline truncate">${email}</span>
+            <div class="flex items-center gap-1 mt-1 text-primary">
+              <span class="material-symbols-outlined text-[14px]">domain</span>
+              <span class="font-label-sm text-label-sm">Ve todas las sucursales</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-space-sm shrink-0 self-end sm:self-center">
+          <div class="flex flex-col">
+            <span class="font-label-sm text-label-sm text-outline mb-0.5">Rol</span>
+            <select class="bg-surface-container-highest text-on-surface font-label-md text-label-md px-space-sm py-1.5 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer">
+              <option value="dueno" ${roleText === 'Dueño' ? 'selected' : ''}>Dueño</option>
+              <option value="cocina" ${roleText === 'Cocina' ? 'selected' : ''}>Cocina</option>
+              <option value="cajero" ${roleText === 'Cajero' ? 'selected' : ''}>Cajero / POS</option>
+            </select>
+          </div>
+          <button onclick="simulateRevoke(this, '${name}')" class="h-9 px-space-sm rounded-lg bg-surface-container-highest hover:bg-error-container text-error hover:text-on-error transition-all flex items-center gap-1 font-label-md text-label-md self-end" title="Revocar credencial">
+            <span class="material-symbols-outlined text-[16px]">shield</span>
+            <span>Revocar</span>
+          </button>
+        </div>
+      `;
+
+      container.prepend(newCard);
+      showToast(`Usuario "${name}" creado exitosamente`);
+
+      // Reset Form fields
+      document.getElementById('userName').value = '';
+      document.getElementById('userPassword').value = '';
+    }
+  </script>
+</div></main></div></body></html>

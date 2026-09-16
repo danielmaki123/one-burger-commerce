@@ -108,11 +108,13 @@ describe("tipografías elegibles", () => {
 });
 
 /**
- * `DESIGN_REFERENCES.md` §3 Patrón 5 — la escala tipográfica del ADN visual.
+ * La escala tipográfica del **sitio público** (2026-09-16).
  *
- * **Cambió el contrato (2026-09-15)**: antes esta tabla fijaba los pasos del mock "Artisanal Appetite"
- * (T1.3, 13 pasos de 10 a 40 px). El owner reemplazó ese ADN por el de `DESIGN_REFERENCES.md`, que
- * define **cinco niveles** (Hero 56, KPI 32, Título 20, Body 14, Label 11) más un metadato de apoyo.
+ * **Cambió el contrato dos veces**: primero fijaba los pasos del mock "Artisanal Appetite" (T1.3, 13
+ * pasos de 10 a 40 px); después los cinco niveles del ADN viejo; y desde el **2026-09-16** esta escala
+ * es **la del público**, que no cambia. El **panel** tiene la suya, la del sistema Stitch
+ * (`ops/references/stitch/design-system.md` §2.2, utilidades `text-st-*`), porque el owner decidió que
+ * el rediseño del panel no toca el sitio del cliente.
  * Los nombres viejos siguen existiendo porque el público los usa, pero ahora **mapean a esos cinco
  * niveles**: `display`/`display-lg` = Hero, `headline*` = Título, `title`/`title-sm` = KPI,
  * `body-sm` = Body, `label*` = Label.

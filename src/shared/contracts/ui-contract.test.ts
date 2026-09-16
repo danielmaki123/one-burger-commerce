@@ -20,8 +20,9 @@ import {
  * 2. **No se agregan colores sueltos.** `#hex` solo vive en la fuente de tokens (`globals.css`), en
  *    los archivos de **datos** de color (paletas, defaults, contraste: ahí el hex es el dato, no un
  *    estilo) y en las 6 filas legacy listadas abajo.
- * 3. **Todo componente de `_components/` está registrado en `DESIGN_SYSTEM.md`** (la regla de
- *    `AGENTS.md`: registro en el mismo commit, con su "cuándo NO usarlo").
+ * 3. **Todo componente de `_components/` está registrado en `src/shared/ui/registry.json`** (la
+ *    regla de `AGENTS.md`: registro en el mismo commit, con su "cuándo NO usarlo"). El catálogo en
+ *    markdown se retiró el 2026-09-16 con el sistema viejo: el registro es la fuente.
  *
  * Lo que este contrato **no** cubre todavía, para que no parezca cubierto: los 35 `rgba()`, las 70
  * clases de paleta cruda de Tailwind (`red-*`, `stone-*`, …) y los 29 `fontFamily` inline que
@@ -112,7 +113,7 @@ const LEGACY_HEX: Record<string, number> = {
   "src/app/(public)/success/[orderId]/order-success-view.tsx": 1,
 };
 
-const DESIGN_SYSTEM_DOC = "DESIGN_SYSTEM.md";
+const REGISTRY_PATH = "src/shared/ui/registry.json";
 
 function appComponentSources(): string[] {
   return listFiles(
@@ -187,10 +188,10 @@ describe("contrato · UI (primitivos, tokens y registro de componentes)", () => 
     expect(stale).toEqual([]);
   });
 
-  it("todo componente de _components/ está registrado en DESIGN_SYSTEM.md", () => {
-    expect(fileExists(DESIGN_SYSTEM_DOC), `falta ${DESIGN_SYSTEM_DOC}`).toBe(true);
+  it("todo componente de _components/ está registrado en registry.json", () => {
+    expect(fileExists(REGISTRY_PATH), `falta ${REGISTRY_PATH}`).toBe(true);
 
-    const designSystem = readRepoFile(DESIGN_SYSTEM_DOC);
+    const registry = readRepoFile(REGISTRY_PATH);
     const components = listFiles(
       APP_ROOT,
       (repoPath) =>
@@ -203,12 +204,12 @@ describe("contrato · UI (primitivos, tokens y registro de componentes)", () => 
 
     const unregistered = components.filter((repoPath) => {
       const name = repoPath.split("/").pop()!.replace(/\.tsx$/, "");
-      return !designSystem.includes(repoPath) && !designSystem.includes(name);
+      return !registry.includes(repoPath) && !registry.includes(name);
     });
 
     expect(
       unregistered,
-      "registralos en DESIGN_SYSTEM.md (con su cuándo NO usarlos) en el mismo commit",
+      "registralos en src/shared/ui/registry.json (con su cuándo NO usarlos) en el mismo commit",
     ).toEqual([]);
   });
 });

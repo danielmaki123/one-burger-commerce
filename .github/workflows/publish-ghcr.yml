@@ -50,7 +50,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       # `fetch-depth: 0` no es decorativo: `docs-sync-contract.test.ts` compara la fecha del último
-      # commit que tocó `prisma/schema.prisma` y `src/shared/ui/` contra la de `DESIGN_SYSTEM.md`, y
+      # commit que tocó `prisma/schema.prisma` y `src/shared/ui/` contra la del catálogo de UI, y
       # con el clon superficial por defecto (depth 1) esa historia no existe y la guarda se saltea.
       - name: Checkout
         uses: actions/checkout@v4

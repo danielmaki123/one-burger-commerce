@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { JetBrains_Mono } from "next/font/google";
 import localFont from "next/font/local";
 
 import "@/app/globals.css";
@@ -75,6 +76,20 @@ const jakarta = localFont({
 });
 
 /**
+ * JetBrains Mono: la tipografía de NÚMEROS del sistema Stitch
+ * (`ops/references/stitch/design-system.md` §2.1). Es obligatoria para plata, cronómetros, IDs de
+ * ticket, PIN y contadores, con `tabular-nums`, para que la interfaz no "tiemble" cuando esos
+ * valores cambian solos. No es una fuente de marca (esas las elige el negocio en `/admin/settings`),
+ * así que va por `next/font/google` y no como archivo local.
+ */
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  weight: ["400", "700"],
+  variable: "--font-jetbrains",
+  display: "swap",
+});
+
+/**
  * `satisfies` es lo que impide agregar una tipografía al admin y olvidarse de
  * incluirla en el build: si `FONT_CHOICES` crece, este objeto no compila.
  */
@@ -90,9 +105,12 @@ const fonts = {
  * las clases una por una, agregar una tipografía y olvidarla acá la dejaba sin
  * definir, y el navegador caía a la del sistema sin ningún error.
  */
-const fontVariables = Object.values(fonts)
-  .map((font) => font.variable)
-  .join(" ");
+const fontVariables = [
+  ...Object.values(fonts).map((font) => font.variable),
+  // La mono del sistema Stitch no es una tipografía de marca: va aparte de `fonts` para que el
+  // `satisfies` siga obligando a que TODA opción de `/admin/settings` esté en el build.
+  jetbrainsMono.variable,
+].join(" ");
 
 export async function generateMetadata(): Promise<Metadata> {
   const settings = await getPublicBusinessSettings();

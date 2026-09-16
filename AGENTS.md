@@ -5,24 +5,25 @@ explícito del humano, gana el humano; después de resolverlo, actualizá este a
 
 ## Cómo trabajamos (acuerdo con el owner)
 
-- **De a una tarea por vez**, no varias cosas de un saque: cada tarea se cierra entera
-  (implementación, tests, validación, commit, push, CI verde y estado actualizado) antes de
-  empezar la siguiente.
+- **De a una tarea por vez**: cada tarea se cierra entera (implementación, tests, validación, commit,
+  push, CI verde y estado actualizado) antes de empezar la siguiente.
 - Si una tarea mezcla temas distintos, se parte en **un commit por tema**.
 - Ante una duda de alcance, se pregunta **antes** de codear; no se inventa producto.
-- **Plan escrito = alcance ya resuelto** (2026-09-14): si el owner entrega un plan o un brief (los
-  de `ops/tasks/*.md`, o el plan que pase por el chat), las tareas que ese documento ya define se
-  ejecutan **de corrido y sin pedir validación entre una y otra**. Se sigue cerrando **una por vez**
-  (implementación, tests, validación, commit, push, CI verde y estado actualizado) y se sigue
-  preguntando por lo que el plan **no** decide: alcance nuevo, producto, dependencias nuevas y
-  deploy. Si el plan choca con este archivo, gana el plan y la excepción se anota acá, en el mismo
-  commit.
-- **Excepciones anotadas del plan de UI** (`plan2uiux.md`, 2026-09-15; el plan choca con este archivo):
-  el **stop humano de `C1-4a`** (el mockup de `/admin` se valida antes de implementarlo) se respeta; el
-  gate `npm run test:contracts` es el alias de los contratos de `src/shared/contracts/` (corren en
-  `npm run test` y en el job `contracts` de CI); el registro de componentes es `DESIGN_SYSTEM.md` §3
-  **más** `src/shared/ui/registry.json`, su espejo declarado; y el plan dice «21 E2E» cuando acá son
-  **23 specs** en `tests/e2e/` (línea de base en `ops/tasks/START-HERE.md` §5).
+- **Plan escrito = alcance ya resuelto** (2026-09-14): lo que un plan o un brief (`ops/tasks/*.md` o
+  el que pase por el chat) ya define se ejecuta **de corrido**, cerrando una tarea por vez. Se sigue
+  preguntando por lo que el plan **no** decide (alcance nuevo, producto, dependencias, deploy) y, si
+  choca con este archivo, gana el plan y la excepción se anota acá en el mismo commit.
+- **Sistema de diseño (2026-09-16, reemplaza a todo lo anterior):** la fuente de verdad visual es
+  [`ops/references/stitch/design-system.md`](ops/references/stitch/design-system.md), con las **7
+  pantallas de referencia** (KDS, POS, Resumen, Menú, Locales, Usuarios, Personalización) al lado en
+  `ops/references/stitch/`. **Gana siempre** en lo visual. Los documentos viejos
+  (`DESIGN_REFERENCES.md`, `DESIGN_SYSTEM.md`, `design/*.md`, `docs/ui/admin-design-system.md`) y el
+  mockup HTML anterior se **borraron**: no se recrean ni se citan.
+- **Excepciones anotadas de los planes** (`plan2uiux.md`, `plna.md`; chocan con este archivo): el gate
+  `npm run test:contracts` es el alias de los contratos de `src/shared/contracts/` (corren en
+  `npm run test` y en el job `contracts` de CI); el registro de componentes es
+  `src/shared/ui/registry.json`; y los planes dicen «21 E2E» cuando acá son **23 specs** en
+  `tests/e2e/` (línea de base en `ops/tasks/START-HERE.md` §5).
 - El punto de entrada para un chat nuevo es
   [`ops/tasks/START-HERE.md`](ops/tasks/START-HERE.md): tiene el prompt listo para pegar, el
   mapa de documentos y la cola de pendientes en orden.
@@ -51,8 +52,7 @@ la navegación ni en las APIs públicas sin aprobación explícita.
 | `ops/project-state.md` | Estado real: qué está desplegado, qué se cerró, qué falta, cómo continuar. **Leer primero.** |
 | `ops/production-readiness.md` | Runbook: entorno, deploy, backups, rollback, notificaciones, primer arranque, límites conocidos. |
 | `ops/tasks/*.md` | Briefs de tareas acordadas con el owner (decisiones ya resueltas). |
-| `DESIGN_REFERENCES.md` | **UI — ADN visual**: los 10 patrones que deciden cómo se ve una pantalla. Se lee antes de escribir UI; gana sobre los demás documentos de diseño. |
-| `DESIGN_SYSTEM.md` | **UI — catálogo**: tokens (light y dark), componentes y "cuándo NO usar" cada uno. Deriva del ADN. |
+| `ops/references/stitch/design-system.md` | **UI — sistema de diseño oficial**: tokens, tipografía, espaciado, radios, elevaciones, componentes con variantes, estados y reglas de uso. Se lee antes de escribir UI y **gana siempre** en lo visual. |
 | `README.md` | Alcance y comandos de validación. |
 
 `docs/` y `handoffs/` están en `.gitignore`: son material histórico heredado de otro proyecto
@@ -85,59 +85,60 @@ src/infrastructure/** prisma, event bus
 
 ## Jerarquía de fuentes (qué gana cuando hay conflicto)
 
-1. **`DESIGN_REFERENCES.md`** — el **ADN visual**: los 10 patrones que deciden cómo se ve una pantalla
-   (números grandes, cards con personalidad, íconos con fondo, color con significado, jerarquía de 5
-   niveles, badges, visualización, spacing, radius y **dark mode siempre**). Se lee **antes de escribir
-   cualquier UI**. Si la decisión es visual, manda este archivo.
-2. **`DESIGN_SYSTEM.md`** — el **catálogo**: qué tokens existen, qué componentes hay y cuándo NO usar
-   cada uno. No contradice al ADN: lo aterriza.
+1. **`ops/references/stitch/design-system.md`** — el **sistema de diseño oficial** (2026-09-16): tokens,
+   tipografía, espaciado, radios, elevaciones, componentes con variantes, estados y reglas de uso. Se
+   lee antes de escribir UI y **siempre gana** en lo visual.
+2. **`ops/references/stitch/stitch_redise_o_de_secci_n_existente/<pantalla>/code.html`** (+ `screen.png`)
+   — la **referencia visual** de las 7 pantallas. Es referencia: se **traduce** a componentes, no se copia.
 3. **`AGENTS.md`** (este archivo) — todo lo demás: alcance, arquitectura, TDD, validación, git/CI,
-   deploy, idioma y prohibiciones. **Sigue mandando sobre los dos documentos de diseño** cuando el
-   conflicto no es visual (alcance, arquitectura, proceso): en ese caso gana este archivo y el
-   documento de diseño se corrige en el mismo commit.
+   deploy, idioma y prohibiciones. **Sigue mandando sobre el sistema** cuando el conflicto no es visual:
+   en ese caso gana este archivo y el documento de diseño se corrige en el mismo commit.
 4. **Skills de diseño** (Impeccable, Frontend design, UI/UX Pro Max, …) — **referencia secundaria, no
-   fuente de verdad**. Si un skill contradice el ADN o el catálogo, **ganan los documentos del repo**:
-   se reporta el conflicto y **no** se cambia el código.
-5. **Humano** — si sigue sin estar claro, se para y se pregunta.
+   fuente de verdad**. Si un skill contradice el sistema, **gana el repo**: se reporta y no se cambia.
+5. **Humano** — si sigue sin estar claro, **PARAR** y preguntar.
 
 ## UI y design system
 
-El **ADN visual** es [`DESIGN_REFERENCES.md`](DESIGN_REFERENCES.md) (raíz, versionado). El **catálogo**
-de tokens y componentes es [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md) (raíz, versionado), que deriva de este
-archivo y del inventario medido en [`ops/tasks/TASK-201-ui-inventory.md`](ops/tasks/TASK-201-ui-inventory.md).
+El **sistema oficial** es [`ops/references/stitch/design-system.md`](ops/references/stitch/design-system.md)
+y **gana siempre** en lo visual. Dos modos a propósito (owner, 2026-09-16): el **panel** (KDS/POS/Admin)
+es **oscuro** —su shell lleva `class="dark"`— y el **público** sigue **claro** con la paleta del negocio.
+La migración va pantalla por pantalla; mientras dure, los nombres viejos viven como **alias** de Stitch.
 
-Las **20 reglas de interfaz** que salieron de medir el mockup de `/admin` (producto, accesibilidad,
-estados y performance, cada una con su "por qué" y su "cómo verificar") están en `DESIGN_SYSTEM.md` §2:
-**se aplican a toda pantalla nueva**, no al mockup.
+**Reglas del sistema, vinculantes** (`design-system.md` §2, §6, §7 y §8):
+
+- **Los números van en `font-mono` con `tabular-nums`**: precios (`C$ 305.00`), cronómetros, IDs de
+  ticket, PIN y contadores. Es lo que evita que la interfaz "tiemble" cuando cambian solos.
+- **Ámbar (`--brand-amber`) vs azul cielo (`--brand-primary`)**: ámbar para la identidad, la cocina y la
+  acción de comanda; cielo para administración, navegación y confirmación del POS.
+- **`animate-pulse` solo en SLA vencido o pérdida de sincronización**: prohibido animar tickets normales.
+- **La cabecera no pasa el 20% del alto**: el 80% de la pantalla es para las tarjetas o el catálogo.
+- **Controles de 44 px mínimo** (`h-11`): es una interfaz táctil de cocina y mostrador.
+- **Los estados operativos son los del sistema** (`--status-pending|prep|ready|sla`), cada uno con
+  fondo, borde, texto y punto: por aceptar, en preparación, listas y atrasado.
+- **Nada de contenedores blancos planos**: el lienzo del panel es `--bg-canvas` con superficies por capas.
+- **Los datos del negocio son los reales**: `C$`/`NIO`, `+505` y las sucursales `Camino de Oriente`,
+  `Carretera Masaya` y `Casa Antigua`. Prohibido inventar nombres, ciudades o monedas.
+
+Y las reglas de siempre, que el sistema no reemplaza:
 
 - **Componente que existe, componente que se usa**: primero `src/shared/ui/`, después
-  `(admin)/admin/_components/` y `(public)/_components/`. El inventario y el "cuándo NO" de cada uno
-  están en `DESIGN_SYSTEM.md` §3; el espejo legible por máquina es `src/shared/ui/registry.json`, con
-  `file`, `variants`, `sizes`, `use_when` y `dont_use_when` por componente.
+  `(admin)/admin/_components/` y `(public)/_components/`. El registro legible por máquina es
+  `src/shared/ui/registry.json`, con `file`, `variants`, `sizes`, `use_when` y `dont_use_when`.
 - **Prohibido el HTML crudo equivalente** (`<button>`, `<input>`, `<select>`, `<textarea>`) cuando el
-  primitivo existe. De los que **NO EXISTE** primitivo, la falta se documenta en `DESIGN_SYSTEM.md` §3.4
-  antes de inventar el sexto `className` distinto.
-- **Prohibido el color fuera de token**: nada de `#hex`, `rgba()`, paleta cruda de Tailwind donde hay
-  token ni `fontFamily` inline que duplique `font-heading`. Solo tokens de `globals.css`.
+  primitivo existe, y prohibido **copiar el HTML de Stitch**: se traduce a componentes del repo. Si falta
+  un primitivo, se documenta en `src/shared/ui/registry.json` antes de inventar el sexto `className`.
+- **Prohibido el color fuera de token**: nada de `#hex`, `rgba()`, paleta cruda de Tailwind
+  (`slate-*`, `sky-*`, `amber-*`, `emerald-*`, `rose-*`) donde hay token, ni `fontFamily` inline.
 - **Los 16 tokens muertos están prohibidos y ya no existen** (C1-3): `--primary`, `--popover`,
-  `--destructive`, `--ring` y la familia `--sidebar-*` se eliminaron de `globals.css` porque nadie los
-  consumía. Un contrato lo verifica: si necesitás uno de verdad, se declara **con su consumidor** en el
-  mismo commit.
-- **El modo oscuro es obligatorio** (aprobado el 2026-09-15, `DESIGN_REFERENCES.md` §3 Patrón 10): todo
-  token nuevo necesita su valor en los dos modos y todo par texto/fondo tiene que dar **4.5:1**.
-  `src/shared/contracts/dark-mode-contract.test.ts` lo mide.
+  `--destructive`, `--ring` y la familia `--sidebar-*` se eliminaron porque nadie los consumía.
+- **Contraste**: texto/fondo **4.5:1** y borde de control **3:1** (WCAG 1.4.11). Lo mide
+  `dark-mode-contract.test.ts`; la deuda del modo claro está declarada en `globals.css`.
 - **Componente nuevo = registro previo**: un archivo nuevo en `_components/` se registra en
-  `DESIGN_SYSTEM.md` **y** en `src/shared/ui/registry.json` **en el mismo commit**, con su "cuándo SÍ" y
-  su "cuándo NO" (un contrato exige que los dos digan lo mismo).
-- **Los techos de UI solo bajan** (C1-2, `plan2uiux.md`): `src/shared/config/design-tokens.allow.json`
-  congela, por archivo, las violaciones que todavía quedan (paleta cruda, `fontFamily` inline,
-  radios/tamaños/sombras arbitrarios, `window.confirm`, `role` a mano y HTML crudo). **Un techo nunca
-  sube**; si un archivo baja sus violaciones, baja el número en el mismo commit; un archivo nuevo no
-  agrega fila, arregla el archivo. Al terminar la Capa 1.9 del plan de UI, todas las tablas quedan vacías.
+  `src/shared/ui/registry.json` **en el mismo commit**, con su "cuándo SÍ" y su "cuándo NO".
+- **Los techos de UI solo bajan**: `src/shared/config/design-tokens.allow.json` congela por archivo las
+  violaciones que quedan. **Un techo nunca sube**: si baja, se baja el número en el mismo commit.
 - **Ningún control decorativo**: cada control se implementa con su estado/API **y su test**, o se
-  elimina con el motivo escrito en el commit.
-- **Nada de texto decorativo**: copy que no cambia una decisión del usuario ("Bienvenido",
-  "Descubrí lo mejor de…", subtítulos que repiten el título). `DESIGN_SYSTEM.md` §5 lo lista.
+  elimina con el motivo escrito. **Nada de texto decorativo**: copy que no cambia una decisión no va.
 - La UI se verifica en **navegador real a 375 px y 1280 px**, no en HTML estático.
 
 ## Reglas de código
@@ -177,30 +178,28 @@ Reglas de test:
 
 ## Checklist de UI antes de cerrar una tarea con pantalla
 
-Ninguna tarea que toque UI se cierra con un "no" acá. El ADN está en `DESIGN_REFERENCES.md` §3, el
-catálogo con el "cuándo NO" de cada componente en `DESIGN_SYSTEM.md` §3 y las 20 reglas de interfaz en
-`DESIGN_SYSTEM.md` §2.
+Ninguna tarea que toque UI se cierra con un "no" acá. El sistema está en
+`ops/references/stitch/design-system.md` y el registro de componentes en `src/shared/ui/registry.json`.
 
-**ADN visual (los 10 patrones):**
+**Sistema Stitch (el panel es oscuro):**
 
-- [ ] ¿El dato principal **domina** (Hero 56 px Fraunces 700) y los secundarios van en KPI 32 px?
-- [ ] ¿La pantalla usa los **5 niveles** (Hero, KPI, Título, Body, Label) y ninguno intermedio?
-- [ ] ¿Los **íconos tienen fondo de color** (48×48, radio 12) y los colores **significan** algo?
-- [ ] ¿Hay **máximo 2 tipos de card** por pantalla (no todas blancas)?
-- [ ] ¿El spacing es **32 px entre secciones** y 24 px dentro de las cards?
-- [ ] ¿Los badges de tendencia/estado usan `-soft` de fondo y `-strong` de texto?
-- [ ] ¿Donde hay datos hay **visualización** (sparkline / donut / barras), y sin datos hay estado vacío?
-- [ ] ¿Se ve bien en **light Y dark** (`class="dark"` en `<html>`) y el par texto/fondo da ≥4.5:1?
+- [ ] ¿Los **números** (plata, cronómetros, IDs, PIN, contadores) van en `font-mono` con `tabular-nums`?
+- [ ] ¿Usé los **estados del sistema** (`--status-pending|prep|ready|sla`) y no colores sueltos?
+- [ ] ¿Ámbar solo para identidad/cocina/acción y **azul cielo** para administración y POS?
+- [ ] ¿La cabecera y los filtros entran en el **20%** del alto y el resto es operación?
+- [ ] ¿Los controles táctiles tienen **≥44 px** y foco visible propio (≥3:1)?
+- [ ] ¿`animate-pulse` aparece **solo** en SLA vencido o desincronización?
+- [ ] ¿La pantalla es **oscura** y no quedó ningún contenedor blanco plano?
+- [ ] ¿Los datos son los reales (`C$` / `+505` / las tres sucursales), sin inventar?
 
 **Código y componentes:**
 
-- [ ] ¿Usé los primitivos de `src/shared/ui/` donde ya existían? (si falta uno, se registra en
-      `DESIGN_SYSTEM.md` §3.4, no se inventa el sexto `className`)
+- [ ] ¿Usé los primitivos de `src/shared/ui/` y **traduje** el HTML de Stitch en vez de copiarlo?
 - [ ] ¿Cero `text-[Npx]`, cero paleta cruda, cero `rounded-[Npx]` y cero `shadow-[...]`?
 - [ ] ¿Hay **una sola** acción primaria y ningún texto decorativo?
 - [ ] ¿Están los **5 estados**: con datos, cargando, vacío, error y **"nada pendiente"**?
-- [ ] ¿Foco visible propio en cada interactivo (≥3:1), controles ≥44 px, contraste ≥4.99:1 y sin scroll
-      horizontal entre 320 px y 1280 px?
+- [ ] ¿Contraste ≥4.5:1 en texto, ≥3:1 en el borde de control, y sin scroll horizontal entre 320 y
+      1280 px?
 - [ ] ¿La verifiqué en **navegador real a 375 px y 1280 px** (Playwright), no en HTML estático?
 - [ ] ¿Corrí los gates (`npm run test:contracts`, `npm run test`) y el E2E si toqué flujos?
 
@@ -293,7 +292,8 @@ UI y código:
 
 - No escribir HTML crudo (`button`, `input`, `select`, `textarea`) donde ya hay componente, ni
   `#hex`, `rgba()` o paleta cruda de Tailwind donde hay token.
-- No crear un componente en `_components/` sin registrarlo en `DESIGN_SYSTEM.md` en el mismo commit.
+- No crear un componente en `_components/` sin registrarlo en `src/shared/ui/registry.json` en el mismo
+  commit, ni copiar el HTML de Stitch: se traduce a componentes del repo.
 - No duplicar un cálculo ni una transición de estado que ya tiene fuente única (`order-totals.ts`, `order-workflows.ts`).
 - No pasar de **400 líneas por archivo**, **80 por función** ni **50 por route handler**.
 - No agregar dependencias nuevas sin aprobación humana.

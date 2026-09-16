@@ -43,9 +43,9 @@
   --info-strong: #2b6c96;          /* texto/dato de información neutral */
   /* Alias de compatibilidad: los nombres viejos siguen vivos porque ~220 clases del
      código los usan. El fondo es el mismo color; el `-foreground` apunta al `-strong`
-     nuevo, así el modo oscuro arregla de una todos esos usos (antes tenían un literal
-     oscuro que no se veía sobre el fondo oscuro). Se eliminan cuando las oleadas de la
-     Capa 1.6-1.8 pasen cada pantalla a los nombres de `DESIGN_REFERENCES.md` §4. */
+     nuevo, así el modo oscuro arregla de una todos esos usos. En el modo oscuro los cuatro
+     apuntan a los estados del sistema Stitch (listo / preparación / SLA / recepción). Se
+     eliminan cuando la Fase 2 termine de migrar cada pantalla a `--status-*`. */
   --success: var(--success-soft);
   --success-foreground: var(--success-strong);
   --warning: var(--warning-soft);
@@ -63,6 +63,68 @@
   --pickup-on-time: #1f7a4d;    /* todavía no es la hora */
   --pickup-past: #a36519;       /* pasó la hora, con margen (mismo ajuste que preparando) */
   --pickup-late: #b23c2a;       /* muy tardado */
+
+  /* ══ SISTEMA STITCH — `ops/references/stitch/design-system.md` (v3.0.0) ══════════════════
+     Los nombres de acá son los OFICIALES del sistema. Están en los dos modos porque los usan
+     también los componentes compartidos de `src/shared/ui/`, que se renderizan en el público.
+
+     - El PANEL (KDS/POS/Admin) los ve en su versión oscura: el shell del panel lleva
+       `class="dark"` (decisión C3 del owner, 2026-09-16). El PÚBLICO sigue claro con la paleta
+       que el negocio configura en `/admin/settings`.
+     - Esta es la matriz LIGHT del documento (§1.3 + §1.1), con los textos de estado bajados a
+       su variante legible: los del documento (#38BDF8, #F59E0B, #34D399, #F87171) son para
+       fondo oscuro y sobre blanco dan 2.1–2.2:1. Acá van medidos: sky-700 5.41:1,
+       amber-700 4.58:1, emerald-700 4.91:1, red-700 4.99:1.
+     - DEUDA DECLARADA (el owner pidió dejarla y documentarla): en claro, `--brand-primary`
+       #38BDF8 da 2.14:1 y `--brand-amber` #F59E0B 2.15:1 sobre blanco, y `--text-muted`
+       #94A3B8 2.45:1 → no sirven como TEXTO (sí como relleno). En oscuro, que es donde vive
+       el panel, no hay deuda de texto. */
+  --bg-canvas: #f8fafc;
+  --bg-surface: #ffffff;
+  --bg-surface-low: #f1f5f9;
+  --bg-surface-card: #ffffff;
+  --bg-surface-elevated: #ffffff;
+  --bg-surface-input: #ffffff;
+  --border-subtle: #e2e8f0;
+  --border-medium: #cbd5e1;
+  --border-strong: #cbd5e1;
+  /* Borde de CONTROLES: WCAG 1.4.11 pide 3:1. En claro el documento no lo cumple (1.23:1) y
+     queda como deuda; en oscuro se corrige a rgba(255,255,255,.40) → 3.23:1 medido. */
+  --border-control: var(--border-subtle);
+  --border-focus: var(--brand-primary);
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
+  --text-inverse: #000f21;
+  --brand-primary: #38bdf8;
+  --brand-primary-hover: #0ea5e9;
+  --brand-primary-muted: rgba(56, 189, 248, 0.12);
+  --brand-amber: #f59e0b;
+  --brand-amber-hover: #d97706;
+  --brand-amber-soft: #fef3c7;
+  --brand-yellow: #eab308;
+  /* Estados operativos (§1.4): fondo translúcido + borde + texto + punto. */
+  --status-pending-bg: rgba(56, 189, 248, 0.12);
+  --status-pending-border: rgba(56, 189, 248, 0.35);
+  --status-pending-text: #0369a1;
+  --status-pending-dot: #0284c7;
+  --status-prep-bg: rgba(245, 158, 11, 0.12);
+  --status-prep-border: rgba(245, 158, 11, 0.4);
+  --status-prep-text: #b45309;
+  --status-prep-dot: #d97706;
+  --status-ready-bg: rgba(16, 185, 129, 0.12);
+  --status-ready-border: rgba(16, 185, 129, 0.4);
+  --status-ready-text: #047857;
+  --status-ready-dot: #10b981;
+  --status-sla-bg: rgba(239, 68, 68, 0.2);
+  --status-sla-border: #ef4444;
+  --status-sla-text: #b91c1c;
+  --status-sla-pulse: #dc2626;
+  --status-inactive-bg: rgba(100, 116, 139, 0.12);
+  --status-inactive-border: rgba(100, 116, 139, 0.3);
+  --status-inactive-text: #475569;
+  --status-inactive-dot: #64748b;
+
   --radius: 0.625rem;
 }
 
@@ -183,15 +245,85 @@ body {
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+
+  /* Monospace del sistema Stitch (§2.1): OBLIGATORIO para plata, cronómetros, IDs de ticket, PIN y
+     contadores (`tabular-nums`). Lo prohibido antes era el `font-mono` decorativo; ahora es una regla
+     del sistema para números. */
+  --font-mono: var(--font-jetbrains), ui-monospace, SFMono-Regular, "Roboto Mono", monospace;
+
+  /* ── Stitch: colores como utilidades de Tailwind ──
+     La utilidad sale del nombre: `--color-surface-card` → `bg-surface-card`, `--color-line-control`
+     → `border-line-control`, `--color-ink-muted` → `text-ink-muted`. Se usa el vocabulario del
+     documento traducido a nombres que Tailwind emite sin chocar con los suyos. */
+  --color-canvas: var(--bg-canvas);
+  --color-surface: var(--bg-surface);
+  --color-surface-low: var(--bg-surface-low);
+  --color-surface-card: var(--bg-surface-card);
+  --color-surface-elevated: var(--bg-surface-elevated);
+  --color-surface-input: var(--bg-surface-input);
+  --color-line-subtle: var(--border-subtle);
+  --color-line-medium: var(--border-medium);
+  --color-line-strong: var(--border-strong);
+  --color-line-control: var(--border-control);
+  --color-line-focus: var(--border-focus);
+  --color-ink: var(--text-primary);
+  --color-ink-secondary: var(--text-secondary);
+  --color-ink-muted: var(--text-muted);
+  --color-ink-inverse: var(--text-inverse);
+  --color-brand-primary: var(--brand-primary);
+  --color-brand-primary-hover: var(--brand-primary-hover);
+  --color-brand-primary-muted: var(--brand-primary-muted);
+  --color-brand-amber: var(--brand-amber);
+  --color-brand-amber-hover: var(--brand-amber-hover);
+  --color-brand-amber-soft: var(--brand-amber-soft);
+  --color-brand-yellow: var(--brand-yellow);
+  --color-status-pending-bg: var(--status-pending-bg);
+  --color-status-pending-border: var(--status-pending-border);
+  --color-status-pending-text: var(--status-pending-text);
+  --color-status-pending-dot: var(--status-pending-dot);
+  --color-status-prep-bg: var(--status-prep-bg);
+  --color-status-prep-border: var(--status-prep-border);
+  --color-status-prep-text: var(--status-prep-text);
+  --color-status-prep-dot: var(--status-prep-dot);
+  --color-status-ready-bg: var(--status-ready-bg);
+  --color-status-ready-border: var(--status-ready-border);
+  --color-status-ready-text: var(--status-ready-text);
+  --color-status-ready-dot: var(--status-ready-dot);
+  --color-status-sla-bg: var(--status-sla-bg);
+  --color-status-sla-border: var(--status-sla-border);
+  --color-status-sla-text: var(--status-sla-text);
+  --color-status-sla-pulse: var(--status-sla-pulse);
+  --color-status-inactive-bg: var(--status-inactive-bg);
+  --color-status-inactive-border: var(--status-inactive-border);
+  --color-status-inactive-text: var(--status-inactive-text);
+  --color-status-inactive-dot: var(--status-inactive-dot);
+
+  /* Radios del sistema (§4). Van con prefijo `stitch-` porque Tailwind ya usa `rounded-sm|md|lg|xl|2xl`
+     para su propia escala y el público depende de ella. `rounded-full` ya es el 9999 del documento. */
+  --radius-stitch-xs: 4px;
+  --radius-stitch-sm: 8px;
+  --radius-stitch-md: 12px;
+  --radius-stitch-lg: 16px;
+  --radius-stitch-xl: 20px;
+  --radius-stitch-2xl: 24px;
+
+  /* Elevaciones del sistema (§5): la sombra lleva su propio anillo de 1px en vez de un borde, para
+     no ensuciar el borde en pantallas de alto brillo. */
+  --shadow-elevation-1: 0 1px 2px 0 rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(255, 255, 255, 0.06);
+  --shadow-elevation-2: 0 4px 12px -2px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  --shadow-elevation-3: 0 12px 28px -4px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.12);
+  --shadow-elevation-4: 0 24px 48px -12px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(255, 255, 255, 0.16);
+  --shadow-glow-amber: 0 0 20px -2px rgba(245, 158, 11, 0.35);
+  --shadow-glow-critical: 0 0 20px 2px rgba(239, 68, 68, 0.45);
 }
 
-/* ── Escala tipográfica del ADN visual (`DESIGN_REFERENCES.md` §3 Patrón 5) ──
-   Cinco niveles, y una pantalla usa esos cinco: Hero (56) para el dato principal, KPI (32) para los
-   secundarios, Título (20), Body (14) y Label (11, uppercase con tracking ancho). En `rem` y nunca en
-   `px`, para que el zoom del navegador y el tamaño de fuente del usuario sigan funcionando.
+/* ── Escala tipográfica del PÚBLICO (Hero 56 / KPI 32 / Título 20 / Body 14 / Label 11) ──
+   Es la que el sitio del cliente ya tenía y **no cambia** (decisión C3: el público queda como está).
+   En `rem` y nunca en `px`, para que el zoom del navegador y el tamaño de fuente del usuario sigan
+   funcionando. El panel tiene su propia escala, la del sistema Stitch, en `--text-st-*`.
 
    Los nombres viejos del mock "Artisanal Appetite" (T1.3) siguen existiendo porque el público los usa
-   en 300+ lugares; quedan **mapeados a los cinco niveles del ADN**, así el público hereda la escala
+   en 300+ lugares; quedan **mapeados a los cinco niveles**, así el público hereda la escala
    nueva sin un refactor masivo: `display`/`display-lg` = Hero, `headline*` = Título,
    `title`/`title-sm` = KPI (número grande), `body-sm` = Body, `label*` = Label.
 
@@ -257,7 +389,42 @@ body {
   --text-caption--line-height: 1rem;
   --text-caption--font-weight: 400;
 
-  /* Curvaturas: las tarjetas usan 16 px y los paneles 24 px (`DESIGN_REFERENCES.md` §3 Patrón 9). */
+  /* ── Escala del sistema Stitch (§2.2) — la del PANEL (KDS/POS/Admin) ──
+     Ocho niveles con su tamaño, interlineado, peso y tracking. Convive con la escala del público
+     (Hero 56 / KPI 32 / Label 11), que queda **intacta** porque el público no cambia (decisión C3);
+     el prefijo `st-` marca cuál es cuál hasta que la Fase 2 termine de migrar. */
+  --text-st-display: 2rem;                   /* 32 px — totales de caja y arqueo */
+  --text-st-display--line-height: 2.25rem;
+  --text-st-display--font-weight: 800;
+  --text-st-display--letter-spacing: -0.03em;
+  --text-st-h1: 1.5rem;                      /* 24 px — título de módulo */
+  --text-st-h1--line-height: 1.75rem;
+  --text-st-h1--font-weight: 800;
+  --text-st-h1--letter-spacing: -0.025em;
+  --text-st-h2: 1.25rem;                     /* 20 px — título de sección y N.º de ticket */
+  --text-st-h2--line-height: 1.5rem;
+  --text-st-h2--font-weight: 700;
+  --text-st-h2--letter-spacing: -0.02em;
+  --text-st-h3: 1rem;                        /* 16 px — nombre de producto */
+  --text-st-h3--line-height: 1.25rem;
+  --text-st-h3--font-weight: 600;
+  --text-st-h3--letter-spacing: -0.015em;
+  --text-st-body-lg: 0.9375rem;              /* 15 px — modificadores y desglose */
+  --text-st-body-lg--line-height: 1.3125rem;
+  --text-st-body-lg--font-weight: 500;
+  --text-st-body: 0.875rem;                  /* 14 px — navegación y formularios */
+  --text-st-body--line-height: 1.25rem;
+  --text-st-body--font-weight: 400;
+  --text-st-caption: 0.75rem;                /* 12 px — timers relativos y direcciones */
+  --text-st-caption--line-height: 1rem;
+  --text-st-caption--font-weight: 500;
+  --text-st-caption--letter-spacing: 0.01em;
+  --text-st-overline: 0.625rem;              /* 10 px UPPERCASE — grupos del sidebar y estaciones */
+  --text-st-overline--line-height: 0.75rem;
+  --text-st-overline--font-weight: 700;
+  --text-st-overline--letter-spacing: 0.08em;
+
+  /* Curvaturas: las tarjetas usan 16 px y los paneles 24 px (`design-system.md` §4). */
   --radius-card: 1rem;
   --radius-panel: 1.5rem;
 
@@ -269,64 +436,122 @@ body {
 }
 
 /**
- * DARK MODE — aprobado por el owner el 2026-09-15 (`DESIGN_REFERENCES.md` §3 Patrón 10 y §4).
+ * DARK MODE — es el modo del **panel** (KDS/POS/Admin): el shell del panel lleva `class="dark"`
+ * (decisión C3 del owner, 2026-09-16). El público sigue claro.
  *
- * Se activa con `class="dark"` en `<html>`: no hay detección del sistema, el interruptor es explícito.
- * Valores exactos del documento, con **una** desviación medida y anotada:
+ * La paleta es la del sistema Stitch (`ops/references/stitch/design-system.md`, §1.2 y §1.4).
+ * Primero van los NOMBRES OFICIALES y después los nombres viejos del ADN como **alias**: así las
+ * ~1.300 clases que ya existen (`bg-card`, `text-foreground`, `border-border`,
+ * `text-muted-foreground`…) toman los valores de Stitch sin tocarlas, y la app no se rompe mientras
+ * la Fase 2 migra pantalla por pantalla (decisión C2-A). Los alias se borran al terminar esa fase.
  *
- * - `--brand-strong` del documento es `#4A8BB5` y sobre `--card` (#16212A) da **4.40:1**, por debajo
- *   del 4.5:1 que exige el proyecto para texto. Se usa `#518FBA` (**4.85:1** medido), el azul más
- *   cercano que cumple. Es la única diferencia contra §4.
- *
- * Todo par texto/fondo de este bloque está medido: `dark-mode-contract.test.ts` falla si alguno baja
- * de 4.5:1.
+ * Contrastes medidos (texto sobre el fondo compuesto que le toca, WCAG AA = 4.5:1):
+ *   `--text-primary` 17.71:1 · `--text-secondary` 7.23:1 · `--text-muted` **5.17:1** (arreglado: el
+ *   `#64748B` del documento daba 3.30:1 sobre la card) · los cuatro textos de estado 4.73–6.69:1 ·
+ *   `--text-inverse` sobre ámbar 8.97:1 y sobre sky 8.99:1.
+ *   El **borde de controles** pasa de 1.01:1 a **3.23:1** (`--border-control`), que es lo que pide
+ *   WCAG 1.4.11 y lo que el documento no resolvía. `dark-mode-contract.test.ts` lo mide.
  */
 .dark {
   color-scheme: dark;
 
-  --background: #0f161c;
-  --foreground: #e8ebef;
-  --card: #16212a;
-  --card-foreground: #e8ebef;
-  --secondary: #1c262e;
-  --secondary-foreground: #e8ebef;
-  --muted: #1c262e;
-  --muted-foreground: #8a97a3;
-  --accent: #15232e;
-  --border: #263239;
-  --input: var(--border);
+  /* ── Nombres oficiales del sistema (Stitch §1.2) ── */
+  --bg-canvas: #000f21;
+  --bg-surface: #031427;
+  --bg-surface-low: #0b1c30;
+  --bg-surface-card: #132438;
+  --bg-surface-elevated: #1a2d46;
+  --bg-surface-input: #06182b;
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-medium: rgba(255, 255, 255, 0.14);
+  --border-strong: rgba(255, 255, 255, 0.25);
+  /* Arreglo de contraste pedido por el owner: 3.23:1 medido contra el lienzo. */
+  --border-control: rgba(255, 255, 255, 0.4);
+  --border-focus: #38bdf8;
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --text-muted: #8296ad;
+  --text-inverse: #000f21;
+  --brand-primary: #38bdf8;
+  --brand-primary-hover: #0ea5e9;
+  --brand-primary-muted: rgba(56, 189, 248, 0.12);
+  --brand-amber: #f59e0b;
+  --brand-amber-hover: #d97706;
+  --brand-amber-soft: rgba(245, 158, 11, 0.2);
+  --brand-yellow: #eab308;
+  --status-pending-bg: rgba(56, 189, 248, 0.12);
+  --status-pending-border: rgba(56, 189, 248, 0.35);
+  --status-pending-text: #38bdf8;
+  --status-pending-dot: #0284c7;
+  --status-prep-bg: rgba(245, 158, 11, 0.12);
+  --status-prep-border: rgba(245, 158, 11, 0.4);
+  --status-prep-text: #f59e0b;
+  --status-prep-dot: #d97706;
+  --status-ready-bg: rgba(16, 185, 129, 0.12);
+  --status-ready-border: rgba(16, 185, 129, 0.4);
+  --status-ready-text: #34d399;
+  --status-ready-dot: #10b981;
+  --status-sla-bg: rgba(239, 68, 68, 0.2);
+  --status-sla-border: #ef4444;
+  --status-sla-text: #f87171;
+  --status-sla-pulse: #dc2626;
+  --status-inactive-bg: rgba(100, 116, 139, 0.12);
+  --status-inactive-border: rgba(100, 116, 139, 0.3);
+  --status-inactive-text: #94a3b8;
+  --status-inactive-dot: #64748b;
 
-  --brand: #2b6c96;
-  --brand-strong: #518fba;
-  --brand-foreground: #f7fafc;
+  /* ── Alias de los nombres viejos → Stitch (se borran al terminar la Fase 2) ── */
+  --background: var(--bg-canvas);
+  --foreground: var(--text-primary);
+  --card: var(--bg-surface-card);
+  --card-foreground: var(--text-primary);
+  --secondary: var(--bg-surface-low);
+  --secondary-foreground: var(--text-primary);
+  --muted: var(--bg-surface-low);
+  /* `text-muted-foreground` es el texto de apoyo del panel (379 usos): va al secundario de Stitch
+     (6.13:1 sobre la card). El terciario del sistema es `--text-muted` (5.17:1). */
+  --muted-foreground: var(--text-secondary);
+  --accent: var(--bg-surface-elevated);
+  --border: var(--border-subtle);
+  /* El borde de los campos SÍ es un control: toma el borde medido a 3:1. */
+  --input: var(--border-control);
+
+  --brand: var(--brand-primary);
+  --brand-strong: var(--brand-primary-hover);
+  /* Sobre el sky-400 del sistema el texto va OSCURO (8.99:1): blanco daría 2.0:1. */
+  --brand-foreground: var(--text-inverse);
   --terracotta: #d07a54;
   --ink-green: #12351f;
-  --cream: #1c262e;
-  --gold: #c8a96a;
-  --coal: #0b1116;
+  --cream: var(--bg-surface-low);
+  --gold: var(--brand-amber);
+  --coal: #000f21;
 
-  --success-soft: #12351f;
-  --success-strong: #6fd89c;
-  --warning-soft: #2a1f0e;
-  --warning-strong: #f0c56a;
-  --danger-soft: #2a1612;
-  --danger-strong: #f58b7a;
-  --info-soft: #15232e;
-  --info-strong: #6fafd5;
+  /* Estados semánticos = los cuatro del sistema: listo, preparación, SLA (peligro) y recepción. */
+  --success-soft: var(--status-ready-bg);
+  --success-strong: var(--status-ready-text);
+  --warning-soft: var(--status-prep-bg);
+  --warning-strong: var(--status-prep-text);
+  --danger-soft: var(--status-sla-bg);
+  --danger-strong: var(--status-sla-text);
+  --info-soft: var(--status-pending-bg);
+  --info-strong: var(--status-pending-text);
 
-  /* Estados sólidos del panel: los chips usan texto blanco sobre estos fondos. Los tonos del modo
-     claro ya cumplen 4.5:1 con blanco, así que se reusan (y así un pedido "en cocina" se ve igual en
-     los dos modos). */
+  /* Estados SÓLIDOS de los chips del panel: el documento Stitch no define "fondo sólido con texto
+     blanco" (usa tinte + texto de color), así que estos siguen siendo los del sistema anterior y
+     los reemplaza la Fase 2 cuando migre los chips a `--status-*`. Se quedan porque ya cumplen
+     4.5:1 con texto blanco y cambiarlos rompería las comandas hoy. */
   --status-nueva: var(--brand);
   --status-preparando: #a36519;
   --status-lista: #1f7a4d;
   --status-cerrada: #526069;
   --status-alerta: #b23c2a;
-  /* El semáforo del retiro va como TEXTO sobre la tarjeta oscura: acá sí hacen falta tonos claros. */
+  /* Semáforo del retiro prometido: es TEXTO sobre la tarjeta, así que usa tonos claros. El sistema
+     Stitch no define este concepto (su SLA es el de cocina): lo decide la Fase 2. */
   --pickup-on-time: #4c9571;
   --pickup-past: #b9792a;
   --pickup-late: #c66f61;
 
+  /* Series de gráfico: el documento no trae paleta de datos; se mantienen las del panel. */
   --chart-1: #6fafd5;
   --chart-2: #d07a54;
   --chart-3: #c8a96a;
