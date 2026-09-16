@@ -19,6 +19,10 @@ prisma/dev.db
 .gemini
 .kimi
 .superpowers
+# Salida del skill de diseño Impeccable (iteraciones, mediciones y snapshots de crítica): es
+# metadata de la herramienta, no del repo. Vive solo en el disco local; no se versiona ni se
+# commitea (rompía `npm run lint`, que lintea todo el árbol).
+.impeccable/
 
 # Historical Casa Antigua planning/docs copied only for local audit context.
 # Ojo: `CLAUDE.md` **sí** se versiona en este repo, pero como un puntero a `AGENTS.md`
