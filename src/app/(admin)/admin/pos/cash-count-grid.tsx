@@ -65,7 +65,7 @@ export function CashCountGrid({
     <div className="space-y-4">
       {currencies.map((currency) => (
         <fieldset key={currency} className="space-y-2">
-          <legend className="text-sm font-semibold text-foreground">{currency}</legend>
+          <legend className="text-st-body font-semibold text-ink">{currency}</legend>
 
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             {(CASH_DENOMINATIONS[currency] ?? []).map((denomination) => {
@@ -90,9 +90,9 @@ export function CashCountGrid({
             })}
           </div>
 
-          <p className="text-sm text-muted-foreground">
+          <p className="text-st-body text-ink-secondary">
             Total {currency}:{" "}
-            <span className="font-semibold tabular-nums text-foreground">
+            <span className="font-semibold tabular-nums text-ink">
               {formatAmount(cashCountTotalFor(values, currency))}
             </span>
           </p>

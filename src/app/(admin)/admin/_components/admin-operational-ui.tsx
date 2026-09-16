@@ -13,8 +13,8 @@ type AdminMetricItem = {
 };
 
 const metricToneClasses: Record<NonNullable<AdminMetricItem["tone"]>, string> = {
-  neutral: "border-border bg-card",
-  brand: "border-brand/20 bg-gradient-to-br from-brand to-brand-strong text-brand-foreground shadow-md",
+  neutral: "border-line-subtle bg-surface-card",
+  brand: "border-brand/20 bg-gradient-to-br from-brand to-brand-strong text-ink-inverse shadow-md",
   success: "border-success-strong/25 bg-success",
   warning: "border-warning-strong/25 bg-warning",
   danger: "border-danger-strong/25 bg-danger",
@@ -22,14 +22,14 @@ const metricToneClasses: Record<NonNullable<AdminMetricItem["tone"]>, string> = 
 
 const metricIconToneClasses: Record<NonNullable<AdminMetricItem["tone"]>, string> = {
   neutral: "bg-accent text-brand",
-  brand: "bg-card/15 text-brand-foreground",
+  brand: "bg-canvas/15 text-ink-inverse",
   success: "bg-success-strong/20 text-success-foreground",
   warning: "bg-warning-strong/25 text-warning-foreground",
   danger: "bg-danger-strong/20 text-danger-foreground",
 };
 
 const pillToneClasses = {
-  neutral: "border-border bg-secondary text-secondary-foreground",
+  neutral: "border-line-subtle bg-surface-low text-ink",
   brand: "border-brand/20 bg-accent text-brand",
   success: "border-success-strong/25 bg-success text-success-foreground",
   warning: "border-warning-strong/25 bg-warning text-warning-foreground",
@@ -50,16 +50,16 @@ export function AdminPageHeader({
   actions,
 }: AdminPageHeaderProps) {
   return (
-    <section className="rounded-2xl border border-border bg-card p-4 shadow-sm md:p-5">
+    <section className="rounded-stitch-lg border border-line-subtle bg-surface-card p-4 shadow-elevation-1 md:p-5">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="space-y-1">
           {label ? (
-            <p className="text-xs font-semibold uppercase tracking-wider text-brand">{label}</p>
+            <p className="text-st-overline font-bold uppercase tracking-wider text-brand-amber">{label}</p>
           ) : null}
-          <h1 className="font-heading text-2xl font-bold tracking-tight text-foreground md:text-3xl">
+          <h1 className="font-heading text-st-h1 font-bold tracking-tight text-ink md:text-st-h1">
             {title}
           </h1>
-          <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
+          <p className="max-w-2xl text-st-body leading-6 text-ink-secondary">
             {description}
           </p>
         </div>
@@ -89,12 +89,12 @@ export function AdminMetricStrip({
         return (
           <div
             key={item.label}
-            className={`rounded-2xl border p-3.5 ${isBrand ? "shadow-md" : "shadow-sm"} ${metricToneClasses[tone]}`}
+            className={`rounded-stitch-lg border p-3.5 ${isBrand ? "shadow-elevation-2" : "shadow-elevation-1"} ${metricToneClasses[tone]}`}
           >
             <div className="flex items-start justify-between gap-2">
               <p
-                className={`text-[11px] font-semibold uppercase tracking-wider ${
-                  isBrand ? "text-brand-foreground/80" : "text-muted-foreground"
+                className={`text-st-overline font-bold uppercase tracking-wider ${
+                  isBrand ? "text-ink-inverse/80" : "text-ink-secondary"
                 }`}
               >
                 {item.label}
@@ -105,11 +105,11 @@ export function AdminMetricStrip({
                 </span>
               ) : null}
             </div>
-            <p className={`mt-1 text-2xl font-bold ${isBrand ? "text-brand-foreground" : "text-foreground"}`}>
+            <p className={`mt-1 text-st-h1 font-bold ${isBrand ? "text-ink-inverse" : "text-ink"}`}>
               {item.value}
             </p>
             {item.helper ? (
-              <p className={`mt-1 text-xs leading-5 ${isBrand ? "text-brand-foreground/70" : "text-muted-foreground"}`}>
+              <p className={`mt-1 text-st-caption leading-5 ${isBrand ? "text-ink-inverse/70" : "text-ink-secondary"}`}>
                 {item.helper}
               </p>
             ) : null}
@@ -131,7 +131,7 @@ export function AdminCompactToolbar({
 }: AdminCompactToolbarProps) {
   return (
     <section
-      className={`min-w-0 rounded-2xl border border-border bg-card/95 p-3 shadow-sm ${className}`}
+      className={`min-w-0 rounded-stitch-lg border border-line-subtle bg-surface-card/95 p-3 shadow-elevation-1 ${className}`}
     >
       {children}
     </section>
@@ -152,14 +152,14 @@ export function AdminEmptyState({
   icon,
 }: AdminEmptyStateProps) {
   return (
-    <div className="rounded-2xl border border-dashed border-border bg-secondary/40 p-8 text-center">
+    <div className="rounded-stitch-lg border border-dashed border-line-subtle bg-surface-low/40 p-8 text-center">
       {icon ? (
         <span className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-accent text-brand">
           {icon}
         </span>
       ) : null}
-      <p className="text-sm font-semibold text-foreground">{title}</p>
-      <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+      <p className="text-st-body font-semibold text-ink">{title}</p>
+      <p className="mt-1 text-st-body text-ink-secondary">{description}</p>
       {action ? <div className="mt-4">{action}</div> : null}
     </div>
   );
@@ -221,7 +221,7 @@ export function AdminStatusSolid({
 }) {
   return (
     <span
-      className={`inline-flex w-fit items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-white before:h-1.5 before:w-1.5 before:rounded-full before:bg-white/90 before:content-[''] ${solidStatusClasses[status]} ${className}`}
+      className={`inline-flex w-fit items-center gap-1.5 rounded-full px-3 py-1.5 text-st-caption font-bold uppercase tracking-wide text-white before:h-1.5 before:w-1.5 before:rounded-full before:bg-white/90 before:content-[''] ${solidStatusClasses[status]} ${className}`}
     >
       {children}
     </span>
@@ -241,7 +241,7 @@ export function AdminStatusPill({
 }: AdminStatusPillProps) {
   return (
     <span
-      className={`inline-flex w-fit items-center rounded-full border px-2.5 py-1 text-xs font-semibold ${pillToneClasses[tone]} ${className}`}
+      className={`inline-flex w-fit items-center rounded-full border px-2.5 py-1 text-st-caption font-semibold ${pillToneClasses[tone]} ${className}`}
     >
       {children}
     </span>
@@ -272,7 +272,7 @@ export function AdminPickupTimingChip({
 
   return (
     <span
-      className={`inline-flex w-fit items-center rounded-full px-2.5 py-1 text-xs font-bold tabular-nums ${pickupTimingClasses[timing.state]} ${className}`}
+      className={`inline-flex w-fit items-center rounded-full px-2.5 py-1 text-st-caption font-bold tabular-nums ${pickupTimingClasses[timing.state]} ${className}`}
     >
       {timing.deltaLabel}
     </span>

@@ -322,12 +322,31 @@ describe("PosClient", () => {
     expect(screen.getByRole("option", { name: "USD" })).toBeTruthy();
   });
 
+  it("el arqueo arranca plegado y se despliega desde la cabecera (§6 del sistema)", async () => {
+    // La referencia del POS deja «Apertura / Arqueo» como un desplegable en la cabecera: el mostrador
+    // necesita ver el catálogo sin que el conteo de billetes se coma la primera pantalla.
+    const user = userEvent.setup();
+    render(<PosClient locations={locations} />);
+
+    expect(await screen.findByText("Sin caja abierta en este local.")).toBeTruthy();
+
+    const disparador = screen.getByRole("button", { name: /Apertura \/ Arqueo/ });
+    expect(disparador.getAttribute("aria-expanded")).toBe("false");
+    expect(screen.queryByLabelText("Cantidad de billetes de NIO 100")).toBeNull();
+
+    await user.click(disparador);
+
+    expect(disparador.getAttribute("aria-expanded")).toBe("true");
+    expect(screen.getByLabelText("Cantidad de billetes de NIO 100")).toBeTruthy();
+  });
+
   it("abre la caja con el conteo de billetes (TASK-305b)", async () => {
     const user = userEvent.setup();
     render(<PosClient locations={locations} />);
 
     expect(await screen.findByText("Sin caja abierta en este local.")).toBeTruthy();
 
+    await user.click(screen.getByRole("button", { name: /Apertura \/ Arqueo/ }));
     await user.type(screen.getByLabelText("Cantidad de billetes de NIO 100"), "10");
     await user.click(screen.getByRole("button", { name: "Abrir caja" }));
 
@@ -338,7 +357,7 @@ describe("PosClient", () => {
     expect(body.locationId).toBe("loc_norte");
     expect(body.counts).toEqual([{ currency: "NIO", denomination: 100, quantity: 10 }]);
     // El fondo lo deriva el servidor del conteo, así que la pantalla solo muestra lo que devolvió.
-    expect(await screen.findByText(/Abierta · fondo/)).toBeTruthy();
+    expect(await screen.findByText(/Caja abierta · fondo/)).toBeTruthy();
   });
 
   it("cierra la caja y muestra el arqueo con la diferencia (TASK-305b)", async () => {
@@ -374,8 +393,9 @@ describe("PosClient", () => {
 
     render(<PosClient locations={locations} />);
 
-    expect(await screen.findByText(/Abierta · fondo/)).toBeTruthy();
+    expect(await screen.findByText(/Caja abierta · fondo/)).toBeTruthy();
 
+    await user.click(screen.getByRole("button", { name: /Apertura \/ Arqueo/ }));
     await user.type(screen.getByLabelText("Cantidad de billetes de NIO 100"), "9");
     await user.click(screen.getByRole("button", { name: "Cerrar caja" }));
 
@@ -401,6 +421,7 @@ describe("PosClient", () => {
       await screen.findByText("Taco de birria");
       await user.click(screen.getByRole("button", { name: "Agregar Taco de birria a la venta" }));
       await user.type(screen.getByLabelText("Buscar en el catálogo"), "cola");
+      await user.click(screen.getByRole("button", { name: /Apertura \/ Arqueo/ }));
       await user.type(screen.getByLabelText("Cantidad de billetes de NIO 100"), "7");
 
       const callsBefore = fetchMock.mock.calls.length;

@@ -455,6 +455,13 @@ body {
 .dark {
   color-scheme: dark;
 
+  /* El panel usa la **sans del sistema** (Plus Jakarta Sans, §2.1), no la que el negocio elige para el
+     público: el rediseño del panel no cambia la marca del sitio. La mono (JetBrains) ya está en el
+     tema y es la de los números. El `style` inline del `<html>` no gana acá porque esta clase está
+     más cerca del contenido. */
+  --font-heading: var(--font-jakarta);
+  --font-body: var(--font-jakarta);
+
   /* ── Nombres oficiales del sistema (Stitch §1.2) ── */
   --bg-canvas: #000f21;
   --bg-surface: #031427;

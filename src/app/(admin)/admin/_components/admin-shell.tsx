@@ -121,29 +121,29 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
   if (isLoginRoute) {
     // El panel es oscuro (sistema Stitch): `dark` acá activa los tokens del modo oscuro para todo
     // el subárbol del admin, sin tocar el sitio público, que sigue claro (decisión C3 del owner).
-    return <div className="dark min-h-screen bg-background text-foreground">{children}</div>;
+    return <div className="dark min-h-screen bg-background text-ink">{children}</div>;
   }
 
   return (
-    <div className="dark flex min-h-screen bg-background text-foreground">
+    <div className="dark flex min-h-screen bg-background text-ink">
       <AdminMobileNav pathname={pathname} groups={navGroups} session={session} />
 
-      <aside data-admin-background className="admin-sidebar-shell hidden md:sticky md:top-0 md:flex md:h-screen md:w-64 md:shrink-0 md:flex-col md:border-r md:border-border md:bg-card/95 md:backdrop-blur">
+      <aside data-admin-background className="admin-sidebar-shell hidden md:sticky md:top-0 md:flex md:h-screen md:w-64 md:shrink-0 md:flex-col md:border-r md:border-line-subtle md:bg-surface-card/95 md:backdrop-blur">
         <div className="flex flex-col items-start gap-3 px-5 py-5">
           <Link
             href={homeHref}
-            className="flex min-h-11 items-center gap-3 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+            className="flex min-h-11 items-center gap-3 rounded-stitch-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
           >
             <BrandMark
               brand={settings}
-              className="h-10 w-10 shrink-0 rounded-xl object-cover shadow-sm"
-              fallbackClassName="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand text-sm font-bold text-brand-foreground shadow-sm"
+              className="h-10 w-10 shrink-0 rounded-stitch-md object-cover shadow-elevation-1"
+              fallbackClassName="flex h-10 w-10 shrink-0 items-center justify-center rounded-stitch-md bg-brand text-st-body font-bold text-brand-foreground shadow-elevation-1"
             />
             <span className="min-w-0">
-              <span className="block font-heading text-base font-bold tracking-tight text-foreground">
+              <span className="block font-heading text-st-body-lg font-bold tracking-tight text-ink">
                 {settings.name}
               </span>
-              <span className="block text-xs font-medium text-muted-foreground">
+              <span className="block text-st-caption font-medium text-ink-secondary">
                 Admin operativo
               </span>
             </span>
@@ -154,7 +154,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
           <div className="flex flex-col gap-5">
             {navGroups.map((group) => (
               <div key={group.label} className="flex flex-col gap-1.5">
-                <p className="px-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/70">
+                <p className="px-2 text-st-overline font-bold uppercase tracking-wider text-ink-muted">
                   {group.label}
                 </p>
                 {group.items.map((item) => {
@@ -173,10 +173,10 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
                       <span className="flex min-w-0 flex-col gap-0.5">
                         <span>{item.label}</span>
                         <span
-                          className={`text-[11px] font-normal ${
+                          className={`text-st-caption font-normal ${
                             isActive
                               ? "text-brand-foreground/80"
-                              : "text-muted-foreground group-hover:text-brand-strong"
+                              : "text-ink-secondary group-hover:text-brand-strong"
                           }`}
                         >
                           {item.description}
@@ -190,7 +190,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
 
             {ADMIN_SECONDARY_NAV_ITEMS.length > 0 ? (
               <div className="flex flex-col gap-1.5">
-                <p className="px-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/50">
+                <p className="px-2 text-st-overline font-bold uppercase tracking-wider text-ink-muted">
                   Avanzado
                 </p>
                 {ADMIN_SECONDARY_NAV_ITEMS.map((item) => {
@@ -204,10 +204,10 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
                     data-admin-desktop-nav-link
                     aria-current={isActive ? "page" : undefined}
                     className={[
-                      "group inline-flex min-h-11 w-full min-w-0 items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand motion-reduce:transition-none",
+                      "group inline-flex min-h-11 w-full min-w-0 items-center gap-2.5 rounded-stitch-md px-3 py-2 text-left text-st-body font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand motion-reduce:transition-none",
                       isActive
-                        ? "bg-accent text-brand"
-                        : "text-muted-foreground hover:bg-accent hover:text-brand",
+                        ? "bg-brand-primary-muted text-brand-primary"
+                        : "bg-surface-card text-ink hover:bg-surface-elevated hover:text-brand-primary",
                     ].join(" ")}
                   >
                     <Icon className="h-4 w-4 shrink-0" strokeWidth={2} aria-hidden="true" />
@@ -220,7 +220,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
           </div>
         </nav>
 
-        <div className="border-t border-border p-4">
+        <div className="border-t border-line-subtle p-4">
           <AdminSessionControls session={session} />
         </div>
       </aside>

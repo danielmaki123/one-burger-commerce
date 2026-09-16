@@ -185,6 +185,9 @@ test.describe("punto de venta", () => {
     });
     const caja = page.getByRole("region", { name: "Caja" });
 
+    // El arqueo vive plegado en la cabecera (la referencia del POS deja el catálogo a la vista).
+    await page.getByRole("button", { name: /Apertura \/ Arqueo/ }).click();
+
     // Estado de partida: si una corrida anterior dejó la caja abierta, se cierra contando cero (deja
     // una diferencia, que es un dato del test, no del producto).
     if ((await page.getByRole("button", { name: "Cerrar caja" }).count()) > 0) {
@@ -195,7 +198,7 @@ test.describe("punto de venta", () => {
     // Abrir contando: 10 × C$100. El fondo lo deriva el servidor.
     await billetes.fill("10");
     await page.getByRole("button", { name: "Abrir caja" }).click();
-    await expect(caja.getByText(/Abierta · fondo/)).toBeVisible();
+    await expect(caja.getByText(/Caja abierta · fondo/)).toBeVisible();
 
     // Cerrar contando lo mismo: sin ventas en el turno, no hay diferencia.
     await billetes.fill("10");

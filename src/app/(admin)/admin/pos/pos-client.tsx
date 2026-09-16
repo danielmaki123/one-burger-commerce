@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { ChevronDown, ShoppingCart, Wallet } from "lucide-react";
 
 import {
   addPosLine,
@@ -109,6 +110,8 @@ export default function PosClient({ locations }: { locations: PosLocationOption[
   const [attemptKey, setAttemptKey] = React.useState(() => crypto.randomUUID());
   // TASK-305b — la caja del local.
   const [shift, setShift] = React.useState<PosShift | null>(null);
+  // La referencia del POS deja el arqueo plegado en la cabecera: el catálogo manda en la pantalla.
+  const [cashDrawerOpen, setCashDrawerOpen] = React.useState(false);
   const [shiftLoading, setShiftLoading] = React.useState(true);
   const [shiftError, setShiftError] = React.useState<string | null>(null);
   const [countValues, setCountValues] = React.useState<CashCountValues>({});
@@ -447,30 +450,97 @@ export default function PosClient({ locations }: { locations: PosLocationOption[
       />
 
       {locations.length === 0 ? null : (
-        <section
-          className="space-y-3 rounded-panel border border-border bg-card p-4"
-          aria-label="Caja"
-        >
-          <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <h2 className="text-headline text-foreground">Caja</h2>
-            {shiftLoading ? (
-              <p className="text-sm text-muted-foreground">Leyendo la caja…</p>
-            ) : shift ? (
-              <p className="text-sm text-muted-foreground">
-                Abierta · fondo {formatCurrency(shift.openingAmount, currency)}
-              </p>
-            ) : (
-              <p className="text-sm text-muted-foreground">Sin caja abierta en este local.</p>
-            )}
+        <section className="space-y-3" aria-label="Caja">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+            <Button
+              type="button"
+              variant="secondary"
+              className="min-h-11 gap-2"
+              aria-expanded={cashDrawerOpen}
+              aria-controls="pos-caja-arqueo"
+              onClick={() => setCashDrawerOpen((open) => !open)}
+            >
+              <Wallet aria-hidden="true" className="h-5 w-5 text-brand-amber" />
+              Apertura / Arqueo
+              <span
+                aria-hidden="true"
+                className={`h-2 w-2 rounded-full ${
+                  shift ? "bg-status-ready-dot" : "bg-status-inactive-dot"
+                }`}
+              />
+              <ChevronDown
+                aria-hidden="true"
+                className={`h-4 w-4 transition-transform motion-reduce:transition-none ${
+                  cashDrawerOpen ? "rotate-180" : ""
+                }`}
+              />
+            </Button>
+
+            <p className="text-st-body text-ink-secondary">
+              {shiftLoading ? (
+                "Leyendo la caja…"
+              ) : shift ? (
+                <>
+                  Caja abierta · fondo{" "}
+                  <span className="font-mono tabular-nums">
+                    {formatCurrency(shift.openingAmount, currency)}
+                  </span>
+                </>
+              ) : (
+                "Sin caja abierta en este local."
+              )}
+            </p>
           </div>
+
+          {cashDrawerOpen ? (
+            <div
+              id="pos-caja-arqueo"
+              className="space-y-3 rounded-stitch-lg border border-line-subtle bg-surface-card p-4"
+            >
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <h2 className="text-st-h2 text-ink">Apertura y arqueo de caja</h2>
+                <p className="text-st-overline font-bold uppercase tracking-wider text-ink-muted">
+                  Efectivo en córdobas
+                </p>
+              </div>
+
+              {shiftLoading ? null : (
+                <>
+                  <p className="text-st-body text-ink-secondary">
+                    {shift
+                      ? "Contá lo que hay en la caja para cerrarla."
+                      : "Contá con cuánto abrís la caja."}
+                  </p>
+                  <CashCountGrid
+                    currencies={cashCurrencies}
+                    values={countValues}
+                    onChange={(key, quantity) =>
+                      setCountValues((current) => ({ ...current, [key]: quantity }))
+                    }
+                    disabled={shiftBusy}
+                    formatAmount={(value) => formatCurrency(value, currency)}
+                  />
+                  <Button
+                    type="button"
+                    variant={shift ? "outline" : "primary"}
+                    className="min-h-11"
+                    disabled={shiftBusy}
+                    onClick={() => void (shift ? closeBox() : openBox())}
+                  >
+                    {shiftBusy ? "Guardando…" : shift ? "Cerrar caja" : "Abrir caja"}
+                  </Button>
+                </>
+              )}
+            </div>
+          ) : null}
 
           {closedShift ? (
             <div
               role="status"
-              className="rounded-card border border-success-strong/30 bg-success px-3 py-2 text-sm text-success-foreground"
+              className="rounded-stitch-lg border border-status-ready-border bg-status-ready-bg px-3 py-2 text-st-body text-status-ready-text"
             >
-              Caja cerrada · contado {formatCurrency(closedShift.closingAmount ?? 0, currency)} ·
-              esperado {formatCurrency(closedShift.expectedAmount ?? 0, currency)} ·{" "}
+              Caja cerrada · contado <span className="font-mono">{formatCurrency(closedShift.closingAmount ?? 0, currency)}</span> ·
+              esperado <span className="font-mono">{formatCurrency(closedShift.expectedAmount ?? 0, currency)}</span> ·{" "}
               {closedShift.difference === 0
                 ? "sin diferencia"
                 : `diferencia ${formatCurrency(closedShift.difference ?? 0, currency)}`}
@@ -478,38 +548,10 @@ export default function PosClient({ locations }: { locations: PosLocationOption[
           ) : null}
 
           {shiftError ? (
-            <p role="alert" className="text-sm font-medium text-danger-strong">
+            <p role="alert" className="text-st-body font-medium text-status-sla-text">
               {shiftError}
             </p>
           ) : null}
-
-          {shiftLoading ? null : (
-            <>
-              <p className="text-sm text-muted-foreground">
-                {shift
-                  ? "Contá lo que hay en la caja para cerrarla."
-                  : "Contá con cuánto abrís la caja."}
-              </p>
-              <CashCountGrid
-                currencies={cashCurrencies}
-                values={countValues}
-                onChange={(key, quantity) =>
-                  setCountValues((current) => ({ ...current, [key]: quantity }))
-                }
-                disabled={shiftBusy}
-                formatAmount={(value) => formatCurrency(value, currency)}
-              />
-              <Button
-                type="button"
-                variant={shift ? "outline" : "primary"}
-                className="min-h-11"
-                disabled={shiftBusy}
-                onClick={() => void (shift ? closeBox() : openBox())}
-              >
-                {shiftBusy ? "Guardando…" : shift ? "Cerrar caja" : "Abrir caja"}
-              </Button>
-            </>
-          )}
         </section>
       )}
 
@@ -536,7 +578,7 @@ export default function PosClient({ locations }: { locations: PosLocationOption[
             />
 
             {loading ? (
-              <p className="rounded-2xl border border-border bg-card px-4 py-6 text-sm text-muted-foreground">
+              <p className="rounded-stitch-lg border border-line-subtle bg-surface-card px-4 py-6 text-st-body text-ink-secondary">
                 Cargando el catálogo…
               </p>
             ) : loadError ? (
@@ -568,19 +610,21 @@ export default function PosClient({ locations }: { locations: PosLocationOption[
                 {visibleProducts.map((product) => (
                   <li
                     key={product.id}
-                    className="flex min-h-24 flex-col justify-between gap-2 rounded-card border border-border bg-card p-3"
+                    className="flex min-h-24 flex-col justify-between gap-2 rounded-stitch-lg border border-line-subtle bg-surface-card p-3"
                   >
                     <div>
-                      <p className="text-sm font-semibold text-foreground">{product.name}</p>
-                      <p className="text-xs text-muted-foreground">{product.categoryName}</p>
-                      <p className="mt-1 text-sm font-bold tabular-nums text-foreground">
+                      <p className="text-st-body font-semibold text-ink">{product.name}</p>
+                      <p className="text-st-overline font-bold uppercase tracking-wider text-brand-amber">
+                        {product.categoryName}
+                      </p>
+                      <p className="mt-1 font-mono text-st-body font-bold tabular-nums text-ink">
                         {formatCurrency(product.price, currency)}
                       </p>
                     </div>
 
                     {product.requiresOptions ? (
                       // No se puede vender de un toque: la carta obliga a elegir. Sin botón que mienta.
-                      <p className="text-xs font-medium text-muted-foreground">Se elige en la carta</p>
+                      <p className="text-st-caption font-medium text-ink-secondary">Se elige en la carta</p>
                     ) : (
                       <Button
                         type="button"
@@ -599,12 +643,12 @@ export default function PosClient({ locations }: { locations: PosLocationOption[
           </section>
 
           <section
-            className="h-fit space-y-3 rounded-panel border border-border bg-card p-4"
+            className="h-fit space-y-3 rounded-stitch-xl border border-line-subtle bg-surface-card p-4"
             aria-label="Venta en curso"
           >
             <div className="flex items-baseline justify-between">
-              <h2 className="text-headline text-foreground">Venta en curso</h2>
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <h2 className="text-st-h2 text-ink">Venta en curso</h2>
+              <p className="text-st-caption font-semibold uppercase tracking-wide text-ink-secondary">
                 {draft.lines.length === 0
                   ? "Sin productos"
                   : `${draft.lines.length} ${draft.lines.length === 1 ? "producto" : "productos"}`}
@@ -612,19 +656,24 @@ export default function PosClient({ locations }: { locations: PosLocationOption[
             </div>
 
             {draft.lines.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                Agregá productos del catálogo para armar la venta.
-              </p>
+              <div className="flex flex-col items-center gap-3 py-12 text-center">
+                <span className="flex h-14 w-14 items-center justify-center rounded-full bg-surface-low">
+                  <ShoppingCart aria-hidden="true" className="h-6 w-6 text-ink-muted" />
+                </span>
+                <p className="max-w-56 text-st-body text-ink-secondary">
+                  Agregá productos del catálogo para armar la venta.
+                </p>
+              </div>
             ) : (
               <ul className="space-y-3" aria-label="Productos de la venta">
                 {draft.lines.map((line) => (
                   <li
                     key={`${line.productId}-${line.notes ?? ""}`}
-                    className="flex items-center justify-between gap-3 border-b border-border pb-3 last:border-b-0 last:pb-0"
+                    className="flex items-center justify-between gap-3 border-b border-line-subtle pb-3 last:border-b-0 last:pb-0"
                   >
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-medium text-foreground">{line.name}</p>
-                      <p className="text-xs tabular-nums text-muted-foreground">
+                      <p className="truncate text-st-body font-medium text-ink">{line.name}</p>
+                      <p className="font-mono text-st-caption tabular-nums text-ink-secondary">
                         {formatCurrency(line.unitPrice, currency)} × {line.quantity}
                       </p>
                     </div>
@@ -644,7 +693,7 @@ export default function PosClient({ locations }: { locations: PosLocationOption[
                       >
                         −
                       </Button>
-                      <span className="w-8 text-center text-sm font-bold tabular-nums text-foreground">
+                      <span className="w-8 text-center text-st-body font-bold tabular-nums text-ink">
                         {line.quantity}
                       </span>
                       <Button
@@ -678,32 +727,32 @@ export default function PosClient({ locations }: { locations: PosLocationOption[
               </ul>
             )}
 
-            <dl className="space-y-1 border-t border-border pt-3 text-sm">
+            <dl className="space-y-1 border-t border-line-subtle pt-3 text-st-body">
               <div className="flex items-baseline justify-between">
-                <dt className="text-muted-foreground">Subtotal</dt>
-                <dd className="tabular-nums text-foreground">{formatCurrency(totals.subtotal, currency)}</dd>
+                <dt className="text-ink-secondary">Subtotal</dt>
+                <dd className="font-mono tabular-nums text-ink">{formatCurrency(totals.subtotal, currency)}</dd>
               </div>
               {totals.packagingAmount > 0 ? (
                 <div className="flex items-baseline justify-between">
-                  <dt className="text-muted-foreground">Empaque</dt>
-                  <dd className="tabular-nums text-foreground">
+                  <dt className="text-ink-secondary">Empaque</dt>
+                  <dd className="font-mono tabular-nums text-ink">
                     {formatCurrency(totals.packagingAmount, currency)}
                   </dd>
                 </div>
               ) : null}
               <div className="flex items-baseline justify-between">
-                <dt className="font-medium text-foreground">Total</dt>
-                <dd className="text-title font-bold tabular-nums text-foreground" aria-live="polite">
+                <dt className="font-medium text-ink">Total</dt>
+                <dd className="font-mono text-st-display font-bold tabular-nums text-brand-primary" aria-live="polite">
                   {formatCurrency(totals.total, currency)}
                 </dd>
               </div>
             </dl>
 
             {fieldErrors.lines ? (
-              <p className="text-sm font-medium text-danger-strong">{fieldErrors.lines}</p>
+              <p className="text-st-body font-medium text-status-sla-text">{fieldErrors.lines}</p>
             ) : null}
 
-            <div className="space-y-3 border-t border-border pt-3">
+            <div className="space-y-3 border-t border-line-subtle pt-3">
               <Input
                 label="Nombre del cliente"
                 value={customer.name}
@@ -732,7 +781,7 @@ export default function PosClient({ locations }: { locations: PosLocationOption[
               />
 
               <div className="space-y-1.5">
-                <p className="text-sm font-medium leading-none text-foreground">¿Cómo paga?</p>
+                <p className="text-st-body font-medium leading-none text-ink">¿Cómo paga?</p>
                 <div className="flex flex-wrap gap-2">
                   {(
                     [
@@ -787,11 +836,11 @@ export default function PosClient({ locations }: { locations: PosLocationOption[
                 disabled={charging}
                 onClick={() => void charge()}
               >
-                {charging ? "Cobrando…" : `Cobrar ${formatCurrency(totals.total, currency)}`}
+                {charging ? ("Cobrando…") : (<>Cobrar <span className="font-mono">{formatCurrency(totals.total, currency)}</span></>)}
               </Button>
 
               {saleError ? (
-                <p role="alert" className="text-sm font-medium text-danger-strong">
+                <p role="alert" className="text-st-body font-medium text-status-sla-text">
                   {saleError}
                 </p>
               ) : null}
@@ -799,9 +848,9 @@ export default function PosClient({ locations }: { locations: PosLocationOption[
               {lastSale ? (
                 <div
                   role="status"
-                  className="rounded-card border border-success-strong/30 bg-success px-3 py-2 text-sm text-success-foreground"
+                  className="rounded-stitch-lg border border-status-ready-border bg-status-ready-bg px-3 py-2 text-st-body text-status-ready-text"
                 >
-                  Venta {lastSale.orderNumber} cobrada por {formatCurrency(lastSale.total, currency)}
+                  Venta <span className="font-mono">{lastSale.orderNumber}</span> cobrada por <span className="font-mono">{formatCurrency(lastSale.total, currency)}</span>
                   {lastSale.change !== null && lastSale.change > 0
                     ? ` · Cambio ${formatCurrency(lastSale.change, currency)}`
                     : " · Sin cambio"}
@@ -817,10 +866,10 @@ export default function PosClient({ locations }: { locations: PosLocationOption[
                       {receiptState === "busy" ? "Generando…" : "Enviar recibo"}
                     </Button>
                     {receiptState === "done" ? (
-                      <span className="text-sm">Recibo listo para enviar o imprimir.</span>
+                      <span className="text-st-body">Recibo listo para enviar o imprimir.</span>
                     ) : null}
                     {receiptState === "error" ? (
-                      <span className="text-sm font-medium text-danger-strong">
+                      <span className="text-st-body font-medium text-status-sla-text">
                         No se pudo generar el recibo en este dispositivo.
                       </span>
                     ) : null}

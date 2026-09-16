@@ -208,19 +208,19 @@ export default function AdminMobileNav({
         inert={!isOpen}
         tabIndex={-1}
         className={[
-          "fixed inset-x-0 bottom-0 z-50 flex max-h-[80vh] flex-col rounded-t-3xl border-t border-border bg-card shadow-2xl transition-transform duration-200 ease-out motion-reduce:transition-none",
+          "fixed inset-x-0 bottom-0 z-50 flex max-h-[80vh] flex-col rounded-t-3xl border-t border-line-subtle bg-surface-card shadow-2xl transition-transform duration-200 ease-out motion-reduce:transition-none",
           isOpen ? "translate-y-0" : "translate-y-full",
         ].join(" ")}
       >
-        <div className="flex items-center justify-between gap-2 border-b border-border px-5 py-4">
-          <p className="font-heading text-base font-bold tracking-tight text-foreground">
+        <div className="flex items-center justify-between gap-2 border-b border-line-subtle px-5 py-4">
+          <p className="font-heading text-st-body-lg font-bold tracking-tight text-ink">
             Más secciones
           </p>
           <button
             type="button"
             aria-label="Cerrar menú de más secciones"
             onClick={closeSheet}
-            className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand motion-reduce:transition-none"
+            className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-stitch-md text-ink-secondary transition-colors hover:bg-surface-elevated hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand motion-reduce:transition-none"
           >
             <X className="h-5 w-5" strokeWidth={2} aria-hidden="true" />
           </button>
@@ -241,16 +241,16 @@ export default function AdminMobileNav({
                 aria-current={isActive ? "page" : undefined}
                 onClick={closeSheet}
                 className={[
-                  "flex min-h-11 items-center gap-3 rounded-xl border px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand motion-reduce:transition-none",
+                  "flex min-h-11 items-center gap-3 rounded-stitch-md border px-3 py-2 text-st-body font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand motion-reduce:transition-none",
                   isActive
-                    ? "border-brand bg-brand text-brand-foreground shadow-sm"
-                    : "border-transparent text-foreground hover:border-border hover:bg-accent hover:text-brand-strong",
+                    ? "border-transparent bg-brand-primary-muted text-brand-primary"
+                    : "border-transparent text-ink hover:bg-surface-elevated hover:text-brand-primary",
                 ].join(" ")}
               >
                 <Icon className="h-5 w-5 shrink-0" strokeWidth={2} aria-hidden="true" />
                 <span className="min-w-0">
                   <span className="block truncate">{item.label}</span>
-                  <span className={isActive ? "block truncate text-[11px] text-brand-foreground/80" : "block truncate text-[11px] text-muted-foreground"}>
+                  <span className={isActive ? "block truncate text-st-caption text-brand-primary/80" : "block truncate text-st-caption text-ink-secondary"}>
                     {item.description}
                   </span>
                 </span>
@@ -259,14 +259,14 @@ export default function AdminMobileNav({
           })}
         </nav>
 
-        <div className="border-t border-border p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
+        <div className="border-t border-line-subtle p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
           <AdminSessionControls session={session} />
         </div>
       </aside>
 
       <nav
         aria-label="Navegación principal"
-        className="fixed inset-x-0 bottom-0 z-30 grid border-t border-border bg-card pb-[env(safe-area-inset-bottom)]"
+        className="fixed inset-x-0 bottom-0 z-30 grid border-t border-line-subtle bg-surface-card pb-[env(safe-area-inset-bottom)]"
         style={{ gridTemplateColumns: `repeat(${tabs.length + 1}, minmax(0, 1fr))` }}
       >
         {tabs.map((tab) => {
@@ -279,8 +279,8 @@ export default function AdminMobileNav({
               href={tab.href}
               aria-current={isActive ? "page" : undefined}
               className={[
-                "flex min-h-14 flex-col items-center justify-center gap-1 text-[11px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand motion-reduce:transition-none",
-                isActive ? "text-brand-strong" : "text-muted-foreground hover:text-brand-strong",
+                "flex min-h-14 flex-col items-center justify-center gap-1 text-st-caption font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand motion-reduce:transition-none",
+                isActive ? "text-brand-primary" : "text-ink-secondary hover:text-brand-primary",
               ].join(" ")}
             >
               <Icon className="h-5 w-5" strokeWidth={2} aria-hidden="true" />
@@ -297,8 +297,8 @@ export default function AdminMobileNav({
           aria-label={isOpen ? "Cerrar más secciones" : "Abrir más secciones"}
           onClick={() => setIsOpen((open) => !open)}
           className={[
-            "flex min-h-14 flex-col items-center justify-center gap-1 text-[11px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand motion-reduce:transition-none",
-            isMoreActive || isOpen ? "text-brand-strong" : "text-muted-foreground hover:text-brand-strong",
+            "flex min-h-14 flex-col items-center justify-center gap-1 text-st-caption font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand motion-reduce:transition-none",
+            isMoreActive || isOpen ? "text-brand-primary" : "text-ink-secondary hover:text-brand-primary",
           ].join(" ")}
         >
           <Ellipsis className="h-5 w-5" strokeWidth={2} aria-hidden="true" />

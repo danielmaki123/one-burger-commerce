@@ -168,16 +168,16 @@ export function shouldRestoreAdminMobileTriggerFocus({
 
 export function getAdminNavLinkClassName(isActive: boolean) {
   return [
-    "group inline-flex min-h-11 min-w-max items-center gap-2.5 rounded-lg border px-3 py-2 text-left text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand motion-reduce:transition-none md:w-full md:min-w-0",
+    "group inline-flex min-h-11 min-w-max items-center gap-2.5 rounded-stitch-md border px-3 py-2 text-left text-st-body font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand motion-reduce:transition-none md:w-full md:min-w-0",
     isActive
-      ? "border-brand bg-brand text-brand-foreground shadow-sm"
-      : "border-border bg-card text-foreground hover:border-brand/40 hover:bg-accent hover:text-brand-strong",
+      ? "border-transparent bg-brand-primary-muted text-brand-primary"
+      : "border-transparent bg-surface-card text-ink hover:bg-surface-elevated hover:text-brand-primary",
   ].join(" ");
 }
 
 export function getAdminNavIconClassName(isActive: boolean) {
   return [
     "h-4 w-4 shrink-0",
-    isActive ? "text-brand-foreground" : "text-muted-foreground group-hover:text-brand-strong",
+    isActive ? "text-brand-primary" : "text-ink-muted group-hover:text-brand-primary",
   ].join(" ");
 }

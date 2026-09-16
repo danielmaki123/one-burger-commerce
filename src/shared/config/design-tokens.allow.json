@@ -53,11 +53,7 @@
     },
     "arbitrary-text-size": {
       "src/app/(admin)/admin/_components/admin-edit-sheet.tsx": 1,
-      "src/app/(admin)/admin/_components/admin-mobile-nav.tsx": 4,
-      "src/app/(admin)/admin/_components/admin-operational-ui.tsx": 1,
       "src/app/(admin)/admin/_components/admin-overview-client.tsx": 8,
-      "src/app/(admin)/admin/_components/admin-session-controls.tsx": 1,
-      "src/app/(admin)/admin/_components/admin-shell.tsx": 3,
       "src/app/(admin)/admin/_components/admin-status-donut.tsx": 1,
       "src/app/(admin)/admin/delivery-zones/page.tsx": 3,
       "src/app/(admin)/admin/locations/[id]/page.tsx": 2,

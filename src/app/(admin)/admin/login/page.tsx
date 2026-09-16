@@ -76,8 +76,8 @@ export default function AdminLoginPage() {
 
   if (checkingSession) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-border border-t-brand" />
+      <div className="flex min-h-screen items-center justify-center bg-canvas">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-line-subtle border-t-brand-primary" />
       </div>
     );
   }
@@ -85,7 +85,7 @@ export default function AdminLoginPage() {
   return (
     <div className="flex min-h-screen">
       {/* Panel de marca — solo desktop */}
-      <div className="relative hidden overflow-hidden bg-gradient-to-br from-ink-green via-brand-strong to-brand md:flex md:w-[42%] md:flex-col md:justify-between md:p-10 lg:p-14">
+      <div className="relative hidden overflow-hidden bg-gradient-to-br from-surface-elevated via-brand-primary/20 to-canvas md:flex md:w-[42%] md:flex-col md:justify-between md:p-10 lg:p-14">
         <div
           className="pointer-events-none absolute inset-0 opacity-[0.07]"
           style={{
@@ -96,53 +96,53 @@ export default function AdminLoginPage() {
           aria-hidden="true"
         />
         <div
-          className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-gold/20 blur-3xl"
+          className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-brand-amber/20 blur-3xl"
           aria-hidden="true"
         />
 
         <div className="relative flex items-center gap-3">
-          <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-card/10 text-white ring-1 ring-white/25">
+          <span className="flex h-11 w-11 items-center justify-center rounded-stitch-md bg-surface-card/40 text-ink ring-1 ring-line-strong">
             <UtensilsCrossed className="h-5 w-5" strokeWidth={2} aria-hidden="true" />
           </span>
-          <span className="font-heading text-xl font-bold tracking-tight text-white">
+          <span className="font-heading text-st-h3 font-bold tracking-tight text-ink">
             {settings.name}
           </span>
         </div>
 
         <div className="relative space-y-4">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/60">
+          <p className="text-st-overline font-bold uppercase tracking-wider text-ink-secondary">
             Admin operativo
           </p>
-          <h2 className="font-heading text-3xl font-bold leading-tight text-white lg:text-4xl">
+          <h2 className="font-heading text-st-display font-bold leading-tight text-ink">
             El pulso diario de tu restaurante, en un solo lugar.
           </h2>
-          <p className="max-w-sm text-sm leading-6 text-white/70">
+          <p className="max-w-sm text-st-body leading-6 text-ink-secondary">
             Órdenes para llevar y menú, sin ruido operativo innecesario.
           </p>
         </div>
 
-        <p className="relative text-xs text-white/40">
+        <p className="relative text-st-caption text-ink-muted">
           © {new Date().getFullYear()} {settings.name}
         </p>
       </div>
 
       {/* Formulario */}
-      <div className="flex flex-1 items-center justify-center bg-background px-4 py-12">
+      <div className="flex flex-1 items-center justify-center bg-canvas px-4 py-12">
         <div className="w-full max-w-sm space-y-8">
           <div className="space-y-2 text-center md:text-left">
-            <span className="mb-2 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-brand text-sm font-bold text-brand-foreground shadow-sm md:hidden">
-              <BrandMark brand={settings} variant="full" className="h-11 w-11 rounded-xl object-cover" fallbackClassName="flex h-11 w-11 items-center justify-center rounded-xl bg-brand text-sm font-bold text-brand-foreground" />
+            <span className="mb-2 inline-flex h-11 w-11 items-center justify-center rounded-stitch-md bg-brand-primary text-st-body font-bold text-ink-inverse shadow-elevation-1 md:hidden">
+              <BrandMark brand={settings} variant="full" className="h-11 w-11 rounded-stitch-md object-cover" fallbackClassName="flex h-11 w-11 items-center justify-center rounded-stitch-md bg-brand-primary text-st-body font-bold text-ink-inverse" />
             </span>
-            <h1 className="font-heading text-2xl font-bold tracking-tight text-foreground">
+            <h1 className="font-heading text-st-h1 font-bold tracking-tight text-ink">
               Iniciar sesión
             </h1>
-            <p className="text-sm text-muted-foreground">Acceso administrativo de {settings.name}</p>
+            <p className="text-st-body text-ink-secondary">Acceso administrativo de {settings.name}</p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4 rounded-2xl border border-border bg-card p-6 shadow-sm">
+          <form onSubmit={handleSubmit} className="space-y-4 rounded-stitch-lg border border-line-subtle bg-surface-card p-6 shadow-elevation-1">
             <div className="relative">
               <Mail
-                className="pointer-events-none absolute left-3 top-[2.35rem] h-4 w-4 text-muted-foreground"
+                className="pointer-events-none absolute left-3 top-[2.35rem] h-4 w-4 text-ink-muted"
                 strokeWidth={2}
                 aria-hidden="true"
               />
@@ -158,7 +158,7 @@ export default function AdminLoginPage() {
             </div>
             <div className="relative">
               <Lock
-                className="pointer-events-none absolute left-3 top-[2.35rem] h-4 w-4 text-muted-foreground"
+                className="pointer-events-none absolute left-3 top-[2.35rem] h-4 w-4 text-ink-muted"
                 strokeWidth={2}
                 aria-hidden="true"
               />
@@ -173,7 +173,7 @@ export default function AdminLoginPage() {
               />
             </div>
             {error && (
-              <div className="flex items-start gap-2 rounded-md border border-danger-strong/30 bg-danger p-3 text-sm text-danger-foreground">
+              <div className="flex items-start gap-2 rounded-stitch-sm border border-status-sla-border bg-status-sla-bg p-3 text-st-body text-status-sla-text">
                 <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" strokeWidth={2} aria-hidden="true" />
                 <span>{error}</span>
               </div>
