@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  formatOverviewCurrency,
   formatOverviewCount,
   formatOverviewDelta,
   formatOverviewInteger,
@@ -20,8 +19,9 @@ describe("admin overview formatters", () => {
     expect(formatOverviewDelta(-8)).toBe("-8 % vs. período anterior");
   });
 
-  it("formatea moneda NIO y enteros con locale es-NI", () => {
-    expect(formatOverviewCurrency(1234.5)).toBe("C$1,234.50");
+  it("formatea enteros con locale es-NI", () => {
+    // La moneda NO se formatea acá: sale de la configuración del negocio (`formatCurrency` con
+    // `useCurrencyFormat`). Este archivo tenía un `Intl` con `currency: "NIO"` escrito a mano.
     expect(formatOverviewInteger(1234)).toBe("1,234");
   });
 

@@ -170,7 +170,7 @@
       "exports": ["Tabs", "TabsList", "TabsTrigger", "TabsContent"],
       "variants": [],
       "sizes": [],
-      "use_when": "Pestañas del panel con Tabs, TabsList y TabsTrigger.",
+      "use_when": "Segmentado del panel con Tabs, TabsList y TabsTrigger: cada disparador lleva aria-pressed, min-h-11 y el tinte sky del activo. TabsList acepta ariaLabel para nombrar el grupo.",
       "dont_use_when": "TabsContent no se usa y es huérfano: no introducirlo."
     },
     {
@@ -400,6 +400,54 @@
       "sizes": [],
       "use_when": "Gráfico de tendencia del overview, con los tokens --chart-*.",
       "dont_use_when": "No en otras pantallas sin datos de serie."
+    },
+    {
+      "name": "AdminOverviewTurno",
+      "file": "src/app/(admin)/admin/_components/admin-overview-turno.tsx",
+      "layer": "admin",
+      "kind": "display",
+      "status": "in-use",
+      "exports": ["AdminOverviewTurno"],
+      "variants": [],
+      "sizes": [],
+      "use_when": "Hero del turno del Resumen: plata del día, carriles del turno y lo que necesita atención. Los umbrales salen de admin-overview-turno-summary (comanda-helpers).",
+      "dont_use_when": "No en el KDS: ahí manda la comanda. No usar el punto con latido salvo que haya algo atrasado."
+    },
+    {
+      "name": "AdminOverviewMetricCard",
+      "file": "src/app/(admin)/admin/_components/admin-overview-metric-card.tsx",
+      "layer": "admin",
+      "kind": "display",
+      "status": "in-use",
+      "exports": ["AdminOverviewMetricCard"],
+      "variants": ["amber", "sky"],
+      "sizes": [],
+      "use_when": "Tarjeta de indicador del período con cifra en mono, comparación y mini-tendencia.",
+      "dont_use_when": "No para métricas del turno (van en AdminMetricStrip) ni sin serie: si no hay dos puntos, la tarjeta muestra el texto de reemplazo."
+    },
+    {
+      "name": "AdminOverviewCocina",
+      "file": "src/app/(admin)/admin/_components/admin-overview-cocina.tsx",
+      "layer": "admin",
+      "kind": "display",
+      "status": "in-use",
+      "exports": ["AdminOverviewCocina", "AdminOverviewQuickActions"],
+      "variants": [],
+      "sizes": [],
+      "use_when": "Estado de cocina por carriles reales (por aceptar, en preparación, listas) con la preparación promedio, y las acciones rápidas del mostrador.",
+      "dont_use_when": "No inventar estaciones de cocina ni corte parcial de turno: no existen en el backend."
+    },
+    {
+      "name": "AdminOverviewTopProducts",
+      "file": "src/app/(admin)/admin/_components/admin-overview-top-products.tsx",
+      "layer": "admin",
+      "kind": "display",
+      "status": "in-use",
+      "exports": ["AdminOverviewTopProducts"],
+      "variants": [],
+      "sizes": [],
+      "use_when": "Top 5 de productos del período con unidades en mono y barra proporcional.",
+      "dont_use_when": "No para listados largos ni paginados: es el resumen de cinco."
     },
     {
       "name": "AdminOverviewClient",

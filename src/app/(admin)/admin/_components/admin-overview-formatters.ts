@@ -3,13 +3,6 @@ const overviewDeltaFormatter = new Intl.NumberFormat("es-NI", {
   signDisplay: "exceptZero",
 });
 
-const overviewCurrencyFormatter = new Intl.NumberFormat("es-NI", {
-  style: "currency",
-  currency: "NIO",
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-});
-
 const overviewIntegerFormatter = new Intl.NumberFormat("es-NI", {
   maximumFractionDigits: 0,
 });
@@ -27,10 +20,6 @@ export function formatOverviewDelta(changePercent: number | null): string {
   }
 
   return `${overviewDeltaFormatter.format(changePercent)} % vs. período anterior`;
-}
-
-export function formatOverviewCurrency(value: number): string {
-  return overviewCurrencyFormatter.format(value);
 }
 
 export function formatOverviewInteger(value: number): string {

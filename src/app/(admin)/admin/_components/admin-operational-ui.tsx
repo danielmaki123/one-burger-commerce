@@ -14,18 +14,42 @@ type AdminMetricItem = {
 
 const metricToneClasses: Record<NonNullable<AdminMetricItem["tone"]>, string> = {
   neutral: "border-line-subtle bg-surface-card",
-  brand: "border-brand/20 bg-gradient-to-br from-brand to-brand-strong text-ink-inverse shadow-md",
-  success: "border-success-strong/25 bg-success",
-  warning: "border-warning-strong/25 bg-warning",
-  danger: "border-danger-strong/25 bg-danger",
+  brand: "border-transparent bg-brand-primary",
+  success: "border-status-ready-border bg-status-ready-bg",
+  warning: "border-status-pending-border bg-status-pending-bg",
+  danger: "border-status-sla-border bg-status-sla-bg",
+};
+
+const metricLabelToneClasses: Record<NonNullable<AdminMetricItem["tone"]>, string> = {
+  neutral: "text-ink-secondary",
+  brand: "text-ink-inverse/80",
+  success: "text-status-ready-text",
+  warning: "text-status-pending-text",
+  danger: "text-status-sla-text",
+};
+
+const metricValueToneClasses: Record<NonNullable<AdminMetricItem["tone"]>, string> = {
+  neutral: "text-ink",
+  brand: "text-ink-inverse",
+  success: "text-status-ready-text",
+  warning: "text-status-pending-text",
+  danger: "text-status-sla-text",
+};
+
+const metricHelperToneClasses: Record<NonNullable<AdminMetricItem["tone"]>, string> = {
+  neutral: "text-ink-secondary",
+  brand: "text-ink-inverse/80",
+  success: "text-status-ready-text",
+  warning: "text-status-pending-text",
+  danger: "text-status-sla-text",
 };
 
 const metricIconToneClasses: Record<NonNullable<AdminMetricItem["tone"]>, string> = {
-  neutral: "bg-accent text-brand",
+  neutral: "bg-surface-elevated text-brand-primary",
   brand: "bg-canvas/15 text-ink-inverse",
-  success: "bg-success-strong/20 text-success-foreground",
-  warning: "bg-warning-strong/25 text-warning-foreground",
-  danger: "bg-danger-strong/20 text-danger-foreground",
+  success: "bg-status-ready-dot/25 text-status-ready-text",
+  warning: "bg-status-pending-dot/25 text-status-pending-text",
+  danger: "bg-status-sla-pulse/25 text-status-sla-text",
 };
 
 const pillToneClasses = {
@@ -51,15 +75,17 @@ export function AdminPageHeader({
 }: AdminPageHeaderProps) {
   return (
     <section className="rounded-stitch-lg border border-line-subtle bg-surface-card p-4 shadow-elevation-1 md:p-5">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div className="space-y-1">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0 flex-1 space-y-1">
           {label ? (
             <p className="text-st-overline font-bold uppercase tracking-wider text-brand-amber">{label}</p>
           ) : null}
-          <h1 className="font-heading text-st-h1 font-bold tracking-tight text-ink md:text-st-h1">
+          <h1 className="font-heading text-st-h1 font-bold tracking-tight text-ink">
             {title}
           </h1>
-          <p className="max-w-2xl text-st-body leading-6 text-ink-secondary">
+          {/* La descripción se recorta a dos líneas en celular: la regla del 20% de cabecera deja el
+              alto para la operación, y el texto completo sigue en el DOM para el lector de pantalla. */}
+          <p className="max-w-2xl text-st-body leading-6 text-ink-secondary line-clamp-2 sm:line-clamp-none">
             {description}
           </p>
         </div>
@@ -84,32 +110,31 @@ export function AdminMetricStrip({
     <section className={`grid gap-3 ${columnsClassName} ${className}`}>
       {items.map((item) => {
         const tone = item.tone ?? "neutral";
-        const isBrand = tone === "brand";
 
         return (
           <div
             key={item.label}
-            className={`rounded-stitch-lg border p-3.5 ${isBrand ? "shadow-elevation-2" : "shadow-elevation-1"} ${metricToneClasses[tone]}`}
+            className={`min-w-0 rounded-stitch-lg border p-3 shadow-elevation-1 sm:p-3.5 ${metricToneClasses[tone]}`}
           >
             <div className="flex items-start justify-between gap-2">
               <p
-                className={`text-st-overline font-bold uppercase tracking-wider ${
-                  isBrand ? "text-ink-inverse/80" : "text-ink-secondary"
-                }`}
+                className={`min-w-0 text-st-overline font-bold uppercase tracking-wider ${metricLabelToneClasses[tone]}`}
               >
                 {item.label}
               </p>
               {item.icon ? (
-                <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${metricIconToneClasses[tone]}`}>
+                // En móvil el ícono es decorativo y se va: el número y su etiqueta tienen que entrar en
+                // una columna de un tercio sin empujar la tarjeta fuera de la pantalla.
+                <span className={`hidden h-8 w-8 shrink-0 items-center justify-center rounded-stitch-sm sm:flex ${metricIconToneClasses[tone]}`}>
                   {item.icon}
                 </span>
               ) : null}
             </div>
-            <p className={`mt-1 text-st-h1 font-bold ${isBrand ? "text-ink-inverse" : "text-ink"}`}>
+            <p className={`mt-1 font-mono text-st-h1 font-bold tabular-nums ${metricValueToneClasses[tone]}`}>
               {item.value}
             </p>
             {item.helper ? (
-              <p className={`mt-1 text-st-caption leading-5 ${isBrand ? "text-ink-inverse/70" : "text-ink-secondary"}`}>
+              <p className={`mt-1 text-st-caption leading-5 ${metricHelperToneClasses[tone]}`}>
                 {item.helper}
               </p>
             ) : null}

@@ -150,19 +150,25 @@ describe("admin ui contracts", () => {
     expect(overviewSource).not.toContain("Estado actual de la operación");
     expect(overviewSource).not.toContain("Ahora");
     expect(overviewSource).not.toContain("Accesos directos");
-    expect(overviewSource).toContain('aria-label="Turno de hoy"');
-    expect(overviewSource).toContain("Necesita atención ·");
+    const turnoSource = readAdminFile("_components/admin-overview-turno.tsx");
+    expect(overviewSource).toContain("<AdminOverviewTurno");
+    expect(turnoSource).toContain('aria-label="Turno de hoy"');
+    expect(turnoSource).toContain("Necesita atención ·");
+    expect(turnoSource).toContain("Todo en orden: nada requiere atención inmediata.");
     expect(overviewSource).toContain('href: "/admin/orders"');
     expect(overviewSource).not.toContain('href: "/admin/reservations"');
-    expect(overviewSource).toContain("Todo en orden: nada requiere atención inmediata.");
-    expect(overviewSource).toContain("TURNO_LATE_MINUTES");
+    // El umbral de atraso del turno sale de `comanda-helpers` (la misma fuente que el KDS).
+    expect(overviewSource).toContain("TURNO_THRESHOLDS");
+    expect(overviewSource).not.toContain("TURNO_LATE_MINUTES = 20");
     expect(navSource).toContain('href: "/admin/orders"');
     expect(navSource).not.toContain('href: "/admin/reservations"');
     expect(navSource).toContain('href: "/admin/users"');
-    expect(overviewSource).toContain('aria-label="Período de rendimiento"');
-    expect(overviewSource).toContain('aria-label="Canal de rendimiento"');
-    expect(overviewSource).toContain("aria-pressed={period === option.value}");
-    expect(overviewSource).toContain("aria-pressed={channel === option.value}");
+    // Los filtros son el segmentado del panel: primitivo `Tabs`, no botones crudos.
+    expect(overviewSource).toContain("<TabsList");
+    expect(overviewSource).toContain("<TabsTrigger");
+    expect(overviewSource).toContain('ariaLabel="Período de rendimiento"');
+    expect(overviewSource).toContain('ariaLabel="Canal de rendimiento"');
+    expect(overviewSource).not.toContain("<button");
     expect(overviewSource).toContain("min-h-11");
     expect(overviewSource).not.toContain("loadOperations");
     expect(overviewSource).toContain("loadPerformance");
@@ -185,34 +191,52 @@ describe("admin ui contracts", () => {
     expect(overviewSource).not.toContain("\\uD83D");
   });
 
-  it("renders performance filters as a compact responsive segmented toolbar", () => {
+  it("renders performance filters with the panel segmented primitive", () => {
     const overviewSource = readAdminFile("_components/admin-overview-client.tsx");
+    const tabsSource = readWorkspaceFile("src/shared/ui/tabs.tsx");
 
-    expect(overviewSource).toContain(
-      'className="min-w-0 rounded-xl border border-border bg-muted/40 p-2 sm:p-3"',
-    );
-    expect(overviewSource).toContain(
-      'className="grid min-w-0 gap-2 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,0.7fr)] lg:gap-3"',
-    );
-    expect(overviewSource).not.toContain("md:grid-cols-[minmax(0,1.3fr)");
-    expect(
-      overviewSource.match(
-        /className="grid min-w-0 grid-cols-\[3rem_minmax\(0,1fr\)\] items-center gap-2"/g,
-      ),
-    ).toHaveLength(2);
-    expect(overviewSource).toContain(
-      'className="grid min-w-0 grid-cols-4 gap-1 rounded-xl border border-border bg-card p-1"',
-    );
-    expect(overviewSource).toContain(
-      'className="grid min-w-0 grid-cols-3 gap-1 rounded-xl border border-border bg-card p-1"',
-    );
-    expect(overviewSource.match(/min-h-11 min-w-0 w-full/g)).toHaveLength(2);
-    expect(overviewSource).toContain(
-      "text-[11px] font-semibold uppercase tracking-wide text-muted-foreground",
-    );
-    expect(overviewSource).toContain('aria-label="Período de rendimiento"');
-    expect(overviewSource).toContain('aria-label="Canal de rendimiento"');
-    expect(overviewSource).toContain("motion-reduce:transition-none");
+    // El estado activo y el mínimo táctil viven en el primitivo, no en cada pantalla.
+    expect(tabsSource).toContain("aria-pressed={isActive}");
+    expect(tabsSource).toContain('type="button"');
+    expect(tabsSource).toContain("min-h-11");
+    expect(tabsSource).toContain("bg-brand-primary-muted");
+    expect(tabsSource).not.toContain("bg-card");
+    expect(tabsSource).not.toContain("text-muted-foreground");
+
+    expect(overviewSource).toContain('aria-label="Filtros de rendimiento"');
+    expect(overviewSource).toContain('ariaLabel="Período de rendimiento"');
+    expect(overviewSource).toContain('ariaLabel="Canal de rendimiento"');
+    expect(overviewSource.match(/<TabsTrigger/g)).toHaveLength(2);
+    expect(tabsSource).toContain("motion-reduce:transition-none");
+  });
+
+  it("el Resumen entero usa el sistema: sin alias viejos ni valores arbitrarios", () => {
+    // Si un archivo de la pantalla vuelve a un alias viejo o a un `text-[Npx]`, el guardrail de techos
+    // lo caza igual; acá se exige que **ninguno** de los seis archivos los use.
+    const legacy = [
+      'bg-card"',
+      'border-border"',
+      'text-foreground"',
+      "text-muted-foreground",
+      "text-[",
+      "rounded-2xl",
+      "shadow-sm",
+    ];
+
+    for (const file of [
+      "_components/admin-overview-client.tsx",
+      "_components/admin-overview-turno.tsx",
+      "_components/admin-overview-metric-card.tsx",
+      "_components/admin-overview-cocina.tsx",
+      "_components/admin-overview-top-products.tsx",
+      "_components/admin-overview-trend-chart.tsx",
+    ]) {
+      const source = readAdminFile(file);
+
+      for (const legacyClass of legacy) {
+        expect(source, `${file} usa ${legacyClass}`).not.toContain(legacyClass);
+      }
+    }
   });
 
   it("renders the pickup performance contract with three kpis and accessible data modules", () => {
@@ -239,7 +263,7 @@ describe("admin ui contracts", () => {
     expect(overviewSource).not.toContain("ADMIN_RESERVATION_STATUS_ORDER.map");
     expect(overviewSource).not.toContain("reservations");
     expect(overviewSource).toContain("topProducts.slice(0, 5)");
-    expect(overviewSource).toContain(
+    expect(readAdminFile("_components/admin-overview-top-products.tsx")).toContain(
       'formatOverviewCount(product.units, "unidad", "unidades")',
     );
     expect(overviewSource).not.toContain(
