@@ -1,6 +1,6 @@
 {
   "$comment": "Registro de componentes de UI (C0-3 de plan2uiux.md). El catálogo humano sigue siendo DESIGN_SYSTEM.md §3: este archivo es su espejo declarado y `src/shared/contracts/registry-contract.test.ts` exige que los dos tengan los mismos componentes. Un archivo real sin fila acá, o una fila acá sin archivo real, hace fallar el contrato.",
-  "version": 1,
+  "version": 2,
   "updated": "2026-09-15",
   "source_of_truth": "DESIGN_SYSTEM.md",
   "catalog": "DESIGN_SYSTEM.md#3-catálogo-de-componentes",
@@ -9,386 +9,469 @@
     "admin": "src/app/(admin)/admin/_components/ — panel",
     "public": "src/app/(public)/_components/ y cart/_components/ — público"
   },
+  "field_notes": {
+    "file": "ruta del archivo que declara el componente, relativa a la raíz del repo",
+    "variants": "eje visual que el archivo declara (el prop `variant`, `tone` o `badgeVariant`, con los valores literales de su unión o las claves de su mapa de clases); [] si no tiene eje. Si el eje viene de un tipo del dominio importado (BrandMark, StatusProgress), sus valores van en `use_when` con la ruta del tipo.",
+    "sizes": "eje de tamaño (el prop `size`); [] si no tiene eje",
+    "use_when": "cuándo SÍ: la situación de UI en la que se usa",
+    "dont_use_when": "cuándo NO: la alternativa concreta que corresponde en su lugar"
+  },
   "components": [
     {
       "name": "Button",
-      "path": "src/shared/ui/button.tsx",
+      "file": "src/shared/ui/button.tsx",
       "layer": "shared",
       "kind": "control",
       "status": "in-use",
       "exports": ["Button"],
-      "whenToUse": "Toda acción con texto o ícono. Variantes primary, secondary, outline, ghost, danger; tamaños sm, md, lg, icon y pill (chip de filtro).",
-      "whenNotToUse": "Nunca escribir <button> a mano. Excepciones: un overlay de cierre o un role=switch (no son botones de acción) y una fila de lista multilínea, que no tiene primitivo."
+      "variants": ["primary", "secondary", "outline", "ghost", "danger"],
+      "sizes": ["sm", "md", "lg", "icon", "pill"],
+      "use_when": "Toda acción con texto o ícono. Variantes primary, secondary, outline, ghost, danger; tamaños sm, md, lg, icon y pill (chip de filtro).",
+      "dont_use_when": "Nunca escribir <button> a mano. Excepciones: un overlay de cierre o un role=switch (no son botones de acción) y una fila de lista multilínea, que no tiene primitivo."
     },
     {
       "name": "Input",
-      "path": "src/shared/ui/input.tsx",
+      "file": "src/shared/ui/input.tsx",
       "layer": "shared",
       "kind": "control",
       "status": "in-use",
       "exports": ["Input"],
-      "whenToUse": "Campo de texto con label y error asociados (aria-describedby).",
-      "whenNotToUse": "No sirve para type=color ni type=date: esos primitivos NO EXISTEN y hoy se usa el input crudo."
+      "variants": [],
+      "sizes": [],
+      "use_when": "Campo de texto con label y error asociados (aria-describedby).",
+      "dont_use_when": "No sirve para type=color ni type=date: esos primitivos NO EXISTEN y hoy se usa el input crudo."
     },
     {
       "name": "Select",
-      "path": "src/shared/ui/select.tsx",
+      "file": "src/shared/ui/select.tsx",
       "layer": "shared",
       "kind": "control",
       "status": "in-use",
       "exports": ["Select"],
-      "whenToUse": "Elección entre 4+ opciones, con label, error y options (o children); placeholder para el caso opcional. Quedan 25 <select> crudos en src/app por migrar pantalla por pantalla.",
-      "whenNotToUse": "No para 2-3 opciones visibles (eso es RadioGroup) ni para fecha o color, que no tienen primitivo."
+      "variants": [],
+      "sizes": [],
+      "use_when": "Elección entre 4+ opciones, con label, error y options (o children); placeholder para el caso opcional. Quedan 25 <select> crudos en src/app por migrar pantalla por pantalla.",
+      "dont_use_when": "No para 2-3 opciones visibles (eso es RadioGroup) ni para fecha o color, que no tienen primitivo."
     },
     {
       "name": "Checkbox",
-      "path": "src/shared/ui/checkbox.tsx",
+      "file": "src/shared/ui/checkbox.tsx",
       "layer": "shared",
       "kind": "control",
       "status": "in-use",
       "exports": ["Checkbox"],
-      "whenToUse": "Booleano con etiqueta.",
-      "whenNotToUse": "Nunca <input type=checkbox> a mano."
+      "variants": [],
+      "sizes": [],
+      "use_when": "Booleano con etiqueta.",
+      "dont_use_when": "Nunca <input type=checkbox> a mano."
     },
     {
       "name": "RadioGroup",
-      "path": "src/shared/ui/radio-group.tsx",
+      "file": "src/shared/ui/radio-group.tsx",
       "layer": "shared",
       "kind": "control",
       "status": "in-use",
       "exports": ["RadioGroup", "RadioGroupItem"],
-      "whenToUse": "Elección exclusiva entre 2-3 opciones visibles.",
-      "whenNotToUse": "No para 4+ opciones: ahí va Select."
+      "variants": [],
+      "sizes": [],
+      "use_when": "Elección exclusiva entre 2-3 opciones visibles.",
+      "dont_use_when": "No para 4+ opciones: ahí va Select."
     },
     {
       "name": "WhatsAppInput",
-      "path": "src/shared/ui/whatsapp-input.tsx",
+      "file": "src/shared/ui/whatsapp-input.tsx",
       "layer": "shared",
       "kind": "control",
       "status": "in-use",
       "exports": ["WhatsAppInput"],
-      "whenToUse": "Teléfono del cliente, con prefijo.",
-      "whenNotToUse": "No para teléfonos internos del negocio."
+      "variants": [],
+      "sizes": [],
+      "use_when": "Teléfono del cliente, con prefijo.",
+      "dont_use_when": "No para teléfonos internos del negocio."
     },
     {
       "name": "Card",
-      "path": "src/shared/ui/card.tsx",
+      "file": "src/shared/ui/card.tsx",
       "layer": "shared",
       "kind": "surface",
       "status": "in-use",
       "exports": ["Card", "CardHeader", "CardTitle", "CardDescription", "CardContent", "CardFooter"],
-      "whenToUse": "Contenedor con borde y sombra para agrupar contenido.",
-      "whenNotToUse": "No para filas de lista compactas (para eso, CartLineCard o una fila propia)."
+      "variants": [],
+      "sizes": [],
+      "use_when": "Contenedor con borde y sombra para agrupar contenido.",
+      "dont_use_when": "No para filas de lista compactas (para eso, CartLineCard o una fila propia)."
     },
     {
       "name": "Badge",
-      "path": "src/shared/ui/badge.tsx",
+      "file": "src/shared/ui/badge.tsx",
       "layer": "shared",
       "kind": "display",
       "status": "in-use",
       "exports": ["Badge"],
-      "whenToUse": "Etiqueta corta de estado o categoría (6 variantes).",
-      "whenNotToUse": "No para el estado de un pedido del panel: para eso está AdminStatusSolid."
+      "variants": ["default", "secondary", "outline", "success", "warning", "danger"],
+      "sizes": [],
+      "use_when": "Etiqueta corta de estado o categoría (6 variantes).",
+      "dont_use_when": "No para el estado de un pedido del panel: para eso está AdminStatusSolid."
     },
     {
       "name": "BrandMark",
-      "path": "src/shared/ui/brand-mark.tsx",
+      "file": "src/shared/ui/brand-mark.tsx",
       "layer": "shared",
       "kind": "display",
       "status": "in-use",
       "exports": ["BrandMark"],
-      "whenToUse": "Logo del negocio o sus iniciales, leídas de la configuración.",
-      "whenNotToUse": "No para íconos de acción."
+      "variants": [],
+      "sizes": [],
+      "use_when": "Logo del negocio o sus iniciales, leídas de la configuración.",
+      "dont_use_when": "No para íconos de acción."
     },
     {
       "name": "StatusProgress",
-      "path": "src/shared/ui/status-progress.tsx",
+      "file": "src/shared/ui/status-progress.tsx",
       "layer": "shared",
       "kind": "display",
       "status": "in-use",
       "exports": ["StatusProgress"],
-      "whenToUse": "Progreso de un pedido en el historial del cliente.",
-      "whenNotToUse": "No en el panel: ahí el estado se muestra con AdminStatusSolid."
+      "variants": [],
+      "sizes": [],
+      "use_when": "Progreso de un pedido en el historial del cliente. Su `tone` es `StatusTone` (`warning` | `success` | `danger`), un tipo del dominio (`src/shared/lib/activity-status.ts:1`), no una unión declarada en el archivo.",
+      "dont_use_when": "No en el panel: ahí el estado se muestra con AdminStatusSolid."
     },
     {
       "name": "PublicLocationsList",
-      "path": "src/shared/ui/public-locations-list.tsx",
+      "file": "src/shared/ui/public-locations-list.tsx",
       "layer": "shared",
       "kind": "display",
       "status": "in-use",
       "exports": ["PublicLocationsList"],
-      "whenToUse": "Lista de sucursales del público.",
-      "whenNotToUse": "No en el panel."
+      "variants": ["list", "compact"],
+      "sizes": [],
+      "use_when": "Lista de sucursales del público.",
+      "dont_use_when": "No en el panel."
     },
     {
       "name": "PublicMobileBottomNav",
-      "path": "src/shared/ui/public-mobile-bottom-nav.tsx",
+      "file": "src/shared/ui/public-mobile-bottom-nav.tsx",
       "layer": "shared",
       "kind": "layout",
       "status": "in-use",
       "exports": ["PublicMobileBottomNav"],
-      "whenToUse": "Navegación inferior móvil del público.",
-      "whenNotToUse": "No en el admin ni en las rutas de túnel de conversión."
+      "variants": [],
+      "sizes": [],
+      "use_when": "Navegación inferior móvil del público.",
+      "dont_use_when": "No en el admin ni en las rutas de túnel de conversión."
     },
     {
       "name": "Tabs",
-      "path": "src/shared/ui/tabs.tsx",
+      "file": "src/shared/ui/tabs.tsx",
       "layer": "shared",
       "kind": "layout",
       "status": "in-use",
       "exports": ["Tabs", "TabsList", "TabsTrigger", "TabsContent"],
-      "whenToUse": "Pestañas del panel con Tabs, TabsList y TabsTrigger.",
-      "whenNotToUse": "TabsContent no se usa y es huérfano: no introducirlo."
+      "variants": [],
+      "sizes": [],
+      "use_when": "Pestañas del panel con Tabs, TabsList y TabsTrigger.",
+      "dont_use_when": "TabsContent no se usa y es huérfano: no introducirlo."
     },
     {
       "name": "Modal",
-      "path": "src/shared/ui/modal.tsx",
+      "file": "src/shared/ui/modal.tsx",
       "layer": "shared",
       "kind": "control",
-      "status": "in-use",
+      "status": "pending-migration",
       "exports": ["Modal"],
-      "whenToUse": "Diálogo y confirmaciones con el <dialog> nativo: foco atrapado, Escape y ::backdrop los da el navegador. Título obligatorio.",
-      "whenNotToUse": "No para un formulario largo (AdminEditSheet) ni para un aviso sin decisión (Toast). Tampoco reimplementar role=dialog a mano."
+      "variants": [],
+      "sizes": ["sm", "lg"],
+      "use_when": "Diálogo y confirmaciones con el <dialog> nativo: foco atrapado, Escape y ::backdrop los da el navegador. Título obligatorio.",
+      "dont_use_when": "No para un formulario largo (AdminEditSheet) ni para un aviso sin decisión (Toast). Tampoco reimplementar role=dialog a mano."
     },
     {
       "name": "Toggle",
-      "path": "src/shared/ui/toggle.tsx",
+      "file": "src/shared/ui/toggle.tsx",
       "layer": "shared",
       "kind": "control",
-      "status": "in-use",
+      "status": "pending-migration",
       "exports": ["Toggle"],
-      "whenToUse": "Interruptor que guarda al tocarlo: role=switch, aria-checked, 44 px y estado saving en el primitivo.",
-      "whenNotToUse": "No para dos opciones de un formulario (RadioGroup) ni para un booleano que se guarda al enviar (Checkbox); nada de role=switch a mano."
+      "variants": [],
+      "sizes": [],
+      "use_when": "Interruptor que guarda al tocarlo: role=switch, aria-checked, 44 px y estado saving en el primitivo.",
+      "dont_use_when": "No para dos opciones de un formulario (RadioGroup) ni para un booleano que se guarda al enviar (Checkbox); nada de role=switch a mano."
     },
     {
       "name": "Textarea",
-      "path": "src/shared/ui/textarea.tsx",
+      "file": "src/shared/ui/textarea.tsx",
       "layer": "shared",
       "kind": "control",
-      "status": "in-use",
+      "status": "pending-migration",
       "exports": ["Textarea"],
-      "whenToUse": "Texto de varias líneas, con label, error y description asociados por aria-describedby.",
-      "whenNotToUse": "No para una línea: eso es Input. Quedan 4 <textarea> crudos en src/app por migrar."
+      "variants": [],
+      "sizes": [],
+      "use_when": "Texto de varias líneas, con label, error y description asociados por aria-describedby.",
+      "dont_use_when": "No para una línea: eso es Input. Quedan 4 <textarea> crudos en src/app por migrar."
     },
     {
       "name": "Skeleton",
-      "path": "src/shared/ui/skeleton.tsx",
+      "file": "src/shared/ui/skeleton.tsx",
       "layer": "shared",
       "kind": "display",
-      "status": "in-use",
+      "status": "pending-migration",
       "exports": ["Skeleton", "SkeletonAnnouncement"],
-      "whenToUse": "Carga de una pantalla con datos: los huesos (aria-hidden) más un anuncio role=status con el texto.",
-      "whenNotToUse": "No para 'no hay datos' (AdminEmptyState) ni para la espera de una acción (el saving del botón)."
+      "variants": [],
+      "sizes": [],
+      "use_when": "Carga de una pantalla con datos: los huesos (aria-hidden) más un anuncio role=status con el texto.",
+      "dont_use_when": "No para 'no hay datos' (AdminEmptyState) ni para la espera de una acción (el saving del botón)."
     },
     {
       "name": "Toast",
-      "path": "src/shared/ui/toast.tsx",
+      "file": "src/shared/ui/toast.tsx",
       "layer": "shared",
       "kind": "display",
-      "status": "in-use",
+      "status": "pending-migration",
       "exports": ["Toast"],
-      "whenToUse": "Resultado de una acción recién hecha, con tono success/error/warning/info; error y warning se anuncian como alerta.",
-      "whenNotToUse": "No para el error de un campo (va en el error del control) ni para información permanente en pantalla."
+      "variants": ["success", "error", "warning", "info"],
+      "sizes": [],
+      "use_when": "Resultado de una acción recién hecha, con tono success/error/warning/info; error y warning se anuncian como alerta.",
+      "dont_use_when": "No para el error de un campo (va en el error del control) ni para información permanente en pantalla."
     },
     {
       "name": "HelpText",
-      "path": "src/shared/ui/help-text.tsx",
+      "file": "src/shared/ui/help-text.tsx",
       "layer": "shared",
       "kind": "display",
-      "status": "in-use",
+      "status": "pending-migration",
       "exports": ["HelpText"],
-      "whenToUse": "Aclaración bajo un campo, con el id ${id}-help que el control cita en aria-describedby.",
-      "whenNotToUse": "No para mensajes de error (el error del control) ni para copy decorativo."
+      "variants": ["default", "error"],
+      "sizes": [],
+      "use_when": "Aclaración bajo un campo, con el id ${id}-help que el control cita en aria-describedby.",
+      "dont_use_when": "No para mensajes de error (el error del control) ni para copy decorativo."
     },
     {
       "name": "PublicConfirmationShell",
-      "path": "src/shared/ui/public-confirmation-shell.tsx",
+      "file": "src/shared/ui/public-confirmation-shell.tsx",
       "layer": "shared",
       "kind": "layout",
       "status": "orphan",
       "exports": ["PublicConfirmationShell"],
-      "whenToUse": "NO USAR: huérfano (nadie lo importa) y tiene el literal OB hardcodeado, que el contrato anti-hardcode prohíbe.",
-      "whenNotToUse": "Nunca hasta que se lo arregle y se lo registre como en uso."
+      "variants": ["warning", "success", "secondary"],
+      "sizes": [],
+      "use_when": "NO USAR: huérfano (nadie lo importa) y tiene el literal OB hardcodeado, que el contrato anti-hardcode prohíbe.",
+      "dont_use_when": "Nunca hasta que se lo arregle y se lo registre como en uso."
     },
     {
       "name": "AdminShell",
-      "path": "src/app/(admin)/admin/_components/admin-shell.tsx",
+      "file": "src/app/(admin)/admin/_components/admin-shell.tsx",
       "layer": "admin",
       "kind": "layout",
       "status": "in-use",
       "exports": ["AdminShell"],
-      "whenToUse": "Layout del panel; lo usa el layout, no una página.",
-      "whenNotToUse": "No desde una página."
+      "variants": [],
+      "sizes": [],
+      "use_when": "Layout del panel; lo usa el layout, no una página.",
+      "dont_use_when": "No desde una página."
     },
     {
       "name": "AdminMobileNav",
-      "path": "src/app/(admin)/admin/_components/admin-mobile-nav.tsx",
+      "file": "src/app/(admin)/admin/_components/admin-mobile-nav.tsx",
       "layer": "admin",
       "kind": "layout",
       "status": "in-use",
       "exports": ["AdminMobileNav"],
-      "whenToUse": "Navegación móvil del panel; la usa el shell.",
-      "whenNotToUse": "No desde una página."
+      "variants": [],
+      "sizes": [],
+      "use_when": "Navegación móvil del panel; la usa el shell.",
+      "dont_use_when": "No desde una página."
     },
     {
       "name": "AdminSessionControls",
-      "path": "src/app/(admin)/admin/_components/admin-session-controls.tsx",
+      "file": "src/app/(admin)/admin/_components/admin-session-controls.tsx",
       "layer": "admin",
       "kind": "layout",
       "status": "in-use",
       "exports": ["AdminSessionControls"],
-      "whenToUse": "Bloque de sesión del panel; lo usa el shell.",
-      "whenNotToUse": "No desde una página."
+      "variants": [],
+      "sizes": [],
+      "use_when": "Bloque de sesión del panel; lo usa el shell.",
+      "dont_use_when": "No desde una página."
     },
     {
       "name": "AdminPageHeader",
-      "path": "src/app/(admin)/admin/_components/admin-operational-ui.tsx",
+      "file": "src/app/(admin)/admin/_components/admin-operational-ui.tsx",
       "layer": "admin",
       "kind": "display",
       "status": "in-use",
       "exports": ["AdminPageHeader"],
-      "whenToUse": "Toda cabecera de pantalla del panel.",
-      "whenNotToUse": "No para encabezados internos de una tarjeta."
+      "variants": [],
+      "sizes": [],
+      "use_when": "Toda cabecera de pantalla del panel.",
+      "dont_use_when": "No para encabezados internos de una tarjeta."
     },
     {
       "name": "AdminEmptyState",
-      "path": "src/app/(admin)/admin/_components/admin-operational-ui.tsx",
+      "file": "src/app/(admin)/admin/_components/admin-operational-ui.tsx",
       "layer": "admin",
       "kind": "display",
       "status": "in-use",
       "exports": ["AdminEmptyState"],
-      "whenToUse": "Todo estado vacío del panel, con su CTA.",
-      "whenNotToUse": "No para cargando: eso es un Skeleton."
+      "variants": [],
+      "sizes": [],
+      "use_when": "Todo estado vacío del panel, con su CTA.",
+      "dont_use_when": "No para cargando: eso es un Skeleton."
     },
     {
       "name": "AdminCompactToolbar",
-      "path": "src/app/(admin)/admin/_components/admin-operational-ui.tsx",
+      "file": "src/app/(admin)/admin/_components/admin-operational-ui.tsx",
       "layer": "admin",
       "kind": "layout",
       "status": "in-use",
       "exports": ["AdminCompactToolbar"],
-      "whenToUse": "Fila de filtros compactos del panel.",
-      "whenNotToUse": "No para contenido: solo herramientas."
+      "variants": [],
+      "sizes": [],
+      "use_when": "Fila de filtros compactos del panel.",
+      "dont_use_when": "No para contenido: solo herramientas."
     },
     {
       "name": "AdminStatusSolid",
-      "path": "src/app/(admin)/admin/_components/admin-operational-ui.tsx",
+      "file": "src/app/(admin)/admin/_components/admin-operational-ui.tsx",
       "layer": "admin",
       "kind": "display",
       "status": "in-use",
       "exports": ["AdminStatusSolid"],
-      "whenToUse": "Estado de un pedido o reserva en el panel, siempre con getAdminOrderSolidStatus o getAdminReservationSolidStatus.",
-      "whenNotToUse": "No para estados genéricos (para eso, Badge)."
+      "variants": ["nueva", "preparando", "lista", "cerrada", "alerta"],
+      "sizes": [],
+      "use_when": "Estado de un pedido o reserva en el panel, siempre con getAdminOrderSolidStatus o getAdminReservationSolidStatus.",
+      "dont_use_when": "No para estados genéricos (para eso, Badge)."
     },
     {
       "name": "AdminPickupTimingChip",
-      "path": "src/app/(admin)/admin/_components/admin-operational-ui.tsx",
+      "file": "src/app/(admin)/admin/_components/admin-operational-ui.tsx",
       "layer": "admin",
       "kind": "display",
       "status": "in-use",
       "exports": ["AdminPickupTimingChip"],
-      "whenToUse": "Semáforo del retiro, con los tokens --pickup-*.",
-      "whenNotToUse": "No si el pedido no es de retiro."
+      "variants": ["on-time", "past", "late"],
+      "sizes": [],
+      "use_when": "Semáforo del retiro, con los tokens --pickup-*.",
+      "dont_use_when": "No si el pedido no es de retiro."
     },
     {
       "name": "AdminMetricStrip",
-      "path": "src/app/(admin)/admin/_components/admin-operational-ui.tsx",
+      "file": "src/app/(admin)/admin/_components/admin-operational-ui.tsx",
       "layer": "admin",
       "kind": "display",
       "status": "orphan",
       "exports": ["AdminMetricStrip"],
-      "whenToUse": "NO USAR: huérfano.",
-      "whenNotToUse": "Nunca hasta que se lo registre como en uso."
+      "variants": ["neutral", "brand", "success", "warning", "danger"],
+      "sizes": [],
+      "use_when": "NO USAR: huérfano.",
+      "dont_use_when": "Nunca hasta que se lo registre como en uso."
     },
     {
       "name": "AdminStatusPill",
-      "path": "src/app/(admin)/admin/_components/admin-operational-ui.tsx",
+      "file": "src/app/(admin)/admin/_components/admin-operational-ui.tsx",
       "layer": "admin",
       "kind": "display",
       "status": "orphan",
       "exports": ["AdminStatusPill"],
-      "whenToUse": "NO USAR: huérfano; usar AdminStatusSolid o Badge.",
-      "whenNotToUse": "Nunca hasta que se lo registre como en uso."
+      "variants": ["neutral", "brand", "success", "warning", "danger"],
+      "sizes": [],
+      "use_when": "NO USAR: huérfano; usar AdminStatusSolid o Badge.",
+      "dont_use_when": "Nunca hasta que se lo registre como en uso."
     },
     {
       "name": "AdminEditSheet",
-      "path": "src/app/(admin)/admin/_components/admin-edit-sheet.tsx",
+      "file": "src/app/(admin)/admin/_components/admin-edit-sheet.tsx",
       "layer": "admin",
       "kind": "control",
       "status": "in-use",
       "exports": ["AdminEditSheet"],
-      "whenToUse": "Edición en hoja (mobile) o diálogo (desktop), con focus trap y Escape.",
-      "whenNotToUse": "No para confirmaciones simples ni para reimplementar la hoja a mano."
+      "variants": [],
+      "sizes": [],
+      "use_when": "Edición en hoja (mobile) o diálogo (desktop), con focus trap y Escape.",
+      "dont_use_when": "No para confirmaciones simples ni para reimplementar la hoja a mano."
     },
     {
       "name": "AdminOverviewTrendChart",
-      "path": "src/app/(admin)/admin/_components/admin-overview-trend-chart.tsx",
+      "file": "src/app/(admin)/admin/_components/admin-overview-trend-chart.tsx",
       "layer": "admin",
       "kind": "display",
       "status": "in-use",
       "exports": ["AdminOverviewTrendChart"],
-      "whenToUse": "Gráfico de tendencia del overview, con los tokens --chart-*.",
-      "whenNotToUse": "No en otras pantallas sin datos de serie."
+      "variants": [],
+      "sizes": [],
+      "use_when": "Gráfico de tendencia del overview, con los tokens --chart-*.",
+      "dont_use_when": "No en otras pantallas sin datos de serie."
     },
     {
       "name": "AdminOverviewClient",
-      "path": "src/app/(admin)/admin/_components/admin-overview-client.tsx",
+      "file": "src/app/(admin)/admin/_components/admin-overview-client.tsx",
       "layer": "admin",
       "kind": "layout",
       "status": "in-use",
       "exports": ["AdminOverviewClient"],
-      "whenToUse": "Pantalla de resumen; la usa la página.",
-      "whenNotToUse": "No reusarlo como widget."
+      "variants": [],
+      "sizes": [],
+      "use_when": "Pantalla de resumen; la usa la página.",
+      "dont_use_when": "No reusarlo como widget."
     },
     {
       "name": "AdminStatusDonut",
-      "path": "src/app/(admin)/admin/_components/admin-status-donut.tsx",
+      "file": "src/app/(admin)/admin/_components/admin-status-donut.tsx",
       "layer": "admin",
       "kind": "display",
       "status": "orphan",
       "exports": ["AdminStatusDonut"],
-      "whenToUse": "NO USAR: huérfano, y hay un test que exige que el overview no lo use.",
-      "whenNotToUse": "Nunca hasta que se lo registre como en uso."
+      "variants": [],
+      "sizes": [],
+      "use_when": "NO USAR: huérfano, y hay un test que exige que el overview no lo use.",
+      "dont_use_when": "Nunca hasta que se lo registre como en uso."
     },
     {
       "name": "OrderSummaryCard",
-      "path": "src/app/(public)/_components/order-summary-card.tsx",
+      "file": "src/app/(public)/_components/order-summary-card.tsx",
       "layer": "public",
       "kind": "display",
       "status": "in-use",
       "exports": ["OrderSummaryCard"],
-      "whenToUse": "El resumen de pedido: lo comparten /cart y /checkout.",
-      "whenNotToUse": "No duplicar el resumen en una pantalla nueva."
+      "variants": [],
+      "sizes": [],
+      "use_when": "El resumen de pedido: lo comparten /cart y /checkout.",
+      "dont_use_when": "No duplicar el resumen en una pantalla nueva."
     },
     {
       "name": "EmptyCartState",
-      "path": "src/app/(public)/_components/empty-cart-state.tsx",
+      "file": "src/app/(public)/_components/empty-cart-state.tsx",
       "layer": "public",
       "kind": "display",
       "status": "in-use",
       "exports": ["EmptyCartState"],
-      "whenToUse": "Carrito vacío, con su CTA para volver al menú.",
-      "whenNotToUse": "No para cargando ni para error."
+      "variants": [],
+      "sizes": [],
+      "use_when": "Carrito vacío, con su CTA para volver al menú.",
+      "dont_use_when": "No para cargando ni para error."
     },
     {
       "name": "OrderTrackingSessionProvider",
-      "path": "src/app/(public)/_components/order-tracking-session.tsx",
+      "file": "src/app/(public)/_components/order-tracking-session.tsx",
       "layer": "public",
       "kind": "provider",
       "status": "in-use",
       "exports": ["OrderTrackingSessionProvider", "useOrderTrackingSession"],
-      "whenToUse": "Sesión de seguimiento del pedido en el público.",
-      "whenNotToUse": "No en el panel ni fuera de las pantallas de seguimiento."
+      "variants": [],
+      "sizes": [],
+      "use_when": "Sesión de seguimiento del pedido en el público.",
+      "dont_use_when": "No en el panel ni fuera de las pantallas de seguimiento."
     },
     {
       "name": "CartLineCard",
-      "path": "src/app/(public)/cart/_components/cart-line-card.tsx",
+      "file": "src/app/(public)/cart/_components/cart-line-card.tsx",
       "layer": "public",
       "kind": "display",
       "status": "in-use",
       "exports": ["CartLineCard"],
-      "whenToUse": "Fila de producto del carrito.",
-      "whenNotToUse": "No para filas del panel."
+      "variants": [],
+      "sizes": [],
+      "use_when": "Fila de producto del carrito.",
+      "dont_use_when": "No para filas del panel."
     }
   ]
 }

@@ -250,6 +250,12 @@ Al arrancar, el agente debe:
 
 **Nada más.** No refactorizar el resto todavía.
 
+**Estado de aplicación (2026-09-15, Capa 0 cerrada):** los 6 puntos están hechos — los 8 tokens y el
+dark mode en `globals.css`, `DESIGN_SYSTEM.md` reescrito (con las **20 reglas** de interfaz que salieron
+de medir el mockup, §2 del catálogo), `AGENTS.md` con su sección de UI y su checklist, `registry.json`
+con la metadata por componente (`file`, `variants`, `sizes`, `use_when`, `dont_use_when`) y el mockup de
+`/admin` recreado con este ADN. Un contrato lo verifica: `src/shared/contracts/ui-rules-contract.test.ts`.
+
 ---
 
 ## 8. Cómo se valida

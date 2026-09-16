@@ -17,19 +17,12 @@ explícito del humano, gana el humano; después de resolverlo, actualizá este a
   preguntando por lo que el plan **no** decide: alcance nuevo, producto, dependencias nuevas y
   deploy. Si el plan choca con este archivo, gana el plan y la excepción se anota acá, en el mismo
   commit.
-- **Excepciones anotadas del plan de UI** (`plan2uiux.md`, 2026-09-15; se anotan acá porque el plan
-  choca con este archivo):
-  - El plan pide un **stop humano** en `C1-4a` (mockup de `/admin` antes de implementarlo). Se
-    respeta: es la única tarea del plan que espera validación del owner.
-  - El plan escribe el gate como `npm run test:contracts` y el registro de componentes como
-    `registry.json`: en este repo el comando es un alias de los cinco contratos de
-    `src/shared/contracts/` (que ya corren en `npm run test` y en el job `contracts` de CI) y el
-    registro de componentes es `DESIGN_SYSTEM.md` §3 **más** `src/shared/ui/registry.json`, que es un
-    **espejo declarado** de ese catálogo: un test de contrato exige que los dos tengan los mismos
-    componentes. El catálogo sigue siendo el de `DESIGN_SYSTEM.md` (así lo exige
-    `ui-contract.test.ts`).
-  - El plan dice «21 E2E»: acá son **23 specs** en `tests/e2e/` y la línea de base vigente está en
-    `ops/tasks/START-HERE.md` §5.
+- **Excepciones anotadas del plan de UI** (`plan2uiux.md`, 2026-09-15; el plan choca con este archivo):
+  el **stop humano de `C1-4a`** (el mockup de `/admin` se valida antes de implementarlo) se respeta; el
+  gate `npm run test:contracts` es el alias de los contratos de `src/shared/contracts/` (corren en
+  `npm run test` y en el job `contracts` de CI); el registro de componentes es `DESIGN_SYSTEM.md` §3
+  **más** `src/shared/ui/registry.json`, su espejo declarado; y el plan dice «21 E2E» cuando acá son
+  **23 specs** en `tests/e2e/` (línea de base en `ops/tasks/START-HERE.md` §5).
 - El punto de entrada para un chat nuevo es
   [`ops/tasks/START-HERE.md`](ops/tasks/START-HERE.md): tiene el prompt listo para pegar, el
   mapa de documentos y la cola de pendientes en orden.
@@ -46,10 +39,9 @@ Alcance MVP:
 - Pago: **en el local al retirar**. No hay pasarela de pago.
 - Propina: opcional, desmarcada por defecto.
 
-Fuera del MVP (código presente, **no** ofrecido en UI ni APIs públicas): reservas,
-mesas, delivery, inventario y reportes avanzados. Sus páginas de admin quedan solo
-accesibles por URL directa. No reactivarlos en la navegación ni en las APIs públicas
-sin aprobación explícita.
+Fuera del MVP (código presente, **no** ofrecido en UI ni APIs públicas): reservas, mesas, delivery,
+inventario y reportes avanzados. Sus páginas quedan accesibles solo por URL directa: no reactivarlos en
+la navegación ni en las APIs públicas sin aprobación explícita.
 
 ## Dónde está el estado (leer antes de trabajar)
 
@@ -63,19 +55,15 @@ sin aprobación explícita.
 | `DESIGN_SYSTEM.md` | **UI — catálogo**: tokens (light y dark), componentes y "cuándo NO usar" cada uno. Deriva del ADN. |
 | `README.md` | Alcance y comandos de validación. |
 
-`docs/` y `handoffs/` están en `.gitignore` (material histórico heredado de otro
-proyecto: **no** son fuente de verdad para este repo), igual que los documentos sueltos
-de esa etapa que siguen en el disco (`CODEX.md`, `LINEAR.md`, `ARCHITECTURE.md`,
-`PROJECT_AUDIT_FOR_CODEX.md`, …): describen otra gobernanza (un «orquestador único
-Codex», ramas de otro proyecto) y **no** rigen acá. La única fuente de verdad es este
-archivo + `ops/`.
+`docs/` y `handoffs/` están en `.gitignore`: son material histórico heredado de otro proyecto
+(otra gobernanza, ramas de otro repo) y **no** son fuente de verdad acá. La única fuente de verdad
+es este archivo + `ops/`.
 
 ## Stack
 
-- Next.js 16 (App Router, Turbopack) + React 19 + TypeScript estricto
-- Prisma 6 + PostgreSQL 17
-- Tailwind CSS 4 con tokens CSS propios (`src/app/globals.css`)
-- Vitest (unitarios) · Playwright (E2E) · ESLint
+- Next.js 16 (App Router, Turbopack) + React 19 + TypeScript estricto · Prisma 6 + PostgreSQL 17
+- Tailwind CSS 4 con tokens CSS propios (`src/app/globals.css`) · Vitest (unitarios) · Playwright
+  (E2E) · ESLint
 - Docker multi-stage → **Easypanel** (build desde GitHub `main`)
 
 ## Arquitectura (DDD)
@@ -87,15 +75,13 @@ src/shared/{ui,lib,config,pwa}
 src/infrastructure/** prisma, event bus
 ```
 
-- `domain`: tipos, reglas y errores del módulo, sin I/O.
-- `features/<caso-de-uso>`: un caso de uso por carpeta, recibe dependencias inyectadas
-  (`{ repository, ... }`) y **no** instancia Prisma.
-- `ports`: interfaces de repositorio/servicios externos.
-- `adapters`: implementaciones (Prisma; `in-memory-*` para tests).
-- Los API routes y las páginas son la capa de composición: validan con zod, resuelven
-  sesión/permisos, instancian adaptadores y llaman casos de uso.
-- Errores de dominio tipados por módulo (`OrderError`, `AuthError`, …) y mapeados en
-  `src/shared/lib/http/error-response.ts`.
+- `domain`: tipos, reglas y errores del módulo, sin I/O · `ports`: interfaces de repositorio o servicio
+  externo · `adapters`: implementaciones (Prisma; `in-memory-*` para tests).
+- `features/<caso-de-uso>`: un caso de uso por carpeta, con dependencias inyectadas
+  (`{ repository, ... }`); **no** instancia Prisma.
+- Los API routes y las páginas son la capa de composición: validan con zod, resuelven sesión y
+  permisos, instancian adaptadores y llaman casos de uso. Los errores de dominio van tipados por módulo
+  (`OrderError`, `AuthError`, …) y se mapean en `src/shared/lib/http/error-response.ts`.
 
 ## Jerarquía de fuentes (qué gana cuando hay conflicto)
 
@@ -120,26 +106,29 @@ El **ADN visual** es [`DESIGN_REFERENCES.md`](DESIGN_REFERENCES.md) (raíz, vers
 de tokens y componentes es [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md) (raíz, versionado), que deriva de este
 archivo y del inventario medido en [`ops/tasks/TASK-201-ui-inventory.md`](ops/tasks/TASK-201-ui-inventory.md).
 
+Las **20 reglas de interfaz** que salieron de medir el mockup de `/admin` (producto, accesibilidad,
+estados y performance, cada una con su "por qué" y su "cómo verificar") están en `DESIGN_SYSTEM.md` §2:
+**se aplican a toda pantalla nueva**, no al mockup.
+
 - **Componente que existe, componente que se usa**: primero `src/shared/ui/`, después
-  `(admin)/admin/_components/` y `(public)/_components/`. Hoy hay **26 componentes** y **111
-  elementos HTML crudos**, y en **22 archivos el componente ya estaba importado**: ese es el defecto
-  a no repetir.
+  `(admin)/admin/_components/` y `(public)/_components/`. El inventario y el "cuándo NO" de cada uno
+  están en `DESIGN_SYSTEM.md` §3; el espejo legible por máquina es `src/shared/ui/registry.json`, con
+  `file`, `variants`, `sizes`, `use_when` y `dont_use_when` por componente.
 - **Prohibido el HTML crudo equivalente** (`<button>`, `<input>`, `<select>`, `<textarea>`) cuando el
-  primitivo existe. De los que **NO EXISTE** primitivo (hoy 31 `<select>` y 6 `<textarea>`), la falta
-  se documenta en `DESIGN_SYSTEM.md` §3.4 antes de inventar el sexto `className` distinto.
-- **Prohibido el color fuera de token**: nada de `#hex` (hoy hay 10 de UI), `rgba()` (35), paleta
-  cruda de Tailwind donde hay token (70 apariciones de `red-*`, `stone-*`, `amber-*`, `emerald-*`,
-  `sky-*`) ni `fontFamily` inline que duplique `font-heading` (29). Solo tokens de `globals.css`.
+  primitivo existe. De los que **NO EXISTE** primitivo, la falta se documenta en `DESIGN_SYSTEM.md` §3.4
+  antes de inventar el sexto `className` distinto.
+- **Prohibido el color fuera de token**: nada de `#hex`, `rgba()`, paleta cruda de Tailwind donde hay
+  token ni `fontFamily` inline que duplique `font-heading`. Solo tokens de `globals.css`.
 - **Los 16 tokens muertos están prohibidos y ya no existen** (C1-3): `--primary`, `--popover`,
   `--destructive`, `--ring` y la familia `--sidebar-*` se eliminaron de `globals.css` porque nadie los
   consumía. Un contrato lo verifica: si necesitás uno de verdad, se declara **con su consumidor** en el
   mismo commit.
 - **El modo oscuro es obligatorio** (aprobado el 2026-09-15, `DESIGN_REFERENCES.md` §3 Patrón 10): todo
-  token nuevo necesita su valor en `.dark` y todo par texto/fondo tiene que dar **4.5:1** en los dos
-  modos. `src/shared/contracts/dark-mode-contract.test.ts` lo mide.
+  token nuevo necesita su valor en los dos modos y todo par texto/fondo tiene que dar **4.5:1**.
+  `src/shared/contracts/dark-mode-contract.test.ts` lo mide.
 - **Componente nuevo = registro previo**: un archivo nuevo en `_components/` se registra en
-  `DESIGN_SYSTEM.md` **en el mismo commit**, con su "cuándo SÍ" y su "cuándo NO". El espejo legible por
-  máquina es `src/shared/ui/registry.json`, y un contrato exige que los dos tengan los mismos componentes.
+  `DESIGN_SYSTEM.md` **y** en `src/shared/ui/registry.json` **en el mismo commit**, con su "cuándo SÍ" y
+  su "cuándo NO" (un contrato exige que los dos digan lo mismo).
 - **Los techos de UI solo bajan** (C1-2, `plan2uiux.md`): `src/shared/config/design-tokens.allow.json`
   congela, por archivo, las violaciones que todavía quedan (paleta cruda, `fontFamily` inline,
   radios/tamaños/sombras arbitrarios, `window.confirm`, `role` a mano y HTML crudo). **Un techo nunca
@@ -179,18 +168,18 @@ archivo y del inventario medido en [`ops/tasks/TASK-201-ui-inventory.md`](ops/ta
 
 Reglas de test:
 
-- Los dobles de test implementan el **puerto completo** (si agregás un método al puerto,
-  el compilador te obliga a implementarlo también en el adaptador en memoria).
-- Los cambios de infra (Dockerfile, CI, scripts de arranque) se cubren con **tests de
-  contrato** que leen los archivos (`src/shared/config/deploy-runtime-contract.test.ts`)
-  o, mejor, con el job de CI que **construye y ejecuta la imagen**.
-- Los flujos de usuario se cubren en `tests/e2e/` (público y admin).
+- Los dobles de test implementan el **puerto completo** (si agregás un método al puerto, el
+  compilador te obliga a implementarlo también en el adaptador en memoria).
+- Los cambios de infra (Dockerfile, CI, scripts de arranque) se cubren con **tests de contrato** que
+  leen los archivos (`src/shared/config/deploy-runtime-contract.test.ts`) o, mejor, con el job de CI
+  que **construye y ejecuta la imagen**. Los flujos de usuario van en `tests/e2e/`.
 - No mockees lo que podés probar de verdad; no inventes tests que no verifican nada.
 
 ## Checklist de UI antes de cerrar una tarea con pantalla
 
-Ninguna tarea que toque UI se cierra con un "no" acá. El ADN está en `DESIGN_REFERENCES.md` §3 y el
-catálogo con el "cuándo NO" de cada componente, en `DESIGN_SYSTEM.md` §3.
+Ninguna tarea que toque UI se cierra con un "no" acá. El ADN está en `DESIGN_REFERENCES.md` §3, el
+catálogo con el "cuándo NO" de cada componente en `DESIGN_SYSTEM.md` §3 y las 20 reglas de interfaz en
+`DESIGN_SYSTEM.md` §2.
 
 **ADN visual (los 10 patrones):**
 
@@ -209,18 +198,16 @@ catálogo con el "cuándo NO" de cada componente, en `DESIGN_SYSTEM.md` §3.
       `DESIGN_SYSTEM.md` §3.4, no se inventa el sexto `className`)
 - [ ] ¿Cero `text-[Npx]`, cero paleta cruda, cero `rounded-[Npx]` y cero `shadow-[...]`?
 - [ ] ¿Hay **una sola** acción primaria y ningún texto decorativo?
-- [ ] ¿Están los **4 estados** de toda pantalla con datos: cargando, vacío, error y con datos?
+- [ ] ¿Están los **5 estados**: con datos, cargando, vacío, error y **"nada pendiente"**?
+- [ ] ¿Foco visible propio en cada interactivo (≥3:1), controles ≥44 px, contraste ≥4.99:1 y sin scroll
+      horizontal entre 320 px y 1280 px?
 - [ ] ¿La verifiqué en **navegador real a 375 px y 1280 px** (Playwright), no en HTML estático?
 - [ ] ¿Corrí los gates (`npm run test:contracts`, `npm run test`) y el E2E si toqué flujos?
 
 ## Validación mínima antes de cerrar
 
 ```bash
-npm run test        # unitarios
-npm run lint
-npm run typecheck
-npm run build       # Turbopack; el deploy usa este camino
-npm run security:secrets
+npm run test && npm run lint && npm run typecheck && npm run build && npm run security:secrets
 ```
 
 Si tocaste flujos públicos o de admin, además:
@@ -240,10 +227,9 @@ Si tocás una **página** (`src/app/**/page.tsx`), además:
 npm run build:webpack   # el build de Turbopack no valida esto
 ```
 
-Una página de Next solo puede exportar lo que Next conoce (`default`, `metadata`, …). El
-build con Webpack lo exige y falla si una página exporta de más; con Turbopack el problema
-queda escondido hasta que alguien usa ese otro camino de build. Los componentes y los helpers
-van en su propio archivo (por eso `orders-page-helpers.ts` no vive dentro de la página).
+Una página de Next solo puede exportar lo que Next conoce (`default`, `metadata`, …): el build con
+Webpack lo exige y falla si exporta de más, y con Turbopack el problema queda escondido. Componentes
+y helpers van en su propio archivo (por eso `orders-page-helpers.ts` no vive dentro de la página).
 
 ## Git y CI
 
@@ -272,30 +258,26 @@ van en su propio archivo (por eso `orders-page-helpers.ts` no vive dentro de la 
   fusiona variables y puede crear servicios.
 - **No desplegar sin confirmación del owner**; después del deploy correr los dos smokes de
   solo lectura (`test:e2e:prod` y `test:e2e:prod:hosts`).
-- El contenedor, al arrancar: valida entorno → aplica migraciones → (opcional) crea el
-  primer admin → `next start`. Si el arranque falla, Easypanel **no** promueve la versión
-  y sigue sirviendo la anterior.
-- El token del panel da acceso total al servidor: solo por variable de entorno, nunca en
-  el repo ni en un commit.
+- El contenedor, al arrancar: valida entorno → aplica migraciones → (opcional) crea el primer admin →
+  `next start`. Si el arranque falla, Easypanel **no** promueve la versión y sigue sirviendo la
+  anterior. El token del panel da acceso total al servidor: solo por entorno, nunca en el repo.
 
 ## Idioma y estilo
 
-- **Español** en: UI, textos del admin, documentación, commits y respuestas al humano.
-- **Inglés** en: nombres de archivos, funciones, tipos y variables de código.
-- UI mobile-first (se verifica a 375 px), `min-h-11` en controles táctiles, labels
-  asociados a sus inputs, textos de error claros en español.
-- Estilos con los **tokens semánticos** de `globals.css` (`bg-card`, `text-foreground`,
-  `bg-brand`, `border-border`); no colores sueltos ni clases ad hoc.
+- **Español** en UI, textos del admin, documentación, commits y respuestas al humano; **inglés** en
+  nombres de archivos, funciones, tipos y variables de código.
+- UI mobile-first (se verifica a 375 px), `min-h-11` en controles táctiles, labels asociados a sus
+  inputs, textos de error claros en español.
+- Estilos con los **tokens semánticos** de `globals.css` (`bg-card`, `text-foreground`, `bg-brand`,
+  `border-border`); no colores sueltos ni clases ad hoc.
 
 ## Datos
 
-- Migraciones Prisma versionadas y **sin BOM** (hay test que lo verifica): un BOM rompe
-  `prisma migrate deploy` en cualquier base nueva.
-- `prisma/seed.ts` es **solo para local/demo** (crea credenciales conocidas). Nunca en
-  producción.
-- Los datos del negocio (nombre, colores, contacto, horarios, precios, propina) **no se
-  hardcodean**: se leen de la configuración editable en el admin. Ver
-  `ops/tasks/TASK-whitelabel-branding.md`.
+- Migraciones Prisma versionadas y **sin BOM** (un BOM rompe `prisma migrate deploy` en cualquier
+  base nueva): hay un test que lo verifica.
+- `prisma/seed.ts` es **solo para local/demo** (crea credenciales conocidas): nunca en producción.
+- Los datos del negocio (nombre, colores, contacto, horarios, precios, propina) **no se hardcodean**:
+  se leen de la configuración editable en el admin (`ops/tasks/TASK-whitelabel-branding.md`).
 
 ## Prohibiciones
 
@@ -312,8 +294,7 @@ UI y código:
 - No escribir HTML crudo (`button`, `input`, `select`, `textarea`) donde ya hay componente, ni
   `#hex`, `rgba()` o paleta cruda de Tailwind donde hay token.
 - No crear un componente en `_components/` sin registrarlo en `DESIGN_SYSTEM.md` en el mismo commit.
-- No duplicar un cálculo ni una transición de estado que ya tiene fuente única (`order-totals.ts`,
-  `order-workflows.ts`).
+- No duplicar un cálculo ni una transición de estado que ya tiene fuente única (`order-totals.ts`, `order-workflows.ts`).
 - No pasar de **400 líneas por archivo**, **80 por función** ni **50 por route handler**.
 - No agregar dependencias nuevas sin aprobación humana.
 - No crear `AGENTS.md` anidados, `docs/ai/` ni skills: no es el patrón del repo.
