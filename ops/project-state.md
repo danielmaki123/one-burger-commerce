@@ -7,9 +7,11 @@
 > Este documento es el punto de entrada para retomar el trabajo. Mantenerlo al día al cerrar cada tarea.
 > Para arrancar en un chat nuevo: `ops/tasks/START-HERE.md`.
 >
-> **Plan de UI en curso**: `plan2uiux.md` (raíz, **sin versionar**, como `plna.md`). Su **CAPA 0**
-> (contexto: `AGENTS.md`, `DESIGN_SYSTEM.md`, `src/shared/ui/registry.json` y sus guardrails) está
-> **cerrada**; sigue la **CAPA 1**. Detalle y excepciones del plan en §2.
+> **Plan de UI**: `plan2uiux.md` (raíz, **sin versionar**, como `plna.md`). Su **FASE 1** (sistema
+> Stitch en `globals.css`, `layout.tsx` y los contratos) y su **FASE 2** (las **7 pantallas** del panel
+> —KDS, POS, Resumen, Menú, Locales, Usuarios y Personalización— migradas una por una, con capturas
+> antes/después en `ops/tasks/audit-ui/`) están **cerradas**; ver `ops/DESIGN_LOG.md` (entry del
+> 2026-09-16) para las decisiones y lo que quedó pendiente. Falta la **FASE 3** de ese plan.
 
 ## 1. Qué está vivo hoy
 

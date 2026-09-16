@@ -474,18 +474,6 @@
       "dont_use_when": "No reusarlo como widget."
     },
     {
-      "name": "AdminStatusDonut",
-      "file": "src/app/(admin)/admin/_components/admin-status-donut.tsx",
-      "layer": "admin",
-      "kind": "display",
-      "status": "orphan",
-      "exports": ["AdminStatusDonut"],
-      "variants": [],
-      "sizes": [],
-      "use_when": "NO USAR: huérfano, y hay un test que exige que el overview no lo use.",
-      "dont_use_when": "Nunca hasta que se lo registre como en uso."
-    },
-    {
       "name": "OrderSummaryCard",
       "file": "src/app/(public)/_components/order-summary-card.tsx",
       "layer": "public",
