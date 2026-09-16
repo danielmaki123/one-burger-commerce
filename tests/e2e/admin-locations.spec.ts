@@ -131,8 +131,9 @@ test.describe("locales del admin", () => {
     await expect(page.getByText("Local creado.")).toBeVisible();
     const row = page.getByRole("button", { name: `Editar local ${NAME}` });
     await expect(row).toBeVisible();
-    await expect(row).toContainText("Diriamba");
-    await expect(row).toContainText("preparación 30 min");
+    // La fila muestra la ciudad y la preparación; editar es una acción aparte de la fila.
+    await expect(page.getByText("Diriamba")).toBeVisible();
+    await expect(page.getByText(/preparación 30 min/)).toBeVisible();
 
     // El formulario avisa si el identificador ya está en uso.
     await page.getByRole("button", { name: "Nuevo local" }).click();

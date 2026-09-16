@@ -387,7 +387,38 @@ describe("admin ui contracts", () => {
     expect(ordersSource).toContain("AdminCompactToolbar");
   });
 
-  it("uses compact operational rows for secondary admin lists", () => {
+  it("el panel de Locales usa el sistema: sin alias viejos ni valores arbitrarios", () => {
+    const legacy = [
+      'bg-card"',
+      'border-border"',
+      'text-foreground"',
+      "text-muted-foreground",
+      "text-[",
+      "rounded-2xl",
+      "shadow-sm",
+    ];
+
+    for (const file of [
+      "locations/page.tsx",
+      "locations/location-row.tsx",
+      "locations/location-form-sheet.tsx",
+    ]) {
+      const source = readAdminFile(file);
+
+      for (const legacyClass of legacy) {
+        expect(source, `${file} usa ${legacyClass}`).not.toContain(legacyClass);
+      }
+    }
+
+    // La fila se edita con una acción explícita y el catálogo del local vive en su propia pantalla.
+    const rowSource = readAdminFile("locations/location-row.tsx");
+    expect(rowSource).toContain("aria-label={`Editar local ${location.name}`}");
+    expect(rowSource).toContain("aria-label={`Catálogo de ${location.name}`}");
+    expect(rowSource).toContain("No recibe pedidos");
+    expect(rowSource).toContain("font-mono");
+  });
+
+  it("usa compact operational rows for secondary admin lists", () => {
     const tablesSource = readAdminFile("tables/page.tsx");
     const zonesSource = readAdminFile("delivery-zones/page.tsx");
 

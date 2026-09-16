@@ -358,12 +358,12 @@
       "file": "src/app/(admin)/admin/_components/admin-operational-ui.tsx",
       "layer": "admin",
       "kind": "display",
-      "status": "orphan",
+      "status": "in-use",
       "exports": ["AdminMetricStrip"],
       "variants": ["neutral", "brand", "success", "warning", "danger"],
       "sizes": [],
-      "use_when": "NO USAR: huérfano.",
-      "dont_use_when": "Nunca hasta que se lo registre como en uso."
+      "use_when": "Tira de métricas del panel (turno del Resumen, catálogo operativo del Menú): valor en mono con etiqueta overline, ícono de tono y helper. Los números van en font-mono tabular-nums.",
+      "dont_use_when": "No para más de cuatro métricas ni como tarjeta de contenido: si el dato necesita sparkline o comparación, va AdminOverviewMetricCard. En móvil el ícono se oculta solo."
     },
     {
       "name": "AdminStatusPill",

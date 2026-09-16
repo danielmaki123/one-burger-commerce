@@ -1,28 +1,20 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
 
 import { cloneBusinessHours } from "@/modules/business-settings/domain/business-settings-defaults";
-import { WEEKDAY_KEYS } from "@/modules/business-settings/domain/business-settings.types";
 import type { LocationRecord } from "@/modules/locations/domain/location.types";
 import { validateLocationInput } from "@/modules/locations/domain/location-rules";
 import { useBusinessSettings } from "@/shared/lib/business-settings";
 import { Button } from "@/shared/ui/button";
-import { Checkbox } from "@/shared/ui/checkbox";
-import { Input } from "@/shared/ui/input";
-import { Select } from "@/shared/ui/select";
-import AdminEditSheet from "../_components/admin-edit-sheet";
+
 import { AdminEmptyState, AdminPageHeader } from "../_components/admin-operational-ui";
 import { pluralEs } from "../menu/categories/category-list-helpers";
+import { LocationFormSheet } from "./location-form-sheet";
+import { LocationRow } from "./location-row";
 import {
-  LOCATION_STATUS_LABELS,
-  WEEKDAY_LABELS,
   createEmptyLocationForm,
-  describeLocationAddress,
-  describeLocationHours,
   locationFormToInput,
-  locationStatus,
   locationToForm,
   type LocationFormState,
 } from "./location-helpers";
@@ -249,38 +241,49 @@ export default function AdminLocationsPage() {
     }
   };
 
-  const setHours = (weekday: (typeof WEEKDAY_KEYS)[number], patch: Partial<LocationFormState["businessHours"][typeof weekday]>) => {
-    setForm((current) => ({
-      ...current,
-      businessHours: {
-        ...current.businessHours,
-        [weekday]: { ...current.businessHours[weekday], ...patch },
-      },
-    }));
-  };
-
   const activeCount = locations.filter((location) => location.isActive).length;
+  const acceptingCount = locations.filter(
+    (location) => location.isActive && location.isAcceptingOrders,
+  ).length;
 
   return (
     <div className="space-y-5 pb-8">
       <AdminPageHeader
-        label="Configuración"
+        label="Configuración · Sedes operativas"
         title="Locales"
         description="Dónde se retira, en qué horario y si el local está recibiendo pedidos."
         actions={
-          <Button type="button" className="min-h-11" onClick={() => openSheet("new")}>
-            Nuevo local
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex min-h-11 items-center gap-2 rounded-stitch-md border border-line-subtle bg-surface-low px-3 text-st-body font-semibold text-ink-secondary">
+              <span
+                aria-hidden="true"
+                className={`h-2 w-2 rounded-full ${
+                  activeCount > 0 ? "bg-status-ready-dot" : "bg-status-inactive-dot"
+                }`}
+              />
+              {pluralEs(activeCount, "sede en línea", "sedes en línea")}
+            </span>
+            <Button type="button" className="min-h-11" onClick={() => openSheet("new")}>
+              Nuevo local
+            </Button>
+          </div>
         }
       />
+
+
+      {activeCount > 0 && acceptingCount === 0 ? (
+        <p className="rounded-stitch-lg border border-status-prep-border bg-status-prep-bg px-4 py-3 text-st-body font-medium text-status-prep-text">
+          Ninguna sede está recibiendo pedidos: revisá «Aceptando pedidos» en cada local.
+        </p>
+      ) : null}
 
       {feedback ? (
         <div
           aria-live="polite"
-          className={`rounded-xl border px-4 py-3 text-sm font-medium ${
+          className={`rounded-stitch-lg border px-4 py-3 text-st-body font-medium ${
             feedback.type === "success"
-              ? "border-success-strong/30 bg-success text-success-foreground"
-              : "border-danger-strong/30 bg-danger text-danger-foreground"
+              ? "border-status-ready-border bg-status-ready-bg text-status-ready-text"
+              : "border-status-sla-border bg-status-sla-bg text-status-sla-text"
           }`}
         >
           {feedback.message}
@@ -288,7 +291,10 @@ export default function AdminLocationsPage() {
       ) : null}
 
       {loading ? (
-        <div className="flex h-40 items-center justify-center rounded-2xl border border-border bg-card text-sm text-muted-foreground">
+        <div
+          role="status"
+          className="flex h-40 items-center justify-center rounded-stitch-lg border border-line-subtle bg-surface-card text-st-body text-ink-secondary"
+        >
           Cargando locales…
         </div>
       ) : loadError ? (
@@ -323,386 +329,49 @@ export default function AdminLocationsPage() {
         />
       ) : (
         <section
-          className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm"
+          className="overflow-hidden rounded-stitch-lg border border-line-subtle bg-surface-card shadow-elevation-1"
           aria-label="Listado de locales"
         >
-          <div className="flex items-baseline justify-between px-4 pb-1 pt-3">
-            <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+          <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-line-subtle px-3 pb-2 pt-3 md:px-4">
+            <p className="text-st-overline font-bold uppercase tracking-wider text-ink-muted">
               Locales del negocio
             </p>
-            <p className="font-mono text-[11px] font-bold text-muted-foreground">
+            <p className="font-mono text-st-caption font-bold tabular-nums text-ink-secondary">
               {pluralEs(locations.length, "local", "locales")} · {activeCount} activos
             </p>
           </div>
 
-          {locations.map((location) => {
-            const status = locationStatus(location);
+          {locations.map((location) => (
+            <LocationRow
+              key={location.id}
+              location={location}
+              now={now}
+              timeZone={settings.timezone}
+              saving={saving}
+              onEdit={() => openSheet(location)}
+              onToggleActive={() => void handleToggleActive(location)}
+            />
+          ))}
 
-            return (
-              <div
-                key={location.id}
-                className="flex items-stretch gap-1 border-t border-border first:border-t-0"
-              >
-                <button
-                  type="button"
-                  onClick={() => openSheet(location)}
-                  aria-label={`Editar local ${location.name}`}
-                  className="flex min-h-14 min-w-0 flex-1 flex-col gap-1 px-4 py-3 text-left transition-colors hover:bg-accent/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand motion-reduce:transition-none"
-                >
-                  <span className="flex flex-wrap items-center gap-2">
-                    <span
-                      className={`text-[15px] font-semibold ${
-                        location.isActive ? "text-foreground" : "text-muted-foreground"
-                      }`}
-                    >
-                      {location.name}
-                    </span>
-                    <span
-                      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold before:h-1.5 before:w-1.5 before:rounded-full before:bg-current before:content-[''] ${
-                        location.isActive
-                          ? "bg-success text-success-foreground"
-                          : "bg-secondary text-muted-foreground"
-                      }`}
-                    >
-                      {LOCATION_STATUS_LABELS[status]}
-                    </span>
-                    {location.isAcceptingOrders ? null : (
-                      <span className="inline-flex items-center rounded-full bg-warning px-2.5 py-0.5 text-[11px] font-semibold text-warning-foreground">
-                        No recibe pedidos
-                      </span>
-                    )}
-                  </span>
-                  <span className="block text-sm text-foreground">
-                    {describeLocationAddress(location)}
-                  </span>
-                  <span className="block text-xs leading-5 text-muted-foreground">
-                    {now
-                      ? `${describeLocationHours(location, settings.timezone, now)} · preparación ${location.pickupLeadMinutes} min`
-                      : `Preparación ${location.pickupLeadMinutes} min`}
-                  </span>
-                </button>
-
-                {/* Activar/apagar de un toque (A): es la operación más repetida del owner y no
-                    necesita abrir el formulario completo. */}
-                <button
-                  type="button"
-                  aria-label={`${location.isActive ? "Apagar" : "Activar"} ${location.name}`}
-                  disabled={saving}
-                  onClick={() => void handleToggleActive(location)}
-                  className="my-2 inline-flex min-h-11 shrink-0 items-center rounded-full border border-border px-3 text-xs font-semibold text-foreground hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:opacity-60"
-                >
-                  {location.isActive ? "Apagar" : "Activar"}
-                </button>
-
-                {/* Los precios y la disponibilidad por local viven en su propia pantalla: el
-                    sheet del local ya es largo y esto es otra tarea. */}
-                <Link
-                  href={`/admin/locations/${location.id}`}
-                  aria-label={`Catálogo de ${location.name}`}
-                  className="my-2 mr-3 inline-flex min-h-11 shrink-0 items-center rounded-full border border-border px-3 text-xs font-semibold text-foreground hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-                >
-                  Catálogo
-                </Link>
-              </div>
-            );
-          })}
+          <p className="border-t border-line-subtle bg-surface-low px-3 py-2 text-st-caption text-ink-secondary md:px-4">
+            Apagar un local suspende la recepción de pedidos para retiro en la web y en el POS.
+          </p>
         </section>
       )}
 
-      <AdminEditSheet
+      <LocationFormSheet
         open={sheetLocation !== null}
-        onClose={closeSheet}
-        kicker={sheetLocation === "new" ? "Locales" : "Editar local"}
+        isNew={sheetLocation === "new"}
+        locationName={sheetLocation && sheetLocation !== "new" ? sheetLocation.name : ""}
         title={sheetLocation === "new" ? "Nuevo local" : form.name || "Local"}
-        footer={
-          <div className="flex gap-2">
-            {sheetLocation && sheetLocation !== "new" ? (
-              <Button
-                type="button"
-                variant="outline"
-                className="min-h-11"
-                disabled={saving}
-                aria-label={`Eliminar local ${sheetLocation.name}`}
-                onClick={() => void handleDelete()}
-              >
-                Eliminar
-              </Button>
-            ) : null}
-            <Button
-              type="button"
-              variant="outline"
-              className="min-h-11 flex-1"
-              disabled={saving}
-              onClick={closeSheet}
-            >
-              Cancelar
-            </Button>
-            <Button type="button" className="min-h-11 flex-1" disabled={saving} onClick={() => void handleSave()}>
-              {saving ? "Guardando…" : sheetLocation === "new" ? "Crear local" : "Guardar cambios"}
-            </Button>
-          </div>
-        }
-      >
-        <div className="grid gap-4">
-          <Input
-            label="Nombre"
-            value={form.name}
-            error={fieldErrors.name}
-            onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
-            placeholder="Ej. Sucursal Norte"
-          />
-
-          <div>
-            <Input
-              label="Identificador para la URL"
-              value={form.slug}
-              error={fieldErrors.slug}
-              onChange={(event) => setForm((current) => ({ ...current, slug: event.target.value }))}
-              placeholder="sucursal-norte"
-            />
-            <p className="mt-1 text-xs text-muted-foreground">
-              Se guarda en minúsculas y con guiones. Es el nombre corto del local.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <Input
-              label="Dirección"
-              value={form.addressLine}
-              error={fieldErrors.addressLine}
-              onChange={(event) =>
-                setForm((current) => ({ ...current, addressLine: event.target.value }))
-              }
-            />
-            <Input
-              label="Ciudad"
-              value={form.city}
-              error={fieldErrors.city}
-              onChange={(event) => setForm((current) => ({ ...current, city: event.target.value }))}
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <Input
-              label="Referencia"
-              value={form.addressReference}
-              onChange={(event) =>
-                setForm((current) => ({ ...current, addressReference: event.target.value }))
-              }
-              placeholder="Ej. frente al parque"
-            />
-            <Input
-              label="Enlace al mapa"
-              value={form.mapsUrl}
-              onChange={(event) => setForm((current) => ({ ...current, mapsUrl: event.target.value }))}
-              placeholder="https://..."
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <Input
-              label="Teléfono"
-              value={form.phone}
-              onChange={(event) => setForm((current) => ({ ...current, phone: event.target.value }))}
-            />
-            <Input
-              label="WhatsApp del local"
-              value={form.whatsapp}
-              error={fieldErrors.whatsapp}
-              onChange={(event) => setForm((current) => ({ ...current, whatsapp: event.target.value }))}
-              placeholder="50588887777"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <Input
-              label="Latitud"
-              value={form.latitude}
-              error={fieldErrors.latitude}
-              onChange={(event) => setForm((current) => ({ ...current, latitude: event.target.value }))}
-              placeholder="11.85"
-            />
-            <Input
-              label="Longitud"
-              value={form.longitude}
-              error={fieldErrors.longitude}
-              onChange={(event) => setForm((current) => ({ ...current, longitude: event.target.value }))}
-              placeholder="-86.20"
-            />
-          </div>
-
-          <fieldset className="grid gap-3 rounded-xl border border-border p-3">
-            <legend className="px-1 text-sm font-medium text-foreground">Horario del local</legend>
-            {fieldErrors.businessHours ? (
-              <p role="alert" className="text-xs font-medium text-danger-strong">
-                {fieldErrors.businessHours}
-              </p>
-            ) : null}
-            {WEEKDAY_KEYS.map((weekday) => (
-              <div key={weekday} className="grid grid-cols-2 items-end gap-2 sm:grid-cols-4">
-                <span className="pb-2 text-sm text-foreground">{WEEKDAY_LABELS[weekday]}</span>
-                <Input
-                  label={`${WEEKDAY_LABELS[weekday]} abre`}
-                  type="time"
-                  value={form.businessHours[weekday].open}
-                  disabled={form.businessHours[weekday].closed}
-                  onChange={(event) => setHours(weekday, { open: event.target.value })}
-                />
-                <Input
-                  label={`${WEEKDAY_LABELS[weekday]} cierra`}
-                  type="time"
-                  value={form.businessHours[weekday].close}
-                  disabled={form.businessHours[weekday].closed}
-                  onChange={(event) => setHours(weekday, { close: event.target.value })}
-                />
-                <div className="min-h-11 flex items-center">
-                  <Checkbox
-                    id={`location-hours-${weekday}-closed`}
-                    checked={form.businessHours[weekday].closed}
-                    onChange={(event) => setHours(weekday, { closed: event.target.checked })}
-                    label={`Cerrado ${WEEKDAY_LABELS[weekday]}`}
-                  />
-                </div>
-              </div>
-            ))}
-          </fieldset>
-
-          <div className="grid grid-cols-2 gap-3">
-            <Input
-              label="Minutos de preparación"
-              type="number"
-              inputMode="numeric"
-              min={0}
-              max={180}
-              value={form.pickupLeadMinutes}
-              error={fieldErrors.pickupLeadMinutes}
-              onChange={(event) =>
-                setForm((current) => ({ ...current, pickupLeadMinutes: event.target.value }))
-              }
-            />
-            <div>
-              <Input
-                label="Rango máximo (opcional)"
-                type="number"
-                inputMode="numeric"
-                min={0}
-                max={240}
-                value={form.pickupMaxMinutes}
-                error={fieldErrors.pickupMaxMinutes}
-                onChange={(event) =>
-                  setForm((current) => ({ ...current, pickupMaxMinutes: event.target.value }))
-                }
-                placeholder="Sin rango"
-              />
-              <p className="mt-1 text-xs text-muted-foreground">
-                Vacío = el cliente ve una sola hora.
-              </p>
-            </div>
-          </div>
-          <p className="-mt-2 text-xs text-muted-foreground">
-            Los minutos de preparación definen el primer turno de retiro y hasta qué hora entra un
-            pedido en este local.
-          </p>
-
-          {/*
-            B5 — con qué minutos avisa el tablero de comandas de este local. Un pedido sin aceptar es lo
-            más urgente que hay (nadie lo tomó), y en cocina el ritmo lo pone la sucursal.
-          */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Input
-                label="Aviso sin aceptar (min)"
-                type="number"
-                inputMode="numeric"
-                min={1}
-                max={120}
-                value={form.acceptAlertMinutes}
-                error={fieldErrors.acceptAlertMinutes}
-                onChange={(event) =>
-                  setForm((current) => ({ ...current, acceptAlertMinutes: event.target.value }))
-                }
-              />
-              <p className="mt-1 text-xs text-muted-foreground">
-                Cuánto puede esperar un pedido sin que nadie lo acepte.
-              </p>
-            </div>
-            <div>
-              <Input
-                label="Aviso en cocina (min)"
-                type="number"
-                inputMode="numeric"
-                min={1}
-                max={120}
-                value={form.prepAlertMinutes}
-                error={fieldErrors.prepAlertMinutes}
-                onChange={(event) =>
-                  setForm((current) => ({ ...current, prepAlertMinutes: event.target.value }))
-                }
-              />
-              <p className="mt-1 text-xs text-muted-foreground">
-                Cuánto puede estar preparándose (o esperando listo) antes de avisar.
-              </p>
-            </div>
-          </div>
-
-          <Select
-            label="Aceptando pedidos"
-            value={form.isAcceptingOrders ? "yes" : "no"}
-            onChange={(event) =>
-              setForm((current) => ({ ...current, isAcceptingOrders: event.target.value === "yes" }))
-            }
-            options={[
-              { value: "yes", label: "Sí, está recibiendo pedidos" },
-              { value: "no", label: "No, pausado" },
-            ]}
-          />
-
-          <Select
-            label="Punto de venta"
-            value={form.posEnabled ? "yes" : "no"}
-            onChange={(event) =>
-              setForm((current) => ({ ...current, posEnabled: event.target.value === "yes" }))
-            }
-            options={[
-              { value: "yes", label: "Encendido — el local cobra en el mostrador" },
-              { value: "no", label: "Apagado — solo pedidos en línea" },
-            ]}
-          />
-
-          <Input
-            label="Mensaje cuando no acepta"
-            value={form.closedMessage}
-            error={fieldErrors.closedMessage}
-            onChange={(event) =>
-              setForm((current) => ({ ...current, closedMessage: event.target.value }))
-            }
-            placeholder="Ej. Estamos cerrados. Volvé cuando abramos."
-          />
-
-          <div className="grid grid-cols-2 gap-3">
-            <Input
-              label="Orden en la lista"
-              type="number"
-              inputMode="numeric"
-              min={0}
-              value={form.sortOrder}
-              error={fieldErrors.sortOrder}
-              onChange={(event) => setForm((current) => ({ ...current, sortOrder: event.target.value }))}
-            />
-            <Select
-              label="Estado"
-              value={form.isActive ? "active" : "inactive"}
-              onChange={(event) =>
-                setForm((current) => ({ ...current, isActive: event.target.value === "active" }))
-              }
-              options={[
-                { value: "active", label: "Activo — se puede elegir para retirar" },
-                { value: "inactive", label: "Apagado — no se ofrece" },
-              ]}
-            />
-          </div>
-        </div>
-      </AdminEditSheet>
+        form={form}
+        fieldErrors={fieldErrors}
+        saving={saving}
+        onChange={(patch) => setForm((current) => ({ ...current, ...patch }))}
+        onClose={closeSheet}
+        onSave={() => void handleSave()}
+        onDelete={() => void handleDelete()}
+      />
     </div>
   );
 }

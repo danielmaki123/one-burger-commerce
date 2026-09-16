@@ -11,8 +11,8 @@ import type { LocationRecord } from "@/modules/locations/domain/location.types";
 /**
  * T8 fase 3 — la pantalla de locales.
  *
- * Dos traducciones y un par de etiquetas. El formulario trabaja con texto (es lo que
- * devuelve un `<input>`), así que la conversión tiene que ser explícita: un campo vacío es
+ * Dos traducciones y un par de etiquetas. El formulario trabaja con texto (es lo que devuelve un
+ * campo de formulario), así que la conversión tiene que ser explícita: un campo vacío es
  * "sin dato", no un cero silencioso, y los números viajan como números.
  */
 export const WEEKDAY_LABELS: Record<WeekdayKey, string> = {

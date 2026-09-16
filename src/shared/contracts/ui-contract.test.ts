@@ -48,9 +48,8 @@ const LEGACY_RAW_CONTROLS: Record<string, number> = {
   "src/app/(admin)/admin/menu/products/[id]/page.tsx": 8,
   "src/app/(admin)/admin/settings/settings-client.tsx": 5,
   "src/app/(public)/page.tsx": 5,
-  // TASK-308 bajó este archivo de 4 a 2: los dos selects del formulario ahora son el `Select` de
-  // TASK-206 y solo quedan los dos botones de cada fila, que tienen anatomía propia.
-  "src/app/(admin)/admin/locations/page.tsx": 2,
+  // `locations/page.tsx` bajó a 0 en la Fase 2: la fila pasó a `location-row.tsx` con los primitivos
+  // (`Button` + `Link`) y el formulario a `location-form-sheet.tsx`.
   "src/app/(admin)/admin/orders/page.tsx": 4,
   "src/app/(admin)/admin/users/users-client.tsx": 4,
   "src/app/(public)/activity/page.tsx": 4,
