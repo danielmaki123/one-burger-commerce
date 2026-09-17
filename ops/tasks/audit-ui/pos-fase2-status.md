@@ -47,6 +47,13 @@
 | **7** | `canRefund` y `canViewCashHistory` como puertas propias (con `canManageCash`), cada ruta y cada página usando la suya | `e9d1fa7` | — |
 | **10.1** | **Ticket de cocina**: `kitchen-ticket.ts` (puro, sin importes, con la hora prometida en la zona del negocio y los modificadores) y «Ticket de cocina» en el POS, impreso con la hoja del sistema | `917f434` | (sin captura: es una ventana del navegador) |
 | **11.3** | **Export CSV de cierres**: `shift-csv.ts` (puro, separador `;`, números crudos, turno abierto con celdas vacías, escapado) y «Exportar CSV» en el historial | `57934ce` | — |
+| **13.1** | **Log de acciones sensibles**: módulo `audit` (lista cerrada de 9 acciones, best-effort, `AuditError` en el mapeo) y modelo `AdminAuditLog` (migración `20260918070000`) | `605870b` | — |
+
+**Bloque 13 — lo que falta y su motivo**: **13.1 no está cableado todavía** en las operaciones (cerrar
+y reabrir turno, aprobar la devolución, registrar el movimiento): el módulo y su tabla están listos y
+probados, el llamado desde cada caso de uso es la tarea siguiente. **13.2** (historial de movimientos
+del turno) ya se ve en el detalle del cierre desde el Bloque 2. **13.3** (firma impresa del cierre)
+depende del ticket de cierre, que no existe.
 
 **Bloque 11 — lo que falta y su motivo**: **11.1/11.2** (cuadre de tarjeta y transferencia) necesitan
 saber **contra qué** se concilia (lote de la terminal, extracto del banco): sin eso, un número al lado
