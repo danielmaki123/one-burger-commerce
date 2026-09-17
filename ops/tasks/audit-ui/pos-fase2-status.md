@@ -29,7 +29,12 @@
 | **8** | Grupos Operación/Control/Catálogo/Configuración, permiso `canManageCash`, «Caja»→«POS», rutas `/admin/cash`, `/admin/cash/history/[id]` y `/admin/approvals` | `b5f07dd`, `7ff20e0`, `fcc0691`, `50ac7f2`, `d0ea932` | `bloque-8-*.png` |
 | **1** | `expectedByCurrency` y `cashSalesAmount` persistidos, historial y detalle del cierre, reapertura firmada | `7ff20e0`, `fcc0691` | `bloque-1-cierre-detalle-*.png` |
 | **9.2** | Sin caja abierta no se cobra (409 en el servidor + botón bloqueado y motivo en pantalla) | `50ac7f2` | `bloque-9-cobro-bloqueado-*.png` |
-| **2** | `CashMovement` (retiro/ingreso con categoría, motivo y responsable), afecta el esperado por moneda y el `cashMovementsAmount` del cierre, rutas y UI con historial | `b28128a` + commit del bloque | `bloque-2-movimientos-*.png` |
+| **2** | `CashMovement` (retiro/ingreso con categoría, motivo y responsable), afecta el esperado por moneda y el `cashMovementsAmount` del cierre, rutas y UI con historial | `eb2f7f6` | `bloque-2-movimientos-*.png` |
+| **3 (parcial)** | Modelo `Refund` (total/parcial, estado, medio original, firma), resta al arqueo solo lo **aprobado en efectivo**, casos de uso `requestRefund`/`reviewRefund` (no se devuelve más de lo cobrado; nadie firma su propia devolución) y **cancelar un pedido cobrado deja la devolución pendiente y avisa** (A-15) | `32a8eb1`, `7f60017` | falta la captura (rutas y UI pendientes) |
+
+**Bloque 3 — lo que falta** (siguiente ronda): **void** desde el cobro en el POS, rutas
+(`/api/admin/refunds`, `/api/admin/approvals`) y `/admin/approvals` con la cola real en lugar del
+estado vacío.
 
 > **Qué es.** El inventario medido de los **13 bloques / 70 tareas** del roadmap
 > [`ops/tasks/pos-roadmap.md`](../pos-roadmap.md), contra el código de este repo. **No propone cambios,
