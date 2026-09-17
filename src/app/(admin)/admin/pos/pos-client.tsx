@@ -1,7 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import * as React from "react";
-import { ChevronDown, ShoppingCart, Wallet } from "lucide-react";
+import { ShoppingCart } from "lucide-react";
 
 import {
   addPosLine,
@@ -24,11 +25,6 @@ import {
   type ReceiptData,
 } from "@/shared/lib/receipt-image";
 import { AdminEmptyState, AdminPageHeader } from "../_components/admin-operational-ui";
-import {
-  CashCountGrid,
-  toCashCountRows,
-  type CashCountValues,
-} from "./cash-count-grid";
 import PosChargePanel from "./pos-charge-panel";
 import PosTicketButtons from "./pos-ticket-buttons";
 import { usePosDraft } from "./use-pos-draft";
@@ -91,13 +87,6 @@ type PosShift = {
   cashCounts?: { kind: "opening" | "closing"; currency: string; denomination: number; quantity: number }[];
 };
 
-type ClosedShiftSummary = {
-  closingAmount: number | null;
-  expectedAmount: number | null;
-  difference: number | null;
-  expectedByCurrency: Record<string, number>;
-};
-
 type PosSaleSummary = {
   orderNumber: string;
   total: number;
@@ -146,22 +135,15 @@ export default function PosClient({ locations }: { locations: PosLocationOption[
   // La clave de la operación se renueva solo cuando la venta salió bien: si el cobro falla y el cajero
   // reintenta, el servidor reconoce el mismo intento y no crea dos pedidos (TASK-101).
   const [attemptKey, setAttemptKey] = React.useState(() => crypto.randomUUID());
-  // TASK-305b — la caja del local.
+  // TASK-305b + tarea 1 del brief (2026-09-17) — la caja del local.
+  //
+  // El POS **lee** si hay caja abierta (es lo que habilita cobrar, Bloque 9.2) y muestra el estado, pero no
+  // la administra: abrir y cerrar se hace en «Caja del día».
   const [shift, setShift] = React.useState<PosShift | null>(null);
-  // La referencia del POS deja el arqueo plegado en la cabecera: el catálogo manda en la pantalla.
-  const [cashDrawerOpen, setCashDrawerOpen] = React.useState(false);
   const [shiftLoading, setShiftLoading] = React.useState(true);
-  const [shiftError, setShiftError] = React.useState<string | null>(null);
-  const [countValues, setCountValues] = React.useState<CashCountValues>({});
-  const [shiftBusy, setShiftBusy] = React.useState(false);
-  const [closedShift, setClosedShift] = React.useState<ClosedShiftSummary | null>(null);
   const [receiptState, setReceiptState] = React.useState<"idle" | "busy" | "done" | "error">("idle");
   // El local actual, para que un refresco que llega tarde no pise el catálogo del local nuevo.
   const locationRef = React.useRef(locationId);
-
-  const cashCurrencies = React.useMemo(    () => [settings.currencyCode, ...(settings.usdExchangeRate !== null ? ["USD"] : [])],
-    [settings.currencyCode, settings.usdExchangeRate],
-  );
 
   /** Lo que el cajero lleva cobrado sumando todas las filas (en moneda del negocio, sin convertir). */  const paidTotal = React.useMemo(
     () =>
@@ -181,7 +163,6 @@ export default function PosClient({ locations }: { locations: PosLocationOption[
 
       if (!options.silent) {
         setShiftLoading(true);
-        setShiftError(null);
       }
 
       try {
@@ -195,13 +176,12 @@ export default function PosClient({ locations }: { locations: PosLocationOption[
 
         if (!response.ok) throw new Error(body.error?.message ?? "No se pudo leer la caja.");
         setShift(body.data ?? null);
-      } catch (error) {
-        // El refresco de fondo no pisa una pantalla que está funcionando: el error de la caja se
-        // muestra cuando la acción es del cajero (abrir o cerrar), no cuando la dispara el reloj.
+      } catch {
+        // Un error de lectura deja el POS en «sin caja abierta» (no se puede cobrar) sin romper la
+        // pantalla: el cajero ve el aviso y el enlace a Caja del día, que es donde se arregla.
         if (options.silent) return;
 
         setShift(null);
-        setShiftError(error instanceof Error ? error.message : "No se pudo leer la caja.");
       } finally {
         if (!options.silent) setShiftLoading(false);
       }
@@ -210,8 +190,6 @@ export default function PosClient({ locations }: { locations: PosLocationOption[
   );
 
   React.useEffect(() => {
-    setCountValues({});
-    setClosedShift(null);
     void loadShift(locationId);
   }, [locationId, loadShift]);
 
@@ -342,72 +320,6 @@ export default function PosClient({ locations }: { locations: PosLocationOption[
     }
   };
 
-  const openBox = async () => {
-    setShiftBusy(true);
-    setShiftError(null);
-
-    try {
-      const response = await fetch("/api/admin/pos/shift/open", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          locationId,
-          counts: toCashCountRows(countValues, cashCurrencies),
-        }),
-      });
-      const body = (await response.json()) as {
-        data?: PosShift;
-        error?: { message?: string; fields?: Record<string, string> };
-      };
-
-      if (!response.ok || !body.data) {
-        setShiftError(body.error?.message ?? "No se pudo abrir la caja.");
-        return;
-      }
-
-      setShift(body.data);
-      setCountValues({});
-    } catch {
-      setShiftError("No se pudo abrir la caja: revisá la conexión.");
-    } finally {
-      setShiftBusy(false);
-    }
-  };
-
-  const closeBox = async () => {
-    setShiftBusy(true);
-    setShiftError(null);
-
-    try {
-      const response = await fetch("/api/admin/pos/shift/close", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          locationId,
-          counts: toCashCountRows(countValues, cashCurrencies),
-        }),
-      });
-      const body = (await response.json()) as {
-        data?: ClosedShiftSummary;
-        meta?: { expectedByCurrency?: Record<string, number> };
-        error?: { message?: string; fields?: Record<string, string> };
-      };
-
-      if (!response.ok || !body.data) {
-        setShiftError(body.error?.message ?? "No se pudo cerrar la caja.");
-        return;
-      }
-
-      setClosedShift({ ...body.data, expectedByCurrency: body.meta?.expectedByCurrency ?? {} });
-      setShift(null);
-      setCountValues({});
-    } catch {
-      setShiftError("No se pudo cerrar la caja: revisá la conexión.");
-    } finally {
-      setShiftBusy(false);
-    }
-  };
-
   const charge = async () => {
     const problems: Record<string, string> = {};
     const filled = payments.filter((payment) => Number(payment.amount) > 0);
@@ -509,30 +421,12 @@ export default function PosClient({ locations }: { locations: PosLocationOption[
       {locations.length === 0 ? null : (
         <section className="space-y-3" aria-label="Caja">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-            <Button
-              type="button"
-              variant="secondary"
-              className="min-h-11 gap-2"
-              aria-expanded={cashDrawerOpen}
-              aria-controls="pos-caja-arqueo"
-              onClick={() => setCashDrawerOpen((open) => !open)}
-            >
-              <Wallet aria-hidden="true" className="h-5 w-5 text-brand-amber" />
-              Apertura / Arqueo
-              <span
-                aria-hidden="true"
-                className={`h-2 w-2 rounded-full ${
-                  shift ? "bg-status-ready-dot" : "bg-status-inactive-dot"
-                }`}
-              />
-              <ChevronDown
-                aria-hidden="true"
-                className={`h-4 w-4 transition-transform motion-reduce:transition-none ${
-                  cashDrawerOpen ? "rotate-180" : ""
-                }`}
-              />
-            </Button>
-
+            <span
+              aria-hidden="true"
+              className={`h-2 w-2 rounded-full ${
+                shift ? "bg-status-ready-dot" : "bg-status-inactive-dot"
+              }`}
+            />
             <p className="text-st-body text-ink-secondary">
               {shiftLoading ? (
                 "Leyendo la caja…"
@@ -547,68 +441,15 @@ export default function PosClient({ locations }: { locations: PosLocationOption[
                 "Sin caja abierta en este local."
               )}
             </p>
+
+            {/* Tarea 1 del brief (2026-09-17): la caja se abre y se cierra en «Caja del día», no acá. */}
+            <Link
+              href="/admin/cash"
+              className="inline-flex min-h-11 items-center text-st-body font-semibold text-brand-primary underline"
+            >
+              {shift ? "Ver la caja" : "Abrir la caja"}
+            </Link>
           </div>
-
-          {cashDrawerOpen ? (
-            <div
-              id="pos-caja-arqueo"
-              className="space-y-3 rounded-stitch-lg border border-line-subtle bg-surface-card p-4"
-            >
-              <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <h2 className="text-st-h2 text-ink">Apertura y arqueo de caja</h2>
-                <p className="text-st-overline font-bold uppercase tracking-wider text-ink-muted">
-                  Efectivo en córdobas
-                </p>
-              </div>
-
-              {shiftLoading ? null : (
-                <>
-                  <p className="text-st-body text-ink-secondary">
-                    {shift
-                      ? "Contá lo que hay en la caja para cerrarla."
-                      : "Contá con cuánto abrís la caja."}
-                  </p>
-                  <CashCountGrid
-                    currencies={cashCurrencies}
-                    values={countValues}
-                    onChange={(key, quantity) =>
-                      setCountValues((current) => ({ ...current, [key]: quantity }))
-                    }
-                    disabled={shiftBusy}
-                    formatAmount={(value) => formatCurrency(value, currency)}
-                  />
-                  <Button
-                    type="button"
-                    variant={shift ? "outline" : "primary"}
-                    className="min-h-11"
-                    disabled={shiftBusy}
-                    onClick={() => void (shift ? closeBox() : openBox())}
-                  >
-                    {shiftBusy ? "Guardando…" : shift ? "Cerrar caja" : "Abrir caja"}
-                  </Button>
-                </>
-              )}
-            </div>
-          ) : null}
-
-          {closedShift ? (
-            <div
-              role="status"
-              className="rounded-stitch-lg border border-status-ready-border bg-status-ready-bg px-3 py-2 text-st-body text-status-ready-text"
-            >
-              Caja cerrada · contado <span className="font-mono">{formatCurrency(closedShift.closingAmount ?? 0, currency)}</span> ·
-              esperado <span className="font-mono">{formatCurrency(closedShift.expectedAmount ?? 0, currency)}</span> ·{" "}
-              {closedShift.difference === 0
-                ? "sin diferencia"
-                : `diferencia ${formatCurrency(closedShift.difference ?? 0, currency)}`}
-            </div>
-          ) : null}
-
-          {shiftError ? (
-            <p role="alert" className="text-st-body font-medium text-status-sla-text">
-              {shiftError}
-            </p>
-          ) : null}
         </section>
       )}
 

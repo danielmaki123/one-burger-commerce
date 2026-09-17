@@ -101,21 +101,22 @@ async function fillCustomer(user: ReturnType<typeof userEvent.setup>) {
 }
 
 /**
- * Bloque 9.2 — abre la caja desde la pantalla, como hace el cajero al empezar el turno.
- *
- * El mock de `fetch` responde `{ data: null }` para la caja abierta (el estado de partida del local),
- * y el POST de apertura devuelve el turno con su fondo. Sin esto el botón «Cobrar» está deshabilitado
- * a propósito, porque no se cobra con la caja cerrada.
+ * Tarea 1 del brief (2026-09-17) — el POS **ya no administra la caja**: abrir y cerrar se hace en «Caja
+ * del día». Acá el mock responde un turno **abierto** (el estado en el que el cajero cobra) y el caso de
+ * «sin caja abierta» lo dobla a `null` para comprobar el aviso y el enlace.
  */
-async function abrirCaja(user: ReturnType<typeof userEvent.setup>) {
-  // El arqueo arranca plegado (§6 del sistema): primero se despliega, después se abre la caja.
-  await user.click(await screen.findByRole("button", { name: /Apertura \/ Arqueo/ }));
-  await user.click(await screen.findByRole("button", { name: "Abrir caja" }));
+async function esperarCajaAbierta() {
   await screen.findByText(/Caja abierta · fondo/);
 }
 
 describe("PosClient", () => {
   let fetchMock: ReturnType<typeof vi.fn>;
+
+  const turnoAbierto = {
+    id: "shift_1",
+    openedAt: "2026-09-15T14:00:00.000Z",
+    openingAmount: 1000,
+  };
 
   beforeEach(() => {
     // Bloque 12.3: el POS ahora **guarda la venta en curso** en el dispositivo y la recupera al montar.
@@ -126,7 +127,7 @@ describe("PosClient", () => {
       const url = String(input);
       if (url.startsWith("/api/admin/pos/catalog")) return jsonResponse(productos);
       if (url === "/api/admin/pos/sale" && init?.method === "POST") return jsonResponse(ventaCobrada, true, 201);
-      if (url.startsWith("/api/admin/pos/shift?")) return jsonResponse({ data: null });
+      if (url.startsWith("/api/admin/pos/shift?")) return jsonResponse({ data: turnoAbierto });
       if (url === "/api/admin/pos/shift/open" && init?.method === "POST") {
         return jsonResponse(
           { data: { id: "shift_1", openedAt: "2026-09-15T14:00:00.000Z", openingAmount: 1000 } },
@@ -237,7 +238,7 @@ describe("PosClient", () => {
 
     // Bloque 9.2: sin caja abierta el cobro está bloqueado (el servidor lo rechaza con 409), así que
     // la venta arranca abriendo la caja, que es lo que hace el cajero en el local.
-    await abrirCaja(user);
+    await esperarCajaAbierta();
 
     await screen.findByText("Taco de birria");
     await user.click(screen.getByRole("button", { name: "Agregar Taco de birria a la venta" }));
@@ -283,7 +284,7 @@ describe("PosClient", () => {
     const user = userEvent.setup();
     render(<PosClient locations={locations} />);
 
-    await abrirCaja(user);
+    await esperarCajaAbierta();
     await screen.findByText("Taco de birria");
 
     await user.click(screen.getByRole("button", { name: "Partir el cobro" }));
@@ -303,7 +304,7 @@ describe("PosClient", () => {
     const user = userEvent.setup();
     render(<PosClient locations={locations} />);
 
-    await abrirCaja(user);
+    await esperarCajaAbierta();
     await screen.findByText("Taco de birria");
     await user.click(screen.getByRole("button", { name: "Agregar Taco de birria a la venta" }));
     await fillCustomer(user);
@@ -324,7 +325,7 @@ describe("PosClient", () => {
     const user = userEvent.setup();
     render(<PosClient locations={locations} />);
 
-    await abrirCaja(user);
+    await esperarCajaAbierta();
     await screen.findByText("Taco de birria");
     await user.click(screen.getByRole("button", { name: "Agregar Taco de birria a la venta" }));
     await user.click(screen.getByRole("button", { name: /^Cobrar / }));
@@ -394,42 +395,38 @@ describe("PosClient", () => {
     expect(screen.getByRole("option", { name: "USD" })).toBeTruthy();
   });
 
-  it("el arqueo arranca plegado y se despliega desde la cabecera (§6 del sistema)", async () => {
-    // La referencia del POS deja «Apertura / Arqueo» como un desplegable en la cabecera: el mostrador
-    // necesita ver el catálogo sin que el conteo de billetes se coma la primera pantalla.
-    const user = userEvent.setup();
+  /**
+   * Tarea 1 del brief (2026-09-17) — el POS no administra la caja: la abre y la cierra «Caja del día».
+   *
+   * Lo que el POS sí hace es **decir el estado** (es lo que habilita cobrar) y llevar al lugar donde se
+   * arregla, con un enlace, en vez de esconder un arqueo plegado en la cabecera del mostrador.
+   */
+  it("sin caja abierta avisa y manda a Caja del día", async () => {
+    fetchMock.mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.startsWith("/api/admin/pos/catalog")) return jsonResponse(productos);
+      if (url.startsWith("/api/admin/pos/shift?")) return jsonResponse({ data: null });
+      return jsonResponse({ data: [] });
+    });
+
     render(<PosClient locations={locations} />);
 
     expect(await screen.findByText("Sin caja abierta en este local.")).toBeTruthy();
 
-    const disparador = screen.getByRole("button", { name: /Apertura \/ Arqueo/ });
-    expect(disparador.getAttribute("aria-expanded")).toBe("false");
+    const abrir = screen.getByRole("link", { name: "Abrir la caja" });
+    expect(abrir.getAttribute("href")).toBe("/admin/cash");
+    // El conteo de billetes y el arqueo ya no viven acá.
     expect(screen.queryByLabelText("Cantidad de billetes de NIO 100")).toBeNull();
-
-    await user.click(disparador);
-
-    expect(disparador.getAttribute("aria-expanded")).toBe("true");
-    expect(screen.getByLabelText("Cantidad de billetes de NIO 100")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Abrir caja" })).toBeNull();
   });
 
-  it("abre la caja con el conteo de billetes (TASK-305b)", async () => {
-    const user = userEvent.setup();
+  it("con la caja abierta muestra el fondo y el enlace a la caja", async () => {
     render(<PosClient locations={locations} />);
 
-    expect(await screen.findByText("Sin caja abierta en este local.")).toBeTruthy();
-
-    await user.click(screen.getByRole("button", { name: /Apertura \/ Arqueo/ }));
-    await user.type(screen.getByLabelText("Cantidad de billetes de NIO 100"), "10");
-    await user.click(screen.getByRole("button", { name: "Abrir caja" }));
-
-    const openCall = fetchMock.mock.calls.find(([input]) => String(input) === "/api/admin/pos/shift/open");
-    expect(openCall).toBeTruthy();
-    const body = JSON.parse(String((openCall![1] as RequestInit).body));
-
-    expect(body.locationId).toBe("loc_norte");
-    expect(body.counts).toEqual([{ currency: "NIO", denomination: 100, quantity: 10 }]);
-    // El fondo lo deriva el servidor del conteo, así que la pantalla solo muestra lo que devolvió.
-    expect(await screen.findByText(/Caja abierta · fondo/)).toBeTruthy();
+    await esperarCajaAbierta();
+    expect(screen.getByRole("link", { name: "Ver la caja" }).getAttribute("href")).toBe(
+      "/admin/cash",
+    );
   });
 
   /**
@@ -441,6 +438,13 @@ describe("PosClient", () => {
    */
   it("con la caja cerrada el cobro está bloqueado y lo explica", async () => {
     const user = userEvent.setup();
+    fetchMock.mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.startsWith("/api/admin/pos/catalog")) return jsonResponse(productos);
+      if (url.startsWith("/api/admin/pos/shift?")) return jsonResponse({ data: null });
+      return jsonResponse({ data: [] });
+    });
+
     render(<PosClient locations={locations} />);
 
     await screen.findByText("Taco de birria");
@@ -461,56 +465,6 @@ describe("PosClient", () => {
     );
   });
 
-  it("cierra la caja y muestra el arqueo con la diferencia (TASK-305b)", async () => {
-    const user = userEvent.setup();
-    fetchMock.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
-      const url = String(input);
-      if (url.startsWith("/api/admin/pos/catalog")) return jsonResponse(productos);
-      if (url.startsWith("/api/admin/pos/shift?") && init?.method !== "POST") {
-        return jsonResponse({
-          data: {
-            id: "shift_1",
-            openedAt: "2026-09-15T14:00:00.000Z",
-            openingAmount: 1000,
-            cashCounts: [
-              { kind: "opening", currency: "NIO", denomination: 100, quantity: 10 },
-            ],
-          },
-        });
-      }
-      if (url === "/api/admin/pos/shift/close") {
-        return jsonResponse({
-          data: {
-            closingAmount: 900,
-            expectedAmount: 1000,
-            difference: -100,
-            expectedByCurrency: { NIO: 1000 },
-          },
-          meta: { expectedByCurrency: { NIO: 1000 } },
-        });
-      }
-      return jsonResponse({ data: null });
-    });
-
-    render(<PosClient locations={locations} />);
-
-    expect(await screen.findByText(/Caja abierta · fondo/)).toBeTruthy();
-
-    await user.click(screen.getByRole("button", { name: /Apertura \/ Arqueo/ }));
-    await user.type(screen.getByLabelText("Cantidad de billetes de NIO 100"), "9");
-    await user.click(screen.getByRole("button", { name: "Cerrar caja" }));
-
-    const closeCall = fetchMock.mock.calls.find(([input]) => String(input) === "/api/admin/pos/shift/close");
-    expect(JSON.parse(String((closeCall![1] as RequestInit).body)).counts).toEqual([
-      { currency: "NIO", denomination: 100, quantity: 9 },
-    ]);
-
-    const resumen = await screen.findByRole("status");
-    expect(resumen.textContent).toContain("Caja cerrada");
-    expect(resumen.textContent).toContain("esperado");
-    expect(resumen.textContent).toContain("diferencia");
-  });
-
   it("se refresca solo cada 3 s sin pisar lo que el cajero está armando (TASK-306)", async () => {
     // Se falsean **solo** los intervalos: `waitFor` y `userEvent` siguen con el reloj real.
     vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
@@ -522,8 +476,6 @@ describe("PosClient", () => {
       await screen.findByText("Taco de birria");
       await user.click(screen.getByRole("button", { name: "Agregar Taco de birria a la venta" }));
       await user.type(screen.getByLabelText("Buscar en el catálogo"), "cola");
-      await user.click(screen.getByRole("button", { name: /Apertura \/ Arqueo/ }));
-      await user.type(screen.getByLabelText("Cantidad de billetes de NIO 100"), "7");
 
       const callsBefore = fetchMock.mock.calls.length;
       await act(async () => {
@@ -537,9 +489,6 @@ describe("PosClient", () => {
       // Lo que el cajero estaba escribiendo sigue donde estaba: el refresco no toca su estado.
       expect((screen.getByLabelText("Buscar en el catálogo") as HTMLInputElement).value).toBe("cola");
       expect(
-        (screen.getByLabelText("Cantidad de billetes de NIO 100") as HTMLInputElement).value,
-      ).toBe("7");
-      expect(
         within(screen.getByRole("region", { name: "Venta en curso" })).getByText("Taco de birria"),
       ).toBeTruthy();
     } finally {
@@ -551,7 +500,7 @@ describe("PosClient", () => {
     const user = userEvent.setup();
     render(<PosClient locations={locations} />);
 
-    await abrirCaja(user);
+    await esperarCajaAbierta();
     await screen.findByText("Taco de birria");
     await user.click(screen.getByRole("button", { name: "Agregar Taco de birria a la venta" }));
     await fillCustomer(user);

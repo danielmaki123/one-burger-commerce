@@ -11,7 +11,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-import { canManageCash } from "@/modules/auth/domain/admin-permissions";
+import { canManageCash, canUsePOS } from "@/modules/auth/domain/admin-permissions";
 import type { AdminRole } from "@/modules/auth/domain/admin-role";
 
 export type AdminNavItem = {
@@ -80,10 +80,12 @@ export const ADMIN_POS_NAV_ITEM: AdminNavItem = {
 };
 
 /**
- * Bloque 8.3 — las rutas del control: historial de cierres y aprobaciones pendientes.
+ * Bloque 8.3 + tarea 1 del brief (2026-09-17) — las rutas del control.
  *
- * Son de quien administra el dinero (dueño y manager), no de quien cobra: el cajero opera el
- * mostrador y no audita su propio turno. Con el POS apagado no hay nada que historiar ni aprobar.
+ * «Caja del día» la ve **quien cobra** (el cajero incluido) desde que la caja se administra ahí: es donde
+ * abre y cierra su turno. Lo que el cajero no ve es la mitad de auditoría de esa pantalla —historial,
+ * día consolidado y comparación—, que se resuelve adentro con `canViewCashHistory` (el cajero no audita su
+ * propio turno). «Aprobaciones» sigue siendo de quien administra el dinero.
  */
 export const ADMIN_CONTROL_NAV_ITEMS: AdminNavItem[] = [
   { href: "/admin/cash", label: "Caja del día", description: "Cierres y movimientos", icon: ReceiptText },
@@ -99,9 +101,12 @@ function withControlGroup(
 ): AdminNavGroup[] {
   if (!posAvailable) return groups;
 
+  // La caja se administra desde su pantalla (tarea 1 del brief): la ve quien cobra. Las aprobaciones
+  // siguen siendo de quien administra el dinero.
   const items = [
     ADMIN_POS_NAV_ITEM,
-    ...(role && canManageCash(role) ? ADMIN_CONTROL_NAV_ITEMS : []),
+    ...(role && canUsePOS(role) ? [ADMIN_CONTROL_NAV_ITEMS[0]] : []),
+    ...(role && canManageCash(role) ? [ADMIN_CONTROL_NAV_ITEMS[1]] : []),
   ];
 
   const next: AdminNavGroup[] = [];

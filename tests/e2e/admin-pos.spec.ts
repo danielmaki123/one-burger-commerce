@@ -60,9 +60,26 @@ async function ensureOpenShift(page: Page) {
 
   if (abierta) return;
 
-  // El bloque de arqueo arranca plegado (§6 del sistema): primero se despliega, después se abre.
-  await page.getByRole("button", { name: /Apertura \/ Arqueo/ }).click();
-  await page.getByRole("button", { name: "Abrir caja" }).click();
+  // Tarea 1 del brief (2026-09-17): el POS ya no abre la caja —eso pasó a «Caja del día»—, así que el
+  // arnés la abre por la API (es lo que hace el cajero en la otra pantalla).
+  await page.evaluate(async () => {
+    const locationsResponse = await fetch("/api/admin/locations", { cache: "no-store" });
+    const locations = ((await locationsResponse.json()) as {
+      data: Array<{ id: string; posEnabled: boolean }>;
+    }).data.filter((location) => location.posEnabled);
+
+    for (const location of locations) {
+      const created = await fetch("/api/admin/pos/shift/open", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ locationId: location.id, counts: [] }),
+      });
+
+      if (created.ok) return;
+    }
+  });
+
+  await page.reload();
   await expect(page.getByText(/Caja abierta · fondo/)).toBeVisible();
 }
 
@@ -252,15 +269,15 @@ test.describe("punto de venta", () => {
       name: "Cantidad de billetes de NIO 100",
       exact: true,
     });
-    const caja = page.getByRole("region", { name: "Caja" });
+    const caja = page.getByRole("region", { name: "Caja del local" });
 
-    // El arqueo vive plegado en la cabecera (la referencia del POS deja el catálogo a la vista).
-    await page.getByRole("button", { name: /Apertura \/ Arqueo/ }).click();
+    // Tarea 1 del brief: la caja se abre y se cierra en su pantalla, no en el POS.
+    await page.goto("/admin/cash");
 
     // El panel **lee el turno del servidor**: se espera a que dibuje su acción antes de decidir. Sin
     // esto, el `count()` de abajo ve 0 mientras carga, se saltea el cierre y la caja que dejó abierta
     // otra spec queda abierta: el test después buscaba «Abrir caja» con una caja ya abierta y fallaba.
-    const accionCaja = page.getByRole("button", { name: /^(Abrir|Cerrar) caja$/ });
+    const accionCaja = caja.getByRole("button", { name: /^(Abrir|Cerrar) caja$/ });
     await expect(accionCaja).toBeVisible();
 
     // Estado de partida: si una corrida anterior dejó la caja abierta, se cierra contando cero (deja
@@ -268,17 +285,17 @@ test.describe("punto de venta", () => {
     if ((await accionCaja.textContent())?.includes("Cerrar")) {
       await accionCaja.click();
       await expect(caja.getByRole("status")).toContainText("Caja cerrada");
-      await expect(page.getByRole("button", { name: "Abrir caja" })).toBeVisible();
+      await expect(caja.getByRole("button", { name: "Abrir caja" })).toBeVisible();
     }
 
     // Abrir contando: 10 × C$100. El fondo lo deriva el servidor.
     await billetes.fill("10");
-    await page.getByRole("button", { name: "Abrir caja" }).click();
-    await expect(caja.getByText(/Caja abierta · fondo/)).toBeVisible();
+    await caja.getByRole("button", { name: "Abrir caja" }).click();
+    await expect(caja.getByText(/Caja abierta desde/)).toBeVisible();
 
     // Cerrar contando lo mismo: sin ventas en el turno, no hay diferencia.
     await billetes.fill("10");
-    await page.getByRole("button", { name: "Cerrar caja" }).click();
+    await caja.getByRole("button", { name: "Cerrar caja" }).click();
 
     const resumen = caja.getByRole("status");
     await expect(resumen).toContainText("Caja cerrada");

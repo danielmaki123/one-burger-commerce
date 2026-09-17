@@ -145,10 +145,17 @@ describe("admin layout helpers", () => {
     },
   );
 
-  it("el cajero opera el POS pero no administra la caja", () => {
+  /**
+   * Tarea 1 del brief (2026-09-17) — la caja se administra desde su propia pantalla, así que el cajero
+   * **sí** entra a «Caja del día» (ahí abre y cierra su turno). Lo que no ve es «Aprobaciones», que es de
+   * quien administra el dinero, ni la mitad de auditoría de la pantalla (eso se resuelve adentro).
+   */
+  it("el cajero opera el POS y entra a Caja del día, pero no aprueba devoluciones", () => {
     const items = flattenNavWithPos("cashier");
     expect(items).toContainEqual(expect.objectContaining({ href: "/admin/pos" }));
-    expect(items).not.toContainEqual(expect.objectContaining({ href: "/admin/cash" }));
+    expect(items).toContainEqual(
+      expect.objectContaining({ href: "/admin/cash", label: "Caja del día" }),
+    );
     expect(items).not.toContainEqual(expect.objectContaining({ href: "/admin/approvals" }));
   });
 
