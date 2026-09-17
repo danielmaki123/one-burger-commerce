@@ -175,6 +175,37 @@ try {
     await shot(ticketCliente, "bloque-10-ticket-cliente", viewport.name);
     await ticketCliente.close();
 
+    // Tarea 7 del brief (2026-09-17): el **corte X** y el **traspaso de caja** (1.12 y 1.13). El panel
+    // vive en Caja del día con la caja abierta; el papel del traspaso se captura tal como sale impreso.
+    await page.goto(`${baseUrl}/admin/cash`, { waitUntil: "domcontentloaded" });
+    await page.waitForSelector('[aria-label="Corte y traspaso de caja"]', { timeout: 30_000 });
+    await page.waitForTimeout(600);
+    await shot(page, "tarea-7-corte-y-traspaso", viewport.name);
+
+    const [corteX] = await Promise.all([
+      page.waitForEvent("popup"),
+      page.getByRole("button", { name: "Imprimir corte X" }).click(),
+    ]);
+    await corteX.waitForLoadState("domcontentloaded");
+    await corteX.setViewportSize({ width: 420, height: 760 });
+    await corteX.waitForTimeout(400);
+    await shot(corteX, "tarea-7-corte-x-impreso", viewport.name);
+    await corteX.close();
+
+    await page.getByLabel("Recibe la caja").fill("Carlos Ruiz");
+    const [traspaso] = await Promise.all([
+      page.waitForEvent("popup"),
+      page.getByRole("button", { name: "Firmar traspaso" }).click(),
+    ]);
+    await traspaso.waitForLoadState("domcontentloaded");
+    await traspaso.setViewportSize({ width: 420, height: 760 });
+    await traspaso.waitForTimeout(400);
+    await shot(traspaso, "tarea-7-traspaso-impreso", viewport.name);
+    await traspaso.close();
+
+    await page.waitForTimeout(400);
+    await shot(page, "tarea-7-traspaso-registrado", viewport.name);
+
     await context.close();
   }
 

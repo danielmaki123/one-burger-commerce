@@ -239,4 +239,100 @@ test.describe("caja del día", () => {
     // Un 500 de Next en el detalle mostraría esto: el spec vino a atrapar esa clase de fallo.
     await expect(page.getByText("A server error occurred")).toHaveCount(0);
   });
+
+  /**
+   * Tarea 7 del brief (2026-09-17) — el **corte X** y el **traspaso de caja** (1.12 y 1.13).
+   *
+   * Dos cosas que solo se pueden verificar en un navegador real: que el corte se **imprima** sin cerrar
+   * la caja (con su aclaración, para que nadie lo confunda con un cierre) y que el traspaso se firme con
+   * el nombre de quien recibe y quede en el historial del turno. El esperado del papel lo calcula el
+   * servidor; acá se comprueba que llegue al papel y a la lista.
+   */
+  test("el corte X se imprime sin cerrar la caja y el traspaso queda firmado", async ({ page }) => {
+    test.skip(!mutationsAllowed, "Order creation is disabled unless E2E_ALLOW_MUTATIONS=true.");
+
+    await loginAsOwner(page);
+
+    const shift = await page.evaluate(async () => {
+      const locations = (await (await fetch("/api/admin/locations", { cache: "no-store" })).json())
+        .data ?? [];
+
+      for (const location of locations) {
+        const open = (
+          await (
+            await fetch(`/api/admin/pos/shift?locationId=${encodeURIComponent(location.id)}`, {
+              cache: "no-store",
+            })
+          ).json()
+        ).data;
+
+        if (open) return { id: open.id as string, locationId: location.id as string };
+
+        const created = await fetch("/api/admin/pos/shift/open", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ locationId: location.id, counts: [] }),
+        });
+
+        if (created.ok) {
+          const body = await created.json();
+          return { id: body.data.id as string, locationId: location.id as string };
+        }
+      }
+
+      return null;
+    });
+
+    expect(shift, "hay una caja abierta (o se abrió una)").toBeTruthy();
+
+    await page.goto("/admin/cash");
+    const panel = page.getByRole("region", { name: "Corte y traspaso de caja" });
+    await expect(panel).toBeVisible();
+
+    // 375 px: el panel nuevo no puede meter scroll horizontal (regla del sistema).
+    await page.setViewportSize({ width: 375, height: 812 });
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      ),
+    ).toBeLessThanOrEqual(1);
+    await page.setViewportSize({ width: 1280, height: 900 });
+
+    const [corte] = await Promise.all([
+      page.waitForEvent("popup"),
+      panel.getByRole("button", { name: "Imprimir corte X" }).click(),
+    ]);
+    await corte.waitForLoadState("domcontentloaded");
+
+    const papelCorte = (await corte.locator("pre").textContent()) ?? "";
+    expect(papelCorte).toContain("CORTE X");
+    expect(papelCorte).toContain("Esperado: C$");
+    // El papel aclara que el turno sigue abierto: un corte confundido con un cierre deja la caja abierta.
+    expect(papelCorte).toContain("NO cierra la caja");
+    await corte.close();
+
+    const recibe = `Carlos Ruiz ${Date.now()}`;
+    await panel.getByLabel("Recibe la caja").fill(recibe);
+
+    const [traspaso] = await Promise.all([
+      page.waitForEvent("popup"),
+      panel.getByRole("button", { name: "Firmar traspaso" }).click(),
+    ]);
+    await traspaso.waitForLoadState("domcontentloaded");
+
+    const papelTraspaso = (await traspaso.locator("pre").textContent()) ?? "";
+    expect(papelTraspaso).toContain("TRASPASO DE CAJA (CORTE X)");
+    expect(papelTraspaso).toContain(`Recibe: ${recibe}`);
+    // Las dos firmas: el que entrega y el que recibe (si no, no hay traspaso que valga).
+    expect(papelTraspaso.match(/Firma: ___/g) ?? []).toHaveLength(2);
+    await traspaso.close();
+
+    await expect(panel.getByText(`Traspaso registrado · recibe ${recibe}`)).toBeVisible();
+    await expect(panel.getByText(new RegExp(`Recibió ${recibe}`))).toBeVisible();
+
+    // Y queda en el turno: el detalle del cierre lo va a mostrar también después de cerrar la caja.
+    await page.goto(`/admin/cash/history/${shift!.id}`);
+    const historial = page.getByRole("region", { name: "Traspasos de caja" });
+    await expect(historial.getByText(new RegExp(`Recibió ${recibe}`))).toBeVisible();
+  });
 });

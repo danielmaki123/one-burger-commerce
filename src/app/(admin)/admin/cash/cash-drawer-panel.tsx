@@ -13,6 +13,7 @@ import {
   toCashCountRows,
   type CashCountValues,
 } from "../pos/cash-count-grid";
+import CashShiftHandoverPanel from "./cash-shift-handover-panel";
 
 /**
  * Tarea 1 del brief (2026-09-17) — **la caja, separada del POS**.
@@ -44,6 +45,7 @@ const REFRESH_MS = 15000;
 export default function CashDrawerPanel({
   locations,
   canSeeCloseDetail = false,
+  actorName = null,
 }: {
   locations: { id: string; name: string }[];
   /**
@@ -52,6 +54,11 @@ export default function CashDrawerPanel({
    * `canViewCashHistory`, no este componente.
    */
   canSeeCloseDetail?: boolean;
+  /**
+   * Tarea 7 del brief (2026-09-17) — quién entrega la caja: el nombre de la sesión, que firma el
+   * **traspaso** (1.13) en el papel. `null` = no se pudo resolver y el papel imprime «—».
+   */
+  actorName?: string | null;
 }) {
   const currency = useCurrencyFormat();
   const settings = useBusinessSettings();
@@ -158,6 +165,7 @@ export default function CashDrawerPanel({
   if (locations.length === 0) return null;
 
   const expectedByCurrency = Object.entries(closedShift?.expectedByCurrency ?? {});
+  const locationName = locations.find((location) => location.id === locationId)?.name ?? "";
 
   return (
     <section
@@ -238,6 +246,15 @@ export default function CashDrawerPanel({
               </Link>
             ) : null}
           </div>
+
+          {/* Tarea 7 del brief: el corte X y el traspaso solo tienen sentido con la caja abierta. */}
+          {shift ? (
+            <CashShiftHandoverPanel
+              locationId={locationId}
+              locationName={locationName}
+              actorName={actorName}
+            />
+          ) : null}
         </>
       )}
 

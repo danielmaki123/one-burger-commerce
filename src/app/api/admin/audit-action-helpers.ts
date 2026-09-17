@@ -84,6 +84,31 @@ export function shiftReopenAudit(input: { actorUserId: string; shiftId: string; 
   });
 }
 
+/** Traspasar la caja a otro cajero: quién la recibe y con cuánto se la entrega (tarea 7, 1.13). */
+export function shiftHandoverAudit(input: {
+  actorUserId: string;
+  handoverId: string;
+  shiftId: string;
+  locationId: string;
+  handedByName: string | null;
+  receivedByName: string;
+  expectedAmount: number;
+}) {
+  return recordAdminAudit({
+    action: "shift.handover",
+    actorUserId: input.actorUserId,
+    targetType: "Shift",
+    targetId: input.shiftId,
+    detail: {
+      handoverId: input.handoverId,
+      locationId: input.locationId,
+      handedByName: input.handedByName,
+      receivedByName: input.receivedByName,
+      expectedAmount: input.expectedAmount,
+    },
+  });
+}
+
 /** Mover plata de la caja: tipo, monto, moneda y a qué turno pertenece. */
 export function cashMovementAudit(input: {
   actorUserId: string;

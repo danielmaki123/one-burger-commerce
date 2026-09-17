@@ -1,5 +1,12 @@
-import { formatCurrency, type CurrencyFormat } from "@/shared/lib/format-currency";
-import { formatShiftDateTime } from "@/shared/lib/shift-datetime";
+import {
+  formatSheetAmount,
+  formatSheetDelta,
+  formatSheetMoment,
+  formatSheetMovement,
+  formatSheetTotal,
+  SHIFT_SIGNATURE_LINE,
+  type ShiftSheetOptions,
+} from "@/shared/lib/shift-sheet-format";
 
 /**
  * Bloque 13.3 del roadmap del POS (Fase 2) — la **hoja de cierre**, en texto plano.
@@ -12,8 +19,8 @@ import { formatShiftDateTime } from "@/shared/lib/shift-datetime";
  * Es una función pura (datos adentro, texto afuera) para poder probarla sin navegador; el dibujo y la
  * impresión viven en el componente que la usa. Los **números no se recalculan acá**: llegan ya
  * resueltos por la pantalla, que usa los mismos helpers que ve el humano (una sola fuente por cálculo).
- * Lo que sí decide este módulo es cómo se dice: un turno sin contar dice «Sin contar», una moneda que
- * cuadra dice «sin diferencia» y un dato que no está no se estima.
+ * El formato de plata es el de `shift-sheet-format`, compartido con el **corte X** (tarea 7): el mismo
+ * turno no puede imprimirse distinto según qué papel se saque.
  */
 
 export type ShiftCloseSheetCountLine = {
@@ -53,61 +60,16 @@ export type ShiftCloseSheetInput = {
   closedByName: string | null;
 };
 
-export type ShiftCloseSheetOptions = {
-  businessName: string;
-  timezone: string;
-  locale: string;
-  currencyCode: string;
-  currencySymbol: string;
-};
-
-const SIGNATURE_LINE = "Firma: ______________________________";
-
-function currencyFormat(currencyCode: string, options: ShiftCloseSheetOptions): CurrencyFormat {
-  return { symbol: options.currencySymbol, locale: options.locale };
-}
-
-/**
- * Una moneda distinta a la del negocio se imprime con **su** código (`USD 20.00`): ponerle el símbolo
- * local a dólares es un número falso en un papel que se firma.
- */
-function formatInCurrency(
-  amount: number,
-  currency: string,
-  options: ShiftCloseSheetOptions,
-): string {
-  if (currency.toUpperCase() === options.currencyCode.toUpperCase()) {
-    return formatCurrency(amount, currencyFormat(currency, options));
-  }
-
-  return formatCurrency(amount, { symbol: `${currency.toUpperCase()} `, locale: options.locale });
-}
-
-/** `-C$100.00` / `+C$50.00` / `sin diferencia`, con el símbolo de su moneda. */
-function formatDelta(
-  amount: number,
-  currency: string,
-  options: ShiftCloseSheetOptions,
-): string {
-  if (amount === 0) return "sin diferencia";
-
-  return `${amount > 0 ? "+" : "-"}${formatInCurrency(Math.abs(amount), currency, options)}`;
-}
-
-function formatMoment(iso: string | null, options: ShiftCloseSheetOptions): string {
-  return formatShiftDateTime(iso, { timezone: options.timezone, locale: options.locale });
-}
-
 /** Los billetes contados al cerrar, en el orden en que llegan (ya vienen del depósito). */
 export function buildShiftCloseCountLines(
   input: ShiftCloseSheetInput,
-  options: ShiftCloseSheetOptions,
+  options: ShiftSheetOptions,
 ): string[] {
   if (input.countLines.length === 0) return ["Sin conteo cargado al cerrar."];
 
   return input.countLines.map(
     (line) =>
-      `${line.quantity} x ${line.currency.toUpperCase()} ${line.denomination} = ${formatInCurrency(
+      `${line.quantity} x ${line.currency.toUpperCase()} ${line.denomination} = ${formatSheetAmount(
         line.amount,
         line.currency,
         options,
@@ -118,7 +80,7 @@ export function buildShiftCloseCountLines(
 /** El arqueo por moneda: esperado, contado y la diferencia con su signo. */
 export function buildShiftCloseCurrencyLines(
   input: ShiftCloseSheetInput,
-  options: ShiftCloseSheetOptions,
+  options: ShiftSheetOptions,
 ): string[] {
   if (input.currencyRows.length === 0) {
     return ["Sin detalle por moneda guardado (el total quedó congelado al cerrar)."];
@@ -126,32 +88,28 @@ export function buildShiftCloseCurrencyLines(
 
   return input.currencyRows.map((row) => {
     const counted =
-      row.counted === null ? "Sin contar" : formatInCurrency(row.counted, row.currency, options);
+      row.counted === null ? "Sin contar" : formatSheetAmount(row.counted, row.currency, options);
 
-    return `${row.currency.toUpperCase()}  esperado ${formatInCurrency(
+    return `${row.currency.toUpperCase()}  esperado ${formatSheetAmount(
       row.expected,
       row.currency,
       options,
-    )}  contado ${counted}  ${formatDelta(row.difference ?? 0, row.currency, options)}`;
+    )}  contado ${counted}  ${formatSheetDelta(row.difference ?? 0, row.currency, options)}`;
   });
 }
 
 /** La hoja completa, línea por línea, lista para imprimir. */
 export function buildShiftCloseSheet(
   input: ShiftCloseSheetInput,
-  options: ShiftCloseSheetOptions,
+  options: ShiftSheetOptions,
 ): string[] {
   const { totals } = input;
-  const formatTotal = (amount: number | null) =>
-    amount === null ? "Sin contar" : formatInCurrency(amount, options.currencyCode, options);
   const lines: string[] = [
     options.businessName.toUpperCase(),
     "CIERRE DE CAJA",
     `Sucursal: ${input.locationName}`,
-    `Abierto: ${formatMoment(input.openedAt, options)}`,
-    `Cerrado: ${
-      input.status === "open" ? "sin cerrar" : formatMoment(input.closedAt, options)
-    }`,
+    `Abierto: ${formatSheetMoment(input.openedAt, options)}`,
+    `Cerrado: ${input.status === "open" ? "sin cerrar" : formatSheetMoment(input.closedAt, options)}`,
     "",
     "CONTEO AL CERRAR",
     ...buildShiftCloseCountLines(input, options),
@@ -160,30 +118,26 @@ export function buildShiftCloseSheet(
     ...buildShiftCloseCurrencyLines(input, options),
     "",
     "TOTALES",
-    `Fondo: ${formatTotal(totals.opening)}`,
-    `Contado: ${formatTotal(totals.counted)}`,
-    `Esperado: ${formatTotal(totals.expected)}`,
+    `Fondo: ${formatSheetTotal(totals.opening, options)}`,
+    `Contado: ${formatSheetTotal(totals.counted, options)}`,
+    `Esperado: ${formatSheetTotal(totals.expected, options)}`,
     `Diferencia: ${
       totals.difference === null
         ? "Sin contar"
-        : formatDelta(totals.difference, options.currencyCode, options)
+        : formatSheetDelta(totals.difference, options.currencyCode, options)
     }`,
-    `Ventas en efectivo: ${formatTotal(totals.cashSales)}`,
+    `Ventas en efectivo: ${formatSheetTotal(totals.cashSales, options)}`,
     `Movimientos: ${
-      totals.movements === null
-        ? "—"
-        : totals.movements === 0
-          ? "sin movimientos"
-          : formatDelta(totals.movements, options.currencyCode, options)
+      totals.movements === null ? "—" : formatSheetMovement(totals.movements, options)
     }`,
-    `Devoluciones aprobadas en efectivo: ${formatTotal(totals.refunds)}`,
+    `Devoluciones aprobadas en efectivo: ${formatSheetTotal(totals.refunds, options)}`,
   ];
 
   if (input.notes?.trim()) {
     lines.push("", `NOTA: ${input.notes.trim()}`);
   }
 
-  lines.push("", `Cerró: ${input.closedByName?.trim() || "—"}`, SIGNATURE_LINE);
+  lines.push("", `Cerró: ${input.closedByName?.trim() || "—"}`, SHIFT_SIGNATURE_LINE);
 
   return lines;
 }

@@ -8,6 +8,7 @@ import { loadBusinessSettings } from "@/modules/business-settings/features/get-p
 import { PrismaBusinessSettingsRepository } from "@/modules/business-settings/adapters/prisma-business-settings-repository";
 import { requireAdminSession } from "@/modules/auth/features/require-admin-session/require-admin-session";
 import { PrismaCashMovementRepository } from "@/modules/orders/adapters/prisma-cash-movement-repository";
+import { PrismaShiftHandoverRepository } from "@/modules/orders/adapters/prisma-shift-handover-repository";
 import { PrismaShiftRepository } from "@/modules/orders/adapters/prisma-shift-repository";
 import { formatCurrency } from "@/shared/lib/format-currency";
 import { roundCurrency } from "@/shared/lib/order-totals";
@@ -25,6 +26,7 @@ import {
   type StoredCashCount,
 } from "../../cash-shift-helpers";
 import ShiftReopenForm from "../../shift-reopen-form";
+import ShiftHandoversList from "../../shift-handovers-list";
 
 /**
  * Bloque 1.4 del roadmap del POS (Fase 2) — el detalle de un cierre.
@@ -80,6 +82,8 @@ export default async function AdminCashShiftDetailPage({
   const locationName =
     locations.find((location) => location.id === shift.locationId)?.name ?? shift.locationId;
   const movements = await new PrismaCashMovementRepository().listByShift(shift.id);
+  /** Tarea 7 del brief (2026-09-17) — los traspasos del turno (1.13): quién recibió la caja y con cuánto. */
+  const handovers = await new PrismaShiftHandoverRepository().listByShift(shift.id);
   // Las monedas del alta: las que se contaron y las que ya se movieron, más la del negocio.
   const countedCurrencies = [
     ...new Set([
@@ -348,6 +352,24 @@ export default async function AdminCashShiftDetailPage({
               : formatAmount(shift.cashMovementsAmount)}
           </span>
         </p>
+      </section>
+
+      {/* Tarea 7 del brief (2026-09-17): los **traspasos** del turno (1.13). Un turno largo pasa por
+          varias manos; quién recibió la caja y con cuánto queda asentado acá, también después de
+          cerrarlo (mientras está abierto se ve en Caja del día). */}
+      <section
+        aria-label="Traspasos de caja"
+        className="space-y-3 rounded-stitch-lg border border-line-subtle bg-surface-card p-4"
+      >
+        <h2 className="text-st-h2 text-ink">Traspasos de caja</h2>
+
+        <ShiftHandoversList
+          handovers={handovers}
+          emptyLabel="Este turno no cambió de manos."
+          currency={currency}
+          timezone={settings.timezone}
+          locale={settings.locale}
+        />
       </section>
 
       {/* Bloque 2.3 del roadmap del POS (Fase 2): el historial de retiros e ingresos del turno, con el

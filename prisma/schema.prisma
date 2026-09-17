@@ -213,6 +213,8 @@ model Location {
   adminUsers        AdminUserLocation[]
   /// TASK-104 — los turnos de caja de este local.
   shifts            Shift[]
+  /// Tarea 7 del brief (2026-09-17) — los traspasos de caja firmados en este local.
+  shiftHandovers    ShiftHandover[]
 
   @@index([isActive, sortOrder])
 }
@@ -819,6 +821,8 @@ model Shift {
   /// Bloque 3 del POS — las devoluciones registradas en este turno. Solo las **aprobadas** y **en
   /// efectivo** restan del esperado: son las que sacaron plata del cajón.
   refunds        Refund[]
+  /// Tarea 7 del brief (2026-09-17) — los traspasos de esta caja (Bloque 1.13).
+  handovers      ShiftHandover[]
 
   @@index([locationId, status])
   @@index([userId])
@@ -850,6 +854,35 @@ model ShiftCashCount {
   /// carga, no un dato.
   @@unique([shiftId, kind, currency, denomination])
   @@index([shiftId, kind])
+}
+
+/// Tarea 7 del brief (2026-09-17) — el **traspaso de caja entre cajeros** (1.13).
+///
+/// El turno tiene un solo responsable (`Shift.userId`, quien abrió) y el local no admite dos cajas abiertas
+/// a la vez: cuando el cajero se va, la caja **no se cierra**, se traspasa. Cada fila es la firma de un
+/// traspaso con el **corte X** de ese momento (`expectedAmount`), congelado igual que el arqueo del
+/// cierre: recalcularlo después —con la tasa de cambio de hoy o con cobros que entraron más tarde— diría
+/// un número que nadie firmó.
+model ShiftHandover {
+  id             String   @id @default(cuid())
+  shiftId        String
+  locationId     String
+  /// Quién entrega (usuario del panel). `null` si no se pudo resolver: el nombre queda igual.
+  handedByUserId String?
+  handedByName   String?
+  /// Quién recibe, tal como se firmó. Texto libre: el que sigue no siempre tiene usuario del panel.
+  receivedByName String
+  /// El esperado del corte X al firmar, en la moneda del negocio.
+  expectedAmount Decimal  @db.Decimal(10, 2)
+  /// El detalle por moneda del mismo momento (`{"NIO": 1500, "USD": 20}`).
+  expectedByCurrency Json?
+  notes          String?
+  createdAt      DateTime @default(now())
+  shift          Shift    @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+  location       Location @relation(fields: [locationId], references: [id], onDelete: Restrict)
+
+  @@index([shiftId, createdAt])
+  @@index([locationId, createdAt])
 }
 
 /// Bloque 2 del roadmap del POS (Fase 2) — plata que entra o sale del cajón **sin ser un cobro**.

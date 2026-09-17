@@ -10,6 +10,7 @@ import {
   refundReviewAudit,
   settingsUpdateAudit,
   shiftCloseAudit,
+  shiftHandoverAudit,
   shiftOpenAudit,
   shiftReopenAudit,
 } from "./audit-action-helpers";
@@ -152,6 +153,31 @@ const shortcuts: Array<[string, () => Promise<void>, Record<string, unknown>]> =
       targetType: "Shift",
       targetId: "shift_01",
       detail: { reason: "Conté mal los billetes" },
+    },
+  ],
+  [
+    "shift.handover",
+    () =>
+      shiftHandoverAudit({
+        actorUserId: "user_cashier",
+        handoverId: "handover_01",
+        shiftId: "shift_01",
+        locationId: "loc_principal",
+        handedByName: "María López",
+        receivedByName: "Carlos Ruiz",
+        expectedAmount: 1500,
+      }),
+    {
+      action: "shift.handover",
+      targetType: "Shift",
+      targetId: "shift_01",
+      detail: {
+        handoverId: "handover_01",
+        locationId: "loc_principal",
+        handedByName: "María López",
+        receivedByName: "Carlos Ruiz",
+        expectedAmount: 1500,
+      },
     },
   ],
   [

@@ -66,7 +66,11 @@ export default async function AdminCashPage() {
       />
 
       {canOperate ? (
-        <CashDrawerPanel locations={options} canSeeCloseDetail={canAudit} />
+        <CashDrawerPanel
+          locations={options}
+          canSeeCloseDetail={canAudit}
+          actorName={session.user.name}
+        />
       ) : null}
 
       {canAudit ? (

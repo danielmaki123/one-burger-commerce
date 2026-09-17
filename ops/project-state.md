@@ -1,8 +1,8 @@
 # Estado del proyecto — One Burger Commerce
 
-> Actualizado: 2026-09-17 · Último deploy a producción: 2026-09-17, commit `2f35710` (build
-> `build-20260917-015211`, deploy manual por API sobre el servicio `oneburguerweb`, acción `done` en
-> 01:51–01:52). Lleva el **panel entero migrado al sistema Stitch** —Fase 1 (tokens, tipografías,
+> Actualizado: 2026-09-17 · Último deploy a producción: 2026-09-17, commit `dea1e38` (build
+> `build-20260917-153827`, deploy por API sobre el servicio `oneburguerweb`, acción `done`; readiness
+> `ready` y los dos smokes en verde). Lleva el **panel entero migrado al sistema Stitch** —Fase 1 (tokens, tipografías,
 > estados y contraste), Fase 2 (las 7 pantallas) y la segunda pasada (los modales y las pantallas
 > secundarias: Inventario, Zonas, Promos, Menú, catálogo por local y detalle de orden)— más el
 > **horario único por sucursal** (Personalización dejó de editarlo). Ver `ops/DESIGN_LOG.md` (entry
@@ -17,6 +17,15 @@
 > —KDS, POS, Resumen, Menú, Locales, Usuarios y Personalización— migradas una por una, con capturas
 > antes/después en `ops/tasks/audit-ui/`) están **cerradas**; ver `ops/DESIGN_LOG.md` (entry del
 > 2026-09-16) para las decisiones y lo que quedó pendiente. Falta la **FASE 3** de ese plan.
+>
+> **Ronda del brief 2026-09-17 (en curso)**: alertas por **Telegram** (pantalla
+> `/admin/settings/notifications`, tabla `NotificationSettings`, token por entorno, prueba de conexión
+> real y tres disparadores) y las tareas de caja del POS con decisión del owner: **1** (POS limpio y caja
+> aparte), **2** (límite de retiro configurable sin aprobación), **3** (cierre obligatorio por sucursal),
+> **5/6** (qué ve el operario al cerrar, sin cierre ciego), **7** (corte X y traspaso de caja entre
+> cajeros) y **9** (solo el dueño aprueba devoluciones). Faltan **10** (conciliación de
+> tarjeta/transferencia exportable a CSV) y **11** (idempotencia del cobro offline con UUID). El registro
+> por tarea, con commits y capturas, está en `ops/tasks/audit-ui/pos-fase2-status.md`.
 
 ## 1. Qué está vivo hoy
 

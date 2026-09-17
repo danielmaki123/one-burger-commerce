@@ -62,13 +62,33 @@
 | **12.3 + 12.4** | **La venta en curso no se pierde y sin red no se cobra**: `usePosDraft` + `pos-draft-storage.ts` (la venta se guarda en el dispositivo y se recupera al montar; de un solo local; vaciarla la borra) y `useOnlineStatus` con el cobro bloqueado y explicado cuando no hay red | `58f0b03` | `bloque-12-sin-conexion-*.png`, `bloque-12-venta-recuperada-*.png` |
 | **6** | **Dólares — cerrado**: el saldo por moneda se **persiste** al cerrar (`Shift.expectedByCurrency` + `cashSalesAmount`, Bloque 1.1) y se muestra en el detalle; sin arrastre automático entre turnos, por diseño | `7ff20e0`, `fcc0691` | `bloque-1-cierre-detalle-*.png` |
 | **1.6** | **Comprobante de cierre (DIFERENTE)**: no hay PDF generado en el servidor; el cierre se imprime o se guarda como PDF desde la hoja del sistema (`shift-close-sheet.ts` + «Imprimir cierre», Bloque 13.3) | `d2a06f3` | `bloque-13-hoja-cierre-impresa-*.png` |
-| **Alertas Telegram** (Parte 3 del brief del 2026-09-17) | **Sección nueva**: tabla `NotificationSettings` (chat, eventos, umbrales, último envío/error), gateway propio contra `api.telegram.org` (fetch nativo, sin dependencias, con el token **solo** por entorno y los motivos de fallo traducidos), casos de uso (leer, guardar, **probar conexión real**), rutas `GET/PATCH /api/admin/settings/notifications` + `POST …/test` (solo owner) y la pantalla `/admin/settings/notifications` | `pendiente` en este commit | `alertas-telegram-*.png` |
+| **Alertas Telegram** (Parte 3 del brief del 2026-09-17) | **Sección nueva**: tabla `NotificationSettings` (chat, eventos, umbrales, último envío/error), gateway propio contra `api.telegram.org` (fetch nativo, sin dependencias, con el token **solo** por entorno y los motivos de fallo traducidos), casos de uso (leer, guardar, **probar conexión real**), rutas `GET/PATCH /api/admin/settings/notifications` + `POST …/test` (solo owner) y la pantalla `/admin/settings/notifications` | `516b2d5`, `733c87e`, `a018581` | `alertas-telegram-*.png` |
+| **Tarea 1 del brief** (2026-09-17) | **POS limpio, caja aparte**: el arqueo salió del POS (`pos-client.tsx` 1029 → 870 líneas, con el estado de la caja y el enlace) y vive en `/admin/cash` (`cash-drawer-panel.tsx`), con dos mitades y dos permisos: **operar** (`canUsePOS`) y **auditar** (`canViewCashHistory`) | `5871131` | `bloque-8-caja-del-dia-*.png` |
+| **Tarea 2 del brief** | **Límite de retiro configurable y sin aprobación**: `BusinessSettings.withdrawalLimit` + `CashMovement.withdrawalLimitAmount` (el vigente **congelado** al registrar), regla `isOverWithdrawalLimit` (estricta y solo para retiros) y el aviso «Sobre el límite de C$X» en el historial | `a1babfe` | `bloque-2-movimientos-*.png` |
+| **Tarea 3 del brief** | **Cierre obligatorio por sucursal**: `Location.requireShiftClose` + `mustCloseShiftBeforeCharging`; con la caja de otro día abierta, el POS no cobra y explica por qué | `2431f02` | `bloque-9-cobro-bloqueado-*.png` |
+| **Tareas 5 y 6 del brief** | **Qué ve quien cierra**: el operario ve «Cierre registrado», el id del turno y la diferencia; quien audita ve además contado, esperado y el detalle por moneda. Sin cierre ciego (decisión del owner: la diferencia se ve al cerrar) | `731aa4d` | `bloque-1-cierre-detalle-*.png` |
+| **Tarea 9 del brief** | **Solo el dueño aprueba devoluciones**: `canApproveRefund` (owner) en las rutas y en la pantalla, y `requestRefund` nace **siempre** `pending`: nadie aprueba la propia (un owner que pide una devolución no puede aprobarla) | `dea1e38` | `bloque-3-aprobaciones-*.png` |
+| **Tarea 7 del brief** | **Corte X y traspaso de caja (1.12/1.13)**: `previewShiftArqueo` (la **misma** cuenta que el cierre, sin cerrar el turno) + `GET /api/admin/pos/shift/x`, el papel `shift-x-sheet.ts` con dos firmas y la aclaración de que **no** cierra la caja, y el **traspaso guardado**: tabla `ShiftHandover` (migración `20260918110000`, esperado congelado), `registerShiftHandover`/`listShiftHandovers`, `GET/POST /api/admin/pos/shift/handover`, acción auditada `shift.handover` y el panel en Caja del día | este mismo commit | `tarea-7-*.png` |
 
 **Alertas Telegram — qué falta del brief**: el **resumen diario** (toggle «Cierre del día») todavía no se
 dispara solo: necesita la regla de la hora de cierre, así que su descripción en la pantalla lo dice. Los
 otros tres eventos **sí** quedan registrados: devolución grande y diferencia de caja al momento de la
 operación, y el barrido de cajas abiertas >24 h desde el proceso periódico del outbox (una sola vez por
-turno). Falta además, de la lista confirmada del owner, las tareas 1, 2, 3, 5, 6, 7, 9, 10 y 11.
+turno). De la lista confirmada del owner ya están las tareas 1, 2, 3, 5, 6, 7 y 9; **faltan la 10
+(conciliación de tarjeta/transferencia exportable) y la 11 (idempotencia del cobro offline con UUID)**.
+
+**Tarea 7 — las dos decisiones que tomé** (el owner las confirma o las cambia):
+
+1. **El traspaso se guarda**, no queda solo en el papel firmado: `ShiftHandover` con el esperado
+   **congelado** (recalcularlo después diría un número que nadie firmó) y los dos nombres. Es lo que
+   permite reconstruir quién tenía la plata en un turno largo, y lo que el detalle del cierre muestra
+   después de cerrar. La alternativa —papel firmado y nada más— era más barata pero dejaba el traspaso
+   fuera del sistema, que es justo lo que el inventario marcaba como ausente en 1.13.
+2. **Recibe una persona con nombre escrito**, no un usuario del panel: en el mostrador el que sigue no
+   siempre tiene cuenta, y trabarla en un usuario sería inventar producto. La regla
+   `resolveHandoverReceiver` exige el nombre (no vacío, ≤80 caracteres) y rechaza el de quien entrega
+   —nadie se entrega la caja a sí mismo—. Si el owner prefiere que reciba un usuario del panel, el campo
+   ya convive con `handedByUserId` y el cambio es acotado.
 
 **Bloque 13 — cerrado** (2026-09-18). **13.1**: el log se escribe desde las rutas reales (verificado
 en la base durante la corrida de E2E: `shift.open`, `shift.close`, `cash_movement.create`); para que

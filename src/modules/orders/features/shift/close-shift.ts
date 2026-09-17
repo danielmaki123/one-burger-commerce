@@ -137,7 +137,14 @@ export async function closeShift(
  * efectivo** (Bloque 3: la plata que se le devolvió al cliente salió del cajón). La tarjeta se cuenta
  * aparte y no entra acá: no está en el cajón.
  */
-async function calculateExpectedAmount(
+/**
+ * El arqueo de un turno para una **ventana** de tiempo, sin cerrarlo.
+ *
+ * Tarea 7 del brief (2026-09-17) — se exporta para el **corte X** (1.12): una lectura parcial del turno
+ * abierto usa exactamente esta cuenta, así el papel del corte y el del cierre no pueden discrepar. El
+ * cierre la llama con `closedAt = ahora`; el corte X, con la misma ventana.
+ */
+export async function calculateExpectedAmount(
   window: {
     shiftId: string;
     locationId: string;
