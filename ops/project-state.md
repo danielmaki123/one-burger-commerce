@@ -1,8 +1,11 @@
 # Estado del proyecto — One Burger Commerce
 
-> Actualizado: 2026-09-17 · Último deploy a producción: 2026-09-17, commit `df938ee` (build
-> `build-20260917-164732`, deploy por API sobre el servicio `oneburguerweb`, acción `done`; readiness
-> `ready` con la base en 1 ms y los dos smokes en verde: menú 7/7 y hosts 6/6). Lleva el **panel entero migrado al sistema Stitch** —Fase 1 (tokens, tipografías,
+> Actualizado: 2026-09-17 · Último deploy a producción: 2026-09-17, commit `1dfd051` (build
+> `build-20260917-170108`, deploy por API sobre el servicio `oneburguerweb`, acción `done`; readiness
+> `ready` con la base en 3 ms y los dos smokes en verde: menú 7/7 y hosts 6/6). Ese build incluye también
+> la configuración de las **alertas Telegram** (driver `telegram_alerts`, token del bot y scheduler del
+> outbox por entorno), con el grupo del negocio cargado y la conexión probada con un mensaje real
+> (`Conectado`, captura en `ops/tasks/audit-ui/alertas-telegram-produccion-1280.png`). Lleva el **panel entero migrado al sistema Stitch** —Fase 1 (tokens, tipografías,
 > estados y contraste), Fase 2 (las 7 pantallas) y la segunda pasada (los modales y las pantallas
 > secundarias: Inventario, Zonas, Promos, Menú, catálogo por local y detalle de orden)— más el
 > **horario único por sucursal** (Personalización dejó de editarlo). Ver `ops/DESIGN_LOG.md` (entry
@@ -20,7 +23,9 @@
 >
 > **Ronda del brief 2026-09-17 (cerrada)**: alertas por **Telegram** (pantalla
 > `/admin/settings/notifications`, tabla `NotificationSettings`, token por entorno, prueba de conexión
-> real y tres disparadores) y las tareas de caja del POS con decisión del owner: **1** (POS limpio y caja
+> real y tres disparadores), **configuradas y probadas en producción** (grupo cargado, eventos «turno sin
+> cerrar >24 h» y «devolución grande» prendidos; el resumen del día sigue apagado: necesita la hora de
+> cierre) y las tareas de caja del POS con decisión del owner: **1** (POS limpio y caja
 > aparte), **2** (límite de retiro configurable sin aprobación), **3** (cierre obligatorio por sucursal),
 > **5/6** (qué ve el operario al cerrar, sin cierre ciego), **7** (corte X y traspaso de caja entre
 > cajeros), **9** (solo el dueño aprueba devoluciones), **10** (conciliación de tarjeta y transferencia
