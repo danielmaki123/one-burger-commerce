@@ -60,6 +60,28 @@ try {
     await page.waitForTimeout(600);
     await shot(page, "bloque-1-cierre-detalle", viewport.name);
 
+    // Bloque 13.3: el botón que imprime la hoja de cierre y **la hoja** (el papel que se firma, con el
+    // nombre de quien cerró). Se captura la ventana de impresión tal como sale, sin retocar nada.
+    const closedShiftId = await firstClosedShiftId(page);
+    if (closedShiftId) {
+      await page.goto(`${baseUrl}/admin/cash/history/${closedShiftId}`, {
+        waitUntil: "domcontentloaded",
+      });
+      await page.waitForSelector('[aria-label="Arqueo del cierre"]', { timeout: 30_000 });
+      await page.waitForTimeout(400);
+      await shot(page, "bloque-13-boton-imprimir-cierre", viewport.name);
+
+      const [hoja] = await Promise.all([
+        page.waitForEvent("popup"),
+        page.getByRole("button", { name: "Imprimir cierre" }).click(),
+      ]);
+      await hoja.waitForLoadState("domcontentloaded");
+      await hoja.setViewportSize({ width: 420, height: 900 });
+      await hoja.waitForTimeout(400);
+      await shot(hoja, "bloque-13-hoja-cierre-impresa", viewport.name);
+      await hoja.close();
+    }
+
     // Bloque 2: los movimientos del turno, con su alta.
     await page.evaluate(() => {
       document
@@ -108,6 +130,28 @@ try {
         );
         const shifts = (await shiftsResponse.json()).data ?? [];
         if (shifts.length) return shifts[0].id;
+      }
+
+      return null;
+    });
+  }
+
+  /** Un turno cerrado con arqueo: es el único que tiene hoja de cierre para firmar (Bloque 13.3). */
+  async function firstClosedShiftId(target) {
+    return target.evaluate(async () => {
+      const locationsResponse = await fetch("/api/admin/locations", { cache: "no-store" });
+      const locations = (await locationsResponse.json()).data ?? [];
+
+      for (const location of locations) {
+        const shiftsResponse = await fetch(
+          `/api/admin/cash/shifts?locationId=${encodeURIComponent(location.id)}`,
+          { cache: "no-store" },
+        );
+        const shifts = (await shiftsResponse.json()).data ?? [];
+        const closed = shifts.find(
+          (shift) => shift.status === "closed" && shift.closingAmount !== null,
+        );
+        if (closed) return closed.id;
       }
 
       return null;

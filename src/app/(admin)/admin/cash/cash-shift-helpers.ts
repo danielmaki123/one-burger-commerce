@@ -66,27 +66,10 @@ export function summarizeShifts(shifts: Pick<ShiftRecord, "closingAmount" | "dif
 /**
  * Fecha y hora del turno **en la zona del negocio**, no en la del navegador.
  *
- * El día de caja es el del negocio (misma regla que el tablero de «Hoy»): un cierre de las 23:40 en
- * Managua no puede mostrarse como del día siguiente porque el cajero abrió la pantalla en Madrid.
+ * La implementación vive en `src/shared/lib/shift-datetime.ts` desde el Bloque 13.3: la hoja de cierre
+ * la imprime en el papel y el export CSV la usa, así que pantalla, papel y export dicen la misma hora.
  */
-export function formatShiftDateTime(
-  iso: string | null,
-  options: { timezone: string; locale: string },
-): string {
-  if (!iso) return "—";
-
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return "—";
-
-  return new Intl.DateTimeFormat(options.locale, {
-    timeZone: options.timezone,
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(date);
-}
+export { formatShiftDateTime } from "@/shared/lib/shift-datetime";
 
 /** La fecha de caja (sin hora) para agrupar y titular el historial. */
 export function formatShiftDate(

@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 
 import { requireCashScope } from "@/app/api/admin/cash/cash-route-helpers";
 import { canViewCashHistory } from "@/modules/auth/domain/admin-permissions";
+import { PrismaAdminAuthRepository } from "@/modules/auth/adapters/prisma-admin-auth-repository";
 import { loadBusinessSettings } from "@/modules/business-settings/features/get-public-business-settings/get-public-business-settings";
 import { PrismaBusinessSettingsRepository } from "@/modules/business-settings/adapters/prisma-business-settings-repository";
 import { requireAdminSession } from "@/modules/auth/features/require-admin-session/require-admin-session";
@@ -10,9 +11,11 @@ import { PrismaCashMovementRepository } from "@/modules/orders/adapters/prisma-c
 import { PrismaShiftRepository } from "@/modules/orders/adapters/prisma-shift-repository";
 import { formatCurrency } from "@/shared/lib/format-currency";
 import { roundCurrency } from "@/shared/lib/order-totals";
+import { buildShiftCloseSheet } from "@/shared/lib/shift-close-sheet";
 
 import { AdminPageHeader } from "../../../_components/admin-operational-ui";
 import CashMovementsPanel from "../../cash-movements-panel";
+import ShiftCloseSheetButton from "../../shift-close-sheet-button";
 import {
   CASH_DIFFERENCE_LABEL,
   countsTotalOf,
@@ -76,7 +79,6 @@ export default async function AdminCashShiftDetailPage({
   const tone = getCashDifferenceTone(shift);
   const locationName =
     locations.find((location) => location.id === shift.locationId)?.name ?? shift.locationId;
-  const expectedByCurrencyEntries = Object.entries(shift.expectedByCurrency ?? {});
   const movements = await new PrismaCashMovementRepository().listByShift(shift.id);
   // Las monedas del alta: las que se contaron y las que ya se movieron, más la del negocio.
   const countedCurrencies = [
@@ -86,6 +88,56 @@ export default async function AdminCashShiftDetailPage({
       ...movements.map((movement) => movement.currency),
     ]),
   ];
+
+  /**
+   * Bloque 13.3 — la hoja que se firma sale de los **mismos** números que la pantalla: el arqueo por
+   * moneda se calcula una sola vez acá y lo consumen el detalle y el papel. El firmante se resuelve a
+   * nombre (una firma con el id de la sesión no la firma nadie) y si la cuenta ya no existe queda «—».
+   */
+  const currencyRows = Object.entries(shift.expectedByCurrency ?? {}).map(([currency, expected]) => {
+    const counted = countsTotalOf(counts, currency, "closing");
+
+    return {
+      currency,
+      expected,
+      counted,
+      difference: counted === null ? null : roundCurrency(counted - expected),
+    };
+  });
+  const closedBy = await new PrismaAdminAuthRepository().findUserById(shift.userId);
+  const closeSheet = buildShiftCloseSheet(
+    {
+      status: shift.status,
+      openedAt: shift.openedAt,
+      closedAt: shift.closedAt,
+      locationName,
+      notes: shift.notes ?? null,
+      countLines: countsToValues(counts, "closing").map((count) => ({
+        currency: count.currency,
+        denomination: count.denomination,
+        quantity: count.quantity,
+        amount: count.denomination * count.quantity,
+      })),
+      currencyRows,
+      totals: {
+        opening: shift.openingAmount,
+        counted: shift.closingAmount ?? null,
+        expected: shift.expectedAmount ?? null,
+        difference: shift.difference ?? null,
+        cashSales: shift.cashSalesAmount ?? null,
+        movements: shift.cashMovementsAmount ?? null,
+        refunds: shift.refundsAmount ?? null,
+      },
+      closedByName: closedBy?.name ?? null,
+    },
+    {
+      businessName: settings.name,
+      timezone: settings.timezone,
+      locale: settings.locale,
+      currencyCode: settings.currencyCode,
+      currencySymbol: settings.currencySymbol,
+    },
+  );
 
   /**
    * Un conteo en otra moneda se muestra con **su** código, no con el símbolo del negocio: `US$30`
@@ -105,7 +157,7 @@ export default async function AdminCashShiftDetailPage({
           timezone: settings.timezone,
           locale: settings.locale,
         })}
-        description={`${locationName} · turno ${shift.status === "open" ? "abierto" : "cerrado"} · responsable ${shift.userId}`}
+        description={`${locationName} · turno ${shift.status === "open" ? "abierto" : "cerrado"} · cerró ${closedBy?.name ?? "—"}`}
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <Link
@@ -114,6 +166,8 @@ export default async function AdminCashShiftDetailPage({
             >
               Volver a Caja del día
             </Link>
+            {/* Bloque 13.3: la hoja de cierre, con el nombre de quien cierra y su línea de firma. */}
+            <ShiftCloseSheetButton lines={closeSheet} />
             {/* Bloque 1.10: solo un turno cerrado se puede reabrir (y no siempre: ver el detalle). */}
             {shift.status === "closed" ? <ShiftReopenForm shiftId={shift.id} /> : null}
           </div>
@@ -231,7 +285,7 @@ export default async function AdminCashShiftDetailPage({
       >
         <h2 className="text-st-h2 text-ink">Por moneda</h2>
 
-        {expectedByCurrencyEntries.length === 0 ? (
+        {currencyRows.length === 0 ? (
           <p className="text-st-body text-ink-secondary">
             Este cierre no tiene el detalle por moneda guardado (es anterior a que se persistiera el
             arqueo). El total esperado quedó congelado al cerrar:{" "}
@@ -242,43 +296,38 @@ export default async function AdminCashShiftDetailPage({
           </p>
         ) : (
           <ul className="space-y-2">
-            {expectedByCurrencyEntries.map(([currency, expected]) => {
-              const counted = countsTotalOf(counts, currency, "closing");
-              const delta = counted === null ? null : roundCurrency(counted - expected);
-
-              return (
-                <li
-                  key={currency}
-                  className="flex flex-wrap items-baseline justify-between gap-3 border-b border-line-subtle pb-2 last:border-b-0"
-                >
-                  <span className="font-semibold text-ink">{currency}</span>
-                  <span className="space-x-4 text-st-body text-ink-secondary">
-                    <span>
-                      Esperado{" "}
-                      <span className="font-mono tabular-nums text-ink">
-                        {formatCurrency(expected, currencyFormatFor(currency))}
-                      </span>
-                    </span>
-                    <span>
-                      Contado{" "}
-                      <span className="font-mono tabular-nums text-ink">
-                        {counted === null
-                          ? "—"
-                          : formatCurrency(counted, currencyFormatFor(currency))}
-                      </span>
-                    </span>
-                    <span>
-                      Diferencia{" "}
-                      <span className="font-mono tabular-nums font-semibold text-ink">
-                        {delta === null
-                          ? "—"
-                          : `${delta === 0 ? "" : delta > 0 ? "+" : "-"}${formatCurrency(Math.abs(delta), currencyFormatFor(currency))}`}
-                      </span>
+            {currencyRows.map((row) => (
+              <li
+                key={row.currency}
+                className="flex flex-wrap items-baseline justify-between gap-3 border-b border-line-subtle pb-2 last:border-b-0"
+              >
+                <span className="font-semibold text-ink">{row.currency}</span>
+                <span className="space-x-4 text-st-body text-ink-secondary">
+                  <span>
+                    Esperado{" "}
+                    <span className="font-mono tabular-nums text-ink">
+                      {formatCurrency(row.expected, currencyFormatFor(row.currency))}
                     </span>
                   </span>
-                </li>
-              );
-            })}
+                  <span>
+                    Contado{" "}
+                    <span className="font-mono tabular-nums text-ink">
+                      {row.counted === null
+                        ? "—"
+                        : formatCurrency(row.counted, currencyFormatFor(row.currency))}
+                    </span>
+                  </span>
+                  <span>
+                    Diferencia{" "}
+                    <span className="font-mono tabular-nums font-semibold text-ink">
+                      {row.difference === null
+                        ? "—"
+                        : `${row.difference === 0 ? "" : row.difference > 0 ? "+" : "-"}${formatCurrency(Math.abs(row.difference), currencyFormatFor(row.currency))}`}
+                    </span>
+                  </span>
+                </span>
+              </li>
+            ))}
           </ul>
         )}
 

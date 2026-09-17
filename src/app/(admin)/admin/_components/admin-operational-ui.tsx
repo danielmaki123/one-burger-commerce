@@ -89,7 +89,9 @@ export function AdminPageHeader({
             {description}
           </p>
         </div>
-        {actions ? <div className="shrink-0">{actions}</div> : null}
+        {/* Las acciones ocupan el ancho en celular: con `shrink-0` el bloque conservaba su ancho
+            máximo y una fila de tres acciones se salía de la pantalla a 375 px en lugar de envolver. */}
+        {actions ? <div className="w-full shrink-0 sm:w-auto">{actions}</div> : null}
       </div>
     </section>
   );

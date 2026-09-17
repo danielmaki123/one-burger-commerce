@@ -33,6 +33,30 @@ async function firstShiftId(page: import("@playwright/test").Page): Promise<stri
   });
 }
 
+/** Un turno **cerrado** con arqueo: es el único que tiene hoja de cierre que firmar (13.3). */
+async function closedShiftId(page: import("@playwright/test").Page): Promise<string | null> {
+  return page.evaluate(async () => {
+    const locationsResponse = await fetch("/api/admin/locations", { cache: "no-store" });
+    const locations = (await locationsResponse.json()).data ?? [];
+
+    for (const location of locations) {
+      const shiftsResponse = await fetch(
+        `/api/admin/cash/shifts?locationId=${encodeURIComponent(location.id)}`,
+        { cache: "no-store" },
+      );
+      const shifts = (await shiftsResponse.json()).data ?? [];
+      const closed = shifts.find(
+        (shift: { status: string; closingAmount: number | null }) =>
+          shift.status === "closed" && shift.closingAmount !== null,
+      );
+
+      if (closed) return closed.id as string;
+    }
+
+    return null;
+  });
+}
+
 test.describe("caja del día", () => {
   test("el historial lista los turnos y no tiene scroll horizontal a 375 px", async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 812 });
@@ -137,5 +161,53 @@ test.describe("caja del día", () => {
     await expect(
       page.getByText(/Movimientos del turno \(retiros restan, ingresos suman\)/),
     ).toBeVisible();
+  });
+
+  /**
+   * Bloque 13.3 del roadmap del POS (Fase 2) — la hoja de cierre que se imprime y se firma.
+   *
+   * El cierre de caja es el único documento del turno que termina firmado: el papel tiene que decir el
+   * arqueo y **quién cierra**, con nombre. El nombre se lee de la cabecera de la pantalla y se compara
+   * con el que sale en la hoja: si la pantalla y el papel dijeran cosas distintas, el que firma no
+   * sabría qué firmó. Se imprime en una ventana nueva (la del sistema, sin dependencias).
+   */
+  test("la hoja de cierre se imprime con el nombre de quien cierra", async ({ page }) => {
+    await loginAsOwner(page);
+
+    const shiftId = await closedShiftId(page);
+    expect(shiftId, "la base local tiene un turno cerrado con arqueo").toBeTruthy();
+
+    await page.goto(`/admin/cash/history/${shiftId}`);
+
+    // 375 px: las tres acciones de la cabecera tienen que **envolver**, no salirse de la pantalla.
+    await page.setViewportSize({ width: 375, height: 812 });
+    await expect(page.getByRole("button", { name: "Imprimir cierre" })).toBeVisible();
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      ),
+    ).toBeLessThanOrEqual(1);
+
+    await page.setViewportSize({ width: 1280, height: 900 });
+
+    const descripcion = await page.getByText(/· cerró /).first().textContent();
+    const nombre = descripcion?.split("cerró")[1]?.trim();
+    expect(nombre, "el cierre tiene un responsable con nombre").toBeTruthy();
+    // Una firma con «—» no la firma nadie: la pantalla tiene el nombre del usuario que cerró.
+    expect(nombre).not.toBe("—");
+
+    const [hoja] = await Promise.all([
+      page.waitForEvent("popup"),
+      page.getByRole("button", { name: "Imprimir cierre" }).click(),
+    ]);
+    await hoja.waitForLoadState("domcontentloaded");
+
+    const texto = (await hoja.locator("pre").textContent()) ?? "";
+
+    expect(texto).toContain("CIERRE DE CAJA");
+    expect(texto).toContain(`Cerró: ${nombre}`);
+    expect(texto).toContain("Firma: ___");
+    // Un 500 de Next en el detalle mostraría esto: el spec vino a atrapar esa clase de fallo.
+    await expect(page.getByText("A server error occurred")).toHaveCount(0);
   });
 });
