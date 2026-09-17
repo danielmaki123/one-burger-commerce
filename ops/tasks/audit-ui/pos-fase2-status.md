@@ -21,6 +21,13 @@
 5. **1.11 cierre ciego** — ¿lo habilita el owner por configuración o depende del rol que cierra?
 6. **1.9 el operario no ve detalles al cerrar** — ¿qué exactamente no ve: el esperado, la diferencia o
    ambos?
+7. **3.7 aviso al dueño si la devolución supera X** — falta el **monto** del umbral y el canal: hoy no
+   hay notificación externa (`NOTIFICATIONS_DRIVER=dummy`), así que un aviso real necesita decidir si
+   vuelve Telegram, correo u otra cosa.
+8. **Bloque 3.2, doble control** — hoy **quien tiene `canManageCash` y pide la devolución la deja
+   aprobada de una**; el cajero siempre queda pendiente. Si el owner quiere que **nadie** apruebe la
+   suya (ni el manager), es un cambio de una línea y hay que decirlo: hoy el caso de uso prioriza que
+   la devolución no quede trabada sin nadie que la firme.
 
 ## Registro de bloques cerrados en la ronda de implementación
 
@@ -30,11 +37,11 @@
 | **1** | `expectedByCurrency` y `cashSalesAmount` persistidos, historial y detalle del cierre, reapertura firmada | `7ff20e0`, `fcc0691` | `bloque-1-cierre-detalle-*.png` |
 | **9.2** | Sin caja abierta no se cobra (409 en el servidor + botón bloqueado y motivo en pantalla) | `50ac7f2` | `bloque-9-cobro-bloqueado-*.png` |
 | **2** | `CashMovement` (retiro/ingreso con categoría, motivo y responsable), afecta el esperado por moneda y el `cashMovementsAmount` del cierre, rutas y UI con historial | `eb2f7f6` | `bloque-2-movimientos-*.png` |
-| **3 (parcial)** | Modelo `Refund` (total/parcial, estado, medio original, firma), resta al arqueo solo lo **aprobado en efectivo**, casos de uso `requestRefund`/`reviewRefund` (no se devuelve más de lo cobrado; nadie firma su propia devolución) y **cancelar un pedido cobrado deja la devolución pendiente y avisa** (A-15) | `32a8eb1`, `7f60017` | falta la captura (rutas y UI pendientes) |
+| **3** | Modelo `Refund` (total/parcial, estado, medio original, firma), resta al arqueo solo lo **aprobado en efectivo**, casos de uso `requestRefund`/`reviewRefund` (no se devuelve más de lo cobrado; nadie firma su propia devolución), **void del cobro** (devolución total), **cancelar un pedido cobrado deja la devolución pendiente y avisa** (A-15) y `/admin/approvals` con la cola real | `32a8eb1`, `7f60017`, `3a9fb82` | `bloque-3-aprobaciones-*.png` |
 
-**Bloque 3 — lo que falta** (siguiente ronda): **void** desde el cobro en el POS, rutas
-(`/api/admin/refunds`, `/api/admin/approvals`) y `/admin/approvals` con la cola real en lugar del
-estado vacío.
+**Bloque 3 — lo que queda fuera a propósito:** **3.7** (aviso al dueño si la devolución supera X monto)
+necesita el **monto** y el canal (hoy no hay notificación externa: `NOTIFICATIONS_DRIVER=dummy`). Va a
+«Requiere decisión».
 
 > **Qué es.** El inventario medido de los **13 bloques / 70 tareas** del roadmap
 > [`ops/tasks/pos-roadmap.md`](../pos-roadmap.md), contra el código de este repo. **No propone cambios,
