@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  ADMIN_NAV_GROUPS,
   getAdminDesktopFocusTargetIndex,
   getAdminNavGroups,
   getFocusTrapTargetIndex,
@@ -65,6 +66,31 @@ describe("admin layout helpers", () => {
     expect(flattenNav("kitchen")).not.toContainEqual(
       expect.objectContaining({ href: "/admin/locations" }),
     );
+  });
+
+  /**
+   * Decisión del owner (2026-09-17) — **«Alertas» vive en Configuración**, con las otras pantallas del
+   * negocio: antes solo se llegaba por un enlace dentro de Personalización. La sección es del owner (la
+   * pantalla redirige al resto), así que la entrada tampoco se le ofrece a los otros roles.
+   */
+  it("«Alertas» está en Configuración y la ve solo el owner", () => {
+    expect(flattenNav("owner")).toContainEqual(
+      expect.objectContaining({
+        href: "/admin/settings/notifications",
+        label: "Alertas",
+        description: "Notificaciones y avisos",
+      }),
+    );
+    expect(
+      ADMIN_NAV_GROUPS.find((group) => group.label === "Configuración")?.items.map((item) => item.href),
+    ).toContain("/admin/settings/notifications");
+
+    for (const role of ["manager", "cashier", "kitchen"] as const) {
+      expect(groupLabels(role)).not.toContain("Configuración");
+      expect(flattenNavWithPos(role)).not.toContainEqual(
+        expect.objectContaining({ href: "/admin/settings/notifications" }),
+      );
+    }
   });
 
   it("lets kitchen see only orders", () => {

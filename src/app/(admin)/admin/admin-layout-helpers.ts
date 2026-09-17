@@ -1,4 +1,5 @@
 import {
+  Bell,
   Calculator,
   ClipboardList,
   LayoutDashboard,
@@ -53,6 +54,17 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
       { href: "/admin/locations", label: "Locales", description: "Retiro, horario y contacto", icon: MapPin },
       { href: "/admin/users", label: "Usuarios", description: "Roles y accesos", icon: Users },
       { href: "/admin/settings", label: "Personalización", description: "Marca y operación", icon: Settings },
+      /**
+       * Decisión del owner (2026-09-17) — las **alertas** son una pantalla del negocio, no un rincón de
+       * Personalización: se llega desde el sidebar como cualquier otra configuración (antes solo había un
+       * enlace adentro de Personalización). Es del owner, así que tampoco se le ofrece a los otros roles.
+       */
+      {
+        href: "/admin/settings/notifications",
+        label: "Alertas",
+        description: "Notificaciones y avisos",
+        icon: Bell,
+      },
     ],
   },
 ];
