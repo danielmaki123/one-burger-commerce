@@ -1,3 +1,4 @@
+import { paidOrderCancelledAudit } from "@/app/api/admin/audit-action-helpers";
 import { PrismaOrderRepository } from "@/modules/orders/adapters/prisma-order-repository";
 import { PrismaPaymentRepository } from "@/modules/orders/adapters/prisma-payment-repository";
 import { PrismaRefundRepository } from "@/modules/orders/adapters/prisma-refund-repository";
@@ -10,14 +11,17 @@ import { updateOrderStatus } from "@/modules/orders/features/update-order-status
  * composición es la que necesita el bloque: al cancelar un pedido **cobrado**, los cobros entran para
  * dejar la devolución pendiente y el aviso al admin (A-15 del backlog de UI). Antes el cobro de un
  * pedido cancelado seguía contando en el arqueo y nadie se enteraba.
+ *
+ * Bloque 13.1: si el caso de uso creó devoluciones, la cancelación queda firmada con cuánta plata hay que
+ * devolver. Un pedido sin cobros se cancela igual y no firma nada: no hay nada que explicar.
  */
-export function applyOrderStatusChange(input: {
+export async function applyOrderStatusChange(input: {
   orderId: string;
   status: string;
   note?: string | null;
   changedByUserId: string;
 }) {
-  return updateOrderStatus(
+  const result = await updateOrderStatus(
     input.orderId,
     {
       status: input.status,
@@ -30,4 +34,14 @@ export function applyOrderStatusChange(input: {
       refundRepository: new PrismaRefundRepository(),
     },
   );
+
+  if ((result.meta?.refundsRequested ?? 0) > 0) {
+    await paidOrderCancelledAudit({
+      actorUserId: input.changedByUserId,
+      orderId: input.orderId,
+      refundsRequested: result.meta?.refundsRequested ?? 0,
+    });
+  }
+
+  return result;
 }

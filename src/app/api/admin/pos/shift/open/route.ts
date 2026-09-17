@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { shiftOpenAudit } from "@/app/api/admin/audit-action-helpers";
 import { assertCanUsePos, requirePosLocation } from "@/app/api/admin/pos/pos-route-helpers";
 import { parseShiftCashPayload } from "@/app/api/admin/pos/shift/shift-payload";
 import { requireAdminSession } from "@/modules/auth/features/require-admin-session/require-admin-session";
@@ -26,6 +27,14 @@ export async function POST(request: Request) {
       { locationId, userId: session.user.id, openingCounts: counts, notes },
       await createProductionPosShiftDependencies(),
     );
+
+    // Bloque 13.1: abrir la caja queda firmado con quién la abrió y con qué fondo.
+    await shiftOpenAudit({
+      actorUserId: session.user.id,
+      shiftId: result.data.id,
+      locationId,
+      openingAmount: result.data.openingAmount,
+    });
 
     return NextResponse.json(result, {
       status: 201,

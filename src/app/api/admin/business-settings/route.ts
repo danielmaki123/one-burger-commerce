@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 
+import { updateBusinessSettingsAudited } from "@/app/api/admin/business-settings-composition";
 import { canManageBusinessSettings } from "@/modules/auth/domain/admin-permissions";
 import { requireAdminSession } from "@/modules/auth/features/require-admin-session/require-admin-session";
 import { PrismaBusinessSettingsRepository } from "@/modules/business-settings/adapters/prisma-business-settings-repository";
 import { getBusinessSettings } from "@/modules/business-settings/features/get-business-settings/get-business-settings";
-import { updateBusinessSettings } from "@/modules/business-settings/features/update-business-settings/update-business-settings";
 import { createErrorResponse } from "@/shared/lib/http/error-response";
 
 function forbiddenResponse() {
@@ -64,10 +64,7 @@ export async function PUT(request: Request) {
       );
     }
 
-    const settings = await updateBusinessSettings(payload, {
-      repository: new PrismaBusinessSettingsRepository(),
-      updatedByUserId: session.user.id,
-    });
+    const settings = await updateBusinessSettingsAudited(payload, session.user.id);
 
     return NextResponse.json(settings);
   } catch (error) {

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { shiftReopenAudit } from "@/app/api/admin/audit-action-helpers";
 import { requireCashScope } from "@/app/api/admin/cash/cash-route-helpers";
 import { assertShiftInScope, parseReopenShiftPayload } from "@/app/api/admin/cash/shifts/reopen-payload";
 import { requireAdminSession } from "@/modules/auth/features/require-admin-session/require-admin-session";
@@ -26,7 +27,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       assignedLocationIds: session.user.locationIds,
     });
     const repository = new PrismaShiftRepository();
-
     assertShiftInScope(
       await repository.findShiftById(id),
       locations.map((location) => location.id),
@@ -36,6 +36,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       { shiftId: id, userId: session.user.id, reason, strict: true },
       { shiftRepository: repository },
     );
+
+    // Bloque 13.1: reabrir una caja cerrada queda firmado (quién y por qué).
+    await shiftReopenAudit({ actorUserId: session.user.id, shiftId: id, reason });
 
     return NextResponse.json({ data: result.data }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {

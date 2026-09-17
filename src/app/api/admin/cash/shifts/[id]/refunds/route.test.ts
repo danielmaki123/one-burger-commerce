@@ -40,6 +40,12 @@ vi.mock("@/modules/orders/adapters/prisma-shift-repository", () => ({
   PrismaShiftRepository: class {},
 }));
 
+const refundRequestAuditMock = vi.fn();
+
+vi.mock("@/app/api/admin/audit-action-helpers", () => ({
+  refundRequestAudit: (input: unknown) => refundRequestAuditMock(input),
+}));
+
 const params = Promise.resolve({ id: "shift_01" });
 
 function post(body: unknown) {
@@ -64,8 +70,14 @@ describe("POST /api/admin/cash/shifts/[id]/refunds", () => {
       user: { id: "user_cashier", role: "cashier", locationIds: [] },
     });
     requireCashShiftIdMock.mockResolvedValue("loc_principal");
-    requestRefundMock.mockImplementation(async (input: unknown) => ({
-      data: { id: "ref_01", status: "pending", ...(input as object) },
+    requestRefundMock.mockImplementation(async (input: { amount: number }) => ({
+      data: {
+        id: "ref_01",
+        orderId: "order_01",
+        amount: input.amount,
+        currency: "NIO",
+        status: "pending",
+      },
     }));
   });
 
@@ -79,6 +91,31 @@ describe("POST /api/admin/cash/shifts/[id]/refunds", () => {
       expect.objectContaining({ canApprove: false, requestedByUserId: "user_cashier" }),
       expect.anything(),
     );
+  });
+
+  it("la devolución pedida queda firmada con su monto y el estado con el que nació", async () => {
+    const { POST } = await import("./route");
+
+    await POST(post(validBody), { params });
+
+    expect(refundRequestAuditMock).toHaveBeenCalledWith({
+      actorUserId: "user_cashier",
+      refundId: "ref_01",
+      orderId: "order_01",
+      amount: 200,
+      currency: "NIO",
+      status: "pending",
+    });
+  });
+
+  it("una devolución que no se creó no se firma (el error corta antes)", async () => {
+    requestRefundMock.mockRejectedValue(new OrderError(422, "VALIDATION_ERROR", "No alcanza."));
+
+    const { POST } = await import("./route");
+    const response = await POST(post(validBody), { params });
+
+    expect(response.status).toBe(422);
+    expect(refundRequestAuditMock).not.toHaveBeenCalled();
   });
 
   it("el manager la deja aprobada de una", async () => {

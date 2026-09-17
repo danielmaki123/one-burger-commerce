@@ -24,6 +24,12 @@ vi.mock("@/modules/orders/features/refund/review-refund/review-refund", () => ({
   reviewRefund: (input: unknown, deps: unknown) => reviewRefundMock(input, deps),
 }));
 
+const refundReviewAuditMock = vi.fn();
+
+vi.mock("@/app/api/admin/audit-action-helpers", () => ({
+  refundReviewAudit: (input: unknown) => refundReviewAuditMock(input),
+}));
+
 const params = Promise.resolve({ id: "ref_01" });
 
 function post(body: unknown) {
@@ -53,6 +59,38 @@ describe("POST /api/admin/approvals/[id]", () => {
       expect.objectContaining({ refundId: "ref_01", reviewedByUserId: "user_manager" }),
       expect.anything(),
     );
+    expect(refundReviewAuditMock).toHaveBeenCalledWith({
+      actorUserId: "user_manager",
+      refundId: "ref_01",
+      decision: "approved",
+      note: null,
+    });
+  });
+
+  it("el rechazo queda firmado con su motivo", async () => {
+    reviewRefundMock.mockResolvedValue({ data: { id: "ref_01", status: "rejected" } });
+
+    const { POST } = await import("./route");
+    await POST(post({ decision: "rejected", note: "El cobro estaba bien" }), { params });
+
+    expect(refundReviewAuditMock).toHaveBeenCalledWith({
+      actorUserId: "user_manager",
+      refundId: "ref_01",
+      decision: "rejected",
+      note: "El cobro estaba bien",
+    });
+  });
+
+  it("una resolución que no pasó no se firma", async () => {
+    reviewRefundMock.mockRejectedValue(
+      new OrderError(409, "CONFLICT", "Esa devolución ya está resuelta."),
+    );
+
+    const { POST } = await import("./route");
+    const response = await POST(post({ decision: "approved" }), { params });
+
+    expect(response.status).toBe(409);
+    expect(refundReviewAuditMock).not.toHaveBeenCalled();
   });
 
   it.each(["cashier", "kitchen"] as const)("%s no resuelve devoluciones: 403", async (role) => {

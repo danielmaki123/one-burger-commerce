@@ -22,6 +22,12 @@ vi.mock("@/modules/business-settings/features/get-business-settings/get-business
   getBusinessSettings: getBusinessSettingsMock,
 }));
 
+const settingsUpdateAuditMock = vi.fn();
+
+vi.mock("@/app/api/admin/audit-action-helpers", () => ({
+  settingsUpdateAudit: (input: unknown) => settingsUpdateAuditMock(input),
+}));
+
 vi.mock(
   "@/modules/business-settings/features/update-business-settings/update-business-settings",
   () => ({
@@ -76,6 +82,7 @@ describe("/api/admin/business-settings", () => {
     expect(read.status).toBe(403);
     expect(write.status).toBe(403);
     expect(updateBusinessSettingsMock).not.toHaveBeenCalled();
+    expect(settingsUpdateAuditMock).not.toHaveBeenCalled();
   });
 
   it("saves the configuration and audits who changed it", async () => {
@@ -94,6 +101,26 @@ describe("/api/admin/business-settings", () => {
       { name: "Burger Nick", tipRate: 15 },
       expect.objectContaining({ updatedByUserId: "admin_1" }),
     );
+    // Bloque 13.1: cambiar la personalización del negocio queda en el log de acciones sensibles.
+    expect(settingsUpdateAuditMock).toHaveBeenCalledWith({ actorUserId: "admin_1" });
+  });
+
+  it("una configuración rechazada por el caso de uso no se firma", async () => {
+    requireAdminSessionMock.mockResolvedValue(sessionWithRole(ADMIN_ROLES.owner));
+    updateBusinessSettingsMock.mockRejectedValue(
+      new BusinessSettingsError(422, "VALIDATION_ERROR", "La configuración tiene errores"),
+    );
+
+    const { PUT } = await import("./route");
+    const response = await PUT(
+      new Request("http://localhost/api/admin/business-settings", {
+        method: "PUT",
+        body: JSON.stringify({ primaryColor: "azul" }),
+      }),
+    );
+
+    expect(response.status).toBe(422);
+    expect(settingsUpdateAuditMock).not.toHaveBeenCalled();
   });
 
   it("maps a validation failure to a 422 with the offending fields", async () => {

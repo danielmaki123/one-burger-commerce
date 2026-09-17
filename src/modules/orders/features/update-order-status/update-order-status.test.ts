@@ -286,7 +286,7 @@ describe("cancelar un pedido cobrado", () => {
   it("deja una devolución pendiente por el cobro y avisa al admin", async () => {
     const { created, deps: dependencies } = deps([payment]);
 
-    await updateOrderStatus(
+    const result = await updateOrderStatus(
       "ord_01",
       { status: "cancelled", note: "Cliente canceló" },
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -300,15 +300,24 @@ describe("cancelar un pedido cobrado", () => {
       status: "pending",
     });
     expect(created[0].reason).toContain("Cliente canceló");
+    // Bloque 13.1: cuántas devoluciones quedaron pendientes es lo que firma la cancelación de un
+    // pedido cobrado. Sin este dato, el asiento no puede distinguir "cancelé un pedido cobrado" de
+    // "cancelé un pedido sin cobrar".
+    expect(result.meta.refundsRequested).toBe(1);
   });
 
   it("un pedido sin cobros se cancela igual, sin devolución pendiente", async () => {
     const { created, deps: dependencies } = deps([]);
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await updateOrderStatus("ord_01", { status: "cancelled", note: "Sin cobro" }, dependencies as any);
+    const result = await updateOrderStatus(
+      "ord_01",
+      { status: "cancelled", note: "Sin cobro" },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      dependencies as any,
+    );
 
     expect(created).toEqual([]);
+    expect(result.meta.refundsRequested).toBe(0);
   });
 
   it("cancelar sin el puerto de cobros sigue funcionando (no es obligatorio)", async () => {

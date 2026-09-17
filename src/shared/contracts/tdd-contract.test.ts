@@ -50,10 +50,8 @@ const EXCEPTIONS: Record<string, string> = {
   "src/app/api/customer/auth/verify-otp/route.ts": "Auth de cliente sin proveedor real (503 en prod).",
   // Rutas del POS previas al gate: cubiertas por E2E (`admin-pos.spec.ts` abre, cobra y cierra de
   // verdad) pero **sin test unitario**. Deuda declarada: el gate las deja pasar para no bloquear el
-  // roadmap, no porque estén bien.
+  // roadmap, no porque estén bien. `open/` y `close/` ya pagaron la suya (2026-09-18, Bloque 13.1).
   "src/app/api/admin/pos/shift/route.ts": "Deuda: cubierta por E2E, sin test unitario.",
-  "src/app/api/admin/pos/shift/open/route.ts": "Deuda: cubierta por E2E, sin test unitario.",
-  "src/app/api/admin/pos/shift/close/route.ts": "Deuda: cubierta por E2E, sin test unitario.",
   "src/app/api/coupons/validate/route.ts": "Deuda: cubierta por E2E del checkout, sin test unitario.",
   "src/app/api/auth/admin/logout/route.ts": "Deuda: cubierta por E2E del panel, sin test unitario.",
 

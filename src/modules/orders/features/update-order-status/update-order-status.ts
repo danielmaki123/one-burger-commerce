@@ -58,6 +58,8 @@ export async function updateOrderStatus(
    * plata todavía está en el cajón hasta que alguien la devuelva y la apruebe, así que el esperado del
    * turno no cambia con la cancelación.
    */
+  let refundsRequested = 0;
+
   if (input.status === "cancelled" && paymentRepository && refundRepository) {
     const payments = await paymentRepository.listPaymentsByOrder(id);
 
@@ -83,6 +85,7 @@ export async function updateOrderStatus(
         approvedByUserId: null,
         approvedAt: null,
       });
+      refundsRequested += 1;
     }
 
     await publish("OrderRefundRequested", { orderId: id, payments: payments.length });
@@ -92,7 +95,9 @@ export async function updateOrderStatus(
 
   return {
     data: updated,
-    meta: { note: normalizedNote ?? undefined },
+    // `refundsRequested` es lo que deja firmar la cancelación de un pedido **cobrado** (Bloque 13.1):
+    // el asiento dice cuánta plata quedó pendiente de devolver, no solo que el pedido se canceló.
+    meta: { note: normalizedNote ?? undefined, refundsRequested },
   };
 }
 

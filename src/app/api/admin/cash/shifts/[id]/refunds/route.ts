@@ -1,12 +1,9 @@
 import { NextResponse } from "next/server";
 
 import { requireCashShiftId } from "@/app/api/admin/cash/cash-route-helpers";
+import { requestShiftRefund } from "@/app/api/admin/cash/shifts/refund-request-composition";
 import { canRefund } from "@/modules/auth/domain/admin-permissions";
 import { requireAdminSession } from "@/modules/auth/features/require-admin-session/require-admin-session";
-import { PrismaPaymentRepository } from "@/modules/orders/adapters/prisma-payment-repository";
-import { PrismaRefundRepository } from "@/modules/orders/adapters/prisma-refund-repository";
-import { PrismaShiftRepository } from "@/modules/orders/adapters/prisma-shift-repository";
-import { requestRefund } from "@/modules/orders/features/refund/request-refund/request-refund";
 import { createErrorResponse } from "@/shared/lib/http/error-response";
 
 import { parseRefundRequestPayload } from "@/app/api/admin/approvals/refunds-payload";
@@ -27,20 +24,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const { id } = await params;
     const payload = parseRefundRequestPayload(await request.json());
     const locationId = await requireCashShiftId({ id });
-    const result = await requestRefund(
-      {
-        ...payload,
-        requestedByUserId: session.user.id,
-        canApprove: canRefund(session.user.role),
-        locationId,
-      },
-      {
-        paymentRepository: new PrismaPaymentRepository(),
-        refundRepository: new PrismaRefundRepository(),
-        shiftRepository: new PrismaShiftRepository(),
-      },
-    );
-    return NextResponse.json({ data: result.data }, { status: 201 });
+    const data = await requestShiftRefund({
+      payload,
+      actorUserId: session.user.id,
+      canApprove: canRefund(session.user.role),
+      locationId,
+    });
+
+    return NextResponse.json({ data }, { status: 201 });
   } catch (error) {
     const response = createErrorResponse(error);
     response.headers.set("Cache-Control", "no-store");

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { refundReviewAudit } from "@/app/api/admin/audit-action-helpers";
 import { canRefund } from "@/modules/auth/domain/admin-permissions";
 import { AuthError } from "@/modules/auth/domain/auth-errors";
 import { requireAdminSession } from "@/modules/auth/features/require-admin-session/require-admin-session";
@@ -12,9 +13,8 @@ import { parseRefundReviewPayload } from "../refunds-payload";
 /**
  * Bloque 3.2 del roadmap del POS (Fase 2) — aprobar o rechazar una devolución.
  *
- * Solo quien administra la caja resuelve, y la resolución queda **firmada** (quién y cuándo). El
- * caso de uso exige que la devolución siga pendiente: una ya resuelta no se vuelve a resolver, porque
- * cambiaría el arqueo de un turno que ya la descontó (o no).
+ * Solo quien administra la caja resuelve, y el caso de uso exige que siga **pendiente**: resolverla dos
+ * veces cambiaría el arqueo de un turno que ya la descontó (o no). Bloque 13.1: queda firmada.
  */
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -34,6 +34,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       },
       { refundRepository: new PrismaRefundRepository() },
     );
+
+    // Bloque 13.1: aprobar y rechazar son acciones distintas, cada una con su asiento.
+    await refundReviewAudit({ actorUserId: session.user.id, refundId: id, ...payload });
 
     return NextResponse.json({ data: result.data }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
