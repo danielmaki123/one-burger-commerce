@@ -4,7 +4,7 @@ import { InMemoryNotificationSettingsRepository } from "@/modules/notifications/
 import type { OutboxRepository } from "@/modules/notifications/ports/outbox-repository";
 
 import {
-  registerDifferenceAlert,
+  registerShiftClosedAlert,
   registerRefundAlert,
   registerShiftOpenTooLongAlerts,
 } from "./register-alert-event";
@@ -27,7 +27,7 @@ function settings(values: Partial<Parameters<typeof InMemoryNotificationSettings
   return new InMemoryNotificationSettingsRepository({
     chatId: "-1001234567890",
     enabled: true,
-    eventsEnabled: ["refund_over_threshold", "cash_difference_over_threshold", "shift_open_over_24h"],
+    eventsEnabled: ["refund_over_threshold", "shift_closed", "shift_open_over_24h"],
     ...values,
   });
 }
@@ -86,91 +86,49 @@ describe("registerRefundAlert", () => {
   });
 });
 
-describe("registerDifferenceAlert", () => {
-  const shift = {
+describe("registerShiftClosedAlert", () => {
+  const cierre = {
     shiftId: "shift_01",
     locationName: "Camino de Oriente",
+    openedAt: "2026-09-18T14:00:00.000Z",
     closedAt: "2026-09-19T02:30:00.000Z",
-    counted: 1400,
-    expected: 1500,
+    closedByName: "María Pérez",
+    ordersCount: 12,
+    cash: 4000,
+    card: 1500,
+    transfer: 500,
+    total: 6000,
+    tips: 120,
     difference: -100,
+    reason: "Faltó vuelto",
   };
 
-  it("sin umbral configurado no se avisa (la decisión del owner es no avisar)", async () => {
+  it("registra el cierre con todo lo que el mensaje necesita", async () => {
     const repository = outbox() as unknown as OutboxRepository;
 
-    const result = await registerDifferenceAlert(shift, {
-      settingsRepository: settings({ differenceAlertThreshold: null }),
-      outboxRepository: repository,
-    });
-
-    expect(result).toEqual({ registered: false });
-    expect(repository.createEvent).not.toHaveBeenCalled();
-  });
-
-  it("una diferencia por encima del umbral se registra", async () => {
-    const repository = outbox() as unknown as OutboxRepository;
-
-    const result = await registerDifferenceAlert(shift, {
-      settingsRepository: settings({ differenceAlertThreshold: 50 }),
-      outboxRepository: repository,
-    });
+    const result = await registerShiftClosedAlert(cierre, { outboxRepository: repository });
 
     expect(result).toEqual({ registered: true });
-    expect(repository.createEvent).toHaveBeenCalledWith(
-      expect.objectContaining({
-        eventType: "cash_difference_over_threshold",
-        aggregateType: "Shift",
-        aggregateId: "shift_01",
-        payload: expect.objectContaining({ difference: -100, threshold: 50 }),
-      }),
-    );
+    expect(repository.createEvent).toHaveBeenCalledWith({
+      eventType: "shift_closed",
+      aggregateType: "Shift",
+      aggregateId: "shift_01",
+      payload: cierre,
+    });
   });
 
-  it("la diferencia se mide en valor absoluto: sobrar también avisa", async () => {
+  it("una caja que cuadra también avisa: es un mensaje por cierre, no por problema", async () => {
     const repository = outbox() as unknown as OutboxRepository;
 
-    const result = await registerDifferenceAlert(
-      { ...shift, difference: 150 },
-      {
-        settingsRepository: settings({ differenceAlertThreshold: 100 }),
-        outboxRepository: repository,
-      },
+    const result = await registerShiftClosedAlert(
+      { ...cierre, difference: 0, reason: null },
+      { outboxRepository: repository },
     );
 
     expect(result).toEqual({ registered: true });
-  });
-
-  it("justo el umbral no avisa: la regla es «mayor a»", async () => {
-    const repository = outbox() as unknown as OutboxRepository;
-
-    const result = await registerDifferenceAlert(
-      { ...shift, difference: -100 },
-      {
-        settingsRepository: settings({ differenceAlertThreshold: 100 }),
-        outboxRepository: repository,
-      },
-    );
-
-    expect(result).toEqual({ registered: false });
-    expect(repository.createEvent).not.toHaveBeenCalled();
-  });
-
-  it("cuadrar (diferencia 0) no avisa aunque el umbral sea 0", async () => {
-    const repository = outbox() as unknown as OutboxRepository;
-
-    const result = await registerDifferenceAlert(
-      { ...shift, difference: 0 },
-      {
-        settingsRepository: settings({ differenceAlertThreshold: 0 }),
-        outboxRepository: repository,
-      },
-    );
-
-    expect(result).toEqual({ registered: false });
+    expect(repository.createEvent).toHaveBeenCalledTimes(1);
   });
 });
-
 describe("registerShiftOpenTooLongAlerts", () => {
   it("registra las cajas abiertas hace más de 24 h, una por turno", async () => {
     const repository = outbox() as unknown as OutboxRepository;

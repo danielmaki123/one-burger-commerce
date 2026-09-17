@@ -10,10 +10,9 @@ import { closePosShiftForRoute } from "../close-shift-composition";
 export const dynamic = "force-dynamic";
 
 /**
- * TASK-305b — cerrar la caja contando lo que hay: el esperado lo calcula el servidor (solo efectivo,
- * dólares convertidos, vuelto descontado) y la respuesta lo trae **por moneda**.
- *
- * El cierre, su firma en el log y el aviso al dueño si la diferencia supera el umbral viven en
+ * TASK-305b + decisión del owner (2026-09-17) — cerrar la caja contando lo que hay: el esperado lo calcula
+ * el servidor (solo efectivo, dólares convertidos, vuelto descontado), la respuesta lo trae **por moneda** y
+ * cada cierre avisa al grupo del dueño. El cierre, su firma en el log y el mensaje viven en
  * `close-shift-composition.ts` (el handler tiene un tope de 50 líneas).
  */
 export async function POST(request: Request) {
@@ -33,6 +32,7 @@ export async function POST(request: Request) {
       counts,
       notes,
       actorUserId: session.user.id,
+      actorName: session.user.name,
     });
 
     return NextResponse.json(result, { headers: { "Cache-Control": "no-store" } });

@@ -20,7 +20,8 @@ describe("getNotificationSettings", () => {
     expect(data).toMatchObject({
       chatId: null,
       enabled: false,
-      eventsEnabled: [],
+      // Decisión del owner (2026-09-17): el cierre de cada turno avisa por defecto.
+      eventsEnabled: ["shift_closed"],
       refundAlertThreshold: 500,
       differenceAlertThreshold: null,
       lastSentAt: null,

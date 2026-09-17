@@ -113,7 +113,27 @@ describe("buildTelegramAlertText", () => {
         options,
       ),
     ).toContain("Caja sin cerrar");
-    expect(buildTelegramAlertText("day_close_summary", { businessDate: "2026-09-18" }, options)).toBeNull();
+    // Un payload al que le faltan campos (evento viejo o escrito a mano) no arma un mensaje con `undefined`.
+    expect(buildTelegramAlertText("shift_closed", { locationName: "Principal" }, options)).toBeNull();
+    expect(
+      buildTelegramAlertText(
+        "shift_closed",
+        {
+          locationName: "Principal",
+          openedAt: "2026-09-17T13:00:00.000Z",
+          closedAt: "2026-09-17T21:00:00.000Z",
+          closedByName: "María Pérez",
+          ordersCount: 3,
+          cash: 500,
+          card: 250,
+          transfer: 0,
+          total: 750,
+          tips: 0,
+          difference: 0,
+        },
+        options,
+      ),
+    ).toContain("Cierre de caja — Principal");
     expect(buildTelegramAlertText("refund_over_threshold", null, options)).toBeNull();
   });
 });

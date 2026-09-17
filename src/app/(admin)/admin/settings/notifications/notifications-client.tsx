@@ -77,11 +77,6 @@ export default function NotificationsClient({
   const [refundThreshold, setRefundThreshold] = React.useState(
     String(initialSettings.refundAlertThreshold),
   );
-  const [differenceThreshold, setDifferenceThreshold] = React.useState(
-    initialSettings.differenceAlertThreshold === null
-      ? ""
-      : String(initialSettings.differenceAlertThreshold),
-  );
   const [saving, setSaving] = React.useState(false);
   const [testing, setTesting] = React.useState(false);
   const [message, setMessage] = React.useState<string | null>(null);
@@ -114,10 +109,6 @@ export default function NotificationsClient({
         ...(next.enabled === undefined ? {} : { enabled: next.enabled }),
         ...(next.eventsEnabled === undefined ? {} : { eventsEnabled: next.eventsEnabled }),
         refundAlertThreshold: Number(refundThreshold.replace(",", ".")) || 0,
-        differenceAlertThreshold:
-          differenceThreshold.trim() === ""
-            ? null
-            : Number(differenceThreshold.replace(",", ".")) || 0,
       });
 
       if (!ok || !payload?.data) {
@@ -289,19 +280,16 @@ export default function NotificationsClient({
           ))}
         </ul>
 
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Input
-            label={`Devolución mayor a (${currency.symbol})`}
-            value={refundThreshold}
-            onChange={(event) => setRefundThreshold(event.target.value)}
-          />
-          <Input
-            label={`Diferencia de caja mayor a (${currency.symbol})`}
-            value={differenceThreshold}
-            placeholder="Vacío = no avisar"
-            onChange={(event) => setDifferenceThreshold(event.target.value)}
-          />
-        </div>
+        {/*
+          Decisión del owner (2026-09-17): el umbral de diferencia **desapareció de la pantalla**. Antes
+          decidía si una diferencia avisaba; ahora el cierre de caja avisa siempre y cualquier diferencia se
+          destaca en ese mismo mensaje, así que el campo era un control sin efecto (y ya no se manda).
+        */}
+        <Input
+          label={`Devolución mayor a (${currency.symbol})`}
+          value={refundThreshold}
+          onChange={(event) => setRefundThreshold(event.target.value)}
+        />
 
         {/* Los umbrales vigentes, en palabras: el input dice lo que se va a guardar y esto lo que rige. */}
         <p className="text-st-body text-ink-secondary">
@@ -309,18 +297,8 @@ export default function NotificationsClient({
           <span className="font-mono tabular-nums text-ink">
             {formatCurrency(settings.refundAlertThreshold, currency)}
           </span>{" "}
-          y{" "}
-          {settings.differenceAlertThreshold === null ? (
-            <>ninguna diferencia de caja (sin umbral configurado).</>
-          ) : (
-            <>
-              diferencias de más de{" "}
-              <span className="font-mono tabular-nums text-ink">
-                {formatCurrency(settings.differenceAlertThreshold, currency)}
-              </span>
-              .
-            </>
-          )}
+          y <strong className="font-semibold text-ink">todas las diferencias de caja</strong>, en el mensaje
+          de cierre de cada turno.
         </p>
 
         <Button type="button" variant="outline" className="min-h-11" disabled={saving} onClick={() => void save({})}>

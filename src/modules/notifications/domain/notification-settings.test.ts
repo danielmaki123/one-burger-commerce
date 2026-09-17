@@ -95,9 +95,11 @@ describe("normalizeTelegramEvents", () => {
         "refund_over_threshold",
         "refund_over_threshold",
         "inventado",
+        // Guardados viejos: el resumen diario y la diferencia suelta ya no existen como eventos.
         "day_close_summary",
+        "cash_difference_over_threshold",
       ]),
-    ).toEqual(["refund_over_threshold", "day_close_summary"]);
+    ).toEqual(["refund_over_threshold"]);
   });
 
   it("lo que no es una lista devuelve vacío (no rompe la pantalla)", () => {

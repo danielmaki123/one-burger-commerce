@@ -1035,8 +1035,9 @@ model NotificationSettings {
   /// Grupo/canal de Telegram del negocio. `null` = sin configurar.
   chatId   String?
   enabled  Boolean @default(false)
-  /// Claves de `TELEGRAM_EVENTS` que el owner quiere recibir.
-  eventsEnabled Json @default("[]")
+  /// Claves de `TELEGRAM_EVENTS` que el owner quiere recibir. Por defecto, el cierre de cada turno
+  /// (decisión del owner, 2026-09-17): es el aviso de operación normal; los de problema se prenden a mano.
+  eventsEnabled Json @default("[\"shift_closed\"]")
   /// Devolución que supera este monto avisa al dueño (decisión del owner: C$500).
   refundAlertThreshold     Float  @default(500)
   /// Diferencia de caja que supera este monto avisa. `null` = no avisar (lo decide el owner).

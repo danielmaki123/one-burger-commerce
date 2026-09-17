@@ -271,8 +271,7 @@ atómico (una sola instancia procesa cada evento), así que mantener
 
 ### 5.1 Alertas del negocio por Telegram (2026-09-17)
 
-Las **alertas del dueño** (turno sin cerrar >24 h, devolución grande, diferencia de
-caja, resumen del día) usan el mismo outbox y otro driver:
+Las **alertas del dueño** usan el mismo outbox y otro driver:
 
 ```
 NOTIFICATIONS_DRIVER=telegram_alerts
@@ -283,9 +282,25 @@ OUTBOX_PROCESSOR_SECRET=<secreto aleatorio largo>
 
 La diferencia con el driver `telegram` de arriba: **el `chat_id` no va por entorno**.
 Lo configura el dueño en `/admin/settings/notifications` (se guarda en
-`NotificationSettings`) junto con los eventos que quiere recibir y los dos umbrales,
+`NotificationSettings`) junto con los eventos que quiere recibir y el umbral de devoluciones,
 y el botón «Probar conexión» manda un mensaje real para verificar. Por eso el chequeo
 de «hay sender entregable» para `telegram_alerts` solo exige el token.
+
+**El grupo es uno solo, del dueño, para todas las sucursales** (decisión del owner, 2026-09-17):
+cada mensaje dice de qué sucursal viene. Los eventos (lista cerrada):
+
+| Evento | Cuándo | Umbral |
+|---|---|---|
+| `shift_closed` — «Cierre de caja» | **Cada** turno que se cierra, apenas se cierra (sin hora fija) | ninguno: avisa siempre. **Prendido por defecto** |
+| `shift_open_over_24h` — «Turno sin cerrar >24 h» | El barrido del proceso periódico ve una caja abierta hace más de un día | ninguno |
+| `refund_over_threshold` — «Devolución grande» | Se pide una devolución por encima del umbral | `refundAlertThreshold` (default C$500) |
+
+El mensaje de cierre trae la sucursal, quién cerró, el turno con su duración, cuántos pedidos, el
+desglose por medio (efectivo, tarjeta, transferencia), el total, las propinas y la diferencia: una caja
+que cuadra dice «cuadra» y una con diferencia la **destaca en el mismo mensaje** con el motivo que
+escribió el cajero. Por eso ya no existe un evento aparte de «diferencia de caja» ni un «resumen
+diario»: es **un mensaje por cierre**. El umbral de diferencia se retiró de la pantalla (el mensaje
+destaca cualquier diferencia); la columna sigue en la base por compatibilidad.
 
 Reglas de operación:
 
@@ -295,6 +310,7 @@ Reglas de operación:
   reenvían a Telegram.
 - Si Telegram falla, la operación del negocio **sigue**: el outbox reintenta hasta
   `OUTBOX_PROCESSOR_MAX_ATTEMPTS` y el motivo queda en `NotificationSettings.lastError`.
+- **No hay alertas por correo** (decisión del owner, 2026-09-17): todo sale por Telegram.
 
 ---
 

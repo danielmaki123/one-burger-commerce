@@ -32,7 +32,7 @@ export default async function AdminNotificationSettingsPage() {
       <AdminPageHeader
         label="Configuración"
         title="Alertas Telegram"
-        description="Un recordatorio extra en tu grupo: turnos sin cerrar, devoluciones grandes, diferencias de caja y el resumen del día. La app sigue siendo la fuente de verdad."
+        description="Un aviso en tu grupo cuando se cierra una caja, cuando una caja queda abierta más de un día o cuando una devolución es grande. La app sigue siendo la fuente de verdad."
       />
 
       <NotificationsClient initialSettings={data} tokenConfigured={meta.tokenConfigured} />

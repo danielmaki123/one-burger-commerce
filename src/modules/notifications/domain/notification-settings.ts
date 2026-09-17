@@ -28,10 +28,17 @@ export type TelegramStatus = "conectado" | "desconectado" | "sin-configurar" | "
 
 export const DEFAULT_REFUND_ALERT_THRESHOLD = 500;
 
+/**
+ * Decisión del owner (2026-09-17): el **cierre de cada turno avisa por defecto**. Es el aviso que reemplaza
+ * al «resumen diario»: llega apenas se cierra la caja, con la sucursal y el arqueo. Los otros dos eventos
+ * se prenden a mano (son avisos de problemas, no de operación normal).
+ */
+export const DEFAULT_TELEGRAM_EVENTS: TelegramEvent[] = ["shift_closed"];
+
 export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettingsRecord = {
   chatId: null,
   enabled: false,
-  eventsEnabled: [],
+  eventsEnabled: DEFAULT_TELEGRAM_EVENTS,
   refundAlertThreshold: DEFAULT_REFUND_ALERT_THRESHOLD,
   differenceAlertThreshold: null,
   lastSentAt: null,

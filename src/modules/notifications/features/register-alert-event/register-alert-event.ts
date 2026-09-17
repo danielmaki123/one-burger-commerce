@@ -8,7 +8,8 @@ import type { OutboxRepository } from "@/modules/notifications/ports/outbox-repo
  * Dos reglas que valen para los tres:
  *
  * 1. **El umbral se lee de la configuración** (`NotificationSettings`), no de una constante: el owner
- *    decidió C$500 para las devoluciones y «sin umbral = no avisar» para las diferencias de caja.
+ *    decidió C$500 para las devoluciones. El cierre de caja, en cambio, avisa **siempre** (decisión del
+ *    owner 2026-09-17): cada turno que se cierra es un mensaje.
  * 2. Lo que no pasa el umbral **no se registra**: el outbox es la cola de lo que hay que mandar, no un
  *    archivo de todo lo que pasó (para eso están las tablas y el log de auditoría). Así el reintento de
  *    Telegram no trabaja con ruido.
@@ -44,42 +45,38 @@ export async function registerRefundAlert(
   return { registered: true };
 }
 
-export async function registerDifferenceAlert(
+/**
+ * Decisión del owner (2026-09-17) — **el cierre de cada turno avisa siempre**: un mensaje por cierre, sin
+ * hora fija ni umbral. Reemplaza al «resumen diario a las 22:00» (que nunca se disparó solo) y a la vieja
+ * alerta de diferencia: la diferencia viene dentro de este mismo mensaje, así que un cierre con problema no
+ * manda dos mensajes al grupo.
+ *
+ * No mira el umbral a propósito: cualquier diferencia se destaca, y el toggle del evento decide si el grupo
+ * lo recibe. Lo que se registra siempre es el evento (la cola del outbox es del sistema, no del toggle).
+ */
+export async function registerShiftClosedAlert(
   input: {
     shiftId: string;
     locationName: string;
+    openedAt: string;
     closedAt: string;
-    counted: number;
-    expected: number;
+    closedByName: string | null;
+    ordersCount: number;
+    cash: number;
+    card: number;
+    transfer: number;
+    total: number;
+    tips: number;
     difference: number;
+    reason: string | null;
   },
-  {
-    settingsRepository,
-    outboxRepository,
-  }: {
-    settingsRepository: NotificationSettingsRepository;
-    outboxRepository: OutboxRepository;
-  },
+  { outboxRepository }: { outboxRepository: OutboxRepository },
 ): Promise<{ registered: boolean }> {
-  const settings = await settingsRepository.get();
-  const threshold = settings.differenceAlertThreshold;
-
-  // Sin umbral el owner dijo «no me avises»; y una caja que cuadra no es una diferencia.
-  if (threshold === null || input.difference === 0) return { registered: false };
-  if (Math.abs(input.difference) <= threshold) return { registered: false };
-
   await outboxRepository.createEvent({
-    eventType: "cash_difference_over_threshold",
+    eventType: "shift_closed",
     aggregateType: "Shift",
     aggregateId: input.shiftId,
-    payload: {
-      locationName: input.locationName,
-      closedAt: input.closedAt,
-      counted: input.counted,
-      expected: input.expected,
-      difference: input.difference,
-      threshold,
-    },
+    payload: { ...input },
   });
 
   return { registered: true };

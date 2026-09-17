@@ -55,11 +55,11 @@ vi.mock("@/app/api/admin/audit-action-helpers", () => ({
   shiftCloseAudit: (input: unknown) => shiftCloseAuditMock(input),
 }));
 
-const registerDifferenceAlertMock = vi.fn();
+const registerShiftClosedAlertMock = vi.fn();
 
 vi.mock("@/modules/notifications/features/register-alert-event/register-alert-event", () => ({
-  registerDifferenceAlert: (input: unknown, deps: unknown) =>
-    registerDifferenceAlertMock(input, deps),
+  registerShiftClosedAlert: (input: unknown, deps: unknown) =>
+    registerShiftClosedAlertMock(input, deps),
 }));
 
 vi.mock("@/modules/notifications/adapters/prisma-notification-settings-repository", () => ({
@@ -100,10 +100,26 @@ describe("POST /api/admin/pos/shift/close", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     requireAdminSessionMock.mockResolvedValue({
-      user: { id: "user_manager", role: "manager", locationIds: ["loc_principal"] },
+      user: {
+        id: "user_manager",
+        name: "María Pérez",
+        role: "manager",
+        locationIds: ["loc_principal"],
+      },
     });
     requirePosLocationMock.mockResolvedValue("loc_principal");
-    closePosShiftMock.mockResolvedValue({ data: closedShift });
+    closePosShiftMock.mockResolvedValue({
+      data: {
+        ...closedShift,
+        openedAt: "2026-09-18T14:00:00.000Z",
+        closedAt: "2026-09-19T02:30:00.000Z",
+        notes: null,
+      },
+      meta: {
+        expectedByCurrency: { NIO: 1500 },
+        paymentMix: { cash: 1400, card: 100, transfer: 0, other: 0, total: 1500, tips: 0, orders: 4 },
+      },
+    });
   });
 
   it("cierra la caja y firma el arqueo con su diferencia", async () => {
@@ -125,37 +141,62 @@ describe("POST /api/admin/pos/shift/close", () => {
   });
 
   /**
-   * Tarea 4 del brief (alertas Telegram): una diferencia de caja avisa al dueño, con el **nombre** de la
-   * sucursal —el dueño lee el mensaje, no el id— y solo cuando hay una diferencia que contar.
+   * Decisión del owner (2026-09-17): **cada cierre** deja un aviso para el grupo, con el nombre de la
+   * sucursal —el dueño lee el mensaje, no el id—, quién cerró y el desglose por medio de pago que el cierre
+   * ya calculó. Antes solo se registraba cuando había diferencia.
    */
-  it("la diferencia deja el aviso registrado con el nombre de la sucursal", async () => {
+  it("cada cierre deja el aviso registrado con sucursal, quién cerró y el desglose", async () => {
     const { POST } = await import("./route");
 
     await POST(post());
 
-    expect(registerDifferenceAlertMock).toHaveBeenCalledWith(
-      expect.objectContaining({
+    expect(registerShiftClosedAlertMock).toHaveBeenCalledWith(
+      {
         shiftId: "shift_01",
         locationName: "Camino de Oriente",
+        openedAt: "2026-09-18T14:00:00.000Z",
+        closedAt: "2026-09-19T02:30:00.000Z",
+        closedByName: "María Pérez",
+        ordersCount: 4,
+        cash: 1400,
+        card: 100,
+        transfer: 0,
+        total: 1500,
+        tips: 0,
         difference: -100,
-      }),
+        reason: null,
+      },
       expect.anything(),
     );
   });
 
-  it("una caja que cuadra no registra aviso", async () => {
+  it("una caja que cuadra también avisa: es un mensaje por cierre", async () => {
     closePosShiftMock.mockResolvedValue({
-      data: { ...closedShift, closingAmount: 1500, difference: 0 },
+      data: {
+        ...closedShift,
+        closingAmount: 1500,
+        difference: 0,
+        openedAt: "2026-09-18T14:00:00.000Z",
+        closedAt: "2026-09-19T02:30:00.000Z",
+        notes: "Cerró el encargado",
+      },
+      meta: {
+        expectedByCurrency: { NIO: 1500 },
+        paymentMix: { cash: 1500, card: 0, transfer: 0, other: 0, total: 1500, tips: 0, orders: 2 },
+      },
     });
 
     const { POST } = await import("./route");
     await POST(post());
 
-    expect(registerDifferenceAlertMock).not.toHaveBeenCalled();
+    expect(registerShiftClosedAlertMock).toHaveBeenCalledWith(
+      expect.objectContaining({ difference: 0, reason: "Cerró el encargado" }),
+      expect.anything(),
+    );
   });
 
   it("si el registro del aviso falla, el cierre igual responde 200 (no bloquea la operación)", async () => {
-    registerDifferenceAlertMock.mockRejectedValue(new Error("la base de alertas no responde"));
+    registerShiftClosedAlertMock.mockRejectedValue(new Error("la base de alertas no responde"));
 
     const { POST } = await import("./route");
 

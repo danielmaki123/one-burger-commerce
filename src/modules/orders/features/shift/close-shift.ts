@@ -8,6 +8,7 @@ import {
   type ShiftCashCountInput,
 } from "@/modules/orders/domain/shift-cash";
 import { refundsTotalByCurrency, refundsTotalInBusinessCurrency } from "@/modules/orders/domain/shift-refund";
+import { emptyShiftPaymentMix, summarizeShiftPayments, type ShiftPaymentMix } from "@/modules/orders/domain/shift-payment-mix";
 import type { CashMovementRepository } from "@/modules/orders/ports/cash-movement-repository";
 import type { PaymentRepository } from "@/modules/orders/ports/payment-repository";
 import type { RefundRepository } from "@/modules/orders/ports/refund-repository";
@@ -86,11 +87,11 @@ export async function closeShift(
 
   const shift = await shiftRepository.findShiftById(shiftId);
   if (!shift) {
-    return { data: null, meta: { expectedByCurrency: {} } };
+    return { data: null, meta: { expectedByCurrency: {}, paymentMix: emptyShiftPaymentMix() } };
   }
   if (shift.status !== "open") {
     // Ya cerrado: no se pisa el arqueo del primero.
-    return { data: null, meta: { expectedByCurrency: {} } };
+    return { data: null, meta: { expectedByCurrency: {}, paymentMix: emptyShiftPaymentMix() } };
   }
 
   const closedAt = new Date();
@@ -127,7 +128,10 @@ export async function closeShift(
     notes: input.notes ?? shift.notes,
   });
 
-  return { data: closed, meta: { expectedByCurrency: arqueo.expectedByCurrency } };
+  return {
+    data: closed,
+    meta: { expectedByCurrency: arqueo.expectedByCurrency, paymentMix: arqueo.paymentMix },
+  };
 }
 
 /**
@@ -164,6 +168,8 @@ export async function calculateExpectedAmount(
   cashSalesAmount: number;
   cashMovementsAmount: number;
   refundsAmount: number;
+  /** Tarea 1.2 — el desglose por método del turno, de los **mismos** cobros que el arqueo. */
+  paymentMix: ShiftPaymentMix;
 }> {
   const payments = await paymentRepository.listPaymentsInRange(window.locationId, {
     from: window.openedAt,
@@ -244,6 +250,13 @@ export async function calculateExpectedAmount(
     cashSalesAmount,
     cashMovementsAmount,
     refundsAmount,
+    // Tarea 1.2 del roadmap: el desglose por método sale de la **misma** lista de cobros que el arqueo,
+    // así el mensaje de cierre y el esperado no pueden discrepar.
+    paymentMix: summarizeShiftPayments({
+      payments,
+      businessCurrencyCode: window.businessCurrencyCode,
+      usdExchangeRate: window.usdExchangeRate,
+    }),
   };
 }
 
