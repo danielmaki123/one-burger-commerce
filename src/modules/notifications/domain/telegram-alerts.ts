@@ -76,7 +76,7 @@ export function buildShiftClosedText(
     transfer: number;
     total: number;
     tips: number;
-    difference: number;
+    difference: number | null;
     /** Motivo que escribió el cajero al cerrar (opcional). */
     reason: string | null;
   },
@@ -100,6 +100,12 @@ export function buildShiftClosedText(
     `💰 Propinas: ${money(input.tips, options)}`,
     SEPARATOR,
   ];
+
+  // Un cierre **ciego** (nadie contó la caja) no tiene diferencia: ni «cuadra» ni una cifra inventada.
+  if (input.difference === null) {
+    lines.push("📝 Diferencia: sin contar");
+    return lines.join("\n");
+  }
 
   if (input.difference === 0) {
     lines.push(`✅ Diferencia: ${money(0, options)} (cuadra)`);
@@ -183,7 +189,8 @@ export function buildTelegramAlertText(
     const transfer = number("transfer");
     const total = number("total");
     const tips = number("tips");
-    const difference = number("difference");
+    // `difference` puede ser `null` a propósito (cierre ciego): se distingue de un payload roto.
+    const difference = payload.difference === null ? null : number("difference");
     if (
       !locationName ||
       !openedAt ||
@@ -194,7 +201,7 @@ export function buildTelegramAlertText(
       transfer === null ||
       total === null ||
       tips === null ||
-      difference === null
+      (payload.difference !== null && difference === null)
     ) {
       return null;
     }

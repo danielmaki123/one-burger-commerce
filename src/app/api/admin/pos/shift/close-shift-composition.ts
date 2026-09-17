@@ -64,7 +64,8 @@ export async function closePosShiftForRoute(input: {
           transfer: mix.transfer,
           total: mix.total,
           tips: mix.tips,
-          difference: closed.difference ?? 0,
+          // `null` = cierre ciego (nadie contó): el mensaje lo dice, no lo convierte en «cuadra».
+          difference: closed.difference,
           reason: closed.notes ?? null,
         },
         { outboxRepository: new PrismaOutboxRepository() },

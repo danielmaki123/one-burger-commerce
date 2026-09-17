@@ -67,7 +67,8 @@ export async function registerShiftClosedAlert(
     transfer: number;
     total: number;
     tips: number;
-    difference: number;
+    /** `null` = cierre ciego (nadie contó la caja): el mensaje lo dice con palabras. */
+    difference: number | null;
     reason: string | null;
   },
   { outboxRepository }: { outboxRepository: OutboxRepository },

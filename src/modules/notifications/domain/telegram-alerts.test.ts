@@ -96,6 +96,18 @@ describe("buildShiftClosedText", () => {
     expect(text).toContain("⚠️ DIFERENCIA: +C$250.00");
   });
 
+  /**
+   * Un **cierre ciego** (no se contó la caja) no tiene diferencia: no se puede decir «cuadra», porque
+   * nadie contó, ni destacar una diferencia que no se midió. El mensaje lo dice con palabras.
+   */
+  it("un cierre sin contar no dice «cuadra» ni inventa una diferencia", () => {
+    const text = buildShiftClosedText({ ...cierre, difference: null }, options);
+
+    expect(text).toContain("📝 Diferencia: sin contar");
+    expect(text).not.toContain("cuadra");
+    expect(text).not.toContain("⚠️");
+  });
+
   it("sin motivo no deja una línea vacía, y sin nombre no inventa el firmante", () => {
     const text = buildShiftClosedText(
       { ...cierre, difference: -50, closedByName: null },
