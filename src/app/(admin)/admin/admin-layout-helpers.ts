@@ -3,12 +3,15 @@ import {
   ClipboardList,
   LayoutDashboard,
   MapPin,
+  ReceiptText,
   Settings,
+  ShieldCheck,
   UtensilsCrossed,
   Users,
   type LucideIcon,
 } from "lucide-react";
 
+import { canManageCash } from "@/modules/auth/domain/admin-permissions";
 import type { AdminRole } from "@/modules/auth/domain/admin-role";
 
 export type AdminNavItem = {
@@ -23,6 +26,13 @@ export type AdminNavGroup = {
   items: AdminNavItem[];
 };
 
+/**
+ * Los cuatro grupos del panel (Bloque 8 del roadmap del POS, Fase 2).
+ *
+ * Antes eran dos («Operación» y «Configuración») y la caja se inyectaba dentro de Operación. El
+ * dinero tiene su propio grupo —**Control**— porque es lo que se audita, y el catálogo el suyo
+ * —**Catálogo**— porque lo toca el manager y la configuración del negocio no.
+ */
 export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
   {
     label: "Operación",
@@ -32,9 +42,14 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
     ],
   },
   {
-    label: "Configuración",
+    label: "Catálogo",
     items: [
       { href: "/admin/menu", label: "Menú", description: "Catálogo y promos", icon: UtensilsCrossed },
+    ],
+  },
+  {
+    label: "Configuración",
+    items: [
       { href: "/admin/locations", label: "Locales", description: "Retiro, horario y contacto", icon: MapPin },
       { href: "/admin/users", label: "Usuarios", description: "Roles y accesos", icon: Users },
       { href: "/admin/settings", label: "Personalización", description: "Marca y operación", icon: Settings },
@@ -48,27 +63,61 @@ export const ADMIN_SECONDARY_NAV_ITEMS: AdminNavItem[] = [];
 
 export const ADMIN_NAV_ITEMS = ADMIN_NAV_GROUPS.flatMap((group) => group.items);
 
+const OPERATION_GROUP = ADMIN_NAV_GROUPS[0];
+const CATALOG_GROUP = ADMIN_NAV_GROUPS[1];
+
 /**
- * TASK-308 — la caja del local.
+ * Bloque 8.2 del roadmap — la pantalla del mostrador se llama **POS** (antes «Caja»).
  *
- * No está en `ADMIN_NAV_GROUPS` porque **no depende del rol sino del local**: el POS se prende por
- * sucursal, así que la entrada existe solo si algún local del staff lo tiene prendido. La navegación
- * lo pregunta una vez (`/api/admin/pos/availability`) y lo inyecta en Operación, que es donde está el
- * trabajo del día.
+ * La ruta sigue siendo `/admin/pos`: la entrada `Caja` pasó a nombrar el **control del dinero**
+ * (`/admin/cash`, historial de cierres), así que el nombre y la ruta dejaron de estar cruzados.
  */
 export const ADMIN_POS_NAV_ITEM: AdminNavItem = {
   href: "/admin/pos",
-  label: "Caja",
+  label: "POS",
   description: "Venta de mostrador",
   icon: Calculator,
 };
 
-function withPosItem(groups: AdminNavGroup[], posAvailable: boolean): AdminNavGroup[] {
+/**
+ * Bloque 8.3 — las rutas del control: historial de cierres y aprobaciones pendientes.
+ *
+ * Son de quien administra el dinero (dueño y manager), no de quien cobra: el cajero opera el
+ * mostrador y no audita su propio turno. Con el POS apagado no hay nada que historiar ni aprobar.
+ */
+export const ADMIN_CONTROL_NAV_ITEMS: AdminNavItem[] = [
+  { href: "/admin/cash", label: "Caja del día", description: "Cierres y movimientos", icon: ReceiptText },
+  { href: "/admin/approvals", label: "Aprobaciones", description: "Devoluciones y ajustes", icon: ShieldCheck },
+];
+
+const CONTROL_GROUP_LABEL = "Control";
+
+function withControlGroup(
+  groups: AdminNavGroup[],
+  role: AdminRole | undefined,
+  posAvailable: boolean,
+): AdminNavGroup[] {
   if (!posAvailable) return groups;
 
-  return groups.map((group) =>
-    group.label === "Operación" ? { ...group, items: [...group.items, ADMIN_POS_NAV_ITEM] } : group,
-  );
+  const items = [
+    ADMIN_POS_NAV_ITEM,
+    ...(role && canManageCash(role) ? ADMIN_CONTROL_NAV_ITEMS : []),
+  ];
+
+  const next: AdminNavGroup[] = [];
+  for (const group of groups) {
+    next.push(group);
+    // El grupo Control va después de Operación: primero el turno, después la plata del turno.
+    if (group.label === OPERATION_GROUP.label) {
+      next.push({ label: CONTROL_GROUP_LABEL, items });
+    }
+  }
+
+  return next;
+}
+
+function onlyHrefs(group: AdminNavGroup, hrefs: readonly string[]): AdminNavGroup {
+  return { ...group, items: group.items.filter((item) => hrefs.includes(item.href)) };
 }
 
 export function getAdminNavGroups(
@@ -77,39 +126,24 @@ export function getAdminNavGroups(
 ): AdminNavGroup[] {
   const posAvailable = options.posAvailable ?? false;
 
-  if (role === "owner") return withPosItem(ADMIN_NAV_GROUPS, posAvailable);
+  if (role === "owner") return withControlGroup(ADMIN_NAV_GROUPS, role, posAvailable);
 
   if (role === "manager") {
-    const groups = ADMIN_NAV_GROUPS.map((group) => ({
-      ...group,
-      items: group.items.filter((item) =>
-        item.href === "/admin/orders" || item.href === "/admin/menu",
-      ),
-    })).filter((group) => group.items.length > 0);
-
-    return withPosItem(groups, posAvailable);
-  }
-
-  // Cocina no cobra: no ve la caja ni con el POS prendido.
-  if (role === "kitchen") {
-    return [
-      {
-        label: "Operación",
-        items: ADMIN_NAV_ITEMS.filter((item) => item.href === "/admin/orders"),
-      },
+    const groups = [
+      onlyHrefs(OPERATION_GROUP, ["/admin/orders"]),
+      onlyHrefs(CATALOG_GROUP, ["/admin/menu"]),
     ];
+
+    return withControlGroup(groups, role, posAvailable);
   }
 
-  // Cajero (y el rato en que el rol todavía no se sabe): órdenes y, si hay mostrador, la caja.
-  return withPosItem(
-    [
-      {
-        label: "Operación",
-        items: ADMIN_NAV_ITEMS.filter((item) => item.href === "/admin/orders"),
-      },
-    ],
-    posAvailable,
-  );
+  // Cocina no cobra ni ve el catálogo completo: no ve el control ni con el POS prendido.
+  if (role === "kitchen") {
+    return [onlyHrefs(OPERATION_GROUP, ["/admin/orders"])];
+  }
+
+  // Cajero (y el rato en que el rol todavía no se sabe): órdenes y, si hay mostrador, el POS.
+  return withControlGroup([onlyHrefs(OPERATION_GROUP, ["/admin/orders"])], role, posAvailable);
 }
 
 export function isAdminNavItemActive(pathname: string, href: string) {

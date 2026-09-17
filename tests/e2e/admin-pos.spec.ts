@@ -237,7 +237,7 @@ test.describe("punto de venta", () => {
    * TASK-308 — el mostrador se prende por local, de punta a punta.
    *
    * Se apaga el POS en los locales que lo tengan prendido y se comprueban las tres cosas que pidió el
-   * owner: la navegación deja de ofrecer «Caja», la pantalla por URL directa vuelve a comandas y la API
+   * owner: la navegación deja de ofrecer «POS», la pantalla por URL directa vuelve a comandas y la API
    * contesta 403 con el motivo (la terminal que tenía la pantalla abierta no puede seguir cobrando).
    * Al final se restaura: el resto de la suite —y esta misma corrida— cuenta con el mostrador prendido.
    */
@@ -247,9 +247,9 @@ test.describe("punto de venta", () => {
     await loginAsOwner(page);
 
     // Con mostrador: la entrada está en la navegación y se llega desde ahí (no por URL directa).
-    const entradaCaja = page.getByRole("link", { name: /^Caja/ });
-    await expect(entradaCaja).toBeVisible();
-    await entradaCaja.click();
+    const entradaPos = page.getByRole("link", { name: /^POS/ });
+    await expect(entradaPos).toBeVisible();
+    await entradaPos.click();
     await expect(page).toHaveURL(/\/admin\/pos$/);
     await expect(page.getByRole("heading", { name: "Punto de venta" })).toBeVisible();
 
@@ -261,7 +261,7 @@ test.describe("punto de venta", () => {
       // confundir "todavía no cargó" con "no corresponde".
       await page.goto("/admin/locations");
       await expect(page.getByRole("link", { name: /^Órdenes/ })).toBeVisible();
-      await expect(page.getByRole("link", { name: /^Caja/ })).toHaveCount(0);
+      await expect(page.getByRole("link", { name: /^POS/ })).toHaveCount(0);
 
       // 2) La pantalla no existe sin mostrador: la URL directa vuelve a comandas.
       await page.goto("/admin/pos");
@@ -299,6 +299,6 @@ test.describe("punto de venta", () => {
 
     // Y vuelve: el interruptor no es de una sola dirección.
     await page.goto("/admin/locations");
-    await expect(page.getByRole("link", { name: /^Caja/ })).toBeVisible();
+    await expect(page.getByRole("link", { name: /^POS/ })).toBeVisible();
   });
 });

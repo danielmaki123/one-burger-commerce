@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   canManageBusinessSettings,
+  canManageCash,
   canManageCriticalConfig,
   canManageInventoryOperations,
   canManageMenu,
@@ -90,5 +91,19 @@ describe("admin permissions", () => {
     expect(canManagePromotions(ADMIN_ROLES.owner)).toBe(true);
     expect(canManagePromotions(ADMIN_ROLES.manager)).toBe(true);
     expect(canManagePromotions(ADMIN_ROLES.kitchen)).toBe(false);
+  });
+
+  /**
+   * Bloque 7 del roadmap del POS (Fase 2) — administrar la caja es otra cosa que cobrar.
+   *
+   * `canUsePOS` habilita el mostrador (abrir, cobrar, cerrar). Ver el historial de cierres, reabrir un
+   * turno, aprobar una devolución o hacer un movimiento de caja es **control del dinero**: si el
+   * cajero pudiera, se estaría auditando a sí mismo, que es exactamente lo que el arqueo evita.
+   */
+  it("solo owner y manager administran la caja (Bloque 7)", () => {
+    expect(canManageCash(ADMIN_ROLES.owner)).toBe(true);
+    expect(canManageCash(ADMIN_ROLES.manager)).toBe(true);
+    expect(canManageCash(ADMIN_ROLES.cashier)).toBe(false);
+    expect(canManageCash(ADMIN_ROLES.kitchen)).toBe(false);
   });
 });

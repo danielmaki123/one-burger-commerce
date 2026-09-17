@@ -8,13 +8,17 @@ import {
   shouldRestoreAdminMobileTriggerFocus,
 } from "./admin-layout-helpers";
 
-function flattenNav(role?: "owner" | "manager" | "kitchen") {
+function flattenNav(role?: "owner" | "manager" | "kitchen" | "cashier") {
   return getAdminNavGroups(role).flatMap((group) => group.items);
 }
 
 /** TASK-308: la navegación solo ofrece la caja cuando el POS está prendido en algún local. */
 function flattenNavWithPos(role: "owner" | "manager" | "cashier" | "kitchen") {
   return getAdminNavGroups(role, { posAvailable: true }).flatMap((group) => group.items);
+}
+
+function groupLabels(role: "owner" | "manager" | "cashier" | "kitchen", posAvailable = true) {
+  return getAdminNavGroups(role, { posAvailable }).map((group) => group.label);
 }
 
 describe("admin layout helpers", () => {
@@ -34,7 +38,7 @@ describe("admin layout helpers", () => {
     );
   });
 
-  it.each([undefined, "manager", "kitchen"] as const)(
+  it.each([undefined, "manager", "kitchen", "cashier"] as const)(
     "does not expose /admin summary before owner access is known (%s)",
     (role) => {
       expect(flattenNav(role)).not.toContainEqual(
@@ -68,6 +72,33 @@ describe("admin layout helpers", () => {
   });
 
   /**
+   * Bloque 8 del roadmap del POS (Fase 2) — los cuatro grupos del panel.
+   *
+   * Antes había dos grupos («Operación» y «Configuración») y la caja se inyectaba dentro de Operación.
+   * Ahora el dinero tiene su propio grupo (**Control**), el catálogo el suyo (**Catálogo**) y la
+   * configuración del negocio queda en **Configuración**, que es solo del owner.
+   */
+  it("agrupa la navegación en Operación, Control, Catálogo y Configuración", () => {
+    expect(groupLabels("owner")).toEqual([
+      "Operación",
+      "Control",
+      "Catálogo",
+      "Configuración",
+    ]);
+  });
+
+  it("el catálogo no es configuración del negocio: manager ve Catálogo y no Configuración", () => {
+    expect(groupLabels("manager")).toEqual(["Operación", "Control", "Catálogo"]);
+    expect(flattenNavWithPos("manager")).toContainEqual(
+      expect.objectContaining({ href: "/admin/menu", label: "Menú" }),
+    );
+  });
+
+  it("cocina solo ve Operación: no ve Control, ni Catálogo, ni Configuración", () => {
+    expect(groupLabels("kitchen")).toEqual(["Operación"]);
+  });
+
+  /**
    * TASK-308 — la caja en la navegación.
    *
    * Dos cosas distintas: que **no** aparezca cuando ningún local del staff tiene el POS prendido (una
@@ -78,24 +109,57 @@ describe("admin layout helpers", () => {
     expect(flattenNav("owner")).not.toContainEqual(
       expect.objectContaining({ href: "/admin/pos" }),
     );
+    // Sin caja disponible tampoco hay grupo Control: un grupo vacío no se dibuja.
+    expect(groupLabels("owner", false)).toEqual(["Operación", "Catálogo", "Configuración"]);
   });
 
   it.each(["owner", "manager", "cashier"] as const)(
-    "ofrece la caja a %s cuando hay un local con el POS prendido",
+    "ofrece el POS a %s cuando hay un local con el POS prendido",
     (role) => {
       expect(flattenNavWithPos(role)).toContainEqual(
-        expect.objectContaining({ href: "/admin/pos", label: "Caja" }),
+        expect.objectContaining({ href: "/admin/pos", label: "POS" }),
       );
     },
   );
 
-  it("no le ofrece la caja a cocina ni con el POS prendido", () => {
+  it("no le ofrece el POS a cocina ni con el POS prendido", () => {
     expect(flattenNavWithPos("kitchen").map((item) => item.href)).toEqual(["/admin/orders"]);
+  });
+
+  /**
+   * Bloque 8.3 — las rutas nuevas del CONTROL viven en la navegación, no solo por URL directa.
+   *
+   * `/admin/cash` (historial de cierres) y `/admin/approvals` (aprobaciones pendientes) son del dinero:
+   * misma gente que cobra. El dueño y el manager las ven; el cajero opera el mostrador y no administra.
+   */
+  it.each(["owner", "manager"] as const)(
+    "ofrece historial de caja y aprobaciones a %s",
+    (role) => {
+      const items = flattenNavWithPos(role);
+      expect(items).toContainEqual(
+        expect.objectContaining({ href: "/admin/cash", label: "Caja del día" }),
+      );
+      expect(items).toContainEqual(
+        expect.objectContaining({ href: "/admin/approvals", label: "Aprobaciones" }),
+      );
+    },
+  );
+
+  it("el cajero opera el POS pero no administra la caja", () => {
+    const items = flattenNavWithPos("cashier");
+    expect(items).toContainEqual(expect.objectContaining({ href: "/admin/pos" }));
+    expect(items).not.toContainEqual(expect.objectContaining({ href: "/admin/cash" }));
+    expect(items).not.toContainEqual(expect.objectContaining({ href: "/admin/approvals" }));
   });
 
   it("keeps /admin/dashboard active for the Resumen compatibility redirect", () => {
     expect(isAdminNavItemActive("/admin/dashboard", "/admin")).toBe(true);
     expect(isAdminNavItemActive("/admin", "/admin")).toBe(true);
+  });
+
+  it("el historial de caja queda activo en la ruta del detalle", () => {
+    expect(isAdminNavItemActive("/admin/cash", "/admin/cash")).toBe(true);
+    expect(isAdminNavItemActive("/admin/cash/history/shift-1", "/admin/cash")).toBe(true);
   });
 
   it.each([

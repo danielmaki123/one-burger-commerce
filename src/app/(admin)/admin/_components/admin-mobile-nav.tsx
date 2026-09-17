@@ -51,8 +51,9 @@ type AdminMobileTab = {
 const ADMIN_MOBILE_TAB_DEFS: AdminMobileTab[] = [
   { href: "/admin", label: "Turno", icon: LayoutDashboard },
   { href: "/admin/orders", label: "Órdenes", icon: ClipboardList },
-  // TASK-308: la caja es la pantalla del cajero, así que va en la barra y no escondida en «Más».
-  { href: "/admin/pos", label: "Caja", icon: Calculator },
+  // TASK-308: el POS es la pantalla del cajero, así que va en la barra y no escondida en «Más».
+  // Bloque 8.2 del roadmap: se llama **POS**; «Caja» pasó a nombrar el control del dinero (/admin/cash).
+  { href: "/admin/pos", label: "POS", icon: Calculator },
   { href: "/admin/menu", label: "Menú", icon: UtensilsCrossed },
   { href: "/admin/tables", label: "Mesas", icon: Table2 },
 ];

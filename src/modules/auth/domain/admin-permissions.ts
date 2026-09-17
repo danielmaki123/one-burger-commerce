@@ -59,6 +59,18 @@ export function canUsePOS(role: AdminRole) {
   );
 }
 
+/**
+ * Bloque 7 del roadmap del POS (Fase 2) — **administrar** la caja, no cobrar en ella.
+ *
+ * `canUsePOS` abre el mostrador: abrir el turno, cobrar y cerrarlo. Ver el historial de cierres,
+ * reabrir un turno, aprobar una devolución o registrar un movimiento de caja es control del dinero, y
+ * el cajero no lo tiene: si pudiera, se auditaría a sí mismo. Mismo criterio que el menú y las promos
+ * (owner + manager), y cocina queda afuera porque no maneja plata.
+ */
+export function canManageCash(role: AdminRole) {
+  return role === ADMIN_ROLES.owner || role === ADMIN_ROLES.manager;
+}
+
 export function canViewDashboardSummary(role: AdminRole) {
   return role === ADMIN_ROLES.owner;
 }
