@@ -32,23 +32,30 @@ hace falta nada de conversaciones anteriores. Si algo acá contradice a `AGENTS.
 > **jamás a producción sin pedirle confirmación al owner**. Después de desplegar: `test:e2e:prod` y
 > `test:e2e:prod:hosts` (los dos son de solo lectura).
 >
-> **Por dónde empezar:** hay **dos** frentes y el owner elige. **(a) El plan de UI `plan2uiux.md`**
-> (raíz, sin versionar): la **CAPA 0 está cerrada y pusheada** —`DESIGN_REFERENCES.md` como fuente de
-> verdad visual, `AGENTS.md` en 300 líneas con la sección de UI y el checklist, `DESIGN_SYSTEM.md` en 250
-> líneas con las **20 reglas de interfaz** (producto, accesibilidad, estados y performance) y los 5
-> ejemplos reales, `src/shared/ui/registry.json` con la metadata por componente y los tres docs obsoletos
-> borrados—. De la **CAPA 1** ya están **C1-1** (los 6 primitivos que faltaban), **C1-2** (guardrails con
-> techo por archivo) y **C1-3** (los 16 tokens muertos); **C1-4a (el mockup de `/admin`, el único stop
-> humano del plan) está hecho y esperando la validación del owner**, y después va C1-4b (su
-> implementación). **(b) El plan
-> `plna.md` está completo y desplegado** (FASE 1, 2 y 3), así que por ese lado no hay tareas de plan en la
-> cola: lo que queda es la cola de [`ops/audit-backlog.md`](../audit-backlog.md), donde las **A-15 a
-> A-23** salen de las tres consultas del 2026-09-15 (caja/POS, fiscal/recibo, design system) y **cinco
-> de ellas necesitan una decisión del owner** (A-15 cobros de pedidos cancelados, A-17
-> tarjeta/transferencia, A-19 movimientos de caja, A-20 fiscal, A-23 la cuenta de prueba con rol owner);
-> las otras cuatro son trabajo técnico ya acotado. **No inventes trabajo para no quedar quieto**: si el
-> owner ya entregó un plan (como `plan2uiux.md`), ese plan manda y se ejecuta de corrido; si no, se
-> pregunta antes de codear. Si algo del brief no cierra, decilo antes de codear.
+> **Por dónde empezar:** el **sistema de diseño es Stitch y ya está aplicado y desplegado**
+> (`ops/references/stitch/design-system.md` es la fuente de verdad visual, con las 7 pantallas de
+> referencia al lado). El plan `plna.md` y el plan de UI `plan2uiux.md` (raíz, sin versionar) están
+> **cerrados en sus tres fases**: no queda ningún archivo del panel con tokens viejos y los documentos
+> anteriores (`DESIGN_REFERENCES.md`, `DESIGN_SYSTEM.md`, `design/*.md`) están **borrados: no se citan ni
+> se recrean**. Lo que queda es la cola de [`ops/audit-backlog.md`](../audit-backlog.md): los pendientes
+> que dejó la migración (**A-24** los controles crudos que todavía no son primitivos → **A-26** partir
+> `settings-client.tsx` → **A-25** los tres `window.confirm` → **A-28** la barra del KDS en el 20% →
+> **A-27** E2E determinista de madrugada) y las **A-15 a A-23**, donde cinco necesitan una decisión del
+> owner (A-15 cobros de pedidos cancelados —la de plata más importante—, A-17 tarjeta/transferencia,
+> A-19 movimientos de caja, A-20 fiscal/RUC, A-23 la cuenta de prueba con rol owner). **No inventes
+> trabajo para no quedar quieto**: si el owner ya entregó un plan, ese plan manda y se ejecuta de
+> corrido; si no, se pregunta antes de codear. Si algo del brief no cierra, decilo antes de codear.
+>
+> **Trampas del arnés que ya nos costaron tiempo:** (1) el `next start` local necesita
+> `DATABASE_URL`, `APP_ENV=production`, `NODE_ENV=production` y **`ORDER_CREATE_RATE_LIMIT=200`** (sin
+> eso el checkout del E2E falla de a ratos y parece un bug del producto); (2) **alrededor de la
+> medianoche** del huso del negocio los specs que crean un pedido y lo buscan en el tablero de «Hoy»
+> fallan porque el retiro cae al día siguiente — mirá el reloj antes de creer que rompiste algo
+> (A-27); (3) los E2E de admin **mutan** la base local: si un spec se corta a la mitad deja sucursales
+> y usuarios de prueba que hacen fallar a los siguientes, y el residuo se limpia con SQL contra el
+> contenedor (los patrones están en `ops/project-state.md` §5); (4) cualquier **overlay montado en un
+> portal** (la hoja de edición, el `Modal`) tiene que llevar el alcance `dark` o sale en modo claro:
+> hay un contrato que lo verifica.
 
 ## 1b. Prompt para un chat de **auditoría**
 
@@ -206,9 +213,9 @@ npm run test && npm run lint && npm run typecheck && npm run build && npm run se
 npx prisma generate   # solo si el build local falla por el cliente de Prisma
 ```
 
-Y la última línea de base conocida, para comparar: **2055 tests unitarios en 304 archivos**
-(2026-09-15, cierre de la Capa 0 del plan de UI; antes de esa ronda: 2016 en 295 y 2010 en 294), CI
-(`verify` + `contracts` + `migrations` + `container` + `publish`)
+Y la última línea de base conocida, para comparar: **2097 tests unitarios en 312 archivos** y
+**contracts 42/42** (2026-09-17, cierre de la segunda pasada de UI; antes: 2093/311 el mismo día, 2055/304
+el 2026-09-15), CI (`verify` + `contracts` + `migrations` + `container` + `publish`)
 verde en cada push, **E2E completo local 106 pasaron / 6 salteados / 0 fallos** (con
 `E2E_APEX_HOST=oneburgernic.com` y `E2E_APEX_PORT=3210` para que el apex no quede salteado), smoke
 productivo **7/7**, hosts **6/6** y la QA pública de solo lectura contra `menu.oneburgernic.com` **31 / 2 / 0**.
@@ -228,8 +235,27 @@ por el timeout de 5 s de `toHaveURL` o por el de 30 s al abrir la página.
   pasar, **medí antes de culpar al código**: las superficies públicas respondían en 0,7–0,8 s y las seis
   en 200. Es saturación del burst (una réplica, muchos navegadores en paralelo) o de la red de quien la corre.
 - **El `sha` del panel puede quedar atrás de `main`** si el último push fue solo de documentación: el
-  artefacto desplegado es el commit del **código** (hoy `9018839`), mientras `main` va por `634dc4e`. La
-  comparación honesta es `commit.sha` del panel contra el commit que se quiso desplegar, no contra `HEAD`.
+  artefacto desplegado es el commit del **código** (hoy `2f35710`, `build-20260917-015211`, con `main` en
+  `8e96387`). La comparación honesta es `commit.sha` del panel contra el commit que se quiso desplegar,
+  no contra `HEAD`.
+- **Los E2E de admin mutan la base local** y un spec cortado a la mitad deja sucursales y usuarios de
+  prueba que hacen fallar a los siguientes (pasó el 2026-09-17: una sucursal `Sucursal E2E Alcance` activa
+  rompió los specs que asumen un solo local, y las excepciones de catálogo de `LocationProduct` dejaron un
+  plato a C$42 y el vuelto del checkout en rojo). El residuo se limpia contra el contenedor, sin tocar el
+  repo:
+
+  ```bash
+  docker exec -i one-burger-commerce-postgres-1 psql -U postgres -d oneburger -f - <<'SQL'
+  DELETE FROM "Order" WHERE "locationId" <> 'loc_principal';
+  DELETE FROM "Location" WHERE id <> 'loc_principal';
+  DELETE FROM "AdminUser" WHERE email <> 'admin@example.com';
+  DELETE FROM "LocationProduct";
+  UPDATE "Order" SET status = 'cancelled' WHERE status IN ('new','confirmed','accepted','preparing','ready','ready_for_pickup');
+  SQL
+  ```
+
+  Y el servidor local, con los dos límites altos:
+  `DATABASE_URL=postgresql://postgres:postgres@localhost:5432/oneburger?schema=public APP_ENV=production NODE_ENV=production ADMIN_LOGIN_RATE_LIMIT=200 ORDER_CREATE_RATE_LIMIT=200 npx next start -p 3210`.
 - **El login del panel tiene rate limit (10/min por IP)** y varios E2E seguidos hacen que los casos se
   **salteen** con el mensaje «faltan credenciales», que engaña: el login por UI responde 200. Además
   `tryLoginAsOwner` espera la URL **10 s**, que en producción es corto (las pantallas tardaron 8–20 s).
