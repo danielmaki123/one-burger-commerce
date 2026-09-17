@@ -505,13 +505,13 @@ si los documentos pasan su tope de líneas o si el catálogo deja de tener la li
 > un archivo nuevo sin test lo pone en rojo. Esta sección es el inventario para bajarla; **no se arregla
 > ahora** (decisión del owner: va a backlog).
 
-**Resumen**: **43 archivos** sin test — **13 rutas API**, **23 casos de uso** y **7 primitivos de UI**.
+**Resumen**: **41 archivos** sin test — **11 rutas API**, **23 casos de uso** y **7 primitivos de UI**.
 
 **🔴 Críticas (plata o sesión)**
 
 | Qué | Archivo | Por qué es crítica |
 |---|---|---|
-| T-01 | `src/app/api/admin/pos/shift/{route,open/route,close/route}.ts` | Abrir, cerrar y leer la caja es el arqueo. Hoy solo lo cubre el E2E del POS |
+| T-01 | `src/app/api/admin/pos/shift/route.ts` | Abrir y cerrar la caja (**ya tienen test** desde el 2026-09-18: `open/route.test.ts` y `close/route.test.ts`); falta el `GET` que lee el turno abierto. Hoy solo lo cubre el E2E del POS |
 | T-02 | `src/app/api/coupons/validate/route.ts` | Valida el cupón que descuenta plata |
 | T-03 | `src/app/api/auth/admin/logout/route.ts` | Cierra la sesión del panel |
 | T-04 | `src/modules/pos/features/close-pos-shift/close-pos-shift.ts` | Resuelve el turno del local y delega el cierre |
