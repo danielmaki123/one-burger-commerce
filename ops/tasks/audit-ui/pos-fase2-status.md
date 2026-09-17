@@ -38,6 +38,12 @@
 | **9.2** | Sin caja abierta no se cobra (409 en el servidor + botón bloqueado y motivo en pantalla) | `50ac7f2` | `bloque-9-cobro-bloqueado-*.png` |
 | **2** | `CashMovement` (retiro/ingreso con categoría, motivo y responsable), afecta el esperado por moneda y el `cashMovementsAmount` del cierre, rutas y UI con historial | `eb2f7f6` | `bloque-2-movimientos-*.png` |
 | **3** | Modelo `Refund` (total/parcial, estado, medio original, firma), resta al arqueo solo lo **aprobado en efectivo**, casos de uso `requestRefund`/`reviewRefund` (no se devuelve más de lo cobrado; nadie firma su propia devolución), **void del cobro** (devolución total), **cancelar un pedido cobrado deja la devolución pendiente y avisa** (A-15) y `/admin/approvals` con la cola real | `32a8eb1`, `7f60017`, `3a9fb82` | `bloque-3-aprobaciones-*.png` |
+| **4** | Transferencia y **cobro partido** en el POS: el payload acepta efectivo, tarjeta, transferencia y otro (con referencia), la pantalla arma N cobros y el vuelto **solo** existe en un cobro único en efectivo | `ace1428` | (sin captura: la UI del POS ya está en `bloque-9-*.png`) |
+| **7** | `canRefund` y `canViewCashHistory` como puertas propias (con `canManageCash`), cada ruta y cada página usando la suya | `e9d1fa7` | — |
+
+**Bloque 7.3 (`helper E2E acepta cashier`)**: pendiente. El helper de E2E solo crea sesión de owner
+(`tryLoginAsOwner`); sumar `cashier` pide crear la cuenta y asignarle sucursal en la misma corrida, que
+es trabajo de arnés, no de producto.
 
 **Bloque 3 — lo que queda fuera a propósito:** **3.7** (aviso al dueño si la devolución supera X monto)
 necesita el **monto** y el canal (hoy no hay notificación externa: `NOTIFICATIONS_DRIVER=dummy`). Va a
