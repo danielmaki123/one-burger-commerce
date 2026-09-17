@@ -1,8 +1,8 @@
 # Estado del proyecto — One Burger Commerce
 
-> Actualizado: 2026-09-17 · Último deploy a producción: 2026-09-17, commit `dea1e38` (build
-> `build-20260917-153827`, deploy por API sobre el servicio `oneburguerweb`, acción `done`; readiness
-> `ready` y los dos smokes en verde). Lleva el **panel entero migrado al sistema Stitch** —Fase 1 (tokens, tipografías,
+> Actualizado: 2026-09-17 · Último deploy a producción: 2026-09-17, commit `df938ee` (build
+> `build-20260917-164732`, deploy por API sobre el servicio `oneburguerweb`, acción `done`; readiness
+> `ready` con la base en 1 ms y los dos smokes en verde: menú 7/7 y hosts 6/6). Lleva el **panel entero migrado al sistema Stitch** —Fase 1 (tokens, tipografías,
 > estados y contraste), Fase 2 (las 7 pantallas) y la segunda pasada (los modales y las pantallas
 > secundarias: Inventario, Zonas, Promos, Menú, catálogo por local y detalle de orden)— más el
 > **horario único por sucursal** (Personalización dejó de editarlo). Ver `ops/DESIGN_LOG.md` (entry
@@ -18,17 +18,19 @@
 > antes/después en `ops/tasks/audit-ui/`) están **cerradas**; ver `ops/DESIGN_LOG.md` (entry del
 > 2026-09-16) para las decisiones y lo que quedó pendiente. Falta la **FASE 3** de ese plan.
 >
-> **Ronda del brief 2026-09-17 (en curso)**: alertas por **Telegram** (pantalla
+> **Ronda del brief 2026-09-17 (cerrada)**: alertas por **Telegram** (pantalla
 > `/admin/settings/notifications`, tabla `NotificationSettings`, token por entorno, prueba de conexión
 > real y tres disparadores) y las tareas de caja del POS con decisión del owner: **1** (POS limpio y caja
 > aparte), **2** (límite de retiro configurable sin aprobación), **3** (cierre obligatorio por sucursal),
 > **5/6** (qué ve el operario al cerrar, sin cierre ciego), **7** (corte X y traspaso de caja entre
 > cajeros), **9** (solo el dueño aprueba devoluciones), **10** (conciliación de tarjeta y transferencia
 > exportable a CSV) y **11** (idempotencia del cobro con UUID: la clave viaja con el borrador y el
-> reintento no registra los cobros dos veces). En la tarea 10 apareció y se arregló un **bug de
-> producción**: cobrar con tarjeta en el POS devolvía 400 (el «con cuánto paga» viajaba siempre al alta
-> del pedido). El registro por tarea, con commits y capturas, está en
-> `ops/tasks/audit-ui/pos-fase2-status.md`.
+> reintento no registra los cobros dos veces). Queda **pendiente** 11.4 (email al dueño: necesita
+> decidir proveedor, o sea una dependencia nueva) y **en el backlog** el Bloque 5 completo (factura
+> fiscal), por decisión del owner. Dos **bugs de producción** aparecieron y se arreglaron en el camino:
+> el cobro con tarjeta en el POS devolvía 400 (el «con cuánto paga» viajaba siempre al alta del pedido) y
+> el reintento del mismo cobro registraba los pagos dos veces. El registro por tarea, con commits y
+> capturas, está en `ops/tasks/audit-ui/pos-fase2-status.md`.
 
 ## 1. Qué está vivo hoy
 
