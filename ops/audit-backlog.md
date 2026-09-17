@@ -498,6 +498,47 @@ si los documentos pasan su tope de líneas o si el catálogo deja de tener la li
 - **Cierre esperado**: compactar la barra (contadores y buscador en una fila, acciones al menú) sin
   perder ninguno de los anclajes que usan los E2E (`Local de las comandas`, `Buscar comanda`, `Atrasados`).
 
+## 2b. Deuda de TDD medida por el gate (2026-09-17)
+
+> **Qué es**: el gate `src/shared/contracts/tdd-contract.test.ts` (pedido del owner) mide qué código
+> existe **sin test**. La deuda vieja quedó **congelada con su motivo** dentro del gate y **no crece**:
+> un archivo nuevo sin test lo pone en rojo. Esta sección es el inventario para bajarla; **no se arregla
+> ahora** (decisión del owner: va a backlog).
+
+**Resumen**: **43 archivos** sin test — **13 rutas API**, **23 casos de uso** y **7 primitivos de UI**.
+
+**🔴 Críticas (plata o sesión)**
+
+| Qué | Archivo | Por qué es crítica |
+|---|---|---|
+| T-01 | `src/app/api/admin/pos/shift/{route,open/route,close/route}.ts` | Abrir, cerrar y leer la caja es el arqueo. Hoy solo lo cubre el E2E del POS |
+| T-02 | `src/app/api/coupons/validate/route.ts` | Valida el cupón que descuenta plata |
+| T-03 | `src/app/api/auth/admin/logout/route.ts` | Cierra la sesión del panel |
+| T-04 | `src/modules/pos/features/close-pos-shift/close-pos-shift.ts` | Resuelve el turno del local y delega el cierre |
+| T-05 | `src/modules/auth/features/{get-admin-session,logout-admin,require-admin-session}` | La puerta de sesión del panel (hoy mockeada por los tests de ruta) |
+
+**🟡 Medias (CRUD del admin y primitivos muy usados)**
+
+| Qué | Archivo | Por qué |
+|---|---|---|
+| T-06 | `src/shared/ui/{input,card,badge,checkbox,radio-group,status-progress,public-confirmation-shell}.tsx` | **7 primitivos sin test propio**: los mide el E2E a 375/1280 px, no la unidad |
+| T-07 | `src/modules/menu/features/{create,delete}-subcategory`, `update-category`, `create-marketing-block`, `get-admin-product`, `list-admin-{products,subcategories,marketing-blocks}` | ABM del catálogo: cubierto por el test de su ruta, sin test del caso de uso |
+| T-08 | `src/modules/locations/features/{list-location-catalog,set-location-product}` | Precio por local |
+| T-09 | `src/modules/dashboard/features/{get-daily-report,get-dashboard-summary,get-recent-activity,get-inventory-report}` | Reportes |
+
+**🟢 Bajas (fuera del MVP)**
+
+| Qué | Archivo | Por qué |
+|---|---|---|
+| T-10 | `src/app/api/admin/inventory/{items,receive,waste}/route.ts` | Inventario: fuera del MVP |
+| T-11 | `src/app/api/admin/reservations/**` (3 rutas) | Reservas: fuera del MVP |
+| T-12 | `src/app/api/customer/auth/{logout,verify-otp}/route.ts` | Auth de cliente sin proveedor real (503 en prod) |
+| T-13 | `src/modules/orders/features/list-public-delivery-zones/list-public-delivery-zones.ts` | Delivery: fuera del MVP |
+| T-14 | `src/modules/inventory/features/shared/inventory-idempotency.ts` | Inventario: fuera del MVP |
+
+**Criterio de bajada**: el archivo que recibe su test borra su fila de `EXCEPTIONS` (si sobra, el
+contrato falla). **Ninguna fila nueva se agrega**: eso es lo que el gate impide.
+
 ## 3. Registro de lo cerrado
 
 | ID | Qué se cerró | Commit | Verificación |
