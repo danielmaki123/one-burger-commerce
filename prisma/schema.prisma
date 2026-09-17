@@ -721,6 +721,9 @@ model BusinessSettings {
   paymentInstructions String?  @default("Pagás en el local al retirar tu pedido. No se cobra nada online.")
   tipEnabled          Boolean  @default(true)
   tipRate             Int      @default(10)
+  /// Tarea 2 del brief (2026-09-17): retiro de caja que se considera «grande». `null` = sin límite.
+  /// No hay aprobación del supervisor: marca el movimiento para que se vea, no lo bloquea.
+  withdrawalLimit     Float?
   isAcceptingOrders   Boolean  @default(true)
   closedMessage       String?  @default("Estamos cerrados. Podés mirar el menú y volver cuando abramos.")
   // Auditoría
@@ -868,8 +871,14 @@ model CashMovement {
   /// Quién lo registró.
   userId     String
   /// Bloque 2.5/2.6 — aprobación de un movimiento por encima del límite. `null` = no requiere.
+  /// Decisión del owner (2026-09-17): **no hay aprobación del supervisor**, así que estos dos quedan
+  /// en `null`; el límite marca el movimiento (`withdrawalLimitAmount`) para que se vea, no lo bloquea.
   approvedByUserId String?
   approvedAt DateTime?
+  /// Tarea 2 del brief (2026-09-17) — el límite de retiro **vigente cuando se registró**. `null` = no
+  /// había límite configurado. Se guarda congelado: cambiar el límite después no reescribe la historia
+  /// (es la misma regla que el arqueo de un cierre).
+  withdrawalLimitAmount Decimal?  @db.Decimal(10, 2)
   createdAt  DateTime           @default(now())
   shift      Shift              @relation(fields: [shiftId], references: [id], onDelete: Cascade)
   user       AdminUser          @relation(fields: [userId], references: [id], onDelete: Restrict)

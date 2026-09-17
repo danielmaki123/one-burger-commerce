@@ -100,6 +100,12 @@ export type BusinessSettingsRecord = {
   paymentInstructions: string | null;
   tipEnabled: boolean;
   tipRate: number;
+  /**
+   * Tarea 2 del brief (2026-09-17) — retiro de caja que se considera «grande», en moneda del negocio.
+   * `null` = sin límite. El owner decidió que **no** haya aprobación del supervisor: el límite marca el
+   * movimiento para que se vea, no para bloquearlo.
+   */
+  withdrawalLimit: number | null;
   isAcceptingOrders: boolean;
   closedMessage: string | null;
   // Auditoría

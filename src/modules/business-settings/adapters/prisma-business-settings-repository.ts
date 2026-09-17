@@ -68,6 +68,7 @@ function mapRow(row: BusinessSettings): BusinessSettingsRecord {
     paymentInstructions: row.paymentInstructions,
     tipEnabled: row.tipEnabled,
     tipRate: row.tipRate,
+    withdrawalLimit: row.withdrawalLimit,
     isAcceptingOrders: row.isAcceptingOrders,
     closedMessage: row.closedMessage,
     updatedAt: row.updatedAt,

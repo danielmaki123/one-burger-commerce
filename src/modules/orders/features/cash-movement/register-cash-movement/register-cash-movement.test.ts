@@ -29,6 +29,7 @@ function movement(overrides: Partial<CashMovementRecord> & { id: string }): Cash
     userId: "user_01",
     approvedByUserId: null,
     approvedAt: null,
+    withdrawalLimitAmount: null,
     createdAt: "2026-09-17T18:00:00.000Z",
     ...overrides,
   };
@@ -101,9 +102,29 @@ describe("registerCashMovement", () => {
         currency: "NIO",
         reason: "Pago al proveedor de pan",
         userId: "user_01",
+        // Tarea 2: el límite vigente se guarda con el movimiento (sin límite configurado en este caso).
+        withdrawalLimitAmount: null,
       },
     ]);
     expect(result.data.id).toBe("mov_1");
+  });
+
+  /**
+   * Tarea 2 del brief (2026-09-17) — el límite se **congela** con el movimiento.
+   *
+   * Decisión del owner: límite configurable en Personalización y **sin aprobación del supervisor**. Lo que
+   * el movimiento guarda es el límite que estaba vigente; así el historial no cambia cuando el owner
+   * mueve el número, y un retiro chico hecho antes de bajar el límite no se vuelve «grande» después.
+   */
+  it("guarda el límite de retiro vigente y lo ignora en un ingreso", async () => {
+    const { created, deps } = buildDeps();
+
+    await registerCashMovement({ ...input, withdrawalLimit: 1000 }, deps);
+    await registerCashMovement({ ...input, kind: "deposit", withdrawalLimit: 1000 }, deps);
+
+    expect(created[0].withdrawalLimitAmount).toBe(1000);
+    // Un ingreso no es plata que se va: no lleva límite.
+    expect(created[1].withdrawalLimitAmount).toBeNull();
   });
 
   it("rechaza un motivo vacío: un movimiento sin razón no se audita", async () => {

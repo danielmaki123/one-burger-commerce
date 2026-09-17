@@ -226,6 +226,17 @@ export const businessSettingsPatchSchema = z.object({
     .min(0, "No puede ser negativo")
     .max(100, "Como máximo 100 %")
     .optional(),
+  /**
+   * Tarea 2 del brief (2026-09-17) — el retiro de caja que se considera grande, en moneda del negocio.
+   * Vacío o `null` = sin límite: nada se marca. No hay aprobación: el límite solo deja el movimiento a
+   * la vista.
+   */
+  withdrawalLimit: z
+    .number()
+    .min(0, "No puede ser negativo")
+    .max(1_000_000, "Como máximo 1.000.000")
+    .nullable()
+    .optional(),
   isAcceptingOrders: z.boolean().optional(),
   closedMessage: optionalText(300).optional(),
 }).superRefine((patch, ctx) => {

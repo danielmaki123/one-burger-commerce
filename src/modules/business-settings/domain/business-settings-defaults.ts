@@ -73,6 +73,9 @@ export const DEFAULT_BUSINESS_SETTINGS: BusinessSettingsDefaults = {
   paymentInstructions: "Pagás en el local al retirar tu pedido. No se cobra nada online.",
   tipEnabled: true,
   tipRate: 10,
+  // Tarea 2 del brief: sin límite cargado. Un default inventado marcaría movimientos que el negocio
+  // nunca declaró grandes; el owner pone el monto cuando lo decide.
+  withdrawalLimit: null,
   isAcceptingOrders: true,
   closedMessage: "Estamos cerrados. Podés mirar el menú y volver cuando abramos.",
 };

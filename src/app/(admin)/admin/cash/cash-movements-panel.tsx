@@ -7,6 +7,7 @@ import { Button } from "@/shared/ui/button";
 import { formatCurrency } from "@/shared/lib/format-currency";
 import type { CurrencyFormat } from "@/shared/lib/format-currency";
 
+import { isOverWithdrawalLimit } from "@/modules/orders/domain/cash-movement-limit";
 import { formatShiftDateTime } from "./cash-shift-helpers";
 import CashMovementForm from "./cash-movement-form";
 
@@ -30,8 +31,19 @@ export type CashMovementRow = {
   currency: string;
   reason: string;
   userId: string;
+  /** Tarea 2 del brief: el límite de retiro vigente al registrar (`null` = no había límite). */
+  withdrawalLimitAmount?: number | null;
   createdAt: string;
 };
+
+/** El movimiento con su límite ya resuelto: la fila puede no traerlo (turnos viejos). */
+function limitOf(movement: CashMovementRow) {
+  return {
+    kind: movement.kind,
+    amount: movement.amount,
+    withdrawalLimitAmount: movement.withdrawalLimitAmount ?? null,
+  };
+}
 
 const CATEGORY_LABELS: Record<string, string> = {
   supplier: "Proveedor",
@@ -114,6 +126,16 @@ export default function CashMovementsPanel({
                   {movement.kind === "withdrawal" ? "Retiro" : "Ingreso"} ·{" "}
                   {CATEGORY_LABELS[movement.category] ?? movement.category}
                 </span>
+                {/* Tarea 2 del brief: un retiro por encima del límite configurado queda a la vista. No hay
+                    aprobación (decisión del owner): el límite avisa, no bloquea. */}
+                {isOverWithdrawalLimit(limitOf(movement)) ? (
+                  <span className="ml-2 rounded-full border border-status-sla-border bg-status-sla-bg px-2 py-0.5 text-st-caption font-semibold text-status-sla-text">
+                    Sobre el límite de{" "}
+                    <span className="font-mono tabular-nums">
+                      {formatCurrency(movement.withdrawalLimitAmount ?? 0, currency)}
+                    </span>
+                  </span>
+                ) : null}
                 <span className="block text-st-body text-ink-secondary">
                   {movement.reason} ·{" "}
                   <span className="font-mono tabular-nums">

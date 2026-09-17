@@ -124,8 +124,17 @@ describe("validación de la configuración del negocio", () => {
     expectFieldError({ tipRate: 7.5 }, "tipRate");
   });
 
-  it("valida el tipo de cambio del dólar (TASK-303a)", () => {
-    // Es la casilla que el owner ajusta cuando se mueve el mercado; vacía = sin tasa cargada, y
+  /**
+   * Tarea 2 del brief (2026-09-17) — el límite de retiro. Es un monto (no un porcentaje), vacío = sin
+   * límite, y no puede ser negativo: un límite negativo marcaría todos los retiros.
+   */
+  it("valida el límite de retiro de caja", () => {
+    expect(parseBusinessSettingsPatch({ withdrawalLimit: 1500 })).toEqual({ withdrawalLimit: 1500 });
+    expect(parseBusinessSettingsPatch({ withdrawalLimit: null })).toEqual({ withdrawalLimit: null });
+    expectFieldError({ withdrawalLimit: -1 }, "withdrawalLimit");
+  });
+
+  it("valida el tipo de cambio del dólar (TASK-303a)", () => {    // Es la casilla que el owner ajusta cuando se mueve el mercado; vacía = sin tasa cargada, y
     // entonces un cobro en dólares se rechaza en vez de convertir con un número inventado.
     expect(parseBusinessSettingsPatch({ usdExchangeRate: 36.5 })).toEqual({ usdExchangeRate: 36.5 });
     expect(parseBusinessSettingsPatch({ usdExchangeRate: null })).toEqual({ usdExchangeRate: null });

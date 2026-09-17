@@ -23,6 +23,12 @@ export type CashMovementInput = {
   amount: number;
   currency: string;
   reason: string;
+  /**
+   * Tarea 2 del brief (2026-09-17) — el límite de retiro configurado. **No bloquea nada**: se guarda con
+   * el movimiento (congelado) para que el historial pueda marcar los que lo superan, que es lo que decidió
+   * el owner en vez de una aprobación del supervisor.
+   */
+  withdrawalLimit?: number | null;
 };
 
 export async function registerCashMovement(
@@ -77,6 +83,8 @@ export async function registerCashMovement(
     currency,
     reason,
     userId: input.userId,
+    // Solo un retiro puede quedar «sobre el límite»; el límite se guarda igual para dejar el contexto.
+    withdrawalLimitAmount: input.kind === "withdrawal" ? (input.withdrawalLimit ?? null) : null,
   });
 
   return { data: movement };

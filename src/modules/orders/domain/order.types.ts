@@ -316,6 +316,11 @@ export type CashMovementRecord = {  id: string;
   userId: string;
   approvedByUserId: string | null;
   approvedAt: string | null;
+  /**
+   * Tarea 2 del brief (2026-09-17) — el límite de retiro vigente cuando se registró. `null` = no había
+   * límite. Va congelado para que cambiar el límite después no reescriba lo que ya pasó.
+   */
+  withdrawalLimitAmount: number | null;
   createdAt: string;
 };
 

@@ -540,6 +540,30 @@ export default function AdminSettingsClientPage({
         title="Operación"
         description="Retiro, pago y propina."
       >
+        {/* Tarea 2 del brief (2026-09-17): el retiro de caja que se considera grande. No hay aprobación
+            del supervisor (decisión del owner): el límite solo marca el movimiento en la caja. */}
+        <SettingsField
+          id="settings-withdrawal-limit"
+          label={`Límite de retiro sin aviso (${draft.currencySymbol}, opcional)`}
+          hint="Un retiro de caja por encima de este monto queda marcado en el historial y en el arqueo. Vacío = sin límite. No pide aprobación de nadie: es un aviso para revisar, no un bloqueo."
+          error={fieldErrors.withdrawalLimit}
+          onReset={() => resetField("withdrawalLimit")}
+        >
+          <Input
+            id="settings-withdrawal-limit"
+            type="number"
+            min={0}
+            value={draft.withdrawalLimit === null ? "" : String(draft.withdrawalLimit)}
+            placeholder="Sin límite"
+            onChange={(event) =>
+              setField(
+                "withdrawalLimit",
+                event.target.value.trim() === "" ? null : Number(event.target.value),
+              )
+            }
+          />
+        </SettingsField>
+
         <SettingsField
           id="settings-pickup-lead"
           label="Minutos de preparación"

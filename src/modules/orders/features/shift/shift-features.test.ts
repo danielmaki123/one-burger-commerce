@@ -35,6 +35,7 @@ class InMemoryCashMovementRepository {
       userId: "user_01",
       approvedByUserId: null,
       approvedAt: null,
+      withdrawalLimitAmount: null,
       createdAt: "2026-09-17T18:00:00.000Z",
     });
   }

@@ -10,6 +10,11 @@ export type CreateCashMovementInput = {
   currency: string;
   reason: string;
   userId: string;
+  /**
+   * Tarea 2 del brief (2026-09-17) — el límite de retiro vigente al registrar. Se guarda congelado para
+   * que cambiar la configuración después no reescriba la historia.
+   */
+  withdrawalLimitAmount?: number | null;
 };
 
 export interface CashMovementRepository {

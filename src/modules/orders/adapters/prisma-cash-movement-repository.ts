@@ -32,6 +32,7 @@ function mapMovement(row: {
   userId: string;
   approvedByUserId: string | null;
   approvedAt: Date | null;
+  withdrawalLimitAmount: Decimal | null;
   createdAt: Date;
 }): CashMovementRecord {
   return {
@@ -45,6 +46,8 @@ function mapMovement(row: {
     userId: row.userId,
     approvedByUserId: row.approvedByUserId,
     approvedAt: row.approvedAt ? row.approvedAt.toISOString() : null,
+    withdrawalLimitAmount:
+      row.withdrawalLimitAmount === null ? null : decimalToNumber(row.withdrawalLimitAmount),
     createdAt: row.createdAt.toISOString(),
   };
 }
@@ -62,6 +65,7 @@ export class PrismaCashMovementRepository implements CashMovementRepository {
         currency: input.currency,
         reason: input.reason,
         userId: input.userId,
+        withdrawalLimitAmount: input.withdrawalLimitAmount ?? null,
       },
     });
 
