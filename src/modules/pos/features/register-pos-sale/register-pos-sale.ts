@@ -1,4 +1,4 @@
-import type { OrderRecord, PaymentRecord } from "@/modules/orders/domain/order.types";
+import type { OrderRecord, PaymentMethodType, PaymentRecord } from "@/modules/orders/domain/order.types";
 import {
   calculateOrderChange,
   validatePaidWithAmount,
@@ -60,6 +60,18 @@ export type RegisterPosSaleResult = {
   change: number | null;
 };
 
+/**
+ * Bloque 4 del roadmap del POS (Fase 2) — el medio del pedido a partir del cobro real.
+ *
+ * `Order.paymentMethod` (y el enum `PaymentMethod`) declara solo `cash | card`: es la declaración del
+ * cliente en el checkout. Un cobro del mostrador puede ser transferencia u otro, así que acá se
+ * traduce: lo que no es tarjeta se declara efectivo, que es como se comporta para el local. El detalle
+ * real (con su referencia y su monto) queda en `Payment`.
+ */
+function toDeclaredPaymentMethod(method: PaymentMethodType | undefined): "cash" | "card" {
+  return method === "card" ? "card" : "cash";
+}
+
 export async function registerPosSale(
   input: RegisterPosSaleInput,
   deps: RegisterPosSaleDependencies,
@@ -103,8 +115,11 @@ export async function registerPosSale(
       modifierOptionIds: [],
       notes: line.notes ?? null,
     })),
-    // La forma de pago del pedido es la del primer cobro: el detalle real está en los cobros.
-    paymentMethod: input.payments[0]?.method ?? "cash",
+    // La forma de pago del pedido es la del primer cobro **traducida a lo que el pedido declara**
+    // (`cash` o `card`): el detalle real —transferencia, mixto, cada monto— está en los cobros. Una
+    // transferencia o un pago mixto declaran `cash`, que es como se comporta el cobro para el local
+    // (la plata no pasó por una terminal).
+    paymentMethod: toDeclaredPaymentMethod(input.payments[0]?.method),
     // TASK-305: lo que el cliente puso sobre el mostrador, en moneda del negocio. Se guarda porque el
     // arqueo necesita saber cuánto salió de vuelto: sin eso, un día con vueltos parecería que falta
     // plata. `createOrder` lo vuelve a validar contra el total que calcula él.
@@ -131,10 +146,13 @@ export async function registerPosSale(
   }
 
   const payments: PaymentRecord[] = [];
-  const change = calculateOrderChange({ paidWithAmount: paidInBusinessCurrency, total: order.total });
-  // El vuelto sale del cajón en efectivo: se registra en el cobro cuando la venta tiene uno solo y es
-  // en efectivo. En un pago mixto queda en 0 y la caja lo explica en las notas del cierre.
+  // El vuelto **solo existe en un cobro único en efectivo**: si la venta se partió entre medios, la
+  // parte de efectivo es exacta (lo que sobrara se habría cobrado de menos por el otro medio), así que
+  // anunciar cambio sería mentirle al cajero y al arqueo. En un pago mixto queda en 0.
   const changeBelongsToCash = input.payments.length === 1 && input.payments[0].method === "cash";
+  const change = changeBelongsToCash
+    ? calculateOrderChange({ paidWithAmount: paidInBusinessCurrency, total: order.total })
+    : 0;
 
   for (const payment of input.payments) {
     payments.push(
@@ -144,6 +162,8 @@ export async function registerPosSale(
         amount: payment.amount,
         currency: payment.currency.trim().toUpperCase(),
         changeAmount: changeBelongsToCash ? (change ?? 0) : 0,
+        // Bloque 4: la referencia externa (voucher o id de transferencia) viaja con el cobro.
+        ...(payment.reference ? { reference: payment.reference } : {}),
       }),
     );
   }

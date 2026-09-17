@@ -27,9 +27,20 @@ const lineSchema = z.object({
 });
 
 const paymentSchema = z.object({
-  method: z.enum(["cash", "card"], { message: "Elegí efectivo o tarjeta" }),
+  /**
+   * Bloque 4 del roadmap del POS (Fase 2) — los medios del enum real, no solo dos.
+   *
+   * El mostrador cobra efectivo, tarjeta y **transferencia**, y un pedido puede partirse entre varios
+   * medios (efectivo + transferencia, dos tarjetas). El `mixed` no se elige acá: se **deriva** de que
+   * haya más de un cobro.
+   */
+  method: z.enum(["cash", "card", "transfer", "other"], {
+    message: "Elegí efectivo, tarjeta, transferencia u otro",
+  }),
   currency: z.string().trim().min(3, "Falta la moneda").max(3, "La moneda son 3 letras"),
   amount: z.number().positive("El monto tiene que ser mayor que cero"),
+  /** Referencia externa del cobro (número de voucher o de transferencia). Opcional. */
+  reference: z.string().trim().max(80).nullable().optional(),
 });
 
 const saleSchema = z.object({
@@ -107,6 +118,7 @@ export function parsePosSalePayload(body: unknown): {
         method: payment.method,
         currency: payment.currency.toUpperCase(),
         amount: payment.amount,
+        ...(payment.reference ? { reference: payment.reference } : {}),
       })),
       idempotencyKey: parsed.data.idempotencyKey ?? null,
     },

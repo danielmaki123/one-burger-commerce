@@ -1,0 +1,59 @@
+import { describe, expect, it } from "vitest";
+
+import { PosError } from "@/modules/pos/domain/pos-errors";
+
+import { parsePosSalePayload } from "./sale-payload";
+
+/**
+ * Bloque 4 del roadmap del POS (Fase 2) — la forma del cobro del mostrador.
+ *
+ * El POS cobra efectivo, tarjeta y **transferencia**, y un pedido puede partirse entre medios. Lo que
+ * se fija acá: los tres medios entran, `mixed` **no** se elige (se deriva de que haya más de un
+ * cobro), la referencia externa viaja al cobro y la moneda se normaliza a mayúsculas.
+ */
+function body(overrides: Record<string, unknown> = {}) {
+  return {
+    locationId: "loc_principal",
+    customer: { name: "Cliente", whatsapp: "88887777" },
+    lines: [{ productId: "prod_1", name: "Taco", unitPrice: 35, quantity: 1 }],
+    payments: [{ method: "cash", currency: "nio", amount: 35 }],
+    ...overrides,
+  };
+}
+
+describe("parsePosSalePayload", () => {
+  it.each(["cash", "card", "transfer", "other"] as const)(
+    "acepta el medio %s",
+    (method) => {
+      const parsed = parsePosSalePayload(
+        body({ payments: [{ method, currency: "nio", amount: 35 }] }),
+      );
+
+      expect(parsed.input.payments[0]).toMatchObject({ method, currency: "NIO" });
+    },
+  );
+
+  it("rechaza `mixed`: es un resultado de partir el cobro, no algo que se elija", () => {
+    expect(() =>
+      parsePosSalePayload(body({ payments: [{ method: "mixed", currency: "NIO", amount: 35 }] })),
+    ).toThrow(PosError);
+  });
+
+  it("acepta un cobro partido y lleva la referencia de la transferencia", () => {
+    const parsed = parsePosSalePayload(
+      body({
+        payments: [
+          { method: "cash", currency: "NIO", amount: 15 },
+          { method: "transfer", currency: "NIO", amount: 20, reference: "TRF-8891" },
+        ],
+      }),
+    );
+
+    expect(parsed.input.payments).toHaveLength(2);
+    expect(parsed.input.payments[1]).toMatchObject({ reference: "TRF-8891" });
+  });
+
+  it("sin cobros no se cobra nada", () => {
+    expect(() => parsePosSalePayload(body({ payments: [] }))).toThrow(PosError);
+  });
+});

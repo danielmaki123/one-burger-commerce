@@ -1,4 +1,4 @@
-import type { OrderPaymentMethod } from "@/modules/orders/domain/order.types";
+import type { PaymentMethodType } from "@/modules/orders/domain/order.types";
 import { roundCurrency } from "@/shared/lib/order-totals";
 
 import { convertPaymentToBusinessCurrency } from "./payment-conversion";
@@ -14,11 +14,18 @@ import { PosError } from "./pos-errors";
  */
 
 export type PosSalePaymentInput = {
-  method: OrderPaymentMethod;
+  /**
+   * Bloque 4 del roadmap del POS (Fase 2) — el medio del **cobro real**, no la declaración del
+   * cliente: son los del enum `PaymentMethodType` (efectivo, tarjeta, transferencia, mixto, otro). El
+   * checkout público sigue ofreciendo dos porque ahí el cliente **declara** cómo va a pagar.
+   */
+  method: PaymentMethodType;
   /** Moneda en la que el cliente paga (la del negocio o el dólar). */
   currency: string;
   /** Monto **en esa moneda**. */
   amount: number;
+  /** Referencia externa del cobro (voucher, id de transferencia). Opcional. */
+  reference?: string | null;
 };
 
 /** Suma de los cobros convertidos a la moneda del negocio. Lanza si un cobro no se puede convertir. */

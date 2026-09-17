@@ -124,8 +124,90 @@ describe("venta de mostrador", () => {
     expect(result.order.orderNumber).toBe("P-ABC123");
   });
 
-  it("cobra en dólares: registra la moneda original y calcula el cambio convertido", async () => {
+  /**
+   * Bloque 4 del roadmap del POS (Fase 2) — el cobro partido y la transferencia.
+   *
+   * El contrato ya aceptaba N cobros y el caso de uso los registraba uno por uno, pero **el POS no
+   * tenía forma de armar dos** (un monto, un método). Lo que se fija acá:
+   * - dos cobros del mismo pedido se registran cada uno con **su** método, su monto y su moneda
+   *   (efectivo + transferencia, o dos tarjetas);
+   * - el **vuelto solo sale del efectivo**: en un pago partido con tarjeta no hay cambio que dar, así
+   *   que el `changeAmount` del cobro queda en 0 y el arqueo no descuenta plata que nadie entregó.
+   */
+  it("registra un cobro partido: efectivo + transferencia, cada uno con su medio", async () => {
+    const { createPosOrder, paymentRepository, deps } = setup();
+
+    const result = await registerPosSale(
+      {
+        draft: draftWithTaco(),
+        customer,
+        // La venta es de 80: 30 en efectivo y 50 por transferencia.
+        payments: [
+          { method: "cash", currency: "NIO", amount: 30 },
+          { method: "transfer", currency: "NIO", amount: 50 },
+        ],
+      },
+      deps,
+    );
+
+    const payments = await paymentRepository.listPaymentsByOrder("ord_01");
+    expect(payments).toHaveLength(2);
+    expect(payments[0]).toMatchObject({ method: "cash", amount: 30 });
+    expect(payments[1]).toMatchObject({ method: "transfer", amount: 50 });
+
+    // El pedido declara la forma del **primer** cobro: el detalle real está en los cobros.
+    expect(createPosOrder).toHaveBeenCalledWith(
+      expect.objectContaining({ paymentMethod: "cash", paidWithAmount: 80 }),
+    );
+    expect(result.change).toBe(0);
+  });
+
+  it("en un cobro partido no se registra vuelto en ningún cobro", async () => {
     const { paymentRepository, deps } = setup();
+
+    const result = await registerPosSale(
+      {
+        draft: draftWithTaco(),
+        customer,
+        // Paga 100 (50 efectivo + 50 tarjeta) por una venta de 80: hay 20 de más, pero no salen del
+        // cajón como vuelto porque el efectivo solo cubrió 50.
+        payments: [
+          { method: "cash", currency: "NIO", amount: 50 },
+          { method: "card", currency: "NIO", amount: 50 },
+        ],
+      },
+      deps,
+    );
+
+    const payments = await paymentRepository.listPaymentsByOrder("ord_01");
+    expect(payments.map((payment) => payment.changeAmount)).toEqual([0, 0]);
+    // **El vuelto no aplica en un cobro partido**: el cliente paga la parte de efectivo exacta (si
+    // sobrara, se habría cobrado de menos por el otro medio), así que el POS no anuncia cambio.
+    expect(result.change).toBe(0);
+  });
+
+  it("con dos cobros de tarjeta tampoco hay vuelto", async () => {
+    const { paymentRepository, deps } = setup();
+
+    const result = await registerPosSale(
+      {
+        draft: draftWithTaco(),
+        customer,
+        payments: [
+          { method: "card", currency: "NIO", amount: 40 },
+          { method: "card", currency: "NIO", amount: 40 },
+        ],
+      },
+      deps,
+    );
+
+    const payments = await paymentRepository.listPaymentsByOrder("ord_01");
+    expect(payments).toHaveLength(2);
+    expect(payments.every((payment) => payment.changeAmount === 0)).toBe(true);
+    expect(result.change).toBe(0);
+  });
+
+  it("cobra en dólares: registra la moneda original y calcula el cambio convertido", async () => {    const { paymentRepository, deps } = setup();
 
     const result = await registerPosSale(
       // 3 dólares × 36.5 = 109.50 por una venta de 80: el cambio son 29.50 en moneda del negocio.

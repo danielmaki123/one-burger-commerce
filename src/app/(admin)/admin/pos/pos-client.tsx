@@ -18,7 +18,7 @@ import { formatCurrency } from "@/shared/lib/format-currency";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Select } from "@/shared/ui/select";
-import { PAYMENT_METHOD_LABELS } from "@/modules/orders/domain/order.types";
+import { PAYMENT_METHOD_TYPE_LABELS } from "@/modules/orders/domain/order.types";
 import {
   renderReceiptJpeg,
   shareOrDownloadReceipt,
@@ -47,12 +47,40 @@ import {
 export type PosLocationOption = { id: string; name: string };
 
 /**
+ * Bloque 4 del roadmap del POS (Fase 2) — una fila de cobro del mostrador.
+ *
+ * El monto vive como **texto** para que el input controlado no pelee con el cajero (mismo patrón que
+ * el monto único de TASK-303b); la conversión a número pasa al armar el payload.
+ */
+export type PosPaymentDraft = {
+  id: string;
+  method: "cash" | "card" | "transfer" | "other";
+  currency: string;
+  amount: string;
+  /** Referencia del voucher o de la transferencia (Bloque 4.1). */
+  reference?: string;
+};
+
+/**
  * TASK-306 — cada cuánto se refresca el mostrador solo.
  *
  * Decisión del owner (2026-09-14): **polling**, no SSE. Con una sola réplica y un catálogo chico, dos
  * consultas cada 3 s no necesitan conexiones largas ni tocar los timeouts del proxy.
  */
 export const POS_REFRESH_MS = 3000;
+
+/**
+ * Bloque 4 del roadmap del POS (Fase 2) — los medios que ofrece el mostrador.
+ *
+ * `mixed` no está: el mixto es un **resultado** de partir el cobro entre dos medios, no algo que el
+ * cajero elija. Sale del primero al construir el payload del pedido.
+ */
+const PAYMENT_METHOD_CHOICES = [
+  { id: "cash", label: "Efectivo" },
+  { id: "card", label: "Tarjeta" },
+  { id: "transfer", label: "Transferencia" },
+  { id: "other", label: "Otro" },
+] as const;
 
 type PosShift = {
   id: string;
@@ -86,8 +114,7 @@ function catalogUrl(locationId: string) {
   return `/api/admin/pos/catalog?locationId=${encodeURIComponent(locationId)}`;
 }
 
-export default function PosClient({ locations }: { locations: PosLocationOption[] }) {
-  const currency = useCurrencyFormat();
+export default function PosClient({ locations }: { locations: PosLocationOption[] }) {  const currency = useCurrencyFormat();
   const settings = useBusinessSettings();
 
   const [locationId, setLocationId] = React.useState(locations[0]?.id ?? "");
@@ -98,9 +125,16 @@ export default function PosClient({ locations }: { locations: PosLocationOption[
   const [draft, setDraft] = React.useState<PosDraft>(() => createPosDraft(locations[0]?.id ?? ""));
   const [reloadKey, setReloadKey] = React.useState(0);
   const [customer, setCustomer] = React.useState({ name: "", whatsapp: "", email: "" });
-  const [method, setMethod] = React.useState<"cash" | "card">("cash");
-  const [paymentCurrency, setPaymentCurrency] = React.useState(settings.currencyCode);
-  const [paidAmount, setPaidAmount] = React.useState("");
+  /**
+   * Bloque 4 del roadmap del POS (Fase 2) — el cobro es una **lista**.
+   *
+   * Antes era un monto, un medio y una moneda: el contrato ya aceptaba N cobros y el caso de uso los
+   * registraba, pero el cajero no tenía forma de armar dos (efectivo + transferencia, dos tarjetas).
+   * El primero se edita con los controles de siempre y «Partir el cobro» agrega filas.
+   */
+  const [payments, setPayments] = React.useState<PosPaymentDraft[]>(() => [
+    { id: "pay_1", method: "cash", currency: settings.currencyCode, amount: "" },
+  ]);
   const [charging, setCharging] = React.useState(false);
   const [saleError, setSaleError] = React.useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = React.useState<Record<string, string>>({});
@@ -124,6 +158,16 @@ export default function PosClient({ locations }: { locations: PosLocationOption[
   const cashCurrencies = React.useMemo(
     () => [settings.currencyCode, ...(settings.usdExchangeRate !== null ? ["USD"] : [])],
     [settings.currencyCode, settings.usdExchangeRate],
+  );
+
+  /** Lo que el cajero lleva cobrado sumando todas las filas (en moneda del negocio, sin convertir). */
+  const paidTotal = React.useMemo(
+    () =>
+      payments.reduce(
+        (sum, payment) => sum + (Number.isFinite(Number(payment.amount)) ? Number(payment.amount) : 0),
+        0,
+      ),
+    [payments],
   );
 
   const loadShift = React.useCallback(
@@ -235,9 +279,9 @@ export default function PosClient({ locations }: { locations: PosLocationOption[
   // Cambiar de local empieza una venta nueva: el borrador lleva el local y sus precios.
   React.useEffect(() => {
     setDraft(createPosDraft(locationId));
-    setPaidAmount("");
+    setPayments([{ id: "pay_1", method: "cash", currency: settings.currencyCode, amount: "" }]);
     setLastSale(null);
-  }, [locationId]);
+  }, [locationId, settings.currencyCode]);
 
   const visibleProducts = React.useMemo(
     () => filterPosProducts(products, query),
@@ -364,10 +408,15 @@ export default function PosClient({ locations }: { locations: PosLocationOption[
 
   const charge = async () => {
     const problems: Record<string, string> = {};
+    const filled = payments.filter((payment) => Number(payment.amount) > 0);
     if (draft.lines.length === 0) problems.lines = "Agregá al menos un producto.";
     if (customer.name.trim() === "") problems.name = "Escribí el nombre del cliente.";
     if (customer.whatsapp.trim() === "") problems.whatsapp = "Escribí el número del cliente.";
-    if (!(Number(paidAmount) > 0)) problems.amount = "Escribí con cuánto paga el cliente.";
+    if (filled.length === 0) problems.amount = "Escribí con cuánto paga el cliente.";
+    // Bloque 4: cada fila del cobro partido tiene que tener monto, o el total cobrado no cierra.
+    else if (filled.length !== payments.length) {
+      problems.amount = "Completá el monto de todos los cobros.";
+    }
 
     setFieldErrors(problems);
     setSaleError(null);
@@ -390,16 +439,19 @@ export default function PosClient({ locations }: { locations: PosLocationOption[
             email: customer.email.trim() === "" ? null : customer.email,
           },
           lines: draft.lines,
-          payments: [
-            { method, currency: paymentCurrency, amount: Number(paidAmount) },
-          ],
+          payments: filled.map((payment) => ({
+            method: payment.method,
+            currency: payment.currency,
+            amount: Number(payment.amount),
+            ...(payment.reference ? { reference: payment.reference } : {}),
+          })),
           idempotencyKey: attemptKey,
         }),
       });
 
       const body = (await response.json()) as {
         data?: PosSaleSummary & {
-          payments?: { method: "cash" | "card"; amount: number; currency: string | null }[];
+          payments?: { method: string; amount: number; currency: string | null }[];
         };
         error?: { message?: string; fields?: Record<string, string> };
       };
@@ -424,7 +476,7 @@ export default function PosClient({ locations }: { locations: PosLocationOption[
           subtotal: totals.subtotal,
           packagingAmount: totals.packagingAmount,
           payments: (body.data.payments ?? []).map((payment) => ({
-            methodLabel: PAYMENT_METHOD_LABELS[payment.method],
+            methodLabel: PAYMENT_METHOD_TYPE_LABELS[payment.method as keyof typeof PAYMENT_METHOD_TYPE_LABELS],
             amount: payment.amount,
             currency: payment.currency,
           })),
@@ -432,7 +484,7 @@ export default function PosClient({ locations }: { locations: PosLocationOption[
       });
       setDraft(createPosDraft(locationId));
       setCustomer({ name: "", whatsapp: "", email: "" });
-      setPaidAmount("");
+      setPayments([{ id: "pay_1", method: "cash", currency: settings.currencyCode, amount: "" }]);
       setAttemptKey(crypto.randomUUID());
     } catch {
       setSaleError("No se pudo cobrar: revisá la conexión y reintentá.");
@@ -780,55 +832,134 @@ export default function PosClient({ locations }: { locations: PosLocationOption[
                 }
               />
 
-              <div className="space-y-1.5">
-                <p className="text-st-body font-medium leading-none text-ink">¿Cómo paga?</p>
-                <div className="flex flex-wrap gap-2">
-                  {(
-                    [
-                      { id: "cash", label: "Efectivo" },
-                      { id: "card", label: "Tarjeta" },
-                    ] as const
-                  ).map((option) => (
+              {payments.map((payment, index) => (
+                <div key={payment.id} className="space-y-3 rounded-stitch-md border border-line-subtle p-3">
+                  {index > 0 ? (
+                    <p className="text-st-body font-semibold text-ink">Cobro {index + 1}</p>
+                  ) : null}
+
+                  <div className="space-y-1.5">
+                    <p className="text-st-body font-medium leading-none text-ink">¿Cómo paga?</p>
+                    <div className="flex flex-wrap gap-2">
+                      {PAYMENT_METHOD_CHOICES.map((option) => (
+                        <Button
+                          key={option.id}
+                          type="button"
+                          size="pill"
+                          variant={payment.method === option.id ? "primary" : "secondary"}
+                          aria-pressed={payment.method === option.id}
+                          onClick={() =>
+                            setPayments((current) =>
+                              current.map((item) =>
+                                item.id === payment.id ? { ...item, method: option.id } : item,
+                              ),
+                            )
+                          }
+                        >
+                          {option.label}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {settings.usdExchangeRate !== null ? (
+                    <Select
+                      label="Moneda del cobro"
+                      value={payment.currency}
+                      onChange={(event) =>
+                        setPayments((current) =>
+                          current.map((item) =>
+                            item.id === payment.id ? { ...item, currency: event.target.value } : item,
+                          ),
+                        )
+                      }
+                      options={[
+                        { value: settings.currencyCode, label: settings.currencyCode },
+                        { value: "USD", label: "USD" },
+                      ]}
+                    />
+                  ) : null}
+
+                  <Input
+                    label={
+                      payment.currency === settings.currencyCode
+                        ? "Con cuánto paga"
+                        : `Con cuánto paga (en ${payment.currency})`
+                    }
+                    type="number"
+                    inputMode="decimal"
+                    min={0}
+                    step="0.01"
+                    value={payment.amount}
+                    error={fieldErrors.amount ?? fieldErrors.payments}
+                    onChange={(event) =>
+                      setPayments((current) =>
+                        current.map((item) =>
+                          item.id === payment.id ? { ...item, amount: event.target.value } : item,
+                        ),
+                      )
+                    }
+                  />
+
+                  {payment.method === "transfer" ? (
+                    <Input
+                      label="Referencia de la transferencia (opcional)"
+                      value={payment.reference ?? ""}
+                      onChange={(event) =>
+                        setPayments((current) =>
+                          current.map((item) =>
+                            item.id === payment.id ? { ...item, reference: event.target.value } : item,
+                          ),
+                        )
+                      }
+                    />
+                  ) : null}
+
+                  {index > 0 ? (
                     <Button
-                      key={option.id}
                       type="button"
-                      size="pill"
-                      variant={method === option.id ? "primary" : "secondary"}
-                      aria-pressed={method === option.id}
-                      onClick={() => setMethod(option.id)}
+                      variant="ghost"
+                      className="min-h-11"
+                      onClick={() =>
+                        setPayments((current) => current.filter((item) => item.id !== payment.id))
+                      }
                     >
-                      {option.label}
+                      Quitar este cobro
                     </Button>
-                  ))}
+                  ) : null}
                 </div>
-              </div>
+              ))}
 
-              {settings.usdExchangeRate !== null ? (
-                <Select
-                  label="Moneda del cobro"
-                  value={paymentCurrency}
-                  onChange={(event) => setPaymentCurrency(event.target.value)}
-                  options={[
-                    { value: settings.currencyCode, label: settings.currencyCode },
-                    { value: "USD", label: "USD" },
-                  ]}
-                />
-              ) : null}
-
-              <Input
-                label={
-                  paymentCurrency === settings.currencyCode
-                    ? "Con cuánto paga"
-                    : `Con cuánto paga (en ${paymentCurrency})`
+              {/* Bloque 4: partir el cobro entre medios (efectivo + transferencia, dos tarjetas). */}
+              <Button
+                type="button"
+                variant="outline"
+                className="min-h-11"
+                onClick={() =>
+                  setPayments((current) => [
+                    ...current,
+                    {
+                      id: `pay_${current.length + 1}_${Date.now()}`,
+                      method: "transfer",
+                      currency: settings.currencyCode,
+                      amount: "",
+                    },
+                  ])
                 }
-                type="number"
-                inputMode="decimal"
-                min={0}
-                step="0.01"
-                value={paidAmount}
-                error={fieldErrors.amount ?? fieldErrors.payments}
-                onChange={(event) => setPaidAmount(event.target.value)}
-              />
+              >
+                Partir el cobro
+              </Button>
+
+              {payments.length > 1 ? (
+                <p className="text-st-body text-ink-secondary">
+                  Cobrado{" "}
+                  <span className="font-mono tabular-nums text-ink">
+                    {formatCurrency(paidTotal, currency)}
+                  </span>{" "}
+                  de <span className="font-mono tabular-nums">{formatCurrency(totals.total, currency)}</span>
+                  . En un cobro partido no hay vuelto.
+                </p>
+              ) : null}
 
               {!shift && !shiftLoading ? (
                 <p

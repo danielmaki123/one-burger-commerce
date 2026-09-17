@@ -229,6 +229,15 @@ export const PAYMENT_METHOD_TYPES = {
 export type PaymentMethodType =
   (typeof PAYMENT_METHOD_TYPES)[keyof typeof PAYMENT_METHOD_TYPES];
 
+/** Cómo se muestra el medio del **cobro real** (Bloque 4 del POS): incluye transferencia y mixto. */
+export const PAYMENT_METHOD_TYPE_LABELS: Record<PaymentMethodType, string> = {
+  cash: "Efectivo",
+  card: "Tarjeta",
+  transfer: "Transferencia",
+  mixed: "Mixto",
+  other: "Otro",
+};
+
 export function isPaymentMethodType(value: string): value is PaymentMethodType {
   return Object.values(PAYMENT_METHOD_TYPES).includes(value as PaymentMethodType);
 }

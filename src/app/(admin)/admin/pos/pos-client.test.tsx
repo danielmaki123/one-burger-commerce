@@ -267,6 +267,55 @@ describe("PosClient", () => {
     expect(screen.getByText("Agregá productos del catálogo para armar la venta.")).toBeTruthy();
   });
 
+  /**
+   * Bloque 4 del roadmap del POS (Fase 2) — partir el cobro entre medios.
+   *
+   * El contrato aceptaba N cobros desde TASK-303b, pero la pantalla mandaba uno. Lo que se fija acá es
+   * la **mecánica de la pantalla**: la fila extra existe, ofrece transferencia con su referencia y se
+   * puede quitar. El **payload** que sale del POS se prueba en el test de la ruta (`sale-payload`), que
+   * es donde vive el contrato del cobro y no depende del tipeo del navegador.
+   */
+  it("parte el cobro: agrega una fila con transferencia y su referencia (Bloque 4)", async () => {
+    const user = userEvent.setup();
+    render(<PosClient locations={locations} />);
+
+    await abrirCaja(user);
+    await screen.findByText("Taco de birria");
+
+    await user.click(screen.getByRole("button", { name: "Partir el cobro" }));
+
+    // La fila nueva arranca en transferencia y pide la referencia del voucher.
+    expect(screen.getByLabelText("Referencia de la transferencia (opcional)")).toBeTruthy();
+    expect(screen.getAllByLabelText("Con cuánto paga")).toHaveLength(2);
+    expect(screen.getByText("Cobro 2")).toBeTruthy();
+
+    await user.click(screen.getByRole("button", { name: "Quitar este cobro" }));
+
+    expect(screen.queryByLabelText("Referencia de la transferencia (opcional)")).toBeNull();
+    expect(screen.getAllByLabelText("Con cuánto paga")).toHaveLength(1);
+  });
+
+  it("un cobro partido incompleto no se manda", async () => {
+    const user = userEvent.setup();
+    render(<PosClient locations={locations} />);
+
+    await abrirCaja(user);
+    await screen.findByText("Taco de birria");
+    await user.click(screen.getByRole("button", { name: "Agregar Taco de birria a la venta" }));
+    await fillCustomer(user);
+    await user.type(screen.getByLabelText("Con cuánto paga"), "40");
+    await user.click(screen.getByRole("button", { name: "Partir el cobro" }));
+
+    // La segunda fila quedó sin monto: el cobro no sale. El mensaje aparece en el campo y en el
+    // resumen del error, por eso se cuenta en vez de buscarlo una vez.
+    await user.click(screen.getByRole("button", { name: /^Cobrar / }));
+
+    expect(screen.getAllByText("Completá el monto de todos los cobros.").length).toBeGreaterThan(0);
+    expect(fetchMock.mock.calls.some(([input]) => String(input) === "/api/admin/pos/sale")).toBe(
+      false,
+    );
+  });
+
   it("no manda nada si falta el nombre o el monto: lo dice en el campo", async () => {
     const user = userEvent.setup();
     render(<PosClient locations={locations} />);
