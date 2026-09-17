@@ -29,8 +29,6 @@ const API_ROOT = "src/app/api";
 const MODULES_ROOT = "src/modules";
 const UI_ROOT = "src/shared/ui";
 
-const TEST_EXTENSIONS = ["ts", "tsx"] as const;
-
 /**
  * Violaciones congeladas: cada una con el motivo por el que se acepta hoy.
  *
