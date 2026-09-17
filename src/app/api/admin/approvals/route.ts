@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { canRefund } from "@/modules/auth/domain/admin-permissions";
+import { canApproveRefund } from "@/modules/auth/domain/admin-permissions";
 import { AuthError } from "@/modules/auth/domain/auth-errors";
 import { requireAdminSession } from "@/modules/auth/features/require-admin-session/require-admin-session";
 import { PrismaRefundRepository } from "@/modules/orders/adapters/prisma-refund-repository";
@@ -12,13 +12,13 @@ export const dynamic = "force-dynamic";
  * Bloque 3.6 del roadmap del POS (Fase 2) — la cola de aprobaciones.
  *
  * Devuelve las devoluciones **pendientes** (de la más vieja a la más nueva, porque es una cola de
- * trabajo) y solo para quien administra la caja: ver la cola es parte del control, no del mostrador.
- * La resolución va por `POST /api/admin/refunds/[id]`.
+ * trabajo) y solo para quien puede **firmarlas**: desde la tarea 9 del brief (2026-09-17) eso es el
+ * dueño (`canApproveRefund`). La resolución va por `POST /api/admin/approvals/[id]`.
  */
 export async function GET() {
   try {
     const session = await requireAdminSession();
-    if (!canRefund(session.user.role)) {
+    if (!canApproveRefund(session.user.role)) {
       throw new AuthError(403, "FORBIDDEN", "Insufficient permissions");
     }
 

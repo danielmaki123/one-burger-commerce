@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 
 import { requireCashShiftId } from "@/app/api/admin/cash/cash-route-helpers";
 import { requestShiftRefund } from "@/app/api/admin/cash/shifts/refund-request-composition";
-import { canRefund } from "@/modules/auth/domain/admin-permissions";
 import { requireAdminSession } from "@/modules/auth/features/require-admin-session/require-admin-session";
 import { createErrorResponse } from "@/shared/lib/http/error-response";
 
@@ -27,7 +26,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const data = await requestShiftRefund({
       payload,
       actorUserId: session.user.id,
-      canApprove: canRefund(session.user.role),
       locationId,
     });
 

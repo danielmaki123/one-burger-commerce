@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { refundReviewAudit } from "@/app/api/admin/audit-action-helpers";
-import { canRefund } from "@/modules/auth/domain/admin-permissions";
+import { canApproveRefund } from "@/modules/auth/domain/admin-permissions";
 import { AuthError } from "@/modules/auth/domain/auth-errors";
 import { requireAdminSession } from "@/modules/auth/features/require-admin-session/require-admin-session";
 import { PrismaRefundRepository } from "@/modules/orders/adapters/prisma-refund-repository";
@@ -19,7 +19,8 @@ import { parseRefundReviewPayload } from "../refunds-payload";
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await requireAdminSession();
-    if (!canRefund(session.user.role)) {
+    // Tarea 9 del brief (2026-09-17): firmar una devolución es del **dueño**; quien la pidió no la firma.
+    if (!canApproveRefund(session.user.role)) {
       throw new AuthError(403, "FORBIDDEN", "Insufficient permissions");
     }
 

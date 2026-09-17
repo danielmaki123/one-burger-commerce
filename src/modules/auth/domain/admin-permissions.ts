@@ -84,6 +84,18 @@ export function canRefund(role: AdminRole) {
 }
 
 /**
+ * Tarea 9 del brief (2026-09-17) — **aprobar o rechazar** una devolución: solo el dueño.
+ *
+ * Decisión del owner: «Solo el owner aprueba devoluciones (nadie la propia)». Pedir una devolución
+ * (`canRefund`) es de quien administra la caja; **firmarla** es del dueño, y quien la pidió no la firma
+ * ni siendo el dueño: la devolución nace siempre **pendiente** y la resuelve otro par de ojos. Esa es la
+ * diferencia con lo que había antes, donde un manager la dejaba aprobada de una.
+ */
+export function canApproveRefund(role: AdminRole) {
+  return role === ADMIN_ROLES.owner;
+}
+
+/**
  * Bloque 7.1 del roadmap del POS (Fase 2) — **ver el historial de cierres**.
  *
  * Auditar el arqueo de los turnos cerrados. También coincide hoy con `canManageCash`, y también es

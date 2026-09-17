@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
- * Bloque 3.6 del roadmap del POS (Fase 2) — la cola de aprobaciones.
+ * Bloque 3.6 del roadmap del POS (Fase 2) + tarea 9 del brief (2026-09-17) — la cola de aprobaciones.
  *
- * Ver la cola es parte del control: el cajero que pide una devolución no la ve listada para
- * resolverse solo (y la ruta le responde 403).
+ * Ver la cola es parte de **firmar**: desde la tarea 9 solo el dueño resuelve devoluciones, así que la
+ * cola la ve él (y el manager, que puede pedirlas pero no firmarlas, recibe 403).
  */
 
 const requireAdminSessionMock = vi.fn();
@@ -26,7 +26,7 @@ describe("GET /api/admin/approvals", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     requireAdminSessionMock.mockResolvedValue({
-      user: { id: "user_manager", role: "manager", locationIds: [] },
+      user: { id: "user_owner", role: "owner", locationIds: [] },
     });
     listPendingMock.mockResolvedValue([
       {
@@ -51,9 +51,9 @@ describe("GET /api/admin/approvals", () => {
     expect(response.headers.get("Cache-Control")).toBe("no-store");
   });
 
-  it("el cajero no ve la cola: 403", async () => {
+  it.each(["cashier", "manager"] as const)("%s no ve la cola: 403", async (role) => {
     requireAdminSessionMock.mockResolvedValue({
-      user: { id: "user_cashier", role: "cashier", locationIds: [] },
+      user: { id: "user_x", role, locationIds: [] },
     });
 
     const { GET } = await import("./route");

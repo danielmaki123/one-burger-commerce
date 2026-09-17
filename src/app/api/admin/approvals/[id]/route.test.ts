@@ -44,23 +44,23 @@ describe("POST /api/admin/approvals/[id]", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     requireAdminSessionMock.mockResolvedValue({
-      user: { id: "user_manager", role: "manager", locationIds: [] },
+      user: { id: "user_owner", role: "owner", locationIds: [] },
     });
     reviewRefundMock.mockResolvedValue({ data: { id: "ref_01", status: "approved" } });
   });
 
-  it("el manager aprueba y la firma queda con su id", async () => {
+  it("el dueño aprueba y la firma queda con su id", async () => {
     const { POST } = await import("./route");
 
     const response = await POST(post({ decision: "approved" }), { params });
 
     expect(response.status).toBe(200);
     expect(reviewRefundMock).toHaveBeenCalledWith(
-      expect.objectContaining({ refundId: "ref_01", reviewedByUserId: "user_manager" }),
+      expect.objectContaining({ refundId: "ref_01", reviewedByUserId: "user_owner" }),
       expect.anything(),
     );
     expect(refundReviewAuditMock).toHaveBeenCalledWith({
-      actorUserId: "user_manager",
+      actorUserId: "user_owner",
       refundId: "ref_01",
       decision: "approved",
       note: null,
@@ -74,7 +74,7 @@ describe("POST /api/admin/approvals/[id]", () => {
     await POST(post({ decision: "rejected", note: "El cobro estaba bien" }), { params });
 
     expect(refundReviewAuditMock).toHaveBeenCalledWith({
-      actorUserId: "user_manager",
+      actorUserId: "user_owner",
       refundId: "ref_01",
       decision: "rejected",
       note: "El cobro estaba bien",
@@ -93,7 +93,7 @@ describe("POST /api/admin/approvals/[id]", () => {
     expect(refundReviewAuditMock).not.toHaveBeenCalled();
   });
 
-  it.each(["cashier", "kitchen"] as const)("%s no resuelve devoluciones: 403", async (role) => {
+  it.each(["cashier", "kitchen", "manager"] as const)("%s no resuelve devoluciones: 403", async (role) => {
     requireAdminSessionMock.mockResolvedValue({
       user: { id: "user_x", role, locationIds: [] },
     });

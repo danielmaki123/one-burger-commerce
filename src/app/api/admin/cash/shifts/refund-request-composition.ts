@@ -22,14 +22,12 @@ import { requestRefund } from "@/modules/orders/features/refund/request-refund/r
 export async function requestShiftRefund(input: {
   payload: RefundRequestPayload;
   actorUserId: string;
-  canApprove: boolean;
   locationId: string;
 }) {
   const result = await requestRefund(
     {
       ...input.payload,
       requestedByUserId: input.actorUserId,
-      canApprove: input.canApprove,
       locationId: input.locationId,
     },
     {

@@ -125,19 +125,26 @@ describe("requestRefund", () => {
     expect(result.data.status).toBe("pending");
   });
 
-  it("quien puede aprobar y no es el que la pide, la deja aprobada de una", async () => {
+  /**
+   * Tarea 9 del brief (2026-09-17) — «solo el owner aprueba devoluciones (nadie la propia)».
+   *
+   * Pedir y firmar son dos actos separados: **siempre** nace pendiente, aunque quien la pida sea el
+   * dueño. Antes, quien tenía el permiso de devolver la dejaba aprobada de una; ese atajo se sacó.
+   */
+  it("nace siempre pendiente, aunque quien la pida pueda aprobarla", async () => {
     const { created, deps } = buildDeps();
 
     await requestRefund(
-      { ...baseInput, requestedByUserId: "user_manager", canApprove: true },
+      { ...baseInput, requestedByUserId: "user_owner", canApprove: true },
       deps,
     );
 
     expect(created[0]).toMatchObject({
-      status: "approved",
-      approvedByUserId: "user_manager",
+      status: "pending",
+      approvedByUserId: null,
+      approvedAt: null,
+      requestedByUserId: "user_owner",
     });
-    expect(created[0].approvedAt).toBeTruthy();
   });
 
   it("una devolución sin cobro no existe: 404", async () => {

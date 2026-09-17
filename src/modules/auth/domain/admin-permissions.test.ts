@@ -9,6 +9,7 @@ import {
   canManageOrderOperations,
   canManagePromotions,
   canManageUsers,
+  canApproveRefund,
   canRefund,
   canUsePOS,
   canViewCashHistory,
@@ -124,6 +125,19 @@ describe("admin permissions", () => {
     expect(canRefund(ADMIN_ROLES.manager)).toBe(true);
     expect(canRefund(ADMIN_ROLES.cashier)).toBe(false);
     expect(canRefund(ADMIN_ROLES.kitchen)).toBe(false);
+  });
+
+  /**
+   * Tarea 9 del brief (2026-09-17) — «solo el owner aprueba devoluciones (nadie la propia)».
+   *
+   * Firmar una devolución mueve plata del cajón y es lo que el dueño se reservó: el manager puede pedirla
+   * (como quien administra la caja) pero no firmarla, y el cajero tampoco.
+   */
+  it("canApproveRefund: solo el dueño firma una devolución", () => {
+    expect(canApproveRefund(ADMIN_ROLES.owner)).toBe(true);
+    expect(canApproveRefund(ADMIN_ROLES.manager)).toBe(false);
+    expect(canApproveRefund(ADMIN_ROLES.cashier)).toBe(false);
+    expect(canApproveRefund(ADMIN_ROLES.kitchen)).toBe(false);
 
     expect(canViewCashHistory(ADMIN_ROLES.owner)).toBe(true);
     expect(canViewCashHistory(ADMIN_ROLES.manager)).toBe(true);

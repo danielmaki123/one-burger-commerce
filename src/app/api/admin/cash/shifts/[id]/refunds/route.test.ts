@@ -102,16 +102,22 @@ describe("POST /api/admin/cash/shifts/[id]/refunds", () => {
     }));
   });
 
-  it("el cajero pide la devolución y queda pendiente (no puede firmarla)", async () => {
+  /**
+   * Tarea 9 del brief (2026-09-17): pedir una devolución **no** la aprueba. La ruta ya no manda
+   * `canApprove` —el caso de uso la crea siempre pendiente— y la firma vive en `/admin/approvals`, que es
+   * del dueño.
+   */
+  it("el cajero pide la devolución y queda pendiente (no la firma)", async () => {
     const { POST } = await import("./route");
 
     const response = await POST(post(validBody), { params });
 
     expect(response.status).toBe(201);
     expect(requestRefundMock).toHaveBeenCalledWith(
-      expect.objectContaining({ canApprove: false, requestedByUserId: "user_cashier" }),
+      expect.objectContaining({ requestedByUserId: "user_cashier" }),
       expect.anything(),
     );
+    expect(requestRefundMock.mock.calls[0][0]).not.toHaveProperty("canApprove");
   });
 
   it("la devolución pedida queda firmada con su monto y el estado con el que nació", async () => {
@@ -139,7 +145,7 @@ describe("POST /api/admin/cash/shifts/[id]/refunds", () => {
     expect(refundRequestAuditMock).not.toHaveBeenCalled();
   });
 
-  it("el manager la deja aprobada de una", async () => {
+  it("el manager tampoco la deja aprobada: la firma es del dueño", async () => {
     requireAdminSessionMock.mockResolvedValue({
       user: { id: "user_manager", role: "manager", locationIds: [] },
     });
@@ -148,9 +154,10 @@ describe("POST /api/admin/cash/shifts/[id]/refunds", () => {
     await POST(post(validBody), { params });
 
     expect(requestRefundMock).toHaveBeenCalledWith(
-      expect.objectContaining({ canApprove: true }),
+      expect.objectContaining({ requestedByUserId: "user_manager" }),
       expect.anything(),
     );
+    expect(requestRefundMock.mock.calls[0][0]).not.toHaveProperty("canApprove");
   });
 
   it("un monto inválido no llega al caso de uso: 422", async () => {

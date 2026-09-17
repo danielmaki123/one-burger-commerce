@@ -29,8 +29,11 @@ export async function requestRefund(
     amount: number;
     reason: string;
     requestedByUserId: string;
-    /** ¿Quien pide tiene permiso de aprobar (`canManageCash`)? */
-    canApprove: boolean;
+    /**
+     * Tarea 9 del brief (2026-09-17) — ya **no** se usa: la devolución nace pendiente y la firma el
+     * dueño en `/admin/approvals`. Se deja en el tipo, opcional, para no romper llamadores viejos.
+     */
+    canApprove?: boolean;
     locationId: string;
   },
   {
@@ -94,9 +97,14 @@ export async function requestRefund(
   }
 
   const openShift = await shiftRepository.findOpenShiftByLocation(input.locationId);
-  const approved = input.canApprove;
-  const now = new Date().toISOString();
 
+  /**
+   * Tarea 9 del brief (2026-09-17) — la devolución nace **siempre pendiente**.
+   *
+   * Antes, quien tenía el permiso de devolver la dejaba aprobada de una; el owner decidió que solo él
+   * firma («nadie la propia»), así que pedir y aprobar son dos actos distintos y separados en el tiempo:
+   * el que pide deja el motivo y el dueño resuelve en `/admin/approvals`.
+   */
   const refund = await refundRepository.create({
     paymentId: payment.id,
     orderId: payment.orderId,
@@ -107,10 +115,10 @@ export async function requestRefund(
     // Un cobro viejo sin moneda se devuelve en la moneda del negocio, que es lo que asume el arqueo.
     currency: (payment.currency ?? "NIO").toUpperCase(),
     reason,
-    status: approved ? "approved" : "pending",
+    status: "pending",
     requestedByUserId: input.requestedByUserId,
-    approvedByUserId: approved ? input.requestedByUserId : null,
-    approvedAt: approved ? now : null,
+    approvedByUserId: null,
+    approvedAt: null,
   });
 
   return { data: refund };
