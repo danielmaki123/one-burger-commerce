@@ -127,6 +127,21 @@ try {
     // (contra la base local) para que la confirmación muestre los dos botones, y se captura el ticket
     // del cliente tal como sale impreso.
     await ensureOpenShift(page);
+
+    // Bloque 12.3/12.4: la venta en curso se recupera después de una recarga y, sin red, el cobro se
+    // bloquea con el motivo escrito (un cobro que no se registra es un pedido perdido).
+    await page.getByRole("button", { name: /^Agregar / }).first().click();
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.waitForSelector('[aria-label="Venta en curso"]', { timeout: 30_000 });
+    await page.getByRole("button", { name: /^Cobrar / }).scrollIntoViewIfNeeded();
+    await page.waitForTimeout(400);
+    await shot(page, "bloque-12-venta-recuperada", viewport.name);
+
+    await context.setOffline(true);
+    await page.waitForTimeout(600);
+    await shot(page, "bloque-12-sin-conexion", viewport.name);
+    await context.setOffline(false);
+    await page.waitForTimeout(400);
     await page.getByRole("button", { name: /^Agregar / }).first().click();
     // Se paga el doble del total mostrado (mismo camino que el E2E del POS) para que la confirmación
     // muestre el cambio, que es parte del ticket del cliente.

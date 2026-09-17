@@ -286,6 +286,37 @@ test.describe("punto de venta", () => {
     await expect(resumen).toContainText("sin diferencia");
   });
 
+  test("sin conexión no se cobra y la venta en curso no se pierde (12.3/12.4)", async ({
+    page,
+    context,
+  }) => {
+    test.skip(!mutationsAllowed, "Order creation is disabled unless E2E_ALLOW_MUTATIONS=true.");
+
+    await loginAsOwner(page);
+    await page.goto("/admin/pos");
+    await ensureOpenShift(page);
+    await addFirstProduct(page);
+
+    const venta = page.getByRole("region", { name: "Venta en curso" });
+    await expect(venta.getByText(/1 producto/)).toBeVisible();
+
+    // 12.3: la recarga del navegador (corte de luz, F5 sin querer) no se lleva la venta armada.
+    await page.reload();
+    await expect(page.getByText(/Recuperamos la venta que estaba en curso/)).toBeVisible();
+    await expect(venta.getByText(/1 producto/)).toBeVisible();
+
+    // 12.4: sin red, el cobro se bloquea con el motivo escrito (un cobro que no se registra es un
+    // pedido perdido) y la venta queda guardada en el dispositivo.
+    await context.setOffline(true);
+    await expect(page.getByText(/Sin conexión: el cobro no se va a registrar/)).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Cobrar / })).toBeDisabled();
+
+    // Y al volver la conexión se puede cobrar lo que quedó armado.
+    await context.setOffline(false);
+    await expect(page.getByRole("button", { name: /^Cobrar / })).toBeEnabled();
+    await expect(page.getByText(/Sin conexión: el cobro no se va a registrar/)).toBeHidden();
+  });
+
   test("cocina no entra al punto de venta (vuelve a comandas)", async ({ page }) => {
     test.skip(!mutationsAllowed, "Order creation is disabled unless E2E_ALLOW_MUTATIONS=true.");
 

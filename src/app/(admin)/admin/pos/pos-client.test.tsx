@@ -118,6 +118,10 @@ describe("PosClient", () => {
   let fetchMock: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
+    // Bloque 12.3: el POS ahora **guarda la venta en curso** en el dispositivo y la recupera al montar.
+    // Sin limpiar acá, el borrador de un caso se restaura en el siguiente (líneas duplicadas y totales
+    // que no son los del caso): cada test arranca con el mostrador vacío, como una terminal nueva.
+    localStorage.clear();
     fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
       if (url.startsWith("/api/admin/pos/catalog")) return jsonResponse(productos);

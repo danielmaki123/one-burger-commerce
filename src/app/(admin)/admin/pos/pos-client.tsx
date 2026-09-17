@@ -9,7 +9,6 @@ import {
   posDraftTotals,
   removePosLine,
   setPosLineQuantity,
-  type PosDraft,
 } from "@/modules/pos/domain/pos-draft";
 import { filterPosProducts } from "@/modules/pos/domain/search-pos-products";
 import type { PosCatalogProduct } from "@/modules/pos/ports/pos-catalog";
@@ -30,7 +29,9 @@ import {
   toCashCountRows,
   type CashCountValues,
 } from "./cash-count-grid";
+import PosChargePanel from "./pos-charge-panel";
 import PosTicketButtons from "./pos-ticket-buttons";
+import { usePosDraft } from "./use-pos-draft";
 
 /**
  * TASK-302 + TASK-303b — el mostrador: catálogo del local a un lado, venta al otro.
@@ -125,7 +126,7 @@ export default function PosClient({ locations }: { locations: PosLocationOption[
   const [loading, setLoading] = React.useState(true);
   const [loadError, setLoadError] = React.useState<string | null>(null);
   const [query, setQuery] = React.useState("");
-  const [draft, setDraft] = React.useState<PosDraft>(() => createPosDraft(locations[0]?.id ?? ""));
+  const { draft, setDraft, restored: draftRestored } = usePosDraft(locationId, settings.currencyCode);
   const [reloadKey, setReloadKey] = React.useState(0);
   const [customer, setCustomer] = React.useState({ name: "", whatsapp: "", email: "" });
   /**
@@ -277,9 +278,9 @@ export default function PosClient({ locations }: { locations: PosLocationOption[
     return () => clearInterval(timer);
   }, [locationId, applyCatalog, loadShift]);
 
-  // Cambiar de local empieza una venta nueva: el borrador lleva el local y sus precios.
+  // Cambiar de local empieza una venta nueva: el borrador lleva el local y sus precios y lo resetea el
+  // hook (que además lo guarda en el dispositivo, Bloque 12.3); acá se renueva el cobro y la confirmación.
   React.useEffect(() => {
-    setDraft(createPosDraft(locationId));
     setPayments([{ id: "pay_1", method: "cash", currency: settings.currencyCode, amount: "" }]);
     setLastSale(null);
   }, [locationId, settings.currencyCode]);
@@ -965,30 +966,21 @@ export default function PosClient({ locations }: { locations: PosLocationOption[
                 </p>
               ) : null}
 
-              {!shift && !shiftLoading ? (
-                <p
-                  role="status"
-                  className="rounded-stitch-lg border border-status-prep-border bg-status-prep-bg px-3 py-2 text-st-body text-status-prep-text"
-                >
-                  Abrí la caja para poder cobrar: un cobro con la caja cerrada no entra a ningún
-                  arqueo.
-                </p>
-              ) : null}
-
-              <Button
-                type="button"
-                className="min-h-12 w-full"
-                disabled={charging || !shift}
-                onClick={() => void charge()}
-              >
-                {charging ? ("Cobrando…") : (<>Cobrar <span className="font-mono">{formatCurrency(totals.total, currency)}</span></>)}
-              </Button>
-
-              {saleError ? (
-                <p role="alert" className="text-st-body font-medium text-status-sla-text">
-                  {saleError}
-                </p>
-              ) : null}
+              {/*
+                Bloque 12.3/12.4 del roadmap del POS (Fase 2): el cobro, con el aviso de caja cerrada, el
+                de **sin conexión** (con el botón bloqueado: un cobro que no se registra es un pedido
+                perdido) y el de la venta recuperada del dispositivo.
+              */}
+              <PosChargePanel
+                needsOpenShift={!shift && !shiftLoading}
+                canCharge={Boolean(shift)}
+                total={totals.total}
+                currency={currency}
+                charging={charging}
+                saleError={saleError}
+                restoredSale={draftRestored}
+                onCharge={() => void charge()}
+              />
 
               {lastSale ? (
                 <div
