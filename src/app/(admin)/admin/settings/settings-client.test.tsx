@@ -113,11 +113,18 @@ describe("AdminSettingsClientPage", () => {
     expect(inputValue(screen.getByLabelText("Nombre *"))).toBe("One Burger");
   });
 
-  it("marca el día cerrado sin romper el resto de la semana", async () => {
+  it("no edita los horarios acá: los manda como están y apunta a Locales", async () => {
+    // El horario es por sucursal (`Location.businessHours`) y el checkout usa el del local elegido.
+    // Esta pantalla ya no ofrece el editor: solo recuerda dónde se carga. Lo guardado sigue viajando
+    // como respaldo para el caso de un negocio sin locales.
     const user = userEvent.setup();
     render(<AdminSettingsClientPage initialSettings={initialSettings()} />);
 
-    await user.click(screen.getByLabelText("Cerrado", { selector: "#hours-sun-closed" }));
+    expect(screen.queryByLabelText("Cerrado", { selector: "#hours-sun-closed" })).toBeNull();
+    expect(screen.getAllByRole("link", { name: "Locales" })[0]?.getAttribute("href")).toBe(
+      "/admin/locations",
+    );
+
     await user.click(screen.getByRole("button", { name: "Guardar cambios" }));
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalled());
@@ -126,8 +133,8 @@ describe("AdminSettingsClientPage", () => {
       String((fetchMock.mock.calls[0] as [string, RequestInit])[1].body),
     ) as { businessHours: Record<string, { closed: boolean }> };
 
-    expect(body.businessHours.sun.closed).toBe(true);
-    expect(body.businessHours.mon.closed).toBe(false);
+    expect(Object.keys(body.businessHours)).toHaveLength(7);
+    expect(body.businessHours.sun.closed).toBe(false);
   });
 
   it("aplicar un preset cambia los colores y viaja en el payload", async () => {
@@ -265,8 +272,12 @@ describe("AdminSettingsClientPage", () => {
     expect(screen.queryByLabelText("Aceptando pedidos")).toBeNull();
     expect(screen.queryByLabelText("Mensaje de cerrado")).toBeNull();
 
-    const pointer = screen.getByRole("link", { name: "Locales" });
-    expect(pointer.getAttribute("href")).toBe("/admin/locations");
+    // Dos punteros a Locales (aceptación de pedidos y horarios): los dos llevan al mismo lado.
+    const pointers = screen.getAllByRole("link", { name: "Locales" });
+    expect(pointers.length).toBeGreaterThanOrEqual(2);
+    for (const pointer of pointers) {
+      expect(pointer.getAttribute("href")).toBe("/admin/locations");
+    }
     expect(screen.getByText(/se configuran por local/i)).toBeTruthy();
 
     await user.click(screen.getByRole("button", { name: "Guardar cambios" }));

@@ -12,6 +12,7 @@ import { AdminEmptyState, AdminPageHeader } from "../_components/admin-operation
 import { pluralEs } from "../menu/categories/category-list-helpers";
 import { LocationFormSheet } from "./location-form-sheet";
 import { LocationRow } from "./location-row";
+import { buildApplyHoursRequests } from "./apply-hours-helpers";
 import {
   createEmptyLocationForm,
   locationFormToInput,
@@ -241,6 +242,49 @@ export default function AdminLocationsPage() {
     }
   };
 
+  const handleApplyHoursToAll = async () => {
+    if (!sheetLocation || sheetLocation === "new") return;
+
+    setSaving(true);
+    setFeedback(null);
+
+    try {
+      const requests = buildApplyHoursRequests(locations, sheetLocation.id, form.businessHours);
+
+      for (const request of requests) {
+        const response = await fetch(`/api/admin/locations/${request.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(request.payload),
+        });
+
+        if (!response.ok) {
+          setFeedback({
+            type: "error",
+            message: `No se pudo aplicar el horario en ${request.name}. Revisá los datos de esa sucursal.`,
+          });
+          return;
+        }
+      }
+
+      setFeedback({
+        type: "success",
+        message:
+          requests.length === 1
+            ? "Horario aplicado a la otra sucursal."
+            : `Horario aplicado a ${requests.length} sucursales.`,
+      });
+      setReloadKey((key) => key + 1);
+    } catch {
+      setFeedback({
+        type: "error",
+        message: "No se pudo aplicar el horario. Revisá la conexión.",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const activeCount = locations.filter((location) => location.isActive).length;
   const acceptingCount = locations.filter(
     (location) => location.isActive && location.isAcceptingOrders,
@@ -367,10 +411,12 @@ export default function AdminLocationsPage() {
         form={form}
         fieldErrors={fieldErrors}
         saving={saving}
+        canApplyHoursToAll={sheetLocation !== null && sheetLocation !== "new" && locations.length > 1}
         onChange={(patch) => setForm((current) => ({ ...current, ...patch }))}
         onClose={closeSheet}
         onSave={() => void handleSave()}
         onDelete={() => void handleDelete()}
+        onApplyHoursToAll={() => void handleApplyHoursToAll()}
       />
     </div>
   );

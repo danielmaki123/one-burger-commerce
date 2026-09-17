@@ -3,7 +3,6 @@
 import * as React from "react";
 import Link from "next/link";
 
-import { formatBusinessHoursSummary } from "@/modules/business-settings/domain/business-hours-format";
 import {
   BRAND_FOREGROUND_COLOR,
   checkBusinessSettingsContrast,
@@ -13,7 +12,6 @@ import { COLOR_PRESETS } from "@/modules/business-settings/domain/color-presets"
 import {
   FONT_CHOICES,
   FONT_LABELS,
-  WEEKDAY_KEYS,
   type BusinessHours,
   type WeekdayKey,
 } from "@/modules/business-settings/domain/business-settings.types";
@@ -217,17 +215,6 @@ export default function AdminSettingsClientPage({
     });
   }
 
-  function setHoursDay(weekday: WeekdayKey, patch: Partial<BusinessHours[WeekdayKey]>) {
-    setDraft((current) => ({
-      ...current,
-      businessHours: {
-        ...current.businessHours,
-        [weekday]: { ...current.businessHours[weekday], ...patch },
-      },
-    }));
-    setStatus("idle");
-  }
-
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setStatus("saving");
@@ -264,7 +251,6 @@ export default function AdminSettingsClientPage({
     }
   }
 
-  const hoursSummary = formatBusinessHoursSummary(draft.businessHours);
   const contrastWarnings = checkBusinessSettingsContrast(draft);
 
   return (
@@ -524,75 +510,23 @@ export default function AdminSettingsClientPage({
         </SettingsField>
       </SettingsSection>
 
+      {/* El horario no se edita acá: vive en cada sucursal (`/admin/locations`). El del negocio
+          queda solo como plantilla para el alta de una sucursal nueva, no como fuente. */}
       <SettingsSection
         title="Horarios"
-        description="Son informativos: se muestran en el footer y en el checkout."
+        description="Cada sucursal define su horario; acá solo se recuerda dónde."
       >
-        <div className="sm:col-span-2">
-          <p className="rounded-stitch-md border border-line-subtle bg-accent/60 px-4 py-3 text-st-body font-medium text-ink">
-            {hoursSummary}
-          </p>
-          {fieldErrors.businessHours ? (
-            <p role="alert" className="mt-2 text-st-caption font-medium text-status-sla-text">
-              {fieldErrors.businessHours}
-            </p>
-          ) : null}
-
-          <div className="mt-4 space-y-3">
-            {WEEKDAY_KEYS.map((weekday) => (
-              <div
-                key={weekday}
-                className="flex flex-wrap items-end gap-3 rounded-stitch-md border border-line-subtle bg-canvas/60 p-3"
-              >
-                <span className="min-w-24 text-st-body font-medium text-ink">
-                  {WEEKDAY_LABELS[weekday]}
-                </span>
-                <div className="space-y-1.5">
-                  <label
-                    htmlFor={`hours-${weekday}-open`}
-                    className="block text-st-caption text-ink-secondary"
-                  >
-                    Abre
-                  </label>
-                  <Input
-                    id={`hours-${weekday}-open`}
-                    type="time"
-                    value={draft.businessHours[weekday].open}
-                    disabled={draft.businessHours[weekday].closed}
-                    onChange={(event) => setHoursDay(weekday, { open: event.target.value })}
-                    className="w-32"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label
-                    htmlFor={`hours-${weekday}-close`}
-                    className="block text-st-caption text-ink-secondary"
-                  >
-                    Cierra
-                  </label>
-                  <Input
-                    id={`hours-${weekday}-close`}
-                    type="time"
-                    value={draft.businessHours[weekday].close}
-                    disabled={draft.businessHours[weekday].closed}
-                    onChange={(event) => setHoursDay(weekday, { close: event.target.value })}
-                    className="w-32"
-                  />
-                </div>
-                <div className="min-h-11 flex items-center">
-                  <Checkbox
-                    id={`hours-${weekday}-closed`}
-                    checked={draft.businessHours[weekday].closed}
-                    onChange={(event) =>
-                      setHoursDay(weekday, { closed: event.target.checked })
-                    }
-                    label="Cerrado"
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+        <p className="rounded-stitch-md border border-line-subtle bg-surface-low px-4 py-3 text-st-body text-ink-secondary sm:col-span-2">
+          Los horarios de apertura y cierre se cargan en cada sucursal, en{" "}
+          <Link
+            href="/admin/locations"
+            className="font-semibold text-brand-primary underline-offset-2 hover:underline"
+          >
+            Locales
+          </Link>
+          . Al crear una sucursal nueva arranca con el horario por defecto, y el de una sucursal se
+          puede copiar al resto con «Aplicar a todas las sucursales».
+        </p>
       </SettingsSection>
 
       <SettingsSection

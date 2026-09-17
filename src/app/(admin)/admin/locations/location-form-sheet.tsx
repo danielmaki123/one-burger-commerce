@@ -18,10 +18,13 @@ type LocationFormSheetProps = {
   form: LocationFormState;
   fieldErrors: Record<string, string>;
   saving: boolean;
+  /** Con una sola sucursal no hay a quién copiarle el horario. */
+  canApplyHoursToAll: boolean;
   onChange: (patch: Partial<LocationFormState>) => void;
   onClose: () => void;
   onSave: () => void;
   onDelete: () => void;
+  onApplyHoursToAll: () => void;
 };
 
 /**
@@ -38,10 +41,12 @@ export function LocationFormSheet({
   form,
   fieldErrors,
   saving,
+  canApplyHoursToAll,
   onChange,
   onClose,
   onSave,
   onDelete,
+  onApplyHoursToAll,
 }: LocationFormSheetProps) {
   function setHours(weekday: (typeof WEEKDAY_KEYS)[number], patch: Partial<LocationFormState["businessHours"][typeof weekday]>) {
     onChange({
@@ -210,6 +215,22 @@ export function LocationFormSheet({
               </div>
             </div>
           ))}
+          {canApplyHoursToAll ? (
+            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line-subtle pt-3">
+              <p className="text-st-caption text-ink-secondary">
+                El horario vive en cada sucursal. Este botón lo copia a las demás.
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                className="min-h-11"
+                disabled={saving}
+                onClick={onApplyHoursToAll}
+              >
+                Aplicar a todas las sucursales
+              </Button>
+            </div>
+          ) : null}
         </fieldset>
 
         <div className="grid grid-cols-2 gap-3">
