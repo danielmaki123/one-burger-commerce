@@ -17,6 +17,7 @@ import {
   summarizeShifts,
   type CashDifferenceTone,
 } from "./cash-shift-helpers";
+import { buildShiftCsv, buildShiftCsvFileName } from "./shift-csv";
 
 /**
  * Bloque 1.3 del roadmap del POS (Fase 2) — el historial de cierres.
@@ -116,6 +117,25 @@ export default function CashClient({ locations }: { locations: CashLocationOptio
     view === "closed" ? shifts.filter((shift) => shift.status === "closed") : shifts;
   const summary = summarizeShifts(visibleShifts);
 
+  /**
+   * Bloque 11.3 del roadmap del POS (Fase 2) — baja el historial como CSV.
+   *
+   * El archivo lo arma `buildShiftCsv` (función pura, probada); acá solo se genera el blob y se
+   * dispara la descarga. Es lo que permite cuadrar el mes en una planilla sin exportar la base.
+   */
+  const downloadCsv = () => {
+    const locationName =
+      locations.find((location) => location.id === locationId)?.name ?? locationId;
+    const csv = buildShiftCsv(visibleShifts, { timezone, locale, locationName });
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download = buildShiftCsvFileName(locationName, new Date().toISOString().slice(0, 10));
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
@@ -147,6 +167,12 @@ export default function CashClient({ locations }: { locations: CashLocationOptio
           ))}
         </TabsList>
       </div>
+
+      {visibleShifts.length > 0 ? (
+        <Button type="button" variant="outline" className="min-h-11" onClick={downloadCsv}>
+          Exportar CSV
+        </Button>
+      ) : null}
 
       {loading ? (
         <p role="status" className="text-st-body text-ink-secondary">
