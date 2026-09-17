@@ -159,3 +159,46 @@ export function expectedCashByCurrency(input: {
 
   return expected;
 }
+
+/**
+ * Bloque 1.2 del roadmap del POS (Fase 2) — lo que entró **en efectivo** en el turno, en la moneda
+ * del negocio.
+ *
+ * Es el otro número del arqueo: el esperado dice cuánto tiene que haber, esto dice cuánto entró. Se
+ * calcula con la misma regla que el esperado (monto + propina − vuelto) para que no puedan discrepar,
+ * y se congela al cerrar: recomputarlo después usaría una tasa de cambio distinta.
+ */
+export function cashPaymentsTotalInBusinessCurrency(input: {
+  cashPayments: { currency: string | null; amount: number; tip: number; changeAmount: number }[];
+  businessCurrencyCode: string;
+  usdExchangeRate: number | null;
+}): number {
+  return roundCurrency(
+    input.cashPayments.reduce((sum, payment) => {
+      const converted = convertToBusinessCurrency({
+        amount: payment.amount + payment.tip - payment.changeAmount,
+        currency: payment.currency ?? input.businessCurrencyCode,
+        businessCurrencyCode: input.businessCurrencyCode,
+        usdExchangeRate: input.usdExchangeRate,
+      });
+
+      if (!converted.ok) {
+        throw new ShiftError(
+          422,
+          "VALIDATION_ERROR",
+          converted.reason === "missing-rate"
+            ? "Cargá el tipo de cambio del dólar en Configuración para cerrar una caja con dólares."
+            : `Todavía no se cuenta en ${converted.currency}.`,
+          {
+            counts:
+              converted.reason === "missing-rate"
+                ? "Cargá el tipo de cambio del dólar en Configuración."
+                : `Todavía no se cuenta en ${converted.currency}.`,
+          },
+        );
+      }
+
+      return sum + converted.amount;
+    }, 0),
+  );
+}

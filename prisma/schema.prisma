@@ -773,6 +773,13 @@ model Shift {
   /// Lo que el sistema esperaba según los cobros. Se guarda congelado al cerrar: el arqueo de un
   /// turno cerrado no puede cambiar porque después se editó un pedido.
   expectedAmount Decimal?    @db.Decimal(10, 2)
+  /// Bloque 1.1 del POS (Fase 2) — el esperado **por moneda**, tal como se calculó al cerrar
+  /// (`{"NIO": 1200, "USD": 40}`). Antes viajaba solo en la respuesta: recomputar un cierre viejo
+  /// usaba la tasa de cambio de hoy y mostraba un número que nunca existió.
+  expectedByCurrency Json?
+  /// Bloque 1.2 del POS (Fase 2) — lo que entró **en efectivo** en el turno, en la moneda del
+  /// negocio (monto + propina − vuelto). La tarjeta no entra: no pasó por el cajón.
+  cashSalesAmount Decimal?   @db.Decimal(10, 2)
   /// `closingAmount - expectedAmount`. Negativo = faltó plata.
   difference     Decimal?    @db.Decimal(10, 2)
   notes          String?

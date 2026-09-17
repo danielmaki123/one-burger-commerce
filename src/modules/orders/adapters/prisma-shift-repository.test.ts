@@ -39,6 +39,9 @@ const OPEN_SHIFT_ROW = {
   openingAmount: decimal("500.00"),
   closingAmount: null,
   expectedAmount: null,
+  // Bloque 1.1/1.2 del roadmap del POS (Fase 2): el arqueo por moneda y el efectivo del turno.
+  expectedByCurrency: null,
+  cashSalesAmount: null,
   difference: null,
   notes: null,
   cashCounts: [],
@@ -112,6 +115,8 @@ describe("PrismaShiftRepository", () => {
       closedAt: new Date("2026-09-14T16:00:00.000Z"),
       closingAmount: decimal("640.00"),
       expectedAmount: decimal("665.00"),
+      expectedByCurrency: { NIO: 665 },
+      cashSalesAmount: decimal("165.00"),
       difference: decimal("-25.00"),
     });
 
@@ -121,14 +126,23 @@ describe("PrismaShiftRepository", () => {
     const closed = await repository.closeShift("shift_01", {
       closingAmount: 640,
       expectedAmount: 665,
+      expectedByCurrency: { NIO: 665 },
+      cashSalesAmount: 165,
     });
 
     expect(closed?.difference).toBe(-25);
     expect(closed?.closingAmount).toBe(640);
+    // Bloque 1.1/1.2: el arqueo congelado se escribe **y** se devuelve al leerlo.
+    expect(closed?.expectedByCurrency).toEqual({ NIO: 665 });
+    expect(closed?.cashSalesAmount).toBe(165);
     expect(updateManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
         // La guarda: si otra terminal ya cerró, esto afecta 0 filas.
         where: { id: "shift_01", status: "open" },
+        data: expect.objectContaining({
+          expectedByCurrency: { NIO: 665 },
+          cashSalesAmount: 165,
+        }),
       }),
     );
   });

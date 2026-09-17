@@ -25,6 +25,20 @@ export type CloseShiftInput = {
   closingAmount: number | null;
   /** Lo que el sistema esperaba según los cobros, congelado al cerrar. */
   expectedAmount: number;
+  /**
+   * Bloque 1.1 del POS (Fase 2) — el esperado **por moneda**, calculado en el mismo momento que el
+   * total. Se guarda porque recomputar un cierre viejo usaría la tasa de cambio de hoy.
+   *
+   * Opcional en el tipo para no romper llamadores viejos, pero **el caso de uso siempre lo manda**:
+   * un cierre nuevo sin este dato pierde el detalle por moneda, que es justo lo que se está
+   * arreglando.
+   */
+  expectedByCurrency?: Record<string, number>;
+  /**
+   * Bloque 1.2 del POS (Fase 2) — el efectivo que entró en el turno, en la moneda del negocio.
+   * Misma nota que `expectedByCurrency`: el caso de uso siempre lo manda.
+   */
+  cashSalesAmount?: number;
   /** TASK-305 — con qué billetes se cerró, por moneda (se guarda el conteo, no solo el total). */
   closingCounts?: ShiftCashCountInput[];
   notes?: string | null;

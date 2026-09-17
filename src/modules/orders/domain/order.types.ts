@@ -280,6 +280,16 @@ export type ShiftRecord = {
   /** `closingAmount - expectedAmount`. Negativo = faltó plata. */
   difference: number | null;
   /**
+   * Bloque 1.1 del POS (Fase 2) — el esperado **por moneda**, congelado al cerrar
+   * (`{"NIO": 1200, "USD": 40}`). `null` mientras el turno está abierto o si es un cierre viejo.
+   */
+  expectedByCurrency?: Record<string, number> | null;
+  /**
+   * Bloque 1.2 del POS (Fase 2) — lo que entró **en efectivo** en el turno, en la moneda del negocio
+   * (monto + propina − vuelto). La tarjeta no entra: no pasó por el cajón.
+   */
+  cashSalesAmount?: number | null;
+  /**
    * TASK-305 — el conteo billete por billete, de apertura y de cierre, con su moneda. El total dice
    * cuánto hay; esto dice **de dónde salió**, que es lo que permite revisar un arqueo.
    */

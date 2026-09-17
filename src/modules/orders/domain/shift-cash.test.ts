@@ -4,6 +4,7 @@ import { ShiftError } from "./shift-errors";
 import {
   cashCountsTotal,
   cashCountsTotalInBusinessCurrency,
+  cashPaymentsTotalInBusinessCurrency,
   countedCurrencies,
   expectedCashByCurrency,
   validateShiftCashCounts,
@@ -92,5 +93,47 @@ describe("conteo de la caja", () => {
 
     expect(expected.NIO).toBe(540);
     expect(expected.USD).toBe(43);
+  });
+});
+
+/**
+ * Bloque 1.2 del roadmap del POS (Fase 2) — cuánto entró **en efectivo** en el turno.
+ *
+ * No es el total vendido: es la parte que pasó por el cajón (monto + propina − vuelto), convertida a
+ * la moneda del negocio. Se congela al cerrar junto con el esperado, porque el arqueo de un turno
+ * cerrado no puede cambiar después.
+ */
+describe("efectivo del turno en moneda del negocio", () => {
+  it("suma monto y propina y descuenta el vuelto", () => {
+    const total = cashPaymentsTotalInBusinessCurrency({
+      cashPayments: [
+        { currency: "NIO", amount: 1000, tip: 50, changeAmount: 100 },
+        { currency: "NIO", amount: 500, tip: 0, changeAmount: 0 },
+      ],
+      businessCurrencyCode: "NIO",
+      usdExchangeRate: null,
+    });
+
+    expect(total).toBe(1450);
+  });
+
+  it("convierte los cobros en dólares con la tasa cargada", () => {
+    const total = cashPaymentsTotalInBusinessCurrency({
+      cashPayments: [{ currency: "USD", amount: 10, tip: 0, changeAmount: 0 }],
+      businessCurrencyCode: "NIO",
+      usdExchangeRate: 36.5,
+    });
+
+    expect(total).toBe(365);
+  });
+
+  it("sin cobros devuelve cero, no NaN", () => {
+    expect(
+      cashPaymentsTotalInBusinessCurrency({
+        cashPayments: [],
+        businessCurrencyCode: "NIO",
+        usdExchangeRate: null,
+      }),
+    ).toBe(0);
   });
 });

@@ -28,6 +28,8 @@ function mapShift(shift: {
   openingAmount: Decimal;
   closingAmount: Decimal | null;
   expectedAmount: Decimal | null;
+  expectedByCurrency?: unknown;
+  cashSalesAmount: Decimal | null;
   difference: Decimal | null;
   notes: string | null;
   createdAt: Date;
@@ -44,6 +46,9 @@ function mapShift(shift: {
     openingAmount: decimalToNumber(shift.openingAmount),
     closingAmount: decimalOrNull(shift.closingAmount),
     expectedAmount: decimalOrNull(shift.expectedAmount),
+    // Bloque 1.1/1.2: el arqueo congelado al cerrar, tal como se guardó.
+    expectedByCurrency: toExpectedByCurrency(shift.expectedByCurrency),
+    cashSalesAmount: decimalOrNull(shift.cashSalesAmount),
     difference: decimalOrNull(shift.difference),
     notes: shift.notes,
     createdAt: shift.createdAt.toISOString(),
@@ -64,6 +69,23 @@ function isUniqueConstraintError(error: unknown): boolean {
   if (typeof error !== "object" || error === null) return false;
 
   return (error as { code?: unknown }).code === "P2002";
+}
+
+/**
+ * El JSON del esperado por moneda, saneado.
+ *
+ * Es una columna `Json`, así que puede volver cualquier cosa (un turno viejo no la tiene, y nada
+ * impide que alguien escriba un número suelto): se devuelve solo si es un objeto de números, y `null`
+ * si no. Una pantalla que muestre `[object Object]` es peor que una que no muestre el detalle.
+ */
+function toExpectedByCurrency(value: unknown): Record<string, number> | null {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return null;
+
+  const entries = Object.entries(value as Record<string, unknown>).filter(
+    ([, amount]) => typeof amount === "number" && Number.isFinite(amount),
+  );
+
+  return entries.length > 0 ? (Object.fromEntries(entries) as Record<string, number>) : null;
 }
 
 export class PrismaShiftRepository implements ShiftRepository {
@@ -141,6 +163,10 @@ export class PrismaShiftRepository implements ShiftRepository {
         closedAt: new Date(),
         closingAmount: input.closingAmount,
         expectedAmount: input.expectedAmount,
+        // Bloque 1.1/1.2: el arqueo por moneda y el efectivo del turno quedan congelados acá. El
+        // detalle por moneda antes vivía solo en la respuesta y se perdía al recargar.
+        expectedByCurrency: input.expectedByCurrency,
+        cashSalesAmount: input.cashSalesAmount,
         difference:
           input.closingAmount === null
             ? null

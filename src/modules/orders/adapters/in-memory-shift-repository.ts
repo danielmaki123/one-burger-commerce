@@ -43,6 +43,8 @@ export class InMemoryShiftRepository implements ShiftRepository {
       openingAmount: roundCurrency(input.openingAmount ?? 0),
       closingAmount: null,
       expectedAmount: null,
+      expectedByCurrency: null,
+      cashSalesAmount: null,
       difference: null,
       cashCounts: (input.openingCounts ?? []).map((count) => ({
         kind: "opening" as const,
@@ -82,6 +84,9 @@ export class InMemoryShiftRepository implements ShiftRepository {
     shift.closingAmount =
       input.closingAmount === null ? null : roundCurrency(input.closingAmount);
     shift.expectedAmount = roundCurrency(input.expectedAmount);
+    // Bloque 1.1/1.2: el arqueo se congela al cerrar, no se recalcula al leer.
+    shift.expectedByCurrency = { ...(input.expectedByCurrency ?? {}) };
+    shift.cashSalesAmount = roundCurrency(input.cashSalesAmount ?? 0);
     shift.difference =
       input.closingAmount === null
         ? null

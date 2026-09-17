@@ -1,13 +1,13 @@
 import { ShiftError } from "@/modules/orders/domain/shift-errors";
 import {
   cashCountsTotalInBusinessCurrency,
+  cashPaymentsTotalInBusinessCurrency,
   expectedCashByCurrency,
   validateShiftCashCounts,
   type ShiftCashCountInput,
 } from "@/modules/orders/domain/shift-cash";
 import type { PaymentRepository } from "@/modules/orders/ports/payment-repository";
 import type { ShiftRepository } from "@/modules/orders/ports/shift-repository";
-import { convertToBusinessCurrency } from "@/shared/lib/money-conversion";
 import { roundCurrency } from "@/shared/lib/order-totals";
 
 /**
@@ -106,6 +106,8 @@ export async function closeShift(
   const closed = await shiftRepository.closeShift(shiftId, {
     closingAmount,
     expectedAmount: arqueo.expectedAmount,
+    expectedByCurrency: arqueo.expectedByCurrency,
+    cashSalesAmount: arqueo.cashSalesAmount,
     closingCounts: input.closingCounts ?? [],
     notes: input.notes ?? shift.notes,
   });
@@ -129,7 +131,11 @@ async function calculateExpectedAmount(
     usdExchangeRate: number | null;
   },
   paymentRepository: PaymentRepository,
-): Promise<{ expectedAmount: number; expectedByCurrency: Record<string, number> }> {
+): Promise<{
+  expectedAmount: number;
+  expectedByCurrency: Record<string, number>;
+  cashSalesAmount: number;
+}> {
   const payments = await paymentRepository.listPaymentsInRange(window.locationId, {
     from: window.openedAt,
     to: window.closedAt,
@@ -153,42 +159,23 @@ async function calculateExpectedAmount(
       })
     : window.openingAmount;
 
-  const cashInBusinessCurrency = roundCurrency(
-    cashPayments.reduce((sum, payment) => {
-      const converted = convertToBusinessCurrency({
-        amount: payment.amount + payment.tip - payment.changeAmount,
-        currency: payment.currency,
-        businessCurrencyCode: window.businessCurrencyCode,
-        usdExchangeRate: window.usdExchangeRate,
-      });
-
-      if (!converted.ok) {
-        throw new ShiftError(
-          422,
-          "VALIDATION_ERROR",
-          converted.reason === "missing-rate"
-            ? "Cargá el tipo de cambio del dólar en Configuración para cerrar una caja con dólares."
-            : `Todavía no se cuenta en ${converted.currency}.`,
-          {
-            counts:
-              converted.reason === "missing-rate"
-                ? "Cargá el tipo de cambio del dólar en Configuración."
-                : `Todavía no se cuenta en ${converted.currency}.`,
-          },
-        );
-      }
-
-      return sum + converted.amount;
-    }, 0),
-  );
+  // Bloque 1.2: el efectivo del turno sale de la **misma** lista de cobros que el esperado, así el
+  // número que se guarda y el que se usa para el arqueo no pueden discrepar.
+  const cashSalesAmount = cashPaymentsTotalInBusinessCurrency({
+    cashPayments,
+    businessCurrencyCode: window.businessCurrencyCode,
+    usdExchangeRate: window.usdExchangeRate,
+  });
 
   return {
-    expectedAmount: roundCurrency(openingAmount + cashInBusinessCurrency),
+    expectedAmount: roundCurrency(openingAmount + cashSalesAmount),
     // Por moneda, para que la pantalla pueda comparar lo esperado con lo contado sin convertir nada.
+    // Bloque 1.1: queda congelado en el turno (antes solo viajaba en la respuesta).
     expectedByCurrency: expectedCashByCurrency({
       openingCounts: window.openingCounts,
       cashPayments,
       businessCurrencyCode: window.businessCurrencyCode,
     }),
+    cashSalesAmount,
   };
 }

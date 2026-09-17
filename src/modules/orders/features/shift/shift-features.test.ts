@@ -273,6 +273,58 @@ describe("closeShift", () => {
     expect(result.data?.cashCounts?.filter((count) => count.kind === "closing")).toHaveLength(1);
   });
 
+  /**
+   * Bloque 1.1/1.2 del roadmap del POS (Fase 2) — el arqueo queda **guardado**, no solo en la
+   * respuesta.
+   *
+   * Antes `expectedByCurrency` viajaba únicamente en el `meta` de la respuesta y el turno solo
+   * guardaba el total en moneda del negocio: al recargar, el detalle por moneda desaparecía y
+   * recomputarlo después usaba la **tasa de cambio de ese momento**, que puede ser otra. Lo que se
+   * congela al cerrar es lo que se lee después.
+   */
+  it("congela el esperado por moneda y el efectivo del turno al cerrar (Bloque 1.1/1.2)", async () => {
+    const deps = buildDeps();
+    const opened = await openShift(
+      {
+        locationId: "loc_principal",
+        userId: "user_01",
+        openingCounts: [
+          { currency: "NIO", denomination: 100, quantity: 5 },
+          { currency: "USD", denomination: 20, quantity: 1 },
+        ],
+      },
+      deps,
+    );
+    const openedAtMs = backdateOpen(opened.data.id, 60, deps.shiftRepository);
+    // US$10 (10 × 36.5 = 365) y C$100 con C$60 de vuelto (entran 40).
+    seedPayment(deps.paymentRepository, 10, 0, new Date(openedAtMs + 10_000).toISOString(), {
+      currency: "USD",
+    });
+    seedPayment(deps.paymentRepository, 100, 0, new Date(openedAtMs + 20_000).toISOString(), {
+      changeAmount: 60,
+    });
+    // La tarjeta no entra al cajón: no puede aparecer en el efectivo del turno.
+    seedPayment(deps.paymentRepository, 500, 0, new Date(openedAtMs + 30_000).toISOString(), {
+      method: "card",
+    });
+
+    const result = await closeShift({ shiftId: opened.data.id, closingAmount: 2405 }, deps);
+
+    // Efectivo del turno = US$10 (365) + C$40 = 405, en moneda del negocio.
+    expect(result.data?.cashSalesAmount).toBe(405);
+    expect(result.data?.expectedByCurrency).toEqual({
+      NIO: 540,
+      USD: 30,
+    });
+    // El mismo dato que la respuesta: la pantalla vieja y el detalle nuevo no pueden discrepar.
+    expect(result.data?.expectedByCurrency).toEqual(result.meta.expectedByCurrency);
+
+    // Y queda en el turno guardado, no solo en la respuesta.
+    const stored = await deps.shiftRepository.findShiftById(opened.data.id);
+    expect(stored?.expectedByCurrency).toEqual({ NIO: 540, USD: 30 });
+    expect(stored?.cashSalesAmount).toBe(405);
+  });
+
   it("rechaza un conteo con un billete que no existe", async () => {
     const deps = buildDeps();
 
