@@ -31,8 +31,9 @@
 9. **11.1/11.2 cuadre contra un lote externo** — ¿contra qué se concilia la tarjeta (el cierre de la
    terminal, el depósito del banco, la liquidación del proveedor de pagos) y la transferencia (el
    extracto)? Sin eso, la pantalla mostraría un número al lado de otro sin decir si está bien.
-10. **11.4 email al dueño** — no hay canal de notificaciones (Telegram en pausa, sin SMTP). Si el
-   cierre del día tiene que salir por correo, hay que decidir el proveedor (dependencia nueva).
+10. **11.4 email al dueño** — **NO APLICA** (decisión del owner, 2026-09-17): no se manda correo, todo sale
+    por **Telegram** (un solo grupo del dueño para todas las sucursales). No hay proveedor de email ni se
+    busca uno: era el último pendiente que pedía una dependencia nueva, y se descartó.
 11. **12.1 modo offline del POS (IndexedDB + sync)** — cobrar sin conexión y sincronizar después necesita
    decidir la **idempotencia del cobro offline** y qué pasa si el mismo pedido se registra dos veces (hoy
    el anti doble submit es del servidor: `Order.idempotencyKey`). Sin esa definición, implementarlo es
@@ -134,11 +135,10 @@ apareció que **entrar a `/checkout` con el carrito lleno mostraba «Tu carrito 
 StrictMode el pedido se perdía. Corregido con test primero (`42c5d98`) y verificado con el E2E de
 comandas (5/5, antes 3/5).
 
-**Bloque 11 — lo que falta y su motivo**: **11.3 cerrado** (CSV de cierres) y **11.5/11.6 cerrados**
-(2026-09-18): el día consolidado y la comparación por sucursal ya están en `/admin/cash`. Quedan
-**11.1/11.2** (cuadre de tarjeta y transferencia), que necesitan saber **contra qué** se concilia (lote
-de la terminal, extracto del banco): sin eso, un número al lado de otro no dice nada; y **11.4** (email
-al dueño), que no tiene canal (las notificaciones están en pausa).
+**Bloque 11 — lo que falta y su motivo**: **11.3 cerrado** (CSV de cierres), **11.5/11.6 cerrados**
+(2026-09-18) y **11.1/11.2 cerrados** (2026-09-17: la conciliación de tarjeta y transferencia se exporta a
+CSV y se compara a mano contra el lote y el extracto). **11.4** (email al dueño) **no aplica**: el owner
+decidió que todo salga por **Telegram**.
 
 **Bloque 10 — lo que falta y su motivo**: **10.2 y 10.4 cerrados** (2026-09-18): el cliente se lleva su
 ticket impreso y se reimprime desde el detalle del pedido, con la impresión unificada en
@@ -404,7 +404,7 @@ necesita el **monto** y el canal (hoy no hay notificación externa: `NOTIFICATIO
 **🟢 Nice to have**
 
 21. **9.3** — venta rápida de un producto sin carrito.
-22. **11.3/11.4** — export CSV y envío por email al dueño.
+22. **11.3/11.4** — export CSV (**hecho**) y envío por email (**no aplica**: todo por Telegram, decisión del owner 2026-09-17).
 23. **10.1/10.2/10.3/10.4/10.5** — impresión de tickets (cocina, cliente, por estación, reimpresión, cola de reintentos).
 24. **12.1** — modo offline del POS con IndexedDB y sincronización.
 
@@ -468,13 +468,11 @@ sobrevive a la recarga y cobro bloqueado sin red (12) y el log de acciones sensi
 firmada (13). Además se arregló un **bug de producción latente del carrito** (`42c5d98`), hallado
 verificando el camino real del checkout.
 
-**Requiere decisión (12 puntos, 20 tareas)** — el detalle está en «Requiere decisión» al principio de este
-documento: 9.1 (¿la caja se administra desde el POS o desde Caja del día?), 2.5/2.6 (límite de retiro y
-quién aprueba), 1.7 (cierre obligatorio: global o por sucursal), 1.8 (alerta de turno abierto >24 h),
-1.9 (qué no ve el operario al cerrar), 1.11 (cierre ciego), 1.12/1.13 (cierre X y handover), 3.7 (umbral y
-canal del aviso de devolución), Bloque 3.2 (¿el manager puede aprobar su propia devolución?), 11.1/11.2
-(contra qué se concilia tarjeta y transferencia), 11.4 (canal de correo), 12.1 (idempotencia del cobro
-offline) y Bloque 5 completo (factura fiscal: datos, numeración y formato).
+**Requiere decisión — estado al 2026-09-17**: las 12 preguntas de la lista inicial están **respondidas** por
+el owner. Quedaron **hechas** 15 de las 20 tareas (9.1, 2.5, 2.6, 1.7, 1.8, 1.9, 1.11, 1.12, 1.13, 3.7,
+3.2, 11.1, 11.2, 12.1) y **11.4 no aplica** (todo por Telegram). Las 5 restantes —el Bloque 5 completo
+(factura) — el owner las reencuadró como **factura simple, NO fiscal**, y se implementan en esta ronda.
+El detalle de cada decisión está en «Requiere decisión» al principio de este documento.
 
 **Próxima ronda sugerida** (sin decisiones nuevas): 1.2 (desglose por medio de pago al cerrar), 1.5
 (reporte diario de caja consolidado), 7.3 (helper de E2E con `cashier`) y, si el owner prioriza el

@@ -22,17 +22,17 @@
 > 2026-09-16) para las decisiones y lo que quedó pendiente. Falta la **FASE 3** de ese plan.
 >
 > **Ronda del brief 2026-09-17 (cerrada)**: alertas por **Telegram** (pantalla
-> `/admin/settings/notifications`, tabla `NotificationSettings`, token por entorno, prueba de conexión
-> real y tres disparadores), **configuradas y probadas en producción** (grupo cargado, eventos «turno sin
-> cerrar >24 h» y «devolución grande» prendidos; el resumen del día sigue apagado: necesita la hora de
-> cierre) y las tareas de caja del POS con decisión del owner: **1** (POS limpio y caja
+> `/admin/settings/notifications` —rediseñada y con entrada propia en el sidebar—, tabla
+> `NotificationSettings`, token por entorno, prueba de conexión real y **cierre de caja por evento**: un
+> mensaje en cada cierre, con sucursal, quién cerró, el turno, el desglose por medio, el total, las
+> propinas y la diferencia), **configuradas y probadas en producción** con un cierre real. Y las tareas de
+> caja del POS con decisión del owner: **1** (POS limpio y caja
 > aparte), **2** (límite de retiro configurable sin aprobación), **3** (cierre obligatorio por sucursal),
 > **5/6** (qué ve el operario al cerrar, sin cierre ciego), **7** (corte X y traspaso de caja entre
 > cajeros), **9** (solo el dueño aprueba devoluciones), **10** (conciliación de tarjeta y transferencia
 > exportable a CSV) y **11** (idempotencia del cobro con UUID: la clave viaja con el borrador y el
-> reintento no registra los cobros dos veces). Queda **pendiente** 11.4 (email al dueño: necesita
-> decidir proveedor, o sea una dependencia nueva) y **en el backlog** el Bloque 5 completo (factura
-> fiscal), por decisión del owner. Dos **bugs de producción** aparecieron y se arreglaron en el camino:
+> reintento no registra los cobros dos veces). **11.4 (email al dueño) no aplica**: el owner decidió que
+> todo salga por Telegram. Dos **bugs de producción** aparecieron y se arreglaron en el camino:
 > el cobro con tarjeta en el POS devolvía 400 (el «con cuánto paga» viajaba siempre al alta del pedido) y
 > el reintento del mismo cobro registraba los pagos dos veces. El registro por tarea, con commits y
 > capturas, está en `ops/tasks/audit-ui/pos-fase2-status.md`.
