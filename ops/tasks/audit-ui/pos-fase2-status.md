@@ -52,6 +52,8 @@
 
 | **10.2 + 10.4** | **Ticket de cliente y reimpresión**: `customer-ticket.ts` (puro, 15 casos) con el comprobante —precios, total, medio de pago y cambio—, los dos papeles en la confirmación de la venta (`pos-ticket-buttons.tsx`) y «Reimprimir ticket» en el detalle del pedido (`order-ticket-button.tsx`). Imprimir un texto se unificó en `print-lines.ts`, con el escapado arreglado | `43b1a48` | `bloque-10-botones-ticket-*.png`, `bloque-10-ticket-cliente-*.png` |
 
+| **11.5 + 11.6** | **Cierre del día consolidado y comparación entre sucursales**: `day-close.ts` en el dominio (totales del día y agrupación por sucursal, 8 casos) y el panel server-side en `/admin/cash`, con el día del **negocio** (`business-days.ts`, movido a `shared/lib` para que la bandeja de órdenes y la caja hablen del mismo día) | `3d06118` | `bloque-11-cierre-del-dia-*.png` |
+
 **Bloque 13 — cerrado** (2026-09-18). **13.1**: el log se escribe desde las rutas reales (verificado
 en la base durante la corrida de E2E: `shift.open`, `shift.close`, `cash_movement.create`); para que
 ningún `route.ts` pasara su tope de 50 líneas, la composición con el adaptador y la firma se fue a
@@ -64,11 +66,11 @@ apareció que **entrar a `/checkout` con el carrito lleno mostraba «Tu carrito 
 StrictMode el pedido se perdía. Corregido con test primero (`42c5d98`) y verificado con el E2E de
 comandas (5/5, antes 3/5).
 
-**Bloque 11 — lo que falta y su motivo**: **11.1/11.2** (cuadre de tarjeta y transferencia) necesitan
-saber **contra qué** se concilia (lote de la terminal, extracto del banco): sin eso, un número al lado
-de otro no dice nada; **11.4** (email al dueño) no tiene canal (las notificaciones están en pausa);
-**11.5/11.6** (cierre del día consolidado y comparativa entre sucursales) son superficie sobre datos que
-ya existen por sucursal.
+**Bloque 11 — lo que falta y su motivo**: **11.3 cerrado** (CSV de cierres) y **11.5/11.6 cerrados**
+(2026-09-18): el día consolidado y la comparación por sucursal ya están en `/admin/cash`. Quedan
+**11.1/11.2** (cuadre de tarjeta y transferencia), que necesitan saber **contra qué** se concilia (lote
+de la terminal, extracto del banco): sin eso, un número al lado de otro no dice nada; y **11.4** (email
+al dueño), que no tiene canal (las notificaciones están en pausa).
 
 **Bloque 10 — lo que falta y su motivo**: **10.2 y 10.4 cerrados** (2026-09-18): el cliente se lleva su
 ticket impreso y se reimprime desde el detalle del pedido, con la impresión unificada en
