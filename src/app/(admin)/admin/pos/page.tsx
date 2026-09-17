@@ -33,7 +33,13 @@ export default async function AdminPosPage() {
       role: session.user.role,
       assignedLocationIds: session.user.locationIds,
     }),
-  ).map((location) => ({ id: location.id, name: location.name }));
+  ).map((location) => ({
+    id: location.id,
+    name: location.name,
+    // Tarea 3 del brief (2026-09-17): el cierre obligatorio es **por sucursal** (1.7); el POS lo
+    // necesita para no dejar cobrar con una caja de otro día.
+    requireShiftClose: location.requireShiftClose,
+  }));
 
   if (locations.length === 0) {
     redirect("/admin/orders");

@@ -430,6 +430,69 @@ describe("PosClient", () => {
   });
 
   /**
+   * Tarea 3 del brief (2026-09-17) — **cierre obligatorio por sucursal** (1.7).
+   *
+   * Si la sucursal lo exige y la caja quedó abierta de otro día, el POS no deja cobrar y dice por qué y
+   * dónde se arregla. La regla pura (`shift-close-policy.ts`) tiene sus propios casos; acá se comprueba
+   * que la pantalla la use: el mismo turno, sin el interruptor, cobra normal.
+   */
+  it("con cierre obligatorio y caja de otro día el cobro queda bloqueado y lo explica", async () => {
+    const user = userEvent.setup();
+    const ayer = new Date(Date.now() - 26 * 60 * 60 * 1000).toISOString();
+
+    fetchMock.mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.startsWith("/api/admin/pos/catalog")) return jsonResponse(productos);
+      if (url.startsWith("/api/admin/pos/shift?")) {
+        return jsonResponse({ data: { id: "shift_1", openedAt: ayer, openingAmount: 1000 } });
+      }
+      return jsonResponse({ data: [] });
+    });
+
+    render(
+      <PosClient locations={[{ id: "loc_norte", name: "Norte", requireShiftClose: true }]} />,
+    );
+
+    await screen.findByText("Taco de birria");
+    await user.click(screen.getByRole("button", { name: "Agregar Taco de birria a la venta" }));
+    await fillCustomer(user);
+    await user.type(screen.getByLabelText("Con cuánto paga"), "100");
+
+    expect(screen.getByText(/exige cerrar la caja todos los días/)).toBeTruthy();
+    expect((screen.getByRole("button", { name: /^Cobrar / }) as HTMLButtonElement).disabled).toBe(
+      true,
+    );
+  });
+
+  it("sin cierre obligatorio la caja vieja no bloquea el cobro", async () => {
+    const user = userEvent.setup();
+    const ayer = new Date(Date.now() - 26 * 60 * 60 * 1000).toISOString();
+
+    fetchMock.mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.startsWith("/api/admin/pos/catalog")) return jsonResponse(productos);
+      if (url.startsWith("/api/admin/pos/shift?")) {
+        return jsonResponse({ data: { id: "shift_1", openedAt: ayer, openingAmount: 1000 } });
+      }
+      return jsonResponse({ data: [] });
+    });
+
+    render(
+      <PosClient locations={[{ id: "loc_norte", name: "Norte", requireShiftClose: false }]} />,
+    );
+
+    await screen.findByText("Taco de birria");
+    await user.click(screen.getByRole("button", { name: "Agregar Taco de birria a la venta" }));
+    await fillCustomer(user);
+    await user.type(screen.getByLabelText("Con cuánto paga"), "100");
+
+    expect(screen.queryByText(/exige cerrar la caja todos los días/)).toBeNull();
+    expect((screen.getByRole("button", { name: /^Cobrar / }) as HTMLButtonElement).disabled).toBe(
+      false,
+    );
+  });
+
+  /**
    * Bloque 9.2 del roadmap del POS (Fase 2) — sin caja abierta el cobro está bloqueado **en pantalla**.
    *
    * El servidor lo rechaza con 409 (`registerPosSale`), pero un botón habilitado que va a fallar es un

@@ -66,6 +66,7 @@ function location(id: string, name: string): LocationRecord {
     prepAlertMinutes: 15,
     isAcceptingOrders: true,
     posEnabled: true,
+    requireShiftClose: false,
     closedMessage: null,
     createdAt: "2026-09-12T00:00:00.000Z",
     updatedAt: "2026-09-12T00:00:00.000Z",

@@ -38,6 +38,7 @@ function mapLocation(row: PrismaLocation): LocationRecord {
     prepAlertMinutes: row.prepAlertMinutes,
     isAcceptingOrders: row.isAcceptingOrders,
     posEnabled: row.posEnabled,
+    requireShiftClose: row.requireShiftClose,
     closedMessage: row.closedMessage,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),

@@ -323,6 +323,22 @@ export function LocationFormSheet({
           ]}
         />
 
+        {/* Tarea 3 del brief (2026-09-17): el cierre obligatorio se decide **por sucursal** (1.7). */}
+        <Select
+          label="Cierre de caja obligatorio"
+          value={form.requireShiftClose ? "yes" : "no"}
+          onChange={(event) => onChange({ requireShiftClose: event.target.value === "yes" })}
+          options={[
+            { value: "no", label: "No — la caja puede quedar abierta" },
+            { value: "yes", label: "Sí — hay que cerrarla todos los días" },
+          ]}
+        />
+
+        <p className="text-st-caption text-ink-secondary">
+          Con el cierre obligatorio, si la caja quedó abierta de otro día el POS no deja cobrar hasta
+          cerrarla (se cierra desde «Caja del día»).
+        </p>
+
         <Input
           label="Mensaje cuando no acepta"
           value={form.closedMessage}

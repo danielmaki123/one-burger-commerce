@@ -46,6 +46,8 @@ export function createInMemoryLocation(
     isAcceptingOrders: true,
     // TASK-308: el mismo default que la base (el POS nace prendido en cada local).
     posEnabled: true,
+    // Tarea 3: el cierre obligatorio nace apagado, igual que en la base.
+    requireShiftClose: false,
     closedMessage: null,
     createdAt: "2026-09-12T00:00:00.000Z",
     updatedAt: "2026-09-12T00:00:00.000Z",

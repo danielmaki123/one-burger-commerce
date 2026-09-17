@@ -45,6 +45,11 @@ export type LocationRecord = {
    * «Caja» no se ofrece al staff que solo atiende ese local.
    */
   posEnabled: boolean;
+  /**
+   * Tarea 3 del brief (2026-09-17) — este local **exige cerrar la caja todos los días** (1.7). Con esto
+   * prendido el POS no deja cobrar si la caja abierta quedó de otro día del negocio: primero se cierra.
+   */
+  requireShiftClose: boolean;
   closedMessage: string | null;
   createdAt: string;
   updatedAt: string;

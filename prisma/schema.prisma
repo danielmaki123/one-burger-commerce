@@ -201,6 +201,10 @@ model Location {
   /// TASK-308 — si este local usa el punto de venta (mostrador). Nace prendido para no cambiarle
   /// nada al negocio de un solo local; apagado, la API del POS responde 403 en ese local.
   posEnabled        Boolean             @default(true)
+  /// Tarea 3 del brief (2026-09-17) — cierre **obligatorio** de caja en este local: la caja no puede
+  /// quedar abierta de un día para el otro. Nace apagado (cada sucursal lo decide desde su ficha); si
+  /// está prendido y la caja sigue abierta con fecha de otro día, el POS no deja cobrar hasta cerrarla.
+  requireShiftClose Boolean             @default(false)
   closedMessage     String?
   createdAt         DateTime            @default(now())
   updatedAt         DateTime            @updatedAt

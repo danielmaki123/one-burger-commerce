@@ -57,6 +57,8 @@ export type LocationInput = {
   isAcceptingOrders: boolean;
   /** TASK-308 — si este local usa el punto de venta (mostrador). */
   posEnabled: boolean;
+  /** Tarea 3 del brief (2026-09-17) — si este local exige cerrar la caja todos los días. */
+  requireShiftClose: boolean;
   closedMessage: string | null;
 };
 

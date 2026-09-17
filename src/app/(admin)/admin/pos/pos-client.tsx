@@ -12,6 +12,7 @@ import {
   setPosLineQuantity,
 } from "@/modules/pos/domain/pos-draft";
 import { filterPosProducts } from "@/modules/pos/domain/search-pos-products";
+import { mustCloseShiftBeforeCharging } from "@/modules/pos/domain/shift-close-policy";
 import type { PosCatalogProduct } from "@/modules/pos/ports/pos-catalog";
 import { useBusinessSettings, useCurrencyFormat } from "@/shared/lib/business-settings";
 import { formatCurrency } from "@/shared/lib/format-currency";
@@ -42,7 +43,15 @@ import { usePosDraft } from "./use-pos-draft";
  * se trae **una vez** y escribir no dispara una consulta por tecla.
  */
 
-export type PosLocationOption = { id: string; name: string };
+export type PosLocationOption = {
+  id: string;
+  name: string;
+  /** Tarea 3 del brief: la sucursal exige cerrar la caja todos los días. */
+  requireShiftClose?: boolean;
+};
+
+const CLOSE_SHIFT_FIRST_MESSAGE =
+  "Este local exige cerrar la caja todos los días y la caja quedó abierta de otro día: cerrala en «Caja del día» y volvé a cobrar.";
 
 /**
  * Bloque 4 del roadmap del POS (Fase 2) — una fila de cobro del mostrador.
@@ -268,6 +277,21 @@ export default function PosClient({ locations }: { locations: PosLocationOption[
     [products, query],
   );
   const totals = posDraftTotals(draft);
+
+  /**
+   * Tarea 3 del brief (2026-09-17) — cierre obligatorio por sucursal (1.7).
+   *
+   * Si el local lo exige y la caja abierta es de **otro día del negocio**, no se cobra hasta cerrarla: el
+   * POS lo dice con su motivo y el botón queda bloqueado (la regla pura vive en
+   * `shift-close-policy.ts`, con la zona del negocio).
+   */
+  const shiftOverdue = mustCloseShiftBeforeCharging({
+    requireShiftClose:
+      locations.find((location) => location.id === locationId)?.requireShiftClose ?? false,
+    openedAt: shift?.openedAt ?? null,
+    now: new Date(),
+    timezone: settings.timezone,
+  });
 
   const addProduct = (product: PosCatalogProduct) => {
     setDraft((current) =>
@@ -815,6 +839,7 @@ export default function PosClient({ locations }: { locations: PosLocationOption[
               <PosChargePanel
                 needsOpenShift={!shift && !shiftLoading}
                 canCharge={Boolean(shift)}
+                blockedReason={shiftOverdue ? CLOSE_SHIFT_FIRST_MESSAGE : null}
                 total={totals.total}
                 currency={currency}
                 charging={charging}

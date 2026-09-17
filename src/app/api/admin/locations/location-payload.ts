@@ -54,6 +54,9 @@ const locationSchema = z.object({
   // TASK-308: el mostrador del local. Un payload viejo sin el campo deja el POS prendido, que es como
   // venía funcionando el negocio antes de que existiera el interruptor.
   posEnabled: z.boolean().default(true),
+  // Tarea 3 del brief (2026-09-17): cierre obligatorio de caja en este local. Nace apagado (el negocio
+  // de un solo local sigue funcionando como antes) y se prende desde la ficha de la sucursal.
+  requireShiftClose: z.boolean().default(false),
   closedMessage: z.string().max(300).nullable().default(null),
 });
 

@@ -18,6 +18,7 @@ import { Button } from "@/shared/ui/button";
 export default function PosChargePanel({
   needsOpenShift,
   canCharge,
+  blockedReason = null,
   total,
   currency,
   charging,
@@ -28,6 +29,12 @@ export default function PosChargePanel({
   /** Hay local elegido y caja abierta: sin eso no se cobra (Bloque 9.2). */
   needsOpenShift: boolean;
   canCharge: boolean;
+  /**
+   * Tarea 3 del brief (2026-09-17) — por qué **no** se puede cobrar aunque haya caja: hoy, la sucursal
+   * exige cerrar la caja todos los días y la caja quedó abierta de otro día. El motivo lo arma la regla
+   * pura (`shift-close-policy.ts`), no la pantalla.
+   */
+  blockedReason?: string | null;
   total: number;
   currency: CurrencyFormat;
   charging: boolean;
@@ -46,6 +53,15 @@ export default function PosChargePanel({
           className="rounded-stitch-lg border border-status-prep-border bg-status-prep-bg px-3 py-2 text-st-body text-status-prep-text"
         >
           Abrí la caja para poder cobrar: un cobro con la caja cerrada no entra a ningún arqueo.
+        </p>
+      ) : null}
+
+      {blockedReason ? (
+        <p
+          role="status"
+          className="rounded-stitch-lg border border-status-prep-border bg-status-prep-bg px-3 py-2 text-st-body text-status-prep-text"
+        >
+          {blockedReason}
         </p>
       ) : null}
 
@@ -76,7 +92,7 @@ export default function PosChargePanel({
       <Button
         type="button"
         className="min-h-12 w-full"
-        disabled={charging || !canCharge || !online}
+        disabled={charging || !canCharge || !online || Boolean(blockedReason)}
         onClick={onCharge}
       >
         {charging ? (

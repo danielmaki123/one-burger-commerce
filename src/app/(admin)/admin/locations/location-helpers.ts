@@ -58,6 +58,8 @@ export type LocationFormState = {
   isAcceptingOrders: boolean;
   /** TASK-308 — si el local cobra en el mostrador. */
   posEnabled: boolean;
+  /** Tarea 3 del brief (2026-09-17) — si este local exige cerrar la caja todos los días. */
+  requireShiftClose: boolean;
   closedMessage: string;
 };
 
@@ -93,6 +95,8 @@ export function createEmptyLocationForm(): LocationFormState {
     isAcceptingOrders: true,
     // TASK-308: el mostrador nace prendido, igual que en la base.
     posEnabled: true,
+    // Tarea 3: el cierre obligatorio nace apagado; cada sucursal lo prende en su ficha.
+    requireShiftClose: false,
     closedMessage: "",
   };
 }
@@ -139,6 +143,7 @@ export function locationFormToInput(form: LocationFormState): LocationInput {
     prepAlertMinutes: integerOrNull(form.prepAlertMinutes) ?? 15,
     isAcceptingOrders: form.isAcceptingOrders,
     posEnabled: form.posEnabled,
+    requireShiftClose: form.requireShiftClose,
     closedMessage: textOrNull(form.closedMessage),
   };
 }
@@ -164,6 +169,7 @@ export function locationToForm(location: LocationRecord): LocationFormState {
     prepAlertMinutes: String(location.prepAlertMinutes),
     isAcceptingOrders: location.isAcceptingOrders,
     posEnabled: location.posEnabled,
+    requireShiftClose: location.requireShiftClose,
     closedMessage: location.closedMessage ?? "",
   };
 }
