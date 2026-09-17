@@ -48,13 +48,19 @@
 | **10.1** | **Ticket de cocina**: `kitchen-ticket.ts` (puro, sin importes, con la hora prometida en la zona del negocio y los modificadores) y «Ticket de cocina» en el POS, impreso con la hoja del sistema | `917f434` | (sin captura: es una ventana del navegador) |
 | **11.3** | **Export CSV de cierres**: `shift-csv.ts` (puro, separador `;`, números crudos, turno abierto con celdas vacías, escapado) y «Exportar CSV» en el historial | `57934ce` | — |
 | **13.1** | **Log de acciones sensibles**, completo: el módulo `audit` (lista cerrada de 9 acciones, best-effort, `AuditError` en el mapeo) y el modelo `AdminAuditLog` (migración `20260918070000`), **cableado** a las 9 acciones: abrir/cerrar/reabrir turno, movimiento de caja, pedir/aprobar/rechazar devolución, cancelar un pedido cobrado y cambiar la personalización. El gate de la tabla de atajos falla si una acción de la lista queda sin forma de firmarse | `605870b`, `82349a1` | — |
+| **13.3** | **Firma del cierre**: «Imprimir cierre» en el detalle del turno y la hoja en texto plano (`shift-close-sheet.ts`, pura) con el arqueo asentado, el **nombre** de quien cerró (antes se mostraba el `userId` crudo) y la línea de firma. Imprime con la hoja del sistema, sin dependencias | `d2a06f3` | `bloque-13-boton-imprimir-cierre-*.png`, `bloque-13-hoja-cierre-impresa-*.png` |
 
-**Bloque 13 — lo que falta y su motivo**: **13.1 está cerrado** (2026-09-18): el log se escribe desde
-las rutas reales (verificado en la base durante la corrida de E2E: `shift.open`, `shift.close`,
-`cash_movement.create`). Para que ningún `route.ts` pasara su tope de 50 líneas, la composición con el
-adaptador y la firma se fue a `*-composition.ts` al lado de cada ruta. **13.2** (historial de
-movimientos del turno) ya se ve en el detalle del cierre desde el Bloque 2. **13.3** (firma impresa del
-cierre) depende del ticket de cierre, que no existe: es lo único que le queda al bloque.
+**Bloque 13 — cerrado** (2026-09-18). **13.1**: el log se escribe desde las rutas reales (verificado
+en la base durante la corrida de E2E: `shift.open`, `shift.close`, `cash_movement.create`); para que
+ningún `route.ts` pasara su tope de 50 líneas, la composición con el adaptador y la firma se fue a
+`*-composition.ts` al lado de cada ruta. **13.3**: el cierre se imprime y se firma con nombre. **13.2**
+(historial de movimientos del turno) ya se ve en el detalle del cierre desde el Bloque 2.
+
+**Hallazgo fuera del roadmap, arreglado en el mismo bloque**: verificando el E2E de la hoja de cierre
+apareció que **entrar a `/checkout` con el carrito lleno mostraba «Tu carrito está vacío»** — el
+`CartProvider` escribía `[]` encima del carrito guardado antes de leerlo, y con el doble montaje de
+StrictMode el pedido se perdía. Corregido con test primero (`42c5d98`) y verificado con el E2E de
+comandas (5/5, antes 3/5).
 
 **Bloque 11 — lo que falta y su motivo**: **11.1/11.2** (cuadre de tarjeta y transferencia) necesitan
 saber **contra qué** se concilia (lote de la terminal, extracto del banco): sin eso, un número al lado
