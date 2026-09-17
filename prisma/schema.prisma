@@ -782,6 +782,9 @@ model Shift {
   /// Bloque 1.2 del POS (Fase 2) — lo que entró **en efectivo** en el turno, en la moneda del
   /// negocio (monto + propina − vuelto). La tarjeta no entra: no pasó por el cajón.
   cashSalesAmount Decimal?   @db.Decimal(10, 2)
+  /// Bloque 2 del POS (Fase 2) — el neto de los movimientos del turno (retiros restan, ingresos
+  /// suman), en la moneda del negocio. Congelado al cerrar, igual que el resto del arqueo.
+  cashMovementsAmount Decimal? @db.Decimal(10, 2)
   /// `closingAmount - expectedAmount`. Negativo = faltó plata.
   difference     Decimal?    @db.Decimal(10, 2)
   /// Bloque 1.10 del POS (Fase 2) — reapertura de un turno cerrado. Queda firmado quién, cuándo y

@@ -60,6 +60,15 @@ try {
     await page.waitForTimeout(600);
     await shot(page, "bloque-1-cierre-detalle", viewport.name);
 
+    // Bloque 2: los movimientos del turno, con su alta.
+    await page.evaluate(() => {
+      document
+        .querySelector('[aria-label="Movimientos de caja"]')
+        ?.scrollIntoView({ block: "center" });
+    });
+    await page.waitForTimeout(400);
+    await shot(page, "bloque-2-movimientos", viewport.name);
+
     // Bloque 9.2: el POS diciendo que hay que abrir la caja.
     await page.goto(`${baseUrl}/admin/pos`, { waitUntil: "domcontentloaded" });
     await page.waitForSelector('[aria-label="Venta en curso"]', { timeout: 30_000 });

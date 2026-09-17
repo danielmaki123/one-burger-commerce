@@ -6,6 +6,7 @@ import {
 } from "@/modules/locations/adapters/in-memory-location-repository";
 import { InMemoryPaymentRepository } from "@/modules/orders/adapters/in-memory-payment-repository";
 import { InMemoryShiftRepository } from "@/modules/orders/adapters/in-memory-shift-repository";
+import type { CashMovementRecord } from "@/modules/orders/domain/order.types";
 
 import { closeShift } from "./close-shift";
 import { getCurrentShift } from "./get-current-shift";
@@ -14,13 +15,57 @@ import { openShift } from "./open-shift";
 /**
  * TASK-104 — los tres casos de uso del turno.
  *
- * `closeShift` es el que importa: el esperado sale de los **cobros** del pedido dentro de la ventana
- * del turno, no de un número que mande el cliente. Si el mostrador pudiera declarar su propio
- * esperado, el arqueo no serviría para nada.
+ * `closeShift` es el que importa: el esperado sale de los **cobros** del turno, no de un número que
+ * mande el cliente. Si el mostrador pudiera declarar su propio esperado, el arqueo no serviría para
+ * nada. Desde el Bloque 2 también entran los **movimientos de caja** (retiros e ingresos).
  */
+class InMemoryCashMovementRepository {
+  movements: CashMovementRecord[] = [];
+
+  seed(input: { shiftId: string; kind: "withdrawal" | "deposit"; currency: string; amount: number }) {
+    this.movements.push({
+      id: `mov_${this.movements.length + 1}`,
+      shiftId: input.shiftId,
+      kind: input.kind,
+      category: input.kind === "withdrawal" ? "supplier" : "change_fund",
+      amount: input.amount,
+      currency: input.currency,
+      reason: "Movimiento de prueba",
+      userId: "user_01",
+      approvedByUserId: null,
+      approvedAt: null,
+      createdAt: "2026-09-17T18:00:00.000Z",
+    });
+  }
+
+  async create(input: {
+    shiftId: string;
+    kind: "withdrawal" | "deposit";
+    currency: string;
+    amount: number;
+  }) {
+    this.seed(input);
+    return this.movements[this.movements.length - 1];
+  }
+
+  async listByShift(shiftId: string) {
+    return this.movements.filter((movement) => movement.shiftId === shiftId);
+  }
+}
+
+function appendedMovement(
+  shiftId: string,
+  kind: "withdrawal" | "deposit",
+  currency: string,
+  amount: number,
+) {
+  return { shiftId, kind, currency, amount };
+}
+
 function buildDeps() {
   const shiftRepository = new InMemoryShiftRepository();
   const paymentRepository = new InMemoryPaymentRepository();
+  const cashMovementRepository = new InMemoryCashMovementRepository();
   const locationRepository = new InMemoryLocationRepository([
     createInMemoryLocation({ id: "loc_principal", name: "Principal" }),
   ]);
@@ -28,6 +73,7 @@ function buildDeps() {
   return {
     shiftRepository,
     paymentRepository,
+    cashMovementRepository,
     locationRepository,
     // TASK-305: el arqueo convierte los cobros en dólares con la tasa configurada.
     businessCurrencyCode: "NIO",
@@ -323,6 +369,35 @@ describe("closeShift", () => {
     const stored = await deps.shiftRepository.findShiftById(opened.data.id);
     expect(stored?.expectedByCurrency).toEqual({ NIO: 540, USD: 30 });
     expect(stored?.cashSalesAmount).toBe(405);
+  });
+
+  /**
+   * Bloque 2 del roadmap del POS (Fase 2) — los movimientos de caja entran al arqueo.
+   *
+   * El esperado era `fondo + efectivo − vueltos`: un retiro para el proveedor hacía que el cierre
+   * marcara faltante sin forma de explicarlo. Ahora un **retiro resta** y un **ingreso suma**, cada uno
+   * en **su** moneda, y el total del turno queda congelado junto con el arqueo.
+   */
+  it("el retiro resta y el ingreso suma en el esperado, por moneda (Bloque 2)", async () => {
+    const deps = buildDeps();
+    const opened = await openShift(
+      { locationId: "loc_principal", userId: "user_01", openingAmount: 1000 },
+      deps,
+    );
+    const openedAtMs = backdateOpen(opened.data.id, 60, deps.shiftRepository);
+    seedPayment(deps.paymentRepository, 500, 0, new Date(openedAtMs + 10_000).toISOString());
+    // C$500 para el proveedor, US$20 a bóveda y C$150 de cambio que entran.
+    deps.cashMovementRepository.seed(appendedMovement(opened.data.id, "withdrawal", "NIO", 500));
+    deps.cashMovementRepository.seed(appendedMovement(opened.data.id, "withdrawal", "USD", 20));
+    deps.cashMovementRepository.seed(appendedMovement(opened.data.id, "deposit", "NIO", 150));
+
+    const result = await closeShift({ shiftId: opened.data.id, closingAmount: 1150 }, deps);
+
+    // Esperado = fondo 1000 + efectivo 500 − retiros (500 + 20 × 36.5 = 1230) + ingreso 150 = 420.
+    expect(result.data?.expectedAmount).toBe(420);
+    expect(result.data?.expectedByCurrency).toEqual({ NIO: 1150, USD: -20 });
+    // El neto de los movimientos en moneda del negocio: −500 − 730 + 150.
+    expect(result.data?.cashMovementsAmount).toBe(-1080);
   });
 
   it("rechaza un conteo con un billete que no existe", async () => {

@@ -263,6 +263,27 @@ export function isShiftStatus(value: string): value is ShiftStatus {
   return Object.values(SHIFT_STATUSES).includes(value as ShiftStatus);
 }
 
+/** Bloque 2 del POS — de qué lado va la plata del cajón. */
+export type CashMovementKind = "withdrawal" | "deposit";
+
+export type CashMovementCategory = "supplier" | "change_fund" | "vault" | "expense" | "other";
+
+/** Un movimiento de caja del turno (Bloque 2 del POS, Fase 2). */
+export type CashMovementRecord = {
+  id: string;
+  shiftId: string;
+  kind: CashMovementKind;
+  category: CashMovementCategory;
+  /** Monto positivo: el signo lo da el `kind`. */
+  amount: number;
+  currency: string;
+  reason: string;
+  userId: string;
+  approvedByUserId: string | null;
+  approvedAt: string | null;
+  createdAt: string;
+};
+
 /** Un turno de caja. Los montos de cierre son `null` mientras está abierto. */
 export type ShiftRecord = {
   id: string;
@@ -289,6 +310,11 @@ export type ShiftRecord = {
    * (monto + propina − vuelto). La tarjeta no entra: no pasó por el cajón.
    */
   cashSalesAmount?: number | null;
+  /**
+   * Bloque 2 del POS (Fase 2) — cuánto movieron los retiros e ingresos del turno, en la moneda del
+   * negocio (retiro resta, ingreso suma). Congelado al cerrar.
+   */
+  cashMovementsAmount?: number | null;
   /**
    * Bloque 1.10 del POS (Fase 2) — la firma de la última reapertura: cuándo, quién y por qué. `null`
    * si el turno nunca se reabrió.

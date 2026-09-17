@@ -31,6 +31,7 @@ function mapShift(shift: {
   expectedAmount: Decimal | null;
   expectedByCurrency?: unknown;
   cashSalesAmount: Decimal | null;
+  cashMovementsAmount?: Decimal | null;
   difference: Decimal | null;
   reopenedAt?: Date | null;
   reopenedByUserId?: string | null;
@@ -53,6 +54,7 @@ function mapShift(shift: {
     // Bloque 1.1/1.2: el arqueo congelado al cerrar, tal como se guardó.
     expectedByCurrency: toExpectedByCurrency(shift.expectedByCurrency),
     cashSalesAmount: decimalOrNull(shift.cashSalesAmount),
+    cashMovementsAmount: decimalOrNull(shift.cashMovementsAmount ?? null),
     difference: decimalOrNull(shift.difference),
     // Bloque 1.10: la firma de la última reapertura, si hubo.
     reopenedAt: shift.reopenedAt ? shift.reopenedAt.toISOString() : null,
@@ -175,6 +177,7 @@ export class PrismaShiftRepository implements ShiftRepository {
         // detalle por moneda antes vivía solo en la respuesta y se perdía al recargar.
         expectedByCurrency: input.expectedByCurrency,
         cashSalesAmount: input.cashSalesAmount,
+        cashMovementsAmount: input.cashMovementsAmount ?? 0,
         difference:
           input.closingAmount === null
             ? null

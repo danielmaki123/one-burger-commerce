@@ -4,6 +4,7 @@ import { ShiftError } from "./shift-errors";
 import {
   cashCountsTotal,
   cashCountsTotalInBusinessCurrency,
+  cashMovementsTotalByCurrency,
   cashPaymentsTotalInBusinessCurrency,
   countedCurrencies,
   expectedCashByCurrency,
@@ -135,5 +136,38 @@ describe("efectivo del turno en moneda del negocio", () => {
         usdExchangeRate: null,
       }),
     ).toBe(0);
+  });
+});
+
+/**
+ * Bloque 2 del roadmap del POS (Fase 2) — la plata que entra o sale del cajón sin ser un cobro.
+ *
+ * Hasta acá el esperado era `fondo + efectivo − vueltos`: si alguien sacaba C$500 para el proveedor,
+ * el cierre marcaba faltante sin forma de explicarlo. Un **retiro resta** del esperado y un **ingreso
+ * suma**, cada uno en **su** moneda (un retiro de US$20 no puede restar 20 córdobas).
+ */
+describe("movimientos de caja en el esperado", () => {
+  it("el retiro resta y el ingreso suma, por moneda", () => {
+    const movements = cashMovementsTotalByCurrency({
+      movements: [
+        { kind: "withdrawal", currency: "NIO", amount: 500 },
+        { kind: "withdrawal", currency: "USD", amount: 20 },
+        { kind: "deposit", currency: "NIO", amount: 150 },
+      ],
+    });
+
+    expect(movements).toEqual({ NIO: -350, USD: -20 });
+  });
+
+  it("sin movimientos devuelve un objeto vacío, no ceros", () => {
+    expect(cashMovementsTotalByCurrency({ movements: [] })).toEqual({});
+  });
+
+  it("una moneda que no estaba en el conteo entra igual", () => {
+    const movements = cashMovementsTotalByCurrency({
+      movements: [{ kind: "deposit", currency: "USD", amount: 10 }],
+    });
+
+    expect(movements).toEqual({ USD: 10 });
   });
 });

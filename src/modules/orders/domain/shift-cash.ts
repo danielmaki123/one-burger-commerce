@@ -137,7 +137,14 @@ export function cashCountsTotalInBusinessCurrency(input: {
  */
 export function expectedCashByCurrency(input: {
   openingCounts: ShiftCashCountInput[];
+  /**
+   * El fondo cuando **no** hay conteo de apertura: es un monto en la moneda del negocio. Sin esto el
+   * detalle por moneda no cerraba con el total (el fondo quedaba fuera del desglose).
+   */
+  openingAmount?: number;
   cashPayments: { currency: string | null; amount: number; tip: number; changeAmount: number }[];
+  /** Bloque 2 — retiros e ingresos del turno. Sin esto, un retiro parecía un faltante. */
+  cashMovements?: { kind: "withdrawal" | "deposit"; currency: string; amount: number }[];
   businessCurrencyCode: string;
 }): Record<string, number> {
   const expected: Record<string, number> = {};
@@ -151,13 +158,90 @@ export function expectedCashByCurrency(input: {
 
   const businessCurrency = input.businessCurrencyCode.trim().toUpperCase();
 
+  if (input.openingCounts.length === 0 && input.openingAmount) {
+    expected[businessCurrency] = roundCurrency(
+      (expected[businessCurrency] ?? 0) + input.openingAmount,
+    );
+  }
+
   for (const payment of input.cashPayments) {
     const currency = (payment.currency ?? businessCurrency).trim().toUpperCase();
     const net = payment.amount + payment.tip - payment.changeAmount;
     expected[currency] = roundCurrency((expected[currency] ?? 0) + net);
   }
 
+  for (const movement of input.cashMovements ?? []) {
+    const currency = movement.currency.trim().toUpperCase();
+    const signed = movement.kind === "withdrawal" ? -movement.amount : movement.amount;
+    expected[currency] = roundCurrency((expected[currency] ?? 0) + signed);
+  }
+
   return expected;
+}
+
+/**
+ * Bloque 2 del roadmap del POS (Fase 2) — cuánto mueven los movimientos del turno, **en la moneda
+ * del negocio**.
+ *
+ * Es el número que se congela en el arqueo junto al efectivo del turno: dice cuánto de la diferencia
+ * la explican los retiros y los ingresos, en vez de quedar como un faltante sin causa.
+ */
+export function cashMovementsTotalInBusinessCurrency(input: {
+  movements: { kind: "withdrawal" | "deposit"; currency: string; amount: number }[];
+  businessCurrencyCode: string;
+  usdExchangeRate: number | null;
+}): number {
+  const byCurrency = cashMovementsTotalByCurrency(input);
+
+  return roundCurrency(
+    Object.entries(byCurrency).reduce((sum, [currency, amount]) => {
+      const converted = convertToBusinessCurrency({
+        amount,
+        currency,
+        businessCurrencyCode: input.businessCurrencyCode,
+        usdExchangeRate: input.usdExchangeRate,
+      });
+
+      if (!converted.ok) {
+        throw new ShiftError(
+          422,
+          "VALIDATION_ERROR",
+          converted.reason === "missing-rate"
+            ? "Cargá el tipo de cambio del dólar en Configuración para cerrar una caja con movimientos en dólares."
+            : `Todavía no se cuenta en ${converted.currency}.`,
+          {
+            counts:
+              converted.reason === "missing-rate"
+                ? "Cargá el tipo de cambio del dólar en Configuración."
+                : `Todavía no se cuenta en ${converted.currency}.`,
+          },
+        );
+      }
+
+      return sum + converted.amount;
+    }, 0),
+  );
+}
+
+/**
+ * Bloque 2 del roadmap del POS (Fase 2) — cuánto mueven los movimientos del turno, **por moneda**.
+ *
+ * Un **retiro resta** del esperado y un **ingreso suma**: son plata que salió o entró del cajón sin
+ * ser un cobro. El resultado va en la moneda de cada movimiento (un retiro de US$20 no puede restar 20
+ * córdobas) y solo aparecen las monedas que tuvieron movimiento.
+ */
+export function cashMovementsTotalByCurrency(input: {
+  movements: { kind: "withdrawal" | "deposit"; currency: string; amount: number }[];
+}): Record<string, number> {
+  const totals: Record<string, number> = {};
+
+  for (const movement of input.movements) {
+    const currency = movement.currency.trim().toUpperCase();
+    const signed = movement.kind === "withdrawal" ? -movement.amount : movement.amount;
+    totals[currency] = roundCurrency((totals[currency] ?? 0) + signed);
+  }
+
+  return totals;
 }
 
 /**

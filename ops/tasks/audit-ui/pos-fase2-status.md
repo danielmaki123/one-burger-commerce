@@ -1,5 +1,36 @@
 # Estado real de la Fase 2 (POS completo) — inventario
 
+> **Actualización 2026-09-17 (ronda de implementación)**: este documento es el inventario medido del
+> 2026-09-17 y **sigue siendo la línea de base**. Lo que se va cerrando queda acá abajo en
+> «Requiere decisión» y en el registro de bloques; el estado detallado por tarea no se reescribe para
+> no perder la foto original (la evidencia de cada archivo está en el commit que lo cerró).
+
+## Requiere decisión (lo que NO se puede implementar sin respuesta del owner)
+
+1. **9.1 «POS limpio sin tab de Caja»** — ¿el cajero abre y cierra la caja desde `/admin/cash` (hoy
+   solo lectura, de dueño/manager) o se deja dentro del POS? Si se mueve, hay que decidir si el cajero
+   gana `canManageCash` **para su propio turno**, que es justo lo que el 7.1 quiere evitar.
+2. **2.5/2.6 límite de retiro sin aprobación y aprobación de movimientos grandes** — el modelo y la UI
+   están (Bloque 2); falta el **monto** del límite y **quién** aprueba. Default conservador aplicado:
+   **no hay límite configurado, así que todos los movimientos se registran y quedan con
+   `approvedByUserId` en `null`** (nada se auto-aprueba).
+3. **1.7 cierre obligatorio configurable** — ¿es un campo de Personalización (global) o por sucursal
+   (como el POS)?
+4. **1.8 alerta por turno abierto >24 h** — ¿sale por panel o necesita notificación externa (hoy en
+   pausa, `NOTIFICATIONS_DRIVER=dummy`)?
+5. **1.11 cierre ciego** — ¿lo habilita el owner por configuración o depende del rol que cierra?
+6. **1.9 el operario no ve detalles al cerrar** — ¿qué exactamente no ve: el esperado, la diferencia o
+   ambos?
+
+## Registro de bloques cerrados en la ronda de implementación
+
+| Bloque | Qué se cerró | Commits | Captura |
+|---|---|---|---|
+| **8** | Grupos Operación/Control/Catálogo/Configuración, permiso `canManageCash`, «Caja»→«POS», rutas `/admin/cash`, `/admin/cash/history/[id]` y `/admin/approvals` | `b5f07dd`, `7ff20e0`, `fcc0691`, `50ac7f2`, `d0ea932` | `bloque-8-*.png` |
+| **1** | `expectedByCurrency` y `cashSalesAmount` persistidos, historial y detalle del cierre, reapertura firmada | `7ff20e0`, `fcc0691` | `bloque-1-cierre-detalle-*.png` |
+| **9.2** | Sin caja abierta no se cobra (409 en el servidor + botón bloqueado y motivo en pantalla) | `50ac7f2` | `bloque-9-cobro-bloqueado-*.png` |
+| **2** | `CashMovement` (retiro/ingreso con categoría, motivo y responsable), afecta el esperado por moneda y el `cashMovementsAmount` del cierre, rutas y UI con historial | `b28128a` + commit del bloque | `bloque-2-movimientos-*.png` |
+
 > **Qué es.** El inventario medido de los **13 bloques / 70 tareas** del roadmap
 > [`ops/tasks/pos-roadmap.md`](../pos-roadmap.md), contra el código de este repo. **No propone cambios,
 > no planifica y no evalúa calidad**: describe y clasifica.

@@ -39,6 +39,11 @@ export type CloseShiftInput = {
    * Misma nota que `expectedByCurrency`: el caso de uso siempre lo manda.
    */
   cashSalesAmount?: number;
+  /**
+   * Bloque 2 del POS (Fase 2) — el neto de los movimientos del turno (retiros e ingresos) en la
+   * moneda del negocio. Misma nota: el caso de uso siempre lo manda.
+   */
+  cashMovementsAmount?: number;
   /** TASK-305 — con qué billetes se cerró, por moneda (se guarda el conteo, no solo el total). */
   closingCounts?: ShiftCashCountInput[];
   notes?: string | null;

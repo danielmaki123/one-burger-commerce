@@ -6,11 +6,13 @@ import { canManageCash } from "@/modules/auth/domain/admin-permissions";
 import { loadBusinessSettings } from "@/modules/business-settings/features/get-public-business-settings/get-public-business-settings";
 import { PrismaBusinessSettingsRepository } from "@/modules/business-settings/adapters/prisma-business-settings-repository";
 import { requireAdminSession } from "@/modules/auth/features/require-admin-session/require-admin-session";
+import { PrismaCashMovementRepository } from "@/modules/orders/adapters/prisma-cash-movement-repository";
 import { PrismaShiftRepository } from "@/modules/orders/adapters/prisma-shift-repository";
 import { formatCurrency } from "@/shared/lib/format-currency";
 import { roundCurrency } from "@/shared/lib/order-totals";
 
 import { AdminPageHeader } from "../../../_components/admin-operational-ui";
+import CashMovementsPanel from "../../cash-movements-panel";
 import {
   CASH_DIFFERENCE_LABEL,
   countsTotalOf,
@@ -75,6 +77,15 @@ export default async function AdminCashShiftDetailPage({
   const locationName =
     locations.find((location) => location.id === shift.locationId)?.name ?? shift.locationId;
   const expectedByCurrencyEntries = Object.entries(shift.expectedByCurrency ?? {});
+  const movements = await new PrismaCashMovementRepository().listByShift(shift.id);
+  // Las monedas del alta: las que se contaron y las que ya se movieron, más la del negocio.
+  const countedCurrencies = [
+    ...new Set([
+      settings.currencyCode,
+      ...counts.map((count) => count.currency),
+      ...movements.map((movement) => movement.currency),
+    ]),
+  ];
 
   /**
    * Un conteo en otra moneda se muestra con **su** código, no con el símbolo del negocio: `US$30`
@@ -279,7 +290,28 @@ export default async function AdminCashShiftDetailPage({
               : formatAmount(shift.cashSalesAmount)}
           </span>
         </p>
+
+        <p className="text-st-body text-ink-secondary">
+          Movimientos del turno (retiros restan, ingresos suman):{" "}
+          <span className="font-mono tabular-nums text-ink">
+            {shift.cashMovementsAmount === null || shift.cashMovementsAmount === undefined
+              ? "—"
+              : formatAmount(shift.cashMovementsAmount)}
+          </span>
+        </p>
       </section>
+
+      {/* Bloque 2.3 del roadmap del POS (Fase 2): el historial de retiros e ingresos del turno, con el
+          alta cuando la caja sigue abierta. El neto ya viaja en el arqueo de arriba. */}
+      <CashMovementsPanel
+        shiftId={shift.id}
+        initialMovements={movements}
+        currencies={countedCurrencies}
+        shiftIsOpen={shift.status === "open"}
+        currency={currency}
+        timezone={settings.timezone}
+        locale={settings.locale}
+      />
     </div>
   );
 }
