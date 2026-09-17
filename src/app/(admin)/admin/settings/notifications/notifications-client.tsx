@@ -199,8 +199,10 @@ export default function NotificationsClient({
       >
         <h2 className="text-st-h2 text-ink">Grupo</h2>
         <p className="text-st-body text-ink-secondary">
-          Agregá el bot al grupo y pegá acá su id (empieza con <span className="font-mono">-100</span>) o
-          el <span className="font-mono">@canal</span>.
+          Agregá el bot al grupo y pegá acá su id (los grupos nuevos empiezan con{" "}
+          <span className="font-mono">-100</span>; los viejos, con{" "}
+          <span className="font-mono">-</span> y menos dígitos) o el{" "}
+          <span className="font-mono">@canal</span>.
         </p>
 
         <Input
