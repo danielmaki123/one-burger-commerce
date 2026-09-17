@@ -1,6 +1,6 @@
 -- CreateTable
 CREATE TABLE "NotificationSettings" (
-    "id" TEXT NOT NULL,
+    "id" TEXT NOT NULL DEFAULT 'default',
     "chatId" TEXT,
     "enabled" BOOLEAN NOT NULL DEFAULT false,
     "eventsEnabled" JSONB NOT NULL DEFAULT '[]',
