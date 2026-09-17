@@ -28,6 +28,8 @@ model AdminUser {
   locations    AdminUserLocation[]
   /// TASK-104 — los turnos de caja que abrió y cerró este usuario.
   shifts       Shift[]
+  /// Bloque 2 del POS — los movimientos de caja que registró.
+  cashMovements CashMovement[]
 }
 
 /// Sucursales que puede ver un usuario del staff (A). El `owner` ve todas y su asignación se
@@ -794,6 +796,7 @@ model Shift {
   location       Location    @relation(fields: [locationId], references: [id], onDelete: Restrict)
   user           AdminUser   @relation(fields: [userId], references: [id], onDelete: Restrict)
   cashCounts     ShiftCashCount[]
+  movements      CashMovement[]
 
   @@index([locationId, status])
   @@index([userId])
@@ -825,6 +828,56 @@ model ShiftCashCount {
   /// carga, no un dato.
   @@unique([shiftId, kind, currency, denomination])
   @@index([shiftId, kind])
+}
+
+/// Bloque 2 del roadmap del POS (Fase 2) — plata que entra o sale del cajón **sin ser un cobro**.
+///
+/// Hasta acá el esperado era `fondo + efectivo − vueltos`: si alguien sacaba C$500 para el proveedor,
+/// el cierre marcaba faltante y no había forma de explicarlo. Cada movimiento tiene motivo (obligatorio)
+/// y responsable, y **afecta el esperado** del turno en el que se registró.
+///
+/// El `shiftId` es explícito y no se deriva de la ventana de tiempo como en `Payment`: un movimiento
+/// lo hace una persona desde una pantalla que ya sabe de qué caja es, así que no hay motivo para
+/// adivinar a qué turno pertenece.
+model CashMovement {
+  id         String             @id @default(cuid())
+  shiftId    String
+  kind       CashMovementKind
+  category   CashMovementCategory
+  /// Monto, siempre positivo: el signo lo da el `kind` (retiro resta, ingreso suma).
+  amount     Decimal            @db.Decimal(10, 2)
+  /// Código ISO de la moneda que se movió (`NIO`, `USD`).
+  currency   String
+  /// Por qué se movió. Obligatorio: un retiro sin motivo no se puede auditar.
+  reason     String
+  /// Quién lo registró.
+  userId     String
+  /// Bloque 2.5/2.6 — aprobación de un movimiento por encima del límite. `null` = no requiere.
+  approvedByUserId String?
+  approvedAt DateTime?
+  createdAt  DateTime           @default(now())
+  shift      Shift              @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+  user       AdminUser          @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([shiftId, createdAt])
+  @@index([userId])
+}
+
+/// Bloque 2 del roadmap del POS (Fase 2) — de qué lado va la plata del cajón.
+enum CashMovementKind {
+  /// Sale del cajón: pago a proveedor, retiro a bóveda, gasto.
+  withdrawal
+  /// Entra al cajón sin ser una venta: cambio, devolución de un retiro, aporte.
+  deposit
+}
+
+/// Bloque 2.4 — para qué fue. Cerrada a propósito: una categoría libre no se puede sumar en un reporte.
+enum CashMovementCategory {
+  supplier
+  change_fund
+  vault
+  expense
+  other
 }
 
 

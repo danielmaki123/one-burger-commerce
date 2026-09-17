@@ -19,11 +19,6 @@ explícito del humano, gana el humano; después de resolverlo, actualizá este a
   `ops/references/stitch/`. **Gana siempre** en lo visual. Los documentos viejos
   (`DESIGN_REFERENCES.md`, `DESIGN_SYSTEM.md`, `design/*.md`, `docs/ui/admin-design-system.md`) y el
   mockup HTML anterior se **borraron**: no se recrean ni se citan.
-- **Excepciones anotadas de los planes** (`plan2uiux.md`, `plna.md`; chocan con este archivo): el gate
-  `npm run test:contracts` es el alias de los contratos de `src/shared/contracts/` (corren en
-  `npm run test` y en el job `contracts` de CI); el registro de componentes es
-  `src/shared/ui/registry.json`; y los planes dicen «21 E2E» cuando acá son **23 specs** en
-  `tests/e2e/` (línea de base en `ops/tasks/START-HERE.md` §5).
 - El punto de entrada para un chat nuevo es
   [`ops/tasks/START-HERE.md`](ops/tasks/START-HERE.md): tiene el prompt listo para pegar, el
   mapa de documentos y la cola de pendientes en orden.
@@ -55,8 +50,7 @@ la navegación ni en las APIs públicas sin aprobación explícita.
 | `ops/references/stitch/design-system.md` | **UI — sistema de diseño oficial**: tokens, tipografía, espaciado, radios, elevaciones, componentes con variantes, estados y reglas de uso. Se lee antes de escribir UI y **gana siempre** en lo visual. |
 | `README.md` | Alcance y comandos de validación. |
 
-`docs/` y `handoffs/` están en `.gitignore`: son material histórico heredado de otro proyecto
-(otra gobernanza, ramas de otro repo) y **no** son fuente de verdad acá. La única fuente de verdad
+`docs/` y `handoffs/` están en `.gitignore`: son material histórico heredado. La única fuente de verdad
 es este archivo + `ops/`.
 
 ## Stack
@@ -90,11 +84,11 @@ src/infrastructure/** prisma, event bus
    lee antes de escribir UI y **siempre gana** en lo visual.
 2. **`ops/references/stitch/stitch_redise_o_de_secci_n_existente/<pantalla>/code.html`** (+ `screen.png`)
    — la **referencia visual** de las 7 pantallas. Es referencia: se **traduce** a componentes, no se copia.
-3. **`AGENTS.md`** (este archivo) — todo lo demás: alcance, arquitectura, TDD, validación, git/CI,
-   deploy, idioma y prohibiciones. **Sigue mandando sobre el sistema** cuando el conflicto no es visual:
-   en ese caso gana este archivo y el documento de diseño se corrige en el mismo commit.
-4. **Skills de diseño** (Impeccable, Frontend design, UI/UX Pro Max, …) — **referencia secundaria, no
-   fuente de verdad**. Si un skill contradice el sistema, **gana el repo**: se reporta y no se cambia.
+3. **`AGENTS.md`** (este archivo) — alcance, arquitectura, testing, validación, git/CI, deploy, idioma
+   y prohibiciones. **Sigue mandando sobre el sistema** cuando el conflicto no es visual: en ese caso
+   gana este archivo y el documento de diseño se corrige en el mismo commit.
+4. **Skills de diseño** — **referencia secundaria, no fuente de verdad**: si contradicen al sistema,
+   **gana el repo** (se reporta y no se cambia).
 5. **Humano** — si sigue sin estar claro, **PARAR** y preguntar.
 
 ## UI y design system
@@ -102,7 +96,6 @@ src/infrastructure/** prisma, event bus
 El **sistema oficial** es [`ops/references/stitch/design-system.md`](ops/references/stitch/design-system.md)
 y **gana siempre** en lo visual. Dos modos a propósito (owner, 2026-09-16): el **panel** (KDS/POS/Admin)
 es **oscuro** —su shell lleva `class="dark"`— y el **público** sigue **claro** con la paleta del negocio.
-La migración va pantalla por pantalla; mientras dure, los nombres viejos viven como **alias** de Stitch.
 
 **Reglas del sistema, vinculantes** (`design-system.md` §2, §6, §7 y §8):
 
@@ -131,15 +124,15 @@ Y las reglas de siempre, que el sistema no reemplaza:
   (`slate-*`, `sky-*`, `amber-*`, `emerald-*`, `rose-*`) donde hay token, ni `fontFamily` inline.
 - **Los 16 tokens muertos están prohibidos y ya no existen** (C1-3): `--primary`, `--popover`,
   `--destructive`, `--ring` y la familia `--sidebar-*` se eliminaron porque nadie los consumía.
-- **Contraste**: texto/fondo **4.5:1** y borde de control **3:1** (WCAG 1.4.11). Lo mide
-  `dark-mode-contract.test.ts`; la deuda del modo claro está declarada en `globals.css`.
+- **Contraste**: texto/fondo **4.5:1** y borde de control **3:1** (WCAG 1.4.11); lo mide
+  `dark-mode-contract.test.ts` y la deuda del modo claro está declarada en `globals.css`.
 - **Componente nuevo = registro previo**: un archivo nuevo en `_components/` se registra en
   `src/shared/ui/registry.json` **en el mismo commit**, con su "cuándo SÍ" y su "cuándo NO".
 - **Los techos de UI solo bajan**: `src/shared/config/design-tokens.allow.json` congela por archivo las
   violaciones que quedan. **Un techo nunca sube**: si baja, se baja el número en el mismo commit.
 - **Ningún control decorativo**: cada control se implementa con su estado/API **y su test**, o se
-  elimina con el motivo escrito. **Nada de texto decorativo**: copy que no cambia una decisión no va.
-- La UI se verifica en **navegador real a 375 px y 1280 px**, no en HTML estático.
+  elimina con el motivo escrito. **Nada de copy decorativo**: lo que no cambia una decisión no va.
+- La UI se verifica en **navegador real a 375 px y 1280 px** (Playwright), no en HTML estático.
 
 ## Reglas de código
 
@@ -159,22 +152,27 @@ Y las reglas de siempre, que el sistema no reemplaza:
 - **Docs**: prohibido crear archivos `.md` nuevos sin aprobación humana; si el cambio deja un doc
   desactualizado, se actualiza en el mismo commit.
 
-## TDD (obligatorio para cambios funcionales)
+## Testing (no negociable)
 
-1. Escribí **primero** el test que falla (unitario del caso de uso o de la regla).
-2. Corré y confirmá el rojo.
-3. Implementá lo mínimo para el verde.
-4. Refactorizá con los tests verdes.
-5. Cerrá con la validación mínima completa.
+**TDD obligatorio para TODO código nuevo**: 1. test que falla **primero** (caso de uso, regla o
+componente) · 2. confirmá el **rojo por la razón correcta** (no por un import roto) · 3. implementá lo
+mínimo · 4. refactorizá · 5. cerrá con la validación completa.
 
-Reglas de test:
+**Prohibido**: test después de la implementación (si pasa, se dice en el commit) · ruta API sin
+`route.test.ts` hermano · caso de uso sin test en `src/modules/**/features/**` · componente sin test
+propio (`src/shared/ui/` y `_components/`) · commit sin test de código nuevo funcional · «después lo
+testeo».
 
-- Los dobles de test implementan el **puerto completo** (si agregás un método al puerto, el
-  compilador te obliga a implementarlo también en el adaptador en memoria).
-- Los cambios de infra (Dockerfile, CI, scripts de arranque) se cubren con **tests de contrato** que
-  leen los archivos (`src/shared/config/deploy-runtime-contract.test.ts`) o, mejor, con el job de CI
-  que **construye y ejecuta la imagen**. Los flujos de usuario van en `tests/e2e/`.
-- No mockees lo que podés probar de verdad; no inventes tests que no verifican nada.
+**Excepciones** (se documentan en el commit y en el gate): refactor puro sin cambio de comportamiento ·
+hotfix urgente con test en el commit siguiente · configuración o datos sin lógica (JSON, tokens, seeds,
+migraciones aditivas).
+
+El gate `src/shared/contracts/tdd-contract.test.ts` congela la deuda vieja con su motivo escrito y **no
+crece**: una ruta, feature o primitivo nuevo sin test lo pone en rojo. Corre en `npm run test:contracts`
+y como paso propio del job `contracts` del CI. Los dobles implementan el **puerto completo**; lo de
+infra se cubre con tests de contrato que leen los archivos o con el job que construye la imagen, y los
+flujos de usuario van en `tests/e2e/`. Un test con **dientes**: si volvés a introducir el bug, falla (si
+se escribió después, se verifica por mutación y se deja dicho en el commit).
 
 ## Checklist de UI antes de cerrar una tarea con pantalla
 

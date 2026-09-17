@@ -68,9 +68,15 @@ jobs:
 
       # Los guardrails de `AGENTS.md` como check propio: UI (primitivos, tokens y registro de
       # componentes), route handlers (50 líneas y sin Prisma), módulos (capas y dirección de las
-      # dependencias), documentos sincronizados y la fuente única del total.
+      # dependencias), documentos sincronizados, la fuente única del total y **TDD** (toda ruta,
+      # caso de uso y primitivo con su test; la deuda vieja está congelada con su motivo en el gate).
       - name: Contract tests
         run: npx vitest run src/shared/contracts src/shared/lib/order-totals-contract.test.ts
+
+      # El gate de TDD corre como paso propio **además** del glob de arriba: así su resultado se ve
+      # por nombre en el check run y no queda escondido detrás de los otros contratos.
+      - name: TDD gate (todo código nuevo con su test)
+        run: npx vitest run src/shared/contracts/tdd-contract.test.ts
 
   migrations:
     runs-on: ubuntu-latest
