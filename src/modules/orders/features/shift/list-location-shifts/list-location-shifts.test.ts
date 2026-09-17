@@ -56,6 +56,10 @@ function makeRepository(shifts: ShiftRecord[]): Double {
         .filter((item) => item.locationId === locationId)
         .sort((a, b) => b.openedAt.localeCompare(a.openedAt));
     },
+    async reopenShift() {
+      calls.push("reopen");
+      throw new Error("no usado en este test");
+    },
   };
 }
 

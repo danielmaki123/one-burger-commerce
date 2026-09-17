@@ -7,19 +7,19 @@ import { loadBusinessSettings } from "@/modules/business-settings/features/get-p
 import { PrismaBusinessSettingsRepository } from "@/modules/business-settings/adapters/prisma-business-settings-repository";
 import { requireAdminSession } from "@/modules/auth/features/require-admin-session/require-admin-session";
 import { PrismaShiftRepository } from "@/modules/orders/adapters/prisma-shift-repository";
-import { CASH_DENOMINATIONS } from "@/modules/orders/domain/shift-cash";
 import { formatCurrency } from "@/shared/lib/format-currency";
 import { roundCurrency } from "@/shared/lib/order-totals";
 
 import { AdminPageHeader } from "../../../_components/admin-operational-ui";
-import { CashCountGrid, type CashCountValues } from "../../../pos/cash-count-grid";
 import {
   CASH_DIFFERENCE_LABEL,
   countsTotalOf,
   formatCashDifference,
   formatShiftDateTime,
   getCashDifferenceTone,
+  type StoredCashCount,
 } from "../../cash-shift-helpers";
+import ShiftReopenForm from "../../shift-reopen-form";
 
 /**
  * Bloque 1.4 del roadmap del POS (Fase 2) — el detalle de un cierre.
@@ -30,25 +30,16 @@ import {
  */
 
 function countsToValues(
-  counts: { kind: "opening" | "closing"; currency: string; denomination: number; quantity: number }[],
+  counts: StoredCashCount[],
   kind: "opening" | "closing",
-): CashCountValues {
+): StoredCashCount[] {
   return counts
     .filter((count) => count.kind === kind)
-    .reduce<CashCountValues>((values, count) => {
-      values[`${count.currency}-${count.denomination}`] = count.quantity;
-      return values;
-    }, {});
-}
-
-function currenciesOf(
-  counts: { currency: string }[],
-  fallbackCurrency: string,
-): string[] {
-  const found = new Set(counts.map((count) => count.currency));
-  found.add(fallbackCurrency);
-
-  return [...found].filter((currency) => CASH_DENOMINATIONS[currency] !== undefined);
+    .sort((a, b) =>
+      a.currency === b.currency
+        ? b.denomination - a.denomination
+        : a.currency.localeCompare(b.currency),
+    );
 }
 
 export default async function AdminCashShiftDetailPage({
@@ -80,7 +71,6 @@ export default async function AdminCashShiftDetailPage({
   const currency = { symbol: settings.currencySymbol, locale: settings.locale };
   const formatAmount = (value: number) => formatCurrency(value, currency);
   const counts = shift.cashCounts ?? [];
-  const currencies = currenciesOf(counts, settings.currencyCode);
   const tone = getCashDifferenceTone(shift);
   const locationName =
     locations.find((location) => location.id === shift.locationId)?.name ?? shift.locationId;
@@ -106,12 +96,16 @@ export default async function AdminCashShiftDetailPage({
         })}
         description={`${locationName} · turno ${shift.status === "open" ? "abierto" : "cerrado"} · responsable ${shift.userId}`}
         actions={
-          <Link
-            href="/admin/cash"
-            className="inline-flex min-h-11 items-center text-st-body font-semibold text-brand-primary underline"
-          >
-            Volver a Caja del día
-          </Link>
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              href="/admin/cash"
+              className="inline-flex min-h-11 items-center text-st-body font-semibold text-brand-primary underline"
+            >
+              Volver a Caja del día
+            </Link>
+            {/* Bloque 1.10: solo un turno cerrado se puede reabrir (y no siempre: ver el detalle). */}
+            {shift.status === "closed" ? <ShiftReopenForm shiftId={shift.id} /> : null}
+          </div>
         }
       />
 
@@ -178,25 +172,39 @@ export default async function AdminCashShiftDetailPage({
         <h2 className="text-st-h2 text-ink">Conteo por moneda</h2>
 
         {(["opening", "closing"] as const).map((kind) => {
-          const values = countsToValues(counts, kind);
+          const rows = countsToValues(counts, kind);
 
           return (
             <div key={kind} className="space-y-2">
               <h3 className="text-st-h3 text-ink">
                 {kind === "opening" ? "Con cuánto se abrió" : "Con qué se cerró"}
               </h3>
-              {Object.keys(values).length === 0 ? (
+              {rows.length === 0 ? (
                 <p className="text-st-body text-ink-secondary">
                   Este turno no tiene conteo cargado de este lado.
                 </p>
               ) : (
-                <CashCountGrid
-                  currencies={currencies}
-                  values={values}
-                  onChange={() => {}}
-                  disabled
-                  formatAmount={formatAmount}
-                />
+                <ul className="space-y-1">
+                  {rows.map((row) => (
+                    <li
+                      key={`${row.currency}-${row.denomination}`}
+                      className="flex items-baseline justify-between gap-3 border-b border-line-subtle py-1 last:border-b-0"
+                    >
+                      <span className="text-st-body text-ink-secondary">
+                        {row.quantity} × {row.currency}{" "}
+                        <span className="font-mono tabular-nums">
+                          {formatCurrency(row.denomination, currencyFormatFor(row.currency))}
+                        </span>
+                      </span>
+                      <span className="font-mono text-st-body tabular-nums text-ink">
+                        {formatCurrency(
+                          row.denomination * row.quantity,
+                          currencyFormatFor(row.currency),
+                        )}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
               )}
             </div>
           );
@@ -214,8 +222,12 @@ export default async function AdminCashShiftDetailPage({
 
         {expectedByCurrencyEntries.length === 0 ? (
           <p className="text-st-body text-ink-secondary">
-            Este cierre no tiene el esperado por moneda guardado (es anterior a que se persistiera el
-            arqueo).
+            Este cierre no tiene el detalle por moneda guardado (es anterior a que se persistiera el
+            arqueo). El total esperado quedó congelado al cerrar:{" "}
+            <span className="font-mono tabular-nums text-ink">
+              {shift.expectedAmount === null ? "—" : formatAmount(shift.expectedAmount)}
+            </span>
+            .
           </p>
         ) : (
           <ul className="space-y-2">

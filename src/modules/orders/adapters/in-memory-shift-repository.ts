@@ -3,6 +3,7 @@ import { ShiftError } from "@/modules/orders/domain/shift-errors";
 import type {
   CloseShiftInput,
   OpenShiftInput,
+  ReopenShiftInput,
   ShiftRepository,
 } from "@/modules/orders/ports/shift-repository";
 import { roundCurrency } from "@/shared/lib/order-totals";
@@ -110,5 +111,36 @@ export class InMemoryShiftRepository implements ShiftRepository {
     return this.shifts
       .filter((shift) => shift.locationId === locationId)
       .sort((a, b) => b.openedAt.localeCompare(a.openedAt));
+  }
+
+  /**
+   * Bloque 1.10 — reabre un turno cerrado. Reproduce las dos reglas de la base y del caso de uso:
+   * solo un turno **cerrado** se reabre, y el local no puede quedar con dos cajas abiertas (en la
+   * base lo impide el índice único parcial; acá se comprueba antes, igual que en `openShift`).
+   */
+  async reopenShift(id: string, input: ReopenShiftInput): Promise<ShiftRecord | null> {
+    const shift = this.shifts.find((s) => s.id === id);
+    if (!shift || shift.status !== "closed") return null;
+
+    const alreadyOpen = await this.findOpenShiftByLocation(shift.locationId);
+    if (alreadyOpen) {
+      throw new ShiftError(
+        409,
+        "CONFLICT",
+        "There is already an open shift for this location",
+        { locationId: "Ya hay una caja abierta en este local" },
+      );
+    }
+
+    const now = new Date().toISOString();
+    shift.status = "open";
+    // El turno vuelve a estar abierto: el próximo cierre calcula y firma un arqueo nuevo.
+    shift.closedAt = null;
+    shift.reopenedAt = now;
+    shift.reopenedByUserId = input.userId;
+    shift.reopenReason = input.reason.trim();
+    shift.updatedAt = now;
+
+    return shift;
   }
 }

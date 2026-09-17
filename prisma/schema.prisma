@@ -782,6 +782,12 @@ model Shift {
   cashSalesAmount Decimal?   @db.Decimal(10, 2)
   /// `closingAmount - expectedAmount`. Negativo = faltó plata.
   difference     Decimal?    @db.Decimal(10, 2)
+  /// Bloque 1.10 del POS (Fase 2) — reapertura de un turno cerrado. Queda firmado quién, cuándo y
+  /// por qué: reabrir una caja ya cerrada es la operación más sensible del arqueo, y una reapertura
+  /// sin motivo escrito no se puede auditar.
+  reopenedAt     DateTime?
+  reopenedByUserId String?
+  reopenReason   String?
   notes          String?
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt

@@ -290,6 +290,13 @@ export type ShiftRecord = {
    */
   cashSalesAmount?: number | null;
   /**
+   * Bloque 1.10 del POS (Fase 2) — la firma de la última reapertura: cuándo, quién y por qué. `null`
+   * si el turno nunca se reabrió.
+   */
+  reopenedAt?: string | null;
+  reopenedByUserId?: string | null;
+  reopenReason?: string | null;
+  /**
    * TASK-305 — el conteo billete por billete, de apertura y de cierre, con su moneda. El total dice
    * cuánto hay; esto dice **de dónde salió**, que es lo que permite revisar un arqueo.
    */

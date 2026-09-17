@@ -44,6 +44,14 @@ export type CloseShiftInput = {
   notes?: string | null;
 };
 
+/** Bloque 1.10 — la firma de la reapertura: quién la pidió y por qué. */
+export type ReopenShiftInput = {
+  /** Quién reabre (id del usuario del panel). */
+  userId: string;
+  /** Motivo, obligatorio y no vacío. */
+  reason: string;
+};
+
 export interface ShiftRepository {
   /**
    * Abre un turno. El índice único parcial de la base es el que impide dos turnos abiertos en el
@@ -61,4 +69,12 @@ export interface ShiftRepository {
   closeShift(id: string, input: CloseShiftInput): Promise<ShiftRecord | null>;
   /** Turnos de un local, del más nuevo al más viejo. */
   listShifts(locationId: string): Promise<ShiftRecord[]>;
+  /**
+   * Bloque 1.10 del POS (Fase 2) — reabre un turno cerrado, firmando quién y por qué.
+   *
+   * `null` si el turno no existe o si **ya está abierto** (no hay nada que reabrir). Si el local ya
+   * tiene otra caja abierta, el índice único parcial de la base rechaza la operación y el adaptador
+   * lo traduce a `CONFLICT`: no puede haber dos turnos abiertos en el mismo local.
+   */
+  reopenShift(id: string, input: ReopenShiftInput): Promise<ShiftRecord | null>;
 }

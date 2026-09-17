@@ -6,6 +6,7 @@ import { ShiftError } from "@/modules/orders/domain/shift-errors";
 import type {
   CloseShiftInput,
   OpenShiftInput,
+  ReopenShiftInput,
   ShiftRepository,
 } from "@/modules/orders/ports/shift-repository";
 import { roundCurrency } from "@/shared/lib/order-totals";
@@ -31,6 +32,9 @@ function mapShift(shift: {
   expectedByCurrency?: unknown;
   cashSalesAmount: Decimal | null;
   difference: Decimal | null;
+  reopenedAt?: Date | null;
+  reopenedByUserId?: string | null;
+  reopenReason?: string | null;
   notes: string | null;
   createdAt: Date;
   updatedAt: Date;
@@ -50,6 +54,10 @@ function mapShift(shift: {
     expectedByCurrency: toExpectedByCurrency(shift.expectedByCurrency),
     cashSalesAmount: decimalOrNull(shift.cashSalesAmount),
     difference: decimalOrNull(shift.difference),
+    // Bloque 1.10: la firma de la última reapertura, si hubo.
+    reopenedAt: shift.reopenedAt ? shift.reopenedAt.toISOString() : null,
+    reopenedByUserId: shift.reopenedByUserId ?? null,
+    reopenReason: shift.reopenReason ?? null,
     notes: shift.notes,
     createdAt: shift.createdAt.toISOString(),
     updatedAt: shift.updatedAt.toISOString(),
@@ -204,5 +212,42 @@ export class PrismaShiftRepository implements ShiftRepository {
     });
 
     return shifts.map(mapShift);
+  }
+
+  /**
+   * Bloque 1.10 — reabre un turno cerrado.
+   *
+   * El `status: "closed"` en el `WHERE` es la guarda contra reabrir lo que ya está abierto (o dos
+   * terminales reabriendo a la vez). El índice único parcial de la base hace el resto: si el local ya
+   * tiene una caja abierta, la operación choca con P2002 y se traduce a conflicto, igual que al abrir.
+   */
+  async reopenShift(id: string, input: ReopenShiftInput): Promise<ShiftRecord | null> {
+    const prisma = getPrismaClient();
+
+    try {
+      const result = await prisma.shift.updateMany({
+        where: { id, status: "closed" },
+        data: {
+          status: "open",
+          // El turno vuelve a estar abierto: el próximo cierre calcula y firma un arqueo nuevo.
+          closedAt: null,
+          reopenedAt: new Date(),
+          reopenedByUserId: input.userId,
+          reopenReason: input.reason.trim(),
+        },
+      });
+
+      if (result.count === 0) return null;
+    } catch (error) {
+      if (isUniqueConstraintError(error)) {
+        throw new ShiftError(409, "CONFLICT", "There is already an open shift for this location", {
+          locationId: "Ya hay una caja abierta en este local",
+        });
+      }
+
+      throw error;
+    }
+
+    return this.findShiftById(id);
   }
 }
