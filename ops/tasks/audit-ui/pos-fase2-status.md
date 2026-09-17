@@ -28,6 +28,11 @@
    aprobada de una**; el cajero siempre queda pendiente. Si el owner quiere que **nadie** apruebe la
    suya (ni el manager), es un cambio de una línea y hay que decirlo: hoy el caso de uso prioriza que
    la devolución no quede trabada sin nadie que la firme.
+9. **11.1/11.2 cuadre contra un lote externo** — ¿contra qué se concilia la tarjeta (el cierre de la
+   terminal, el depósito del banco, la liquidación del proveedor de pagos) y la transferencia (el
+   extracto)? Sin eso, la pantalla mostraría un número al lado de otro sin decir si está bien.
+10. **11.4 email al dueño** — no hay canal de notificaciones (Telegram en pausa, sin SMTP). Si el
+   cierre del día tiene que salir por correo, hay que decidir el proveedor (dependencia nueva).
 
 ## Registro de bloques cerrados en la ronda de implementación
 
@@ -41,6 +46,13 @@
 | **4** | Transferencia y **cobro partido** en el POS: el payload acepta efectivo, tarjeta, transferencia y otro (con referencia), la pantalla arma N cobros y el vuelto **solo** existe en un cobro único en efectivo | `ace1428` | (sin captura: la UI del POS ya está en `bloque-9-*.png`) |
 | **7** | `canRefund` y `canViewCashHistory` como puertas propias (con `canManageCash`), cada ruta y cada página usando la suya | `e9d1fa7` | — |
 | **10.1** | **Ticket de cocina**: `kitchen-ticket.ts` (puro, sin importes, con la hora prometida en la zona del negocio y los modificadores) y «Ticket de cocina» en el POS, impreso con la hoja del sistema | `917f434` | (sin captura: es una ventana del navegador) |
+| **11.3** | **Export CSV de cierres**: `shift-csv.ts` (puro, separador `;`, números crudos, turno abierto con celdas vacías, escapado) y «Exportar CSV» en el historial | `57934ce` | — |
+
+**Bloque 11 — lo que falta y su motivo**: **11.1/11.2** (cuadre de tarjeta y transferencia) necesitan
+saber **contra qué** se concilia (lote de la terminal, extracto del banco): sin eso, un número al lado
+de otro no dice nada; **11.4** (email al dueño) no tiene canal (las notificaciones están en pausa);
+**11.5/11.6** (cierre del día consolidado y comparativa entre sucursales) son superficie sobre datos que
+ya existen por sucursal.
 
 **Bloque 10 — lo que falta y su motivo**: 10.2/10.4 (ticket de cliente y reimpresión desde el detalle)
 son superficie nueva sobre lo mismo; **10.3** (impresión separada por estación) necesita que el owner
