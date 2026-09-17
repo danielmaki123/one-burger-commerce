@@ -1,0 +1,33 @@
+import { NextResponse } from "next/server";
+
+import { canManageCash } from "@/modules/auth/domain/admin-permissions";
+import { AuthError } from "@/modules/auth/domain/auth-errors";
+import { requireAdminSession } from "@/modules/auth/features/require-admin-session/require-admin-session";
+import { PrismaRefundRepository } from "@/modules/orders/adapters/prisma-refund-repository";
+import { createErrorResponse } from "@/shared/lib/http/error-response";
+
+export const dynamic = "force-dynamic";
+
+/**
+ * Bloque 3.6 del roadmap del POS (Fase 2) — la cola de aprobaciones.
+ *
+ * Devuelve las devoluciones **pendientes** (de la más vieja a la más nueva, porque es una cola de
+ * trabajo) y solo para quien administra la caja: ver la cola es parte del control, no del mostrador.
+ * La resolución va por `POST /api/admin/refunds/[id]`.
+ */
+export async function GET() {
+  try {
+    const session = await requireAdminSession();
+    if (!canManageCash(session.user.role)) {
+      throw new AuthError(403, "FORBIDDEN", "Insufficient permissions");
+    }
+
+    const data = await new PrismaRefundRepository().listPending();
+
+    return NextResponse.json({ data }, { headers: { "Cache-Control": "no-store" } });
+  } catch (error) {
+    const response = createErrorResponse(error);
+    response.headers.set("Cache-Control", "no-store");
+    return response;
+  }
+}

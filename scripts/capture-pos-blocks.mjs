@@ -69,6 +69,13 @@ try {
     await page.waitForTimeout(400);
     await shot(page, "bloque-2-movimientos", viewport.name);
 
+    // Bloque 3: la bandeja de aprobaciones (la cola de devoluciones pendientes).
+    await page.goto(`${baseUrl}/admin/approvals`, { waitUntil: "domcontentloaded" });
+    // La pantalla muestra la lista o el estado vacío; alcanza con esperar el encabezado.
+    await page.waitForSelector("h1", { state: "attached", timeout: 30_000 });
+    await page.waitForTimeout(600);
+    await shot(page, "bloque-3-aprobaciones", viewport.name);
+
     // Bloque 9.2: el POS diciendo que hay que abrir la caja.
     await page.goto(`${baseUrl}/admin/pos`, { waitUntil: "domcontentloaded" });
     await page.waitForSelector('[aria-label="Venta en curso"]', { timeout: 30_000 });
