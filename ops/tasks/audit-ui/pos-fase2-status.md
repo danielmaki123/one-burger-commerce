@@ -60,6 +60,8 @@
 | **11.5 + 11.6** | **Cierre del día consolidado y comparación entre sucursales**: `day-close.ts` en el dominio (totales del día y agrupación por sucursal, 8 casos) y el panel server-side en `/admin/cash`, con el día del **negocio** (`business-days.ts`, movido a `shared/lib` para que la bandeja de órdenes y la caja hablen del mismo día) | `3d06118` | `bloque-11-cierre-del-dia-*.png` |
 
 | **12.3 + 12.4** | **La venta en curso no se pierde y sin red no se cobra**: `usePosDraft` + `pos-draft-storage.ts` (la venta se guarda en el dispositivo y se recupera al montar; de un solo local; vaciarla la borra) y `useOnlineStatus` con el cobro bloqueado y explicado cuando no hay red | `58f0b03` | `bloque-12-sin-conexion-*.png`, `bloque-12-venta-recuperada-*.png` |
+| **6** | **Dólares — cerrado**: el saldo por moneda se **persiste** al cerrar (`Shift.expectedByCurrency` + `cashSalesAmount`, Bloque 1.1) y se muestra en el detalle; sin arrastre automático entre turnos, por diseño | `7ff20e0`, `fcc0691` | `bloque-1-cierre-detalle-*.png` |
+| **1.6** | **Comprobante de cierre (DIFERENTE)**: no hay PDF generado en el servidor; el cierre se imprime o se guarda como PDF desde la hoja del sistema (`shift-close-sheet.ts` + «Imprimir cierre», Bloque 13.3) | `d2a06f3` | `bloque-13-hoja-cierre-impresa-*.png` |
 
 **Bloque 13 — cerrado** (2026-09-18). **13.1**: el log se escribe desde las rutas reales (verificado
 en la base durante la corrida de E2E: `shift.open`, `shift.close`, `cash_movement.create`); para que
@@ -375,3 +377,47 @@ necesita el **monto** y el canal (hoy no hay notificación externa: `NOTIFICATIO
 | 8 | 7.1/7.2 | `canManageCash`/`canRefund`/`canViewCashHistory` en las rutas | El rol `cashier` es el único permiso de caja y no separa ver de administrar |
 | 9 | 1.12/1.13 | Cierre X y handover entre cajeros | Operación de más de un turno por día: hoy solo hay abrir/cerrar |
 | 10 | 9.9 | Cliente recurrente vinculado al historial | El POS crea un `Customer` nuevo por venta: no hay historial de cliente en el mostrador |
+
+---
+
+## Resumen de la ronda de implementación (2026-09-18)
+
+> **Qué es**: el cierre de la ronda que ejecutó el roadmap de corrido (Pasos 1→2→3 del brief), bloque por
+> bloque, con un commit por tema, gates entre tareas y capturas a 375/1280 px. Los números salen de la
+> tabla de bloques de arriba, que es la parte viva de este documento; el inventario medido del inicio
+> queda como línea de base.
+
+**Bloques cerrados enteros**: **6** (dólares), **8** (sidebar), **13** (auditoría), y **4** (métodos de
+pago). **Bloques cerrados hasta donde no requiere decisión**: **2** (4/6), **3** (6/7), **7** (2/3),
+**10** (3/5), **11** (3/6), **12** (3/4). **Bloque 1**: 4 hechas y 3 a medias de 13.
+
+**Estado de las 70 tareas**
+
+| Estado | Tareas | Qué significa |
+|---|---|---|
+| **HECHO** | **38** | Funciona en producción y tiene su verificación (tests, E2E y/o captura) |
+| **DIFERENTE / PARCIAL** | **3** | 1.2 (se congela el efectivo del cajón, no el desglose por medio), 1.5 (el reporte diario es de órdenes, no de caja), 1.6 (el cierre se imprime como PDF desde el navegador, no lo genera el servidor) |
+| **Requiere decisión** | **20** | Están listadas abajo; sin la respuesta no se puede implementar sin inventar producto |
+| **Pendiente de trabajo** | **9** | 7.3 (helper E2E con `cashier`) y 9.1/9.3-9.9 (POS: 9.1 depende de decisión; el resto es 🟢 «no hacer ahora» según la prioridad del propio brief) |
+
+**Lo que la ronda agregó al producto** (34 tareas que en el inventario figuraban como NO EXISTE):
+grupos y permisos del panel (8), núcleo de caja con historial, detalle y reapertura firmada (1),
+bloqueo de cobro sin caja (9.2), movimientos de caja (2), devoluciones con aprobación y void (3), cobro
+partido y transferencia (4), permisos `canRefund`/`canViewCashHistory` (7), ticket de cocina y de cliente
+con reimpresión (10), CSV de cierres, día consolidado y comparación por sucursal (11), venta en curso que
+sobrevive a la recarga y cobro bloqueado sin red (12) y el log de acciones sensibles con la hoja de cierre
+firmada (13). Además se arregló un **bug de producción latente del carrito** (`42c5d98`), hallado
+verificando el camino real del checkout.
+
+**Requiere decisión (12 puntos, 20 tareas)** — el detalle está en «Requiere decisión» al principio de este
+documento: 9.1 (¿la caja se administra desde el POS o desde Caja del día?), 2.5/2.6 (límite de retiro y
+quién aprueba), 1.7 (cierre obligatorio: global o por sucursal), 1.8 (alerta de turno abierto >24 h),
+1.9 (qué no ve el operario al cerrar), 1.11 (cierre ciego), 1.12/1.13 (cierre X y handover), 3.7 (umbral y
+canal del aviso de devolución), Bloque 3.2 (¿el manager puede aprobar su propia devolución?), 11.1/11.2
+(contra qué se concilia tarjeta y transferencia), 11.4 (canal de correo), 12.1 (idempotencia del cobro
+offline) y Bloque 5 completo (factura fiscal: datos, numeración y formato).
+
+**Próxima ronda sugerida** (sin decisiones nuevas): 1.2 (desglose por medio de pago al cerrar), 1.5
+(reporte diario de caja consolidado), 7.3 (helper de E2E con `cashier`) y, si el owner prioriza el
+mostrador, 9.4/9.5 (holds) y 9.6/9.7 (promos y descuentos con permiso). Las 20 tareas que esperan
+decisión se destraban respondiendo los 12 puntos de arriba.
