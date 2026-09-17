@@ -1,10 +1,12 @@
 # Estado del proyecto — One Burger Commerce
 
-> Actualizado: 2026-09-17 · Último deploy a producción: 2026-09-17, commit `2b9df47` (build
-> `build-20260917-003340`, deploy manual por API sobre el servicio `oneburguerweb`, acción `done` en
-> 00:32–00:33). Lleva el **panel entero migrado al sistema Stitch**: Fase 1 (tokens, tipografías,
-> estados y contraste) y Fase 2 (las 7 pantallas: KDS, POS, Resumen, Menú, Locales, Usuarios y
-> Personalización). Ver `ops/DESIGN_LOG.md` (entry del 2026-09-16).
+> Actualizado: 2026-09-17 · Último deploy a producción: 2026-09-17, commit `2f35710` (build
+> `build-20260917-015211`, deploy manual por API sobre el servicio `oneburguerweb`, acción `done` en
+> 01:51–01:52). Lleva el **panel entero migrado al sistema Stitch** —Fase 1 (tokens, tipografías,
+> estados y contraste), Fase 2 (las 7 pantallas) y la segunda pasada (los modales y las pantallas
+> secundarias: Inventario, Zonas, Promos, Menú, catálogo por local y detalle de orden)— más el
+> **horario único por sucursal** (Personalización dejó de editarlo). Ver `ops/DESIGN_LOG.md` (entry
+> del 2026-09-16).
 > Lleva la **FASE 1, FASE 2 y FASE 3** del plan `plna.md`: el POS de mostrador completo y el
 > interruptor del mostrador por local, con la migración aditiva `add_pos_enabled`.
 > Este documento es el punto de entrada para retomar el trabajo. Mantenerlo al día al cerrar cada tarea.
