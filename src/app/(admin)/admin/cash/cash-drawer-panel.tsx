@@ -43,8 +43,15 @@ const REFRESH_MS = 15000;
 
 export default function CashDrawerPanel({
   locations,
+  canSeeCloseDetail = false,
 }: {
   locations: { id: string; name: string }[];
+  /**
+   * Tarea 5 del brief (2026-09-17) — el operario ve solo «Cierre registrado» + el id del turno (y la
+   * diferencia, por la tarea 6); quien audita ve además el arqueo completo. Lo decide la pantalla con
+   * `canViewCashHistory`, no este componente.
+   */
+  canSeeCloseDetail?: boolean;
 }) {
   const currency = useCurrencyFormat();
   const settings = useBusinessSettings();
@@ -234,37 +241,58 @@ export default function CashDrawerPanel({
         </>
       )}
 
+      {/*
+        Tareas 5 y 6 del brief (2026-09-17) — qué ve quien cierra:
+        el **operario** ve «Cierre registrado», el id del turno y la diferencia (decisión del owner: sin
+        cierre ciego, la diferencia se ve); el **dueño/manager** ve además el arqueo completo —contado,
+        esperado y el detalle por moneda— porque es quien audita. El detalle vive en la mitad de auditoría
+        de esta pantalla y en el historial del turno.
+      */}
       {closedShift ? (
         <div
           role="status"
           className="space-y-2 rounded-stitch-lg border border-status-ready-border bg-status-ready-bg px-3 py-2 text-st-body text-status-ready-text"
         >
           <p>
-            Caja cerrada · contado{" "}
-            <span className="font-mono tabular-nums">
-              {formatCurrency(closedShift.closingAmount ?? 0, currency)}
-            </span>{" "}
-            · esperado{" "}
-            <span className="font-mono tabular-nums">
-              {formatCurrency(closedShift.expectedAmount ?? 0, currency)}
-            </span>{" "}
+            Cierre registrado
+            {closedShift.id ? (
+              <>
+                {" · turno "}
+                <span className="font-mono tabular-nums">{closedShift.id}</span>
+              </>
+            ) : null}{" "}
             ·{" "}
             {closedShift.difference === 0
               ? "sin diferencia"
               : `diferencia ${formatCurrency(closedShift.difference ?? 0, currency)}`}
           </p>
 
-          {expectedByCurrency.length > 0 ? (
-            <ul className="space-y-1 text-st-body">
-              {expectedByCurrency.map(([code, expected]) => (
-                <li key={code}>
-                  {code}: esperado{" "}
-                  <span className="font-mono tabular-nums">
-                    {formatCurrency(expected, code.toUpperCase() === settings.currencyCode.toUpperCase() ? currency : { symbol: `${code.toUpperCase()} `, locale: settings.locale })}
-                  </span>
-                </li>
-              ))}
-            </ul>
+          {canSeeCloseDetail ? (
+            <>
+              <p className="text-st-body">
+                Contado{" "}
+                <span className="font-mono tabular-nums">
+                  {formatCurrency(closedShift.closingAmount ?? 0, currency)}
+                </span>{" "}
+                · esperado{" "}
+                <span className="font-mono tabular-nums">
+                  {formatCurrency(closedShift.expectedAmount ?? 0, currency)}
+                </span>
+              </p>
+
+              {expectedByCurrency.length > 0 ? (
+                <ul className="space-y-1 text-st-body">
+                  {expectedByCurrency.map(([code, expected]) => (
+                    <li key={code}>
+                      {code}: esperado{" "}
+                      <span className="font-mono tabular-nums">
+                        {formatCurrency(expected, code.toUpperCase() === settings.currencyCode.toUpperCase() ? currency : { symbol: `${code.toUpperCase()} `, locale: settings.locale })}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </>
           ) : null}
         </div>
       ) : null}

@@ -284,7 +284,7 @@ test.describe("punto de venta", () => {
     // una diferencia, que es un dato del test, no del producto).
     if ((await accionCaja.textContent())?.includes("Cerrar")) {
       await accionCaja.click();
-      await expect(caja.getByRole("status")).toContainText("Caja cerrada");
+      await expect(caja.getByRole("status")).toContainText("Cierre registrado");
       await expect(caja.getByRole("button", { name: "Abrir caja" })).toBeVisible();
     }
 
@@ -298,7 +298,11 @@ test.describe("punto de venta", () => {
     await caja.getByRole("button", { name: "Cerrar caja" }).click();
 
     const resumen = caja.getByRole("status");
-    await expect(resumen).toContainText("Caja cerrada");
+    // Tareas 5 y 6 del brief: el operario ve «Cierre registrado» + el id y la diferencia; el dueño
+    // (que es quien corre este caso) ve además el arqueo con lo contado y lo esperado.
+    await expect(resumen).toContainText("Cierre registrado");
+    await expect(resumen).toContainText("diferencia");
+    await expect(resumen).toContainText("Contado");
     await expect(resumen).toContainText("esperado");
     await expect(resumen).toContainText("sin diferencia");
   });

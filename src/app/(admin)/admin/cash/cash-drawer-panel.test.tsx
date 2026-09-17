@@ -107,10 +107,42 @@ describe("CashDrawerPanel", () => {
     ]);
 
     const resumen = await screen.findByRole("status");
-    expect(resumen.textContent).toContain("Caja cerrada");
-    expect(resumen.textContent).toContain("esperado");
+    expect(resumen.textContent).toContain("Cierre registrado");
     expect(resumen.textContent).toContain("diferencia");
-    // El detalle por moneda es lo que explica el arqueo cuando hay más de una.
+    // El operario ve el id del turno y la diferencia (tareas 5 y 6), no el arqueo completo.
+    expect(resumen.textContent).toContain("shift_1");
+    expect(resumen.textContent).not.toContain("esperado");
+  });
+
+  it("quien audita ve el arqueo completo con el detalle por moneda", async () => {
+    const user = userEvent.setup();
+    fetchMock.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+
+      if (url.startsWith("/api/admin/pos/shift?") && init?.method !== "POST") {
+        return jsonResponse({
+          data: { id: "shift_1", openedAt: "2026-09-15T14:00:00.000Z", openingAmount: 1000 },
+        });
+      }
+      if (url === "/api/admin/pos/shift/close") {
+        return jsonResponse({
+          data: { id: "shift_1", closingAmount: 900, expectedAmount: 1000, difference: -100 },
+          meta: { expectedByCurrency: { NIO: 1000 } },
+        });
+      }
+      return jsonResponse({ data: null });
+    });
+
+    render(<CashDrawerPanel locations={locations} canSeeCloseDetail />);
+
+    expect(await screen.findByText(/Caja abierta desde/)).toBeTruthy();
+    await user.type(screen.getByLabelText("Cantidad de billetes de NIO 100"), "9");
+    await user.click(screen.getByRole("button", { name: "Cerrar caja" }));
+
+    const resumen = await screen.findByRole("status");
+    expect(resumen.textContent).toContain("Cierre registrado");
+    expect(resumen.textContent).toContain("Contado");
+    expect(resumen.textContent).toContain("esperado");
     expect(resumen.textContent).toContain("NIO");
   });
 
