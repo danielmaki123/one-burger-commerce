@@ -225,11 +225,18 @@ test.describe("punto de venta", () => {
     // El arqueo vive plegado en la cabecera (la referencia del POS deja el catálogo a la vista).
     await page.getByRole("button", { name: /Apertura \/ Arqueo/ }).click();
 
+    // El panel **lee el turno del servidor**: se espera a que dibuje su acción antes de decidir. Sin
+    // esto, el `count()` de abajo ve 0 mientras carga, se saltea el cierre y la caja que dejó abierta
+    // otra spec queda abierta: el test después buscaba «Abrir caja» con una caja ya abierta y fallaba.
+    const accionCaja = page.getByRole("button", { name: /^(Abrir|Cerrar) caja$/ });
+    await expect(accionCaja).toBeVisible();
+
     // Estado de partida: si una corrida anterior dejó la caja abierta, se cierra contando cero (deja
     // una diferencia, que es un dato del test, no del producto).
-    if ((await page.getByRole("button", { name: "Cerrar caja" }).count()) > 0) {
-      await page.getByRole("button", { name: "Cerrar caja" }).click();
+    if ((await accionCaja.textContent())?.includes("Cerrar")) {
+      await accionCaja.click();
       await expect(caja.getByRole("status")).toContainText("Caja cerrada");
+      await expect(page.getByRole("button", { name: "Abrir caja" })).toBeVisible();
     }
 
     // Abrir contando: 10 × C$100. El fondo lo deriva el servidor.
