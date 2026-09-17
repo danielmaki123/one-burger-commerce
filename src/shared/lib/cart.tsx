@@ -37,6 +37,14 @@ const CART_STORAGE_KEY = "one-burger-cart";
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
+  /**
+   * ¿Ya se leyó el carrito guardado? El guardado **nunca** puede correr antes de la lectura: el efecto
+   * que guarda corre en el primer render (con la lista todavía vacía) y escribiría `[]` encima del
+   * carrito del cliente. En producción se recuperaba en el render siguiente, pero con el doble montaje
+   * de StrictMode —y en la ventana entre el pisado y la lectura— el pedido se perdía y `/checkout`
+   * mostraba «Tu carrito está vacío». Se encontró verificando el camino real del checkout.
+   */
+  const [hydrated, setHydrated] = useState(false);
 
   // Load cart from localStorage on mount
   useEffect(() => {
@@ -48,12 +56,15 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         console.error("Failed to parse cart", e);
       }
     }
+    setHydrated(true);
   }, []);
 
-  // Save cart to localStorage on change
+  // Save cart to localStorage on change, once the stored cart has been read
   useEffect(() => {
+    if (!hydrated) return;
+
     localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
-  }, [items]);
+  }, [items, hydrated]);
 
   const addItem = (newItem: CartItem) => {
     setItems((current) => [...current, newItem]);
