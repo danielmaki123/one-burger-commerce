@@ -379,6 +379,35 @@ describe("PosClient", () => {
     expect(await screen.findByText(/Caja abierta · fondo/)).toBeTruthy();
   });
 
+  /**
+   * Bloque 9.2 del roadmap del POS (Fase 2) — sin caja abierta el cobro está bloqueado **en pantalla**.
+   *
+   * El servidor lo rechaza con 409 (`registerPosSale`), pero un botón habilitado que va a fallar es un
+   * control que miente: por eso el botón queda deshabilitado y el motivo se dice una sola vez, junto al
+   * formulario de cobro.
+   */
+  it("con la caja cerrada el cobro está bloqueado y lo explica", async () => {
+    const user = userEvent.setup();
+    render(<PosClient locations={locations} />);
+
+    await screen.findByText("Taco de birria");
+    await user.click(screen.getByRole("button", { name: "Agregar Taco de birria a la venta" }));
+    await fillCustomer(user);
+    await user.type(screen.getByLabelText("Con cuánto paga"), "100");
+
+    const cobrar = screen.getByRole("button", { name: /^Cobrar / });
+    expect((cobrar as HTMLButtonElement).disabled).toBe(true);
+    expect(
+      screen.getByText(/Abrí la caja para poder cobrar: un cobro con la caja cerrada/),
+    ).toBeTruthy();
+
+    // Y no se manda nada al servidor si igual se intenta.
+    await user.click(cobrar);
+    expect(fetchMock.mock.calls.some(([input]) => String(input) === "/api/admin/pos/sale")).toBe(
+      false,
+    );
+  });
+
   it("cierra la caja y muestra el arqueo con la diferencia (TASK-305b)", async () => {
     const user = userEvent.setup();
     fetchMock.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
@@ -493,7 +522,10 @@ describe("PosClient", () => {
 
     expect(shareOrDownloadReceiptMock).toHaveBeenCalledWith(expect.anything(), "recibo-P-ABC123.jpg");
     expect(await screen.findByText("Recibo listo para enviar o imprimir.")).toBeTruthy();
-  });
+    // El recibo dibuja un canvas real y la suite completa corre en paralelo: con el default de 5 s
+    // este caso se cayó una vez por carga de la máquina y pasó en aislamiento. Un timeout explícito
+    // deja de medir la máquina y vuelve a medir el producto.
+  }, 20_000);
 
   it("sin locales activos lo dice y no pide catálogo", () => {
     render(<PosClient locations={[]} />);
