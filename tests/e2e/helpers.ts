@@ -1,5 +1,6 @@
 import { expect, type APIRequestContext, type Page } from "@playwright/test";
 
+import { ADMIN_ROLES, type AdminRole } from "@/modules/auth/domain/admin-role";
 import { normalizeSearchText } from "@/shared/lib/normalize-search-text";
 import { canQuickAddProduct } from "@/shared/lib/product-quick-add";
 
@@ -231,7 +232,7 @@ export async function createAdminUserViaUi(
     email,
     password,
     role,
-  }: { name: string; email: string; password: string; role: "owner" | "manager" | "kitchen" },
+  }: { name: string; email: string; password: string; role: AdminRole },
 ) {
   await page.goto("/admin/users");
   await page.getByLabel("Nombre").fill(name);
@@ -241,6 +242,47 @@ export async function createAdminUserViaUi(
   await page.getByRole("button", { name: "Crear usuario" }).click();
   await expect(page.getByText("Usuario creado correctamente.")).toBeVisible();
   await expect(page.getByText(email)).toBeVisible();
+}
+
+/**
+ * Tarea 7.3 del roadmap (2026-09-17) — entra al panel con **cualquier** cuenta.
+ *
+ * `loginAsOwner` sirve para la cuenta de siempre; los roles operativos (cajero, cocina) necesitan sus
+ * propias credenciales, y con una sesión abierta `/admin/login` redirige: por eso el que cambia de cuenta
+ * pasa antes por `logoutAdmin`.
+ */
+export async function loginWithCredentials(
+  page: Page,
+  { email, password }: { email: string; password: string },
+) {
+  await page.goto("/admin/login");
+  await page.locator('input[type="email"]').fill(email);
+  await page.locator('input[type="password"]').fill(password);
+  await page.getByRole("button", { name: "Iniciar sesión" }).click();
+  // Cocina y cajero aterrizan en sus órdenes; el dueño, en el resumen.
+  await expect(page).toHaveURL(/\/admin(?:\/orders)?$/);
+}
+
+/**
+ * Tarea 7.3 del roadmap (2026-09-17) — deja la sesión de un **cajero** lista para usar.
+ *
+ * Tres pasos, porque el rol se crea desde el panel (no hay API de usuarios abierta para tests): el dueño
+ * crea la cuenta con el rol «Cajero», se cierra su sesión y se entra con la del cajero. El correo tiene que
+ * ser único por corrida —la base local acumula usuarios de cada ejecución— así que se lo arma el spec.
+ *
+ * Lo que este helper hace posible es el caso que faltaba: probar en el navegador que el cajero **cobra y
+ * administra su caja** pero **no audita** el dinero.
+ */
+export async function loginAsCashier(
+  page: Page,
+  { name, email, password }: { name: string; email: string; password: string },
+) {
+  await loginAsOwner(page);
+  await createAdminUserViaUi(page, { name, email, password, role: ADMIN_ROLES.cashier });
+  await logoutAdmin(page);
+  await loginWithCredentials(page, { email, password });
+
+  return { email, password };
 }
 
 /**
