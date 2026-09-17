@@ -40,6 +40,15 @@ export type CloseShiftInput = {
    */
   cashSalesAmount?: number;
   /**
+   * Tarea 1.2 del roadmap (2026-09-17) — el **desglose por medio** del turno, en la moneda del negocio.
+   * Misma nota que los anteriores: el caso de uso siempre los manda (`paymentMix` del arqueo).
+   */
+  cardSalesAmount?: number;
+  transferSalesAmount?: number;
+  otherSalesAmount?: number;
+  /** Propinas del turno (van dentro de cada medio; se guardan aparte como detalle). */
+  tipsAmount?: number;
+  /**
    * Bloque 2 del POS (Fase 2) — el neto de los movimientos del turno (retiros e ingresos) en la
    * moneda del negocio. Misma nota: el caso de uso siempre lo manda.
    */

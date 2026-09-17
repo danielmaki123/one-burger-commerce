@@ -128,7 +128,7 @@ function seedPayment(
   amount: number,
   tip: number,
   createdAt: string,
-  options: { method?: "cash" | "card"; currency?: string | null; changeAmount?: number } = {},
+  options: { method?: "cash" | "card" | "transfer" | "other"; currency?: string | null; changeAmount?: number } = {},
 ) {
   const orderId = `ord_${paymentRepository.payments.length + 1}`;
   paymentRepository.seedOrderLocation(orderId, "loc_principal");
@@ -307,8 +307,44 @@ describe("closeShift", () => {
     expect(result.data?.difference).toBe(0);
   });
 
-  it("convierte los dólares y descuenta el vuelto (TASK-305)", async () => {
+  /**
+   * Tarea 1.2 del roadmap + decisión del owner (2026-09-17) — **el desglose por medio queda congelado**.
+   *
+   * El cierre solo guardaba el efectivo: la plata que entró por tarjeta y por transferencia no quedaba en
+   * ningún lado del turno, y el mensaje de cierre tenía que sacarla de los cobros cada vez. Ahora se
+   * persiste con el resto del arqueo (es un documento: lo que se guardó no se recalcula después).
+   */
+  it("congela el desglose por medio de pago al cerrar (tarea 1.2)", async () => {
     const deps = buildDeps();
+    const opened = await openShift(
+      { locationId: "loc_principal", userId: "user_01", openingAmount: 0 },
+      deps,
+    );
+    const openedAtMs = backdateOpen(opened.data.id, 60, deps.shiftRepository);
+    const enTurno = (segundos: number) => new Date(openedAtMs + segundos * 1000).toISOString();
+
+    seedPayment(deps.paymentRepository, 200, 0, enTurno(10));
+    seedPayment(deps.paymentRepository, 500, 0, enTurno(20), { method: "card" });
+    seedPayment(deps.paymentRepository, 300, 0, enTurno(30), { method: "transfer" });
+    seedPayment(deps.paymentRepository, 50, 25, enTurno(40), { method: "other" });
+
+    const result = await closeShift({ shiftId: opened.data.id, closingAmount: 200 }, deps);
+
+    expect(result.data).toMatchObject({
+      cashSalesAmount: 200,
+      cardSalesAmount: 500,
+      transferSalesAmount: 300,
+      // Otras formas: el monto más su propina (25), que es lo que el cliente pagó por esa vía.
+      otherSalesAmount: 75,
+      tipsAmount: 25,
+    });
+
+    // Y quedó **guardado**: leer el turno de nuevo devuelve lo mismo (no se recalcula con los cobros de hoy).
+    const leido = await deps.shiftRepository.findShiftById(opened.data.id);
+    expect(leido).toMatchObject({ cardSalesAmount: 500, transferSalesAmount: 300, tipsAmount: 25 });
+  });
+
+  it("convierte los dólares y descuenta el vuelto (TASK-305)", async () => {    const deps = buildDeps();
     const opened = await openShift(
       { locationId: "loc_principal", userId: "user_01", openingAmount: 0 },
       deps,

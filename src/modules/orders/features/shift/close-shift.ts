@@ -122,6 +122,11 @@ export async function closeShift(
     expectedAmount: arqueo.expectedAmount,
     expectedByCurrency: arqueo.expectedByCurrency,
     cashSalesAmount: arqueo.cashSalesAmount,
+    // Tarea 1.2 del roadmap: el desglose por medio se congela con el resto del arqueo (es un documento).
+    cardSalesAmount: arqueo.paymentMix.card,
+    transferSalesAmount: arqueo.paymentMix.transfer,
+    otherSalesAmount: arqueo.paymentMix.other,
+    tipsAmount: arqueo.paymentMix.tips,
     cashMovementsAmount: arqueo.cashMovementsAmount,
     refundsAmount: arqueo.refundsAmount,
     closingCounts: input.closingCounts ?? [],

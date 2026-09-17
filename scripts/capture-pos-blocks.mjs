@@ -68,6 +68,13 @@ try {
     await page.waitForTimeout(600);
     await shot(page, "bloque-1-cierre-detalle", viewport.name);
 
+    // Tarea 1.2 del roadmap (2026-09-17): el desglose por medio del turno, congelado al cerrar.
+    await page.evaluate(() => {
+      document.querySelector('[aria-label="Cobros por medio"]')?.scrollIntoView({ block: "center" });
+    });
+    await page.waitForTimeout(400);
+    await shot(page, "tarea-1-2-cobros-por-medio", viewport.name);
+
     // Bloque 13.3: el botón que imprime la hoja de cierre y **la hoja** (el papel que se firma, con el
     // nombre de quien cerró). Se captura la ventana de impresión tal como sale, sin retocar nada.
     const closedShiftId = await firstClosedShiftId(page);

@@ -16,6 +16,7 @@ import { buildShiftCloseSheet } from "@/shared/lib/shift-close-sheet";
 
 import { AdminPageHeader } from "../../../_components/admin-operational-ui";
 import CashMovementsPanel from "../../cash-movements-panel";
+import PaymentMixPanel, { paymentMixOf } from "../../payment-mix-panel";
 import ShiftCloseSheetButton from "../../shift-close-sheet-button";
 import {
   CASH_DIFFERENCE_LABEL,
@@ -353,6 +354,13 @@ export default async function AdminCashShiftDetailPage({
           </span>
         </p>
       </section>
+
+      {/* Tarea 1.2 del roadmap (2026-09-17): por dónde entró la plata del día, congelado al cerrar. */}
+      <PaymentMixPanel
+        mix={paymentMixOf(shift)}
+        currencySymbol={settings.currencySymbol}
+        locale={settings.locale}
+      />
 
       {/* Tarea 7 del brief (2026-09-17): los **traspasos** del turno (1.13). Un turno largo pasa por
           varias manos; quién recibió la caja y con cuánto queda asentado acá, también después de

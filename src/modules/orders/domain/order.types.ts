@@ -351,6 +351,15 @@ export type ShiftRecord = {
    */
   cashSalesAmount?: number | null;
   /**
+   * Tarea 1.2 del roadmap + decisión del owner (2026-09-17) — el **desglose por medio** del turno,
+   * congelado al cerrar: tarjeta, transferencia, otras formas y las propinas. `null` en los cierres
+   * viejos (antes de que se persistiera): la pantalla lo dice en vez de estimarlo.
+   */
+  cardSalesAmount?: number | null;
+  transferSalesAmount?: number | null;
+  otherSalesAmount?: number | null;
+  tipsAmount?: number | null;
+  /**
    * Bloque 2 del POS (Fase 2) — cuánto movieron los retiros e ingresos del turno, en la moneda del
    * negocio (retiro resta, ingreso suma). Congelado al cerrar.
    */

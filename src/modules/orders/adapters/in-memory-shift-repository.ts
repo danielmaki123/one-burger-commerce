@@ -46,6 +46,10 @@ export class InMemoryShiftRepository implements ShiftRepository {
       expectedAmount: null,
       expectedByCurrency: null,
       cashSalesAmount: null,
+      cardSalesAmount: null,
+      transferSalesAmount: null,
+      otherSalesAmount: null,
+      tipsAmount: null,
       cashMovementsAmount: null,
       refundsAmount: null,
       difference: null,
@@ -90,6 +94,10 @@ export class InMemoryShiftRepository implements ShiftRepository {
     // Bloque 1.1/1.2: el arqueo se congela al cerrar, no se recalcula al leer.
     shift.expectedByCurrency = { ...(input.expectedByCurrency ?? {}) };
     shift.cashSalesAmount = roundCurrency(input.cashSalesAmount ?? 0);
+    shift.cardSalesAmount = roundCurrency(input.cardSalesAmount ?? 0);
+    shift.transferSalesAmount = roundCurrency(input.transferSalesAmount ?? 0);
+    shift.otherSalesAmount = roundCurrency(input.otherSalesAmount ?? 0);
+    shift.tipsAmount = roundCurrency(input.tipsAmount ?? 0);
     shift.cashMovementsAmount = roundCurrency(input.cashMovementsAmount ?? 0);
     shift.refundsAmount = roundCurrency(input.refundsAmount ?? 0);
     shift.difference =

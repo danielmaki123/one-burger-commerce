@@ -797,6 +797,16 @@ model Shift {
   /// Bloque 1.2 del POS (Fase 2) — lo que entró **en efectivo** en el turno, en la moneda del
   /// negocio (monto + propina − vuelto). La tarjeta no entra: no pasó por el cajón.
   cashSalesAmount Decimal?   @db.Decimal(10, 2)
+  /// Tarea 1.2 del roadmap + decisión del owner (2026-09-17) — el **desglose por medio de pago** del turno,
+  /// congelado al cerrar junto con el arqueo. Antes solo se guardaba el efectivo: la plata de la tarjeta y
+  /// de la transferencia no quedaba en ningún lado del turno (había que recomputarla de los cobros).
+  cardSalesAmount     Decimal? @db.Decimal(10, 2)
+  transferSalesAmount Decimal? @db.Decimal(10, 2)
+  /// Mixto y otro: entró, pero no es efectivo ni una tarjeta de la terminal.
+  otherSalesAmount    Decimal? @db.Decimal(10, 2)
+  /// Propinas del turno. Van **dentro** de cada medio (es plata que el cliente pagó); acá quedan como
+  /// detalle, para no tener que sumarlas de los cobros.
+  tipsAmount          Decimal? @db.Decimal(10, 2)
   /// Bloque 2 del POS (Fase 2) — el neto de los movimientos del turno (retiros restan, ingresos
   /// suman), en la moneda del negocio. Congelado al cerrar, igual que el resto del arqueo.
   cashMovementsAmount Decimal? @db.Decimal(10, 2)

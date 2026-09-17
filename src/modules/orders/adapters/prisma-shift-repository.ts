@@ -31,6 +31,10 @@ function mapShift(shift: {
   expectedAmount: Decimal | null;
   expectedByCurrency?: unknown;
   cashSalesAmount: Decimal | null;
+  cardSalesAmount?: Decimal | null;
+  transferSalesAmount?: Decimal | null;
+  otherSalesAmount?: Decimal | null;
+  tipsAmount?: Decimal | null;
   cashMovementsAmount?: Decimal | null;
   refundsAmount?: Decimal | null;
   difference: Decimal | null;
@@ -55,6 +59,11 @@ function mapShift(shift: {
     // Bloque 1.1/1.2: el arqueo congelado al cerrar, tal como se guardó.
     expectedByCurrency: toExpectedByCurrency(shift.expectedByCurrency),
     cashSalesAmount: decimalOrNull(shift.cashSalesAmount),
+    // Tarea 1.2: el desglose por medio, tal como quedó al cerrar.
+    cardSalesAmount: decimalOrNull(shift.cardSalesAmount ?? null),
+    transferSalesAmount: decimalOrNull(shift.transferSalesAmount ?? null),
+    otherSalesAmount: decimalOrNull(shift.otherSalesAmount ?? null),
+    tipsAmount: decimalOrNull(shift.tipsAmount ?? null),
     cashMovementsAmount: decimalOrNull(shift.cashMovementsAmount ?? null),
     refundsAmount: decimalOrNull(shift.refundsAmount ?? null),
     difference: decimalOrNull(shift.difference),
@@ -179,6 +188,10 @@ export class PrismaShiftRepository implements ShiftRepository {
         // detalle por moneda antes vivía solo en la respuesta y se perdía al recargar.
         expectedByCurrency: input.expectedByCurrency,
         cashSalesAmount: input.cashSalesAmount,
+    cardSalesAmount: input.cardSalesAmount ?? 0,
+    transferSalesAmount: input.transferSalesAmount ?? 0,
+    otherSalesAmount: input.otherSalesAmount ?? 0,
+    tipsAmount: input.tipsAmount ?? 0,
         cashMovementsAmount: input.cashMovementsAmount ?? 0,
         refundsAmount: input.refundsAmount ?? 0,
         difference:
