@@ -57,8 +57,46 @@ describe("summarizeDayClose", () => {
     expect(totals.difference).toBe(0);
   });
 
-  it("cuenta los turnos por estado y los que quedaron sin contar", () => {
+  /**
+   * Tarea 1.5 del roadmap + decisión del owner (2026-09-17) — el **reporte diario de caja**: además del
+   * efectivo del cajón, por dónde entró la plata del día.
+   *
+   * Los números salen de lo que cada turno **congeló al cerrar** (tarea 1.2). Un turno abierto no tiene
+   * desglose —todavía no se cerró— y aporta cero sin romper la suma: no se estima.
+   */
+  it("suma el desglose por medio de los turnos cerrados (tarea 1.5)", () => {
     const totals = summarizeDayClose([
+      shift({
+        id: "cerrado",
+        cashSalesAmount: 1000,
+        cardSalesAmount: 500,
+        transferSalesAmount: 300,
+        otherSalesAmount: 0,
+        tipsAmount: 50,
+      }),
+      shift({
+        id: "abierto",
+        status: "open",
+        closingAmount: null,
+        difference: null,
+        cashSalesAmount: null,
+        cardSalesAmount: null,
+        transferSalesAmount: null,
+        otherSalesAmount: null,
+        tipsAmount: null,
+      }),
+    ]);
+
+    expect(totals.cashSales).toBe(1000);
+    expect(totals.cardSales).toBe(500);
+    expect(totals.transferSales).toBe(300);
+    expect(totals.otherSales).toBe(0);
+    // 1000 + 500 + 300 + 0: el total cobrado del día, sin contar dos veces las propinas (van adentro).
+    expect(totals.collected).toBe(1800);
+    expect(totals.tips).toBe(50);
+  });
+
+  it("cuenta los turnos por estado y los que quedaron sin contar", () => {    const totals = summarizeDayClose([
       shift({ id: "a" }),
       shift({ id: "b", status: "open", closedAt: null, closingAmount: null, expectedAmount: null, difference: null }),
       // Cierre ciego: hay esperado pero nadie contó (Bloque 1.11).
@@ -93,6 +131,11 @@ describe("summarizeDayClose", () => {
       open: 0,
       withoutCount: 0,
       cashSales: 0,
+      cardSales: 0,
+      transferSales: 0,
+      otherSales: 0,
+      collected: 0,
+      tips: 0,
       movements: 0,
       refunds: 0,
       expected: 0,

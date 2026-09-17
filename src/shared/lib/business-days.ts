@@ -45,3 +45,14 @@ export function businessDayRange(
 export function shiftBusinessDays(date: string, days: number): string {
   return addDays(date, days);
 }
+
+/**
+ * ¿Es un día natural del negocio (`YYYY-MM-DD`)?
+ *
+ * Lo necesitan las pantallas que reciben la fecha por la URL (el reporte del día, la conciliación): una
+ * fecha escrita a mano no puede dejar el filtro abierto —eso mostraría el historial entero como si fuera un
+ * día— ni romper la pantalla. El que llama decide qué hacer cuando no lo es (usar hoy o rechazar).
+ */
+export function isBusinessDay(value: unknown): value is string {
+  return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value.trim());
+}

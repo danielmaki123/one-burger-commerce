@@ -51,6 +51,12 @@ try {
     await page.waitForTimeout(600);
     await shot(page, "bloque-8-caja-del-dia", viewport.name);
 
+    // Tarea 1.5 del roadmap (2026-09-17): el reporte diario de caja, con su selector de día.
+    await page.goto(`${baseUrl}/admin/cash/report`, { waitUntil: "domcontentloaded" });
+    await page.waitForSelector('[aria-label="Reporte de caja del día"]', { timeout: 30_000 });
+    await page.waitForTimeout(600);
+    await shot(page, "tarea-1-5-reporte-del-dia", viewport.name);
+
     // Bloque 11.5/11.6: el cierre del día consolidado (todas las sucursales del alcance) y la
     // comparación por sucursal, arriba del historial.
     await page.evaluate(() => {

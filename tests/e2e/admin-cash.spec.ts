@@ -241,6 +241,37 @@ test.describe("caja del día", () => {
   });
 
   /**
+   * Tarea 1.5 del roadmap (2026-09-17) — el **reporte diario de caja**.
+   *
+   * El resumen del día que había era de órdenes; este dice la plata de la caja: total cobrado, por dónde
+   * entró, propinas y cómo quedó cada sucursal. Se comprueba en navegador real que la pantalla abra, que el
+   * día se pueda cambiar por la URL (formulario GET, sin JavaScript) y que no meta scroll horizontal.
+   */
+  test("el reporte del día muestra la caja y se puede cambiar de fecha", async ({ page }) => {
+    await loginAsOwner(page);
+
+    await page.goto("/admin/cash/report");
+    const panel = page.getByRole("region", { name: "Reporte de caja del día" });
+    await expect(panel).toBeVisible();
+    await expect(panel.getByText("Total cobrado")).toBeVisible();
+
+    await page.setViewportSize({ width: 375, height: 812 });
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      ),
+    ).toBeLessThanOrEqual(1);
+    await page.setViewportSize({ width: 1280, height: 900 });
+
+    // El día viaja por la URL: se pide uno anterior y el encabezado del panel lo refleja.
+    await panel.getByLabel("Día").fill("2026-09-10");
+    await panel.getByRole("button", { name: "Ver el día" }).click();
+
+    await expect(page).toHaveURL(/date=2026-09-10/);
+    await expect(page.getByRole("region", { name: "Reporte de caja del día" })).toBeVisible();
+  });
+
+  /**
    * Tarea 7 del brief (2026-09-17) — el **corte X** y el **traspaso de caja** (1.12 y 1.13).
    *
    * Dos cosas que solo se pueden verificar en un navegador real: que el corte se **imprima** sin cerrar

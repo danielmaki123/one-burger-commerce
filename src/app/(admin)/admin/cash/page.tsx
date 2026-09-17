@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { requireCashScope } from "@/app/api/admin/cash/cash-route-helpers";
@@ -74,6 +75,16 @@ export default async function AdminCashPage() {
           canAudit
             ? "Abrí y cerrá la caja del local, y auditá lo que quedó: cierres, arqueo y movimientos."
             : "Abrí y cerrá la caja del local con el conteo de billetes."
+        }
+        actions={
+          canAudit ? (
+            <Link
+              href="/admin/cash/report"
+              className="inline-flex min-h-11 items-center text-st-body font-semibold text-brand-primary underline"
+            >
+              Reporte del día
+            </Link>
+          ) : null
         }
       />
 

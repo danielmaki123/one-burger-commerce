@@ -27,6 +27,14 @@ export type DayCloseShift = {
   expectedAmount: number | null;
   difference: number | null;
   cashSalesAmount?: number | null;
+  /**
+   * Tarea 1.5 del roadmap (2026-09-17) — el desglose por medio que el turno congeló al cerrar (tarea 1.2).
+   * Un turno abierto los tiene en `null`: no se estiman.
+   */
+  cardSalesAmount?: number | null;
+  transferSalesAmount?: number | null;
+  otherSalesAmount?: number | null;
+  tipsAmount?: number | null;
   cashMovementsAmount?: number | null;
   refundsAmount?: number | null;
 };
@@ -38,6 +46,12 @@ export type DayCloseTotals = {
   /** Turnos sin contar: cierre ciego o caja abierta. */
   withoutCount: number;
   cashSales: number;
+  /** Tarea 1.5 — lo cobrado por cada medio y el total del día (las propinas van adentro de cada medio). */
+  cardSales: number;
+  transferSales: number;
+  otherSales: number;
+  collected: number;
+  tips: number;
   movements: number;
   refunds: number;
   expected: number;
@@ -57,12 +71,24 @@ function sum(values: (number | null | undefined)[]): number {
 
 /** Los totales del día: lo que entró, lo que se movió, lo que se devolvió y cómo quedó el arqueo. */
 export function summarizeDayClose(shifts: readonly DayCloseShift[]): DayCloseTotals {
+  const cashSales = sum(shifts.map((shift) => shift.cashSalesAmount));
+  const cardSales = sum(shifts.map((shift) => shift.cardSalesAmount));
+  const transferSales = sum(shifts.map((shift) => shift.transferSalesAmount));
+  const otherSales = sum(shifts.map((shift) => shift.otherSalesAmount));
+
   return {
     shifts: shifts.length,
     closed: shifts.filter((shift) => shift.status === "closed").length,
     open: shifts.filter((shift) => shift.status === "open").length,
     withoutCount: shifts.filter((shift) => shift.closingAmount === null).length,
-    cashSales: sum(shifts.map((shift) => shift.cashSalesAmount)),
+    cashSales,
+    cardSales,
+    transferSales,
+    otherSales,
+    // Lo que se cobró en el día. Las **propinas no se suman aparte**: van dentro de cada medio (son plata
+    // que el cliente pagó con ese medio), así que sumarlas otra vez sería contar doble.
+    collected: cashSales + cardSales + transferSales + otherSales,
+    tips: sum(shifts.map((shift) => shift.tipsAmount)),
     movements: sum(shifts.map((shift) => shift.cashMovementsAmount)),
     refunds: sum(shifts.map((shift) => shift.refundsAmount)),
     expected: sum(shifts.map((shift) => shift.expectedAmount)),
