@@ -956,3 +956,24 @@ enum RefundStatus {
 }
 
 
+
+/// Bloque 13.1 del roadmap del POS (Fase 2) — el asiento de una acción sensible.
+///
+/// Lo que queda en las tablas es el **estado**: que un turno se cerró con una diferencia, que una
+/// devolución quedó aprobada. Quién lo hizo, cuándo y con qué motivo es lo que este log agrega, y es la
+/// única forma de responder "¿quién reabrió esta caja?" seis meses después. `action` es una lista
+/// cerrada del dominio (un texto libre no se puede agrupar); `actorUserId` guarda el id aunque el
+/// usuario se borre después, porque el asiento no se puede perder.
+model AdminAuditLog {
+  id          String   @id @default(cuid())
+  action      String
+  actorUserId String
+  targetType  String
+  targetId    String
+  detail      Json?
+  createdAt   DateTime @default(now())
+
+  @@index([action, createdAt])
+  @@index([targetType, targetId])
+  @@index([actorUserId, createdAt])
+}
