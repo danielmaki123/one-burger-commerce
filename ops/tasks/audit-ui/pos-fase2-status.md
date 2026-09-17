@@ -50,6 +50,8 @@
 | **13.1** | **Log de acciones sensibles**, completo: el módulo `audit` (lista cerrada de 9 acciones, best-effort, `AuditError` en el mapeo) y el modelo `AdminAuditLog` (migración `20260918070000`), **cableado** a las 9 acciones: abrir/cerrar/reabrir turno, movimiento de caja, pedir/aprobar/rechazar devolución, cancelar un pedido cobrado y cambiar la personalización. El gate de la tabla de atajos falla si una acción de la lista queda sin forma de firmarse | `605870b`, `82349a1` | — |
 | **13.3** | **Firma del cierre**: «Imprimir cierre» en el detalle del turno y la hoja en texto plano (`shift-close-sheet.ts`, pura) con el arqueo asentado, el **nombre** de quien cerró (antes se mostraba el `userId` crudo) y la línea de firma. Imprime con la hoja del sistema, sin dependencias | `d2a06f3` | `bloque-13-boton-imprimir-cierre-*.png`, `bloque-13-hoja-cierre-impresa-*.png` |
 
+| **10.2 + 10.4** | **Ticket de cliente y reimpresión**: `customer-ticket.ts` (puro, 15 casos) con el comprobante —precios, total, medio de pago y cambio—, los dos papeles en la confirmación de la venta (`pos-ticket-buttons.tsx`) y «Reimprimir ticket» en el detalle del pedido (`order-ticket-button.tsx`). Imprimir un texto se unificó en `print-lines.ts`, con el escapado arreglado | `43b1a48` | `bloque-10-botones-ticket-*.png`, `bloque-10-ticket-cliente-*.png` |
+
 **Bloque 13 — cerrado** (2026-09-18). **13.1**: el log se escribe desde las rutas reales (verificado
 en la base durante la corrida de E2E: `shift.open`, `shift.close`, `cash_movement.create`); para que
 ningún `route.ts` pasara su tope de 50 líneas, la composición con el adaptador y la firma se fue a
@@ -68,10 +70,11 @@ de otro no dice nada; **11.4** (email al dueño) no tiene canal (las notificacio
 **11.5/11.6** (cierre del día consolidado y comparativa entre sucursales) son superficie sobre datos que
 ya existen por sucursal.
 
-**Bloque 10 — lo que falta y su motivo**: 10.2/10.4 (ticket de cliente y reimpresión desde el detalle)
-son superficie nueva sobre lo mismo; **10.3** (impresión separada por estación) necesita que el owner
-diga **qué estaciones** existen —hoy no hay ese concepto en el modelo—; **10.5** (cola de reintentos)
-solo tiene sentido con una impresora de red, que se descartó a propósito.
+**Bloque 10 — lo que falta y su motivo**: **10.2 y 10.4 cerrados** (2026-09-18): el cliente se lleva su
+ticket impreso y se reimprime desde el detalle del pedido, con la impresión unificada en
+`print-lines.ts`. Quedan **10.3** (impresión separada por estación) —necesita que el owner diga **qué
+estaciones** existen: hoy no hay ese concepto en el modelo— y **10.5** (cola de reintentos), que solo
+tiene sentido con una impresora de red, que se descartó a propósito.
 
 **Bloque 7.3 (`helper E2E acepta cashier`)**: pendiente. El helper de E2E solo crea sesión de owner
 (`tryLoginAsOwner`); sumar `cashier` pide crear la cuenta y asignarle sucursal en la misma corrida, que
