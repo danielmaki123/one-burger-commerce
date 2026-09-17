@@ -26,6 +26,10 @@ const SIZES = { sm: "max-w-sm", lg: "max-w-lg" } as const;
  *
  * No se cierra solo: el estado lo tiene la pantalla, así que `onClose` es la única puerta y el
  * diálogo no se cierra "por su cuenta" en un doble render.
+ *
+ * `m-auto` es del `dialog:modal` del navegador (`inset: 0` + `margin: auto` = centrado): el reset de
+ * Tailwind (`* { margin: 0 }`) lo borraba y el diálogo aparecía **pegado a la esquina** —visto en el POS,
+ * que es donde se capturó—. Sin eso, el modo modal del navegador no alcanza.
  */
 export function Modal({ open, onClose, title, size = "lg", children }: ModalProps) {
   const ref = React.useRef<HTMLDialogElement>(null);
@@ -55,7 +59,7 @@ export function Modal({ open, onClose, title, size = "lg", children }: ModalProp
         // cerrar sin un overlay propio ni un listener global.
         if (event.target === ref.current) onClose();
       }}
-      className={`w-[calc(100%-2rem)] ${SIZES[size]} rounded-panel border border-border bg-card p-5 text-foreground shadow-raised backdrop:bg-coal/40`}
+      className={`m-auto w-[calc(100%-2rem)] ${SIZES[size]} rounded-panel border border-border bg-card p-5 text-foreground shadow-raised backdrop:bg-coal/40`}
     >
       <div className="mb-4 flex items-start justify-between gap-3">
         <h2 id={titleId} className="font-heading text-headline-md text-foreground">
