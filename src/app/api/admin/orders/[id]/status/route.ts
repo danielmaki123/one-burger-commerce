@@ -8,9 +8,9 @@ import { registerOutboxEventBusHandlers } from "@/modules/notifications/adapters
 import { PrismaOrderRepository } from "@/modules/orders/adapters/prisma-order-repository";
 import { OrderError } from "@/modules/orders/domain/order-errors";
 import { resolveOrderLocationScope } from "@/modules/orders/domain/order-visibility";
-import { updateOrderStatus } from "@/modules/orders/features/update-order-status/update-order-status";
 import { createErrorResponse } from "@/shared/lib/http/error-response";
 
+import { applyOrderStatusChange } from "../../order-status-composition";
 import { assertOrderInScope } from "../../order-scope";
 
 registerOutboxEventBusHandlers();
@@ -41,8 +41,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     }
 
     const { id } = await params;
-    const payload = await request.json().catch(() => ({}));
-    const parsed = statusSchema.safeParse(payload);
+    const parsed = statusSchema.safeParse(await request.json().catch(() => ({})));
 
     if (!parsed.success) {
       return NextResponse.json(
@@ -68,18 +67,15 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
           error: {
             code: "VALIDATION_ERROR",
             message: "Invalid payload",
-            fields: {
-              note: "Required when status is cancelled",
-            },
+            fields: { note: "Required when status is cancelled" },
           },
         },
         { status: 422 },
       );
     }
 
-    const repository = new PrismaOrderRepository();
-
     // A: el alcance se comprueba **antes** de mutar; un pedido de otra sucursal no se toca.
+    const repository = new PrismaOrderRepository();
     const existing = await repository.findOrderById(id);
     if (!existing) {
       throw new OrderError(404, "NOT_FOUND", "Order not found");
@@ -95,11 +91,15 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
     // B5: quién lo cambió, para el historial. Con cuentas compartidas, "quién aceptó esto" es la
     // pregunta que se hace después, cuando algo sale mal.
-    const result = await updateOrderStatus(
-      id,
-      { ...parsed.data, changedByUserId: session.user.id },
-      { repository },
-    );
+    //
+    // Bloque 3.5 del POS: la composición vive en `order-status-composition` (el tope de 50 líneas del
+    // handler) y es la que deja la devolución pendiente al cancelar un pedido cobrado.
+    const result = await applyOrderStatusChange({
+      orderId: id,
+      status: parsed.data.status,
+      note: parsed.data.note ?? null,
+      changedByUserId: session.user.id,
+    });
     return NextResponse.json(result);
   } catch (error) {
     return createErrorResponse(error);
