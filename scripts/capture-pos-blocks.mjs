@@ -106,6 +106,12 @@ try {
     await page.waitForTimeout(600);
     await shot(page, "bloque-3-aprobaciones", viewport.name);
 
+    // Parte 3 del brief (alertas Telegram): la sección de configuración, con su estado y sus eventos.
+    await page.goto(`${baseUrl}/admin/settings/notifications`, { waitUntil: "domcontentloaded" });
+    await page.waitForSelector('[aria-label="Estado de las alertas"]', { timeout: 30_000 });
+    await page.waitForTimeout(600);
+    await shot(page, "alertas-telegram", viewport.name);
+
     // Bloque 9.2: el POS diciendo que hay que abrir la caja.
     await page.goto(`${baseUrl}/admin/pos`, { waitUntil: "domcontentloaded" });
     await page.waitForSelector('[aria-label="Venta en curso"]', { timeout: 30_000 });

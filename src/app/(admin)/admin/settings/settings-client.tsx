@@ -263,6 +263,13 @@ export default function AdminSettingsClientPage({
           Todo lo que se muestra en el sitio público sale de acá. Los cambios se ven al
           instante, sin volver a desplegar.
         </p>
+        {/* Parte 3 del brief: las alertas por Telegram son otra sección de configuración. */}
+        <Link
+          href="/admin/settings/notifications"
+          className="inline-flex min-h-11 items-center text-st-body font-semibold text-brand-primary underline"
+        >
+          Alertas Telegram
+        </Link>
       </header>
 
       <PreviewCard draft={draft} />

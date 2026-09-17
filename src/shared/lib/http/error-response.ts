@@ -5,6 +5,7 @@ import { AuthError } from "@/modules/auth/domain/auth-errors";
 import { BusinessSettingsError } from "@/modules/business-settings/domain/business-settings-errors";
 import { CustomerAuthError } from "@/modules/customers/domain/customer-auth-errors";
 import { MenuError } from "@/modules/menu/domain/menu-errors";
+import { NotificationSettingsError } from "@/modules/notifications/domain/notification-settings-errors";
 import { OutboxError } from "@/modules/notifications/domain/outbox-errors";
 import { OrderError } from "@/modules/orders/domain/order-errors";
 import { ShiftError } from "@/modules/orders/domain/shift-errors";
@@ -162,6 +163,20 @@ export function createErrorResponse(error: unknown) {
 
   // Bloque 13.1 del POS: una acción fuera de la lista de acciones auditables.
   if (error instanceof AuditError) {
+    return NextResponse.json(
+      {
+        error: {
+          code: error.code,
+          message: error.message,
+          ...(error.fields ? { fields: error.fields } : {}),
+        },
+      },
+      { status: error.status },
+    );
+  }
+
+  // Parte 3 del brief: la configuración de alertas por Telegram (chat inválido, umbral, envío que falló).
+  if (error instanceof NotificationSettingsError) {
     return NextResponse.json(
       {
         error: {

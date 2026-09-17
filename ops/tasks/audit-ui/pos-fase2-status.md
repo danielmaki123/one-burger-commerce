@@ -62,6 +62,13 @@
 | **12.3 + 12.4** | **La venta en curso no se pierde y sin red no se cobra**: `usePosDraft` + `pos-draft-storage.ts` (la venta se guarda en el dispositivo y se recupera al montar; de un solo local; vaciarla la borra) y `useOnlineStatus` con el cobro bloqueado y explicado cuando no hay red | `58f0b03` | `bloque-12-sin-conexion-*.png`, `bloque-12-venta-recuperada-*.png` |
 | **6** | **Dólares — cerrado**: el saldo por moneda se **persiste** al cerrar (`Shift.expectedByCurrency` + `cashSalesAmount`, Bloque 1.1) y se muestra en el detalle; sin arrastre automático entre turnos, por diseño | `7ff20e0`, `fcc0691` | `bloque-1-cierre-detalle-*.png` |
 | **1.6** | **Comprobante de cierre (DIFERENTE)**: no hay PDF generado en el servidor; el cierre se imprime o se guarda como PDF desde la hoja del sistema (`shift-close-sheet.ts` + «Imprimir cierre», Bloque 13.3) | `d2a06f3` | `bloque-13-hoja-cierre-impresa-*.png` |
+| **Alertas Telegram** (Parte 3 del brief del 2026-09-17) | **Sección nueva**: tabla `NotificationSettings` (chat, eventos, umbrales, último envío/error), gateway propio contra `api.telegram.org` (fetch nativo, sin dependencias, con el token **solo** por entorno y los motivos de fallo traducidos), casos de uso (leer, guardar, **probar conexión real**), rutas `GET/PATCH /api/admin/settings/notifications` + `POST …/test` (solo owner) y la pantalla `/admin/settings/notifications` | `pendiente` en este commit | `alertas-telegram-*.png` |
+
+**Alertas Telegram — qué falta del brief**: los **disparadores** de los cuatro eventos (turno sin cerrar
+>24 h, devolución grande, diferencia de caja, resumen del día) todavía no registran su evento en el outbox:
+lo que quedó hecho es todo el camino de configuración y envío (el sender ya respeta los toggles y reintenta
+por outbox). Va en la ronda siguiente, junto con las tareas 1, 2, 3, 5, 6, 7, 9, 10 y 11 de la lista
+confirmada por el owner.
 
 **Bloque 13 — cerrado** (2026-09-18). **13.1**: el log se escribe desde las rutas reales (verificado
 en la base durante la corrida de E2E: `shift.open`, `shift.close`, `cash_movement.create`); para que

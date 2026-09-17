@@ -1,7 +1,10 @@
 import { DummyNotificationSender } from "@/modules/notifications/adapters/dummy-notification-sender";
 import { MultiNotificationSender } from "@/modules/notifications/adapters/multi-notification-sender";
 import { N8nWebhookSender } from "@/modules/notifications/adapters/n8n-webhook-sender";
+import { PrismaNotificationSettingsRepository } from "@/modules/notifications/adapters/prisma-notification-settings-repository";
+import { TelegramAlertSender } from "@/modules/notifications/adapters/telegram-alert-sender";
 import { TelegramDryRunSender } from "@/modules/notifications/adapters/telegram-dry-run-sender";
+import { TelegramHttpGateway } from "@/modules/notifications/adapters/telegram-http-gateway";
 import { TelegramNotificationSender } from "@/modules/notifications/adapters/telegram-notification-sender";
 import type { NotificationPayload, NotificationSender } from "@/modules/notifications/ports/notification-sender";
 
@@ -9,6 +12,7 @@ type Driver =
   | "dummy"
   | "telegram_dry_run"
   | "telegram"
+  | "telegram_alerts"
   | "n8n_webhook"
   | "multi";
 
@@ -24,7 +28,28 @@ function parseIntEnv(raw: string | undefined, fallback: number): number {
 }
 
 function defaultChannelRouter(_notification: NotificationPayload): string[] {
-  return ["telegram", "n8n_webhook"];
+  return ["telegram_alerts", "telegram", "n8n_webhook"];
+}
+
+/**
+ * Parte 3 del brief (alertas Telegram) — el sender de las alertas del negocio, con su chat en la base.
+ *
+ * `telegram_alerts` es el driver nuevo: el **token** sigue siendo del servidor (entorno) y el chat, los
+ * eventos y los umbrales salen de `NotificationSettings`. Por eso `hasDeliverableNotificationSenderFromEnv`
+ * solo exige el token: el chat lo pone el negocio desde el admin, no Easypanel.
+ */
+export function createTelegramAlertSenderFromEnv(): NotificationSender | null {
+  const botToken = process.env.TELEGRAM_BOT_TOKEN;
+
+  if (!botToken) return null;
+
+  return new TelegramAlertSender({
+    settingsRepository: new PrismaNotificationSettingsRepository(),
+    gateway: new TelegramHttpGateway({
+      botToken,
+      timeoutMs: parseIntEnv(process.env.TELEGRAM_TIMEOUT_MS, 10000),
+    }),
+  });
 }
 
 export function hasDeliverableNotificationSenderFromEnv(): boolean {
@@ -34,11 +59,13 @@ export function hasDeliverableNotificationSenderFromEnv(): boolean {
       ? "telegram_dry_run"
       : raw === "telegram"
         ? "telegram"
-        : raw === "n8n_webhook"
-          ? "n8n_webhook"
-          : raw === "multi"
-            ? "multi"
-            : "dummy";
+        : raw === "telegram_alerts"
+          ? "telegram_alerts"
+          : raw === "n8n_webhook"
+            ? "n8n_webhook"
+            : raw === "multi"
+              ? "multi"
+              : "dummy";
 
   if (driver === "telegram") {
     return (
@@ -46,6 +73,10 @@ export function hasDeliverableNotificationSenderFromEnv(): boolean {
       Boolean(process.env.TELEGRAM_BOT_TOKEN) &&
       Boolean(process.env.TELEGRAM_CHAT_ID)
     );
+  }
+
+  if (driver === "telegram_alerts") {
+    return Boolean(process.env.TELEGRAM_BOT_TOKEN);
   }
 
   if (driver === "n8n_webhook") {
@@ -60,7 +91,7 @@ export function hasDeliverableNotificationSenderFromEnv(): boolean {
 
     const hasN8n = Boolean(process.env.N8N_WEBHOOK_BASE_URL);
 
-    return hasTelegram || hasN8n;
+    return Boolean(process.env.TELEGRAM_BOT_TOKEN) || hasTelegram || hasN8n;
   }
 
   return false;
@@ -73,11 +104,23 @@ export function createNotificationSenderFromEnv(): NotificationSender {
       ? "telegram_dry_run"
       : raw === "telegram"
         ? "telegram"
-        : raw === "n8n_webhook"
-          ? "n8n_webhook"
-          : raw === "multi"
-            ? "multi"
-            : "dummy";
+        : raw === "telegram_alerts"
+          ? "telegram_alerts"
+          : raw === "n8n_webhook"
+            ? "n8n_webhook"
+            : raw === "multi"
+              ? "multi"
+              : "dummy";
+
+  if (driver === "telegram_alerts") {
+    const sender = createTelegramAlertSenderFromEnv();
+    if (sender) return sender;
+
+    console.warn(
+      "[notification-sender-factory] TELEGRAM_BOT_TOKEN missing; falling back to dummy sender.",
+    );
+    return new DummyNotificationSender();
+  }
 
   if (driver === "telegram_dry_run") {
     return new TelegramDryRunSender({
@@ -121,6 +164,12 @@ export function createNotificationSenderFromEnv(): NotificationSender {
 
   if (driver === "multi") {
     const senders: Record<string, NotificationSender> = {};
+
+    const alerts = createTelegramAlertSenderFromEnv();
+    if (alerts) {
+      // Las alertas del negocio (chat y eventos en la base) viajan por su propio canal.
+      senders["telegram_alerts"] = alerts;
+    }
 
     const telegramEnabled = parseBoolean(
       process.env.TELEGRAM_NOTIFICATIONS_ENABLED,

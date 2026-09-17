@@ -243,7 +243,6 @@ Política recomendada para producción:
 ---
 
 ## 5. Notificaciones de pedidos
-
 Sin proveedor real configurado, **un pedido nuevo no avisa a nadie**: el driver
 por defecto es `dummy`, que descarta el mensaje en memoria
 (`src/modules/notifications/adapters/dummy-notification-sender.ts`).
@@ -269,6 +268,33 @@ tenga abierto `/admin/orders`; hay que monitorear la cola de pedidos nuevos.
 Pendiente conocido: el dedup del outbox es en memoria. El reclamo de eventos es
 atómico (una sola instancia procesa cada evento), así que mantener
 `replicas: 1` sigue siendo lo recomendado.
+
+### 5.1 Alertas del negocio por Telegram (2026-09-17)
+
+Las **alertas del dueño** (turno sin cerrar >24 h, devolución grande, diferencia de
+caja, resumen del día) usan el mismo outbox y otro driver:
+
+```
+NOTIFICATIONS_DRIVER=telegram_alerts
+TELEGRAM_BOT_TOKEN=<token del bot del SaaS>   # nunca en la base ni en el repo
+OUTBOX_PROCESSOR_ENABLED=true
+OUTBOX_PROCESSOR_SECRET=<secreto aleatorio largo>
+```
+
+La diferencia con el driver `telegram` de arriba: **el `chat_id` no va por entorno**.
+Lo configura el dueño en `/admin/settings/notifications` (se guarda en
+`NotificationSettings`) junto con los eventos que quiere recibir y los dos umbrales,
+y el botón «Probar conexión» manda un mensaje real para verificar. Por eso el chequeo
+de «hay sender entregable» para `telegram_alerts` solo exige el token.
+
+Reglas de operación:
+
+- El **token es del SaaS**: si falta, la pantalla lo dice («Falta el token en el
+  servidor») y no se puede probar ni enviar nada.
+- Los eventos **se registran siempre** en el outbox; el toggle decide cuáles se
+  reenvían a Telegram.
+- Si Telegram falla, la operación del negocio **sigue**: el outbox reintenta hasta
+  `OUTBOX_PROCESSOR_MAX_ATTEMPTS` y el motivo queda en `NotificationSettings.lastError`.
 
 ---
 
