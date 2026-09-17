@@ -1,10 +1,6 @@
 import { ShoppingBag, Table2, Truck } from "lucide-react";
 
-import {
-  addDays,
-  dateInTimeZone,
-  pickupInstant,
-} from "@/modules/business-settings/domain/pickup-days";
+import { dateInTimeZone } from "@/modules/business-settings/domain/pickup-days";
 import type { OrderType } from "@/modules/orders/domain/order.types";
 
 /**
@@ -13,10 +9,10 @@ import type { OrderType } from "@/modules/orders/domain/order.types";
  * Viven fuera de `page.tsx` porque una página de Next no puede exportar nada más que la
  * página (`next build --webpack` falla si no), y esto se prueba solo.
  *
- * **La zona horaria sale de la configuración del negocio** (`BusinessSettings.timezone`),
- * como en el checkout y el retiro público. Antes acá había una `America/Managua` fija con
- * su offset `-06:00` escrito a mano: un negocio en otra zona veía el turno del día
- * equivocado y los rangos de la API no cubrían su día.
+ * El **día del negocio** (`businessDate`, `businessDayRange`, `shiftBusinessDays`) vive ahora en
+ * `src/shared/lib/business-days.ts` y se reexporta desde acá: el cierre del día consolidado
+ * (Bloques 11.5/11.6) usa el mismo rango y las dos pantallas tienen que hablar del mismo día. Sus tests
+ * siguen cubriéndolo desde este archivo.
  */
 
 /**
@@ -36,34 +32,7 @@ export function orderTypePresentation(type: OrderType): {
 }
 
 /** El día natural (`YYYY-MM-DD`) del negocio para un instante. */
-export function businessDate(date: Date, timeZone: string): string {
-  return dateInTimeZone(date, timeZone);
-}
-
-/**
- * El rango ISO de un día natural del negocio, para `dateFrom`/`dateTo` (los dos inclusive):
- * desde las 00:00 de ese día hasta el último milisegundo antes de la medianoche siguiente.
- */
-export function businessDayRange(
-  date: string,
-  timeZone: string,
-): { from: string | undefined; to: string | undefined } {
-  const start = pickupInstant({ date, time: "00:00", timeZone });
-  const nextStart = pickupInstant({ date: addDays(date, 1), time: "00:00", timeZone });
-
-  // Una fecha inválida devuelve `null`: se deja el filtro abierto en vez de romper la vista.
-  if (!start || !nextStart) return { from: undefined, to: undefined };
-
-  return {
-    from: start.toISOString(),
-    to: new Date(nextStart.getTime() - 1).toISOString(),
-  };
-}
-
-/** Días que se le restan al día de hoy para los presets de historial. */
-export function shiftBusinessDays(date: string, days: number): string {
-  return addDays(date, days);
-}
+export { businessDate, businessDayRange, shiftBusinessDays } from "@/shared/lib/business-days";
 
 /** Buckets de turno, en el orden en que el encargado los atiende. */
 export type OrderBucket = "programados" | "nuevas" | "cocina" | "listas" | "otras" | "cerradas";

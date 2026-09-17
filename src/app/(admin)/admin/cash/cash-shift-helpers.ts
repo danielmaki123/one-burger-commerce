@@ -44,6 +44,19 @@ export function formatCashDifference(
 }
 
 /**
+ * Un monto con su signo, para los totales de un día o de una sucursal (Bloques 11.5/11.6): `+C$25.00`,
+ * `-C$100.00` y `C$0.00` cuando cuadra —un `+C$0.00` se lee como una sobra que no existe—.
+ */
+export function formatSignedAmount(
+  value: number,
+  formatAmount: (value: number) => string,
+): string {
+  if (value === 0) return formatAmount(0);
+
+  return `${value > 0 ? "+" : "-"}${formatAmount(Math.abs(value))}`;
+}
+
+/**
  * Un turno cerrado sin conteo cargado no se puede auditar: se dice, no se inventa un 0. El arqueo
  * ciego guarda el esperado y deja la diferencia sin calcular hasta que alguien cuente.
  */

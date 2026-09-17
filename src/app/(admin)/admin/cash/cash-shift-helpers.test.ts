@@ -6,6 +6,7 @@ import {
   formatCashDifference,
   formatShiftDate,
   formatShiftDateTime,
+  formatSignedAmount,
   getCashDifferenceTone,
   isShiftPendingCount,
   summarizeShifts,
@@ -114,5 +115,19 @@ describe("cash shift helpers", () => {
     // No se contó en euros: no es 0, es que no hay dato.
     expect(countsTotalOf(counts, "EUR", "closing")).toBeNull();
     expect(countsTotalOf([], "NIO", "closing")).toBeNull();
+  });
+
+  /**
+   * Bloque 11.5/11.6 del roadmap del POS (Fase 2) — el signo de los totales del día.
+   *
+   * El cierre del día consolidado y la comparación entre sucursales muestran diferencias sumadas, no un
+   * turno: un cero se muestra como `C$0.00` (cuadra) y no como `+C$0.00`, que se lee como una sobra.
+   */
+  it("formatea un monto con su signo y deja el cero sin signo", () => {
+    const format = (value: number) => `C$${value.toFixed(2)}`;
+
+    expect(formatSignedAmount(-100, format)).toBe("-C$100.00");
+    expect(formatSignedAmount(25, format)).toBe("+C$25.00");
+    expect(formatSignedAmount(0, format)).toBe("C$0.00");
   });
 });

@@ -6,6 +6,7 @@ import { requireAdminSession } from "@/modules/auth/features/require-admin-sessi
 
 import { AdminPageHeader } from "../_components/admin-operational-ui";
 import CashClient from "./cash-client";
+import DayClosePanel from "./day-close-panel";
 
 /**
  * Bloque 1.3 del roadmap del POS (Fase 2) — la caja del día.
@@ -33,6 +34,10 @@ export default async function AdminCashPage() {
         title="Caja del día"
         description="Los turnos cerrados, con lo contado, lo esperado y la diferencia. La caja se abre y se cierra desde el POS."
       />
+
+      {/* Bloque 11.5/11.6 del roadmap del POS (Fase 2): el día consolidado de todas las sucursales del
+          alcance, arriba del historial por sucursal. */}
+      <DayClosePanel locations={locations.map(({ id, name }) => ({ id, name }))} />
 
       <CashClient locations={locations.map(({ id, name }) => ({ id, name }))} />
     </div>

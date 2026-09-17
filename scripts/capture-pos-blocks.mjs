@@ -51,6 +51,14 @@ try {
     await page.waitForTimeout(600);
     await shot(page, "bloque-8-caja-del-dia", viewport.name);
 
+    // Bloque 11.5/11.6: el cierre del día consolidado (todas las sucursales del alcance) y la
+    // comparación por sucursal, arriba del historial.
+    await page.evaluate(() => {
+      document.querySelector('[aria-label="Cierre del día"]')?.scrollIntoView({ block: "start" });
+    });
+    await page.waitForTimeout(400);
+    await shot(page, "bloque-11-cierre-del-dia", viewport.name);
+
     // Bloque 1.4: el detalle de un cierre (el server component que fallaba en runtime).
     const shiftId = await firstShiftId(page);
     if (!shiftId) throw new Error("no hay turnos en la base local para el detalle");

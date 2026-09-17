@@ -72,6 +72,35 @@ test.describe("caja del día", () => {
     expect(overflow).toBeLessThanOrEqual(1);
   });
 
+  test("el cierre del día consolida las sucursales (11.5/11.6)", async ({ page }) => {
+    await loginAsOwner(page);
+
+    // El panel es un server component que lee **todas** las sucursales del alcance: si fallara al
+    // resolver el día del negocio o el repositorio, la pantalla no se dibujaría.
+    await page.setViewportSize({ width: 375, height: 812 });
+    await page.goto("/admin/cash");
+
+    const cierreDelDia = page.getByRole("region", { name: "Cierre del día" });
+    await expect(cierreDelDia).toBeVisible();
+    await expect(cierreDelDia.getByRole("heading", { name: "Cierre del día" })).toBeVisible();
+
+    // 11.6: la comparación, una fila por sucursal. Se muestra siempre (una sucursal sin turnos va con
+    // ceros), así que la comparación no desaparece justo el día que nadie vendió.
+    const comparacion = cierreDelDia.getByRole("list", { name: "Comparación por sucursal" });
+    await expect(comparacion).toBeVisible();
+    await expect(comparacion.getByRole("listitem").first()).toContainText("Efectivo");
+
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      ),
+    ).toBeLessThanOrEqual(1);
+
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await expect(cierreDelDia).toBeVisible();
+    await expect(page.getByText("A server error occurred")).toHaveCount(0);
+  });
+
   test("el detalle de un cierre se abre con su arqueo y su conteo", async ({ page }) => {
     await loginAsOwner(page);
     const shiftId = await firstShiftId(page);
