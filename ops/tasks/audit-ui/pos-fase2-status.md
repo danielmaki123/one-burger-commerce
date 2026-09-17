@@ -40,6 +40,12 @@
 | **3** | Modelo `Refund` (total/parcial, estado, medio original, firma), resta al arqueo solo lo **aprobado en efectivo**, casos de uso `requestRefund`/`reviewRefund` (no se devuelve más de lo cobrado; nadie firma su propia devolución), **void del cobro** (devolución total), **cancelar un pedido cobrado deja la devolución pendiente y avisa** (A-15) y `/admin/approvals` con la cola real | `32a8eb1`, `7f60017`, `3a9fb82` | `bloque-3-aprobaciones-*.png` |
 | **4** | Transferencia y **cobro partido** en el POS: el payload acepta efectivo, tarjeta, transferencia y otro (con referencia), la pantalla arma N cobros y el vuelto **solo** existe en un cobro único en efectivo | `ace1428` | (sin captura: la UI del POS ya está en `bloque-9-*.png`) |
 | **7** | `canRefund` y `canViewCashHistory` como puertas propias (con `canManageCash`), cada ruta y cada página usando la suya | `e9d1fa7` | — |
+| **10.1** | **Ticket de cocina**: `kitchen-ticket.ts` (puro, sin importes, con la hora prometida en la zona del negocio y los modificadores) y «Ticket de cocina» en el POS, impreso con la hoja del sistema | `917f434` | (sin captura: es una ventana del navegador) |
+
+**Bloque 10 — lo que falta y su motivo**: 10.2/10.4 (ticket de cliente y reimpresión desde el detalle)
+son superficie nueva sobre lo mismo; **10.3** (impresión separada por estación) necesita que el owner
+diga **qué estaciones** existen —hoy no hay ese concepto en el modelo—; **10.5** (cola de reintentos)
+solo tiene sentido con una impresora de red, que se descartó a propósito.
 
 **Bloque 7.3 (`helper E2E acepta cashier`)**: pendiente. El helper de E2E solo crea sesión de owner
 (`tryLoginAsOwner`); sumar `cashier` pide crear la cuenta y asignarle sucursal en la misma corrida, que
