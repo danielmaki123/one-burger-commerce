@@ -830,10 +830,20 @@ export default function PosClient({ locations }: { locations: PosLocationOption[
                 onChange={(event) => setPaidAmount(event.target.value)}
               />
 
+              {!shift && !shiftLoading ? (
+                <p
+                  role="status"
+                  className="rounded-stitch-lg border border-status-prep-border bg-status-prep-bg px-3 py-2 text-st-body text-status-prep-text"
+                >
+                  Abrí la caja para poder cobrar: un cobro con la caja cerrada no entra a ningún
+                  arqueo.
+                </p>
+              ) : null}
+
               <Button
                 type="button"
                 className="min-h-12 w-full"
-                disabled={charging}
+                disabled={charging || !shift}
                 onClick={() => void charge()}
               >
                 {charging ? ("Cobrando…") : (<>Cobrar <span className="font-mono">{formatCurrency(totals.total, currency)}</span></>)}

@@ -50,7 +50,10 @@ function draftWithTaco(): PosDraft {
   });
 }
 
-function setup(createPosOrder = vi.fn(async () => order())) {
+function setup(
+  createPosOrder = vi.fn(async () => order()),
+  findOpenShift: () => Promise<{ id: string } | null> = async () => ({ id: "shift_01" }),
+) {
   const paymentRepository = new InMemoryPaymentRepository();
 
   return {
@@ -61,6 +64,7 @@ function setup(createPosOrder = vi.fn(async () => order())) {
       paymentRepository,
       businessCurrencyCode: "NIO",
       usdExchangeRate: 36.5,
+      findOpenShift,
     },
   };
 }
@@ -68,6 +72,27 @@ function setup(createPosOrder = vi.fn(async () => order())) {
 const customer = { name: "Cliente Mostrador", whatsapp: "88887777", email: "cliente@ejemplo.com" };
 
 describe("venta de mostrador", () => {
+  /**
+   * Bloque 9.2 del roadmap del POS (Fase 2) — sin caja abierta no se cobra.
+   *
+   * Un cobro con la caja cerrada se registraba igual: el `Payment` quedaba en la base y el turno que
+   * lo explica no existía, así que esa plata no entraba a ningún arqueo. Ahora corta **antes** de
+   * crear el pedido, con el motivo en español que la pantalla muestra.
+   */
+  it("sin caja abierta no cobra y no crea el pedido", async () => {
+    const { createPosOrder, paymentRepository, deps } = setup(undefined, async () => null);
+
+    await expect(
+      registerPosSale(
+        { draft: draftWithTaco(), customer, payments: [{ method: "cash", currency: "NIO", amount: 80 }] },
+        deps,
+      ),
+    ).rejects.toMatchObject({ status: 409, code: "CONFLICT" });
+
+    expect(createPosOrder).not.toHaveBeenCalled();
+    expect(await paymentRepository.listPaymentsByOrder("ord_01")).toHaveLength(0);
+  });
+
   it("crea el pedido con el cliente y el correo, y registra el cobro en córdobas", async () => {
     const { createPosOrder, paymentRepository, deps } = setup();
 

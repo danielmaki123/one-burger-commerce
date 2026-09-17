@@ -3,6 +3,8 @@ import { loadBusinessSettings } from "@/modules/business-settings/features/get-p
 import { PrismaLocationRepository } from "@/modules/locations/adapters/prisma-location-repository";
 import { PrismaOrderRepository } from "@/modules/orders/adapters/prisma-order-repository";
 import { PrismaPaymentRepository } from "@/modules/orders/adapters/prisma-payment-repository";
+import { PrismaShiftRepository } from "@/modules/orders/adapters/prisma-shift-repository";
+import { getCurrentShift } from "@/modules/orders/features/shift/get-current-shift";
 import {
   createOrder,
   type CreateOrderRequest,
@@ -26,6 +28,7 @@ export async function createProductionPosSaleDependencies(): Promise<RegisterPos
   });
   const repository = new PrismaOrderRepository();
   const locationRepository = new PrismaLocationRepository();
+  const shiftRepository = new PrismaShiftRepository();
 
   return {
     // `createOrder` devuelve `{ data, meta }`: acá se desempaqueta para que el POS trabaje con el
@@ -41,5 +44,8 @@ export async function createProductionPosSaleDependencies(): Promise<RegisterPos
     paymentRepository: new PrismaPaymentRepository(),
     businessCurrencyCode: settings.currencyCode,
     usdExchangeRate: settings.usdExchangeRate,
+    // Bloque 9.2: sin caja abierta no se cobra (`registerPosSale` corta con 409).
+    findOpenShift: async (locationId) =>
+      (await getCurrentShift({ locationId }, { shiftRepository })).data,
   };
 }

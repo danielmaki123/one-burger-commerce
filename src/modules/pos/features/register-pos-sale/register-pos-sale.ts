@@ -42,6 +42,14 @@ export type RegisterPosSaleDependencies = {
   paymentRepository: PaymentRepository;
   businessCurrencyCode: string;
   usdExchangeRate: number | null;
+  /**
+   * Bloque 9.2 del roadmap del POS (Fase 2) — la caja abierta del local, si hay.
+   *
+   * Un cobro con la caja cerrada **no entra a ningún arqueo**: se registra el `Payment` y el turno
+   * que lo explica no existe. Antes se permitía (con un aviso en pantalla) y la plata quedaba fuera
+   * del control; ahora es un 409 con el motivo, y el mostrador lo dice antes de cobrar.
+   */
+  findOpenShift?: (locationId: string) => Promise<{ id: string } | null>;
 };
 
 export type RegisterPosSaleResult = {
@@ -57,6 +65,16 @@ export async function registerPosSale(
   deps: RegisterPosSaleDependencies,
 ): Promise<RegisterPosSaleResult> {
   assertPosDraftReady(input.draft);
+
+  // Bloque 9.2 — sin caja abierta no se cobra: el cobro no tendría arqueo que lo explique.
+  if (deps.findOpenShift) {
+    const openShift = await deps.findOpenShift(input.draft.locationId);
+    if (!openShift) {
+      throw new PosError(409, "CONFLICT", "Abrí la caja antes de cobrar.", {
+        shift: "No hay una caja abierta en este local.",
+      });
+    }
+  }
 
   const paidInBusinessCurrency = paymentsTotalInBusinessCurrency({
     payments: input.payments,

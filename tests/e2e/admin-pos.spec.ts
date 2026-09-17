@@ -31,6 +31,42 @@ async function addFirstProduct(page: Page) {
 }
 
 /**
+ * Bloque 9.2 — deja la caja abierta antes de cobrar.
+ *
+ * Desde ese bloque el cobro **exige** un turno abierto (un cobro con la caja cerrada no entra a
+ * ningún arqueo y el servidor lo rechaza con 409). Primero se pregunta si ya hay una caja abierta
+ * por API —para no abrir una segunda, que el índice único de la base rechaza— y, si no la hay, se
+ * abre contando cero desde la propia pantalla. Es idempotente: el caso que cobra puede correr antes
+ * o después del caso que abre y cierra.
+ */
+async function ensureOpenShift(page: Page) {
+  const abierta = await page.evaluate(async () => {
+    const locationsResponse = await fetch("/api/admin/locations", { cache: "no-store" });
+    const locations = ((await locationsResponse.json()) as {
+      data: Array<{ id: string; posEnabled: boolean }>;
+    }).data.filter((location) => location.posEnabled);
+
+    for (const location of locations) {
+      const shiftResponse = await fetch(
+        `/api/admin/pos/shift?locationId=${encodeURIComponent(location.id)}`,
+        { cache: "no-store" },
+      );
+      const shift = ((await shiftResponse.json()) as { data?: { id: string } | null }).data;
+      if (shift) return true;
+    }
+
+    return false;
+  });
+
+  if (abierta) return;
+
+  // El bloque de arqueo arranca plegado (§6 del sistema): primero se despliega, después se abre.
+  await page.getByRole("button", { name: /Apertura \/ Arqueo/ }).click();
+  await page.getByRole("button", { name: "Abrir caja" }).click();
+  await expect(page.getByText(/Caja abierta · fondo/)).toBeVisible();
+}
+
+/**
  * TASK-308 — prende o apaga el punto de venta en **todos** los locales que hagan falta.
  *
  * Se recorre la pantalla real (la ficha del local, que es donde el owner lo hace) y se devuelven los
@@ -129,6 +165,7 @@ test.describe("punto de venta", () => {
 
     await loginAsOwner(page);
     await page.goto("/admin/pos");
+    await ensureOpenShift(page);
     await addFirstProduct(page);
 
     // Se paga el doble del total mostrado, para que haya cambio que verificar.

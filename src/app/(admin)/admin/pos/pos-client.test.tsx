@@ -100,6 +100,20 @@ async function fillCustomer(user: ReturnType<typeof userEvent.setup>) {
   await user.type(screen.getByLabelText("Número del cliente"), "88887777");
 }
 
+/**
+ * Bloque 9.2 — abre la caja desde la pantalla, como hace el cajero al empezar el turno.
+ *
+ * El mock de `fetch` responde `{ data: null }` para la caja abierta (el estado de partida del local),
+ * y el POST de apertura devuelve el turno con su fondo. Sin esto el botón «Cobrar» está deshabilitado
+ * a propósito, porque no se cobra con la caja cerrada.
+ */
+async function abrirCaja(user: ReturnType<typeof userEvent.setup>) {
+  // El arqueo arranca plegado (§6 del sistema): primero se despliega, después se abre la caja.
+  await user.click(await screen.findByRole("button", { name: /Apertura \/ Arqueo/ }));
+  await user.click(await screen.findByRole("button", { name: "Abrir caja" }));
+  await screen.findByText(/Caja abierta · fondo/);
+}
+
 describe("PosClient", () => {
   let fetchMock: ReturnType<typeof vi.fn>;
 
@@ -217,6 +231,10 @@ describe("PosClient", () => {
     const user = userEvent.setup();
     render(<PosClient locations={locations} />);
 
+    // Bloque 9.2: sin caja abierta el cobro está bloqueado (el servidor lo rechaza con 409), así que
+    // la venta arranca abriendo la caja, que es lo que hace el cajero en el local.
+    await abrirCaja(user);
+
     await screen.findByText("Taco de birria");
     await user.click(screen.getByRole("button", { name: "Agregar Taco de birria a la venta" }));
     await fillCustomer(user);
@@ -253,6 +271,7 @@ describe("PosClient", () => {
     const user = userEvent.setup();
     render(<PosClient locations={locations} />);
 
+    await abrirCaja(user);
     await screen.findByText("Taco de birria");
     await user.click(screen.getByRole("button", { name: "Agregar Taco de birria a la venta" }));
     await user.click(screen.getByRole("button", { name: /^Cobrar / }));
@@ -450,6 +469,7 @@ describe("PosClient", () => {
     const user = userEvent.setup();
     render(<PosClient locations={locations} />);
 
+    await abrirCaja(user);
     await screen.findByText("Taco de birria");
     await user.click(screen.getByRole("button", { name: "Agregar Taco de birria a la venta" }));
     await fillCustomer(user);
