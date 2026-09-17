@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { requireCashShiftId } from "@/app/api/admin/cash/cash-route-helpers";
-import { canManageCash } from "@/modules/auth/domain/admin-permissions";
+import { canRefund } from "@/modules/auth/domain/admin-permissions";
 import { requireAdminSession } from "@/modules/auth/features/require-admin-session/require-admin-session";
 import { PrismaPaymentRepository } from "@/modules/orders/adapters/prisma-payment-repository";
 import { PrismaRefundRepository } from "@/modules/orders/adapters/prisma-refund-repository";
@@ -31,7 +31,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       {
         ...payload,
         requestedByUserId: session.user.id,
-        canApprove: canManageCash(session.user.role),
+        canApprove: canRefund(session.user.role),
         locationId,
       },
       {

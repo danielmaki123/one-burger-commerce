@@ -1,4 +1,4 @@
-import { canManageCash } from "@/modules/auth/domain/admin-permissions";
+import { canManageCash, canRefund, canViewCashHistory } from "@/modules/auth/domain/admin-permissions";
 import { AuthError } from "@/modules/auth/domain/auth-errors";
 import type { AdminRole } from "@/modules/auth/domain/admin-role";
 import { requireAdminSession } from "@/modules/auth/features/require-admin-session/require-admin-session";
@@ -25,6 +25,26 @@ import { createErrorResponse } from "@/shared/lib/http/error-response";
  */
 export function assertCanManageCash(role: AdminRole): void {
   if (!canManageCash(role)) {
+    throw new AuthError(403, "FORBIDDEN", "Insufficient permissions");
+  }
+}
+
+/**
+ * Bloque 7.2 del roadmap del POS (Fase 2) — las dos puertas que el Bloque 7 separa de administrar.
+ *
+ * Las devoluciones (`canRefund`) y el historial (`canViewCashHistory`) tienen su propio assert para que
+ * las rutas digan **qué** permiso les falta y no dependan del nombre de la guarda de la caja. Hoy los
+ * tres devuelven lo mismo (dueño y manager); separarlos deja la puerta lista para cuando el owner
+ * quiera que un encargado vea el historial sin poder devolver.
+ */
+export function assertCanRefund(role: AdminRole): void {
+  if (!canRefund(role)) {
+    throw new AuthError(403, "FORBIDDEN", "Insufficient permissions");
+  }
+}
+
+export function assertCanViewCashHistory(role: AdminRole): void {
+  if (!canViewCashHistory(role)) {
     throw new AuthError(403, "FORBIDDEN", "Insufficient permissions");
   }
 }

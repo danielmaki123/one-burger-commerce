@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
 import { requireCashScope } from "@/app/api/admin/cash/cash-route-helpers";
-import { canManageCash } from "@/modules/auth/domain/admin-permissions";
+import { canViewCashHistory } from "@/modules/auth/domain/admin-permissions";
 import { loadBusinessSettings } from "@/modules/business-settings/features/get-public-business-settings/get-public-business-settings";
 import { PrismaBusinessSettingsRepository } from "@/modules/business-settings/adapters/prisma-business-settings-repository";
 import { requireAdminSession } from "@/modules/auth/features/require-admin-session/require-admin-session";
@@ -51,7 +51,7 @@ export default async function AdminCashShiftDetailPage({
 }) {
   const session = await requireAdminSession();
 
-  if (!canManageCash(session.user.role)) {
+  if (!canViewCashHistory(session.user.role)) {
     redirect("/admin/orders");
   }
 

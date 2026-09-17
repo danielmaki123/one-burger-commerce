@@ -71,6 +71,28 @@ export function canManageCash(role: AdminRole) {
   return role === ADMIN_ROLES.owner || role === ADMIN_ROLES.manager;
 }
 
+/**
+ * Bloque 7.1 del roadmap del POS (Fase 2) — **devolver plata**.
+ *
+ * Es la puerta de las devoluciones y de la bandeja de aprobaciones: firmar una devolución es decidir
+ * que la plata sale del cajón. Hoy coincide con `canManageCash` (owner y manager), pero es una función
+ * propia a propósito: separarlas permite que un encargado administre la caja sin poder devolver, y el
+ * cajero no devuelve ni se aprueba a sí mismo.
+ */
+export function canRefund(role: AdminRole) {
+  return role === ADMIN_ROLES.owner || role === ADMIN_ROLES.manager;
+}
+
+/**
+ * Bloque 7.1 del roadmap del POS (Fase 2) — **ver el historial de cierres**.
+ *
+ * Auditar el arqueo de los turnos cerrados. También coincide hoy con `canManageCash`, y también es
+ * propia: mirar el historial no tiene por qué venir con el poder de mover plata.
+ */
+export function canViewCashHistory(role: AdminRole) {
+  return role === ADMIN_ROLES.owner || role === ADMIN_ROLES.manager;
+}
+
 export function canViewDashboardSummary(role: AdminRole) {
   return role === ADMIN_ROLES.owner;
 }

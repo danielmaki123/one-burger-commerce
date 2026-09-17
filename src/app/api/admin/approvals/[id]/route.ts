@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { canManageCash } from "@/modules/auth/domain/admin-permissions";
+import { canRefund } from "@/modules/auth/domain/admin-permissions";
 import { AuthError } from "@/modules/auth/domain/auth-errors";
 import { requireAdminSession } from "@/modules/auth/features/require-admin-session/require-admin-session";
 import { PrismaRefundRepository } from "@/modules/orders/adapters/prisma-refund-repository";
@@ -19,7 +19,7 @@ import { parseRefundReviewPayload } from "../refunds-payload";
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await requireAdminSession();
-    if (!canManageCash(session.user.role)) {
+    if (!canRefund(session.user.role)) {
       throw new AuthError(403, "FORBIDDEN", "Insufficient permissions");
     }
 

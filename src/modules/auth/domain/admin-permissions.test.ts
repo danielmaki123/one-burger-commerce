@@ -9,7 +9,9 @@ import {
   canManageOrderOperations,
   canManagePromotions,
   canManageUsers,
+  canRefund,
   canUsePOS,
+  canViewCashHistory,
   canViewDashboardSummary,
   canViewOutboxEvents,
 } from "@/modules/auth/domain/admin-permissions";
@@ -105,5 +107,27 @@ describe("admin permissions", () => {
     expect(canManageCash(ADMIN_ROLES.manager)).toBe(true);
     expect(canManageCash(ADMIN_ROLES.cashier)).toBe(false);
     expect(canManageCash(ADMIN_ROLES.kitchen)).toBe(false);
+  });
+
+  /**
+   * Bloque 7.1 del roadmap del POS (Fase 2) — devolver plata y auditar la caja son **dos permisos
+   * distintos** de administrarla.
+   *
+   * `canManageCash` habilita abrir, cerrar, mover plata y reabrir un turno. Devolver un cobro
+   * (`canRefund`) y ver el historial de cierres (`canViewCashHistory`) son puertas propias: hoy las
+   * tres responden lo mismo (owner y manager), pero separarlas permite, por ejemplo, que un encargado
+   * vea el historial sin poder devolver. El cajero no tiene ninguna de las tres: no se audita ni se
+   * devuelve a sí mismo.
+   */
+  it("devolver y ver el historial son permisos propios (Bloque 7.1)", () => {
+    expect(canRefund(ADMIN_ROLES.owner)).toBe(true);
+    expect(canRefund(ADMIN_ROLES.manager)).toBe(true);
+    expect(canRefund(ADMIN_ROLES.cashier)).toBe(false);
+    expect(canRefund(ADMIN_ROLES.kitchen)).toBe(false);
+
+    expect(canViewCashHistory(ADMIN_ROLES.owner)).toBe(true);
+    expect(canViewCashHistory(ADMIN_ROLES.manager)).toBe(true);
+    expect(canViewCashHistory(ADMIN_ROLES.cashier)).toBe(false);
+    expect(canViewCashHistory(ADMIN_ROLES.kitchen)).toBe(false);
   });
 });

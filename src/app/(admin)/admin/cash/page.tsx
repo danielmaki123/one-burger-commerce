@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 
 import { requireCashScope } from "@/app/api/admin/cash/cash-route-helpers";
-import { canManageCash } from "@/modules/auth/domain/admin-permissions";
+import { canViewCashHistory } from "@/modules/auth/domain/admin-permissions";
 import { requireAdminSession } from "@/modules/auth/features/require-admin-session/require-admin-session";
 
 import { AdminPageHeader } from "../_components/admin-operational-ui";
@@ -11,13 +11,13 @@ import CashClient from "./cash-client";
  * Bloque 1.3 del roadmap del POS (Fase 2) — la caja del día.
  *
  * Es la pantalla de **control**, no la del mostrador: la caja se abre y se cierra en `/admin/pos`, y
- * acá se audita lo que quedó. El permiso es `canManageCash` (dueño y manager): el cajero no revisa su
+ * acá se audita lo que quedó. El permiso es `canViewCashHistory` (dueño y manager): el cajero no revisa su
  * propio turno.
  */
 export default async function AdminCashPage() {
   const session = await requireAdminSession();
 
-  if (!canManageCash(session.user.role)) {
+  if (!canViewCashHistory(session.user.role)) {
     redirect("/admin/orders");
   }
 

@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-import { canManageCash } from "@/modules/auth/domain/admin-permissions";
+import { canRefund } from "@/modules/auth/domain/admin-permissions";
 import { requireAdminSession } from "@/modules/auth/features/require-admin-session/require-admin-session";
 import { PrismaRefundRepository } from "@/modules/orders/adapters/prisma-refund-repository";
 
@@ -17,7 +17,7 @@ import ApprovalsClient from "./approvals-client";
 export default async function AdminApprovalsPage() {
   const session = await requireAdminSession();
 
-  if (!canManageCash(session.user.role)) {
+  if (!canRefund(session.user.role)) {
     redirect("/admin/orders");
   }
 
