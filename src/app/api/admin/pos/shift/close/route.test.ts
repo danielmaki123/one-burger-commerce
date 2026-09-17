@@ -55,6 +55,30 @@ vi.mock("@/app/api/admin/audit-action-helpers", () => ({
   shiftCloseAudit: (input: unknown) => shiftCloseAuditMock(input),
 }));
 
+const registerDifferenceAlertMock = vi.fn();
+
+vi.mock("@/modules/notifications/features/register-alert-event/register-alert-event", () => ({
+  registerDifferenceAlert: (input: unknown, deps: unknown) =>
+    registerDifferenceAlertMock(input, deps),
+}));
+
+vi.mock("@/modules/notifications/adapters/prisma-notification-settings-repository", () => ({
+  PrismaNotificationSettingsRepository: class {},
+}));
+vi.mock("@/modules/notifications/adapters/prisma-outbox-repository", () => ({
+  PrismaOutboxRepository: class {},
+}));
+
+vi.mock("@/modules/pos/adapters/production-pos-location", () => ({
+  createProductionPosLocationDependencies: () => ({
+    repository: {
+      listLocations: async () => [
+        { id: "loc_principal", name: "Camino de Oriente" },
+      ],
+    },
+  }),
+}));
+
 const closedShift = {
   id: "shift_01",
   locationId: "loc_principal",
@@ -100,8 +124,45 @@ describe("POST /api/admin/pos/shift/close", () => {
     });
   });
 
-  it("sin caja abierta no se firma nada: 409 del caso de uso", async () => {
-    closePosShiftMock.mockRejectedValue(
+  /**
+   * Tarea 4 del brief (alertas Telegram): una diferencia de caja avisa al dueño, con el **nombre** de la
+   * sucursal —el dueño lee el mensaje, no el id— y solo cuando hay una diferencia que contar.
+   */
+  it("la diferencia deja el aviso registrado con el nombre de la sucursal", async () => {
+    const { POST } = await import("./route");
+
+    await POST(post());
+
+    expect(registerDifferenceAlertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        shiftId: "shift_01",
+        locationName: "Camino de Oriente",
+        difference: -100,
+      }),
+      expect.anything(),
+    );
+  });
+
+  it("una caja que cuadra no registra aviso", async () => {
+    closePosShiftMock.mockResolvedValue({
+      data: { ...closedShift, closingAmount: 1500, difference: 0 },
+    });
+
+    const { POST } = await import("./route");
+    await POST(post());
+
+    expect(registerDifferenceAlertMock).not.toHaveBeenCalled();
+  });
+
+  it("si el registro del aviso falla, el cierre igual responde 200 (no bloquea la operación)", async () => {
+    registerDifferenceAlertMock.mockRejectedValue(new Error("la base de alertas no responde"));
+
+    const { POST } = await import("./route");
+
+    expect((await POST(post())).status).toBe(200);
+  });
+
+  it("sin caja abierta no se firma nada: 409 del caso de uso", async () => {    closePosShiftMock.mockRejectedValue(
       new PosError(409, "CONFLICT", "No hay una caja abierta en este local."),
     );
 

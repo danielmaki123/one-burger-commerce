@@ -46,6 +46,27 @@ vi.mock("@/app/api/admin/audit-action-helpers", () => ({
   refundRequestAudit: (input: unknown) => refundRequestAuditMock(input),
 }));
 
+const registerRefundAlertMock = vi.fn();
+
+vi.mock("@/modules/notifications/features/register-alert-event/register-alert-event", () => ({
+  registerRefundAlert: (input: unknown, deps: unknown) => registerRefundAlertMock(input, deps),
+}));
+
+vi.mock("@/modules/notifications/adapters/prisma-notification-settings-repository", () => ({
+  PrismaNotificationSettingsRepository: class {},
+}));
+vi.mock("@/modules/notifications/adapters/prisma-outbox-repository", () => ({
+  PrismaOutboxRepository: class {},
+}));
+
+vi.mock("@/modules/orders/adapters/prisma-order-repository", () => ({
+  PrismaOrderRepository: class {
+    async findOrderById() {
+      return { id: "order_01", orderNumber: "P-1042" };
+    }
+  },
+}));
+
 const params = Promise.resolve({ id: "shift_01" });
 
 function post(body: unknown) {
@@ -148,5 +169,29 @@ describe("POST /api/admin/cash/shifts/[id]/refunds", () => {
     const response = await POST(post(validBody), { params });
 
     expect(response.status).toBe(404);
+  });
+
+  /**
+   * Tarea 8 del brief (alertas Telegram): la devolución queda registrada para el aviso con el **número** de
+   * pedido (el dueño lee el mensaje, no el cuid de la base). El umbral lo aplica el caso de uso de alertas.
+   */
+  it("la devolución deja el aviso registrado con el número de pedido", async () => {
+    const { POST } = await import("./route");
+
+    await POST(post(validBody), { params });
+
+    expect(registerRefundAlertMock).toHaveBeenCalledWith(
+      expect.objectContaining({ orderNumber: "P-1042", amount: 200 }),
+      expect.anything(),
+    );
+  });
+
+  it("si el registro del aviso falla, la devolución igual responde 201 (no bloquea la operación)", async () => {
+    registerRefundAlertMock.mockRejectedValue(new Error("la base de alertas no responde"));
+
+    const { POST } = await import("./route");
+    const response = await POST(post(validBody), { params });
+
+    expect(response.status).toBe(201);
   });
 });

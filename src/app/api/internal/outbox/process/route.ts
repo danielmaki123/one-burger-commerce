@@ -11,6 +11,13 @@ import { registerOutboxEventBusHandlers } from "@/modules/notifications/adapters
 import { processOutboxEvents } from "@/modules/notifications/features/process-outbox-events/process-outbox-events";
 import { createErrorResponse } from "@/shared/lib/http/error-response";
 
+import { sweepStaleShiftAlertsSafe } from "../alerts-sweep";
+import {
+  parseAllowedEventTypes as parseProcessorEventTypes,
+  parseIntEnv as parseProcessorInt,
+  parseMinCreatedAt as parseProcessorMinCreatedAt,
+} from "../processor-config";
+
 function tokenMatches(expected: string, provided: string) {
   const a = Buffer.from(expected, "utf8");
   const b = Buffer.from(provided, "utf8");
@@ -23,31 +30,15 @@ function tokenMatches(expected: string, provided: string) {
 }
 
 function parseIntEnv(raw: string | undefined, fallback: number): number {
-  if (!raw) return fallback;
-  const n = Number.parseInt(raw, 10);
-  return Number.isNaN(n) ? fallback : n;
+  return parseProcessorInt(raw, fallback);
 }
 
 function parseAllowedEventTypes(raw: string | undefined): string[] | undefined {
-  if (!raw) return undefined;
-
-  const eventTypes = raw
-    .split(",")
-    .map((value) => value.trim())
-    .filter(Boolean);
-
-  return eventTypes.length > 0 ? eventTypes : undefined;
+  return parseProcessorEventTypes(raw);
 }
 
 function parseMinCreatedAt(raw: string | undefined): string | undefined {
-  if (!raw) return undefined;
-
-  const date = new Date(raw);
-  if (Number.isNaN(date.getTime())) {
-    throw new Error("OUTBOX_PROCESSOR_MIN_CREATED_AT_INVALID");
-  }
-
-  return date.toISOString();
+  return parseProcessorMinCreatedAt(raw);
 }
 
 function assertProcessorGuards(request: Request) {
@@ -119,6 +110,10 @@ export async function POST(request: Request) {
     assertProcessorGuards(request);
 
     registerOutboxEventBusHandlers();
+
+    // Tarea 1.8 del brief: se registran los avisos de cajas abiertas >24 h antes de procesar la cola.
+    // El barrido es best-effort: si falla, el procesamiento sigue.
+    await sweepStaleShiftAlertsSafe();
 
     const repository = new PrismaOutboxRepository();
     const sender = createNotificationSenderFromEnv();

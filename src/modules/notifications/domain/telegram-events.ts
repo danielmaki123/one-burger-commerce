@@ -25,7 +25,8 @@ export const TELEGRAM_EVENT_DESCRIPTIONS: Record<TelegramEvent, string> = {
   shift_open_over_24h: "Una caja quedó abierta más de un día sin cerrarse.",
   refund_over_threshold: "Una devolución supera el monto que definiste.",
   cash_difference_over_threshold: "Un cierre quedó con diferencia por encima del monto que definiste.",
-  day_close_summary: "Un resumen del día con la plata de todas las sucursales.",
+  // Honestidad con el estado real: se puede dejar elegido, pero el resumen todavía no se dispara solo.
+  day_close_summary: "Un resumen del día con la plata de todas las sucursales (todavía no se dispara solo).",
 };
 
 export function isTelegramEvent(value: unknown): value is TelegramEvent {
