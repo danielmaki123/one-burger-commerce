@@ -62,7 +62,7 @@
 
 | **12.3 + 12.4** | **La venta en curso no se pierde y sin red no se cobra**: `usePosDraft` + `pos-draft-storage.ts` (la venta se guarda en el dispositivo y se recupera al montar; de un solo local; vaciarla la borra) y `useOnlineStatus` con el cobro bloqueado y explicado cuando no hay red | `58f0b03` | `bloque-12-sin-conexion-*.png`, `bloque-12-venta-recuperada-*.png` |
 | **6** | **Dólares — cerrado**: el saldo por moneda se **persiste** al cerrar (`Shift.expectedByCurrency` + `cashSalesAmount`, Bloque 1.1) y se muestra en el detalle; sin arrastre automático entre turnos, por diseño | `7ff20e0`, `fcc0691` | `bloque-1-cierre-detalle-*.png` |
-| **1.6** | **Comprobante de cierre (DIFERENTE)**: no hay PDF generado en el servidor; el cierre se imprime o se guarda como PDF desde la hoja del sistema (`shift-close-sheet.ts` + «Imprimir cierre», Bloque 13.3) | `d2a06f3` | `bloque-13-hoja-cierre-impresa-*.png` |
+| **1.6** | **Comprobante de cierre — cerrado por decisión del owner (2026-09-17)**: se queda como está (DIFERENTE): no hay PDF generado en el servidor; el cierre se imprime o se guarda como PDF desde la hoja del sistema (`shift-close-sheet.ts` + «Imprimir cierre», Bloque 13.3) | `d2a06f3` | `bloque-13-hoja-cierre-impresa-*.png` |
 | **Alertas Telegram** (Parte 3 del brief del 2026-09-17) | **Sección nueva**: tabla `NotificationSettings` (chat, eventos, umbrales, último envío/error), gateway propio contra `api.telegram.org` (fetch nativo, sin dependencias, con el token **solo** por entorno y los motivos de fallo traducidos), casos de uso (leer, guardar, **probar conexión real**), rutas `GET/PATCH /api/admin/settings/notifications` + `POST …/test` (solo owner) y la pantalla `/admin/settings/notifications` | `516b2d5`, `733c87e`, `a018581` | `alertas-telegram-*.png` |
 | **Tarea 1 del brief** (2026-09-17) | **POS limpio, caja aparte**: el arqueo salió del POS (`pos-client.tsx` 1029 → 870 líneas, con el estado de la caja y el enlace) y vive en `/admin/cash` (`cash-drawer-panel.tsx`), con dos mitades y dos permisos: **operar** (`canUsePOS`) y **auditar** (`canViewCashHistory`) | `5871131` | `bloque-8-caja-del-dia-*.png` |
 | **Tarea 2 del brief** | **Límite de retiro configurable y sin aprobación**: `BusinessSettings.withdrawalLimit` + `CashMovement.withdrawalLimitAmount` (el vigente **congelado** al registrar), regla `isOverWithdrawalLimit` (estricta y solo para retiros) y el aviso «Sobre el límite de C$X» en el historial | `a1babfe` | `bloque-2-movimientos-*.png` |
@@ -392,8 +392,8 @@ necesita el **monto** y el canal (hoy no hay notificación externa: `NOTIFICATIO
 **🟡 Importante (operación diaria y cuadre)**
 
 11. **11.2/11.5/11.6** — cuadre de transferencia, cierre del día consolidado y comparativa por sucursal.
-12. **1.5/1.6** — reporte diario consolidado real y PDF del cierre.
-13. **5.1/5.2/5.5** — datos fiscales del negocio y del cliente y flujo de factura editable.
+11. **11.2/11.5/11.6** — cuadre de transferencia, cierre del día consolidado y comparativa por sucursal (**cerrados** el 2026-09-17).
+12. **1.5/1.6** — **cerrados** (2026-09-17): reporte diario **de caja** en `/admin/cash/report` y el PDF del cierre se queda en el navegador (decisión del owner: no se migra a server).
 14. **9.6/9.7** — promos y descuentos manuales en el POS.
 15. **2.4/2.5/2.6** — categoría, límite y aprobación de movimientos.
 16. **3.6/3.7** — `/admin/approvals` y aviso al dueño por devolución grande.
@@ -456,7 +456,7 @@ pago). **Bloques cerrados hasta donde no requiere decisión**: **2** (4/6), **3*
 | Estado | Tareas | Qué significa |
 |---|---|---|
 | **HECHO** | **38** | Funciona en producción y tiene su verificación (tests, E2E y/o captura) |
-| **DIFERENTE / PARCIAL** | **3** | 1.2 (se congela el efectivo del cajón, no el desglose por medio), 1.5 (el reporte diario es de órdenes, no de caja), 1.6 (el cierre se imprime como PDF desde el navegador, no lo genera el servidor) |
+| **DIFERENTE / PARCIAL** | **2** | 1.6 (el cierre se imprime o se guarda como PDF desde el navegador: decisión del owner, no se migra a server) y 10.3/10.5 (impresión por estación y cola de reintentos: sin impresora de red) |
 | **Requiere decisión** | **20** | Están listadas abajo; sin la respuesta no se puede implementar sin inventar producto |
 | **Pendiente de trabajo** | **9** | 7.3 (helper E2E con `cashier`) y 9.1/9.3-9.9 (POS: 9.1 depende de decisión; el resto es 🟢 «no hacer ahora» según la prioridad del propio brief) |
 
