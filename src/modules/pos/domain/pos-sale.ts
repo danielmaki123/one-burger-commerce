@@ -5,6 +5,24 @@ import { convertPaymentToBusinessCurrency } from "./payment-conversion";
 import { PosError } from "./pos-errors";
 
 /**
+ * Bloque 4 del roadmap del POS (Fase 2) — **los medios que el mostrador cobra**, en una sola lista.
+ *
+ * Son los mismos tres lugares a la vez: lo que el cajero elige en pantalla, lo que acepta la API del cobro y
+ * lo que queda guardado cuando la venta pasa a la espera (tareas 9.4/9.5). Estaban escritos tres veces; con
+ * una sola lista no pueden desincronizarse.
+ *
+ * **`mixed` no está y es a propósito**: en el pedido existe —es el resultado de partir el cobro entre dos
+ * medios— pero el cajero no lo elige, lo **deriva** de haber más de un cobro.
+ */
+export const POS_PAYMENT_METHODS = ["cash", "card", "transfer", "other"] as const;
+
+export type PosPaymentMethod = (typeof POS_PAYMENT_METHODS)[number];
+
+export function isPosPaymentMethod(value: unknown): value is PosPaymentMethod {
+  return typeof value === "string" && (POS_PAYMENT_METHODS as readonly string[]).includes(value);
+}
+
+/**
  * TASK-303b — los cobros de una venta de mostrador.
  *
  * Un cobro puede llegar en la moneda del negocio o en dólares, y el arqueo necesita saber **en qué

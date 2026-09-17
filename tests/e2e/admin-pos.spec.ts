@@ -177,6 +177,87 @@ test.describe("punto de venta", () => {
     });
   });
 
+  /**
+   * Tareas 9.4 y 9.5 del roadmap del POS (Fase 2) — la venta en espera, en el navegador de verdad.
+   *
+   * El caso del mostrador: el cliente no está listo y atrás hay otra gente. El cajero deja la venta a un
+   * lado, **el mostrador queda libre** para el próximo (la espera vive en el dispositivo, así que una
+   * recarga no la pierde) y la retoma entera cuando el cliente vuelve. Se cierra probando la confirmación
+   * del descarte, que es lo único que no se deshace: el `<dialog>` nativo solo se comporta en un navegador.
+   */
+  test("el cajero deja la venta en espera y la retoma cuando el cliente vuelve (9.4/9.5)", async ({
+    page,
+  }) => {
+    await loginAsOwner(page);
+    await page.goto("/admin/pos");
+
+    // Una terminal nueva: el borrador que haya dejado otro caso no es de esta venta.
+    await page.evaluate(() => {
+      for (const key of Object.keys(window.localStorage)) {
+        if (key.startsWith("one-burger-pos-")) window.localStorage.removeItem(key);
+      }
+    });
+    await page.reload();
+
+    const venta = page.getByRole("region", { name: "Venta en curso" });
+    const agregar = page.getByRole("button", { name: /^Agregar .+ a la venta$/ }).first();
+    await expect(agregar).toBeVisible();
+    const nombre = (await agregar.getAttribute("aria-label"))!
+      .replace(/^Agregar /, "")
+      .replace(/ a la venta$/, "");
+    await agregar.click();
+    await venta.getByLabel("Nombre del cliente").fill("Espera E2E");
+
+    const espera = venta.getByRole("region", { name: "Ventas en espera" });
+    const guardar = espera.getByRole("button", { name: "Guardar en espera" });
+    const cajaGuardar = await guardar.boundingBox();
+    expect(cajaGuardar!.height).toBeGreaterThanOrEqual(44);
+
+    await guardar.click();
+
+    // El mostrador queda libre para el próximo cliente y la venta espera con lo que llevaba.
+    await expect(
+      venta.getByText("Agregá productos del catálogo para armar la venta."),
+    ).toBeVisible();
+    await expect(venta.getByRole("list", { name: "Ventas en espera" })).toBeVisible();
+    await expect(venta.getByText("Espera E2E")).toBeVisible();
+    await expect(venta.getByText(/^1 producto/)).toBeVisible();
+
+    // Una recarga no la pierde: la espera está en el dispositivo, no en la memoria de la pantalla.
+    await page.reload();
+    await expect(page.getByRole("list", { name: "Ventas en espera" })).toBeVisible();
+    await expect(page.getByText("Espera E2E")).toBeVisible();
+
+    // Retomarla la trae completa (el cliente y su venta).
+    await page.getByRole("button", { name: "Retomar la venta de Espera E2E" }).click();
+    await expect(page.getByRole("list", { name: "Ventas en espera" })).toBeHidden();
+    await expect(page.getByLabel("Nombre del cliente")).toHaveValue("Espera E2E");
+    await expect(
+      page.getByRole("region", { name: "Venta en curso" }).getByText(nombre),
+    ).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Cobrar / })).toBeVisible();
+
+    // Descartar pregunta antes, y deja el mostrador limpio (el caso no ensucia la terminal del siguiente).
+    await page.getByRole("button", { name: "Guardar en espera" }).click();
+    await page.getByRole("button", { name: "Descartar la venta de Espera E2E" }).click();
+    const dialogo = page.getByRole("dialog");
+    await expect(dialogo).toBeVisible();
+
+    // El diálogo sale **centrado** en la pantalla: el modo modal del navegador centra con `margin: auto`
+    // y el reset de Tailwind lo borraba (el aviso aparecía pegado a la esquina del panel).
+    const cajaDialogo = (await dialogo.boundingBox())!;
+    const ancho = page.viewportSize()!.width;
+    expect(Math.abs(cajaDialogo.x + cajaDialogo.width / 2 - ancho / 2)).toBeLessThan(40);
+
+    await page.getByRole("button", { name: "Cancelar" }).click();
+    await expect(page.getByRole("list", { name: "Ventas en espera" })).toBeVisible();
+
+    await page.getByRole("button", { name: "Descartar la venta de Espera E2E" }).click();
+    await page.getByRole("button", { name: "Sí, descartar" }).click();
+    await expect(page.getByText("No hay ventas en espera.")).toBeVisible();
+    expect(await horizontalOverflow(page)).toBeLessThanOrEqual(1);
+  });
+
   test("el cajero cobra la venta y el pedido llega a comandas", async ({ page }) => {
     test.skip(!mutationsAllowed, "Order creation is disabled unless E2E_ALLOW_MUTATIONS=true.");
 

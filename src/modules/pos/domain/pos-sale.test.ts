@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import { PosError } from "./pos-errors";
-import { paymentsTotalInBusinessCurrency, recordedPaymentsTotalInBusinessCurrency } from "./pos-sale";
+import {
+  POS_PAYMENT_METHODS,
+  isPosPaymentMethod,
+  paymentsTotalInBusinessCurrency,
+  recordedPaymentsTotalInBusinessCurrency,
+} from "./pos-sale";
 
 /**
  * TASK-303b — la suma de los cobros de una venta.
@@ -90,5 +95,32 @@ describe("suma de los cobros ya guardados", () => {
 
   it("sin cobros guardados el total es cero (no hay nada que sumar)", () => {
     expect(recordedPaymentsTotalInBusinessCurrency({ ...business, payments: [] })).toBe(0);
+  });
+});
+
+/**
+ * Bloque 4 del roadmap del POS (Fase 2) + tareas 9.4/9.5 — **los medios que el mostrador puede cobrar**.
+ *
+ * Son cuatro y son una sola lista: el mismo cajero los elige en pantalla, viajan en el cobro y son los que
+ * se guardan cuando la venta queda en espera. `mixed` está en el vocabulario del pedido —es el **resultado**
+ * de partir el cobro entre dos medios— y por eso **no** es una opción del POS: si apareciera en una venta en
+ * espera, sería un cobro que la pantalla no puede mostrar ni corregir.
+ */
+describe("los medios de cobro del POS", () => {
+  it("son los cuatro que el cajero puede elegir", () => {
+    expect(POS_PAYMENT_METHODS).toEqual(["cash", "card", "transfer", "other"]);
+  });
+
+  it("acepta los del mostrador y rechaza el mixto y lo que no es un medio", () => {
+    expect(isPosPaymentMethod("cash")).toBe(true);
+    expect(isPosPaymentMethod("card")).toBe(true);
+    expect(isPosPaymentMethod("transfer")).toBe(true);
+    expect(isPosPaymentMethod("other")).toBe(true);
+
+    // `mixed` es un resultado, no una opción; y cualquier otra cosa no es un medio.
+    expect(isPosPaymentMethod("mixed")).toBe(false);
+    expect(isPosPaymentMethod("bitcoin")).toBe(false);
+    expect(isPosPaymentMethod("")).toBe(false);
+    expect(isPosPaymentMethod(null)).toBe(false);
   });
 });

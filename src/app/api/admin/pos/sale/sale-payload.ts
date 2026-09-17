@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { PosError } from "@/modules/pos/domain/pos-errors";
 import type { PosDraft } from "@/modules/pos/domain/pos-draft";
+import { POS_PAYMENT_METHODS } from "@/modules/pos/domain/pos-sale";
 import type {
   RegisterPosSaleInput,
   RegisterPosSaleResult,
@@ -33,8 +34,11 @@ const paymentSchema = z.object({
    * El mostrador cobra efectivo, tarjeta y **transferencia**, y un pedido puede partirse entre varios
    * medios (efectivo + transferencia, dos tarjetas). El `mixed` no se elige acá: se **deriva** de que
    * haya más de un cobro.
+   *
+   * Tareas 9.4/9.5 — la lista sale del dominio (`POS_PAYMENT_METHODS`), que es la misma que ofrece la
+   * pantalla y la que se guarda en una venta en espera: una sola, no tres que se desincronizan.
    */
-  method: z.enum(["cash", "card", "transfer", "other"], {
+  method: z.enum(POS_PAYMENT_METHODS, {
     message: "Elegí efectivo, tarjeta, transferencia u otro",
   }),
   currency: z.string().trim().min(3, "Falta la moneda").max(3, "La moneda son 3 letras"),

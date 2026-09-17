@@ -707,4 +707,102 @@ describe("PosClient", () => {
     expect(confirmacion.textContent).toContain("ya estaba registrada");
     expect(confirmacion.textContent).toContain("no se cobró de nuevo");
   });
+
+  /**
+   * Tareas 9.4 y 9.5 del roadmap del POS (Fase 2) — la venta en espera en la pantalla de verdad.
+   *
+   * El caso del mostrador: el cliente se fue a buscar la billetera y atrás hay otra gente. El cajero deja la
+   * venta a un lado (productos, cliente y cobro), el mostrador queda libre para el próximo y, cuando el
+   * cliente vuelve, la venta aparece completa para retomarla.
+   */
+  it("deja la venta en espera, libera el mostrador y la retoma completa", async () => {
+    const user = userEvent.setup();
+    render(<PosClient locations={locations} />);
+
+    await screen.findByText("Taco de birria");
+    await user.click(screen.getByRole("button", { name: "Agregar Taco de birria a la venta" }));
+    await fillCustomer(user);
+    await user.type(screen.getByLabelText("Con cuánto paga"), "100");
+
+    await user.click(screen.getByRole("button", { name: "Guardar en espera" }));
+
+    // El mostrador queda libre: el próximo cliente puede empezar.
+    expect(await screen.findByText("Agregá productos del catálogo para armar la venta.")).toBeTruthy();
+    expect(
+      (screen.getByRole("button", { name: "Guardar en espera" }) as HTMLButtonElement).disabled,
+    ).toBe(true);
+
+    // Y la venta espera con lo que llevaba: de quién es, cuánto y desde cuándo.
+    const espera = screen.getByRole("list", { name: "Ventas en espera" });
+    expect(within(espera).getByText("Cliente Mostrador")).toBeTruthy();
+    expect(within(espera).getByText(/1 producto/)).toBeTruthy();
+    expect(within(espera).getByText(/40\.00/)).toBeTruthy();
+
+    // Retomarla la trae de vuelta entera (productos, cliente y cobro).
+    await user.click(screen.getByRole("button", { name: "Retomar la venta de Cliente Mostrador" }));
+
+    const venta = await screen.findByRole("region", { name: "Venta en curso" });
+    expect(within(venta).getByText("Taco de birria")).toBeTruthy();
+    expect(totalDeLaVenta()).toBe("C$40.00");
+    expect((screen.getByLabelText("Nombre del cliente") as HTMLInputElement).value).toBe(
+      "Cliente Mostrador",
+    );
+    expect((screen.getByLabelText("Con cuánto paga") as HTMLInputElement).value).toBe("100");
+    // Y la espera ya no está: se retomó, no se copió.
+    expect(screen.queryByRole("list", { name: "Ventas en espera" })).toBeNull();
+  });
+
+  /**
+   * Tarea 11 + tareas 9.4/9.5 — la espera se llevó la **clave del intento**.
+   *
+   * El caso caro: el cajero aprieta Cobrar, la red se corta (el pedido puede haber quedado creado), el
+   * cliente no está listo y la venta queda en espera. Al retomarla y cobrar, la clave tiene que ser la
+   * misma: si el servidor reconoce el intento no cobra dos veces.
+   */
+  it("retomar una venta en espera y cobrarla mantiene la clave del intento", async () => {
+    const user = userEvent.setup();
+    let intentos = 0;
+    fetchMock.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.startsWith("/api/admin/pos/catalog")) return jsonResponse(productos);
+      if (url.startsWith("/api/admin/pos/shift?")) return jsonResponse({ data: turnoAbierto });
+      if (url === "/api/admin/pos/sale" && init?.method === "POST") {
+        intentos += 1;
+        // El primer intento se cae (el pedido puede haber quedado creado del otro lado).
+        return intentos === 1
+          ? Promise.reject(new Error("sin red"))
+          : jsonResponse(ventaCobrada, true, 201);
+      }
+      return jsonResponse({ data: [] });
+    });
+
+    render(<PosClient locations={locations} />);
+    await esperarCajaAbierta();
+    await screen.findByText("Taco de birria");
+
+    await user.click(screen.getByRole("button", { name: "Agregar Taco de birria a la venta" }));
+    await fillCustomer(user);
+    await user.type(screen.getByLabelText("Con cuánto paga"), "100");
+    await user.click(screen.getByRole("button", { name: /^Cobrar / }));
+    expect(await screen.findByRole("alert")).toBeTruthy();
+
+    // El cliente no está listo: la venta queda en espera con ese intento a medio hacer.
+    await user.click(screen.getByRole("button", { name: "Guardar en espera" }));
+    await screen.findByRole("list", { name: "Ventas en espera" });
+
+    await user.click(screen.getByRole("button", { name: "Retomar la venta de Cliente Mostrador" }));
+    // La espera ya no está (se retomó) y la venta volvió al mostrador con su intento.
+    await waitFor(() =>
+      expect(screen.queryByRole("list", { name: "Ventas en espera" })).toBeNull(),
+    );
+    await user.click(screen.getByRole("button", { name: /^Cobrar / }));
+    await screen.findByRole("status");
+
+    const claves = fetchMock.mock.calls
+      .filter(([input]) => String(input) === "/api/admin/pos/sale")
+      .map(([, init]) => JSON.parse(String((init as RequestInit).body)).idempotencyKey);
+
+    expect(claves).toHaveLength(2);
+    expect(claves[1]).toBe(claves[0]);
+  });
 });

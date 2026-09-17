@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { createPosDraft, type PosDraft } from "@/modules/pos/domain/pos-draft";
 import { parsePosDraft, serializePosDraft } from "@/modules/pos/domain/pos-draft-storage";
-import { createSaleAttemptKey } from "@/modules/pos/domain/pos-sale-attempt";
+import { createSaleAttemptKey, isSaleAttemptKey } from "@/modules/pos/domain/pos-sale-attempt";
 
 /**
  * Bloque 12.3 del roadmap del POS (Fase 2) — la venta en curso, guardada en el dispositivo.
@@ -43,6 +43,12 @@ export function usePosDraft(
   attemptKey: string;
   /** Renueva la clave: la venta que viene es otra operación (se cobró o se empezó de nuevo). */
   renewAttemptKey: () => void;
+  /**
+   * Repone la clave de una venta que vuelve de la **espera** (tareas 9.4/9.5): la espera guarda el intento
+   * con el que se armó y volver a cobrarla tiene que seguir siendo la misma operación para el servidor. Una
+   * clave que el servidor rechazaría se ignora: se sigue con la del intento en curso.
+   */
+  restoreAttemptKey: (key: string) => void;
   /** `true` cuando la venta que se ve se recuperó del dispositivo (para avisarlo en pantalla). */
   restored: boolean;
 } {
@@ -103,5 +109,18 @@ export function usePosDraft(
     setAttemptKey(createSaleAttemptKey());
   }, []);
 
-  return { draft, setDraft: setDraftAndForgetRestore, attemptKey, renewAttemptKey, restored };
+  const restoreAttemptKey = useCallback((key: string) => {
+    if (!isSaleAttemptKey(key)) return;
+
+    setAttemptKey(key);
+  }, []);
+
+  return {
+    draft,
+    setDraft: setDraftAndForgetRestore,
+    attemptKey,
+    renewAttemptKey,
+    restoreAttemptKey,
+    restored,
+  };
 }

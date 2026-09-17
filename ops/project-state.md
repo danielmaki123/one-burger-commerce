@@ -36,6 +36,16 @@
 > el cobro con tarjeta en el POS devolvía 400 (el «con cuánto paga» viajaba siempre al alta del pedido) y
 > el reintento del mismo cobro registraba los pagos dos veces. El registro por tarea, con commits y
 > capturas, está en `ops/tasks/audit-ui/pos-fase2-status.md`.
+>
+> **Ronda del roadmap POS (en curso, 2026-09-17)**: de las 8 tareas que el owner confirmó para cerrar el
+> roadmap antes del rediseño del menú público, ya están **1.2** (desglose por medio al cerrar), **1.5**
+> (reporte diario de caja consolidado), **1.6** (el PDF del cierre se genera desde el navegador, sin
+> dependencia nueva) y **7.3** (helper E2E con rol `cashier`). Recién cerradas: **9.4/9.5** — la venta
+> **en espera** del mostrador (guardar la venta a un lado y retomarla completa, con la clave del intento
+> viajando con ella; vive en la terminal, como el borrador) y, en el camino, un bug del primitivo
+> `Modal` (salía pegado a la esquina: el reset de Tailwind borra el `margin: auto` con el que el navegador
+> centra el `dialog:modal`). Faltan **9.6** (promos/cupones en el POS), **9.7** (descuentos manuales con
+> permiso) y la **factura simple no fiscal**. El **rediseño del menú público no se toca** en esta ronda.
 
 ## 1. Qué está vivo hoy
 

@@ -25,7 +25,7 @@ function Probe({
   locationId?: string;
   currencyCode?: string;
 }) {
-  const { draft, setDraft, restored, attemptKey, renewAttemptKey } = usePosDraft(
+  const { draft, setDraft, restored, attemptKey, renewAttemptKey, restoreAttemptKey } = usePosDraft(
     locationId,
     currencyCode,
   );
@@ -50,6 +50,15 @@ function Probe({
       </button>
       <button type="button" onClick={renewAttemptKey}>
         Renovar clave
+      </button>
+      <button
+        type="button"
+        onClick={() => restoreAttemptKey("ce9b1f5e-1a2b-4c3d-8e4f-5a6b7c8d9e0f")}
+      >
+        Retomar clave
+      </button>
+      <button type="button" onClick={() => restoreAttemptKey("a".repeat(200))}>
+        Retomar clave inválida
       </button>
     </div>
   );
@@ -208,5 +217,35 @@ describe("usePosDraft", () => {
     );
 
     await waitFor(() => expect(screen.getByTestId("clave").textContent).not.toBe(antes));
+  });
+
+  /**
+   * Tareas 9.4 y 9.5 del roadmap del POS (Fase 2) — retomar una venta en espera.
+   *
+   * La espera lleva la clave del intento con la que se armó: si el cajero la guardó después de un cobro que
+   * quedó a medias, volver a cobrarla tiene que ser **el mismo intento** para el servidor. Por eso retomar
+   * no renueva la clave: la repone.
+   */
+  it("retomar una venta en espera devuelve su clave de intento", async () => {
+    const user = userEvent.setup();
+    const clave = "ce9b1f5e-1a2b-4c3d-8e4f-5a6b7c8d9e0f";
+    renderProbe();
+
+    await user.click(screen.getByRole("button", { name: "Agregar" }));
+    await user.click(screen.getByRole("button", { name: "Retomar clave" }));
+
+    await waitFor(() => expect(screen.getByTestId("clave").textContent).toBe(clave));
+    // Y viaja con el borrador: una recarga más sigue siendo el mismo intento.
+    expect(localStorage.getItem(key())).toContain(clave);
+  });
+
+  it("una clave que el servidor rechazaría no reemplaza a la del intento en curso", async () => {
+    const user = userEvent.setup();
+    renderProbe();
+
+    const antes = screen.getByTestId("clave").textContent;
+    await user.click(screen.getByRole("button", { name: "Retomar clave inválida" }));
+
+    expect(screen.getByTestId("clave").textContent).toBe(antes);
   });
 });

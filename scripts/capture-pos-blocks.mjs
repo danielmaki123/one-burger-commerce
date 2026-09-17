@@ -161,6 +161,31 @@ try {
     await page.waitForTimeout(900);
     await shot(page, "bloque-9-pos-caja", viewport.name);
 
+    // Tareas 9.4/9.5 del roadmap (2026-09-17): la venta **en espera**. Se arma una venta, se deja a un
+    // lado y se captura la lista con lo que llevaba (de quién es, cuántas unidades, el total y desde
+    // cuándo). Después se descarta con su confirmación —lo único que no se deshace— y se limpia, para
+    // que las capturas que vienen muestren el mostrador como lo encuentra el cajero.
+    await page.evaluate(() => {
+      for (const key of Object.keys(window.localStorage)) {
+        if (key.startsWith("one-burger-pos-holds")) window.localStorage.removeItem(key);
+      }
+    });
+    await page.getByRole("button", { name: /^Agregar / }).first().click();
+    await page.getByLabel("Nombre del cliente").fill("Espera captura");
+    await page.getByRole("button", { name: "Guardar en espera" }).click();
+    const panelEspera = page.getByRole("region", { name: "Ventas en espera" });
+    await panelEspera.waitFor({ timeout: 30_000 });
+    await panelEspera.scrollIntoViewIfNeeded();
+    await page.waitForTimeout(500);
+    await shot(page, "tarea-9-4-venta-en-espera", viewport.name);
+
+    await page.getByRole("button", { name: "Descartar la venta de Espera captura" }).click();
+    await page.getByRole("dialog").waitFor({ timeout: 30_000 });
+    await page.waitForTimeout(400);
+    await shot(page, "tarea-9-5-descartar-confirmacion", viewport.name);
+    await page.getByRole("button", { name: "Sí, descartar" }).click();
+    await page.getByText("No hay ventas en espera.").waitFor({ timeout: 30_000 });
+
     // El aviso y el botón bloqueado viven al final del formulario de cobro: se baja hasta ahí para
     // que la captura muestre **el efecto** del bloqueo, no solo el estado de la caja.
     await page.evaluate(() => {

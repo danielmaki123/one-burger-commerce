@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import * as React from "react";
-import { ShoppingCart } from "lucide-react";
 
 import {
   addPosLine,
@@ -11,6 +10,8 @@ import {
   removePosLine,
   setPosLineQuantity,
 } from "@/modules/pos/domain/pos-draft";
+import type { PosHeldSale } from "@/modules/pos/domain/pos-holds";
+import { POS_PAYMENT_METHODS } from "@/modules/pos/domain/pos-sale";
 import { filterPosProducts } from "@/modules/pos/domain/search-pos-products";
 import { mustCloseShiftBeforeCharging } from "@/modules/pos/domain/shift-close-policy";
 import type { PosCatalogProduct } from "@/modules/pos/ports/pos-catalog";
@@ -27,8 +28,17 @@ import {
 } from "@/shared/lib/receipt-image";
 import { AdminEmptyState, AdminPageHeader } from "../_components/admin-operational-ui";
 import PosChargePanel from "./pos-charge-panel";
+import PosHoldsPanel from "./pos-holds-panel";
+import PosSaleLines from "./pos-sale-lines";
 import PosTicketButtons from "./pos-ticket-buttons";
+import type {
+  PosLocationOption,
+  PosPaymentDraft,
+  PosSaleSummary,
+  PosShift,
+} from "./pos-types";
 import { usePosDraft } from "./use-pos-draft";
+import { usePosHolds } from "./use-pos-holds";
 
 /**
  * TASK-302 + TASK-303b — el mostrador: catálogo del local a un lado, venta al otro.
@@ -43,30 +53,8 @@ import { usePosDraft } from "./use-pos-draft";
  * se trae **una vez** y escribir no dispara una consulta por tecla.
  */
 
-export type PosLocationOption = {
-  id: string;
-  name: string;
-  /** Tarea 3 del brief: la sucursal exige cerrar la caja todos los días. */
-  requireShiftClose?: boolean;
-};
-
 const CLOSE_SHIFT_FIRST_MESSAGE =
   "Este local exige cerrar la caja todos los días y la caja quedó abierta de otro día: cerrala en «Caja del día» y volvé a cobrar.";
-
-/**
- * Bloque 4 del roadmap del POS (Fase 2) — una fila de cobro del mostrador.
- *
- * El monto vive como **texto** para que el input controlado no pelee con el cajero (mismo patrón que
- * el monto único de TASK-303b); la conversión a número pasa al armar el payload.
- */
-export type PosPaymentDraft = {
-  id: string;
-  method: "cash" | "card" | "transfer" | "other";
-  currency: string;
-  amount: string;
-  /** Referencia del voucher o de la transferencia (Bloque 4.1). */
-  reference?: string;
-};
 
 /**
  * TASK-306 — cada cuánto se refresca el mostrador solo.
@@ -79,43 +67,14 @@ export const POS_REFRESH_MS = 3000;
 /**
  * Bloque 4 del roadmap del POS (Fase 2) — los medios que ofrece el mostrador.
  *
- * `mixed` no está: el mixto es un **resultado** de partir el cobro entre dos medios, no algo que el
- * cajero elija. Sale del primero al construir el payload del pedido.
+ * Tareas 9.4/9.5 — la lista y las etiquetas salen del dominio (`POS_PAYMENT_METHODS`) y del mapa de
+ * etiquetas del pedido: estaban escritas acá y en la API por separado. `mixed` no está porque el mixto es
+ * un **resultado** de partir el cobro entre dos medios, no algo que el cajero elija.
  */
-const PAYMENT_METHOD_CHOICES = [
-  { id: "cash", label: "Efectivo" },
-  { id: "card", label: "Tarjeta" },
-  { id: "transfer", label: "Transferencia" },
-  { id: "other", label: "Otro" },
-] as const;
-
-type PosShift = {
-  id: string;
-  openedAt: string;
-  openingAmount: number;
-  cashCounts?: { kind: "opening" | "closing"; currency: string; denomination: number; quantity: number }[];
-};
-
-type PosSaleSummary = {
-  orderNumber: string;
-  total: number;
-  change: number | null;
-  /**
-   * Tarea 11 del brief (2026-09-17) — `true` cuando el servidor **reconoció** el intento: el pedido ya
-   * estaba cobrado con esa clave. La confirmación lo dice para que nadie vuelva a cobrar la venta.
-   */
-  reused: boolean;
-  /** Cuándo se cobró: es la hora que llevan los tickets (no la de la impresión). */
-  chargedAt: string;
-  /** Lo que hace falta para reimprimir el recibo cuando el cajero lo pide (TASK-307). */
-  receipt: {
-    customerName: string;
-    lines: { name: string; quantity: number; unitPrice: number; lineTotal: number }[];
-    subtotal: number;
-    packagingAmount: number;
-    payments: { methodLabel: string; amount: number; currency: string | null }[];
-  };
-};
+const PAYMENT_METHOD_CHOICES = POS_PAYMENT_METHODS.map((id) => ({
+  id,
+  label: PAYMENT_METHOD_TYPE_LABELS[id],
+}));
 
 function catalogUrl(locationId: string) {
   return `/api/admin/pos/catalog?locationId=${encodeURIComponent(locationId)}`;
@@ -135,7 +94,15 @@ export default function PosClient({ locations }: { locations: PosLocationOption[
     restored: draftRestored,
     attemptKey,
     renewAttemptKey,
+    restoreAttemptKey,
   } = usePosDraft(locationId, settings.currencyCode);
+  /**
+   * Tareas 9.4 y 9.5 del roadmap del POS (Fase 2) — las ventas en espera de este dispositivo.
+   *
+   * Guardar libera el mostrador cuando el cliente no está listo; retomar la trae completa. La lista vive
+   * acá y el trabajo de guardar y leer, en el hook (y en el dominio).
+   */
+  const { holds, hold, discard, full: holdsFull } = usePosHolds(locationId, settings.currencyCode);
   const [reloadKey, setReloadKey] = React.useState(0);
   const [customer, setCustomer] = React.useState({ name: "", whatsapp: "", email: "" });
   /**
@@ -316,6 +283,57 @@ export default function PosClient({ locations }: { locations: PosLocationOption[
         packagingUnitAmount: product.packagingFeeAmount,
       }),
     );
+  };
+
+  /** Las líneas de la venta se suman, se restan y se sacan con las reglas del dominio. */
+  const changeLineQuantity = (productId: string, quantity: number) =>
+    setDraft((current) => setPosLineQuantity(current, productId, quantity));
+  const removeSaleLine = (productId: string) =>
+    setDraft((current) => removePosLine(current, productId));
+
+  /**
+   * Tareas 9.4 y 9.5 del roadmap del POS (Fase 2) — dejar la venta en curso a un lado.
+   *
+   * Se guarda **todo** lo que el cajero armó —productos, cliente y cobros— junto con la **clave del
+   * intento**: si la dejó en espera después de un cobro que quedó a medias (se cortó la red), volver a
+   * cobrarla tiene que seguir siendo la misma operación para el servidor. Después se limpia el mostrador
+   * —el próximo cliente ya puede empezar— y la venta que venga estrena su propia clave.
+   */
+  const holdCurrentSale = () => {
+    hold({
+      lines: draft.lines,
+      customer,
+      payments: payments.map((payment) => ({
+        method: payment.method,
+        currency: payment.currency,
+        amount: payment.amount,
+        ...(payment.reference ? { reference: payment.reference } : {}),
+      })),
+      attemptKey,
+    });
+
+    setDraft(createPosDraft(locationId));
+    setCustomer({ name: "", whatsapp: "", email: "" });
+    setPayments([{ id: "pay_1", method: "cash", currency: settings.currencyCode, amount: "" }]);
+    renewAttemptKey();
+    setSaleError(null);
+    setFieldErrors({});
+  };
+
+  /** Tareas 9.4 y 9.5 — traer de vuelta la venta en espera, con su cliente, su cobro y su clave. */
+  const resumeHeldSale = (heldSale: PosHeldSale) => {
+    setDraft({ locationId, lines: heldSale.lines });
+    setCustomer(heldSale.customer);
+    setPayments(
+      heldSale.payments.length === 0
+        ? [{ id: "pay_1", method: "cash", currency: settings.currencyCode, amount: "" }]
+        : heldSale.payments.map((payment, index) => ({ ...payment, id: `pay_${index + 1}` })),
+    );
+    // La espera trae el intento con el que se armó; un guardado viejo sin clave usa la que ya está (nueva).
+    if (heldSale.attemptKey) restoreAttemptKey(heldSale.attemptKey);
+    discard(heldSale.id);
+    setSaleError(null);
+    setFieldErrors({});
   };
 
   /**
@@ -592,77 +610,12 @@ export default function PosClient({ locations }: { locations: PosLocationOption[
               </p>
             </div>
 
-            {draft.lines.length === 0 ? (
-              <div className="flex flex-col items-center gap-3 py-12 text-center">
-                <span className="flex h-14 w-14 items-center justify-center rounded-full bg-surface-low">
-                  <ShoppingCart aria-hidden="true" className="h-6 w-6 text-ink-muted" />
-                </span>
-                <p className="max-w-56 text-st-body text-ink-secondary">
-                  Agregá productos del catálogo para armar la venta.
-                </p>
-              </div>
-            ) : (
-              <ul className="space-y-3" aria-label="Productos de la venta">
-                {draft.lines.map((line) => (
-                  <li
-                    key={`${line.productId}-${line.notes ?? ""}`}
-                    className="flex items-center justify-between gap-3 border-b border-line-subtle pb-3 last:border-b-0 last:pb-0"
-                  >
-                    <div className="min-w-0">
-                      <p className="truncate text-st-body font-medium text-ink">{line.name}</p>
-                      <p className="font-mono text-st-caption tabular-nums text-ink-secondary">
-                        {formatCurrency(line.unitPrice, currency)} × {line.quantity}
-                      </p>
-                    </div>
-
-                    <div className="flex items-center gap-1">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        className="min-h-11 min-w-11"
-                        aria-label={`Quitar una unidad de ${line.name}`}
-                        onClick={() =>
-                          setDraft((current) =>
-                            setPosLineQuantity(current, line.productId, line.quantity - 1),
-                          )
-                        }
-                      >
-                        −
-                      </Button>
-                      <span className="w-8 text-center text-st-body font-bold tabular-nums text-ink">
-                        {line.quantity}
-                      </span>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        className="min-h-11 min-w-11"
-                        aria-label={`Agregar una unidad de ${line.name}`}
-                        onClick={() =>
-                          setDraft((current) =>
-                            setPosLineQuantity(current, line.productId, line.quantity + 1),
-                          )
-                        }
-                      >
-                        +
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        className="min-h-11"
-                        aria-label={`Sacar ${line.name} de la venta`}
-                        onClick={() =>
-                          setDraft((current) => removePosLine(current, line.productId))
-                        }
-                      >
-                        Sacar
-                      </Button>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
+            <PosSaleLines
+              lines={draft.lines}
+              currency={currency}
+              onChangeQuantity={changeLineQuantity}
+              onRemove={removeSaleLine}
+            />
 
             <dl className="space-y-1 border-t border-line-subtle pt-3 text-st-body">
               <div className="flex items-baseline justify-between">
@@ -861,6 +814,21 @@ export default function PosClient({ locations }: { locations: PosLocationOption[
                 saleError={saleError}
                 restoredSale={draftRestored}
                 onCharge={() => void charge()}
+              />
+
+              {/*
+                Tareas 9.4/9.5 del roadmap del POS (Fase 2): dejar la venta a un lado y retomarla. Está al
+                lado del cobro —donde el cajero decide— y no en otra pantalla: la espera aparece ahí mismo.
+              */}
+              <PosHoldsPanel
+                locationId={locationId}
+                holds={holds}
+                full={holdsFull}
+                saleInProgress={draft.lines.length > 0}
+                currency={currency}
+                onHold={holdCurrentSale}
+                onResume={resumeHeldSale}
+                onDiscard={(heldSale) => discard(heldSale.id)}
               />
 
               {lastSale ? (

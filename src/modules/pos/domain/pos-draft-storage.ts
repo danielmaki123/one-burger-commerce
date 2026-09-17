@@ -24,7 +24,12 @@ import type { PosDraft, PosDraftLine } from "./pos-draft";
  * aparece por un carrito que el cajero vació a propósito).
  */
 
-function readLine(value: unknown): PosDraftLine | null {
+/**
+ * Qué es una línea válida de la venta — **una sola regla** para el borrador y para la espera
+ * (`pos-holds.ts`): las dos leen el mismo texto escrito por la misma pantalla, así que una línea que no
+ * se puede recuperar en una tampoco sirve en la otra.
+ */
+export function readPosDraftLine(value: unknown): PosDraftLine | null {
   if (typeof value !== "object" || value === null) return null;
 
   const candidate = value as Partial<PosDraftLine>;
@@ -59,20 +64,28 @@ export type StoredPosDraft = {
   attemptKey: string | null;
 };
 
+/**
+ * Cómo se guarda una línea: solo lo que existe (una línea sin nota no guarda `notes: undefined`). También
+ * lo usa el guardado de la espera, por el mismo motivo que el lector: la forma de una línea es una sola.
+ */
+export function serializePosDraftLine(line: PosDraftLine): PosDraftLine {
+  return {
+    productId: line.productId,
+    name: line.name,
+    unitPrice: line.unitPrice,
+    ...(line.packagingUnitAmount === undefined
+      ? {}
+      : { packagingUnitAmount: line.packagingUnitAmount }),
+    quantity: line.quantity,
+    ...(line.notes === undefined ? {} : { notes: line.notes }),
+  };
+}
+
 /** El texto que se guarda en el dispositivo para una venta de mostrador. */
 export function serializePosDraft(draft: PosDraft, attemptKey?: string | null): string {
   return JSON.stringify({
     locationId: draft.locationId,
-    lines: draft.lines.map((line) => ({
-      productId: line.productId,
-      name: line.name,
-      unitPrice: line.unitPrice,
-      ...(line.packagingUnitAmount === undefined
-        ? {}
-        : { packagingUnitAmount: line.packagingUnitAmount }),
-      quantity: line.quantity,
-      ...(line.notes === undefined ? {} : { notes: line.notes }),
-    })),
+    lines: draft.lines.map(serializePosDraftLine),
     ...(isSaleAttemptKey(attemptKey) ? { attemptKey } : {}),
   });
 }
@@ -98,7 +111,7 @@ export function parsePosDraft(raw: string | null, locationId: string): StoredPos
   if (!Array.isArray(candidate.lines)) return null;
 
   const lines = candidate.lines
-    .map(readLine)
+    .map(readPosDraftLine)
     .filter((line): line is PosDraftLine => line !== null);
 
   if (lines.length === 0) return null;
