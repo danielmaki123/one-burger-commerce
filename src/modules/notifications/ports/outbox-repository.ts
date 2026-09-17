@@ -12,6 +12,17 @@ export type ListOutboxFilter = {
   eventType?: string;
 };
 
+/**
+ * Decisión del owner (2026-09-17) — lo que necesita el **historial** de la pantalla de alertas: los últimos
+ * envíos, del más nuevo al más viejo. Va como operación propia (y no como un `listEvents` con límite)
+ * porque el orden importa y el `limit` tiene que llegar a la base: traer todo el outbox para mostrar cinco
+ * filas es lo que hace lenta una pantalla de configuración.
+ */
+export type ListRecentOutboxEventsFilter = {
+  eventTypes?: readonly string[];
+  limit: number;
+};
+
 export type LockPendingEventsFilter = {
   eventTypes?: string[];
   minCreatedAt?: string;
@@ -21,6 +32,9 @@ export interface OutboxRepository {
   createEvent(input: CreateOutboxEventInput): Promise<OutboxEventRecord>;
 
   listEvents(filter: ListOutboxFilter): Promise<OutboxEventRecord[]>;
+
+  /** Los últimos eventos (o los últimos de estos tipos), del más nuevo al más viejo. */
+  listRecentEvents(filter: ListRecentOutboxEventsFilter): Promise<OutboxEventRecord[]>;
 
   lockPendingEvents(
     limit: number,

@@ -1,4 +1,5 @@
 import type {
+  TelegramBotIdentity,
   TelegramFailureReason,
   TelegramSendResult,
 } from "@/modules/notifications/domain/telegram-result";
@@ -60,6 +61,38 @@ export class TelegramHttpGateway implements TelegramGateway {
       }
 
       return { ok: false, reason: "network", detail: this.clean(String(error), token).slice(0, 200) };
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  }
+
+  /**
+   * `getMe`: el `@usuario` del bot configurado. Es una lectura de la pantalla (no toca el envío de
+   * alertas) y nunca devuelve el token: si Telegram contesta con error, queda en `null` y la pantalla omite
+   * la línea.
+   */
+  async getBotIdentity(): Promise<TelegramBotIdentity> {
+    const token = this.config.botToken?.trim();
+    if (!token) return { username: null };
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), this.config.timeoutMs ?? 10_000);
+
+    try {
+      const response = await fetch(`https://api.telegram.org/bot${token}/getMe`, {
+        signal: controller.signal,
+      });
+      const body = (await response.json().catch(() => null)) as
+        | { ok?: boolean; result?: { username?: string } }
+        | null;
+
+      if (!response.ok || body?.ok !== true) return { username: null };
+
+      const username = body.result?.username?.trim();
+
+      return { username: username ? username : null };
+    } catch {
+      return { username: null };
     } finally {
       clearTimeout(timeoutId);
     }

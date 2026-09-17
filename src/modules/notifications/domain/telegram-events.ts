@@ -24,10 +24,11 @@ export const TELEGRAM_EVENT_LABELS: Record<TelegramEvent, string> = {
   refund_over_threshold: "Devolución grande",
 };
 
+/** La bajada de cada evento en la pantalla (decisión del owner 2026-09-17: una línea, sin vueltas). */
 export const TELEGRAM_EVENT_DESCRIPTIONS: Record<TelegramEvent, string> = {
-  shift_closed: "Cada turno que se cierra, con su sucursal, quién cerró y el arqueo.",
-  shift_open_over_24h: "Una caja quedó abierta más de un día sin cerrarse.",
-  refund_over_threshold: "Una devolución supera el monto que definiste.",
+  shift_closed: "Cada turno se cierra con resumen de arqueo",
+  shift_open_over_24h: "Alerta si una caja queda abierta más de un día",
+  refund_over_threshold: "Aviso si una devolución supera el umbral",
 };
 
 export function isTelegramEvent(value: unknown): value is TelegramEvent {

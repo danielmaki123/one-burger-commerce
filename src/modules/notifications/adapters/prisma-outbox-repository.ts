@@ -5,6 +5,7 @@ import type {
   CreateOutboxEventInput,
   LockPendingEventsFilter,
   ListOutboxFilter,
+  ListRecentOutboxEventsFilter,
   OutboxRepository,
 } from "@/modules/notifications/ports/outbox-repository";
 
@@ -70,6 +71,19 @@ export class PrismaOutboxRepository implements OutboxRepository {
     const events = await prisma.outboxEvent.findMany({
       where,
       orderBy: { createdAt: "desc" },
+    });
+
+    return events.map(mapEvent);
+  }
+
+  /** Los últimos eventos (o los de estos tipos), del más nuevo al más viejo: lo que muestra el historial. */
+  async listRecentEvents(filter: ListRecentOutboxEventsFilter): Promise<OutboxEventRecord[]> {
+    const prisma = getPrismaClient();
+
+    const events = await prisma.outboxEvent.findMany({
+      where: filter.eventTypes?.length ? { eventType: { in: [...filter.eventTypes] } } : {},
+      orderBy: { createdAt: "desc" },
+      take: Math.max(1, filter.limit),
     });
 
     return events.map(mapEvent);

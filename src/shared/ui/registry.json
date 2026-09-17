@@ -23,9 +23,23 @@
       "layer": "shared",
       "kind": "control",
       "status": "in-use",
-      "exports": ["Button"],
-      "variants": ["primary", "secondary", "outline", "ghost", "danger"],
-      "sizes": ["sm", "md", "lg", "icon", "pill"],
+      "exports": [
+        "Button"
+      ],
+      "variants": [
+        "primary",
+        "secondary",
+        "outline",
+        "ghost",
+        "danger"
+      ],
+      "sizes": [
+        "sm",
+        "md",
+        "lg",
+        "icon",
+        "pill"
+      ],
       "use_when": "Toda acción con texto o ícono. Variantes primary, secondary, outline, ghost, danger; tamaños sm, md, lg, icon y pill (chip de filtro).",
       "dont_use_when": "Nunca escribir <button> a mano. Excepciones: un overlay de cierre o un role=switch (no son botones de acción) y una fila de lista multilínea, que no tiene primitivo."
     },
@@ -35,7 +49,9 @@
       "layer": "shared",
       "kind": "control",
       "status": "in-use",
-      "exports": ["Input"],
+      "exports": [
+        "Input"
+      ],
       "variants": [],
       "sizes": [],
       "use_when": "Campo de texto con label y error asociados (aria-describedby).",
@@ -47,7 +63,9 @@
       "layer": "shared",
       "kind": "control",
       "status": "in-use",
-      "exports": ["Select"],
+      "exports": [
+        "Select"
+      ],
       "variants": [],
       "sizes": [],
       "use_when": "Elección entre 4+ opciones, con label, error y options (o children); placeholder para el caso opcional. Quedan 25 <select> crudos en src/app por migrar pantalla por pantalla.",
@@ -59,7 +77,9 @@
       "layer": "shared",
       "kind": "control",
       "status": "in-use",
-      "exports": ["Checkbox"],
+      "exports": [
+        "Checkbox"
+      ],
       "variants": [],
       "sizes": [],
       "use_when": "Booleano con etiqueta.",
@@ -71,7 +91,10 @@
       "layer": "shared",
       "kind": "control",
       "status": "in-use",
-      "exports": ["RadioGroup", "RadioGroupItem"],
+      "exports": [
+        "RadioGroup",
+        "RadioGroupItem"
+      ],
       "variants": [],
       "sizes": [],
       "use_when": "Elección exclusiva entre 2-3 opciones visibles.",
@@ -83,7 +106,9 @@
       "layer": "shared",
       "kind": "control",
       "status": "in-use",
-      "exports": ["WhatsAppInput"],
+      "exports": [
+        "WhatsAppInput"
+      ],
       "variants": [],
       "sizes": [],
       "use_when": "Teléfono del cliente, con prefijo.",
@@ -95,7 +120,14 @@
       "layer": "shared",
       "kind": "surface",
       "status": "in-use",
-      "exports": ["Card", "CardHeader", "CardTitle", "CardDescription", "CardContent", "CardFooter"],
+      "exports": [
+        "Card",
+        "CardHeader",
+        "CardTitle",
+        "CardDescription",
+        "CardContent",
+        "CardFooter"
+      ],
       "variants": [],
       "sizes": [],
       "use_when": "Contenedor con borde y sombra para agrupar contenido.",
@@ -107,8 +139,17 @@
       "layer": "shared",
       "kind": "display",
       "status": "in-use",
-      "exports": ["Badge"],
-      "variants": ["default", "secondary", "outline", "success", "warning", "danger"],
+      "exports": [
+        "Badge"
+      ],
+      "variants": [
+        "default",
+        "secondary",
+        "outline",
+        "success",
+        "warning",
+        "danger"
+      ],
       "sizes": [],
       "use_when": "Etiqueta corta de estado o categoría (6 variantes).",
       "dont_use_when": "No para el estado de un pedido del panel: para eso está AdminStatusSolid."
@@ -119,7 +160,9 @@
       "layer": "shared",
       "kind": "display",
       "status": "in-use",
-      "exports": ["BrandMark"],
+      "exports": [
+        "BrandMark"
+      ],
       "variants": [],
       "sizes": [],
       "use_when": "Logo del negocio o sus iniciales, leídas de la configuración.",
@@ -131,7 +174,9 @@
       "layer": "shared",
       "kind": "display",
       "status": "in-use",
-      "exports": ["StatusProgress"],
+      "exports": [
+        "StatusProgress"
+      ],
       "variants": [],
       "sizes": [],
       "use_when": "Progreso de un pedido en el historial del cliente. Su `tone` es `StatusTone` (`warning` | `success` | `danger`), un tipo del dominio (`src/shared/lib/activity-status.ts:1`), no una unión declarada en el archivo.",
@@ -143,8 +188,13 @@
       "layer": "shared",
       "kind": "display",
       "status": "in-use",
-      "exports": ["PublicLocationsList"],
-      "variants": ["list", "compact"],
+      "exports": [
+        "PublicLocationsList"
+      ],
+      "variants": [
+        "list",
+        "compact"
+      ],
       "sizes": [],
       "use_when": "Lista de sucursales del público.",
       "dont_use_when": "No en el panel."
@@ -155,7 +205,9 @@
       "layer": "shared",
       "kind": "layout",
       "status": "in-use",
-      "exports": ["PublicMobileBottomNav"],
+      "exports": [
+        "PublicMobileBottomNav"
+      ],
       "variants": [],
       "sizes": [],
       "use_when": "Navegación inferior móvil del público.",
@@ -167,7 +219,9 @@
       "layer": "shared",
       "kind": "control",
       "status": "in-use",
-      "exports": ["ColorInput"],
+      "exports": [
+        "ColorInput"
+      ],
       "variants": [],
       "sizes": [],
       "use_when": "Muestra de color editable (`type=color` nativo) con etiqueta asociada, error anunciado y 44 px. El hex se sigue editando en un campo de texto aparte.",
@@ -179,7 +233,12 @@
       "layer": "shared",
       "kind": "layout",
       "status": "in-use",
-      "exports": ["Tabs", "TabsList", "TabsTrigger", "TabsContent"],
+      "exports": [
+        "Tabs",
+        "TabsList",
+        "TabsTrigger",
+        "TabsContent"
+      ],
       "variants": [],
       "sizes": [],
       "use_when": "Segmentado del panel con Tabs, TabsList y TabsTrigger: cada disparador lleva aria-pressed, min-h-11 y el tinte sky del activo. TabsList acepta ariaLabel para nombrar el grupo.",
@@ -191,9 +250,14 @@
       "layer": "shared",
       "kind": "control",
       "status": "pending-migration",
-      "exports": ["Modal"],
+      "exports": [
+        "Modal"
+      ],
       "variants": [],
-      "sizes": ["sm", "lg"],
+      "sizes": [
+        "sm",
+        "lg"
+      ],
       "use_when": "Diálogo y confirmaciones con el <dialog> nativo: foco atrapado, Escape y ::backdrop los da el navegador. Título obligatorio.",
       "dont_use_when": "No para un formulario largo (AdminEditSheet) ni para un aviso sin decisión (Toast). Tampoco reimplementar role=dialog a mano."
     },
@@ -203,8 +267,13 @@
       "layer": "shared",
       "kind": "control",
       "status": "pending-migration",
-      "exports": ["Toggle"],
-      "variants": [],
+      "exports": [
+        "Toggle"
+      ],
+      "variants": [
+        "brand",
+        "amber"
+      ],
       "sizes": [],
       "use_when": "Interruptor que guarda al tocarlo: role=switch, aria-checked, 44 px y estado saving en el primitivo.",
       "dont_use_when": "No para dos opciones de un formulario (RadioGroup) ni para un booleano que se guarda al enviar (Checkbox); nada de role=switch a mano."
@@ -215,7 +284,9 @@
       "layer": "shared",
       "kind": "control",
       "status": "pending-migration",
-      "exports": ["Textarea"],
+      "exports": [
+        "Textarea"
+      ],
       "variants": [],
       "sizes": [],
       "use_when": "Texto de varias líneas, con label, error y description asociados por aria-describedby.",
@@ -227,7 +298,10 @@
       "layer": "shared",
       "kind": "display",
       "status": "pending-migration",
-      "exports": ["Skeleton", "SkeletonAnnouncement"],
+      "exports": [
+        "Skeleton",
+        "SkeletonAnnouncement"
+      ],
       "variants": [],
       "sizes": [],
       "use_when": "Carga de una pantalla con datos: los huesos (aria-hidden) más un anuncio role=status con el texto.",
@@ -239,8 +313,15 @@
       "layer": "shared",
       "kind": "display",
       "status": "pending-migration",
-      "exports": ["Toast"],
-      "variants": ["success", "error", "warning", "info"],
+      "exports": [
+        "Toast"
+      ],
+      "variants": [
+        "success",
+        "error",
+        "warning",
+        "info"
+      ],
       "sizes": [],
       "use_when": "Resultado de una acción recién hecha, con tono success/error/warning/info; error y warning se anuncian como alerta.",
       "dont_use_when": "No para el error de un campo (va en el error del control) ni para información permanente en pantalla."
@@ -251,8 +332,13 @@
       "layer": "shared",
       "kind": "display",
       "status": "pending-migration",
-      "exports": ["HelpText"],
-      "variants": ["default", "error"],
+      "exports": [
+        "HelpText"
+      ],
+      "variants": [
+        "default",
+        "error"
+      ],
       "sizes": [],
       "use_when": "Aclaración bajo un campo, con el id ${id}-help que el control cita en aria-describedby.",
       "dont_use_when": "No para mensajes de error (el error del control) ni para copy decorativo."
@@ -263,8 +349,14 @@
       "layer": "shared",
       "kind": "layout",
       "status": "orphan",
-      "exports": ["PublicConfirmationShell"],
-      "variants": ["warning", "success", "secondary"],
+      "exports": [
+        "PublicConfirmationShell"
+      ],
+      "variants": [
+        "warning",
+        "success",
+        "secondary"
+      ],
       "sizes": [],
       "use_when": "NO USAR: huérfano (nadie lo importa) y tiene el literal OB hardcodeado, que el contrato anti-hardcode prohíbe.",
       "dont_use_when": "Nunca hasta que se lo arregle y se lo registre como en uso."
@@ -275,7 +367,9 @@
       "layer": "admin",
       "kind": "layout",
       "status": "in-use",
-      "exports": ["AdminShell"],
+      "exports": [
+        "AdminShell"
+      ],
       "variants": [],
       "sizes": [],
       "use_when": "Layout del panel; lo usa el layout, no una página.",
@@ -287,7 +381,9 @@
       "layer": "admin",
       "kind": "layout",
       "status": "in-use",
-      "exports": ["AdminMobileNav"],
+      "exports": [
+        "AdminMobileNav"
+      ],
       "variants": [],
       "sizes": [],
       "use_when": "Navegación móvil del panel; la usa el shell.",
@@ -299,7 +395,9 @@
       "layer": "admin",
       "kind": "layout",
       "status": "in-use",
-      "exports": ["AdminSessionControls"],
+      "exports": [
+        "AdminSessionControls"
+      ],
       "variants": [],
       "sizes": [],
       "use_when": "Bloque de sesión del panel; lo usa el shell.",
@@ -311,7 +409,9 @@
       "layer": "admin",
       "kind": "display",
       "status": "in-use",
-      "exports": ["AdminPageHeader"],
+      "exports": [
+        "AdminPageHeader"
+      ],
       "variants": [],
       "sizes": [],
       "use_when": "Toda cabecera de pantalla del panel.",
@@ -323,7 +423,9 @@
       "layer": "admin",
       "kind": "display",
       "status": "in-use",
-      "exports": ["AdminEmptyState"],
+      "exports": [
+        "AdminEmptyState"
+      ],
       "variants": [],
       "sizes": [],
       "use_when": "Todo estado vacío del panel, con su CTA.",
@@ -335,7 +437,9 @@
       "layer": "admin",
       "kind": "layout",
       "status": "in-use",
-      "exports": ["AdminCompactToolbar"],
+      "exports": [
+        "AdminCompactToolbar"
+      ],
       "variants": [],
       "sizes": [],
       "use_when": "Fila de filtros compactos del panel.",
@@ -347,8 +451,16 @@
       "layer": "admin",
       "kind": "display",
       "status": "in-use",
-      "exports": ["AdminStatusSolid"],
-      "variants": ["nueva", "preparando", "lista", "cerrada", "alerta"],
+      "exports": [
+        "AdminStatusSolid"
+      ],
+      "variants": [
+        "nueva",
+        "preparando",
+        "lista",
+        "cerrada",
+        "alerta"
+      ],
       "sizes": [],
       "use_when": "Estado de un pedido o reserva en el panel, siempre con getAdminOrderSolidStatus o getAdminReservationSolidStatus.",
       "dont_use_when": "No para estados genéricos (para eso, Badge)."
@@ -359,8 +471,14 @@
       "layer": "admin",
       "kind": "display",
       "status": "in-use",
-      "exports": ["AdminPickupTimingChip"],
-      "variants": ["on-time", "past", "late"],
+      "exports": [
+        "AdminPickupTimingChip"
+      ],
+      "variants": [
+        "on-time",
+        "past",
+        "late"
+      ],
       "sizes": [],
       "use_when": "Semáforo del retiro, con los tokens --pickup-*.",
       "dont_use_when": "No si el pedido no es de retiro."
@@ -371,8 +489,16 @@
       "layer": "admin",
       "kind": "display",
       "status": "in-use",
-      "exports": ["AdminMetricStrip"],
-      "variants": ["neutral", "brand", "success", "warning", "danger"],
+      "exports": [
+        "AdminMetricStrip"
+      ],
+      "variants": [
+        "neutral",
+        "brand",
+        "success",
+        "warning",
+        "danger"
+      ],
       "sizes": [],
       "use_when": "Tira de métricas del panel (turno del Resumen, catálogo operativo del Menú): valor en mono con etiqueta overline, ícono de tono y helper. Los números van en font-mono tabular-nums.",
       "dont_use_when": "No para más de cuatro métricas ni como tarjeta de contenido: si el dato necesita sparkline o comparación, va AdminOverviewMetricCard. En móvil el ícono se oculta solo."
@@ -383,8 +509,16 @@
       "layer": "admin",
       "kind": "display",
       "status": "orphan",
-      "exports": ["AdminStatusPill"],
-      "variants": ["neutral", "brand", "success", "warning", "danger"],
+      "exports": [
+        "AdminStatusPill"
+      ],
+      "variants": [
+        "neutral",
+        "brand",
+        "success",
+        "warning",
+        "danger"
+      ],
       "sizes": [],
       "use_when": "NO USAR: huérfano; usar AdminStatusSolid o Badge.",
       "dont_use_when": "Nunca hasta que se lo registre como en uso."
@@ -395,7 +529,9 @@
       "layer": "admin",
       "kind": "control",
       "status": "in-use",
-      "exports": ["AdminEditSheet"],
+      "exports": [
+        "AdminEditSheet"
+      ],
       "variants": [],
       "sizes": [],
       "use_when": "Edición en hoja (mobile) o diálogo (desktop), con focus trap y Escape.",
@@ -407,7 +543,9 @@
       "layer": "admin",
       "kind": "display",
       "status": "in-use",
-      "exports": ["AdminOverviewTrendChart"],
+      "exports": [
+        "AdminOverviewTrendChart"
+      ],
       "variants": [],
       "sizes": [],
       "use_when": "Gráfico de tendencia del overview, con los tokens --chart-*.",
@@ -419,7 +557,9 @@
       "layer": "admin",
       "kind": "display",
       "status": "in-use",
-      "exports": ["AdminOverviewTurno"],
+      "exports": [
+        "AdminOverviewTurno"
+      ],
       "variants": [],
       "sizes": [],
       "use_when": "Hero del turno del Resumen: plata del día, carriles del turno y lo que necesita atención. Los umbrales salen de admin-overview-turno-summary (comanda-helpers).",
@@ -431,8 +571,13 @@
       "layer": "admin",
       "kind": "display",
       "status": "in-use",
-      "exports": ["AdminOverviewMetricCard"],
-      "variants": ["amber", "sky"],
+      "exports": [
+        "AdminOverviewMetricCard"
+      ],
+      "variants": [
+        "amber",
+        "sky"
+      ],
       "sizes": [],
       "use_when": "Tarjeta de indicador del período con cifra en mono, comparación y mini-tendencia.",
       "dont_use_when": "No para métricas del turno (van en AdminMetricStrip) ni sin serie: si no hay dos puntos, la tarjeta muestra el texto de reemplazo."
@@ -443,7 +588,10 @@
       "layer": "admin",
       "kind": "display",
       "status": "in-use",
-      "exports": ["AdminOverviewCocina", "AdminOverviewQuickActions"],
+      "exports": [
+        "AdminOverviewCocina",
+        "AdminOverviewQuickActions"
+      ],
       "variants": [],
       "sizes": [],
       "use_when": "Estado de cocina por carriles reales (por aceptar, en preparación, listas) con la preparación promedio, y las acciones rápidas del mostrador.",
@@ -455,7 +603,9 @@
       "layer": "admin",
       "kind": "display",
       "status": "in-use",
-      "exports": ["AdminOverviewTopProducts"],
+      "exports": [
+        "AdminOverviewTopProducts"
+      ],
       "variants": [],
       "sizes": [],
       "use_when": "Top 5 de productos del período con unidades en mono y barra proporcional.",
@@ -467,7 +617,9 @@
       "layer": "admin",
       "kind": "layout",
       "status": "in-use",
-      "exports": ["AdminOverviewClient"],
+      "exports": [
+        "AdminOverviewClient"
+      ],
       "variants": [],
       "sizes": [],
       "use_when": "Pantalla de resumen; la usa la página.",
@@ -479,7 +631,9 @@
       "layer": "public",
       "kind": "display",
       "status": "in-use",
-      "exports": ["OrderSummaryCard"],
+      "exports": [
+        "OrderSummaryCard"
+      ],
       "variants": [],
       "sizes": [],
       "use_when": "El resumen de pedido: lo comparten /cart y /checkout.",
@@ -491,7 +645,9 @@
       "layer": "public",
       "kind": "display",
       "status": "in-use",
-      "exports": ["EmptyCartState"],
+      "exports": [
+        "EmptyCartState"
+      ],
       "variants": [],
       "sizes": [],
       "use_when": "Carrito vacío, con su CTA para volver al menú.",
@@ -503,7 +659,10 @@
       "layer": "public",
       "kind": "provider",
       "status": "in-use",
-      "exports": ["OrderTrackingSessionProvider", "useOrderTrackingSession"],
+      "exports": [
+        "OrderTrackingSessionProvider",
+        "useOrderTrackingSession"
+      ],
       "variants": [],
       "sizes": [],
       "use_when": "Sesión de seguimiento del pedido en el público.",
@@ -515,7 +674,9 @@
       "layer": "public",
       "kind": "display",
       "status": "in-use",
-      "exports": ["CartLineCard"],
+      "exports": [
+        "CartLineCard"
+      ],
       "variants": [],
       "sizes": [],
       "use_when": "Fila de producto del carrito.",

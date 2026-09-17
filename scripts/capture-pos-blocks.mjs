@@ -106,11 +106,41 @@ try {
     await page.waitForTimeout(600);
     await shot(page, "bloque-3-aprobaciones", viewport.name);
 
-    // Parte 3 del brief (alertas Telegram): la sección de configuración, con su estado y sus eventos.
+    // Decisión del owner (2026-09-17): la sección de alertas rediseñada —estado, configuración, eventos
+    // con interruptores e historial— y su entrada nueva en el sidebar. La captura del encabezado muestra
+    // las dos cosas: el panel y el grupo CONFIGURACIÓN con «Alertas».
     await page.goto(`${baseUrl}/admin/settings/notifications`, { waitUntil: "domcontentloaded" });
     await page.waitForSelector('[aria-label="Estado de las alertas"]', { timeout: 30_000 });
+    // El sidebar resuelve el rol en el cliente: hasta que llega la sesión dibuja el nav mínimo. Se espera
+    // a que esté el enlace del owner para que la captura muestre «Alertas» dentro de CONFIGURACIÓN.
+    await page.waitForSelector('aside[data-admin-background] a[href="/admin/settings"]', {
+      // A 375 px el sidebar de escritorio está `hidden`: alcanza con que el enlace exista en el DOM.
+      state: "attached",
+      timeout: 30_000,
+    });
+    // Con el nav del owner ya dibujado, se baja el scroll del sidebar para que «Alertas» (la última
+    // entrada de CONFIGURACIÓN) entre en la captura: en 900 px de alto queda justo debajo del pliegue.
+    await page.evaluate(() => {
+      const nav = document.querySelector("aside[data-admin-background] nav");
+      if (nav) nav.scrollTop = nav.scrollHeight;
+    });
     await page.waitForTimeout(600);
+    await page.waitForTimeout(800);
     await shot(page, "alertas-telegram", viewport.name);
+
+    await page.evaluate(() => {
+      document
+        .querySelector('[aria-label="Eventos que se avisan"]')
+        ?.scrollIntoView({ block: "start" });
+    });
+    await page.waitForTimeout(400);
+    await shot(page, "alertas-telegram-eventos", viewport.name);
+
+    await page.evaluate(() => {
+      document.querySelector('[aria-label="Historial de envíos"]')?.scrollIntoView({ block: "center" });
+    });
+    await page.waitForTimeout(400);
+    await shot(page, "alertas-telegram-historial", viewport.name);
 
     // Bloque 9.2: el POS diciendo que hay que abrir la caja.
     await page.goto(`${baseUrl}/admin/pos`, { waitUntil: "domcontentloaded" });
@@ -298,6 +328,32 @@ try {
     await target.screenshot({ path: full, fullPage: false });
     console.log(`captura: ${path.relative(repoRoot, full)}`);
   }
+
+  /**
+   * El sidebar completo: a 900 px de alto la última entrada de CONFIGURACIÓN («Alertas») queda por debajo
+   * del pliegue y no entra en la captura. Se toma aparte, más alto, para poder mostrar la entrada nueva.
+   */
+  async function capturarSidebarCompleto() {
+    const context = await browser.newContext({ viewport: { width: 1280, height: 1200 } });
+    const target = await context.newPage();
+
+    await target.goto(`${baseUrl}/admin/login`, { waitUntil: "domcontentloaded" });
+    await target.locator('input[type="email"]').fill("admin@example.com");
+    await target.locator('input[type="password"]').fill("Admin1234!");
+    await target.getByRole("button", { name: "Iniciar sesión" }).click();
+    await target.waitForURL((url) => !url.pathname.includes("/admin/login"), { timeout: 60_000 });
+
+    await target.goto(`${baseUrl}/admin/settings/notifications`, { waitUntil: "domcontentloaded" });
+    await target.waitForSelector('aside[data-admin-background] a[href="/admin/settings/notifications"]', {
+      state: "visible",
+      timeout: 30_000,
+    });
+    await target.waitForTimeout(600);
+    await shot(target, "sidebar-alertas", "1280");
+    await context.close();
+  }
+
+  await capturarSidebarCompleto();
 } finally {
   await browser.close();
 }

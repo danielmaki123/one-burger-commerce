@@ -10,6 +10,13 @@ interface ToggleProps extends Omit<React.ButtonHTMLAttributes<HTMLButtonElement>
   label: string;
   /** Mientras guarda: se deshabilita y muestra el giro en lugar de la pastilla. */
   saving?: boolean;
+  /**
+   * Decisión del owner (2026-09-17) — el acento del estado prendido. `brand` (azul cielo, el del sistema
+   * para administración y POS) es el de siempre; `amber` lo usan las pantallas de configuración del
+   * negocio, donde el owner pidió ámbar. El primitivo lleva el tono para que ninguna pantalla copie la
+   * pastilla por un color.
+   */
+  tone?: "brand" | "amber";
 }
 
 /**
@@ -22,7 +29,7 @@ interface ToggleProps extends Omit<React.ButtonHTMLAttributes<HTMLButtonElement>
  * Lo que fija el primitivo, y por eso no se copia más:
  *
  * - El mínimo táctil de 44 px (`min-h-11 min-w-11`) va **en el control**, no en cada pantalla.
- * - El estado se anuncia: `aria-checked` para el lector y `bg-brand`/`bg-secondary` para el ojo.
+ * - El estado se anuncia: `aria-checked` para el lector y el color del tono para el ojo.
  * - `saving` es una prop y no un estado local: el que sabe si está guardando es el caso de uso.
  */
 export function Toggle({
@@ -31,9 +38,12 @@ export function Toggle({
   label,
   saving = false,
   disabled = false,
+  tone = "brand",
   className = "",
   ...props
 }: ToggleProps) {
+  const onColor = tone === "amber" ? "bg-brand-amber" : "bg-brand";
+
   return (
     <button
       type="button"
@@ -55,7 +65,7 @@ export function Toggle({
           aria-hidden="true"
           className={[
             "relative inline-flex h-6 w-11 items-center rounded-full transition-colors motion-reduce:transition-none",
-            checked ? "bg-brand" : "bg-secondary",
+            checked ? onColor : "bg-secondary",
           ].join(" ")}
         >
           <span

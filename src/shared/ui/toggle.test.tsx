@@ -58,4 +58,20 @@ describe("Toggle", () => {
 
     expect(onChange).not.toHaveBeenCalled();
   });
+
+  /**
+   * Decisión del owner (2026-09-17) — el **ámbar** de las pantallas de configuración.
+   *
+   * El interruptor nació para la grilla de productos (acento del sistema, azul cielo). La pantalla de
+   * alertas usa ámbar para «prendido», así que el primitivo acepta el tono en vez de que cada pantalla
+   * copie la pastilla: por defecto sigue siendo el de siempre y ninguna pantalla ya existente cambia.
+   */
+  it("acepta el tono ámbar sin tocar el de siempre", () => {
+    render(<Toggle checked label="Avisar cierre" onChange={() => {}} tone="amber" />);
+    expect(screen.getByRole("switch").querySelector(".bg-brand-amber")).toBeTruthy();
+
+    cleanup();
+    render(<Toggle checked label="Disponible" onChange={() => {}} />);
+    expect(screen.getByRole("switch").querySelector(".bg-brand")).toBeTruthy();
+  });
 });

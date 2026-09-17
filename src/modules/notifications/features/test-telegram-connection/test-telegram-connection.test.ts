@@ -16,7 +16,10 @@ const businessName = async () => "One Burger";
  */
 
 function fakeGateway(result: Awaited<ReturnType<TelegramGateway["sendMessage"]>> = { ok: true }) {
-  return { sendMessage: vi.fn(async () => result) } satisfies TelegramGateway;
+  return {
+    sendMessage: vi.fn(async () => result),
+    getBotIdentity: vi.fn(async () => ({ username: null })),
+  } satisfies TelegramGateway;
 }
 
 describe("testTelegramConnection", () => {

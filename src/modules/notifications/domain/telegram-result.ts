@@ -19,6 +19,15 @@ export type TelegramSendResult =
   | { ok: true }
   | { ok: false; reason: TelegramFailureReason; detail: string };
 
+/**
+ * Decisión del owner (2026-09-17) — quién es el bot, para que la pantalla lo muestre.
+ *
+ * El `@usuario` es lo que el dueño reconoce («Bot: @humbalertbot»): con el id numérico no sabría con cuál
+ * de sus bots está hablando. Si no se puede preguntar (sin token, sin red), es `null` y la pantalla omite
+ * la línea en vez de inventar un nombre.
+ */
+export type TelegramBotIdentity = { username: string | null };
+
 /** Lo que se le muestra al owner, en español y sin jerga: cada motivo tiene su arreglo. */
 export const TELEGRAM_FAILURE_MESSAGES: Record<TelegramFailureReason, string> = {
   "token-missing":

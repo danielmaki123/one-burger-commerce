@@ -3,6 +3,7 @@ import type {
   CreateOutboxEventInput,
   LockPendingEventsFilter,
   ListOutboxFilter,
+  ListRecentOutboxEventsFilter,
   OutboxRepository,
 } from "@/modules/notifications/ports/outbox-repository";
 
@@ -39,6 +40,14 @@ export class InMemoryOutboxRepository implements OutboxRepository {
       if (filter.eventType && e.eventType !== filter.eventType) return false;
       return true;
     });
+  }
+
+  /** Los últimos, del más nuevo al más viejo — igual que el `orderBy desc + take` de Prisma. */
+  async listRecentEvents(filter: ListRecentOutboxEventsFilter): Promise<OutboxEventRecord[]> {
+    return this.events
+      .filter((e) => !filter.eventTypes?.length || filter.eventTypes.includes(e.eventType))
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      .slice(0, Math.max(0, filter.limit));
   }
 
   async lockPendingEvents(

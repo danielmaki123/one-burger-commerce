@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -12,22 +12,43 @@ import {
 import NotificationsClient from "./notifications-client";
 
 /**
- * Parte 3 del brief (alertas Telegram) — la pantalla donde el owner configura su grupo.
+ * Decisión del owner (2026-09-17) — la pantalla de **alertas rediseñada**.
  *
- * El caso que puede salir caro es el de la configuración: el `chat_id` y los eventos se guardan con
- * `PATCH`, y «Probar conexión» **manda un mensaje real** —si falla, la pantalla tiene que decir el motivo
- * (chat inválido, bot fuera del grupo, token del servidor) y no un «no se pudo»—. Estos casos fijan las
- * llamadas que salen y lo que el owner lee.
+ * Lo que fijan estos casos es lo que el owner pidió como criterio de aceptación: los avisos se prenden con
+ * **interruptores** que guardan al toque, el **umbral de devoluciones solo aparece si ese aviso está
+ * prendido**, «Guardar» está apagado mientras no haya cambios, el estado muestra el **bot** y el
+ * **último envío**, y el historial dice qué salió y qué no. La lógica de envío no se toca: la pantalla lee
+ * y escribe la misma configuración de siempre.
  */
 
 const settings: NotificationSettingsRecord = {
   ...DEFAULT_NOTIFICATION_SETTINGS,
   chatId: "-5186519063",
   enabled: true,
-  eventsEnabled: ["shift_open_over_24h"],
+  eventsEnabled: ["shift_closed"],
   refundAlertThreshold: 500,
+  lastSentAt: "2026-09-17T17:55:00.000Z",
   updatedAt: new Date("2026-09-17T12:00:00.000Z").toISOString(),
 };
+
+const history = [
+  {
+    id: "evt_2",
+    label: "Cierre de caja",
+    locationName: "Camino de Oriente",
+    at: "2026-09-17T17:55:00.000Z",
+    ok: true,
+    errorMessage: null,
+  },
+  {
+    id: "evt_1",
+    label: "Devolución grande",
+    locationName: null,
+    at: "2026-09-17T15:00:00.000Z",
+    ok: false,
+    errorMessage: "Telegram rechazó el mensaje.",
+  },
+];
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -42,10 +63,12 @@ describe("NotificationsClient", () => {
   beforeEach(() => {
     fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
-      if (url === "/api/admin/settings/notifications/test") return jsonResponse({ data: { status: "conectado" } });
+      if (url === "/api/admin/settings/notifications/test") {
+        return jsonResponse({ data: { status: "conectado" } });
+      }
       if (url === "/api/admin/settings/notifications" && init?.method === "PATCH") {
         const body = JSON.parse(String(init.body)) as Record<string, unknown>;
-        return jsonResponse({ data: { ...settings, ...body, updatedAt: settings.updatedAt } });
+        return jsonResponse({ data: { ...settings, ...body } });
       }
       return jsonResponse({ data: settings });
     });
@@ -57,40 +80,92 @@ describe("NotificationsClient", () => {
     vi.unstubAllGlobals();
   });
 
-  it("muestra el estado y el último envío", () => {
-    render(<NotificationsClient initialSettings={settings} tokenConfigured />);
+  function renderPanel(overrides: Partial<React.ComponentProps<typeof NotificationsClient>> = {}) {
+    return render(
+      <NotificationsClient
+        initialSettings={settings}
+        tokenConfigured
+        botUsername="humbalertbot"
+        history={history}
+        {...overrides}
+      />,
+    );
+  }
+
+  it("el estado muestra el chat, el bot y el último envío", () => {
+    renderPanel();
 
     const estado = screen.getByRole("region", { name: "Estado de las alertas" });
+
     expect(estado.textContent).toContain("Conectado");
+    expect(estado.textContent).toContain("-5186519063");
+    expect(estado.textContent).toContain("@humbalertbot");
     expect(estado.textContent).toContain("Último envío");
   });
 
-  it("sin token en el servidor lo dice: no es algo que el owner arregle desde acá", () => {
-    render(<NotificationsClient initialSettings={settings} tokenConfigured={false} />);
+  it("sin configurar ofrece «Configurar» en vez de probar la conexión", () => {
+    renderPanel({ initialSettings: { ...settings, chatId: null } });
 
     const estado = screen.getByRole("region", { name: "Estado de las alertas" });
-    expect(estado.textContent).toContain("Falta el token en el servidor");
-    expect(estado.textContent).toContain("TELEGRAM_BOT_TOKEN");
+
+    expect(estado.textContent).toContain("Sin configurar");
+    expect(within(estado).getByRole("button", { name: "Configurar" })).toBeTruthy();
+    expect(within(estado).queryByRole("button", { name: "Probar conexión" })).toBeNull();
   });
 
-  it("«Guardar y activar» manda el chat y prende las alertas", async () => {
+  it("los eventos se prenden con interruptores y guardan al toque", async () => {
     const user = userEvent.setup();
-    render(<NotificationsClient initialSettings={{ ...settings, enabled: false }} tokenConfigured />);
+    renderPanel();
 
-    await user.click(screen.getByRole("button", { name: "Guardar y activar" }));
+    const eventos = screen.getByRole("region", { name: "Eventos que se avisan" });
+    const interruptores = within(eventos).getAllByRole("switch");
+
+    expect(interruptores).toHaveLength(3);
+    // Cierre de caja viene prendido; los otros dos, apagados.
+    expect(interruptores[0]?.getAttribute("aria-checked")).toBe("true");
+    expect(interruptores[1]?.getAttribute("aria-checked")).toBe("false");
+
+    await user.click(within(eventos).getByRole("switch", { name: "Avisar: Turno sin cerrar >24 h" }));
 
     const patch = fetchMock.mock.calls.find(
       ([input, init]) =>
         String(input) === "/api/admin/settings/notifications" && init?.method === "PATCH",
     );
-    const body = JSON.parse(String((patch?.[1] as RequestInit).body));
-    expect(body).toMatchObject({ chatId: "-5186519063", enabled: true });
-    expect(await screen.findByText("Guardado.")).toBeTruthy();
+    expect(JSON.parse(String((patch?.[1] as RequestInit).body)).eventsEnabled).toEqual([
+      "shift_closed",
+      "shift_open_over_24h",
+    ]);
+    expect(await screen.findByText("Guardado")).toBeTruthy();
+  });
+
+  it("el umbral de devoluciones solo aparece si ese aviso está prendido", async () => {
+    const user = userEvent.setup();
+    renderPanel();
+
+    expect(screen.queryByLabelText(/Devolución mayor a/)).toBeNull();
+
+    await user.click(screen.getByRole("switch", { name: "Avisar: Devolución grande" }));
+
+    expect(screen.getByLabelText(/Devolución mayor a/)).toBeTruthy();
+  });
+
+  it("«Guardar y activar» está apagado mientras no haya cambios", async () => {
+    const user = userEvent.setup();
+    renderPanel();
+
+    const guardar = screen.getByRole("button", { name: "Guardar y activar" });
+    expect((guardar as HTMLButtonElement).disabled).toBe(true);
+
+    await user.type(screen.getByLabelText("Chat ID"), "9");
+
+    expect((screen.getByRole("button", { name: "Guardar y activar" }) as HTMLButtonElement).disabled).toBe(
+      false,
+    );
   });
 
   it("«Probar conexión» manda un mensaje real y lo avisa", async () => {
     const user = userEvent.setup();
-    render(<NotificationsClient initialSettings={settings} tokenConfigured />);
+    renderPanel();
 
     await user.click(screen.getByRole("button", { name: "Probar conexión" }));
 
@@ -103,57 +178,26 @@ describe("NotificationsClient", () => {
     expect(await screen.findByText(/Mensaje de prueba enviado/)).toBeTruthy();
   });
 
-  it("si la prueba falla dice el motivo que devolvió el servidor", async () => {
-    fetchMock.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
-      const url = String(input);
-      if (url === "/api/admin/settings/notifications/test") {
-        return jsonResponse(
-          { error: { message: "El bot no está en el grupo: agregalo y volvé a probar." } },
-          502,
-        );
-      }
-      if (url === "/api/admin/settings/notifications" && init?.method === "PATCH") {
-        return jsonResponse({ data: { ...settings, lastError: "bot-not-in-chat" } });
-      }
-      return jsonResponse({ data: settings });
-    });
-    const user = userEvent.setup();
-    render(<NotificationsClient initialSettings={settings} tokenConfigured />);
+  it("el historial dice qué salió y qué no, con su sucursal", () => {
+    renderPanel();
 
-    await user.click(screen.getByRole("button", { name: "Probar conexión" }));
+    const historial = screen.getByRole("region", { name: "Historial de envíos" });
 
-    // El motivo sale en dos lugares a propósito: el aviso de la sección y el campo del chat (que es lo
-    // que hay que arreglar). Alcanza con que el motivo esté, sin inventar un «no se pudo».
-    const avisos = await screen.findAllByRole("alert");
-    expect(avisos.map((nodo) => nodo.textContent).join(" · ")).toContain(
-      "El bot no está en el grupo",
-    );
+    expect(historial.textContent).toContain("Cierre de caja");
+    expect(historial.textContent).toContain("Camino de Oriente");
+    expect(historial.textContent).toContain("Enviado");
+    expect(historial.textContent).toContain("No salió");
   });
 
-  it("prender un evento lo guarda y «Desactivar alertas» las apaga", async () => {
-    const user = userEvent.setup();
-    render(<NotificationsClient initialSettings={settings} tokenConfigured />);
+  it("sin envíos lo dice, en vez de una lista vacía", () => {
+    renderPanel({ history: [] });
 
-    await user.click(screen.getByLabelText("Avisar: Devolución grande"));
+    expect(screen.getByText(/Todavía no salió ningún aviso/)).toBeTruthy();
+  });
 
-    const eventos = fetchMock.mock.calls
-      .filter(
-        ([input, init]) =>
-          String(input) === "/api/admin/settings/notifications" && init?.method === "PATCH",
-      )
-      .map(([, init]) => JSON.parse(String((init as RequestInit).body)).eventsEnabled);
+  it("no quedó ningún enlace a Personalización", () => {
+    renderPanel();
 
-    expect(eventos.at(-1)).toEqual(["shift_open_over_24h", "refund_over_threshold"]);
-
-    await user.click(screen.getByRole("button", { name: "Desactivar alertas" }));
-
-    const apagado = fetchMock.mock.calls
-      .filter(
-        ([input, init]) =>
-          String(input) === "/api/admin/settings/notifications" && init?.method === "PATCH",
-      )
-      .map(([, init]) => JSON.parse(String((init as RequestInit).body)).enabled);
-
-    expect(apagado.at(-1)).toBe(false);
+    expect(screen.queryByRole("link", { name: /Volver a Personalización/ })).toBeNull();
   });
 });
