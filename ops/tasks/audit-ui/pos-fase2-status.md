@@ -70,14 +70,14 @@
 | **Tarea 9 del brief** | **Solo el dueño aprueba devoluciones**: `canApproveRefund` (owner) en las rutas y en la pantalla, y `requestRefund` nace **siempre** `pending`: nadie aprueba la propia (un owner que pide una devolución no puede aprobarla) | `dea1e38` | `bloque-3-aprobaciones-*.png` |
 | **Tarea 7 del brief** | **Corte X y traspaso de caja (1.12/1.13)**: `previewShiftArqueo` (la **misma** cuenta que el cierre, sin cerrar el turno) + `GET /api/admin/pos/shift/x`, el papel `shift-x-sheet.ts` con dos firmas y la aclaración de que **no** cierra la caja, y el **traspaso guardado**: tabla `ShiftHandover` (migración `20260918110000`, esperado congelado), `registerShiftHandover`/`listShiftHandovers`, `GET/POST /api/admin/pos/shift/handover`, acción auditada `shift.handover` y el panel en Caja del día | `e6e36f7` | `tarea-7-*.png` |
 | **Tarea 10 del brief** | **Conciliación de tarjeta y transferencia (11.1/11.2)**: dominio `payment-reconciliation.ts` (efectivo afuera; totales **por moneda**, sin convertir con la tasa de hoy; lo que no es tarjeta ni transferencia se informa aparte), `listReconciliationPayments` (día del negocio y local), `GET /api/admin/cash/reconciliation`, el CSV `payment-reconciliation-csv.ts` con la **referencia** del voucher al lado del monto, y el panel «Conciliación» en Caja del día con la descarga. Los primitivos del CSV se extrajeron a `shared/lib/csv.ts` (los comparten los dos exports) y bajar un archivo quedó en `shared/lib/download-file.ts` | este mismo commit | `tarea-10-conciliacion-*.png` |
-| **Bug de producción encontrado y arreglado en la tarea 10** | **Cobrar con tarjeta en el POS devolvía 400**: `registerPosSale` mandaba siempre el «con cuánto paga» al alta del pedido y `createOrder` rechaza ese campo cuando la forma declarada no es efectivo («El vuelto solo se calcula cuando pagás en efectivo»). Los tests del caso de uso no lo veían porque doblan `createPosOrder`; apareció cobrando con tarjeta de verdad para la conciliación. Ahora el monto solo viaja si el pedido declara efectivo (la cobertura del cobro se sigue midiendo igual) y hay un test que lo fija | este mismo commit | — |
+| **Bug de producción encontrado y arreglado en la tarea 10** | **Cobrar con tarjeta en el POS devolvía 400**: `registerPosSale` mandaba siempre el «con cuánto paga» al alta del pedido y `createOrder` rechaza ese campo cuando la forma declarada no es efectivo («El vuelto solo se calcula cuando pagás en efectivo»). Los tests del caso de uso no lo veían porque doblan `createPosOrder`; apareció cobrando con tarjeta de verdad para la conciliación. Ahora el monto solo viaja si el pedido declara efectivo (la cobertura del cobro se sigue midiendo igual) y hay un test que lo fija | `bfacc35` | — |
+| **Tarea 11 del brief** | **Idempotencia del cobro con UUID (12.1/12.2)**: la clave del intento vive con el borrador en el dispositivo (`pos-draft-storage` + `usePosDraft`), así que **sobrevive a la recarga** —antes se perdía justo cuando hacía falta—; `pos-sale-attempt.ts` genera y valida el UUID. El servidor, al reconocer el intento, **no registra los cobros otra vez** (registrarlos duplicaba la plata del arqueo), devuelve `reused` y la ruta responde 200; el POS avisa «ya estaba registrada: no se cobró de nuevo» | este mismo commit | (sin captura: el cambio visible es el aviso del reintento, cubierto por unit + E2E) |
 
 **Alertas Telegram — qué falta del brief**: el **resumen diario** (toggle «Cierre del día») todavía no se
 dispara solo: necesita la regla de la hora de cierre, así que su descripción en la pantalla lo dice. Los
 otros tres eventos **sí** quedan registrados: devolución grande y diferencia de caja al momento de la
 operación, y el barrido de cajas abiertas >24 h desde el proceso periódico del outbox (una sola vez por
-turno). De la lista confirmada del owner ya están las tareas 1, 2, 3, 5, 6, 7, 9 y 10; **falta la 11
-(idempotencia del cobro offline con UUID)**.
+turno). De la lista confirmada del owner **ya están las 8 tareas**: 1, 2, 3, 5, 6, 7, 9, 10 y 11.
 
 **Tarea 10 — las decisiones que tomé** (el owner las confirma o las cambia):
 
@@ -91,6 +91,19 @@ turno). De la lista confirmada del owner ya están las tareas 1, 2, 3, 5, 6, 7, 
    plata del día que no se puede esconder, pero tampoco tiene lote contra el cual cuadrar.
 4. La comparación sigue siendo **manual**: el sistema exporta lo que cobró; el número del lote lo pone el
    owner. Automatizar el cuadre necesita decidir el proveedor de pagos (dependencia nueva).
+
+**Tarea 11 — las decisiones que tomé** (el owner las confirma o las cambia):
+
+1. **La clave se renueva solo cuando la operación se resuelve**: se cobró (o el servidor reconoció el
+   intento) o el cajero empieza otra venta (vacía la venta o cambia de local). **No** se renueva porque el
+   cajero edite el carrito después de un intento que falló: si esa primera operación sí llegó al servidor,
+   una clave nueva sería un segundo cobro. Entre mostrar un pedido viejo y cobrar dos veces, se elige lo
+   segundo — y el aviso de la pantalla dice exactamente qué pasó.
+2. **La clave no se inventa en el servidor**: es del dispositivo, para que dos terminales no choquen y para
+   que sobreviva a la recarga. El servidor solo la respeta (`Order.idempotencyKey`, único).
+3. **El modo offline completo (12.1, IndexedDB + sincronización) sigue sin implementarse**: lo que se hizo
+   es la **idempotencia** que ese modo necesita —sin ella, sincronizar es cobrar dos veces—, tal como el
+   owner lo pidió («idempotencia del cobro offline con UUID»).
 
 **Tarea 7 — las dos decisiones que tomé** (el owner las confirma o las cambia):
 

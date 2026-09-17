@@ -31,16 +31,20 @@ export async function createProductionPosSaleDependencies(): Promise<RegisterPos
   const shiftRepository = new PrismaShiftRepository();
 
   return {
-    // `createOrder` devuelve `{ data, meta }`: acá se desempaqueta para que el POS trabaje con el
-    // pedido, que es lo único que le importa.
-    createPosOrder: async (input: CreateOrderRequest) =>
-      (
-        await createOrder(input, {
-          repository,
-          locationRepository,
-          tipPolicy: { enabled: settings.tipEnabled, rate: settings.tipRate },
-        })
-      ).data,
+    /**
+     * `createOrder` devuelve `{ data, meta }`: acá se traduce a lo que el POS necesita —el pedido y si el
+     * alta **reusó** uno ya creado con la misma clave de intento (tarea 11)—. En un reintento los cobros
+     * no se registran otra vez, así que la pantalla tiene que poder decirlo.
+     */
+    createPosOrder: async (input: CreateOrderRequest) => {
+      const result = await createOrder(input, {
+        repository,
+        locationRepository,
+        tipPolicy: { enabled: settings.tipEnabled, rate: settings.tipRate },
+      });
+
+      return { order: result.data, reused: result.meta.reused === true };
+    },
     paymentRepository: new PrismaPaymentRepository(),
     businessCurrencyCode: settings.currencyCode,
     usdExchangeRate: settings.usdExchangeRate,

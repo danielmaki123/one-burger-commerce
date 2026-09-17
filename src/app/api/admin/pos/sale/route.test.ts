@@ -84,10 +84,9 @@ describe("admin pos sale route", () => {
     });
     canUsePOSMock.mockReturnValue(true);
     createPosOrderMock.mockResolvedValue({
-      id: "ord_01",
-      orderNumber: "P-ABC123",
-      total: 80,
-    } as OrderRecord);
+      order: { id: "ord_01", orderNumber: "P-ABC123", total: 80 } as OrderRecord,
+      reused: false,
+    });
   });
 
   it("sin sesión responde 401", async () => {
@@ -178,5 +177,33 @@ describe("admin pos sale route", () => {
     expect(body.data.payments[0].currency).toBe("USD");
     // 3 × 36.5 = 109.50 contra un total de 80.
     expect(body.data.change).toBe(29.5);
+  });
+
+  /**
+   * Tarea 11 del brief (2026-09-17) — el reintento del mismo cobro responde **200** y no cobra de nuevo.
+   *
+   * Es lo que la pantalla necesita para decir «esa venta ya estaba registrada»: el alta reconoció el
+   * UUID, el pedido es el del primer intento y no hay un segundo cobro en el arqueo.
+   */
+  it("un reintento con la misma clave responde 200 y no registra otro cobro", async () => {
+    createPosOrderMock.mockResolvedValue({
+      order: { id: "ord_01", orderNumber: "P-ABC123", total: 80 } as OrderRecord,
+      reused: true,
+    });
+    await paymentRepository.createPayment({
+      orderId: "ord_01",
+      method: "cash",
+      amount: 80,
+      currency: "NIO",
+      changeAmount: 0,
+    });
+
+    const response = await callRoute(venta);
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.data.reused).toBe(true);
+    expect(body.data.paid).toBe(80);
+    expect(paymentRepository.payments).toHaveLength(1);
   });
 });

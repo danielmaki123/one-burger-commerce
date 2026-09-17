@@ -10,8 +10,10 @@ import { parsePosDraft, serializePosDraft } from "./pos-draft-storage";
  * en el dispositivo (no en el servidor: todavía no es un pedido) y por eso el texto guardado se lee
  * defensivamente —un guardado viejo o corrupto no puede romper el mostrador—.
  *
- * Dos reglas que fija este archivo: el borrador guardado es de **un** local (cambiar de sucursal no puede
- * resucitar la venta de la otra) y no se guarda un borrador vacío (no hay nada que recuperar).
+ * Tarea 11 del brief (2026-09-17): desde acá viaja también la **clave del intento de cobro** (el UUID con
+ * el que el servidor reconoce un reintento). Va con el borrador y no en memoria porque se pierde justo
+ * cuando más hace falta: la pantalla se recarga después del corte y el cajero vuelve a cobrar. Un guardado
+ * viejo (sin clave) se lee igual y la clave se genera de nuevo.
  */
 
 const draft = {
@@ -29,11 +31,20 @@ const draft = {
   ],
 };
 
+const attemptKey = "ce9b1f5e-1a2b-4c3d-8e4f-5a6b7c8d9e0f";
+
 describe("serializePosDraft", () => {
-  it("guarda el borrador con su local y sus líneas, y se vuelve a leer entero", () => {
+  it("guarda el borrador con su local, sus líneas y la clave del intento", () => {
+    const parsed = parsePosDraft(serializePosDraft(draft, attemptKey), "loc_centro");
+
+    expect(parsed).toEqual({ draft, attemptKey });
+  });
+
+  it("sin clave guarda el borrador igual (y al leerlo la clave es null)", () => {
     const parsed = parsePosDraft(serializePosDraft(draft), "loc_centro");
 
-    expect(parsed).toEqual(draft);
+    expect(parsed?.draft).toEqual(draft);
+    expect(parsed?.attemptKey).toBeNull();
   });
 });
 
@@ -51,7 +62,9 @@ describe("parsePosDraft", () => {
   });
 
   it("un borrador vacío no se recupera: no hay venta en curso", () => {
-    expect(parsePosDraft(serializePosDraft({ locationId: "loc_centro", lines: [] }), "loc_centro")).toBeNull();
+    expect(
+      parsePosDraft(serializePosDraft({ locationId: "loc_centro", lines: [] }), "loc_centro"),
+    ).toBeNull();
   });
 
   it("el borrador es de un local: cambiar de sucursal no resucita la venta de la otra", () => {
@@ -71,8 +84,18 @@ describe("parsePosDraft", () => {
 
     const parsed = parsePosDraft(raw, "loc_centro");
 
-    expect(parsed?.lines).toEqual([
+    expect(parsed?.draft.lines).toEqual([
       { productId: "seed-prod-01", name: "Taco de Birria", unitPrice: 35, quantity: 2 },
     ]);
+  });
+
+  it("una clave de intento corrupta se descarta (se genera una nueva)", () => {
+    const raw = JSON.stringify({
+      locationId: "loc_centro",
+      lines: draft.lines,
+      attemptKey: "a".repeat(200),
+    });
+
+    expect(parsePosDraft(raw, "loc_centro")?.attemptKey).toBeNull();
   });
 });

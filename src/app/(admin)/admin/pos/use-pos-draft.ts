@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { createPosDraft, type PosDraft } from "@/modules/pos/domain/pos-draft";
 import { parsePosDraft, serializePosDraft } from "@/modules/pos/domain/pos-draft-storage";
+import { createSaleAttemptKey } from "@/modules/pos/domain/pos-sale-attempt";
 
 /**
  * Bloque 12.3 del roadmap del POS (Fase 2) — la venta en curso, guardada en el dispositivo.
@@ -11,6 +12,11 @@ import { parsePosDraft, serializePosDraft } from "@/modules/pos/domain/pos-draft
  * El cajero arma la venta tocando productos: si se recarga la pantalla, se corta la luz o se va la red a
  * mitad del armado, perder el borrador es volver a empezar con el cliente adelante. Este hook guarda el
  * borrador en `localStorage` (no en el servidor: todavía no es un pedido) y lo **recupera al montar**.
+ *
+ * Tarea 11 del brief (2026-09-17) — **la clave del intento de cobro vive acá**, junto al borrador: es el
+ * UUID que el servidor usa para reconocer un reintento y no crear una segunda venta. Guardada en memoria
+ * se perdía con la recarga, que es exactamente el caso del cobro que quedó a medias. Se renueva cuando la
+ * operación se resuelve (después de cobrar) o cuando el cajero empieza una venta nueva.
  *
  * Tres detalles que no son obvios:
  *
@@ -33,11 +39,16 @@ export function usePosDraft(
 ): {
   draft: PosDraft;
   setDraft: React.Dispatch<React.SetStateAction<PosDraft>>;
+  /** La clave del intento de cobro: viaja con el borrador hasta que la venta se resuelve. */
+  attemptKey: string;
+  /** Renueva la clave: la venta que viene es otra operación (se cobró o se empezó de nuevo). */
+  renewAttemptKey: () => void;
   /** `true` cuando la venta que se ve se recuperó del dispositivo (para avisarlo en pantalla). */
   restored: boolean;
 } {
   const key = storageKey(locationId, currencyCode);
   const [draft, setDraft] = useState<PosDraft>(() => createPosDraft(locationId));
+  const [attemptKey, setAttemptKey] = useState(() => createSaleAttemptKey());
   const [restored, setRestored] = useState(false);
   const [hydrated, setHydrated] = useState(false);
   const activeKey = useRef(key);
@@ -47,7 +58,9 @@ export function usePosDraft(
     const saved = parsePosDraft(localStorage.getItem(key), locationId);
 
     if (saved) {
-      setDraft(saved);
+      setDraft(saved.draft);
+      // La clave guardada es la del intento que quedó a medias: es lo que evita el segundo cobro.
+      if (saved.attemptKey) setAttemptKey(saved.attemptKey);
       setRestored(true);
     }
 
@@ -62,6 +75,7 @@ export function usePosDraft(
 
     activeKey.current = key;
     setDraft(createPosDraft(locationId));
+    setAttemptKey(createSaleAttemptKey());
     setRestored(false);
   }, [key, locationId]);
 
@@ -74,8 +88,8 @@ export function usePosDraft(
       return;
     }
 
-    localStorage.setItem(key, serializePosDraft(draft));
-  }, [draft, hydrated, key]);
+    localStorage.setItem(key, serializePosDraft(draft, attemptKey));
+  }, [attemptKey, draft, hydrated, key]);
 
   const setDraftAndForgetRestore = useCallback<React.Dispatch<React.SetStateAction<PosDraft>>>(
     (value) => {
@@ -85,5 +99,9 @@ export function usePosDraft(
     [],
   );
 
-  return { draft, setDraft: setDraftAndForgetRestore, restored };
+  const renewAttemptKey = useCallback(() => {
+    setAttemptKey(createSaleAttemptKey());
+  }, []);
+
+  return { draft, setDraft: setDraftAndForgetRestore, attemptKey, renewAttemptKey, restored };
 }

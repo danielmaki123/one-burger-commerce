@@ -71,6 +71,11 @@ export function toPosSaleResponse(result: RegisterPosSaleResult) {
     total: result.order.total,
     paid: result.paidInBusinessCurrency,
     change: result.change,
+    /**
+     * Tarea 11 del brief (2026-09-17) — `true` cuando el cobro **reconoció** el intento: el pedido ya
+     * existía con esa clave y no se cobró de nuevo. El mostrador lo dice para que nadie vuelva a cobrar.
+     */
+    reused: result.reused,
     payments: result.payments.map((payment) => ({
       id: payment.id,
       method: payment.method,

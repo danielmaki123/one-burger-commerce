@@ -54,3 +54,31 @@ export function paymentsTotalInBusinessCurrency(input: {
 
   return roundCurrency(total);
 }
+
+/**
+ * Tarea 11 del brief (2026-09-17) — la misma suma, sobre los cobros **ya guardados**.
+ *
+ * La necesita el reintento de un cobro: cuando el servidor reconoce la operación (misma clave de intento)
+ * no registra los cobros otra vez —los duplicaría y el arqueo contaría la venta dos veces—, así que la
+ * respuesta se arma con los que ya están. Un `Payment` viejo puede no tener moneda declarada (`null`): es
+ * la del negocio.
+ */
+export function recordedPaymentsTotalInBusinessCurrency(input: {
+  payments: readonly { amount: number; currency: string | null }[];
+  businessCurrencyCode: string;
+  usdExchangeRate: number | null;
+}): number {
+  const total = input.payments.reduce(
+    (sum, payment) =>
+      sum +
+      convertPaymentToBusinessCurrency({
+        amount: payment.amount,
+        currency: payment.currency ?? input.businessCurrencyCode,
+        businessCurrencyCode: input.businessCurrencyCode,
+        usdExchangeRate: input.usdExchangeRate,
+      }),
+    0,
+  );
+
+  return roundCurrency(total);
+}

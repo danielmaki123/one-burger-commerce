@@ -25,12 +25,16 @@ function Probe({
   locationId?: string;
   currencyCode?: string;
 }) {
-  const { draft, setDraft, restored } = usePosDraft(locationId, currencyCode);
+  const { draft, setDraft, restored, attemptKey, renewAttemptKey } = usePosDraft(
+    locationId,
+    currencyCode,
+  );
 
   return (
     <div>
       <p data-testid="lineas">{draft.lines.length}</p>
       <p data-testid="restaurado">{restored ? "sí" : "no"}</p>
+      <p data-testid="clave">{attemptKey}</p>
       <button
         type="button"
         onClick={() =>
@@ -43,6 +47,9 @@ function Probe({
       </button>
       <button type="button" onClick={() => setDraft(createPosDraft(locationId))}>
         Vaciar
+      </button>
+      <button type="button" onClick={renewAttemptKey}>
+        Renovar clave
       </button>
     </div>
   );
@@ -143,5 +150,63 @@ describe("usePosDraft", () => {
     expect(screen.getByTestId("lineas").textContent).toBe("0");
     // Y no se borra la de la otra sucursal: si el cajero vuelve, sigue ahí.
     expect(localStorage.getItem(key("loc_masaya"))).toContain("seed-prod-02");
+  });
+
+  /**
+   * Tarea 11 del brief (2026-09-17) — la **clave del intento de cobro** sobrevive a la recarga.
+   *
+   * Es el caso del cobro que quedó a medias: el cajero aprieta Cobrar, la red se corta (o la pantalla se
+   * recarga) y vuelve a intentar. Con la clave guardada, el servidor reconoce la misma operación; con una
+   * clave nueva, cobraría dos veces.
+   */
+  it("la clave del intento viaja con el borrador y vuelve a estar al recargar", async () => {
+    const clave = "ce9b1f5e-1a2b-4c3d-8e4f-5a6b7c8d9e0f";
+    localStorage.setItem(
+      key(),
+      JSON.stringify({
+        locationId: "loc_centro",
+        lines: [{ productId: "seed-prod-02", name: "Taco de Asada", unitPrice: 30, quantity: 3 }],
+        attemptKey: clave,
+      }),
+    );
+
+    renderProbe();
+
+    await waitFor(() => expect(screen.getByTestId("lineas").textContent).toBe("1"));
+    expect(screen.getByTestId("clave").textContent).toBe(clave);
+    // Y se vuelve a guardar con el borrador (una recarga más sigue siendo el mismo intento).
+    expect(localStorage.getItem(key())).toContain(clave);
+  });
+
+  it("un guardado viejo sin clave arranca con una clave nueva", async () => {
+    localStorage.setItem(key(), savedDraft());
+
+    renderProbe();
+
+    await waitFor(() => expect(screen.getByTestId("lineas").textContent).toBe("1"));
+    expect(screen.getByTestId("clave").textContent).toMatch(/^[0-9a-f-]{36}$/);
+  });
+
+  it("renovar la clave cambia el intento (la venta que viene es otra operación)", async () => {
+    const user = userEvent.setup();
+    renderProbe();
+
+    const antes = screen.getByTestId("clave").textContent;
+    await user.click(screen.getByRole("button", { name: "Renovar clave" }));
+
+    await waitFor(() => expect(screen.getByTestId("clave").textContent).not.toBe(antes));
+  });
+
+  it("cambiar de local también renueva la clave", async () => {
+    const { rerender } = renderProbe({ locationId: "loc_centro" });
+    const antes = screen.getByTestId("clave").textContent;
+
+    rerender(
+      <StrictMode>
+        <Probe locationId="loc_masaya" />
+      </StrictMode>,
+    );
+
+    await waitFor(() => expect(screen.getByTestId("clave").textContent).not.toBe(antes));
   });
 });

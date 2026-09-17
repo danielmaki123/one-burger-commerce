@@ -8,7 +8,11 @@ import type { CreateOrderRequest } from "@/modules/orders/features/create-order/
 
 import { assertPosDraftReady, posDraftTotals, type PosDraft } from "../../domain/pos-draft";
 import { PosError } from "../../domain/pos-errors";
-import { paymentsTotalInBusinessCurrency, type PosSalePaymentInput } from "../../domain/pos-sale";
+import {
+  paymentsTotalInBusinessCurrency,
+  recordedPaymentsTotalInBusinessCurrency,
+  type PosSalePaymentInput,
+} from "../../domain/pos-sale";
 
 /**
  * TASK-303b — la venta de mostrador, en **un solo paso**.
@@ -37,8 +41,13 @@ export type RegisterPosSaleInput = {
 };
 
 export type RegisterPosSaleDependencies = {
-  /** El alta real, ya cableada por la composición (el POS no conoce el grafo del módulo `orders`). */
-  createPosOrder: (input: CreateOrderRequest) => Promise<OrderRecord>;
+  /**
+   * El alta real, ya cableada por la composición (el POS no conoce el grafo del módulo `orders`).
+   *
+   * Devuelve además si el alta **reusó** un pedido ya creado con la misma clave de intento: en ese caso
+   * los cobros no se registran otra vez (tarea 11).
+   */
+  createPosOrder: (input: CreateOrderRequest) => Promise<{ order: OrderRecord; reused: boolean }>;
   paymentRepository: PaymentRepository;
   businessCurrencyCode: string;
   usdExchangeRate: number | null;
@@ -58,6 +67,11 @@ export type RegisterPosSaleResult = {
   /** Lo que entró, convertido a la moneda del negocio. */
   paidInBusinessCurrency: number;
   change: number | null;
+  /**
+   * Tarea 11 del brief (2026-09-17) — `true` cuando el alta **reconoció** el intento: el pedido ya existía
+   * (misma clave) y esta llamada no cobró nada. La pantalla lo dice para que nadie cobre dos veces.
+   */
+  reused: boolean;
 };
 
 /**
@@ -104,7 +118,7 @@ export async function registerPosSale(
     throw new PosError(422, "VALIDATION_ERROR", draftProblem, { payments: draftProblem });
   }
 
-  const order = await deps.createPosOrder({
+  const { order, reused } = await deps.createPosOrder({
     type: "pickup",
     customerName: input.customer.name,
     customerWhatsapp: input.customer.whatsapp,
@@ -163,6 +177,29 @@ export async function registerPosSale(
     ? calculateOrderChange({ paidWithAmount: paidInBusinessCurrency, total: order.total })
     : 0;
 
+  /**
+   * Tarea 11 del brief (2026-09-17) — el pedido ya existía (misma clave de intento): **no se cobra otra
+   * vez**. Registrar los cobros de nuevo dejaba el mismo pedido cobrado dos veces y el arqueo del turno
+   * contaba esa plata de más. La respuesta se arma con lo que quedó guardado en el primer intento, que es
+   * lo que el cajero ya tiene en la mano.
+   */
+  if (reused) {
+    const recorded = await deps.paymentRepository.listPaymentsByOrder(order.id);
+
+    return {
+      order,
+      payments: recorded,
+      paidInBusinessCurrency: recordedPaymentsTotalInBusinessCurrency({
+        payments: recorded,
+        businessCurrencyCode: deps.businessCurrencyCode,
+        usdExchangeRate: deps.usdExchangeRate,
+      }),
+      change:
+        recorded.length === 1 && recorded[0].method === "cash" ? recorded[0].changeAmount : 0,
+      reused: true,
+    };
+  }
+
   for (const payment of input.payments) {
     payments.push(
       await deps.paymentRepository.createPayment({
@@ -182,5 +219,6 @@ export async function registerPosSale(
     payments,
     paidInBusinessCurrency,
     change,
+    reused: false,
   };
 }

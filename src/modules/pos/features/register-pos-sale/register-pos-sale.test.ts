@@ -51,7 +51,7 @@ function draftWithTaco(): PosDraft {
 }
 
 function setup(
-  createPosOrder = vi.fn(async () => order()),
+  createPosOrder = vi.fn(async () => ({ order: order(), reused: false })),
   findOpenShift: () => Promise<{ id: string } | null> = async () => ({ id: "shift_01" }),
 ) {
   const paymentRepository = new InMemoryPaymentRepository();
@@ -241,6 +241,50 @@ describe("venta de mostrador", () => {
     expect(result.change).toBe(0);
   });
 
+  /**
+   * Tarea 11 del brief (2026-09-17) — **el reintento no registra los cobros dos veces** (12.1/12.2).
+   *
+   * El alta ya era idempotente: con la misma clave, `createOrder` devuelve el pedido que ya existía. Los
+   * **cobros** no: se registraban en cada intento, así que un reintento después de un corte de red dejaba
+   * el mismo pedido cobrado dos veces y el arqueo del turno contaba esa plata de más —el bug de plata que
+   * este caso de uso tenía escondido detrás del anti doble submit de la pantalla—.
+   */
+  it("un reintento del mismo cobro no vuelve a registrar los pagos", async () => {
+    const createPosOrder = vi.fn(async () => ({ order: order(), reused: true }));
+    const { paymentRepository, deps } = setup(createPosOrder);
+
+    // El cobro del primer intento, que sí llegó al servidor.
+    await paymentRepository.createPayment({
+      orderId: "ord_01",
+      method: "cash",
+      amount: 80,
+      currency: "NIO",
+      changeAmount: 0,
+    });
+
+    const result = await registerPosSale(
+      { draft: draftWithTaco(), customer, payments: [{ method: "cash", currency: "NIO", amount: 80 }], idempotencyKey: "op-abc" },
+      deps,
+    );
+
+    expect(await paymentRepository.listPaymentsByOrder("ord_01")).toHaveLength(1);
+    expect(result.reused).toBe(true);
+    // La respuesta se arma con lo que ya estaba cobrado, no con lo que volvió a mandar la pantalla.
+    expect(result.paidInBusinessCurrency).toBe(80);
+    expect(result.payments).toHaveLength(1);
+  });
+
+  it("una venta nueva se marca como no reusada", async () => {
+    const { deps } = setup();
+
+    const result = await registerPosSale(
+      { draft: draftWithTaco(), customer, payments: [{ method: "cash", currency: "NIO", amount: 80 }] },
+      deps,
+    );
+
+    expect(result.reused).toBe(false);
+  });
+
   it("cobra en dólares: registra la moneda original y calcula el cambio convertido", async () => {    const { paymentRepository, deps } = setup();
 
     const result = await registerPosSale(
@@ -328,7 +372,7 @@ describe("venta de mostrador", () => {
   it("si el total cambió al crear el pedido, lo dice con el número y no registra el cobro", async () => {
     // El menú cambió entre que el cajero cargó el catálogo y cobró: el total real es mayor.
     const { createPosOrder, paymentRepository, deps } = setup(
-      vi.fn(async () => order({ total: 95 })),
+      vi.fn(async () => ({ order: order({ total: 95 }), reused: false })),
     );
 
     await expect(

@@ -1,3 +1,4 @@
+import { isSaleAttemptKey } from "./pos-sale-attempt";
 import type { PosDraft, PosDraftLine } from "./pos-draft";
 
 /**
@@ -7,6 +8,11 @@ import type { PosDraft, PosDraftLine } from "./pos-draft";
  * que **seguir ahí**: perder la venta en curso es volver a tocar todo con el cliente adelante. Se guarda
  * en el dispositivo y no en el servidor porque todavía **no es un pedido** (nada que cobrar ni que
  * auditar): es el carrito de un mostrador.
+ *
+ * Tarea 11 del brief (2026-09-17) — **la clave del intento de cobro viaja con el borrador**. Es el UUID
+ * con el que el servidor reconoce un reintento; guardada en memoria se perdía justo cuando más hace falta
+ * (la pantalla se recarga después del corte y el cajero vuelve a cobrar el mismo carrito). Un guardado
+ * viejo, sin clave, se lee igual: la clave se genera de nuevo.
  *
  * Acá solo vive el texto (serializar y leer): el `localStorage` lo toca el hook de la pantalla, así que
  * este módulo es puro y se prueba sin navegador. El texto guardado se lee **defensivamente**: un guardado
@@ -46,8 +52,15 @@ function readLine(value: unknown): PosDraftLine | null {
   };
 }
 
+/** Lo que sale y entra del dispositivo: el borrador y la clave del intento de cobro. */
+export type StoredPosDraft = {
+  draft: PosDraft;
+  /** `null` cuando el guardado es viejo (antes de la tarea 11) o la clave no sirve. */
+  attemptKey: string | null;
+};
+
 /** El texto que se guarda en el dispositivo para una venta de mostrador. */
-export function serializePosDraft(draft: PosDraft): string {
+export function serializePosDraft(draft: PosDraft, attemptKey?: string | null): string {
   return JSON.stringify({
     locationId: draft.locationId,
     lines: draft.lines.map((line) => ({
@@ -60,6 +73,7 @@ export function serializePosDraft(draft: PosDraft): string {
       quantity: line.quantity,
       ...(line.notes === undefined ? {} : { notes: line.notes }),
     })),
+    ...(isSaleAttemptKey(attemptKey) ? { attemptKey } : {}),
   });
 }
 
@@ -67,7 +81,7 @@ export function serializePosDraft(draft: PosDraft): string {
  * Lee el borrador guardado. Devuelve `null` cuando no hay nada que recuperar para **ese** local: sin
  * texto, con texto ilegible, sin líneas válidas o si el guardado es de otra sucursal.
  */
-export function parsePosDraft(raw: string | null, locationId: string): PosDraft | null {
+export function parsePosDraft(raw: string | null, locationId: string): StoredPosDraft | null {
   if (!raw) return null;
 
   let parsed: unknown;
@@ -79,7 +93,7 @@ export function parsePosDraft(raw: string | null, locationId: string): PosDraft 
 
   if (typeof parsed !== "object" || parsed === null) return null;
 
-  const candidate = parsed as { locationId?: unknown; lines?: unknown };
+  const candidate = parsed as { locationId?: unknown; lines?: unknown; attemptKey?: unknown };
   if (candidate.locationId !== locationId) return null;
   if (!Array.isArray(candidate.lines)) return null;
 
@@ -89,5 +103,8 @@ export function parsePosDraft(raw: string | null, locationId: string): PosDraft 
 
   if (lines.length === 0) return null;
 
-  return { locationId, lines };
+  return {
+    draft: { locationId, lines },
+    attemptKey: isSaleAttemptKey(candidate.attemptKey) ? candidate.attemptKey : null,
+  };
 }

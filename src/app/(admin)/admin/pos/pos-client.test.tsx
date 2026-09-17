@@ -73,6 +73,7 @@ const ventaCobrada = {
     total: 40,
     paid: 100,
     change: 60,
+    reused: false,
     payments: [{ id: "pay_01", method: "cash", amount: 100, currency: "NIO" }],
   },
 };
@@ -605,5 +606,105 @@ describe("PosClient", () => {
 
     expect(await screen.findByText("No se pudo cargar el catálogo")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Reintentar" })).toBeTruthy();
+  });
+
+  /**
+   * Tarea 11 del brief (2026-09-17) — **el reintento del mismo cobro usa la misma clave** (12.1/12.2).
+   *
+   * Es el caso del mostrador con conexión mala: el cajero aprieta Cobrar, la respuesta no llega y vuelve
+   * a intentar sin tocar la venta. Con la misma clave el servidor reconoce la operación; con una nueva,
+   * cobraría dos veces el mismo pedido.
+   */
+  it("un reintento del mismo cobro manda la misma clave", async () => {
+    const user = userEvent.setup();
+    let intentos = 0;
+    fetchMock.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.startsWith("/api/admin/pos/catalog")) return jsonResponse(productos);
+      if (url.startsWith("/api/admin/pos/shift?")) return jsonResponse({ data: turnoAbierto });
+      if (url === "/api/admin/pos/sale" && init?.method === "POST") {
+        intentos += 1;
+        // El primer intento se cae como se cae la red: sin respuesta.
+        return intentos === 1 ? jsonResponse({}, false, 500) : jsonResponse(ventaCobrada, true, 201);
+      }
+      return jsonResponse({ data: [] });
+    });
+
+    render(<PosClient locations={locations} />);
+    await esperarCajaAbierta();
+    await screen.findByText("Taco de birria");
+    await user.click(screen.getByRole("button", { name: "Agregar Taco de birria a la venta" }));
+    await fillCustomer(user);
+    await user.type(screen.getByLabelText("Con cuánto paga"), "100");
+
+    await user.click(screen.getByRole("button", { name: /^Cobrar / }));
+    expect(await screen.findByRole("alert")).toBeTruthy();
+
+    await user.click(screen.getByRole("button", { name: /^Cobrar / }));
+    await screen.findByRole("status");
+
+    const claves = fetchMock.mock.calls
+      .filter(([input]) => String(input) === "/api/admin/pos/sale")
+      .map(([, init]) => JSON.parse(String((init as RequestInit).body)).idempotencyKey);
+
+    expect(claves).toHaveLength(2);
+    expect(claves[0]).toBeTruthy();
+    expect(claves[1]).toBe(claves[0]);
+  });
+
+  it("después de cobrar, la venta siguiente usa otra clave", async () => {
+    const user = userEvent.setup();
+    render(<PosClient locations={locations} />);
+
+    await esperarCajaAbierta();
+    await screen.findByText("Taco de birria");
+
+    async function cobrar() {
+      await user.click(screen.getByRole("button", { name: "Agregar Taco de birria a la venta" }));
+      await fillCustomer(user);
+      await user.type(screen.getByLabelText("Con cuánto paga"), "100");
+      await user.click(screen.getByRole("button", { name: /^Cobrar / }));
+      await screen.findByRole("status");
+    }
+
+    await cobrar();
+    await cobrar();
+
+    const claves = fetchMock.mock.calls
+      .filter(([input]) => String(input) === "/api/admin/pos/sale")
+      .map(([, init]) => JSON.parse(String((init as RequestInit).body)).idempotencyKey);
+
+    expect(claves).toHaveLength(2);
+    expect(claves[1]).not.toBe(claves[0]);
+  });
+
+  /**
+   * Tarea 11 — el servidor reconoció el intento: el pedido ya estaba cobrado con esa clave y **no se
+   * cobró de nuevo**. La pantalla tiene que decirlo, porque el cajero está por cobrar otra vez.
+   */
+  it("cuando el servidor reconoce el intento, avisa que no se cobró de nuevo", async () => {
+    const user = userEvent.setup();
+    fetchMock.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.startsWith("/api/admin/pos/catalog")) return jsonResponse(productos);
+      if (url.startsWith("/api/admin/pos/shift?")) return jsonResponse({ data: turnoAbierto });
+      if (url === "/api/admin/pos/sale" && init?.method === "POST") {
+        return jsonResponse({ data: { ...ventaCobrada.data, reused: true } }, true, 200);
+      }
+      return jsonResponse({ data: [] });
+    });
+
+    render(<PosClient locations={locations} />);
+    await esperarCajaAbierta();
+    await screen.findByText("Taco de birria");
+    await user.click(screen.getByRole("button", { name: "Agregar Taco de birria a la venta" }));
+    await fillCustomer(user);
+    await user.type(screen.getByLabelText("Con cuánto paga"), "100");
+    await user.click(screen.getByRole("button", { name: /^Cobrar / }));
+
+    const confirmacion = await screen.findByRole("status");
+    expect(confirmacion.textContent).toContain("P-ABC123");
+    expect(confirmacion.textContent).toContain("ya estaba registrada");
+    expect(confirmacion.textContent).toContain("no se cobró de nuevo");
   });
 });

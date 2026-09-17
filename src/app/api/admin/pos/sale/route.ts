@@ -32,9 +32,12 @@ export async function POST(request: Request) {
 
     const result = await registerPosSale(input, await createProductionPosSaleDependencies());
 
+    // Tarea 11 del brief (2026-09-17): 201 cuando la venta es nueva y **200 cuando el servidor reconoció
+    // el intento** (mismo UUID, el cobro ya estaba registrado). El mostrador distingue las dos sin
+    // cambiar el cuerpo de la respuesta y, sobre todo, no vuelve a cobrar.
     return NextResponse.json(
       { data: toPosSaleResponse(result) },
-      { status: 201, headers: { "Cache-Control": "no-store" } },
+      { status: result.reused ? 200 : 201, headers: { "Cache-Control": "no-store" } },
     );
   } catch (error) {
     const response = createErrorResponse(error);

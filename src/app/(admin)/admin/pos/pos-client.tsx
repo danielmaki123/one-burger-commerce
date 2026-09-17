@@ -100,6 +100,11 @@ type PosSaleSummary = {
   orderNumber: string;
   total: number;
   change: number | null;
+  /**
+   * Tarea 11 del brief (2026-09-17) — `true` cuando el servidor **reconoció** el intento: el pedido ya
+   * estaba cobrado con esa clave. La confirmación lo dice para que nadie vuelva a cobrar la venta.
+   */
+  reused: boolean;
   /** Cuándo se cobró: es la hora que llevan los tickets (no la de la impresión). */
   chargedAt: string;
   /** Lo que hace falta para reimprimir el recibo cuando el cajero lo pide (TASK-307). */
@@ -124,7 +129,13 @@ export default function PosClient({ locations }: { locations: PosLocationOption[
   const [loading, setLoading] = React.useState(true);
   const [loadError, setLoadError] = React.useState<string | null>(null);
   const [query, setQuery] = React.useState("");
-  const { draft, setDraft, restored: draftRestored } = usePosDraft(locationId, settings.currencyCode);
+  const {
+    draft,
+    setDraft,
+    restored: draftRestored,
+    attemptKey,
+    renewAttemptKey,
+  } = usePosDraft(locationId, settings.currencyCode);
   const [reloadKey, setReloadKey] = React.useState(0);
   const [customer, setCustomer] = React.useState({ name: "", whatsapp: "", email: "" });
   /**
@@ -141,13 +152,16 @@ export default function PosClient({ locations }: { locations: PosLocationOption[
   const [saleError, setSaleError] = React.useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = React.useState<Record<string, string>>({});
   const [lastSale, setLastSale] = React.useState<PosSaleSummary | null>(null);
-  // La clave de la operación se renueva solo cuando la venta salió bien: si el cobro falla y el cajero
-  // reintenta, el servidor reconoce el mismo intento y no crea dos pedidos (TASK-101).
-  const [attemptKey, setAttemptKey] = React.useState(() => crypto.randomUUID());
-  // TASK-305b + tarea 1 del brief (2026-09-17) — la caja del local.
-  //
-  // El POS **lee** si hay caja abierta (es lo que habilita cobrar, Bloque 9.2) y muestra el estado, pero no
-  // la administra: abrir y cerrar se hace en «Caja del día».
+  /**
+   * Tarea 11 del brief (2026-09-17) — la clave del intento la administra `usePosDraft`: se guarda en el
+   * dispositivo junto al borrador y sobrevive a la recarga. Antes vivía acá en memoria y se perdía justo
+   * en el caso que importa (el cobro que quedó a medias porque se cortó la red).
+   *
+   * TASK-305b + tarea 1 del brief (2026-09-17) — la caja del local.
+   *
+   * El POS **lee** si hay caja abierta (es lo que habilita cobrar, Bloque 9.2) y muestra el estado, pero
+   * no la administra: abrir y cerrar se hace en «Caja del día».
+   */
   const [shift, setShift] = React.useState<PosShift | null>(null);
   const [shiftLoading, setShiftLoading] = React.useState(true);
   const [receiptState, setReceiptState] = React.useState<"idle" | "busy" | "done" | "error">("idle");
@@ -426,7 +440,8 @@ export default function PosClient({ locations }: { locations: PosLocationOption[
       setDraft(createPosDraft(locationId));
       setCustomer({ name: "", whatsapp: "", email: "" });
       setPayments([{ id: "pay_1", method: "cash", currency: settings.currencyCode, amount: "" }]);
-      setAttemptKey(crypto.randomUUID());
+      // La operación se resolvió (cobrada o reconocida): la venta que venga es otra y necesita su clave.
+      renewAttemptKey();
     } catch {
       setSaleError("No se pudo cobrar: revisá la conexión y reintentá.");
     } finally {
@@ -857,6 +872,14 @@ export default function PosClient({ locations }: { locations: PosLocationOption[
                   {lastSale.change !== null && lastSale.change > 0
                     ? ` · Cambio ${formatCurrency(lastSale.change, currency)}`
                     : " · Sin cambio"}
+
+                  {/* Tarea 11 del brief (2026-09-17): el reintento de un cobro que sí llegó al servidor.
+                      Se dice con todas las letras porque lo que viene después es volver a cobrar. */}
+                  {lastSale.reused ? (
+                    <p className="mt-1 font-semibold">
+                      Esa venta ya estaba registrada con esta clave: no se cobró de nuevo.
+                    </p>
+                  ) : null}
 
                   <div className="mt-2 flex flex-wrap items-center gap-2">
                     <Button
