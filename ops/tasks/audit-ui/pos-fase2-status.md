@@ -33,6 +33,11 @@
    extracto)? Sin eso, la pantalla mostraría un número al lado de otro sin decir si está bien.
 10. **11.4 email al dueño** — no hay canal de notificaciones (Telegram en pausa, sin SMTP). Si el
    cierre del día tiene que salir por correo, hay que decidir el proveedor (dependencia nueva).
+11. **12.1 modo offline del POS (IndexedDB + sync)** — cobrar sin conexión y sincronizar después necesita
+   decidir la **idempotencia del cobro offline** y qué pasa si el mismo pedido se registra dos veces (hoy
+   el anti doble submit es del servidor: `Order.idempotencyKey`). Sin esa definición, implementarlo es
+   riesgo de cobrar dos veces. Lo que **sí** quedó hecho (12.3/12.4) es no perder la venta armada y
+   bloquear el cobro sin red con el motivo escrito.
 
 ## Registro de bloques cerrados en la ronda de implementación
 
@@ -53,6 +58,8 @@
 | **10.2 + 10.4** | **Ticket de cliente y reimpresión**: `customer-ticket.ts` (puro, 15 casos) con el comprobante —precios, total, medio de pago y cambio—, los dos papeles en la confirmación de la venta (`pos-ticket-buttons.tsx`) y «Reimprimir ticket» en el detalle del pedido (`order-ticket-button.tsx`). Imprimir un texto se unificó en `print-lines.ts`, con el escapado arreglado | `43b1a48` | `bloque-10-botones-ticket-*.png`, `bloque-10-ticket-cliente-*.png` |
 
 | **11.5 + 11.6** | **Cierre del día consolidado y comparación entre sucursales**: `day-close.ts` en el dominio (totales del día y agrupación por sucursal, 8 casos) y el panel server-side en `/admin/cash`, con el día del **negocio** (`business-days.ts`, movido a `shared/lib` para que la bandeja de órdenes y la caja hablen del mismo día) | `3d06118` | `bloque-11-cierre-del-dia-*.png` |
+
+| **12.3 + 12.4** | **La venta en curso no se pierde y sin red no se cobra**: `usePosDraft` + `pos-draft-storage.ts` (la venta se guarda en el dispositivo y se recupera al montar; de un solo local; vaciarla la borra) y `useOnlineStatus` con el cobro bloqueado y explicado cuando no hay red | `58f0b03` | `bloque-12-sin-conexion-*.png`, `bloque-12-venta-recuperada-*.png` |
 
 **Bloque 13 — cerrado** (2026-09-18). **13.1**: el log se escribe desde las rutas reales (verificado
 en la base durante la corrida de E2E: `shift.open`, `shift.close`, `cash_movement.create`); para que
@@ -77,6 +84,12 @@ ticket impreso y se reimprime desde el detalle del pedido, con la impresión uni
 `print-lines.ts`. Quedan **10.3** (impresión separada por estación) —necesita que el owner diga **qué
 estaciones** existen: hoy no hay ese concepto en el modelo— y **10.5** (cola de reintentos), que solo
 tiene sentido con una impresora de red, que se descartó a propósito.
+
+**Bloque 12 — lo que falta y su motivo**: **12.2 cerrado** (anti doble submit), **12.3 y 12.4 cerrados**
+(2026-09-18): la venta en curso se guarda en el dispositivo y sobrevive a la recarga, y sin red el cobro
+se bloquea con el motivo escrito. Queda **12.1** (modo offline con IndexedDB y sincronización), que va a
+«Requiere decisión»: cobrar sin conexión y sincronizar después necesita definir la **idempotencia del
+cobro** y qué pasa si el mismo pedido se registra dos veces — es riesgo de plata, no una pantalla.
 
 **Bloque 7.3 (`helper E2E acepta cashier`)**: pendiente. El helper de E2E solo crea sesión de owner
 (`tryLoginAsOwner`); sumar `cashier` pide crear la cuenta y asignarle sucursal en la misma corrida, que
