@@ -4,6 +4,8 @@ import { X } from "lucide-react";
 import { createPortal } from "react-dom";
 import { useEffect, useRef, type ReactNode } from "react";
 
+import { Button } from "@/shared/ui/button";
+
 const SHEET_FOCUSABLE_SELECTOR = [
   "a[href]",
   "button:not([disabled])",
@@ -139,14 +141,19 @@ export default function AdminEditSheet({
 
   if (!open || typeof document === "undefined") return null;
 
+  /*
+    `dark` en el contenedor del portal: la hoja se monta en `<body>`, fuera del `<div class="dark">`
+    del shell, así que sin esto heredaba los tokens del modo claro y el modal salía blanco dentro de un
+    panel oscuro. Es el mismo truco que usa el login del panel.
+  */
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-6">
+    <div className="dark fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-6">
       <button
         type="button"
         aria-label="Cerrar edición"
         tabIndex={-1}
         onClick={onClose}
-        className="absolute inset-0 bg-coal/45 backdrop-blur-[1px] motion-reduce:backdrop-blur-none"
+        className="absolute inset-0 bg-canvas/70 backdrop-blur-sm motion-reduce:backdrop-blur-none"
       />
       <section
         ref={sheetRef}
@@ -154,36 +161,38 @@ export default function AdminEditSheet({
         aria-modal="true"
         aria-label={title}
         tabIndex={-1}
-        className="relative flex max-h-[88vh] w-full flex-col overflow-hidden rounded-t-3xl border-t border-border bg-card shadow-2xl focus:outline-none sm:max-h-[85vh] sm:max-w-lg sm:rounded-3xl sm:border"
+        className="relative flex max-h-[88vh] w-full flex-col overflow-hidden rounded-t-stitch-2xl border-t border-line-subtle bg-surface-card shadow-elevation-4 focus:outline-none sm:max-h-[85vh] sm:max-w-lg sm:rounded-stitch-2xl sm:border"
       >
-        <div className="mx-auto mt-2 h-1 w-9 shrink-0 rounded-full bg-border sm:hidden" />
+        <div className="mx-auto mt-2 h-1 w-9 shrink-0 rounded-full bg-line-strong sm:hidden" />
         <header className="flex items-start justify-between gap-3 px-5 pb-3 pt-3 sm:pt-5">
           <div className="min-w-0">
             {kicker ? (
-              <p className="text-[11px] font-semibold uppercase tracking-widest text-brand">
+              <p className="text-st-overline font-bold uppercase tracking-wider text-brand-amber">
                 {kicker}
               </p>
             ) : null}
-            <h2 className="mt-0.5 truncate font-heading text-xl font-bold tracking-tight text-foreground">
+            <h2 className="mt-0.5 truncate font-heading text-st-h2 font-bold tracking-tight text-ink">
               {title}
             </h2>
           </div>
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="icon"
             aria-label="Cerrar edición"
             onClick={onClose}
-            className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand motion-reduce:transition-none"
+            className="min-h-11 min-w-11 shrink-0"
           >
             <X className="h-5 w-5" strokeWidth={2} aria-hidden="true" />
-          </button>
+          </Button>
         </header>
 
-        <div className="min-h-0 flex-1 overflow-y-auto border-t border-border px-5 py-4">
+        <div className="min-h-0 flex-1 overflow-y-auto border-t border-line-subtle px-5 py-4">
           {children}
         </div>
 
         {footer ? (
-          <footer className="shrink-0 border-t border-border bg-card px-5 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
+          <footer className="shrink-0 border-t border-line-subtle bg-surface-card px-5 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
             {footer}
           </footer>
         ) : null}
