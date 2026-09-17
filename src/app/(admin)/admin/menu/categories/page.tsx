@@ -42,7 +42,7 @@ type Feedback = { type: "success" | "error"; message: string };
 const emptyForm: EditForm = { name: "", slug: "", sortOrder: 0, isActive: true, color: "" };
 
 const SELECT_CLASS =
-  "h-11 w-full rounded-md border border-border bg-card px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand";
+  "h-11 w-full rounded-md border border-line-subtle bg-surface-card px-3 text-st-body text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary";
 
 function autoSlug(name: string) {
   return name
@@ -366,15 +366,15 @@ export default function CategoriesPage() {
       aria-pressed={active}
       onClick={onSelect}
       className={[
-        "inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full px-4 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand motion-reduce:transition-none",
-        active ? "bg-brand text-brand-foreground" : "bg-secondary text-secondary-foreground hover:bg-accent",
+        "inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full px-4 text-st-body font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary motion-reduce:transition-none",
+        active ? "bg-brand text-ink-inverse" : "bg-surface-low text-ink hover:bg-surface-elevated",
       ].join(" ")}
     >
       <span>{label}</span>
       <span
         className={[
-          "inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[11px] font-bold tabular-nums",
-          active ? "bg-white/20 text-inherit" : "bg-card text-muted-foreground",
+          "inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-st-overline font-bold tabular-nums",
+          active ? "bg-white/20 text-inherit" : "bg-surface-card text-ink-secondary",
         ].join(" ")}
       >
         {count}
@@ -399,10 +399,10 @@ export default function CategoriesPage() {
       {feedback ? (
         <div
           aria-live="polite"
-          className={`rounded-xl border px-4 py-3 text-sm font-medium ${
+          className={`rounded-stitch-md border px-4 py-3 text-st-body font-medium ${
             feedback.type === "success"
-              ? "border-success-strong/30 bg-success text-success-foreground"
-              : "border-danger-strong/30 bg-danger text-danger-foreground"
+              ? "border-status-ready-border bg-status-ready-bg text-status-ready-text"
+              : "border-status-sla-border bg-status-sla-bg text-status-sla-text"
           }`}
         >
           {feedback.message}
@@ -412,13 +412,13 @@ export default function CategoriesPage() {
       {!loading && !loadError && attentionItems.length > 0 ? (
         <section
           aria-label="Necesita atención"
-          className="overflow-hidden rounded-xl border border-border border-l-[3px] border-l-status-preparando bg-card"
+          className="overflow-hidden rounded-stitch-md border border-line-subtle border-l-[3px] border-l-status-preparando bg-surface-card"
         >
           <div className="flex items-baseline justify-between px-4 pb-1 pt-3">
-            <p className="text-xs font-bold uppercase tracking-wider text-warning-foreground">
+            <p className="text-st-caption font-bold uppercase tracking-wider text-status-pending-text">
               Necesita atención
             </p>
-            <p className="font-mono text-xs font-bold text-warning-foreground">
+            <p className="font-mono text-st-caption font-bold text-status-pending-text">
               {attentionItems.length}
             </p>
           </div>
@@ -432,13 +432,13 @@ export default function CategoriesPage() {
                   .getElementById(`category-row-${item.categoryId}`)
                   ?.scrollIntoView({ behavior: "smooth", block: "center" });
               }}
-              className="flex min-h-12 w-full items-center gap-3 border-t border-border px-4 py-2 text-left transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand motion-reduce:transition-none"
+              className="flex min-h-12 w-full items-center gap-3 border-t border-line-subtle px-4 py-2 text-left transition-colors hover:bg-surface-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-primary motion-reduce:transition-none"
             >
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-semibold text-foreground">{item.title}</span>
-                <span className="block truncate text-xs text-muted-foreground">{item.detail}</span>
+                <span className="block truncate text-st-body font-semibold text-ink">{item.title}</span>
+                <span className="block truncate text-st-caption text-ink-secondary">{item.detail}</span>
               </span>
-              <span className="shrink-0 text-xs font-semibold text-brand-strong">Revisar →</span>
+              <span className="shrink-0 text-st-caption font-semibold text-brand-primary">Revisar →</span>
             </button>
           ))}
         </section>
@@ -459,7 +459,7 @@ export default function CategoriesPage() {
       </div>
 
       {loading ? (
-        <div className="flex h-40 items-center justify-center rounded-2xl border border-border bg-card text-sm text-muted-foreground">
+        <div className="flex h-40 items-center justify-center rounded-stitch-lg border border-line-subtle bg-surface-card text-st-body text-ink-secondary">
           Cargando categorías…
         </div>
       ) : loadError ? (
@@ -489,12 +489,12 @@ export default function CategoriesPage() {
           }
         />
       ) : (
-        <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm" aria-label="Listado de categorías">
+        <section className="overflow-hidden rounded-stitch-lg border border-line-subtle bg-surface-card shadow-elevation-1" aria-label="Listado de categorías">
           <div className="flex items-baseline justify-between px-4 pb-1 pt-3">
-            <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+            <p className="text-st-overline font-semibold uppercase tracking-widest text-ink-secondary">
               Orden de la carta
             </p>
-            <p className="font-mono text-[11px] font-bold text-muted-foreground">
+            <p className="font-mono text-st-overline font-bold text-ink-secondary">
               {pluralEs(categories.length, "categoría", "categorías")} · {pluralEs(totalProducts, "plato", "platos")}
             </p>
           </div>
@@ -509,8 +509,8 @@ export default function CategoriesPage() {
             return (
               <article key={category.id} id={`category-row-${category.id}`}>
                 <div
-                  className={`grid grid-cols-[minmax(0,1fr)_auto_2.75rem] items-center gap-x-2 border-t border-border px-4 py-2 ${
-                    isExpanded ? "bg-accent/50" : ""
+                  className={`grid grid-cols-[minmax(0,1fr)_auto_2.75rem] items-center gap-x-2 border-t border-line-subtle px-4 py-2 ${
+                    isExpanded ? "bg-surface-elevated/50" : ""
                   }`}
                 >
                   <div className="min-w-0">
@@ -519,23 +519,23 @@ export default function CategoriesPage() {
                         type="button"
                         onClick={() => openSheet({ kind: "category", category })}
                         aria-label={`Editar ${category.name}`}
-                        className={`min-h-11 text-left text-[15px] font-semibold underline-offset-4 hover:text-brand hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${
-                          category.isActive ? "text-foreground" : "text-muted-foreground"
+                        className={`min-h-11 text-left text-st-body-lg font-semibold underline-offset-4 hover:text-brand-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary ${
+                          category.isActive ? "text-ink" : "text-ink-secondary"
                         }`}
                       >
                         {category.name}
                       </button>
                       <span
-                        className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold before:h-1.5 before:w-1.5 before:rounded-full before:bg-current before:content-[''] ${
+                        className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-st-overline font-semibold before:h-1.5 before:w-1.5 before:rounded-full before:bg-current before:content-[''] ${
                           category.isActive
-                            ? "bg-success text-success-foreground"
-                            : "bg-secondary text-muted-foreground"
+                            ? "bg-status-ready-bg text-status-ready-text"
+                            : "bg-surface-low text-ink-secondary"
                         }`}
                       >
                         {category.isActive ? "Activa" : "Inactiva"}
                       </span>
                     </div>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-st-caption text-ink-secondary">
                       {category.subcategories.length === 0
                         ? "Sin subcategorías — los platos se muestran sueltos"
                         : pluralEs(category.subcategories.length, "subcategoría", "subcategorías")}
@@ -543,8 +543,8 @@ export default function CategoriesPage() {
                   </div>
 
                   <div className="text-right">
-                    <p className="text-[15px] font-bold tabular-nums text-foreground">{categoryProducts}</p>
-                    <p className="text-[11px] text-muted-foreground">{categoryProducts === 1 ? "plato" : "platos"}</p>
+                    <p className="text-st-body-lg font-bold tabular-nums text-ink">{categoryProducts}</p>
+                    <p className="text-st-overline text-ink-secondary">{categoryProducts === 1 ? "plato" : "platos"}</p>
                   </div>
 
                   <button
@@ -553,7 +553,7 @@ export default function CategoriesPage() {
                     aria-controls={`subcategory-list-${category.id}`}
                     aria-label={`${isExpanded ? "Ocultar" : "Ver"} subcategorías de ${category.name}`}
                     onClick={() => toggleCategoryExpansion(category.id)}
-                    className="-mr-3 inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand motion-reduce:transition-none"
+                    className="-mr-3 inline-flex min-h-11 min-w-11 items-center justify-center rounded-stitch-md text-ink-secondary transition-colors hover:bg-surface-elevated hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary motion-reduce:transition-none"
                   >
                     {isExpanded ? (
                       <ChevronDown aria-hidden="true" className="h-4.5 w-4.5" />
@@ -564,10 +564,10 @@ export default function CategoriesPage() {
                 </div>
 
                 {isExpanded ? (
-                  <div id={`subcategory-list-${category.id}`} className="relative border-t border-border bg-secondary/40">
+                  <div id={`subcategory-list-${category.id}`} className="relative border-t border-line-subtle bg-surface-low/40">
                     <span aria-hidden="true" className="absolute bottom-2 left-7 top-2 w-px bg-border" />
                     {matchingSubcategories.length === 0 ? (
-                      <p className="py-3 pl-10 pr-4 text-sm text-muted-foreground">
+                      <p className="py-3 pl-10 pr-4 text-st-body text-ink-secondary">
                         {category.subcategories.length === 0
                           ? "Sin subcategorías. Añade la primera para ordenar estos platos."
                           : "Sin subcategorías que coincidan con la búsqueda."}
@@ -576,30 +576,30 @@ export default function CategoriesPage() {
                       matchingSubcategories.map((subcategory) => (
                         <div
                           key={subcategory.id}
-                          className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 border-t border-border py-1.5 pl-10 pr-4 first:border-t-0"
+                          className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 border-t border-line-subtle py-1.5 pl-10 pr-4 first:border-t-0"
                         >
                           <div className="min-w-0">
                             <button
                               type="button"
                               onClick={() => openSheet({ kind: "subcategory", category, subcategory })}
                               aria-label={`Editar ${subcategory.name}`}
-                              className="min-h-11 text-left text-sm font-semibold text-foreground underline-offset-4 hover:text-brand hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                              className="min-h-11 text-left text-st-body font-semibold text-ink underline-offset-4 hover:text-brand-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
                             >
                               {subcategory.name}
                             </button>
-                            <p className="text-xs text-muted-foreground">
+                            <p className="text-st-caption text-ink-secondary">
                               {subcategory.isActive ? "Activa" : "Inactiva"} · orden {subcategory.sortOrder} en la carta
                             </p>
                           </div>
                           <div className="flex items-center gap-1">
-                            <span className="mr-1 text-xs tabular-nums text-muted-foreground">
+                            <span className="mr-1 text-st-caption tabular-nums text-ink-secondary">
                               {pluralEs(subcategory.productCount ?? 0, "plato", "platos")}
                             </span>
                             <button
                               type="button"
                               onClick={() => openMoveDialog(subcategory)}
                               aria-label={`Mover ${subcategory.name} a otra categoría`}
-                              className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl text-brand-strong transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand motion-reduce:transition-none"
+                              className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-stitch-md text-brand-primary transition-colors hover:bg-surface-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary motion-reduce:transition-none"
                             >
                               <ArrowRightLeft aria-hidden="true" className="h-4 w-4" />
                             </button>
@@ -607,11 +607,11 @@ export default function CategoriesPage() {
                         </div>
                       ))
                     )}
-                    <div className="border-t border-border py-1.5 pl-10 pr-4">
+                    <div className="border-t border-line-subtle py-1.5 pl-10 pr-4">
                       <button
                         type="button"
                         onClick={() => openSheet({ kind: "new-subcategory", category })}
-                        className="inline-flex min-h-11 items-center gap-2 rounded-xl px-2 text-sm font-semibold text-brand-strong transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand motion-reduce:transition-none"
+                        className="inline-flex min-h-11 items-center gap-2 rounded-stitch-md px-2 text-st-body font-semibold text-brand-primary transition-colors hover:bg-surface-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary motion-reduce:transition-none"
                       >
                         <Plus aria-hidden="true" className="h-4 w-4" />
                         Añadir subcategoría
@@ -646,7 +646,7 @@ export default function CategoriesPage() {
                 <Button
                   type="button"
                   variant="ghost"
-                  className="min-h-11 text-warning-foreground"
+                  className="min-h-11 text-status-pending-text"
                   disabled={isSaving}
                   onClick={() => setConfirmingArchive(true)}
                 >
@@ -675,8 +675,8 @@ export default function CategoriesPage() {
         }
       >
         {confirmingArchive ? (
-          <div className="rounded-xl border-l-[3px] border-l-warning-foreground bg-warning p-4">
-            <p className="text-sm leading-6 text-warning-foreground">
+          <div className="rounded-stitch-md border-l-[3px] border-l-warning-foreground bg-warning p-4">
+            <p className="text-st-body leading-6 text-status-pending-text">
               <strong>¿Archivar {archiveSubject} “{editFormData.name}”?</strong> Dejará de aparecer en la
               carta pública. Los platos no se borran ni pierden historial; puedes reactivarla cuando quieras.
             </p>
@@ -711,11 +711,11 @@ export default function CategoriesPage() {
                 }
               />
             </div>
-            <p className="-mt-2 text-xs text-muted-foreground">
+            <p className="-mt-2 text-st-caption text-ink-secondary">
               El slug se usa en la URL del menú público.
             </p>
             {sheetTarget?.kind === "category" || sheetTarget?.kind === "new-category" ? (
-              <div className="grid gap-2 rounded-xl border border-border bg-secondary/40 p-3">
+              <div className="grid gap-2 rounded-stitch-md border border-line-subtle bg-surface-low/40 p-3">
                 <Input
                   label="Color de la categoría (opcional)"
                   placeholder="#d32f2f"
@@ -724,37 +724,37 @@ export default function CategoriesPage() {
                     setEditFormData((current) => ({ ...current, color: event.target.value }))
                   }
                 />
-                <p className="text-xs text-muted-foreground">
+                <p className="text-st-caption text-ink-secondary">
                   Tiñe las tarjetas de esta categoría en la carta pública. Vacío = diseño del
                   sistema.
                 </p>
                 {editFormData.color.trim() ? (
                   <div
-                    className="flex items-center justify-between gap-3 rounded-lg px-3 py-2 text-sm font-semibold"
+                    className="flex items-center justify-between gap-3 rounded-stitch-md px-3 py-2 text-st-body font-semibold"
                     style={{
                       backgroundColor: cardColors?.backgroundColor ?? editFormData.color.trim(),
                       color: cardColors?.foregroundColor,
                     }}
                   >
                     <span>{editFormData.name || "Nombre de la categoría"}</span>
-                    <span className="text-xs opacity-80">Así se lee el texto</span>
+                    <span className="text-st-caption opacity-80">Así se lee el texto</span>
                   </div>
                 ) : null}
                 {colorWarning ? (
-                  <p role="status" className="text-xs font-medium text-warning-foreground">
+                  <p role="status" className="text-st-caption font-medium text-status-pending-text">
                     Ojo: con este color el texto de la tarjeta queda en {colorWarning.ratio}:1 y hace
                     falta {colorWarning.required}:1. Se puede guardar, pero puede leerse mal.
                   </p>
                 ) : null}
                 {editFormData.color.trim() && !cardColors ? (
-                  <p role="alert" className="text-xs font-medium text-danger-foreground">
+                  <p role="alert" className="text-st-caption font-medium text-danger-foreground">
                     Usá un color en formato #rrggbb (por ejemplo #d32f2f).
                   </p>
                 ) : null}
               </div>
             ) : null}
             {sheetTarget?.kind === "category" || sheetTarget?.kind === "subcategory" ? (
-              <label className="grid gap-1.5 text-sm font-medium text-foreground">
+              <label className="grid gap-1.5 text-st-body font-medium text-ink">
                 Estado
                 <select
                   value={editFormData.isActive ? "active" : "inactive"}
@@ -774,16 +774,16 @@ export default function CategoriesPage() {
 
       {movingSubcategory ? (
         <div className="fixed inset-0 z-50 flex items-end bg-foreground/40 p-4 backdrop-blur-[1px] sm:items-center sm:justify-center" onMouseDown={(event) => { if (event.target === event.currentTarget && !isMoving) setMovingSubcategory(null); }}>
-          <div ref={moveDialogRef} role="dialog" aria-modal="true" aria-labelledby="move-subcategory-title" tabIndex={-1} className="w-full max-w-lg rounded-2xl border border-border bg-card p-5 shadow-xl focus:outline-none">
-            <p className="text-xs font-semibold uppercase tracking-wider text-brand">Jerarquía del catálogo</p>
-            <h2 id="move-subcategory-title" className="mt-1 font-heading text-lg font-bold text-foreground">
+          <div ref={moveDialogRef} role="dialog" aria-modal="true" aria-labelledby="move-subcategory-title" tabIndex={-1} className="w-full max-w-lg rounded-stitch-lg border border-line-subtle bg-surface-card p-5 shadow-xl focus:outline-none">
+            <p className="text-st-caption font-semibold uppercase tracking-wider text-brand">Jerarquía del catálogo</p>
+            <h2 id="move-subcategory-title" className="mt-1 font-heading text-lg font-bold text-ink">
               Mover “{movingSubcategory.name}”
             </h2>
-            <p className="mt-3 text-sm leading-6 text-muted-foreground">
+            <p className="mt-3 text-st-body leading-6 text-ink-secondary">
               La subcategoría y {pluralEs(movingSubcategory.productCount ?? 0, "su plato", "sus platos")} pasarán
               a la categoría elegida. El cambio es atómico.
             </p>
-            <label className="mt-5 grid gap-1.5 text-sm font-medium text-foreground">
+            <label className="mt-5 grid gap-1.5 text-st-body font-medium text-ink">
               Categoría destino
               <select value={moveDestinationId} onChange={(event) => setMoveDestinationId(event.target.value)} disabled={isMoving} className={SELECT_CLASS}>
                 {categories.filter((category) => category.id !== movingSubcategory.categoryId).map((category) => (

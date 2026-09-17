@@ -66,7 +66,7 @@ type FormState = {
 };
 
 const SELECT_CLASS =
-  "h-11 w-full rounded-md border border-border bg-card px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand";
+  "h-11 w-full rounded-md border border-line-subtle bg-surface-card px-3 text-st-body text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary";
 
 const STATUS_FILTERS: { id: "all" | MarketingDisplayStatus; label: string }[] = [
   { id: "all", label: "Todos" },
@@ -267,15 +267,15 @@ export default function MenuMarketingBlocksPage() {
       aria-pressed={active}
       onClick={onSelect}
       className={[
-        "inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full px-4 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand motion-reduce:transition-none",
-        active ? "bg-brand text-brand-foreground" : "bg-secondary text-secondary-foreground hover:bg-accent",
+        "inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full px-4 text-st-body font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary motion-reduce:transition-none",
+        active ? "bg-brand text-ink-inverse" : "bg-surface-low text-ink hover:bg-surface-elevated",
       ].join(" ")}
     >
       <span>{label}</span>
       <span
         className={[
-          "inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[11px] font-bold tabular-nums",
-          active ? "bg-white/20 text-inherit" : "bg-card text-muted-foreground",
+          "inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-st-overline font-bold tabular-nums",
+          active ? "bg-white/20 text-inherit" : "bg-surface-card text-ink-secondary",
         ].join(" ")}
       >
         {count}
@@ -284,9 +284,9 @@ export default function MenuMarketingBlocksPage() {
   );
 
   const statusPillClasses: Record<MarketingDisplayStatus, string> = {
-    active: "bg-success text-success-foreground",
-    scheduled: "bg-warning text-warning-foreground",
-    inactive: "bg-secondary text-muted-foreground",
+    active: "bg-status-ready-bg text-status-ready-text",
+    scheduled: "bg-status-pending-bg text-status-pending-text",
+    inactive: "bg-surface-low text-ink-secondary",
   };
 
   return (
@@ -305,10 +305,10 @@ export default function MenuMarketingBlocksPage() {
       {feedback ? (
         <div
           aria-live="polite"
-          className={`rounded-xl border px-4 py-3 text-sm font-medium ${
+          className={`rounded-stitch-md border px-4 py-3 text-st-body font-medium ${
             feedback.type === "success"
-              ? "border-success-strong/30 bg-success text-success-foreground"
-              : "border-danger-strong/30 bg-danger text-danger-foreground"
+              ? "border-status-ready-border bg-status-ready-bg text-status-ready-text"
+              : "border-status-sla-border bg-status-sla-bg text-status-sla-text"
           }`}
         >
           {feedback.message}
@@ -330,7 +330,7 @@ export default function MenuMarketingBlocksPage() {
       </div>
 
       {loading ? (
-        <div className="flex h-40 items-center justify-center rounded-2xl border border-border bg-card text-sm text-muted-foreground">
+        <div className="flex h-40 items-center justify-center rounded-stitch-lg border border-line-subtle bg-surface-card text-st-body text-ink-secondary">
           Cargando bloques…
         </div>
       ) : loadError ? (
@@ -360,12 +360,12 @@ export default function MenuMarketingBlocksPage() {
           }
         />
       ) : (
-        <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm" aria-label="Listado de bloques comerciales">
+        <section className="overflow-hidden rounded-stitch-lg border border-line-subtle bg-surface-card shadow-elevation-1" aria-label="Listado de bloques comerciales">
           <div className="flex items-baseline justify-between px-4 pb-1 pt-3">
-            <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+            <p className="text-st-overline font-semibold uppercase tracking-widest text-ink-secondary">
               Bloques en la carta
             </p>
-            <p className="font-mono text-[11px] font-bold text-muted-foreground">
+            <p className="font-mono text-st-overline font-bold text-ink-secondary">
               {pluralEs(visibleBlocks.length, "bloque", "bloques")}
             </p>
           </div>
@@ -378,34 +378,34 @@ export default function MenuMarketingBlocksPage() {
                 type="button"
                 onClick={() => openSheet(block)}
                 aria-label={`Editar ${block.title}`}
-                className="flex min-h-14 w-full items-start gap-3 border-t border-border px-4 py-3 text-left transition-colors first:border-t-0 hover:bg-accent/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand motion-reduce:transition-none"
+                className="flex min-h-14 w-full items-start gap-3 border-t border-line-subtle px-4 py-3 text-left transition-colors first:border-t-0 hover:bg-surface-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-primary motion-reduce:transition-none"
               >
-                <span className="block w-24 shrink-0 overflow-hidden rounded-lg bg-secondary" style={{ aspectRatio: "16/10" }}>
+                <span className="block w-24 shrink-0 overflow-hidden rounded-stitch-md bg-surface-low" style={{ aspectRatio: "16/10" }}>
                   {block.imageUrl ? (
                     <img src={block.imageUrl} alt="" className="h-full w-full object-cover" />
                   ) : (
-                    <span className="flex h-full w-full items-center justify-center px-1 text-center text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    <span className="flex h-full w-full items-center justify-center px-1 text-center text-st-overline font-semibold uppercase tracking-wide text-ink-secondary">
                       Sin foto
                     </span>
                   )}
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className={`block text-[15px] font-semibold leading-snug ${status === "inactive" ? "text-muted-foreground" : "text-foreground"}`}>
+                  <span className={`block text-st-body-lg font-semibold leading-snug ${status === "inactive" ? "text-ink-secondary" : "text-ink"}`}>
                     {block.title}
                   </span>
-                  <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">
+                  <span className="mt-0.5 block text-st-caption leading-5 text-ink-secondary">
                     {describeMarketingCta(block, resolveTargetName)} · {describeMarketingWindow(block, nowMs)}
                   </span>
                   <span className="mt-1.5 flex flex-wrap gap-1.5">
                     <span
-                      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold before:h-1.5 before:w-1.5 before:rounded-full before:bg-current before:content-[''] ${statusPillClasses[status]}`}
+                      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-st-overline font-semibold before:h-1.5 before:w-1.5 before:rounded-full before:bg-current before:content-[''] ${statusPillClasses[status]}`}
                     >
                       {MARKETING_STATUS_LABELS[status]}
                     </span>
-                    <span className="inline-flex items-center rounded-full bg-accent px-2.5 py-0.5 text-[11px] font-semibold text-brand-strong">
+                    <span className="inline-flex items-center rounded-full bg-surface-elevated px-2.5 py-0.5 text-st-overline font-semibold text-brand-primary">
                       {MARKETING_TYPE_LABELS[block.type]}
                     </span>
-                    <span className="inline-flex items-center rounded-full bg-accent px-2.5 py-0.5 text-[11px] font-semibold text-brand-strong">
+                    <span className="inline-flex items-center rounded-full bg-surface-elevated px-2.5 py-0.5 text-st-overline font-semibold text-brand-primary">
                       Orden {block.sortOrder}
                     </span>
                   </span>
@@ -446,7 +446,7 @@ export default function MenuMarketingBlocksPage() {
           />
 
           <div className="grid grid-cols-2 gap-3">
-            <label className="grid gap-1.5 text-sm font-medium text-foreground">
+            <label className="grid gap-1.5 text-st-body font-medium text-ink">
               Tipo
               <select
                 className={SELECT_CLASS}
@@ -467,10 +467,10 @@ export default function MenuMarketingBlocksPage() {
             />
           </div>
 
-          <label className="grid gap-1.5 text-sm font-medium text-foreground">
+          <label className="grid gap-1.5 text-st-body font-medium text-ink">
             Descripción
             <textarea
-              className="min-h-20 w-full rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+              className="min-h-20 w-full rounded-md border border-line-subtle bg-surface-card px-3 py-2 text-st-body text-ink placeholder:text-ink-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
               value={form.description}
               onChange={(e) => setForm((current) => ({ ...current, description: e.target.value }))}
               placeholder="Texto corto del bloque comercial"
@@ -484,13 +484,13 @@ export default function MenuMarketingBlocksPage() {
               onChange={(e) => setForm((current) => ({ ...current, imageUrl: e.target.value }))}
               placeholder="https://..."
             />
-            <p className="mt-1 text-xs text-muted-foreground">
+            <p className="mt-1 text-st-caption text-ink-secondary">
               Si queda vacío, el bloque se muestra solo con texto.
             </p>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <label className="grid gap-1.5 text-sm font-medium text-foreground">
+            <label className="grid gap-1.5 text-st-body font-medium text-ink">
               Botón
               <select
                 className={SELECT_CLASS}
@@ -522,7 +522,7 @@ export default function MenuMarketingBlocksPage() {
           </div>
 
           {form.ctaType === "product" ? (
-            <label className="grid gap-1.5 text-sm font-medium text-foreground">
+            <label className="grid gap-1.5 text-st-body font-medium text-ink">
               Plato destino
               <select
                 className={SELECT_CLASS}
@@ -538,7 +538,7 @@ export default function MenuMarketingBlocksPage() {
           ) : null}
 
           {form.ctaType === "category" ? (
-            <label className="grid gap-1.5 text-sm font-medium text-foreground">
+            <label className="grid gap-1.5 text-st-body font-medium text-ink">
               Categoría destino
               <select
                 className={SELECT_CLASS}
@@ -570,7 +570,7 @@ export default function MenuMarketingBlocksPage() {
                 value={form.startsAt}
                 onChange={(e) => setForm((current) => ({ ...current, startsAt: e.target.value }))}
               />
-              <p className="mt-1 text-xs text-muted-foreground">Opcional — vacío es “desde ya”.</p>
+              <p className="mt-1 text-st-caption text-ink-secondary">Opcional — vacío es “desde ya”.</p>
             </div>
             <div>
               <Input
@@ -579,11 +579,11 @@ export default function MenuMarketingBlocksPage() {
                 value={form.endsAt}
                 onChange={(e) => setForm((current) => ({ ...current, endsAt: e.target.value }))}
               />
-              <p className="mt-1 text-xs text-muted-foreground">Opcional — vacío es “sin fin”.</p>
+              <p className="mt-1 text-st-caption text-ink-secondary">Opcional — vacío es “sin fin”.</p>
             </div>
           </div>
 
-          <label className="grid gap-1.5 text-sm font-medium text-foreground">
+          <label className="grid gap-1.5 text-st-body font-medium text-ink">
             Estado
             <select
               className={SELECT_CLASS}

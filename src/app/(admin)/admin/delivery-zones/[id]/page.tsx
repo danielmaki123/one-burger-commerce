@@ -104,7 +104,7 @@ export default function DeliveryZoneFormPage() {
   };
 
   if (loading) {
-    return <div className="flex h-40 items-center justify-center text-muted-foreground">Cargando...</div>;
+    return <div className="flex h-40 items-center justify-center text-ink-secondary">Cargando...</div>;
   }
 
   return (
@@ -166,9 +166,9 @@ export default function DeliveryZoneFormPage() {
                   type="checkbox"
                   checked={formData.isActive}
                   onChange={(e) => setFormData((p) => ({ ...p, isActive: e.target.checked }))}
-                  className="h-4 w-4 rounded border-border text-foreground focus:ring-brand"
+                  className="h-4 w-4 rounded border-line-subtle text-ink focus:ring-brand"
                 />
-                <span className="text-sm font-medium text-foreground">Zona activa</span>
+                <span className="text-st-body font-medium text-ink">Zona activa</span>
               </label>
             </CardContent>
           </Card>
@@ -181,7 +181,7 @@ export default function DeliveryZoneFormPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               {actionError && (
-                <div className="w-full rounded-md border border-danger-strong/30 bg-danger p-3 text-sm text-danger-foreground">
+                <div className="w-full rounded-md border border-danger-strong/30 bg-danger p-3 text-st-body text-danger-foreground">
                   {actionError}
                 </div>
               )}
@@ -198,17 +198,17 @@ export default function DeliveryZoneFormPage() {
             <CardHeader>
               <CardTitle>Resumen</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-2 text-sm">
+            <CardContent className="space-y-2 text-st-body">
               <p>
-                <span className="font-medium text-foreground">Nombre:</span>{" "}
+                <span className="font-medium text-ink">Nombre:</span>{" "}
                 {formData.name || "(sin nombre)"}
               </p>
               <p>
-                <span className="font-medium text-foreground">Tarifa base:</span>{" "}
+                <span className="font-medium text-ink">Tarifa base:</span>{" "}
                 ${Number(formData.baseFee).toFixed(2)}
               </p>
               <p>
-                <span className="font-medium text-foreground">Estado:</span>{" "}
+                <span className="font-medium text-ink">Estado:</span>{" "}
                 {formData.isActive ? "Activa" : "Inactiva"}
               </p>
             </CardContent>

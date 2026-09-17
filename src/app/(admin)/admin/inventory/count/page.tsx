@@ -100,36 +100,36 @@ export default function InventoryCountPage() {
     <div className="space-y-8 pb-10">
       <div>
         <h1 className="font-heading text-3xl font-bold tracking-tight">Conteo Diario</h1>
-        <p className="text-muted-foreground">Registra las cantidades físicas actuales en el almacén.</p>
+        <p className="text-ink-secondary">Registra las cantidades físicas actuales en el almacén.</p>
       </div>
 
       {fetchStatus === "loading" ? (
-        <div className="flex h-40 items-center justify-center text-muted-foreground">Cargando items...</div>
+        <div className="flex h-40 items-center justify-center text-ink-secondary">Cargando items...</div>
       ) : fetchStatus === "auth" ? (
-        <div className="rounded-lg border border-warning-strong/30 bg-warning px-4 py-8 text-center text-sm text-warning-foreground">
+        <div className="rounded-stitch-md border border-warning-strong/30 bg-warning px-4 py-8 text-center text-st-body text-status-pending-text">
           No tienes permisos para esta sección. Inicia sesión con una cuenta autorizada.
         </div>
       ) : fetchStatus === "error" ? (
-        <div className="rounded-lg border border-danger-strong/30 bg-danger px-4 py-8 text-center text-sm text-danger-foreground">
+        <div className="rounded-stitch-md border border-danger-strong/30 bg-danger px-4 py-8 text-center text-st-body text-danger-foreground">
           Error al cargar los items.{" "}
           <button className="underline underline-offset-2" onClick={fetchItems}>
             Reintentar
           </button>
         </div>
       ) : items.length === 0 ? (
-        <Card className="p-8 text-center text-muted-foreground">No hay items activos para contar.</Card>
+        <Card className="p-8 text-center text-ink-secondary">No hay items activos para contar.</Card>
       ) : (
-        <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm" aria-label="Conteo de inventario">
+        <section className="overflow-hidden rounded-stitch-lg border border-line-subtle bg-surface-card shadow-elevation-1" aria-label="Conteo de inventario">
           {items.map((item) => {
             const result = results[item.id];
             return (
-              <div key={item.id} className="border-b border-border px-4 py-4 last:border-b-0">
+              <div key={item.id} className="border-b border-line-subtle px-4 py-4 last:border-b-0">
                 <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-                  <p className="font-semibold text-foreground">{item.name}</p>
-                  <p className="text-sm text-muted-foreground">Estimado actual: {item.currentEstimatedStock} {item.unit}</p>
+                  <p className="font-semibold text-ink">{item.name}</p>
+                  <p className="text-st-body text-ink-secondary">Estimado actual: {item.currentEstimatedStock} {item.unit}</p>
                 </div>
                 {result ? (
-                  <div className={`mb-3 rounded-lg border px-3 py-2 text-sm ${result.ok ? "border-success-strong/30 bg-success text-success-foreground" : "border-danger-strong/30 bg-danger text-danger-foreground"}`}>
+                  <div className={`mb-3 rounded-stitch-md border px-3 py-2 text-st-body ${result.ok ? "border-status-ready-border bg-status-ready-bg text-status-ready-text" : "border-status-sla-border bg-status-sla-bg text-status-sla-text"}`}>
                     {result.msg}
                   </div>
                 ) : null}

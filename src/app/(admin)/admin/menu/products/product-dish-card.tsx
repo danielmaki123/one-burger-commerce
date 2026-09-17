@@ -49,13 +49,13 @@ export default function ProductDishCard({ product, onUpdated }: ProductDishCardP
   };
 
   return (
-    <article className="admin-dish-card flex min-w-0 flex-col overflow-hidden rounded-xl border border-border bg-card">
+    <article className="admin-dish-card flex min-w-0 flex-col overflow-hidden rounded-stitch-md border border-line-subtle bg-surface-card">
       <Link
         href={`/admin/menu/products/${product.id}`}
         aria-label={`Editar ${product.name}`}
-        className="block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+        className="block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
       >
-        <div className="admin-product-thumb relative aspect-[4/3] w-full overflow-hidden bg-accent">
+        <div className="admin-product-thumb relative aspect-[4/3] w-full overflow-hidden bg-surface-elevated">
           {product.images?.[0] ? (
             <img
               src={product.images[0].url}
@@ -63,21 +63,21 @@ export default function ProductDishCard({ product, onUpdated }: ProductDishCardP
               className="h-full w-full object-cover"
             />
           ) : (
-            <div className="flex h-full w-full items-center justify-center bg-accent/80 px-2 text-center text-[10px] font-semibold uppercase tracking-wide text-brand">
+            <div className="flex h-full w-full items-center justify-center bg-surface-elevated/80 px-2 text-center text-st-overline font-semibold uppercase tracking-wide text-brand">
               Sin foto
             </div>
           )}
           {!product.availability.isActive ? (
-            <span className="absolute left-2 top-2 rounded-full bg-status-cerrada px-2.5 py-1 text-xs font-medium text-white">
+            <span className="absolute left-2 top-2 rounded-full bg-status-cerrada px-2.5 py-1 text-st-caption font-medium text-white">
               Inactivo
             </span>
           ) : null}
         </div>
         <div className="space-y-0.5 px-3 pt-2">
-          <h3 className="truncate font-heading text-sm font-semibold tracking-tight text-foreground">
+          <h3 className="truncate font-heading text-st-body font-semibold tracking-tight text-ink">
             {product.name}
           </h3>
-          <p className="text-sm font-semibold tabular-nums text-foreground">
+          <p className="text-st-body font-semibold tabular-nums text-ink">
             {formatCurrency(product.basePrice, currency)}
           </p>
         </div>
@@ -87,8 +87,8 @@ export default function ProductDishCard({ product, onUpdated }: ProductDishCardP
         <span
           className={
             isAvailable
-              ? "text-xs font-medium text-muted-foreground"
-              : "text-xs font-bold text-status-alerta"
+              ? "text-st-caption font-medium text-ink-secondary"
+              : "text-st-caption font-bold text-status-alerta"
           }
         >
           {isAvailable ? "Disponible" : "Agotado"}
@@ -100,11 +100,11 @@ export default function ProductDishCard({ product, onUpdated }: ProductDishCardP
           aria-label={`Cambiar disponibilidad de ${product.name}`}
           disabled={isSavingAvailability}
           onClick={() => void toggleAvailability()}
-          className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:cursor-wait disabled:opacity-60"
+          className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-stitch-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary disabled:cursor-wait disabled:opacity-60"
         >
           {isSavingAvailability ? (
             <LoaderCircle
-              className="h-5 w-5 animate-spin text-brand motion-reduce:animate-none"
+              className="h-5 w-5 animate-spin text-brand-primary motion-reduce:animate-none"
               aria-hidden="true"
             />
           ) : (
@@ -112,12 +112,12 @@ export default function ProductDishCard({ product, onUpdated }: ProductDishCardP
               aria-hidden="true"
               className={[
                 "relative inline-flex h-6 w-11 items-center rounded-full transition-colors motion-reduce:transition-none",
-                isAvailable ? "bg-brand" : "bg-secondary",
+                isAvailable ? "bg-brand" : "bg-surface-low",
               ].join(" ")}
             >
               <span
                 className={[
-                  "inline-block h-5 w-5 transform rounded-full bg-card shadow transition-transform motion-reduce:transition-none",
+                  "inline-block h-5 w-5 transform rounded-full bg-surface-card shadow transition-transform motion-reduce:transition-none",
                   isAvailable ? "translate-x-5.5" : "translate-x-0.5",
                 ].join(" ")}
               />

@@ -51,17 +51,6 @@
       "src/shared/ui/public-mobile-bottom-nav.tsx": 1
     },
     "arbitrary-text-size": {
-      "src/app/(admin)/admin/delivery-zones/page.tsx": 3,
-      "src/app/(admin)/admin/locations/[id]/page.tsx": 2,
-      "src/app/(admin)/admin/menu/categories/page.tsx": 7,
-      "src/app/(admin)/admin/menu/marketing-blocks/page.tsx": 8,
-      "src/app/(admin)/admin/menu/modifier-groups/[id]/page.tsx": 2,
-      "src/app/(admin)/admin/menu/modifier-groups/page.tsx": 6,
-      "src/app/(admin)/admin/menu/products/[id]/page.tsx": 5,
-      "src/app/(admin)/admin/menu/products/page.tsx": 2,
-      "src/app/(admin)/admin/menu/products/product-dish-card.tsx": 1,
-      "src/app/(admin)/admin/orders/page.tsx": 1,
-      "src/app/(admin)/admin/promotions/page.tsx": 5,
       "src/app/(public)/_components/order-summary-card.tsx": 2,
       "src/app/(public)/activity/order-history-views.tsx": 1,
       "src/app/(public)/cart/_components/cart-line-card.tsx": 4,

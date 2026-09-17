@@ -577,7 +577,7 @@ describe("admin ui contracts", () => {
     expect(alertSource).toContain('aria-label="Ítems con alerta"');
     expect(itemSource).toContain('aria-label="Listado de ítems de inventario"');
     expect(alertSource).not.toContain("md:grid-cols-2 lg:grid-cols-3");
-    expect(itemSource).toContain("divide-y divide-border");
+    expect(itemSource).toContain("divide-y divide-line-subtle");
   });
 
   it("keeps daily inventory counts in one operational list", () => {

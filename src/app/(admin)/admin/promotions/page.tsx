@@ -51,10 +51,10 @@ const STATUS_FILTERS: { id: "all" | PromotionStatus; label: string }[] = [
 ];
 
 const STATUS_PILL_CLASSES: Record<PromotionStatus, string> = {
-  active: "bg-success text-success-foreground",
-  inactive: "bg-secondary text-muted-foreground",
-  expired: "bg-warning text-warning-foreground",
-  exhausted: "bg-warning text-warning-foreground",
+  active: "bg-status-ready-bg text-status-ready-text",
+  inactive: "bg-surface-low text-ink-secondary",
+  expired: "bg-status-pending-bg text-status-pending-text",
+  exhausted: "bg-status-pending-bg text-status-pending-text",
 };
 
 export default function AdminPromotionsPage() {
@@ -263,10 +263,10 @@ export default function AdminPromotionsPage() {
       {feedback ? (
         <div
           aria-live="polite"
-          className={`rounded-xl border px-4 py-3 text-sm font-medium ${
+          className={`rounded-stitch-md border px-4 py-3 text-st-body font-medium ${
             feedback.type === "success"
-              ? "border-success-strong/30 bg-success text-success-foreground"
-              : "border-danger-strong/30 bg-danger text-danger-foreground"
+              ? "border-status-ready-border bg-status-ready-bg text-status-ready-text"
+              : "border-status-sla-border bg-status-sla-bg text-status-sla-text"
           }`}
         >
           {feedback.message}
@@ -294,8 +294,8 @@ export default function AdminPromotionsPage() {
               <span>{filter.label}</span>
               <span
                 className={[
-                  "inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[11px] font-bold tabular-nums",
-                  active ? "bg-white/20 text-inherit" : "bg-card text-muted-foreground",
+                  "inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-st-overline font-bold tabular-nums",
+                  active ? "bg-white/20 text-inherit" : "bg-surface-card text-ink-secondary",
                 ].join(" ")}
               >
                 {count}
@@ -306,7 +306,7 @@ export default function AdminPromotionsPage() {
       </div>
 
       {loading ? (
-        <div className="flex h-40 items-center justify-center rounded-2xl border border-border bg-card text-sm text-muted-foreground">
+        <div className="flex h-40 items-center justify-center rounded-stitch-lg border border-line-subtle bg-surface-card text-st-body text-ink-secondary">
           Cargando promos…
         </div>
       ) : loadError ? (
@@ -347,14 +347,14 @@ export default function AdminPromotionsPage() {
         />
       ) : (
         <section
-          className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm"
+          className="overflow-hidden rounded-stitch-lg border border-line-subtle bg-surface-card shadow-elevation-1"
           aria-label="Listado de promos"
         >
           <div className="flex items-baseline justify-between px-4 pb-1 pt-3">
-            <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+            <p className="text-st-overline font-semibold uppercase tracking-widest text-ink-secondary">
               Promos del negocio
             </p>
-            <p className="font-mono text-[11px] font-bold text-muted-foreground">
+            <p className="font-mono text-st-overline font-bold text-ink-secondary">
               {pluralEs(visiblePromotions.length, "promo", "promos")}
             </p>
           </div>
@@ -369,32 +369,32 @@ export default function AdminPromotionsPage() {
               type="button"
               onClick={() => openSheet(promotion)}
               aria-label={`Editar promo ${promotion.code}`}
-              className="flex min-h-14 w-full flex-col gap-1 border-t border-border px-4 py-3 text-left transition-colors first:border-t-0 hover:bg-accent/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand motion-reduce:transition-none"
+              className="flex min-h-14 w-full flex-col gap-1 border-t border-line-subtle px-4 py-3 text-left transition-colors first:border-t-0 hover:bg-surface-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-primary motion-reduce:transition-none"
             >
               <span className="flex items-center gap-2">
                 <span
-                  className={`font-mono text-sm font-bold tracking-wide ${
-                    promotion.status === "active" ? "text-foreground" : "text-muted-foreground"
+                  className={`font-mono text-st-body font-bold tracking-wide ${
+                    promotion.status === "active" ? "text-ink" : "text-ink-secondary"
                   }`}
                 >
                   {promotion.code}
                 </span>
                 <span
-                  className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold before:h-1.5 before:w-1.5 before:rounded-full before:bg-current before:content-[''] ${STATUS_PILL_CLASSES[promotion.status]}`}
+                  className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-st-overline font-semibold before:h-1.5 before:w-1.5 before:rounded-full before:bg-current before:content-[''] ${STATUS_PILL_CLASSES[promotion.status]}`}
                 >
                   {PROMOTION_STATUS_LABELS[promotion.status]}
                 </span>
-                <span className="inline-flex items-center rounded-full bg-accent px-2.5 py-0.5 text-[11px] font-semibold text-brand-strong">
+                <span className="inline-flex items-center rounded-full bg-surface-elevated px-2.5 py-0.5 text-st-overline font-semibold text-brand-primary">
                   {PROMOTION_TYPE_LABELS[promotion.type]}
                 </span>
               </span>
-              <span className="block text-sm font-medium text-foreground">
+              <span className="block text-st-body font-medium text-ink">
                 {describePromotionRule(promotion, currency)}
                 {promotion.type === "bogo"
                   ? ` · ${describePromotionScope(promotion, (id) => scopeNameById.get(id) ?? null)}`
                   : ""}
               </span>
-              <span className="block text-xs leading-5 text-muted-foreground">
+              <span className="block text-st-caption leading-5 text-ink-secondary">
                 {describePromotionUsage(promotion)} · {describePromotionExpiry(promotion, timeZone)}
               </span>
             </button>
@@ -451,7 +451,7 @@ export default function AdminPromotionsPage() {
             autoCapitalize="characters"
             required
           />
-          <p className="-mt-2 text-xs text-muted-foreground">
+          <p className="-mt-2 text-st-caption text-ink-secondary">
             Es el código que escribe el cliente en el checkout. Se guarda en mayúsculas.
           </p>
 
@@ -521,7 +521,7 @@ export default function AdminPromotionsPage() {
                   }
                 />
               </div>
-              <p className="-mt-2 text-xs text-muted-foreground">
+              <p className="-mt-2 text-st-caption text-ink-secondary">
                 Se aplica por bloque: con 2 y 1, el cliente lleva 3 y paga 2.
               </p>
 
@@ -581,10 +581,10 @@ export default function AdminPromotionsPage() {
                   setForm((current) => ({ ...current, expiresAt: event.target.value }))
                 }
               />
-              <p className="mt-1 text-xs text-muted-foreground">Vacío = no vence.</p>
+              <p className="mt-1 text-st-caption text-ink-secondary">Vacío = no vence.</p>
             </div>
           </div>
-          <p className="-mt-2 text-xs text-muted-foreground">
+          <p className="-mt-2 text-st-caption text-ink-secondary">
             Límite de usos: 0 es sin límite. La promo sirve hasta el final del día que vence.
           </p>
 

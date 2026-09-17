@@ -100,26 +100,26 @@ export default function WasteEntryPage() {
     <div className="space-y-8 pb-10">
       <div>
         <h1 className="font-heading text-3xl font-bold tracking-tight">Reportar Merma</h1>
-        <p className="text-muted-foreground">Registra productos desperdiciados o dañados.</p>
+        <p className="text-ink-secondary">Registra productos desperdiciados o dañados.</p>
       </div>
 
       {submitStatus === "success" && (
-        <div className="max-w-2xl rounded-lg border border-success-strong/30 bg-success px-4 py-3 text-sm text-success-foreground">
+        <div className="max-w-2xl rounded-stitch-md border border-success-strong/30 bg-success px-4 py-3 text-st-body text-status-ready-text">
           {submitMsg}
         </div>
       )}
       {(submitStatus === "error" || submitStatus === "auth") && (
-        <div className="max-w-2xl rounded-lg border border-danger-strong/30 bg-danger px-4 py-3 text-sm text-danger-foreground">
+        <div className="max-w-2xl rounded-stitch-md border border-danger-strong/30 bg-danger px-4 py-3 text-st-body text-danger-foreground">
           {submitMsg}
         </div>
       )}
 
       {fetchStatus === "auth" ? (
-        <div className="max-w-2xl rounded-lg border border-warning-strong/30 bg-warning px-4 py-8 text-center text-sm text-warning-foreground">
+        <div className="max-w-2xl rounded-stitch-md border border-warning-strong/30 bg-warning px-4 py-8 text-center text-st-body text-status-pending-text">
           No tienes permisos para esta sección. Inicia sesión con una cuenta autorizada.
         </div>
       ) : fetchStatus === "error" ? (
-        <div className="max-w-2xl rounded-lg border border-danger-strong/30 bg-danger px-4 py-8 text-center text-sm text-danger-foreground">
+        <div className="max-w-2xl rounded-stitch-md border border-danger-strong/30 bg-danger px-4 py-8 text-center text-st-body text-danger-foreground">
           Error al cargar los productos.{" "}
           <button className="underline underline-offset-2" onClick={fetchItems}>
             Reintentar
@@ -134,12 +134,12 @@ export default function WasteEntryPage() {
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="space-y-1.5">
-                <label className="text-sm font-medium leading-none text-foreground">Producto</label>
+                <label className="text-st-body font-medium leading-none text-ink">Producto</label>
                 {fetchStatus === "loading" ? (
-                  <div className="flex h-10 items-center text-sm text-muted-foreground">Cargando productos...</div>
+                  <div className="flex h-10 items-center text-st-body text-ink-secondary">Cargando productos...</div>
                 ) : (
                   <select
-                    className="flex h-10 w-full rounded-md border border-border bg-card px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                    className="flex h-10 w-full rounded-md border border-line-subtle bg-surface-card px-3 py-2 text-st-body ring-offset-canvas focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
                     value={selectedItemId}
                     onChange={(e) => setSelectedItemId(e.target.value)}
                     required
@@ -163,7 +163,7 @@ export default function WasteEntryPage() {
               />
 
               <div className="space-y-3">
-                <label className="text-sm font-medium leading-none text-foreground">Motivo</label>
+                <label className="text-st-body font-medium leading-none text-ink">Motivo</label>
                 <RadioGroup className="grid grid-cols-2 gap-4">
                   {WASTE_REASONS.map((r) => (
                     <RadioGroupItem
@@ -180,9 +180,9 @@ export default function WasteEntryPage() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-sm font-medium leading-none text-foreground">Notas</label>
+                <label className="text-st-body font-medium leading-none text-ink">Notas</label>
                 <textarea
-                  className="flex min-h-[80px] w-full rounded-md border border-border bg-card px-3 py-2 text-sm ring-offset-white placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                  className="flex min-h-[80px] w-full rounded-md border border-line-subtle bg-surface-card px-3 py-2 text-st-body ring-offset-canvas placeholder:text-ink-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
                   placeholder="Detalles adicionales..."
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}

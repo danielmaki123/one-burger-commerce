@@ -121,23 +121,23 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
   if (isLoginRoute) {
     // El panel es oscuro (sistema Stitch): `dark` acá activa los tokens del modo oscuro para todo
     // el subárbol del admin, sin tocar el sitio público, que sigue claro (decisión C3 del owner).
-    return <div className="dark min-h-screen bg-background text-ink">{children}</div>;
+    return <div className="dark min-h-screen bg-canvas text-ink">{children}</div>;
   }
 
   return (
-    <div className="dark flex min-h-screen bg-background text-ink">
+    <div className="dark flex min-h-screen bg-canvas text-ink">
       <AdminMobileNav pathname={pathname} groups={navGroups} session={session} />
 
       <aside data-admin-background className="admin-sidebar-shell hidden md:sticky md:top-0 md:flex md:h-screen md:w-64 md:shrink-0 md:flex-col md:border-r md:border-line-subtle md:bg-surface-card/95 md:backdrop-blur">
         <div className="flex flex-col items-start gap-3 px-5 py-5">
           <Link
             href={homeHref}
-            className="flex min-h-11 items-center gap-3 rounded-stitch-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+            className="flex min-h-11 items-center gap-3 rounded-stitch-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
           >
             <BrandMark
               brand={settings}
               className="h-10 w-10 shrink-0 rounded-stitch-md object-cover shadow-elevation-1"
-              fallbackClassName="flex h-10 w-10 shrink-0 items-center justify-center rounded-stitch-md bg-brand text-st-body font-bold text-brand-foreground shadow-elevation-1"
+              fallbackClassName="flex h-10 w-10 shrink-0 items-center justify-center rounded-stitch-md bg-brand text-st-body font-bold text-ink-inverse shadow-elevation-1"
             />
             <span className="min-w-0">
               <span className="block font-heading text-st-body-lg font-bold tracking-tight text-ink">
@@ -175,8 +175,8 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
                         <span
                           className={`text-st-caption font-normal ${
                             isActive
-                              ? "text-brand-foreground/80"
-                              : "text-ink-secondary group-hover:text-brand-strong"
+                              ? "text-ink-inverse/80"
+                              : "text-ink-secondary group-hover:text-brand-primary"
                           }`}
                         >
                           {item.description}
@@ -204,7 +204,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
                     data-admin-desktop-nav-link
                     aria-current={isActive ? "page" : undefined}
                     className={[
-                      "group inline-flex min-h-11 w-full min-w-0 items-center gap-2.5 rounded-stitch-md px-3 py-2 text-left text-st-body font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand motion-reduce:transition-none",
+                      "group inline-flex min-h-11 w-full min-w-0 items-center gap-2.5 rounded-stitch-md px-3 py-2 text-left text-st-body font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary motion-reduce:transition-none",
                       isActive
                         ? "bg-brand-primary-muted text-brand-primary"
                         : "bg-surface-card text-ink hover:bg-surface-elevated hover:text-brand-primary",

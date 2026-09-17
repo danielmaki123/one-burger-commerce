@@ -220,7 +220,7 @@ export default function AdminMobileNav({
             type="button"
             aria-label="Cerrar menú de más secciones"
             onClick={closeSheet}
-            className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-stitch-md text-ink-secondary transition-colors hover:bg-surface-elevated hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand motion-reduce:transition-none"
+            className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-stitch-md text-ink-secondary transition-colors hover:bg-surface-elevated hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary motion-reduce:transition-none"
           >
             <X className="h-5 w-5" strokeWidth={2} aria-hidden="true" />
           </button>
@@ -241,7 +241,7 @@ export default function AdminMobileNav({
                 aria-current={isActive ? "page" : undefined}
                 onClick={closeSheet}
                 className={[
-                  "flex min-h-11 items-center gap-3 rounded-stitch-md border px-3 py-2 text-st-body font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand motion-reduce:transition-none",
+                  "flex min-h-11 items-center gap-3 rounded-stitch-md border px-3 py-2 text-st-body font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary motion-reduce:transition-none",
                   isActive
                     ? "border-transparent bg-brand-primary-muted text-brand-primary"
                     : "border-transparent text-ink hover:bg-surface-elevated hover:text-brand-primary",
@@ -279,7 +279,7 @@ export default function AdminMobileNav({
               href={tab.href}
               aria-current={isActive ? "page" : undefined}
               className={[
-                "flex min-h-14 flex-col items-center justify-center gap-1 text-st-caption font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand motion-reduce:transition-none",
+                "flex min-h-14 flex-col items-center justify-center gap-1 text-st-caption font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-primary motion-reduce:transition-none",
                 isActive ? "text-brand-primary" : "text-ink-secondary hover:text-brand-primary",
               ].join(" ")}
             >
@@ -297,7 +297,7 @@ export default function AdminMobileNav({
           aria-label={isOpen ? "Cerrar más secciones" : "Abrir más secciones"}
           onClick={() => setIsOpen((open) => !open)}
           className={[
-            "flex min-h-14 flex-col items-center justify-center gap-1 text-st-caption font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand motion-reduce:transition-none",
+            "flex min-h-14 flex-col items-center justify-center gap-1 text-st-caption font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-primary motion-reduce:transition-none",
             isMoreActive || isOpen ? "text-brand-primary" : "text-ink-secondary hover:text-brand-primary",
           ].join(" ")}
         >

@@ -8,7 +8,7 @@ export default function AdminNotFoundPage() {
     <div className="mx-auto flex min-h-[50vh] max-w-2xl items-center justify-center">
       <Card className="w-full">
         <CardHeader className="space-y-2">
-          <CardTitle className="text-2xl text-foreground">Página no encontrada</CardTitle>
+          <CardTitle className="text-2xl text-ink">Página no encontrada</CardTitle>
           <CardDescription>
             La ruta que intentaste abrir no existe dentro del panel admin.
           </CardDescription>

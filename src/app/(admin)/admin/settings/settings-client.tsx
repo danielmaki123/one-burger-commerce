@@ -705,7 +705,7 @@ export default function AdminSettingsClientPage({
         <p className="text-st-body text-ink-secondary sm:col-span-2">
           Si aceptás pedidos, el horario de retiro y los minutos de preparación se
           configuran por local:{" "}
-          <Link href="/admin/locations" className="font-semibold text-brand hover:underline">
+          <Link href="/admin/locations" className="font-semibold text-brand-primary hover:underline">
             Locales
           </Link>
           .
@@ -904,8 +904,8 @@ function PreviewCard({ draft }: { draft: BusinessSettingsDraft }) {
           <BrandMark
             brand={draft}
             variant="full"
-            className="h-9 w-9 shrink-0 rounded-lg object-cover"
-            fallbackClassName="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-st-body font-bold"
+            className="h-9 w-9 shrink-0 rounded-stitch-md object-cover"
+            fallbackClassName="flex h-9 w-9 shrink-0 items-center justify-center rounded-stitch-md text-st-body font-bold"
           />
           <span
             className="font-semibold"

@@ -54,10 +54,10 @@ const metricIconToneClasses: Record<NonNullable<AdminMetricItem["tone"]>, string
 
 const pillToneClasses = {
   neutral: "border-line-subtle bg-surface-low text-ink",
-  brand: "border-brand/20 bg-accent text-brand",
-  success: "border-success-strong/25 bg-success text-success-foreground",
-  warning: "border-warning-strong/25 bg-warning text-warning-foreground",
-  danger: "border-danger-strong/25 bg-danger text-danger-foreground",
+  brand: "border-brand/20 bg-surface-elevated text-brand",
+  success: "border-status-ready-border bg-status-ready-bg text-status-ready-text",
+  warning: "border-status-pending-border bg-status-pending-bg text-status-pending-text",
+  danger: "border-status-sla-border bg-status-sla-bg text-danger-foreground",
 };
 
 type AdminPageHeaderProps = {
@@ -179,7 +179,7 @@ export function AdminEmptyState({
   return (
     <div className="rounded-stitch-lg border border-dashed border-line-subtle bg-surface-low/40 p-8 text-center">
       {icon ? (
-        <span className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-accent text-brand">
+        <span className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-surface-elevated text-brand">
           {icon}
         </span>
       ) : null}

@@ -25,7 +25,7 @@ type AvailabilityFilter = ProductFilterState["availability"];
 
 const UNCATEGORIZED = "__uncategorized__";
 const SELECT_CLASS =
-  "h-11 w-full rounded-md border border-border bg-card px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand";
+  "h-11 w-full rounded-md border border-line-subtle bg-surface-card px-3 text-st-body text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary";
 
 export default function ProductsPage() {
   const [products, setProducts] = React.useState<AdminProduct[]>([]);
@@ -213,19 +213,19 @@ export default function ProductsPage() {
       aria-pressed={options.active}
       onClick={options.onSelect}
       className={[
-        "inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full px-4 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand motion-reduce:transition-none",
+        "inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full px-4 text-st-body font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary motion-reduce:transition-none",
         options.active
           ? options.danger
             ? "bg-status-alerta text-white"
-            : "bg-brand text-brand-foreground"
-          : "bg-secondary text-secondary-foreground hover:bg-accent",
+            : "bg-brand text-ink-inverse"
+          : "bg-surface-low text-ink hover:bg-surface-elevated",
       ].join(" ")}
     >
       <span>{options.label}</span>
       <span
         className={[
-          "inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[11px] font-bold tabular-nums",
-          options.active ? "bg-white/20 text-inherit" : "bg-card text-muted-foreground",
+          "inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-st-overline font-bold tabular-nums",
+          options.active ? "bg-white/20 text-inherit" : "bg-surface-card text-ink-secondary",
         ].join(" ")}
       >
         {options.count}
@@ -246,7 +246,7 @@ export default function ProductsPage() {
       />
 
       {showArchivedSuccess && (
-        <Card className="border-success-strong/25 bg-success p-4 text-sm text-success-foreground">
+        <Card className="border-status-ready-border bg-status-ready-bg p-4 text-st-body text-status-ready-text">
           Producto archivado. Ya no aparece en el menú público.
         </Card>
       )}
@@ -273,7 +273,7 @@ export default function ProductsPage() {
               <SlidersHorizontal className="h-4 w-4" strokeWidth={2} aria-hidden="true" />
               <span>{filtersOpen ? "Ocultar filtros" : "Filtros"}</span>
               {activeFilterCount > 0 ? (
-                <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-brand px-1.5 text-[11px] font-bold text-brand-foreground">
+                <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-brand px-1.5 text-st-overline font-bold text-ink-inverse">
                   {activeFilterCount}
                 </span>
               ) : null}
@@ -290,9 +290,9 @@ export default function ProductsPage() {
             <div
               id="product-filters"
               aria-label="Filtros de productos"
-              className="grid gap-3 border-t border-border pt-3 md:grid-cols-2"
+              className="grid gap-3 border-t border-line-subtle pt-3 md:grid-cols-2"
             >
-              <label className="min-w-0 space-y-1.5 text-sm font-medium text-foreground">
+              <label className="min-w-0 space-y-1.5 text-st-body font-medium text-ink">
                 <span>Estado</span>
                 <select
                   className={SELECT_CLASS}
@@ -305,7 +305,7 @@ export default function ProductsPage() {
                 </select>
               </label>
 
-              <label className="min-w-0 space-y-1.5 text-sm font-medium text-foreground">
+              <label className="min-w-0 space-y-1.5 text-st-body font-medium text-ink">
                 <span>Disponibilidad</span>
                 <select
                   className={SELECT_CLASS}
@@ -325,7 +325,7 @@ export default function ProductsPage() {
       </AdminCompactToolbar>
 
       {loading ? (
-        <div className="flex h-40 items-center justify-center text-muted-foreground">Cargando productos...</div>
+        <div className="flex h-40 items-center justify-center text-ink-secondary">Cargando productos...</div>
       ) : loadError ? (<AdminEmptyState
           title="No se pudo cargar el catálogo"
           description={loadError.message}

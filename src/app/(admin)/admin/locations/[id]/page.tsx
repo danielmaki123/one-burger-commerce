@@ -29,7 +29,7 @@ import {
  * que cobraría este local, que es el que resuelve el servidor.
  */
 const SELECT_CLASS =
-  "h-11 w-full rounded-md border border-border bg-card px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand";
+  "h-11 w-full rounded-md border border-line-subtle bg-surface-card px-3 text-st-body text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary";
 
 type CatalogMeta = {
   location: { id: string; name: string };
@@ -138,27 +138,27 @@ export default function LocationCatalogPage() {
   };
 
   const statusPillClasses: Record<ReturnType<typeof locationCatalogStatus>, string> = {
-    sold: "bg-success text-success-foreground",
-    unavailable: "bg-warning text-warning-foreground",
-    "not-sold": "bg-secondary text-muted-foreground",
+    sold: "bg-status-ready-bg text-status-ready-text",
+    unavailable: "bg-status-pending-bg text-status-pending-text",
+    "not-sold": "bg-surface-low text-ink-secondary",
   };
 
   return (
     <div className="space-y-5 pb-8">
-      <section className="rounded-2xl border border-border bg-card p-4 shadow-sm md:p-5">
+      <section className="rounded-stitch-lg border border-line-subtle bg-surface-card p-4 shadow-elevation-1 md:p-5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div className="min-w-0">
-            <p className="text-xs font-semibold uppercase tracking-wider text-brand">Catálogo</p>
-            <h1 className="mt-1 font-heading text-2xl font-bold tracking-tight text-foreground">
+            <p className="text-st-caption font-semibold uppercase tracking-wider text-brand">Catálogo</p>
+            <h1 className="mt-1 font-heading text-2xl font-bold tracking-tight text-ink">
               {meta?.location.name ?? "Local"}
             </h1>
-            <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
+            <p className="mt-1 max-w-2xl text-st-body leading-6 text-ink-secondary">
               {meta ? describeCatalogSummary(meta) : "Precios y disponibilidad de este local."}
             </p>
           </div>
           <Link
             href="/admin/locations"
-            className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full border border-border bg-card px-4 text-sm font-medium text-foreground hover:bg-accent"
+            className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full border border-line-subtle bg-surface-card px-4 text-st-body font-medium text-ink hover:bg-surface-elevated"
           >
             Volver a locales
           </Link>
@@ -168,10 +168,10 @@ export default function LocationCatalogPage() {
       {feedback ? (
         <div
           aria-live="polite"
-          className={`rounded-xl border px-4 py-3 text-sm font-medium ${
+          className={`rounded-stitch-md border px-4 py-3 text-st-body font-medium ${
             feedback.type === "success"
-              ? "border-success-strong/30 bg-success text-success-foreground"
-              : "border-danger-strong/30 bg-danger text-danger-foreground"
+              ? "border-status-ready-border bg-status-ready-bg text-status-ready-text"
+              : "border-status-sla-border bg-status-sla-bg text-status-sla-text"
           }`}
         >
           {feedback.message}
@@ -179,7 +179,7 @@ export default function LocationCatalogPage() {
       ) : null}
 
       {loading ? (
-        <div className="flex h-40 items-center justify-center rounded-2xl border border-border bg-card text-sm text-muted-foreground">
+        <div className="flex h-40 items-center justify-center rounded-stitch-lg border border-line-subtle bg-surface-card text-st-body text-ink-secondary">
           Cargando catálogo…
         </div>
       ) : loadError ? (
@@ -204,7 +204,7 @@ export default function LocationCatalogPage() {
         />
       ) : (
         <section
-          className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm"
+          className="overflow-hidden rounded-stitch-lg border border-line-subtle bg-surface-card shadow-elevation-1"
           aria-label="Catálogo del local"
         >
           {items.map((item) => {
@@ -216,23 +216,23 @@ export default function LocationCatalogPage() {
                 type="button"
                 onClick={() => openSheet(item)}
                 aria-label={`Editar ${item.name}`}
-                className="flex min-h-14 w-full flex-col gap-1 border-t border-border px-4 py-3 text-left transition-colors first:border-t-0 hover:bg-accent/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand motion-reduce:transition-none"
+                className="flex min-h-14 w-full flex-col gap-1 border-t border-line-subtle px-4 py-3 text-left transition-colors first:border-t-0 hover:bg-surface-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-primary motion-reduce:transition-none"
               >
                 <span className="flex flex-wrap items-center gap-2">
                   <span
-                    className={`text-[15px] font-semibold ${
-                      status === "not-sold" ? "text-muted-foreground" : "text-foreground"
+                    className={`text-st-body-lg font-semibold ${
+                      status === "not-sold" ? "text-ink-secondary" : "text-ink"
                     }`}
                   >
                     {item.name}
                   </span>
                   <span
-                    className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold before:h-1.5 before:w-1.5 before:rounded-full before:bg-current before:content-[''] ${statusPillClasses[status]}`}
+                    className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-st-overline font-semibold before:h-1.5 before:w-1.5 before:rounded-full before:bg-current before:content-[''] ${statusPillClasses[status]}`}
                   >
                     {CATALOG_STATUS_LABELS[status]}
                   </span>
                 </span>
-                <span className="block text-sm text-foreground">
+                <span className="block text-st-body text-ink">
                   {describeLocationProductRow(item, currency)}
                 </span>
               </button>
@@ -294,14 +294,14 @@ export default function LocationCatalogPage() {
               }
               placeholder={sheetItem ? String(sheetItem.basePrice) : ""}
             />
-            <p className="mt-1 text-xs text-muted-foreground">
+            <p className="mt-1 text-st-caption text-ink-secondary">
               Vacío = el precio del negocio
               {sheetItem ? ` (${describeLocationProductRow({ ...sheetItem, price: sheetItem.basePrice, hasPriceOverride: false }, currency)})` : ""}
               . Si después cambia el precio del menú, este local lo sigue.
             </p>
           </div>
 
-          <label className="grid gap-1.5 text-sm font-medium text-foreground">
+          <label className="grid gap-1.5 text-st-body font-medium text-ink">
             En este local
             <select
               className={SELECT_CLASS}
@@ -315,7 +315,7 @@ export default function LocationCatalogPage() {
             </select>
           </label>
 
-          <label className="grid gap-1.5 text-sm font-medium text-foreground">
+          <label className="grid gap-1.5 text-st-body font-medium text-ink">
             Disponibilidad
             <select
               className={SELECT_CLASS}

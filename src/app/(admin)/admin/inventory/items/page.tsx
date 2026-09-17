@@ -95,7 +95,7 @@ export default function InventoryItemsPage() {
       <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
         <div>
           <h1 className="font-heading text-3xl font-bold tracking-tight">Items de Inventario</h1>
-          <p className="text-muted-foreground">Configura los productos base que manejas en stock.</p>
+          <p className="text-ink-secondary">Configura los productos base que manejas en stock.</p>
         </div>
         <Button
           onClick={() => {
@@ -108,18 +108,18 @@ export default function InventoryItemsPage() {
       </div>
 
       {submitStatus === "success" && (
-        <div className="rounded-lg border border-success-strong/30 bg-success px-4 py-3 text-sm text-success-foreground">
+        <div className="rounded-stitch-md border border-success-strong/30 bg-success px-4 py-3 text-st-body text-status-ready-text">
           {submitMsg}
         </div>
       )}
       {(submitStatus === "error" || submitStatus === "auth") && (
-        <div className="rounded-lg border border-danger-strong/30 bg-danger px-4 py-3 text-sm text-danger-foreground">
+        <div className="rounded-stitch-md border border-danger-strong/30 bg-danger px-4 py-3 text-st-body text-danger-foreground">
           {submitMsg}
         </div>
       )}
 
       {isAdding && (
-        <Card className="border-foreground/10 bg-muted/50">
+        <Card className="border-foreground/10 bg-surface-low/50">
           <CardHeader>
             <CardTitle>Nuevo Item de Inventario</CardTitle>
           </CardHeader>
@@ -175,13 +175,13 @@ export default function InventoryItemsPage() {
       )}
 
       {fetchStatus === "loading" ? (
-        <div className="flex h-40 items-center justify-center text-muted-foreground">Cargando items...</div>
+        <div className="flex h-40 items-center justify-center text-ink-secondary">Cargando items...</div>
       ) : fetchStatus === "auth" ? (
-        <div className="rounded-lg border border-warning-strong/30 bg-warning px-4 py-8 text-center text-sm text-warning-foreground">
+        <div className="rounded-stitch-md border border-warning-strong/30 bg-warning px-4 py-8 text-center text-st-body text-status-pending-text">
           No tienes permisos para ver esta sección. Inicia sesión con una cuenta autorizada.
         </div>
       ) : fetchStatus === "error" ? (
-        <div className="rounded-lg border border-danger-strong/30 bg-danger px-4 py-8 text-center text-sm text-danger-foreground">
+        <div className="rounded-stitch-md border border-danger-strong/30 bg-danger px-4 py-8 text-center text-st-body text-danger-foreground">
           Error al cargar los items.{" "}
           <button className="underline underline-offset-2" onClick={fetchItems}>
             Reintentar
@@ -189,33 +189,33 @@ export default function InventoryItemsPage() {
         </div>
       ) : items.length === 0 ? (
         <Card className="flex flex-col items-center justify-center py-12 text-center">
-          <p className="text-muted-foreground">No hay items configurados.</p>
+          <p className="text-ink-secondary">No hay items configurados.</p>
           <Button variant="ghost" className="mt-2" onClick={() => setIsAdding(true)}>
             Crea el primero
           </Button>
         </Card>
       ) : (
-        <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm" aria-label="Listado de ítems de inventario">
-          <div className="divide-y divide-border">
+        <section className="overflow-hidden rounded-stitch-lg border border-line-subtle bg-surface-card shadow-elevation-1" aria-label="Listado de ítems de inventario">
+          <div className="divide-y divide-line-subtle">
             {items.map((item) => (
               <div key={item.id} className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center">
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <p className="font-semibold text-foreground">{item.name}</p>
+                    <p className="font-semibold text-ink">{item.name}</p>
                     <Badge variant={item.isActive ? "success" : "secondary"}>
                       {item.isActive ? "Activo" : "Inactivo"}
                     </Badge>
                   </div>
-                  <p className="mt-1 text-sm text-muted-foreground">{item.category} · Unidad: {item.unit}</p>
+                  <p className="mt-1 text-st-body text-ink-secondary">{item.category} · Unidad: {item.unit}</p>
                 </div>
-                <dl className="grid grid-cols-2 gap-x-5 text-sm sm:min-w-64">
+                <dl className="grid grid-cols-2 gap-x-5 text-st-body sm:min-w-64">
                   <div>
-                    <dt className="text-muted-foreground">Stock actual</dt>
-                    <dd className="font-semibold text-foreground">{item.currentEstimatedStock} {item.unit}</dd>
+                    <dt className="text-ink-secondary">Stock actual</dt>
+                    <dd className="font-semibold text-ink">{item.currentEstimatedStock} {item.unit}</dd>
                   </div>
                   <div>
-                    <dt className="text-muted-foreground">Umbral</dt>
-                    <dd className={item.currentEstimatedStock <= item.lowStockThreshold ? "font-semibold text-danger-foreground" : "font-semibold text-foreground"}>
+                    <dt className="text-ink-secondary">Umbral</dt>
+                    <dd className={item.currentEstimatedStock <= item.lowStockThreshold ? "font-semibold text-danger-foreground" : "font-semibold text-ink"}>
                       {item.lowStockThreshold} {item.unit}
                     </dd>
                   </div>

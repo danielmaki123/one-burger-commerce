@@ -29,7 +29,7 @@ interface ModifierGroup {
 }
 
 const SELECT_CLASS =
-  "h-11 w-full rounded-md border border-border bg-card px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand";
+  "h-11 w-full rounded-md border border-line-subtle bg-surface-card px-3 text-st-body text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary";
 
 function OptionActiveSwitch({
   checked,
@@ -47,18 +47,18 @@ function OptionActiveSwitch({
       aria-checked={checked}
       aria-label={label}
       onClick={() => onChange(!checked)}
-      className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+      className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-stitch-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
     >
       <span
         aria-hidden="true"
         className={[
           "relative inline-flex h-6 w-11 items-center rounded-full transition-colors motion-reduce:transition-none",
-          checked ? "bg-brand" : "bg-secondary",
+          checked ? "bg-brand" : "bg-surface-low",
         ].join(" ")}
       >
         <span
           className={[
-            "inline-block h-5 w-5 transform rounded-full bg-card shadow transition-transform motion-reduce:transition-none",
+            "inline-block h-5 w-5 transform rounded-full bg-surface-card shadow transition-transform motion-reduce:transition-none",
             checked ? "translate-x-5.5" : "translate-x-0.5",
           ].join(" ")}
         />
@@ -188,7 +188,7 @@ export default function ModifierGroupFormPage() {
 
   if (loading) {
     return (
-      <div className="flex h-40 items-center justify-center text-sm text-muted-foreground">
+      <div className="flex h-40 items-center justify-center text-st-body text-ink-secondary">
         Cargando grupo…
       </div>
     );
@@ -202,7 +202,7 @@ export default function ModifierGroupFormPage() {
           title="Modificadores"
           description="Los extras y opciones que el cliente elige al pedir."
         />
-        <div className="rounded-xl border border-danger-strong/30 bg-danger px-4 py-3 text-sm font-medium text-danger-foreground">
+        <div className="rounded-stitch-md border border-danger-strong/30 bg-danger px-4 py-3 text-st-body font-medium text-danger-foreground">
           {loadError}
         </div>
         <Link href="/admin/menu/modifier-groups">
@@ -233,12 +233,12 @@ export default function ModifierGroupFormPage() {
       />
 
       {actionError ? (
-        <div className="rounded-xl border border-danger-strong/30 bg-danger px-4 py-3 text-sm font-medium text-danger-foreground">
+        <div className="rounded-stitch-md border border-danger-strong/30 bg-danger px-4 py-3 text-st-body font-medium text-danger-foreground">
           {actionError}
         </div>
       ) : null}
 
-      <section className="rounded-2xl border border-border bg-card p-4 shadow-sm md:p-5" aria-label="Datos del grupo">
+      <section className="rounded-stitch-lg border border-line-subtle bg-surface-card p-4 shadow-elevation-1 md:p-5" aria-label="Datos del grupo">
         <div className="grid gap-4">
           <Input
             label="Nombre del grupo"
@@ -248,7 +248,7 @@ export default function ModifierGroupFormPage() {
             required
           />
 
-          <label className="grid gap-1.5 text-sm font-medium text-foreground">
+          <label className="grid gap-1.5 text-st-body font-medium text-ink">
             Regla de selección
             <select
               className={SELECT_CLASS}
@@ -288,18 +288,18 @@ export default function ModifierGroupFormPage() {
             />
           </div>
 
-          <p className="rounded-lg bg-accent px-3 py-2 text-sm text-brand-strong" aria-live="polite">
+          <p className="rounded-stitch-md bg-surface-elevated px-3 py-2 text-st-body text-brand-primary" aria-live="polite">
             {describeModifierRule(formData)} al pedir.
           </p>
         </div>
       </section>
 
-      <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm" aria-label="Opciones del grupo">
+      <section className="overflow-hidden rounded-stitch-lg border border-line-subtle bg-surface-card shadow-elevation-1" aria-label="Opciones del grupo">
         <div className="flex items-baseline justify-between px-4 pb-1 pt-3">
-          <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+          <p className="text-st-overline font-semibold uppercase tracking-widest text-ink-secondary">
             Opciones
           </p>
-          <p className="font-mono text-[11px] font-bold text-muted-foreground">
+          <p className="font-mono text-st-overline font-bold text-ink-secondary">
             {options.filter((opt) => opt.isActive).length} activas de {options.length}
           </p>
         </div>
@@ -307,7 +307,7 @@ export default function ModifierGroupFormPage() {
         {options.map((opt, index) => (
           <div
             key={index}
-            className="flex items-center gap-2 border-t border-border px-4 py-2 first:border-t-0"
+            className="flex items-center gap-2 border-t border-line-subtle px-4 py-2 first:border-t-0"
           >
             <div className="min-w-0 flex-1">
               <Input
@@ -342,7 +342,7 @@ export default function ModifierGroupFormPage() {
                 aria-label={`Quitar opción ${opt.name || index + 1}`}
                 onClick={() => handleRemoveOption(index)}
                 disabled={options.length <= 1}
-                className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-danger hover:text-danger-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:opacity-40 motion-reduce:transition-none"
+                className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-stitch-md text-ink-secondary transition-colors hover:bg-danger hover:text-danger-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary disabled:opacity-40 motion-reduce:transition-none"
               >
                 <Trash2 aria-hidden="true" className="h-4.5 w-4.5" />
               </button>
@@ -350,19 +350,19 @@ export default function ModifierGroupFormPage() {
           </div>
         ))}
 
-        <div className="border-t border-border p-3">
+        <div className="border-t border-line-subtle p-3">
           <Button type="button" variant="secondary" className="min-h-11 w-full gap-2" onClick={handleAddOption}>
             <Plus aria-hidden="true" className="h-4 w-4" /> Añadir opción
           </Button>
         </div>
       </section>
 
-      <p className="text-xs text-muted-foreground">
+      <p className="text-st-caption text-ink-secondary">
         Recargo 0 significa que la opción no cambia el precio del plato.
       </p>
 
       {/* Barra de acción fija (R6): guardar sin scroll, apilada sobre la tab bar */}
-      <div className="fixed inset-x-0 bottom-14 z-40 border-t border-border bg-background/95 px-4 py-3 backdrop-blur-sm md:bottom-0">
+      <div className="fixed inset-x-0 bottom-14 z-40 border-t border-line-subtle bg-canvas/95 px-4 py-3 backdrop-blur-sm md:bottom-0">
         <div className="mx-auto flex max-w-3xl gap-2">
           <Button
             type="button"

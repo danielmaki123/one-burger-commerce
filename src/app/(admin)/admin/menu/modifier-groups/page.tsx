@@ -86,7 +86,7 @@ export default function ModifierGroupsPage() {
       />
 
       {loading ? (
-        <div className="flex h-40 items-center justify-center rounded-2xl border border-border bg-card text-sm text-muted-foreground">
+        <div className="flex h-40 items-center justify-center rounded-stitch-lg border border-line-subtle bg-surface-card text-st-body text-ink-secondary">
           Cargando modificadores…
         </div>
       ) : loadError ? (
@@ -110,12 +110,12 @@ export default function ModifierGroupsPage() {
           }
         />
       ) : (
-        <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm" aria-label="Listado de grupos de modificadores">
+        <section className="overflow-hidden rounded-stitch-lg border border-line-subtle bg-surface-card shadow-elevation-1" aria-label="Listado de grupos de modificadores">
           <div className="flex items-baseline justify-between px-4 pb-1 pt-3">
-            <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+            <p className="text-st-overline font-semibold uppercase tracking-widest text-ink-secondary">
               Grupos
             </p>
-            <p className="font-mono text-[11px] font-bold text-muted-foreground">
+            <p className="font-mono text-st-overline font-bold text-ink-secondary">
               {pluralEs(groups.length, "grupo", "grupos")} · {pluralEs(totalOptions, "opción", "opciones")}
             </p>
           </div>
@@ -129,34 +129,34 @@ export default function ModifierGroupsPage() {
                 key={group.id}
                 href={`/admin/menu/modifier-groups/${group.id}`}
                 aria-label={`Editar ${group.name}`}
-                className="grid grid-cols-[minmax(0,1fr)_auto_1.25rem] items-center gap-x-3 border-t border-border px-4 py-3 transition-colors first:border-t-0 hover:bg-accent/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand motion-reduce:transition-none"
+                className="grid grid-cols-[minmax(0,1fr)_auto_1.25rem] items-center gap-x-3 border-t border-line-subtle px-4 py-3 transition-colors first:border-t-0 hover:bg-surface-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-primary motion-reduce:transition-none"
               >
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-[15px] font-semibold text-foreground">{group.name}</p>
+                    <p className="text-st-body-lg font-semibold text-ink">{group.name}</p>
                     <span
-                      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold before:h-1.5 before:w-1.5 before:rounded-full before:bg-current before:content-[''] ${
+                      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-st-overline font-semibold before:h-1.5 before:w-1.5 before:rounded-full before:bg-current before:content-[''] ${
                         group.isRequired
-                          ? "bg-danger text-danger-foreground"
-                          : "bg-accent text-brand-strong before:hidden"
+                          ? "bg-status-sla-bg text-status-sla-text"
+                          : "bg-surface-elevated text-brand-primary before:hidden"
                       }`}
                     >
                       {group.isRequired ? "Obligatorio" : "Opcional"}
                     </span>
                   </div>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
+                  <p className="mt-0.5 text-st-caption text-ink-secondary">
                     {describeModifierRule(group)}
                   </p>
                 </div>
 
                 <div className="text-right">
-                  <p className="text-[15px] font-bold tabular-nums text-foreground">{group.options.length}</p>
-                  <p className="text-[11px] text-muted-foreground">
+                  <p className="text-st-body-lg font-bold tabular-nums text-ink">{group.options.length}</p>
+                  <p className="text-st-overline text-ink-secondary">
                     {group.options.length === 1 ? "opción" : "opciones"}
                   </p>
                 </div>
 
-                <ChevronRight aria-hidden="true" className="h-4.5 w-4.5 text-muted-foreground" />
+                <ChevronRight aria-hidden="true" className="h-4.5 w-4.5 text-ink-secondary" />
 
                 {group.options.length > 0 ? (
                   <div className="col-span-full mt-2 flex flex-wrap gap-1.5">
@@ -165,25 +165,25 @@ export default function ModifierGroupsPage() {
                       return (
                         <span
                           key={option.id}
-                          className={`inline-flex min-h-7 items-center gap-1.5 rounded-lg bg-secondary px-2.5 py-1 text-xs font-medium text-foreground ${
+                          className={`inline-flex min-h-7 items-center gap-1.5 rounded-stitch-md bg-surface-low px-2.5 py-1 text-st-caption font-medium text-ink ${
                             option.isActive ? "" : "opacity-55"
                           }`}
                         >
                           <span className={option.isActive ? "" : "line-through"}>{option.name}</span>
                           {delta ? (
-                            <span className="font-bold tabular-nums text-brand-strong">{delta}</span>
+                            <span className="font-bold tabular-nums text-brand-primary">{delta}</span>
                           ) : null}
                         </span>
                       );
                     })}
                     {hiddenOptions > 0 ? (
-                      <span className="inline-flex min-h-7 items-center rounded-lg bg-secondary px-2.5 py-1 text-xs font-medium text-muted-foreground">
+                      <span className="inline-flex min-h-7 items-center rounded-stitch-md bg-surface-low px-2.5 py-1 text-st-caption font-medium text-ink-secondary">
                         +{hiddenOptions} más
                       </span>
                     ) : null}
                   </div>
                 ) : (
-                  <p className="col-span-full mt-2 text-xs text-muted-foreground">
+                  <p className="col-span-full mt-2 text-st-caption text-ink-secondary">
                     Sin opciones — el grupo no se puede usar todavía.
                   </p>
                 )}

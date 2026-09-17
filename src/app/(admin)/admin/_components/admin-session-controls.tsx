@@ -48,8 +48,8 @@ export default function AdminSessionControls({
 
     return (
       <div className="flex min-w-0 items-center gap-3 md:w-full md:flex-col md:items-stretch md:gap-2">
-        <div className="flex min-w-0 items-center gap-2.5 rounded-stitch-md bg-secondary px-3 py-2 text-left md:w-full">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand text-st-caption font-bold text-brand-foreground">
+        <div className="flex min-w-0 items-center gap-2.5 rounded-stitch-md bg-surface-low px-3 py-2 text-left md:w-full">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand text-st-caption font-bold text-ink-inverse">
             {initial}
           </span>
           <span className="hidden min-w-0 md:block">
@@ -67,7 +67,7 @@ export default function AdminSessionControls({
   return (
     <Link
       href="/admin/login"
-      className="inline-flex min-h-11 items-center justify-center rounded-md border border-line-subtle bg-transparent px-3 text-st-caption font-medium text-ink transition-colors hover:bg-cream focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none md:w-full"
+      className="inline-flex min-h-11 items-center justify-center rounded-md border border-line-subtle bg-transparent px-3 text-st-caption font-medium text-ink transition-colors hover:bg-surface-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 focus-visible:ring-offset-canvas motion-reduce:transition-none md:w-full"
     >
       Iniciar sesión
     </Link>

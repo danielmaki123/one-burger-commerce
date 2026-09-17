@@ -35,9 +35,9 @@ const TYPE_LABEL: Record<string, string> = {
 };
 
 const TYPE_COLOR: Record<string, string> = {
-  count: "bg-accent text-brand-strong",
-  receive: "bg-success-strong/20 text-success-foreground",
-  waste: "bg-danger-strong/20 text-danger-foreground",
+  count: "bg-surface-elevated text-brand-primary",
+  receive: "bg-success-strong/20 text-status-ready-text",
+  waste: "bg-status-sla-pulse/20 text-status-sla-text",
 };
 
 export default function InventoryDashboardPage() {
@@ -91,7 +91,7 @@ export default function InventoryDashboardPage() {
     return (
       <div className="flex min-h-[60vh] flex-col items-center justify-center space-y-4 text-center">
         <h2 className="font-heading text-2xl font-bold">Acceso restringido</h2>
-        <p className="text-muted-foreground">Inicia sesión como administrador para ver esta sección.</p>
+        <p className="text-ink-secondary">Inicia sesión como administrador para ver esta sección.</p>
         <Link href="/admin/login">
           <Button>Iniciar sesión</Button>
         </Link>
@@ -102,16 +102,16 @@ export default function InventoryDashboardPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="font-heading text-3xl font-bold tracking-tight text-foreground">Gestión de Inventario</h1>
-        <p className="text-muted-foreground">Monitorea niveles de stock, registra mermas y recepciones.</p>
+        <h1 className="font-heading text-3xl font-bold tracking-tight text-ink">Gestión de Inventario</h1>
+        <p className="text-ink-secondary">Monitorea niveles de stock, registra mermas y recepciones.</p>
       </div>
 
       {!loading && alerts.length > 0 && (
         <div
-          className={`flex flex-wrap items-center gap-3 rounded-lg border px-4 py-3 text-sm ${
+          className={`flex flex-wrap items-center gap-3 rounded-stitch-md border px-4 py-3 text-st-body ${
             criticalCount > 0
-              ? "border-danger-strong/30 bg-danger text-danger-foreground"
-              : "border-warning-strong/30 bg-warning text-warning-foreground"
+              ? "border-status-sla-border bg-status-sla-bg text-status-sla-text"
+              : "border-warning-strong/30 bg-status-pending-bg text-status-pending-text"
           }`}
         >
           <span className="font-semibold">
@@ -126,11 +126,11 @@ export default function InventoryDashboardPage() {
         </div>
       )}
 
-      <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm" aria-label="Operaciones de inventario">
-        <div className="border-b border-border px-4 py-3">
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Operaciones de inventario</p>
+      <section className="overflow-hidden rounded-stitch-lg border border-line-subtle bg-surface-card shadow-elevation-1" aria-label="Operaciones de inventario">
+        <div className="border-b border-line-subtle px-4 py-3">
+          <p className="text-st-caption font-semibold uppercase tracking-wide text-ink-secondary">Operaciones de inventario</p>
         </div>
-        <div className="divide-y divide-border">
+        <div className="divide-y divide-line-subtle">
           {[
             { href: "/admin/inventory/count", label: "Conteo diario", description: "Registra niveles físicos al cierre.", action: "Registrar conteo", Icon: ClipboardCheck },
             { href: "/admin/inventory/receive", label: "Recepción", description: "Registra entrada de mercadería de proveedores.", action: "Registrar entrada", Icon: PackagePlus },
@@ -138,12 +138,12 @@ export default function InventoryDashboardPage() {
             { href: "/admin/inventory/alerts", label: "Alertas", description: "Ítems por debajo del umbral configurado.", action: "Ver alertas", Icon: ShieldAlert, badge: !loading && alerts.length > 0 ? alerts.length : null },
             { href: "/admin/inventory/items", label: "Ítems maestro", description: "Configuración base de productos de inventario.", action: "Gestionar ítems", Icon: Boxes },
           ].map(({ href, label, description, action, Icon, badge }) => (
-            <Link key={href} href={href} className="group flex min-h-16 items-center gap-3 px-4 py-3 transition-colors hover:bg-accent/35">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-secondary text-brand"><Icon className="h-5 w-5" strokeWidth={2} aria-hidden="true" /></span>
-              <span className="min-w-0 flex-1"><span className="block text-sm font-semibold text-foreground">{label}</span><span className="mt-0.5 block text-sm text-muted-foreground">{description}</span></span>
+            <Link key={href} href={href} className="group flex min-h-16 items-center gap-3 px-4 py-3 transition-colors hover:bg-surface-elevated">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-stitch-md bg-surface-low text-brand"><Icon className="h-5 w-5" strokeWidth={2} aria-hidden="true" /></span>
+              <span className="min-w-0 flex-1"><span className="block text-st-body font-semibold text-ink">{label}</span><span className="mt-0.5 block text-st-body text-ink-secondary">{description}</span></span>
               {badge ? <Badge variant={criticalCount > 0 ? "danger" : "warning"}>{badge}</Badge> : null}
-              <span className="hidden items-center gap-1 text-sm font-semibold text-brand sm:inline-flex">{action}<ArrowUpRight className="h-4 w-4" strokeWidth={2} aria-hidden="true" /></span>
-              <ArrowUpRight className="h-4 w-4 shrink-0 text-muted-foreground group-hover:text-brand sm:hidden" strokeWidth={2} aria-hidden="true" />
+              <span className="hidden items-center gap-1 text-st-body font-semibold text-brand-primary sm:inline-flex">{action}<ArrowUpRight className="h-4 w-4" strokeWidth={2} aria-hidden="true" /></span>
+              <ArrowUpRight className="h-4 w-4 shrink-0 text-ink-secondary group-hover:text-brand-primary sm:hidden" strokeWidth={2} aria-hidden="true" />
             </Link>
           ))}
         </div>
@@ -156,32 +156,32 @@ export default function InventoryDashboardPage() {
         </CardHeader>
         <CardContent>
           {loading ? (
-            <p className="text-sm text-muted-foreground">Cargando...</p>
+            <p className="text-st-body text-ink-secondary">Cargando...</p>
           ) : movements.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Sin movimientos registrados aún.</p>
+            <p className="text-st-body text-ink-secondary">Sin movimientos registrados aún.</p>
           ) : (
-            <div className="divide-y divide-border">
+            <div className="divide-y divide-line-subtle">
               {movements.map((mov) => {
                 const item = itemMap[mov.inventoryItemId];
                 return (
-                  <div key={mov.id} className="flex items-center justify-between py-3 text-sm">
+                  <div key={mov.id} className="flex items-center justify-between py-3 text-st-body">
                     <div className="flex items-center gap-3">
                       <span
-                        className={`rounded px-2 py-0.5 text-xs font-medium ${
-                          TYPE_COLOR[mov.type] ?? "bg-muted text-foreground"
+                        className={`rounded px-2 py-0.5 text-st-caption font-medium ${
+                          TYPE_COLOR[mov.type] ?? "bg-surface-low text-ink"
                         }`}
                       >
                         {TYPE_LABEL[mov.type] ?? mov.type}
                       </span>
-                      <span className="font-medium text-foreground">
+                      <span className="font-medium text-ink">
                         {item ? item.name : mov.inventoryItemId}
                       </span>
                     </div>
-                    <div className="text-right text-muted-foreground">
-                      <span className="font-semibold text-foreground">
+                    <div className="text-right text-ink-secondary">
+                      <span className="font-semibold text-ink">
                         {mov.quantity} {item?.unit ?? ""}
                       </span>
-                      <p className="text-xs">
+                      <p className="text-st-caption">
                         {new Date(mov.occurredAt).toLocaleDateString("es-GT")}
                       </p>
                     </div>

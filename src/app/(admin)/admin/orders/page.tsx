@@ -705,18 +705,18 @@ export default function AdminOrdersPage() {
       <div
         key={order.id}
         className={[
-          "border-t border-border first:border-t-0",
-          isNew ? "bg-warning/60" : "bg-card",
+          "border-t border-line-subtle first:border-t-0",
+          isNew ? "bg-warning/60" : "bg-surface-card",
         ].join(" ")}
       >
         <Link
           href={`/admin/orders/${order.id}`}
           aria-label={`Abrir orden ${order.orderNumber}`}
-          className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 px-4 pb-2.5 pt-3.5 transition-colors hover:bg-accent/40"
+          className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 px-4 pb-2.5 pt-3.5 transition-colors hover:bg-surface-elevated/40"
         >
           <div className="min-w-0">
-            <p className="text-base font-bold text-foreground">{order.orderNumber}</p>
-            <p className="mt-0.5 truncate text-xs font-medium text-muted-foreground">
+            <p className="text-base font-bold text-ink">{order.orderNumber}</p>
+            <p className="mt-0.5 truncate text-st-caption font-medium text-ink-secondary">
               <Icon className="mr-1 inline h-3.5 w-3.5 align-[-2px] text-brand" strokeWidth={2} aria-hidden="true" />
               {typeLabel} · {order.customerName} ·{" "}
               <span className="font-mono font-semibold">{elapsed}</span>
@@ -724,17 +724,17 @@ export default function AdminOrdersPage() {
               {scopedLocations.length > 1 && order.locationName ? ` · ${order.locationName}` : ""}
             </p>
           </div>
-          <p className="text-right text-base font-bold tabular-nums text-foreground">
+          <p className="text-right text-base font-bold tabular-nums text-ink">
             {formatCurrency(order.total, currency)}
           </p>
           <div className="col-span-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
             <span className="flex min-w-0 flex-wrap items-center gap-2">
               {pickupLabel ? (
-                <span className="text-xs font-semibold text-foreground tabular-nums">
+                <span className="text-st-caption font-semibold text-ink tabular-nums">
                   {pickupLabel}
                 </span>
               ) : (
-                <span className="text-xs text-muted-foreground tabular-nums">
+                <span className="text-st-caption text-ink-secondary tabular-nums">
                   Recibida {formatTimeInTimeZone(order.createdAt, timeZone) ?? "—"}
                 </span>
               )}
@@ -802,13 +802,13 @@ export default function AdminOrdersPage() {
             </Tabs>
 
             {showLocationFilter ? (
-              <label className="flex min-h-11 items-center gap-2 text-sm">
-                <span className="sr-only sm:not-sr-only sm:text-xs sm:font-semibold sm:uppercase sm:tracking-wide sm:text-muted-foreground">
+              <label className="flex min-h-11 items-center gap-2 text-st-body">
+                <span className="sr-only sm:not-sr-only sm:text-st-caption sm:font-semibold sm:uppercase sm:tracking-wide sm:text-ink-secondary">
                   Local
                 </span>
                 <select
                   aria-label="Local de las comandas"
-                  className="h-11 rounded-md border border-border bg-card px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                  className="h-11 rounded-md border border-line-subtle bg-surface-card px-3 text-st-body text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
                   value={locationFilter}
                   onChange={(event) => setLocationFilter(event.target.value)}
                 >
@@ -860,7 +860,7 @@ export default function AdminOrdersPage() {
               </span>
 
               <span
-                className={`text-xs font-semibold tabular-nums ${error ? "text-warning-foreground" : "text-muted-foreground"}`}
+                className={`text-st-caption font-semibold tabular-nums ${error ? "text-status-pending-text" : "text-ink-secondary"}`}
                 data-testid="orders-freshness"
               >
                 {error ? "Sin conexión · " : ""}Actualizado{" "}
@@ -937,12 +937,12 @@ export default function AdminOrdersPage() {
             </label>
 
             <label className="flex min-h-11 items-center gap-2">
-              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <span className="text-st-caption font-semibold uppercase tracking-wide text-ink-secondary">
                 Pago
               </span>
               <select
                 aria-label="Forma de pago"
-                className="h-11 rounded-md border border-border bg-card px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                className="h-11 rounded-md border border-line-subtle bg-surface-card px-3 text-st-body text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
                 value={paymentFilter}
                 onChange={(event) =>
                   setPaymentFilter(event.target.value as OrderPaymentFilter)
@@ -996,9 +996,9 @@ export default function AdminOrdersPage() {
       {showBoard && scheduledForAnotherDay.length > 0 ? (
         <div
           data-testid="comandas-scheduled-notice"
-          className="flex flex-col gap-2 rounded-2xl border border-border bg-card px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between"
+          className="flex flex-col gap-2 rounded-stitch-lg border border-line-subtle bg-surface-card px-4 py-3 text-st-body sm:flex-row sm:items-center sm:justify-between"
         >
-          <span className="font-semibold text-foreground">
+          <span className="font-semibold text-ink">
             {scheduledForAnotherDay.length === 1
               ? "1 comanda programada para otro día"
               : `${scheduledForAnotherDay.length} comandas programadas para otro día`}
@@ -1020,7 +1020,7 @@ export default function AdminOrdersPage() {
           role="status"
           aria-live="polite"
           data-testid="orders-action-notice"
-          className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-border bg-card px-4 py-3 text-sm font-semibold text-foreground"
+          className="flex flex-wrap items-center justify-between gap-2 rounded-stitch-lg border border-line-subtle bg-surface-card px-4 py-3 text-st-body font-semibold text-ink"
         >
           {actionNotice}
           <Button variant="ghost" className="min-h-11" onClick={() => setActionNotice(null)}>
@@ -1033,9 +1033,9 @@ export default function AdminOrdersPage() {
       {newOrderIds.length > 0 ? (
         <div
           role="status"
-          className="flex flex-col gap-3 rounded-2xl border border-brand/40 bg-accent px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+          className="flex flex-col gap-3 rounded-stitch-lg border border-brand/40 bg-surface-elevated px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
         >
-          <span className="text-sm font-semibold text-foreground">
+          <span className="text-st-body font-semibold text-ink">
             {newOrderIds.length === 1
               ? "1 pedido nuevo"
               : `${newOrderIds.length} pedidos nuevos`}
@@ -1058,7 +1058,7 @@ export default function AdminOrdersPage() {
           historial. */}
       {!showBoard ? (
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-xs text-muted-foreground" data-testid="orders-freshness">
+        <span className="text-st-caption text-ink-secondary" data-testid="orders-freshness">
           Actualizado{" "}
           {lastUpdatedAt ? formatUpdatedAgo(lastUpdatedAt, nowMs) : "…"}
         </span>
@@ -1096,25 +1096,25 @@ export default function AdminOrdersPage() {
       <>
       <section
         aria-label="Resumen de órdenes"
-        className="flex flex-col gap-3 rounded-2xl border border-border bg-card px-4 py-3 shadow-sm sm:flex-row sm:items-center sm:justify-between"
+        className="flex flex-col gap-3 rounded-stitch-lg border border-line-subtle bg-surface-card px-4 py-3 shadow-elevation-1 sm:flex-row sm:items-center sm:justify-between"
       >
         <div className="flex min-w-0 items-center gap-3">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent text-brand">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-stitch-md bg-surface-elevated text-brand">
             <ClipboardList aria-hidden="true" className="h-5 w-5" />
           </span>
           <div className="min-w-0">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Órdenes en vista</p>
-            <p className="mt-0.5 text-sm font-semibold text-foreground">
+            <p className="text-st-caption font-semibold uppercase tracking-wide text-ink-secondary">Órdenes en vista</p>
+            <p className="mt-0.5 text-st-body font-semibold text-ink">
               <span className="text-2xl leading-none">{ordersStatusCounts.total}</span>
-              <span className="ml-2 text-muted-foreground">historial</span>
+              <span className="ml-2 text-ink-secondary">historial</span>
             </p>
           </div>
         </div>
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground" aria-label="Estados en la vista actual">
-          <span><strong className="text-foreground">{ordersStatusCounts.new}</strong> nuevas</span>
-          <span><strong className="text-foreground">{ordersStatusCounts.preparing}</strong> preparando</span>
-          <span><strong className="text-foreground">{ordersStatusCounts.ready}</strong> listas</span>
-          <span><strong className="text-foreground">{ordersStatusCounts.closed}</strong> cerradas</span>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-st-body text-ink-secondary" aria-label="Estados en la vista actual">
+          <span><strong className="text-ink">{ordersStatusCounts.new}</strong> nuevas</span>
+          <span><strong className="text-ink">{ordersStatusCounts.preparing}</strong> preparando</span>
+          <span><strong className="text-ink">{ordersStatusCounts.ready}</strong> listas</span>
+          <span><strong className="text-ink">{ordersStatusCounts.closed}</strong> cerradas</span>
         </div>
       </section>
 
@@ -1128,14 +1128,14 @@ export default function AdminOrdersPage() {
               aria-pressed={isActive}
               onClick={() => setStatusFilter(option.value)}
               className={[
-                "inline-flex min-h-11 flex-none items-center gap-2 whitespace-nowrap rounded-full px-4 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand motion-reduce:transition-none",
+                "inline-flex min-h-11 flex-none items-center gap-2 whitespace-nowrap rounded-full px-4 text-st-body font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary motion-reduce:transition-none",
                 isActive
                   ? "bg-foreground text-background"
-                  : "bg-secondary text-secondary-foreground hover:bg-accent",
+                  : "bg-surface-low text-ink hover:bg-surface-elevated",
               ].join(" ")}
             >
               {option.label}
-              <span className={`rounded-full px-1.5 py-0.5 font-mono text-xs font-bold ${isActive ? "bg-white/20" : "bg-black/10"}`}>
+              <span className={`rounded-full px-1.5 py-0.5 font-mono text-st-caption font-bold ${isActive ? "bg-white/20" : "bg-black/10"}`}>
                 {option.count}
               </span>
             </button>
@@ -1146,7 +1146,7 @@ export default function AdminOrdersPage() {
       <AdminCompactToolbar className="space-y-3">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div className="min-w-0 space-y-1.5">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Vista</p>
+            <p className="text-st-caption font-medium uppercase tracking-wide text-ink-secondary">Vista</p>
             <Tabs className="min-w-0">
               <TabsList className={CHIP_LIST_CLASS}>
                 <TabsTrigger value="today" activeValue={view} onClick={(value) => setView(value as OrdersView)} className={CHIP_TRIGGER_CLASS}>
@@ -1171,14 +1171,14 @@ export default function AdminOrdersPage() {
           </Button>
         </div>
 
-        <p className="text-xs text-muted-foreground">
+        <p className="text-st-caption text-ink-secondary">
           {`Historial · estado: ${activeStatusLabel} · tipo: ${activeTypeLabel}.`}
         </p>
 
         {filtersOpen ? (
-          <div id="order-filters" aria-label="Filtros de órdenes" className="space-y-4 border-t border-border pt-3">
+          <div id="order-filters" aria-label="Filtros de órdenes" className="space-y-4 border-t border-line-subtle pt-3">
             <div className="min-w-0 space-y-2">
-                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Rango</p>
+                <p className="text-st-caption font-medium uppercase tracking-wide text-ink-secondary">Rango</p>
                 <Tabs className="min-w-0">
                   <TabsList className={CHIP_LIST_CLASS}>
                     <TabsTrigger value="week" activeValue={historyPreset} onClick={(value) => setHistoryPreset(value as HistoryPreset)} className={CHIP_TRIGGER_CLASS}>Semana</TabsTrigger>
@@ -1189,19 +1189,19 @@ export default function AdminOrdersPage() {
                 </Tabs>
                 {historyPreset === "custom" ? (
                   <div className="grid gap-3 sm:grid-cols-2">
-                    <div className="space-y-1"><label className="text-xs uppercase tracking-wide text-muted-foreground">Desde</label><Input className="h-11" type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} /></div>
-                    <div className="space-y-1"><label className="text-xs uppercase tracking-wide text-muted-foreground">Hasta</label><Input className="h-11" type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} /></div>
+                    <div className="space-y-1"><label className="text-st-caption uppercase tracking-wide text-ink-secondary">Desde</label><Input className="h-11" type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} /></div>
+                    <div className="space-y-1"><label className="text-st-caption uppercase tracking-wide text-ink-secondary">Hasta</label><Input className="h-11" type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} /></div>
                   </div>
                 ) : null}
               </div>
 
             <div className="grid gap-4 md:grid-cols-2">
               <div className="min-w-0 space-y-2">
-                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Estado</p>
+                <p className="text-st-caption font-medium uppercase tracking-wide text-ink-secondary">Estado</p>
                 <Tabs className="min-w-0"><TabsList className={CHIP_LIST_CLASS}>{STATUS_FILTERS.map((option) => <TabsTrigger key={option.value} value={option.value} activeValue={statusFilter} onClick={setStatusFilter} className={CHIP_TRIGGER_CLASS}>{option.label}</TabsTrigger>)}</TabsList></Tabs>
               </div>
               <div className="min-w-0 space-y-2">
-                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Tipo</p>
+                <p className="text-st-caption font-medium uppercase tracking-wide text-ink-secondary">Tipo</p>
                 <Tabs className="min-w-0"><TabsList className={CHIP_LIST_CLASS}>{TYPE_FILTERS.map((option) => <TabsTrigger key={option.value} value={option.value} activeValue={typeFilter} onClick={setTypeFilter} className={CHIP_TRIGGER_CLASS}>{option.label}</TabsTrigger>)}</TabsList></Tabs>
               </div>
             </div>
@@ -1212,13 +1212,13 @@ export default function AdminOrdersPage() {
               <div className="min-w-0 space-y-2">
                 <label
                   htmlFor="orders-location-filter"
-                  className="text-xs font-medium uppercase tracking-wide text-muted-foreground"
+                  className="text-st-caption font-medium uppercase tracking-wide text-ink-secondary"
                 >
                   Local
                 </label>
                 <select
                   id="orders-location-filter"
-                  className="h-11 w-full rounded-md border border-border bg-card px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand sm:max-w-xs"
+                  className="h-11 w-full rounded-md border border-line-subtle bg-surface-card px-3 text-st-body text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary sm:max-w-xs"
                   value={locationFilter}
                   onChange={(event) => setLocationFilter(event.target.value)}
                 >
@@ -1240,7 +1240,7 @@ export default function AdminOrdersPage() {
       ) : null}
 
       {showOlderOpenNotice ? (
-        <div className="flex flex-col gap-2 rounded-lg border border-warning-strong/30 bg-warning p-4 text-sm text-warning-foreground sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-2 rounded-stitch-md border border-warning-strong/30 bg-warning p-4 text-st-body text-status-pending-text sm:flex-row sm:items-center sm:justify-between">
           <span>
             Hay {olderOpenCount} orden{olderOpenCount === 1 ? "" : "es"} abierta
             {olderOpenCount === 1 ? "" : "s"} de días anteriores.
@@ -1263,12 +1263,12 @@ export default function AdminOrdersPage() {
           refresco (o un poll de B1) no puede borrarla de la pantalla. */}
       {loading && orders.length === 0 ? (
         <div className="flex items-center justify-center py-12">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-border border-t-brand" />
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-line-subtle border-t-brand" />
         </div>
       ) : null}
 
       {authRequired ? (
-        <div className="rounded-md border border-warning-strong/30 bg-warning p-4 text-sm text-warning-foreground">
+        <div className="rounded-md border border-warning-strong/30 bg-warning p-4 text-st-body text-status-pending-text">
           <p>Sesión de administrador requerida.</p>
           <p className="mt-1">
             <Link
@@ -1283,7 +1283,7 @@ export default function AdminOrdersPage() {
 
       {/* Sin lista que conservar, el error se explica entero. */}
       {!authRequired && error && orders.length === 0 ? (
-        <div className="flex flex-col gap-3 rounded-md border border-danger-strong/30 bg-danger p-4 text-sm text-danger-foreground sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-3 rounded-md border border-danger-strong/30 bg-danger p-4 text-st-body text-danger-foreground sm:flex-row sm:items-center sm:justify-between">
           <span>No se pudieron cargar las órdenes.</span>
           <Button
             variant="outline"
@@ -1297,10 +1297,10 @@ export default function AdminOrdersPage() {
 
       {/* Con lista en pantalla, el fallo avisa que está vieja en vez de vaciarla (B0). */}
       {!authRequired && error && orders.length > 0 ? (
-        <div className="flex flex-col gap-3 rounded-md border border-warning-strong/30 bg-warning p-4 text-sm text-warning-foreground sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-3 rounded-md border border-warning-strong/30 bg-warning p-4 text-st-body text-status-pending-text sm:flex-row sm:items-center sm:justify-between">
           <span>
             No se pudo actualizar la bandeja.{" "}
-            <span className="text-warning-foreground/80">
+            <span className="text-status-pending-text/80">
               Última actualización{" "}
               {lastUpdatedAt ? formatAdminElapsed(new Date(lastUpdatedAt).toISOString(), nowMs) : "desconocida"}.
             </span>
@@ -1355,11 +1355,11 @@ export default function AdminOrdersPage() {
 
             return (
               <section key={bucket} aria-label={`${meta.title} · ${bucketOrders.length}`} className="min-w-0">
-                <p className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                <p className="mb-2 px-1 text-st-overline font-semibold uppercase tracking-wider text-ink-secondary">
                   {meta.title}
                   {meta.hint ? ` · ${meta.hint}` : ""} · {bucketOrders.length}
                 </p>
-                <div className="min-w-0 overflow-hidden rounded-2xl border border-border shadow-sm">
+                <div className="min-w-0 overflow-hidden rounded-stitch-lg border border-line-subtle shadow-elevation-1">
                   {bucketOrders.map(renderTicket)}
                 </div>
               </section>
@@ -1369,7 +1369,7 @@ export default function AdminOrdersPage() {
       ) : null}
 
       {!showBoard && !authRequired && orders.length > 0 && !groupByBucket ? (
-        <div className="min-w-0 overflow-hidden rounded-2xl border border-border shadow-sm">
+        <div className="min-w-0 overflow-hidden rounded-stitch-lg border border-line-subtle shadow-elevation-1">
           {queueOrders.map(renderTicket)}
         </div>
       ) : null}

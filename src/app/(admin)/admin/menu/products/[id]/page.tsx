@@ -223,7 +223,7 @@ export default function ProductFormPage() {
   };
 
   if (loading) {
-    return <div className="flex h-40 items-center justify-center text-muted-foreground">Cargando datos...</div>;
+    return <div className="flex h-40 items-center justify-center text-ink-secondary">Cargando datos...</div>;
   }
 
   const selectedCategory = categories.find(c => c.id === formData.categoryId);
@@ -255,9 +255,9 @@ export default function ProductFormPage() {
                 required
               />
               <div className="space-y-1.5">
-                <label className="text-sm font-medium leading-none text-foreground">Descripción</label>
+                <label className="text-st-body font-medium leading-none text-ink">Descripción</label>
                 <textarea
-                  className="flex min-h-[80px] w-full rounded-md border border-border bg-card px-3 py-2 text-sm ring-offset-white placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:cursor-not-allowed disabled:opacity-50"
+                  className="flex min-h-[80px] w-full rounded-md border border-line-subtle bg-surface-card px-3 py-2 text-st-body ring-offset-canvas placeholder:text-ink-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary disabled:cursor-not-allowed disabled:opacity-50"
                   value={formData.description}
                   onChange={(e) => setFormData(p => ({ ...p, description: e.target.value }))}
                 />
@@ -310,32 +310,32 @@ export default function ProductFormPage() {
 
               <div className="space-y-2">
                 {formData.images.length === 0 ? (
-                  <p className="text-sm text-muted-foreground italic">No hay imágenes añadidas.</p>
+                  <p className="text-st-body text-ink-secondary italic">No hay imágenes añadidas.</p>
                 ) : (
                   <div className="grid gap-3 sm:grid-cols-2">
                     {formData.images.map((img, index) => (
-                      <div key={index} className={`flex gap-3 rounded-lg border p-2 ${img.isPrimary ? "border-brand bg-accent" : "border-border"}`}>
-                        <div className="h-16 w-16 shrink-0 overflow-hidden rounded bg-muted">
+                      <div key={index} className={`flex gap-3 rounded-stitch-md border p-2 ${img.isPrimary ? "border-brand bg-surface-elevated" : "border-line-subtle"}`}>
+                        <div className="h-16 w-16 shrink-0 overflow-hidden rounded bg-surface-low">
                           <img src={img.url} alt={`Imagen ${index}`} className="h-full w-full object-cover" />
                         </div>
                         <div className="flex flex-1 flex-col justify-between">
                           <div className="flex items-center justify-between">
-                            <span className="text-[10px] font-bold uppercase text-muted-foreground">
+                            <span className="text-st-overline font-bold uppercase text-ink-secondary">
                               {img.isPrimary ? "Principal" : `Imagen ${index + 1}`}
                             </span>
                             <button 
                               type="button" 
                               onClick={() => handleRemoveImage(index)}
-                              className="text-muted-foreground hover:text-danger-foreground"
+                              className="text-ink-secondary hover:text-danger-foreground"
                             >
-                              <span className="text-xs uppercase font-bold tracking-tighter">Quitar</span>
+                              <span className="text-st-caption uppercase font-bold tracking-tighter">Quitar</span>
                             </button>
                           </div>
                           {!img.isPrimary && (
                             <button 
                               type="button" 
                               onClick={() => handleSetPrimary(index)}
-                              className="text-left text-xs font-medium text-muted-foreground hover:underline"
+                              className="text-left text-st-caption font-medium text-ink-secondary hover:underline"
                             >
                               Marcar como principal
                             </button>
@@ -356,9 +356,9 @@ export default function ProductFormPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-1.5">
-                <label className="text-sm font-medium leading-none text-foreground">Categoría principal</label>
+                <label className="text-st-body font-medium leading-none text-ink">Categoría principal</label>
                 <select
-                  className="flex h-10 w-full rounded-md border border-border bg-card px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                  className="flex h-10 w-full rounded-md border border-line-subtle bg-surface-card px-3 py-2 text-st-body focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
                   value={formData.categoryId}
                   onChange={(e) => setFormData(p => ({ ...p, categoryId: e.target.value, subcategoryId: "" }))}
                   required
@@ -371,9 +371,9 @@ export default function ProductFormPage() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-sm font-medium leading-none text-foreground">Subcategoría (Opcional)</label>
+                <label className="text-st-body font-medium leading-none text-ink">Subcategoría (Opcional)</label>
                 <select
-                  className="flex h-10 w-full rounded-md border border-border bg-card px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:opacity-50"
+                  className="flex h-10 w-full rounded-md border border-line-subtle bg-surface-card px-3 py-2 text-st-body focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary disabled:opacity-50"
                   value={formData.subcategoryId}
                   onChange={(e) => setFormData(p => ({ ...p, subcategoryId: e.target.value }))}
                   disabled={!formData.categoryId || !selectedCategory?.subcategories.length}
@@ -396,7 +396,7 @@ export default function ProductFormPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               {modifierGroups.length === 0 ? (
-                <p className="text-sm italic text-muted-foreground">
+                <p className="text-st-body italic text-ink-secondary">
                   No hay grupos de modificadores disponibles.
                 </p>
               ) : (
@@ -413,9 +413,9 @@ export default function ProductFormPage() {
                               : prev.filter((id) => id !== mg.id),
                           );
                         }}
-                        className="h-4 w-4 rounded border-border text-foreground focus:ring-brand"
+                        className="h-4 w-4 rounded border-line-subtle text-ink focus:ring-brand"
                       />
-                      <span className="text-sm font-medium text-foreground">{mg.name}</span>
+                      <span className="text-st-body font-medium text-ink">{mg.name}</span>
                     </label>
                   ))}
                 </div>
@@ -435,9 +435,9 @@ export default function ProductFormPage() {
                   type="checkbox"
                   checked={formData.isActive}
                   onChange={(e) => setFormData(p => ({ ...p, isActive: e.target.checked }))}
-                  className="h-4 w-4 rounded border-border text-foreground focus:ring-brand"
+                  className="h-4 w-4 rounded border-line-subtle text-ink focus:ring-brand"
                 />
-                <span className="text-sm font-medium text-foreground">Publicado (Visible en menú)</span>
+                <span className="text-st-body font-medium text-ink">Publicado (Visible en menú)</span>
               </label>
               
               <label className="flex min-h-11 cursor-pointer items-center gap-2">
@@ -445,14 +445,14 @@ export default function ProductFormPage() {
                   type="checkbox"
                   checked={formData.isAvailable}
                   onChange={(e) => setFormData(p => ({ ...p, isAvailable: e.target.checked }))}
-                  className="h-4 w-4 rounded border-border text-foreground focus:ring-brand"
+                  className="h-4 w-4 rounded border-line-subtle text-ink focus:ring-brand"
                 />
-                <span className="text-sm font-medium text-foreground">Disponible (Hay stock)</span>
+                <span className="text-st-body font-medium text-ink">Disponible (Hay stock)</span>
               </label>
             </CardContent>
             <CardFooter className="flex flex-col gap-2">
               {actionError && (
-                <div className="w-full rounded-md border border-danger-strong/30 bg-danger p-3 text-sm text-danger-foreground">
+                <div className="w-full rounded-md border border-danger-strong/30 bg-danger p-3 text-st-body text-danger-foreground">
                   {actionError}
                 </div>
               )}
@@ -463,7 +463,7 @@ export default function ProductFormPage() {
                 <Button
                   type="button"
                   variant="outline"
-                  className="w-full border-warning-strong/40 text-warning-foreground hover:bg-warning"
+                  className="w-full border-warning-strong/40 text-status-pending-text hover:bg-warning"
                   disabled={archiving || saving}
                   onClick={handleArchiveProduct}
                 >
@@ -481,29 +481,29 @@ export default function ProductFormPage() {
               <CardTitle>Vista previa PWA</CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col items-center gap-4">
-              <div className="w-full max-w-[280px] rounded-[32px] border-[8px] border-foreground bg-card p-1 shadow-xl">
-                <div className="overflow-hidden rounded-[24px] bg-card">
-                  <div className="h-40 w-full bg-muted overflow-hidden">
+              <div className="w-full max-w-[280px] rounded-[32px] border-[8px] border-foreground bg-surface-card p-1 shadow-xl">
+                <div className="overflow-hidden rounded-[24px] bg-surface-card">
+                  <div className="h-40 w-full bg-surface-low overflow-hidden">
                     {primaryImage ? (
                       <img src={primaryImage.url} alt="Preview" className="h-full w-full object-cover" />
                     ) : (
-                      <div className="flex h-full w-full items-center justify-center text-muted-foreground text-[10px] uppercase font-bold">Sin imagen</div>
+                      <div className="flex h-full w-full items-center justify-center text-ink-secondary text-st-overline uppercase font-bold">Sin imagen</div>
                     )}
                   </div>
                   <div className="p-4 space-y-1">
                     <div className="flex justify-between items-start">
                       <p className="font-bold text-base leading-tight">{formData.name || "Nombre del producto"}</p>
-                      <p className="font-bold text-foreground text-sm">{formatCurrency(formData.basePrice, currency)}</p>
+                      <p className="font-bold text-ink text-st-body">{formatCurrency(formData.basePrice, currency)}</p>
                     </div>
-                    <p className="text-[10px] text-muted-foreground line-clamp-2">{formData.description || "Descripción del producto..."}</p>
+                    <p className="text-st-overline text-ink-secondary line-clamp-2">{formData.description || "Descripción del producto..."}</p>
                     {formData.packagingFeeAmount > 0 ? (
-                      <p className="text-[10px] font-medium text-muted-foreground">
+                      <p className="text-st-overline font-medium text-ink-secondary">
                         Empaque por unidad: {formatCurrency(formData.packagingFeeAmount, currency)}
                       </p>
                     ) : null}
                     <div className="pt-2">
                       <div className="w-full h-8 rounded-full bg-foreground flex items-center justify-center">
-                        <span className="text-white text-[10px] font-bold uppercase tracking-wider">Añadir</span>
+                        <span className="text-white text-st-overline font-bold uppercase tracking-wider">Añadir</span>
                       </div>
                     </div>
                   </div>

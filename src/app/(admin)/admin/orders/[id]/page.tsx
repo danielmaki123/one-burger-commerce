@@ -301,7 +301,7 @@ export default function AdminOrderDetailPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-border border-t-brand" />
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-line-subtle border-t-brand" />
       </div>
     );
   }
@@ -343,32 +343,32 @@ export default function AdminOrderDetailPage() {
     <div className="space-y-6 pb-40 md:pb-6">
       <Link
         href="/admin/orders"
-        className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
+        className="inline-flex items-center text-st-body text-ink-secondary hover:text-ink"
       >
         Volver a órdenes
       </Link>
 
       {authRequired ? (
-        <div className="rounded-md border border-warning-strong/30 bg-warning p-4 text-sm text-warning-foreground">
+        <div className="rounded-md border border-warning-strong/30 bg-warning p-4 text-st-body text-status-pending-text">
           Sesión admin requerida para consultar o actualizar órdenes.
         </div>
       ) : null}
 
       {error ? (
-        <div className="rounded-md border border-danger-strong/30 bg-danger p-4 text-sm text-danger-foreground">
+        <div className="rounded-md border border-danger-strong/30 bg-danger p-4 text-st-body text-danger-foreground">
           {error}
         </div>
       ) : null}
 
       {!authRequired && !error && order ? (
         <>
-          <section className="space-y-3 rounded-xl border border-border bg-card p-4">
+          <section className="space-y-3 rounded-stitch-md border border-line-subtle bg-surface-card p-4">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">
-                <h1 className="font-heading text-2xl font-bold tracking-tight text-foreground">
+                <h1 className="font-heading text-2xl font-bold tracking-tight text-ink">
                   {order.orderNumber}
                 </h1>
-                <p className="mt-1 text-sm text-muted-foreground">
+                <p className="mt-1 text-st-body text-ink-secondary">
                   {ORDER_TYPE_LABELS[order.type]} · {order.customerName} · {order.customerWhatsapp}
                 </p>
               </div>
@@ -376,34 +376,34 @@ export default function AdminOrderDetailPage() {
                 {getAdminOrderStatusLabel(order.status)}
               </AdminStatusSolid>
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-st-caption text-ink-secondary">
               Recibida {new Date(order.createdAt).toLocaleString()} ·{" "}
-              <span className="font-mono font-semibold text-foreground">
+              <span className="font-mono font-semibold text-ink">
                 {formatAdminElapsed(order.createdAt, nowMs)}
               </span>
             </p>
 
             {pickupLabel || (pickupTiming && pickupTiming.state !== "done" && pickupTiming.state !== "unknown") ? (
-              <div className="flex flex-wrap items-center gap-2 rounded-lg bg-accent/60 px-3 py-2">
+              <div className="flex flex-wrap items-center gap-2 rounded-stitch-md bg-surface-elevated px-3 py-2">
                 {pickupLabel ? (
-                  <span className="text-sm font-semibold text-foreground tabular-nums">
+                  <span className="text-st-body font-semibold text-ink tabular-nums">
                     {pickupLabel}
                   </span>
                 ) : null}
                 {pickupTiming ? <AdminPickupTimingChip timing={pickupTiming} /> : null}
                 {/* La caja necesita saber si preparar el vuelto (T11 y T12). */}
-                <span className="rounded-full border border-border bg-card px-2.5 py-1 text-xs font-semibold text-foreground">
+                <span className="rounded-full border border-line-subtle bg-surface-card px-2.5 py-1 text-st-caption font-semibold text-ink">
                   {PAYMENT_METHOD_LABELS[order.paymentMethod ?? "cash"]}
                 </span>
                 {order.paidWithAmount !== null && order.paidWithAmount !== undefined ? (
-                  <span className="rounded-full border border-border bg-card px-2.5 py-1 text-xs font-semibold text-foreground">
+                  <span className="rounded-full border border-line-subtle bg-surface-card px-2.5 py-1 text-st-caption font-semibold text-ink">
                     Paga con {formatCurrency(order.paidWithAmount, currency)}
                     {changeLabel ? ` · ${changeLabel}` : ""}
                   </span>
                 ) : null}
                 {/* PIN de retiro (T13): el cliente lo dicta acá para entregarle el pedido. */}
                 {order.pickupPin ? (
-                  <span className="rounded-full border border-brand/30 bg-brand/10 px-2.5 py-1 font-mono text-xs font-bold tracking-[0.18em] text-brand">
+                  <span className="rounded-full border border-brand/30 bg-brand/10 px-2.5 py-1 font-mono text-st-caption font-bold tracking-[0.18em] text-brand">
                     PIN {order.pickupPin}
                   </span>
                 ) : null}
@@ -417,8 +417,8 @@ export default function AdminOrderDetailPage() {
               negocio: "C$3.00" por un cobro de US$3 sería un número falso.
             */}
             {order.payments && order.payments.length > 0 ? (
-              <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-card px-3 py-2">
-                <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <div className="flex flex-wrap items-center gap-2 rounded-stitch-md border border-line-subtle bg-surface-card px-3 py-2">
+                <span className="text-st-caption font-semibold uppercase tracking-wide text-ink-secondary">
                   Cobrado en el mostrador
                 </span>
                 {order.payments.map((payment) => {
@@ -428,7 +428,7 @@ export default function AdminOrderDetailPage() {
                   return (
                     <span
                       key={payment.id}
-                      className="rounded-full border border-border bg-accent/60 px-2.5 py-1 text-xs font-semibold tabular-nums text-foreground"
+                      className="rounded-full border border-line-subtle bg-surface-elevated px-2.5 py-1 text-st-caption font-semibold tabular-nums text-ink"
                     >
                       {PAYMENT_METHOD_LABELS[payment.method]}{" "}
                       {isBusinessCurrency
@@ -441,7 +441,7 @@ export default function AdminOrderDetailPage() {
             ) : null}
 
             {order.status === "cancelled" ? (
-              <p className="rounded-lg bg-danger px-3 py-2 text-sm font-medium text-danger-foreground">
+              <p className="rounded-stitch-md bg-danger px-3 py-2 text-st-body font-medium text-danger-foreground">
                 Orden cancelada. El historial se conserva.
               </p>
             ) : journeyIndex >= 0 ? (
@@ -465,7 +465,7 @@ export default function AdminOrderDetailPage() {
                             ? "border-status-lista bg-status-lista text-white"
                             : state === "now"
                               ? "border-brand bg-brand text-white shadow-[0_0_0_4px_var(--accent)]"
-                              : "border-border bg-card",
+                              : "border-line-subtle bg-surface-card",
                         ].join(" ")}
                       >
                         {state === "done" ? (
@@ -476,13 +476,13 @@ export default function AdminOrderDetailPage() {
                       </span>
                       <div className="pb-4">
                         <p className={[
-                          "text-sm font-semibold",
-                          state === "now" ? "text-brand-strong" : state === "pending" ? "text-muted-foreground/60" : "text-foreground",
+                          "text-st-body font-semibold",
+                          state === "now" ? "text-brand-primary" : state === "pending" ? "text-ink-secondary/60" : "text-ink",
                         ].join(" ")}>
                           {getAdminOrderStatusLabel(step)}
                         </p>
                         {index === 0 ? (
-                          <p className="font-mono text-xs text-muted-foreground">
+                          <p className="font-mono text-st-caption text-ink-secondary">
                             {new Date(order.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                           </p>
                         ) : null}
@@ -494,24 +494,24 @@ export default function AdminOrderDetailPage() {
             ) : null}
           </section>
 
-          <section className="rounded-xl border border-border bg-card">
+          <section className="rounded-stitch-md border border-line-subtle bg-surface-card">
             {order.items.map((item) => (
-              <div key={item.id} className="border-b border-border p-4 last:border-b-0">
+              <div key={item.id} className="border-b border-line-subtle p-4 last:border-b-0">
                 <div className="flex items-center justify-between">
-                  <p className="text-sm text-foreground">
+                  <p className="text-st-body text-ink">
                     {item.quantity}x {item.productName}
                   </p>
-                  <p className="text-sm font-semibold text-foreground">
+                  <p className="text-st-body font-semibold text-ink">
                     {formatCurrency(item.lineTotal, currency)}
                   </p>
                 </div>
                 {item.packagingTotalAmount > 0 ? (
-                  <p className="mt-1 text-xs text-muted-foreground">
+                  <p className="mt-1 text-st-caption text-ink-secondary">
                     Empaque: {formatCurrency(item.packagingUnitAmount, currency)} x {item.packagingQuantity} = {formatCurrency(item.packagingTotalAmount, currency)}
                   </p>
                 ) : null}
                 {item.modifiers && item.modifiers.length > 0 ? (
-                  <ul className="ml-6 mt-1 list-disc text-xs text-muted-foreground">
+                  <ul className="ml-6 mt-1 list-disc text-st-caption text-ink-secondary">
                     {item.modifiers.map((mod) => (
                       <li key={mod.id}>
                         {mod.name}
@@ -521,33 +521,33 @@ export default function AdminOrderDetailPage() {
                   </ul>
                 ) : null}
                 {item.notes ? (
-                  <p className="mt-2 w-fit rounded-lg bg-secondary px-2.5 py-1.5 text-xs font-medium text-secondary-foreground">
+                  <p className="mt-2 w-fit rounded-stitch-md bg-surface-low px-2.5 py-1.5 text-st-caption font-medium text-ink">
                     Nota: {item.notes}
                   </p>
                 ) : null}
               </div>
             ))}
 
-            <div className="space-y-1 border-t border-border p-4 text-sm">
-              <div className="flex justify-between text-muted-foreground">
+            <div className="space-y-1 border-t border-line-subtle p-4 text-st-body">
+              <div className="flex justify-between text-ink-secondary">
                 <span>Subtotal</span>
                 <span>{formatCurrency(order.subtotal, currency)}</span>
               </div>
-              <div className="flex justify-between text-muted-foreground">
+              <div className="flex justify-between text-ink-secondary">
                 <span>Descuento</span>
                 <span>-{formatCurrency(order.discount, currency)}</span>
               </div>
-              <div className="flex justify-between text-muted-foreground">
+              <div className="flex justify-between text-ink-secondary">
                 <span>Empaque</span>
                 <span>{formatCurrency(order.packagingAmount, currency)}</span>
               </div>
               {order.type === "delivery" ? (
-                <div className="flex justify-between text-muted-foreground">
+                <div className="flex justify-between text-ink-secondary">
                   <span>Envío</span>
                   <span>{formatCurrency(order.deliveryFeeAmount, currency)}</span>
                 </div>
               ) : null}
-              <div className="flex justify-between text-muted-foreground">
+              <div className="flex justify-between text-ink-secondary">
                 <span>Propina</span>
                 <span>
                   {order.tipAmount > 0
@@ -555,7 +555,7 @@ export default function AdminOrderDetailPage() {
                     : formatCurrency(0, currency)}
                 </span>
               </div>
-              <div className="flex justify-between pt-1 text-base font-bold text-foreground">
+              <div className="flex justify-between pt-1 text-base font-bold text-ink">
                 <span>Total</span>
                 <span>{formatCurrency(order.total, currency)}</span>
               </div>
@@ -566,19 +566,19 @@ export default function AdminOrderDetailPage() {
               tipo salen de cocinas distintas. Se muestra siempre que el servidor pudo
               resolverlo, con la dirección para poder ubicarlo. */}
           {order.pickupLocation ? (
-            <section className="space-y-3 rounded-xl border border-border bg-card p-4">
-              <h2 className="text-lg font-semibold text-foreground">Punto de retiro</h2>
-              <div className="grid grid-cols-1 gap-2 text-sm">
+            <section className="space-y-3 rounded-stitch-md border border-line-subtle bg-surface-card p-4">
+              <h2 className="text-lg font-semibold text-ink">Punto de retiro</h2>
+              <div className="grid grid-cols-1 gap-2 text-st-body">
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Local</span>
-                  <span className="font-medium text-foreground">
+                  <span className="text-ink-secondary">Local</span>
+                  <span className="font-medium text-ink">
                     {order.pickupLocation.name}
                   </span>
                 </div>
                 {pickupAddress ? (
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Dirección</span>
-                    <span className="text-right font-medium text-foreground">
+                    <span className="text-ink-secondary">Dirección</span>
+                    <span className="text-right font-medium text-ink">
                       {pickupAddress}
                     </span>
                   </div>
@@ -588,7 +588,7 @@ export default function AdminOrderDetailPage() {
                     href={order.pickupLocation.mapsUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="min-h-11 text-sm font-medium text-brand hover:underline"
+                    className="min-h-11 text-st-body font-medium text-brand-primary hover:underline"
                   >
                     Ver en mapa
                   </a>
@@ -598,27 +598,27 @@ export default function AdminOrderDetailPage() {
           ) : null}
 
           {order.type === "delivery" ? (
-            <section className="space-y-3 rounded-xl border border-border bg-card p-4">
-              <h2 className="text-lg font-semibold text-foreground">
+            <section className="space-y-3 rounded-stitch-md border border-line-subtle bg-surface-card p-4">
+              <h2 className="text-lg font-semibold text-ink">
                 Información de entrega
               </h2>
-              <div className="grid grid-cols-1 gap-2 text-sm">
+              <div className="grid grid-cols-1 gap-2 text-st-body">
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Zona</span>
-                  <span className="font-medium text-foreground">
+                  <span className="text-ink-secondary">Zona</span>
+                  <span className="font-medium text-ink">
                     {order.deliveryZoneName ?? order.deliveryZoneId ?? "—"}
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Dirección</span>
-                  <span className="text-right font-medium text-foreground">
+                  <span className="text-ink-secondary">Dirección</span>
+                  <span className="text-right font-medium text-ink">
                     {order.address ?? "—"}
                   </span>
                 </div>
                 {order.deliveryNotes ? (
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Notas</span>
-                    <span className="text-right font-medium text-foreground">
+                    <span className="text-ink-secondary">Notas</span>
+                    <span className="text-right font-medium text-ink">
                       {order.deliveryNotes}
                     </span>
                   </div>
@@ -626,17 +626,17 @@ export default function AdminOrderDetailPage() {
                 {order.customerLat != null && order.customerLng != null ? (
                   <div className="space-y-1">
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Coordenadas GPS</span>
+                      <span className="text-ink-secondary">Coordenadas GPS</span>
                       <a
                         href={`https://www.google.com/maps?q=${order.customerLat},${order.customerLng}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="font-medium text-brand hover:underline"
+                        className="font-medium text-brand-primary hover:underline"
                       >
                         Ver en mapa
                       </a>
                     </div>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-st-caption text-ink-secondary">
                       Lat: {order.customerLat.toFixed(6)}, Lng: {order.customerLng.toFixed(6)}
                       {order.geoAccuracy != null
                         ? ` · Precisión: ${order.geoAccuracy.toFixed(1)}m`
@@ -648,8 +648,8 @@ export default function AdminOrderDetailPage() {
                   </div>
                 ) : (
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">GPS</span>
-                    <span className="text-right text-muted-foreground">
+                    <span className="text-ink-secondary">GPS</span>
+                    <span className="text-right text-ink-secondary">
                       GPS no capturado
                     </span>
                   </div>
@@ -658,13 +658,13 @@ export default function AdminOrderDetailPage() {
             </section>
           ) : null}
 
-          <section className="space-y-3 rounded-xl border border-border bg-card p-4">
-            <h2 className="text-lg font-semibold text-foreground">
+          <section className="space-y-3 rounded-stitch-md border border-line-subtle bg-surface-card p-4">
+            <h2 className="text-lg font-semibold text-ink">
               Actualizar estado
             </h2>
 
             {allowedTransitions.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
+              <p className="text-st-body text-ink-secondary">
                 No hay transiciones disponibles para el estado actual.
               </p>
             ) : (
@@ -698,17 +698,17 @@ export default function AdminOrderDetailPage() {
                       ) : null}
                     </div>
 
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-st-body text-ink-secondary">
                       Usa estas acciones rápidas para confirmar o rechazar pedidos nuevos sin abrir opciones avanzadas.
                     </p>
 
                     {reviewMode === "reject" ? (
-                      <div className="space-y-3 rounded-lg border border-danger-strong/30 bg-danger p-3">
+                      <div className="space-y-3 rounded-stitch-md border border-danger-strong/30 bg-danger p-3">
                         <div className="space-y-1">
-                          <p className="text-sm font-medium text-danger-foreground">
+                          <p className="text-st-body font-medium text-danger-foreground">
                             Confirmar rechazo
                           </p>
-                          <p className="text-xs text-danger-foreground">
+                          <p className="text-st-caption text-danger-foreground">
                             Esta acción marcará el pedido como cancelado y no borra el historial.
                           </p>
                         </div>
@@ -742,8 +742,8 @@ export default function AdminOrderDetailPage() {
                       </div>
                     ) : null}
 
-                    <details className="rounded-lg border border-border bg-muted px-3 py-2">
-                      <summary className="cursor-pointer list-none text-sm font-medium text-foreground">
+                    <details className="rounded-stitch-md border border-line-subtle bg-surface-low px-3 py-2">
+                      <summary className="cursor-pointer list-none text-st-body font-medium text-ink">
                         Opciones avanzadas
                       </summary>
                       <div className="mt-3 space-y-3">
@@ -753,7 +753,7 @@ export default function AdminOrderDetailPage() {
                             setNextStatus(event.target.value as OrderStatus);
                             setReviewMode(null);
                           }}
-                          className="h-10 w-full rounded-md border border-border bg-card px-3 text-sm focus:border-border focus:outline-none"
+                          className="h-10 w-full rounded-md border border-line-subtle bg-surface-card px-3 text-st-body focus:border-line-subtle focus:outline-none"
                         >
                           {allowedTransitions.map((status) => (
                             <option key={status} value={status}>
@@ -776,14 +776,14 @@ export default function AdminOrderDetailPage() {
                         />
 
                         {reviewMode === "manual" ? (
-                          <div className="rounded-md border border-warning-strong/30 bg-warning p-3 text-sm text-warning-foreground">
+                          <div className="rounded-md border border-warning-strong/30 bg-warning p-3 text-st-body text-status-pending-text">
                             <p>
                               Confirmar cambio:{" "}
                               <strong>{getAdminOrderStatusLabel(order.status)}</strong> a{" "}
                               <strong>{getAdminOrderStatusLabel(nextStatus)}</strong>.
                             </p>
                             {isCancelling ? (
-                              <p className="mt-1 text-xs text-warning-foreground">
+                              <p className="mt-1 text-st-caption text-status-pending-text">
                                 La cancelación quedará registrada con la nota ingresada.
                               </p>
                             ) : null}
@@ -826,7 +826,7 @@ export default function AdminOrderDetailPage() {
                         setNextStatus(event.target.value as OrderStatus);
                         setReviewMode(null);
                       }}
-                      className="h-10 w-full rounded-md border border-border bg-card px-3 text-sm focus:border-border focus:outline-none"
+                      className="h-10 w-full rounded-md border border-line-subtle bg-surface-card px-3 text-st-body focus:border-line-subtle focus:outline-none"
                     >
                       {allowedTransitions.map((status) => (
                         <option key={status} value={status}>
@@ -862,20 +862,20 @@ export default function AdminOrderDetailPage() {
                     />
 
                     {allowedTransitions.includes("cancelled") ? (
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-st-caption text-ink-secondary">
                         Esta acción marcará el pedido como cancelado. No borra el historial.
                       </p>
                     ) : null}
 
                     {reviewMode === "manual" ? (
-                      <div className="rounded-md border border-warning-strong/30 bg-warning p-3 text-sm text-warning-foreground">
+                      <div className="rounded-md border border-warning-strong/30 bg-warning p-3 text-st-body text-status-pending-text">
                         <p>
                           Confirmar cambio:{" "}
                           <strong>{getAdminOrderStatusLabel(order.status)}</strong> a{" "}
                           <strong>{getAdminOrderStatusLabel(nextStatus)}</strong>.
                         </p>
                         {isCancelling ? (
-                          <p className="mt-1 text-xs text-warning-foreground">
+                          <p className="mt-1 text-st-caption text-status-pending-text">
                             La cancelación quedará registrada con la nota ingresada.
                           </p>
                         ) : null}
@@ -910,14 +910,14 @@ export default function AdminOrderDetailPage() {
                 )}
 
                 {statusError ? (
-                  <p className="text-sm text-danger-foreground">{statusError}</p>
+                  <p className="text-st-body text-danger-foreground">{statusError}</p>
                 ) : null}
               </>
             )}
           </section>
 
           {advanceStatus ? (
-            <div className="fixed inset-x-0 bottom-14 z-40 border-t border-border bg-background/95 px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur md:bottom-0">
+            <div className="fixed inset-x-0 bottom-14 z-40 border-t border-line-subtle bg-canvas/95 px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur md:bottom-0">
               <Button
                 className="min-h-12 w-full text-base font-semibold"
                 onClick={() => void submitStatusUpdate(advanceStatus as OrderStatus)}
