@@ -44,6 +44,11 @@ export type CloseShiftInput = {
    * moneda del negocio. Misma nota: el caso de uso siempre lo manda.
    */
   cashMovementsAmount?: number;
+  /**
+   * Bloque 3 del POS (Fase 2) — el neto de las devoluciones en efectivo aprobadas del turno, en
+   * moneda del negocio (negativo o 0: la plata salió del cajón).
+   */
+  refundsAmount?: number;
   /** TASK-305 — con qué billetes se cerró, por moneda (se guarda el conteo, no solo el total). */
   closingCounts?: ShiftCashCountInput[];
   notes?: string | null;

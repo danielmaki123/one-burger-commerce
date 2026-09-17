@@ -7,8 +7,10 @@ import {
   validateShiftCashCounts,
   type ShiftCashCountInput,
 } from "@/modules/orders/domain/shift-cash";
+import { refundsTotalByCurrency, refundsTotalInBusinessCurrency } from "@/modules/orders/domain/shift-refund";
 import type { CashMovementRepository } from "@/modules/orders/ports/cash-movement-repository";
 import type { PaymentRepository } from "@/modules/orders/ports/payment-repository";
+import type { RefundRepository } from "@/modules/orders/ports/refund-repository";
 import type { ShiftRepository } from "@/modules/orders/ports/shift-repository";
 import { roundCurrency } from "@/shared/lib/order-totals";
 
@@ -42,6 +44,7 @@ export async function closeShift(
     shiftRepository,
     paymentRepository,
     cashMovementRepository,
+    refundRepository,
     businessCurrencyCode,
     usdExchangeRate,
   }: {
@@ -49,6 +52,8 @@ export async function closeShift(
     paymentRepository: PaymentRepository;
     /** Bloque 2 — los retiros e ingresos del turno. Sin ellos, un retiro parece un faltante. */
     cashMovementRepository?: CashMovementRepository;
+    /** Bloque 3 — las devoluciones aprobadas en efectivo. Sin ellas, devolver parece un faltante. */
+    refundRepository?: Pick<RefundRepository, "listByShift">;
     businessCurrencyCode: string;
     usdExchangeRate: number | null;
   },
@@ -108,6 +113,7 @@ export async function closeShift(
     },
     paymentRepository,
     cashMovementRepository,
+    refundRepository,
   );
 
   const closed = await shiftRepository.closeShift(shiftId, {
@@ -116,6 +122,7 @@ export async function closeShift(
     expectedByCurrency: arqueo.expectedByCurrency,
     cashSalesAmount: arqueo.cashSalesAmount,
     cashMovementsAmount: arqueo.cashMovementsAmount,
+    refundsAmount: arqueo.refundsAmount,
     closingCounts: input.closingCounts ?? [],
     notes: input.notes ?? shift.notes,
   });
@@ -126,8 +133,9 @@ export async function closeShift(
 /**
  * Lo que debería haber en la caja: el fondo **contado** (o el monto con el que se abrió) más el
  * efectivo del turno convertido a la moneda del negocio, menos los vueltos que salieron, **más los
- * movimientos de caja** (retiros restan, ingresos suman). La tarjeta se cuenta aparte y no entra acá:
- * no está en el cajón.
+ * movimientos de caja** (retiros restan, ingresos suman) y **menos las devoluciones aprobadas en
+ * efectivo** (Bloque 3: la plata que se le devolvió al cliente salió del cajón). La tarjeta se cuenta
+ * aparte y no entra acá: no está en el cajón.
  */
 async function calculateExpectedAmount(
   window: {
@@ -142,11 +150,13 @@ async function calculateExpectedAmount(
   },
   paymentRepository: PaymentRepository,
   cashMovementRepository?: CashMovementRepository,
+  refundRepository?: Pick<RefundRepository, "listByShift">,
 ): Promise<{
   expectedAmount: number;
   expectedByCurrency: Record<string, number>;
   cashSalesAmount: number;
   cashMovementsAmount: number;
+  refundsAmount: number;
 }> {
   const payments = await paymentRepository.listPaymentsInRange(window.locationId, {
     from: window.openedAt,
@@ -190,25 +200,56 @@ async function calculateExpectedAmount(
     usdExchangeRate: window.usdExchangeRate,
   });
 
+  // Bloque 3: las devoluciones **aprobadas en efectivo** del turno. La plata que se le devolvió al
+  // cliente salió del cajón: sin esto, devolver con motivo parecía un faltante del cajero. Las
+  // pendientes y las rechazadas no restan (no salieron) y las de tarjeta tampoco (no estaban acá).
+  const refunds = refundRepository ? await refundRepository.listByShift(window.shiftId) : [];
+  const refundsAmount = refundsTotalInBusinessCurrency({
+    refunds,
+    businessCurrencyCode: window.businessCurrencyCode,
+    usdExchangeRate: window.usdExchangeRate,
+  });
+  const refundsByCurrency = refundsTotalByCurrency(refunds);
+
   return {
-    expectedAmount: roundCurrency(openingAmount + cashSalesAmount + cashMovementsAmount),
+    expectedAmount: roundCurrency(
+      openingAmount + cashSalesAmount + cashMovementsAmount + refundsAmount,
+    ),
     // Por moneda, para que la pantalla pueda comparar lo esperado con lo contado sin convertir nada.
     // Bloque 1.1: queda congelado en el turno (antes solo viajaba en la respuesta).
     //
     // El fondo se cuenta **contado** (billetes) o, si no hay conteo, como un monto en la moneda del
     // negocio: sin esto el detalle por moneda no cerraba con el total (Bloque 2).
-    expectedByCurrency: expectedCashByCurrency({
-      openingCounts: window.openingCounts,
-      openingAmount: window.openingCounts.length ? undefined : openingAmount,
-      businessCurrencyCode: window.businessCurrencyCode,
-      cashPayments,
-      cashMovements: movements.map((movement) => ({
-        kind: movement.kind,
-        currency: movement.currency,
-        amount: movement.amount,
-      })),
-    }),
+    expectedByCurrency: mergeCurrencyTotals(
+      expectedCashByCurrency({
+        openingCounts: window.openingCounts,
+        openingAmount: window.openingCounts.length ? undefined : openingAmount,
+        businessCurrencyCode: window.businessCurrencyCode,
+        cashPayments,
+        cashMovements: movements.map((movement) => ({
+          kind: movement.kind,
+          currency: movement.currency,
+          amount: movement.amount,
+        })),
+      }),
+      refundsByCurrency,
+    ),
     cashSalesAmount,
     cashMovementsAmount,
+    refundsAmount,
   };
+}
+
+/** Suma dos mapas por moneda (el detalle del arqueo con las devoluciones, que ya vienen en negativo). */
+function mergeCurrencyTotals(
+  base: Record<string, number>,
+  extra: Record<string, number>,
+): Record<string, number> {
+  const merged: Record<string, number> = { ...base };
+
+  for (const [currency, amount] of Object.entries(extra)) {
+    merged[currency] = roundCurrency((merged[currency] ?? 0) + amount);
+  }
+
+  return merged;
 }

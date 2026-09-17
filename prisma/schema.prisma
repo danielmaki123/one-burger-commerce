@@ -487,6 +487,9 @@ model Order {
   statusHistory        OrderStatusHistory[]
   /// TASK-103 — los cobros registrados de este pedido (uno por pago; el mixto tiene varios).
   payments             Payment[]
+  /// Bloque 3 del POS — las devoluciones de este pedido. Cuelgan de la orden además del cobro para
+  /// poder listar "qué se le devolvió a este pedido" sin pasar por los pagos.
+  refunds              Refund[]
 
   @@index([type])
   @@index([status])
@@ -749,6 +752,9 @@ model Payment {
   reference String?
   createdAt DateTime          @default(now())
   order     Order             @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  /// Bloque 3 del POS — las devoluciones de este cobro. Se guardan para no devolver dos veces la
+  /// misma plata: el cupo disponible es `amount` menos las devoluciones no rechazadas.
+  refunds   Refund[]
 
   @@index([orderId])
   @@index([createdAt])
@@ -785,6 +791,9 @@ model Shift {
   /// Bloque 2 del POS (Fase 2) — el neto de los movimientos del turno (retiros restan, ingresos
   /// suman), en la moneda del negocio. Congelado al cerrar, igual que el resto del arqueo.
   cashMovementsAmount Decimal? @db.Decimal(10, 2)
+  /// Bloque 3 del POS (Fase 2) — el neto de las devoluciones en efectivo aprobadas del turno, en la
+  /// moneda del negocio (negativo o 0). Congelado al cerrar, igual que el resto del arqueo.
+  refundsAmount  Decimal?    @db.Decimal(10, 2)
   /// `closingAmount - expectedAmount`. Negativo = faltó plata.
   difference     Decimal?    @db.Decimal(10, 2)
   /// Bloque 1.10 del POS (Fase 2) — reapertura de un turno cerrado. Queda firmado quién, cuándo y
@@ -800,6 +809,9 @@ model Shift {
   user           AdminUser   @relation(fields: [userId], references: [id], onDelete: Restrict)
   cashCounts     ShiftCashCount[]
   movements      CashMovement[]
+  /// Bloque 3 del POS — las devoluciones registradas en este turno. Solo las **aprobadas** y **en
+  /// efectivo** restan del esperado: son las que sacaron plata del cajón.
+  refunds        Refund[]
 
   @@index([locationId, status])
   @@index([userId])
@@ -881,6 +893,66 @@ enum CashMovementCategory {
   vault
   expense
   other
+}
+
+/// Bloque 3 del roadmap del POS (Fase 2) — una devolución sobre un cobro ya registrado.
+///
+/// El cobro no se borra ni se edita: devolver plata es un **hecho nuevo** con su motivo, su monto y
+/// quién lo firmó. Por eso el cupo de un cobro se calcula sumando sus devoluciones no rechazadas
+/// (nunca restando del `Payment`), y por eso la devolución guarda el **medio original** del cobro:
+/// una devolución de tarjeta no sale del cajón y no puede descontarse del arqueo.
+///
+/// El `status` arranca en `pending` cuando quien la pide no tiene permiso de aprobar: nadie firma su
+/// propia devolución, así que la cola de aprobaciones es la que le da salida.
+model Refund {
+  id                String             @id @default(cuid())
+  paymentId         String
+  orderId           String
+  /// Turno donde se registró. `null` = no había caja abierta (el cobro pudo ser de otro momento):
+  /// la devolución vale igual, solo que no entra a ningún arqueo.
+  shiftId           String?
+  kind              RefundKind
+  /// Medio original del cobro: solo `cash` saca plata del cajón.
+  method            PaymentMethodType
+  /// Monto, siempre positivo: lo que se le devuelve al cliente. El signo lo pone el arqueo.
+  amount            Decimal            @db.Decimal(10, 2)
+  /// Código ISO de la moneda devuelta (`NIO`, `USD`): devolver US$20 no resta 20 córdobas.
+  currency          String
+  /// Por qué se devolvió. Obligatorio: una devolución sin motivo no se puede auditar.
+  reason            String
+  status            RefundStatus       @default(pending)
+  requestedByUserId String?
+  approvedByUserId  String?
+  approvedAt        DateTime?
+  createdAt         DateTime           @default(now())
+  payment           Payment            @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  order             Order              @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  shift             Shift?             @relation(fields: [shiftId], references: [id], onDelete: SetNull)
+
+  /// Todas las devoluciones de un cobro: es lo que se suma para saber cuánto queda por devolver.
+  @@index([paymentId])
+  /// Todas las devoluciones de un pedido (el detalle y la bandeja las muestran juntas).
+  @@index([orderId])
+  /// Las aprobadas de un turno, que son las que restan del esperado.
+  @@index([shiftId, status])
+  /// La cola de la bandeja de aprobaciones: lo que está sin resolver, lo más viejo primero.
+  @@index([status, createdAt])
+}
+
+/// Bloque 3 del POS — si la devolución cubre todo el cobro o solo una parte.
+enum RefundKind {
+  full
+  partial
+}
+
+/// Bloque 3 del POS — el estado de una devolución: sin aprobar, aprobada o rechazada.
+///
+/// Una **rechazada** no consume cupo del cobro (esa plata no salió) pero se conserva: es el registro
+/// de que alguien la pidió y otro dijo que no.
+enum RefundStatus {
+  pending
+  approved
+  rejected
 }
 
 

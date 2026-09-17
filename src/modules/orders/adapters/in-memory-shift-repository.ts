@@ -47,6 +47,7 @@ export class InMemoryShiftRepository implements ShiftRepository {
       expectedByCurrency: null,
       cashSalesAmount: null,
       cashMovementsAmount: null,
+      refundsAmount: null,
       difference: null,
       cashCounts: (input.openingCounts ?? []).map((count) => ({
         kind: "opening" as const,
@@ -90,6 +91,7 @@ export class InMemoryShiftRepository implements ShiftRepository {
     shift.expectedByCurrency = { ...(input.expectedByCurrency ?? {}) };
     shift.cashSalesAmount = roundCurrency(input.cashSalesAmount ?? 0);
     shift.cashMovementsAmount = roundCurrency(input.cashMovementsAmount ?? 0);
+    shift.refundsAmount = roundCurrency(input.refundsAmount ?? 0);
     shift.difference =
       input.closingAmount === null
         ? null

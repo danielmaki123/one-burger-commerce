@@ -7,6 +7,7 @@ import {
 import { InMemoryPaymentRepository } from "@/modules/orders/adapters/in-memory-payment-repository";
 import { InMemoryShiftRepository } from "@/modules/orders/adapters/in-memory-shift-repository";
 import type { CashMovementRecord } from "@/modules/orders/domain/order.types";
+import type { RefundRecord } from "@/modules/orders/domain/order.types";
 
 import { closeShift } from "./close-shift";
 import { getCurrentShift } from "./get-current-shift";
@@ -62,10 +63,48 @@ function appendedMovement(
   return { shiftId, kind, currency, amount };
 }
 
+/**
+ * Bloque 3 — doble de devoluciones. Solo lo que el arqueo necesita: las del turno, con su medio, su
+ * estado y su moneda.
+ */
+class InMemoryRefundRepository {
+  refunds: RefundRecord[] = [];
+
+  seed(input: {
+    shiftId: string;
+    method?: "cash" | "card";
+    status?: "pending" | "approved" | "rejected";
+    currency: string;
+    amount: number;
+  }) {
+    this.refunds.push({
+      id: `ref_${this.refunds.length + 1}`,
+      paymentId: "pay_01",
+      orderId: "ord_01",
+      shiftId: input.shiftId,
+      kind: "partial",
+      method: input.method ?? "cash",
+      amount: input.amount,
+      currency: input.currency,
+      reason: "Devolución de prueba",
+      status: input.status ?? "approved",
+      requestedByUserId: "user_cashier",
+      approvedByUserId: "user_manager",
+      approvedAt: "2026-09-17T19:00:00.000Z",
+      createdAt: "2026-09-17T18:55:00.000Z",
+    });
+  }
+
+  async listByShift(shiftId: string) {
+    return this.refunds.filter((refund) => refund.shiftId === shiftId);
+  }
+}
+
 function buildDeps() {
   const shiftRepository = new InMemoryShiftRepository();
   const paymentRepository = new InMemoryPaymentRepository();
   const cashMovementRepository = new InMemoryCashMovementRepository();
+  const refundRepository = new InMemoryRefundRepository();
   const locationRepository = new InMemoryLocationRepository([
     createInMemoryLocation({ id: "loc_principal", name: "Principal" }),
   ]);
@@ -74,6 +113,7 @@ function buildDeps() {
     shiftRepository,
     paymentRepository,
     cashMovementRepository,
+    refundRepository,
     locationRepository,
     // TASK-305: el arqueo convierte los cobros en dólares con la tasa configurada.
     businessCurrencyCode: "NIO",
@@ -398,6 +438,72 @@ describe("closeShift", () => {
     expect(result.data?.expectedByCurrency).toEqual({ NIO: 1150, USD: -20 });
     // El neto de los movimientos en moneda del negocio: −500 − 730 + 150.
     expect(result.data?.cashMovementsAmount).toBe(-1080);
+  });
+
+  /**
+   * Bloque 3 del roadmap del POS (Fase 2) — las devoluciones entran al arqueo.
+   *
+   * Devolver plata en efectivo con motivo sacaba plata del cajón y el cierre marcaba faltante. Ahora
+   * una devolución **aprobada en efectivo** resta; una **pendiente**, una **rechazada** y una de
+   * **tarjeta** no (no salieron del cajón).
+   */
+  it("la devolución aprobada en efectivo resta del esperado (Bloque 3)", async () => {
+    const deps = buildDeps();
+    const opened = await openShift(
+      { locationId: "loc_principal", userId: "user_01", openingAmount: 1000 },
+      deps,
+    );
+    const openedAtMs = backdateOpen(opened.data.id, 60, deps.shiftRepository);
+    seedPayment(deps.paymentRepository, 500, 0, new Date(openedAtMs + 10_000).toISOString());
+    deps.refundRepository.seed({ shiftId: opened.data.id, currency: "NIO", amount: 200 });
+    deps.refundRepository.seed({
+      shiftId: opened.data.id,
+      currency: "NIO",
+      amount: 300,
+      status: "pending",
+    });
+    deps.refundRepository.seed({
+      shiftId: opened.data.id,
+      currency: "NIO",
+      amount: 400,
+      status: "rejected",
+    });
+    deps.refundRepository.seed({
+      shiftId: opened.data.id,
+      currency: "NIO",
+      amount: 500,
+      method: "card",
+    });
+
+    const result = await closeShift({ shiftId: opened.data.id, closingAmount: 1300 }, deps);
+
+    // Esperado = fondo 1000 + efectivo 500 − devolución aprobada en efectivo 200 = 1300.
+    expect(result.data?.expectedAmount).toBe(1300);
+    expect(result.data?.refundsAmount).toBe(-200);
+    expect(result.data?.expectedByCurrency).toEqual({ NIO: 1300 });
+  });
+
+  it("la devolución en dólares resta en dólares del detalle por moneda (Bloque 3)", async () => {
+    const deps = buildDeps();
+    const opened = await openShift(
+      {
+        locationId: "loc_principal",
+        userId: "user_01",
+        openingCounts: [{ currency: "NIO", denomination: 100, quantity: 10 }],
+      },
+      deps,
+    );
+    const openedAtMs = backdateOpen(opened.data.id, 60, deps.shiftRepository);
+    seedPayment(deps.paymentRepository, 100, 0, new Date(openedAtMs + 10_000).toISOString(), {
+      currency: "USD",
+    });
+    // Se devuelven US$20 al cliente: salen del cajón en dólares, no en córdobas.
+    deps.refundRepository.seed({ shiftId: opened.data.id, currency: "USD", amount: 20 });
+
+    const result = await closeShift({ shiftId: opened.data.id, closingAmount: 1000 }, deps);
+
+    expect(result.data?.refundsAmount).toBe(-730);
+    expect(result.data?.expectedByCurrency).toEqual({ NIO: 1000, USD: 80 });
   });
 
   it("rechaza un conteo con un billete que no existe", async () => {

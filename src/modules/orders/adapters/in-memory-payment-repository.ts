@@ -36,6 +36,11 @@ export class InMemoryPaymentRepository implements PaymentRepository {
     return `pay_${this.payments.length + 1}`;
   }
 
+  /** Bloque 3 del POS — el cobro por su id, para devolverlo con su medio y su moneda originales. */
+  async findPaymentById(id: string): Promise<PaymentRecord | null> {
+    return this.payments.find((payment) => payment.id === id) ?? null;
+  }
+
   async createPayment(input: CreatePaymentInput): Promise<PaymentRecord> {
     const payment: PaymentRecord = {
       id: this.nextId(),

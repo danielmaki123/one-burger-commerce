@@ -268,9 +268,35 @@ export type CashMovementKind = "withdrawal" | "deposit";
 
 export type CashMovementCategory = "supplier" | "change_fund" | "vault" | "expense" | "other";
 
-/** Un movimiento de caja del turno (Bloque 2 del POS, Fase 2). */
-export type CashMovementRecord = {
+/** Bloque 3 del POS — de dónde sale la devolución y si es total o parcial. */
+export type RefundKind = "full" | "partial";
+
+/** Bloque 3 del POS — el estado de una devolución: sin aprobar, aprobada o rechazada. */
+export type RefundStatus = "pending" | "approved" | "rejected";
+
+/** Una devolución sobre un cobro (Bloque 3 del POS, Fase 2). */
+export type RefundRecord = {
   id: string;
+  paymentId: string;
+  orderId: string;
+  /** El turno donde se registró, para el arqueo. */
+  shiftId: string | null;
+  kind: RefundKind;
+  /** Medio original del cobro: una devolución de tarjeta no sale del cajón. */
+  method: PaymentMethodType;
+  /** Monto **positivo**: lo que se le devolvió al cliente. */
+  amount: number;
+  currency: string;
+  reason: string;
+  status: RefundStatus;
+  requestedByUserId: string | null;
+  approvedByUserId: string | null;
+  approvedAt: string | null;
+  createdAt: string;
+};
+
+/** Un movimiento de caja del turno (Bloque 2 del POS, Fase 2). */
+export type CashMovementRecord = {  id: string;
   shiftId: string;
   kind: CashMovementKind;
   category: CashMovementCategory;
@@ -315,6 +341,11 @@ export type ShiftRecord = {
    * negocio (retiro resta, ingreso suma). Congelado al cerrar.
    */
   cashMovementsAmount?: number | null;
+  /**
+   * Bloque 3 del POS (Fase 2) — el neto de las devoluciones en efectivo aprobadas del turno, en
+   * moneda del negocio (negativo o 0: la plata salió del cajón). Congelado al cerrar.
+   */
+  refundsAmount?: number | null;
   /**
    * Bloque 1.10 del POS (Fase 2) — la firma de la última reapertura: cuándo, quién y por qué. `null`
    * si el turno nunca se reabrió.

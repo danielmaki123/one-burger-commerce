@@ -32,6 +32,7 @@ function mapShift(shift: {
   expectedByCurrency?: unknown;
   cashSalesAmount: Decimal | null;
   cashMovementsAmount?: Decimal | null;
+  refundsAmount?: Decimal | null;
   difference: Decimal | null;
   reopenedAt?: Date | null;
   reopenedByUserId?: string | null;
@@ -55,6 +56,7 @@ function mapShift(shift: {
     expectedByCurrency: toExpectedByCurrency(shift.expectedByCurrency),
     cashSalesAmount: decimalOrNull(shift.cashSalesAmount),
     cashMovementsAmount: decimalOrNull(shift.cashMovementsAmount ?? null),
+    refundsAmount: decimalOrNull(shift.refundsAmount ?? null),
     difference: decimalOrNull(shift.difference),
     // Bloque 1.10: la firma de la última reapertura, si hubo.
     reopenedAt: shift.reopenedAt ? shift.reopenedAt.toISOString() : null,
@@ -178,6 +180,7 @@ export class PrismaShiftRepository implements ShiftRepository {
         expectedByCurrency: input.expectedByCurrency,
         cashSalesAmount: input.cashSalesAmount,
         cashMovementsAmount: input.cashMovementsAmount ?? 0,
+        refundsAmount: input.refundsAmount ?? 0,
         difference:
           input.closingAmount === null
             ? null

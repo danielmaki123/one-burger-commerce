@@ -31,6 +31,13 @@ export type PaymentSummary = {
 export interface PaymentRepository {
   createPayment(input: CreatePaymentInput): Promise<PaymentRecord>;
   /**
+   * Bloque 3 del POS (Fase 2) — un cobro por su id, para devolverlo.
+   *
+   * La devolución necesita el **medio** y la **moneda originales**: devolver en efectivo algo que se
+   * cobró con tarjeta no sale del cajón y no puede descontarse del arqueo.
+   */
+  findPaymentById(id: string): Promise<PaymentRecord | null>;
+  /**
    * Cobros de un pedido, del más viejo al más nuevo.
    *
    * El rango es opcional y lo usa el arqueo del turno (TASK-104/305): los cobros que entraron entre
