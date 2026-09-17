@@ -23,9 +23,11 @@
 > real y tres disparadores) y las tareas de caja del POS con decisión del owner: **1** (POS limpio y caja
 > aparte), **2** (límite de retiro configurable sin aprobación), **3** (cierre obligatorio por sucursal),
 > **5/6** (qué ve el operario al cerrar, sin cierre ciego), **7** (corte X y traspaso de caja entre
-> cajeros) y **9** (solo el dueño aprueba devoluciones). Faltan **10** (conciliación de
-> tarjeta/transferencia exportable a CSV) y **11** (idempotencia del cobro offline con UUID). El registro
-> por tarea, con commits y capturas, está en `ops/tasks/audit-ui/pos-fase2-status.md`.
+> cajeros), **9** (solo el dueño aprueba devoluciones) y **10** (conciliación de tarjeta y transferencia
+> exportable a CSV). Falta la **11** (idempotencia del cobro offline con UUID). En la tarea 10 apareció y
+> se arregló un **bug de producción**: cobrar con tarjeta en el POS devolvía 400 (el «con cuánto paga»
+> viajaba siempre al alta del pedido). El registro por tarea, con commits y capturas, está en
+> `ops/tasks/audit-ui/pos-fase2-status.md`.
 
 ## 1. Qué está vivo hoy
 

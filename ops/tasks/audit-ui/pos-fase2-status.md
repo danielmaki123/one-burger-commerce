@@ -68,14 +68,29 @@
 | **Tarea 3 del brief** | **Cierre obligatorio por sucursal**: `Location.requireShiftClose` + `mustCloseShiftBeforeCharging`; con la caja de otro día abierta, el POS no cobra y explica por qué | `2431f02` | `bloque-9-cobro-bloqueado-*.png` |
 | **Tareas 5 y 6 del brief** | **Qué ve quien cierra**: el operario ve «Cierre registrado», el id del turno y la diferencia; quien audita ve además contado, esperado y el detalle por moneda. Sin cierre ciego (decisión del owner: la diferencia se ve al cerrar) | `731aa4d` | `bloque-1-cierre-detalle-*.png` |
 | **Tarea 9 del brief** | **Solo el dueño aprueba devoluciones**: `canApproveRefund` (owner) en las rutas y en la pantalla, y `requestRefund` nace **siempre** `pending`: nadie aprueba la propia (un owner que pide una devolución no puede aprobarla) | `dea1e38` | `bloque-3-aprobaciones-*.png` |
-| **Tarea 7 del brief** | **Corte X y traspaso de caja (1.12/1.13)**: `previewShiftArqueo` (la **misma** cuenta que el cierre, sin cerrar el turno) + `GET /api/admin/pos/shift/x`, el papel `shift-x-sheet.ts` con dos firmas y la aclaración de que **no** cierra la caja, y el **traspaso guardado**: tabla `ShiftHandover` (migración `20260918110000`, esperado congelado), `registerShiftHandover`/`listShiftHandovers`, `GET/POST /api/admin/pos/shift/handover`, acción auditada `shift.handover` y el panel en Caja del día | este mismo commit | `tarea-7-*.png` |
+| **Tarea 7 del brief** | **Corte X y traspaso de caja (1.12/1.13)**: `previewShiftArqueo` (la **misma** cuenta que el cierre, sin cerrar el turno) + `GET /api/admin/pos/shift/x`, el papel `shift-x-sheet.ts` con dos firmas y la aclaración de que **no** cierra la caja, y el **traspaso guardado**: tabla `ShiftHandover` (migración `20260918110000`, esperado congelado), `registerShiftHandover`/`listShiftHandovers`, `GET/POST /api/admin/pos/shift/handover`, acción auditada `shift.handover` y el panel en Caja del día | `e6e36f7` | `tarea-7-*.png` |
+| **Tarea 10 del brief** | **Conciliación de tarjeta y transferencia (11.1/11.2)**: dominio `payment-reconciliation.ts` (efectivo afuera; totales **por moneda**, sin convertir con la tasa de hoy; lo que no es tarjeta ni transferencia se informa aparte), `listReconciliationPayments` (día del negocio y local), `GET /api/admin/cash/reconciliation`, el CSV `payment-reconciliation-csv.ts` con la **referencia** del voucher al lado del monto, y el panel «Conciliación» en Caja del día con la descarga. Los primitivos del CSV se extrajeron a `shared/lib/csv.ts` (los comparten los dos exports) y bajar un archivo quedó en `shared/lib/download-file.ts` | este mismo commit | `tarea-10-conciliacion-*.png` |
+| **Bug de producción encontrado y arreglado en la tarea 10** | **Cobrar con tarjeta en el POS devolvía 400**: `registerPosSale` mandaba siempre el «con cuánto paga» al alta del pedido y `createOrder` rechaza ese campo cuando la forma declarada no es efectivo («El vuelto solo se calcula cuando pagás en efectivo»). Los tests del caso de uso no lo veían porque doblan `createPosOrder`; apareció cobrando con tarjeta de verdad para la conciliación. Ahora el monto solo viaja si el pedido declara efectivo (la cobertura del cobro se sigue midiendo igual) y hay un test que lo fija | este mismo commit | — |
 
 **Alertas Telegram — qué falta del brief**: el **resumen diario** (toggle «Cierre del día») todavía no se
 dispara solo: necesita la regla de la hora de cierre, así que su descripción en la pantalla lo dice. Los
 otros tres eventos **sí** quedan registrados: devolución grande y diferencia de caja al momento de la
 operación, y el barrido de cajas abiertas >24 h desde el proceso periódico del outbox (una sola vez por
-turno). De la lista confirmada del owner ya están las tareas 1, 2, 3, 5, 6, 7 y 9; **faltan la 10
-(conciliación de tarjeta/transferencia exportable) y la 11 (idempotencia del cobro offline con UUID)**.
+turno). De la lista confirmada del owner ya están las tareas 1, 2, 3, 5, 6, 7, 9 y 10; **falta la 11
+(idempotencia del cobro offline con UUID)**.
+
+**Tarea 10 — las decisiones que tomé** (el owner las confirma o las cambia):
+
+1. **El export es de una sucursal y de un día del negocio**, no del alcance entero: un lote de terminal y
+   un extracto bancario son de una cuenta y de un día, y mezclar sucursales en un archivo haría imposible
+   la comparación. El día sale de la zona del negocio (el navegador tiene la suya).
+2. **Cada moneda se cuenta en la suya**: un cobro en dólares convertido con la tasa de hoy sería un número
+   que el lote nunca tuvo; el dólar se muestra como `US$20.00` / `USD 20.00` y se exporta en dólares.
+3. **El efectivo no entra** (su cuadre es el arqueo del cajón) y lo que no es tarjeta ni transferencia
+   (`mixto`, `otro`) se **informa aparte** en la pantalla, con la aclaración de que no va en el export: es
+   plata del día que no se puede esconder, pero tampoco tiene lote contra el cual cuadrar.
+4. La comparación sigue siendo **manual**: el sistema exporta lo que cobró; el número del lote lo pone el
+   owner. Automatizar el cuadre necesita decidir el proveedor de pagos (dependencia nueva).
 
 **Tarea 7 — las dos decisiones que tomé** (el owner las confirma o las cambia):
 

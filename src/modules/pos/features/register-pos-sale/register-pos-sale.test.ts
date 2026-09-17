@@ -207,6 +207,40 @@ describe("venta de mostrador", () => {
     expect(result.change).toBe(0);
   });
 
+  /**
+   * Tarea 10 del brief (2026-09-17) — **cobrar con tarjeta estaba roto**.
+   *
+   * El «con cuánto paga» viajaba siempre al alta del pedido, y `createOrder` lo rechaza cuando la forma
+   * declarada no es efectivo («El vuelto solo se calcula cuando pagás en efectivo»): **toda** venta con
+   * tarjeta del mostrador terminaba en 400. Los tests de este caso de uso no lo veían porque doblan
+   * `createPosOrder`; se encontró cobrando con tarjeta de verdad para la conciliación (11.1/11.2).
+   *
+   * Lo que se fija: con tarjeta el monto no viaja (la terminal cobra el total exacto) y el cobro sigue
+   * cubriendo el total, que es la otra mitad de la regla.
+   */
+  it("una venta con tarjeta no declara «con cuánto paga»", async () => {
+    const { createPosOrder, paymentRepository, deps } = setup();
+
+    const result = await registerPosSale(
+      {
+        draft: draftWithTaco(),
+        customer,
+        payments: [
+          { method: "card", currency: "NIO", amount: 80, reference: "VOUCHER-1" },
+        ],
+      },
+      deps,
+    );
+
+    expect(createPosOrder).toHaveBeenCalledWith(
+      expect.objectContaining({ paymentMethod: "card", paidWithAmount: null }),
+    );
+
+    const payments = await paymentRepository.listPaymentsByOrder("ord_01");
+    expect(payments[0]).toMatchObject({ method: "card", amount: 80 });
+    expect(result.change).toBe(0);
+  });
+
   it("cobra en dólares: registra la moneda original y calcula el cambio convertido", async () => {    const { paymentRepository, deps } = setup();
 
     const result = await registerPosSale(

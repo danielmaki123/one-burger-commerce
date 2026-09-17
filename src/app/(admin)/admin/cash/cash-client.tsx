@@ -4,6 +4,7 @@ import Link from "next/link";
 import * as React from "react";
 
 import { useBusinessSettings, useCurrencyFormat } from "@/shared/lib/business-settings";
+import { downloadTextFile } from "@/shared/lib/download-file";
 import { formatCurrency } from "@/shared/lib/format-currency";
 import { Button } from "@/shared/ui/button";
 import { TabsList, TabsTrigger } from "@/shared/ui/tabs";
@@ -120,20 +121,19 @@ export default function CashClient({ locations }: { locations: CashLocationOptio
   /**
    * Bloque 11.3 del roadmap del POS (Fase 2) — baja el historial como CSV.
    *
-   * El archivo lo arma `buildShiftCsv` (función pura, probada); acá solo se genera el blob y se
-   * dispara la descarga. Es lo que permite cuadrar el mes en una planilla sin exportar la base.
+   * El archivo lo arma `buildShiftCsv` (función pura, probada) y el navegador lo baja con
+   * `downloadTextFile`, que es lo que comparte con el export de conciliación (tarea 10). Es lo que
+   * permite cuadrar el mes en una planilla sin exportar la base.
    */
   const downloadCsv = () => {
     const locationName =
       locations.find((location) => location.id === locationId)?.name ?? locationId;
-    const csv = buildShiftCsv(visibleShifts, { timezone, locale, locationName });
-    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
-    const link = document.createElement("a");
 
-    link.href = url;
-    link.download = buildShiftCsvFileName(locationName, new Date().toISOString().slice(0, 10));
-    link.click();
-    URL.revokeObjectURL(url);
+    downloadTextFile({
+      fileName: buildShiftCsvFileName(locationName, new Date().toISOString().slice(0, 10)),
+      content: buildShiftCsv(visibleShifts, { timezone, locale, locationName }),
+      mimeType: "text/csv;charset=utf-8",
+    });
   };
 
   return (

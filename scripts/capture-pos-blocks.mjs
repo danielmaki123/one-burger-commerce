@@ -206,6 +206,15 @@ try {
     await page.waitForTimeout(400);
     await shot(page, "tarea-7-traspaso-registrado", viewport.name);
 
+    // Tarea 10 del brief (2026-09-17): la **conciliación** de tarjeta y transferencia (11.1/11.2).
+    await page.evaluate(() => {
+      document
+        .querySelector('[aria-label="Conciliación de tarjeta y transferencia"]')
+        ?.scrollIntoView({ block: "start" });
+    });
+    await page.waitForTimeout(600);
+    await shot(page, "tarea-10-conciliacion", viewport.name);
+
     await context.close();
   }
 

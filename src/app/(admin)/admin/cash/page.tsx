@@ -2,15 +2,19 @@ import { redirect } from "next/navigation";
 
 import { requireCashScope } from "@/app/api/admin/cash/cash-route-helpers";
 import { canUsePOS, canViewCashHistory } from "@/modules/auth/domain/admin-permissions";
+import { PrismaBusinessSettingsRepository } from "@/modules/business-settings/adapters/prisma-business-settings-repository";
+import { loadBusinessSettings } from "@/modules/business-settings/features/get-public-business-settings/get-public-business-settings";
 import { requireAdminSession } from "@/modules/auth/features/require-admin-session/require-admin-session";
 import { resolveOrderLocationScope } from "@/modules/orders/domain/order-visibility";
 import { createProductionPosLocationDependencies } from "@/modules/pos/adapters/production-pos-location";
 import { listCashLocations } from "@/modules/pos/domain/cash-locations";
+import { businessDate } from "@/shared/lib/business-days";
 
 import { AdminPageHeader } from "../_components/admin-operational-ui";
 import CashClient from "./cash-client";
 import CashDrawerPanel from "./cash-drawer-panel";
 import DayClosePanel from "./day-close-panel";
+import ReconciliationPanel from "./reconciliation-panel";
 
 /**
  * Bloque 1.3 + tarea 1 del brief (2026-09-17) — la **caja**, separada del POS.
@@ -53,6 +57,14 @@ export default async function AdminCashPage() {
 
   const options = locations.map(({ id, name }) => ({ id, name }));
 
+  /**
+   * Tarea 10 del brief (2026-09-17) — el día del negocio para la conciliación se resuelve acá (el
+   * navegador tiene su propia zona y el día de caja no es el suyo).
+   */
+  const settings = canAudit
+    ? await loadBusinessSettings({ repository: new PrismaBusinessSettingsRepository() })
+    : null;
+
   return (
     <div className="space-y-4">
       <AdminPageHeader
@@ -73,9 +85,14 @@ export default async function AdminCashPage() {
         />
       ) : null}
 
-      {canAudit ? (
+      {canAudit && settings ? (
         <>
           <DayClosePanel locations={options} />
+          {/* Tarea 10 del brief: la conciliación de tarjeta y transferencia (11.1/11.2). */}
+          <ReconciliationPanel
+            locations={options}
+            defaultDate={businessDate(new Date(), settings.timezone)}
+          />
           <CashClient locations={options} />
         </>
       ) : null}

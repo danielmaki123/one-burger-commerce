@@ -120,10 +120,19 @@ export async function registerPosSale(
     // transferencia o un pago mixto declaran `cash`, que es como se comporta el cobro para el local
     // (la plata no pasó por una terminal).
     paymentMethod: toDeclaredPaymentMethod(input.payments[0]?.method),
-    // TASK-305: lo que el cliente puso sobre el mostrador, en moneda del negocio. Se guarda porque el
-    // arqueo necesita saber cuánto salió de vuelto: sin eso, un día con vueltos parecería que falta
-    // plata. `createOrder` lo vuelve a validar contra el total que calcula él.
-    paidWithAmount: paidInBusinessCurrency,
+    /**
+     * TASK-305: lo que el cliente puso sobre el mostrador, en moneda del negocio. Se guarda porque el
+     * arqueo necesita saber cuánto salió de vuelto: sin eso, un día con vueltos parecería que falta
+     * plata.
+     *
+     * Tarea 10 del brief (2026-09-17): **solo viaja cuando el pedido declara efectivo**. Con tarjeta la
+     * terminal cobra el total exacto y no hay «con cuánto paga»; mandarlo hacía que `createOrder` —que
+     * valida ese campo contra la forma declarada— rechazara **toda** venta con tarjeta (400). La
+     * cobertura del cobro se sigue midiendo igual: los dos `validatePaidWithAmount` de arriba usan la
+     * semántica del efectivo, que es «el monto tiene que alcanzar el total».
+     */
+    paidWithAmount:
+      toDeclaredPaymentMethod(input.payments[0]?.method) === "cash" ? paidInBusinessCurrency : null,
     // "Lo antes posible": el servidor completa la hora con su reloj y la preparación configurada.
     pickupTime: null,
     pickupScheduled: false,
