@@ -42,12 +42,26 @@ export class InMemoryOutboxRepository implements OutboxRepository {
     });
   }
 
-  /** Los últimos, del más nuevo al más viejo — igual que el `orderBy desc + take` de Prisma. */
+  /**
+   * Los últimos, del más nuevo al más viejo — igual que el `orderBy desc + take` de Prisma.
+   *
+   * El desempate no es un detalle: dos eventos creados en el **mismo milisegundo** (lo normal: el cierre
+   * registra el aviso y el siguiente evento cae en el mismo tick) tienen el mismo `createdAt`, y sin
+   * desempate el orden depende de la máquina. Prisma desempata por `id` desc; acá, por el orden de carga
+   * (el último creado primero), que es lo que se ve en la pantalla.
+   */
   async listRecentEvents(filter: ListRecentOutboxEventsFilter): Promise<OutboxEventRecord[]> {
     return this.events
-      .filter((e) => !filter.eventTypes?.length || filter.eventTypes.includes(e.eventType))
-      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-      .slice(0, Math.max(0, filter.limit));
+      .map((event, index) => ({ event, index }))
+      .filter(({ event }) => !filter.eventTypes?.length || filter.eventTypes.includes(event.eventType))
+      .sort((a, b) => {
+        const byDate = b.event.createdAt.localeCompare(a.event.createdAt);
+        if (byDate !== 0) return byDate;
+
+        return b.index - a.index;
+      })
+      .slice(0, Math.max(0, filter.limit))
+      .map(({ event }) => event);
   }
 
   async lockPendingEvents(

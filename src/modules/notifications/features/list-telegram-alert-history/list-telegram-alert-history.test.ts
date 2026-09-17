@@ -46,6 +46,20 @@ async function seed(repository: InMemoryOutboxRepository) {
   });
   await repository.markProcessed(pedido.id);
 
+  /**
+   * El reloj del proceso tiene resolución de **milisegundos**: los cuatro eventos de este test caen en el
+   * mismo instante y el orden quedaría a cargo de la máquina (en CI pasó exactamente eso). Los tiempos se
+   * fijan a mano para que el test hable del orden y no del reloj.
+   */
+  const conTiempo = (id: string, createdAt: string) => {
+    const event = repository.events.find((candidate) => candidate.id === id);
+    if (event) event.createdAt = createdAt;
+  };
+
+  conTiempo(cierre.id, "2026-09-17T15:00:00.000Z");
+  conTiempo(devolucion.id, "2026-09-17T17:55:00.000Z");
+  conTiempo(pedido.id, "2026-09-17T18:05:00.000Z");
+
   return { cierre, devolucion };
 }
 
@@ -81,5 +95,37 @@ describe("listTelegramAlertHistory", () => {
     const { data } = await listTelegramAlertHistory({ limit: 5 }, { outboxRepository: repository });
 
     expect(data).toEqual([]);
+  });
+
+  /**
+   * El desempate: dos avisos creados en el **mismo milisegundo** (lo normal cuando un cierre registra su
+   * mensaje y el siguiente evento cae en el mismo tick) tienen que salir siempre en el mismo orden.
+   */
+  it("dos avisos del mismo milisegundo salen en orden estable (el último primero)", async () => {
+    const repository = new InMemoryOutboxRepository();
+    const primero = await repository.createEvent({
+      eventType: "shift_closed",
+      aggregateType: "Shift",
+      aggregateId: "shift_a",
+      payload: {},
+    });
+    const segundo = await repository.createEvent({
+      eventType: "shift_closed",
+      aggregateType: "Shift",
+      aggregateId: "shift_b",
+      payload: {},
+    });
+    const mismoInstante = "2026-09-17T18:00:00.000Z";
+
+    for (const event of repository.events) {
+      event.createdAt = mismoInstante;
+      await repository.markProcessed(event.id);
+    }
+
+    const primera = await listTelegramAlertHistory({ limit: 5 }, { outboxRepository: repository });
+    const segunda = await listTelegramAlertHistory({ limit: 5 }, { outboxRepository: repository });
+
+    expect(primera.data.map((row) => row.id)).toEqual([segundo.id, primero.id]);
+    expect(segunda.data.map((row) => row.id)).toEqual([segundo.id, primero.id]);
   });
 });

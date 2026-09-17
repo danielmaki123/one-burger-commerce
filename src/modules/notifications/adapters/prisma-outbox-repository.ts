@@ -76,13 +76,18 @@ export class PrismaOutboxRepository implements OutboxRepository {
     return events.map(mapEvent);
   }
 
-  /** Los últimos eventos (o los de estos tipos), del más nuevo al más viejo: lo que muestra el historial. */
+  /**
+   * Los últimos eventos (o los de estos tipos), del más nuevo al más viejo: lo que muestra el historial.
+   *
+   * El segundo criterio (`id desc`) es el desempate de dos eventos creados en el **mismo milisegundo**: sin
+   * él, Postgres devuelve las filas en el orden que quiere y el historial cambia entre consultas.
+   */
   async listRecentEvents(filter: ListRecentOutboxEventsFilter): Promise<OutboxEventRecord[]> {
     const prisma = getPrismaClient();
 
     const events = await prisma.outboxEvent.findMany({
       where: filter.eventTypes?.length ? { eventType: { in: [...filter.eventTypes] } } : {},
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: Math.max(1, filter.limit),
     });
 
