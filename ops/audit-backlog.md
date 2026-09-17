@@ -20,9 +20,10 @@
 > 6. La UI se verifica a **375 px y 1280 px en navegador real** (Playwright), no en HTML estático.
 > 7. **Producción no se toca ni se despliega sin confirmación explícita del owner.**
 >
-> **Fecha de apertura**: 2026-09-12 · **Rama**: `main` · **Estado (2026-09-15)**: **A-01/A-07**
-> (commit `83d7433`) y **A-08** (commit `f0366c8`) cerrados. **A-02 a A-06** están **bloqueados**: son
-> datos, infraestructura o decisiones del owner, así que no hay task técnica para atacar sin que él diga
+> **Fecha de apertura**: 2026-09-12 · **Rama**: `main` · **Estado (2026-09-17)**: **A-01/A-07**
+> (commit `83d7433`) y **A-08** (commit `f0366c8`) cerrados, y **A-06** cerrado el 2026-09-17 (el owner
+> rotó el `EASYPANEL_TOKEN`). **A-02 a A-05** están **bloqueados**: son datos, infraestructura o
+> decisiones del owner, así que no hay task técnica para atacar sin que él diga
 > cuál. **A-09 a A-14** los registró el **agente** al cerrar la consola de comandas (B0–B6). **A-15 a
 > A-23** los registró el agente el **2026-09-15**, al responder **tres consultas del owner** (caja/POS,
 > fiscal/recibo y design system) que se pidieron **sin plan y sin código**: son el inventario medido de
@@ -48,7 +49,7 @@ Estados: `reportado` · `a reproducir` · `en curso` · `cerrado` · `no-repro` 
 | A-03 | Falta **cargar la carta completa** (categorías, productos, precios, fotos): producción tiene 2 categorías con 6 productos | dato | P3 | `bloqueado` (owner) | — |
 | A-04 | **Monitoreo externo** inexistente: nada pega a `GET /api/readiness` ni avisa si el sitio o la base se caen | infra | P2 | `bloqueado` (owner elige servicio) | — |
 | A-05 | **Puertos expuestos** de servicios ajenos del panel compartido (`capostgres` 5455, `postimage` 8585) | infra | P2 | `bloqueado` (OK de otro admin) | — |
-| A-06 | **Rotar `EASYPANEL_TOKEN`** (se pasó por chat cinco veces; da acceso total al servidor) | infra | P2 | `bloqueado` (decisión de owner) | — |
+| A-06 | **Rotar `EASYPANEL_TOKEN`** (se pasó por chat cinco veces; da acceso total al servidor) | infra | P2 | `cerrado` (el owner lo rotó el 2026-09-17) | — |
 | A-09 | **El actor del cambio de estado se guarda pero no se muestra en ninguna pantalla**: `OrderStatusHistory.changedByUserId` queda asentado (B5b) y no hay vista que lo lea | deuda | P3 | `reportado` (agente) | — |
 | A-10 | **La home del panel no existe para los roles sin Resumen**: `/admin` redirige a `/admin/orders`, así que un `manager` o una `kitchen` no tienen dónde elegir sección. Con POS e inventario anunciados (tablets separadas), hace falta una home por rol | decisión | P2 | `decisión-pendiente` | — |
 | A-11 | **Timeouts de la QA de solo lectura**: dos corridas contra `menu.oneburgernic.com` fallaron por `page.goto` de 30 s (una en masa, 33 casos) y al repetirlas pasaron; medido en el momento, las cargas públicas respondían en 0,7 s | infra | P3 | `a reproducir` | — |
@@ -59,6 +60,11 @@ Estados: `reportado` · `a reproducir` · `en curso` · `cerrado` · `no-repro` 
 | A-16 | **No hay historial de cajas**: `get-current-shift.ts:21` devuelve solo la caja **abierta** y `listShifts` (`ports/shift-repository.ts:49`; el adaptador ya trae `include: {cashCounts:true}`) **no lo usa ninguna API ni pantalla**. Al cerrar y recargar, el arqueo desaparece de la UI aunque los datos están en `Shift` + `ShiftCashCount` | feat / deuda | P2 | `reportado` (agente) | — |
 | A-17 | **La tarjeta no se reporta y la transferencia no se puede cobrar**: el cierre filtra `method === "cash"` (`close-shift.ts:139`) y no hay vista que sume tarjeta del día; el enum `PaymentMethodType` ya tiene `transfer`/`mixed`/`other` (`schema.prisma:347-353`) pero el POS solo acepta `cash\|card` (`sale-payload.ts:30`) | decisión | P2 | `decisión-pendiente` (owner) | — |
 | A-18 | **El detalle por moneda del cierre no se persiste**: `expectedByCurrency` viaja solo en `meta` (`close-shift.ts:113`) y `Shift` no tiene columnas por moneda; recomputar un cierre viejo usa la **tasa de hoy**. Tampoco hay `Payment.shiftId` (`schema.prisma:732-753`): la atribución es por ventana de tiempo | deuda / dato | P3 | `reportado` (agente) | — |
+| A-24 | **57 controles crudos** siguen en 21 archivos del admin (los `<select>`/`<textarea>` de Menú e Inventario, el `type=color` de Categorías, varios `<button>`): los tokens ya son los del sistema, pero el control no es el primitivo. Hay techo declarado por archivo en `design-tokens.allow.json` | deuda | P2 | `reportado` (agente) | — |
+| A-25 | **Tres `window.confirm`** (Usuarios, Locales, Promos) en vez del primitivo `Modal`: el guardrail pide el modal y el diálogo nativo no se puede estilar ni testear igual | deuda | P3 | `reportado` (agente) | — |
+| A-26 | **`settings-client.tsx` tiene 951 líneas** (el techo son 400) y su componente pasaba las 700: el plan de partición está escrito (helpers, campos, secciones de identidad/contacto/horarios/operación/apariencia y la tarjeta de vista previa) | deuda | P2 | `reportado` (agente) | — |
+| A-27 | **El E2E es sensible a la medianoche**: cerca de las 00:00 los minutos de preparación empujan el retiro al día siguiente y el tablero de «Hoy» no muestra el pedido recién creado (fallan comandas, acciones y el alcance por sucursal). Se parchó `admin-order-scope` para comprobar el alcance por API; falta hacerlo determinista (reloj congelado o día de negocio por test) | test | P3 | `reportado` (agente) | — |
+| A-28 | **La barra superior del KDS ocupa ~25% del alto** (contadores + buscador + acciones + filtros) y en celular crece a varias filas: la regla del 20% de `design-system.md` §8.4 pide rediseñarla. No se tocó para no cambiar el alcance de una pantalla ya cerrada | UI | P3 | `reportado` (agente) | — |
 | A-19 | **No existen los movimientos de caja**: sin `CashMovement` (retiro/ingreso con motivo y responsable) ni configuración de caja en ningún lado; la propina en efectivo entra al cajón por decisión implícita (`close-shift.ts:143-144`) y la caja puede quedar abierta para siempre | decisión | P3 | `decisión-pendiente` (owner) | — |
 | A-20 | **No hay un solo campo fiscal** (`ruc`/`taxId`/`fiscal`/`legalName`/`documentNumber`: cero coincidencias en `prisma/` + `src/**`) y `Customer` solo tiene nombre + WhatsApp (`schema.prisma:59-69`). El recibo es un **JPG sin logo y sin RUC** (`src/shared/lib/receipt-image.ts`) y **solo se emite desde el POS al cobrar**, no desde el detalle del pedido | decisión | P3 | `decisión-pendiente` (owner) | — |
 | A-21 | **Documentación desactualizada en cuatro puntos verificados**: `DESIGN_SYSTEM.md §3.4:273` decía "2 literales de carga" (había **18** distintos), `§2.1:164` decía 15 tokens huérfanos (había **16**: también `--ring`, `globals.css:40`), `AGENTS.md:109` mandaba a `DESIGN_SYSTEM.md §5` por la lista de copy decorativo y **§5 no la tenía**, y `plna.md:546` afirma un `Payment.shiftId` que no existe. **Cerrado el 2026-09-15** (Capa 0 del plan de UI): los tres puntos del repo se corrigieron reescribiendo `DESIGN_SYSTEM.md` (los números viejos ya no existen: §2.1 y §3.4 se reescribieron) y `AGENTS.md` (el puntero a `§5` ahora es verdadero), y un contrato falla si `AGENTS.md` cita una sección que no existe. El cuarto punto es de `plna.md`, un documento **no versionado**: queda anotado en A-18 | documentación | P3 | `cerrado` | commit de la Capa 0 |
@@ -244,7 +250,7 @@ Estados: `reportado` · `a reproducir` · `en curso` · `cerrado` · `no-repro` 
   compartido. **No son de One Burger**.
 - **Receta**: `ops/production-readiness.md` §8.4.
 
-### A-06 · Rotar el `EASYPANEL_TOKEN` — `bloqueado` (decisión de owner)
+### A-06 · Rotar el `EASYPANEL_TOKEN` — `cerrado` (2026-09-17)
 
 - **Por qué**: el token da acceso total al servidor y se pasó por chat **cinco veces** (2026-09-10,
   2026-09-12, dos veces el 2026-09-13 —el deploy de A-07/A-08 y el de A— y **dos veces más el
@@ -254,6 +260,9 @@ Estados: `reportado` · `a reproducir` · `en curso` · `cerrado` · `no-repro` 
 - **Ojo**: el `inspectService` del panel devuelve el `env` completo del servicio (incluye
   `DATABASE_URL` con su contraseña y `NEXTAUTH_SECRET`), así que quien tenga el token ve también esos
   secretos: no es solo acceso al panel.
+- **Cierre (2026-09-17)**: el owner **rotó** el token. El viejo se usó por última vez en los dos deploys
+  de ese día (el cierre de la Fase 2 de UI y los modales y pantallas secundarias) y quedó revocado; el
+  nuevo no viajó por chat.
 
 ### A-09 · El actor del cambio de estado no se muestra — `reportado` (agente)
 
@@ -439,6 +448,55 @@ si los documentos pasan su tope de líneas o si el catálogo deja de tener la li
 - **Qué falta decidir**: si se mantiene para QA, se degrada (por ejemplo a `cashier`, que es el rol que
   necesita el POS) o se borra cuando termine la puesta a punto. **La contraseña no se registra en el repo**;
   la administra el owner.
+
+### A-24 · Controles crudos que todavía no son primitivos — `reportado` (agente)
+
+- **Qué es**: después de la migración al sistema Stitch quedan **57 controles HTML crudos** repartidos
+  en 21 archivos del admin. Los más cargados: `menu/categories` (9), `menu/marketing-blocks` (8),
+  `menu/products/[id]` (8), `inventory/receive` y `inventory/waste` (3 cada uno), `locations/[id]` (3),
+  `orders/page` (4). Los tokens ya son los del sistema: falta cambiar el control por `Select`,
+  `Textarea`, `Checkbox`, `Toggle`, `ColorInput` o `Button` según corresponda.
+- **Cómo se cierra**: un archivo por vez, bajando su número en `src/shared/config/design-tokens.allow.json`
+  **y** en `LEGACY_RAW_CONTROLS` de `src/shared/contracts/ui-contract.test.ts` en el mismo commit (el
+  contrato exige que un techo que baja se baje, y que a 0 se borre la fila).
+- **Ojo**: `Categorías` usa `<input type="color">`; el primitivo `ColorInput` ya existe y se usa en
+  Personalización, así que es el mismo reemplazo.
+
+### A-25 · Los tres `window.confirm` — `reportado` (agente)
+
+- **Qué es**: Usuarios (`users-client.tsx`), Locales (`locations/page.tsx`) y Promos confirman con el
+  diálogo nativo. El guardrail lo dice textual: *«window.confirm (usá el primitivo Modal)»*.
+- **Ojo con el E2E**: `tests/e2e/admin.spec.ts` y `tests/e2e/admin-order-scope.spec.ts` aceptan el
+  diálogo con `page.on("dialog")`. El `<dialog>` nativo del primitivo `Modal` **no** dispara ese evento,
+  así que los dos specs se actualizan en el mismo commit y el motivo se escribe en el cuerpo.
+- **Cierre esperado**: `window-confirm` a 0 y la fila borrada del `allow.json`.
+
+### A-26 · Partir `settings-client.tsx` — `reportado` (agente)
+
+- **Qué es**: 951 líneas contra un techo de 400 (el componente solo pasaba las 700). La partición
+  sugerida, toda por debajo del techo: `settings-form-helpers.ts` (tipos, `COLOR_FIELDS`, payload),
+  `settings-fields.tsx` (`SettingsSection`/`SettingsField`), las secciones de identidad, contacto,
+  operación y apariencia, y `settings-preview-card.tsx`.
+- **De paso**: el error de `SettingsField` se anuncia con `role="alert"` pero no se asocia por
+  `aria-describedby` al control (deuda chica, se arregla al partir el archivo).
+
+### A-27 · E2E determinista alrededor de la medianoche — `reportado` (agente)
+
+- **Qué pasa**: los specs crean un pedido y lo buscan en el tablero de «Hoy». Cerca de las 00:00 del
+  huso del negocio (America/Managua), los minutos de preparación del local empujan el primer turno al
+  día siguiente, el pedido queda «programado para otro día» y el tablero no lo muestra: fallan
+  `admin-comandas`, `admin-order-actions` y `admin-order-scope` sin que haya nada roto en el producto.
+- **Parche actual**: `admin-order-scope` comprueba el alcance del dueño por `GET /api/admin/orders` en
+  vez de por el tablero, y la aserción de la fila de local se acota a su `article`.
+- **Cierre esperado**: reloj congelado (`page.clock`) o un `dateFrom`/día de negocio fijo por test.
+
+### A-28 · La barra superior del KDS y la regla del 20% — `reportado` (agente)
+
+- **Qué es**: en `/admin/orders` la barra pegajosa (título, chips de vista, contadores, buscador, filtro
+  de pago, atrasados y acciones) mide ~230 px a 1280×900 (~25% del alto) y en celular envuelve en varias
+  filas. `design-system.md` §8.4 pide que cabecera, filtros y utilidades no pasen el 20%.
+- **Cierre esperado**: compactar la barra (contadores y buscador en una fila, acciones al menú) sin
+  perder ninguno de los anclajes que usan los E2E (`Local de las comandas`, `Buscar comanda`, `Atrasados`).
 
 ## 3. Registro de lo cerrado
 

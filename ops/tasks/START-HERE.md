@@ -113,34 +113,34 @@ y promedio de preparación del día. El menú real lo está cargando el owner y 
 base está probado** (drill de restore hecho el 2026-09-12: el respaldo restauró completo en un Postgres
 temporal). Detalle y prioridades en `ops/project-state.md` §4.
 
-**Desplegado el 2026-09-15** (una sola llamada a `deployService`, `commit.sha` idéntico al tip de `main`,
-smoke 7/7 y dominios 6/6): **`3708f40` (código `9018839`), `build-20260915-121551`**, que lleva **A, B y
-las tres fases del plan `plna.md`**: el **POS de mostrador completo** —cobro en un paso, arqueo por
-denominación y moneda, refresco cada 3 s, recibo como imagen y mostrador prendido por local—. El POS quedó
-**verificado con sesión real de admin en producción** (`/api/admin/pos/availability` 200, catálogo con los
-6 productos reales, entrada «Caja» en la navegación, pantalla completa y el interruptor del local en
-`yes`): el detalle está en `ops/project-state.md` §2. Antes: `0072531` (`build-20260914-151459`, comandas
-B6), `ea6be95` (A-07/A-08) y `982da3f` (A).
+**Desplegado el 2026-09-17** (una sola llamada a `deployService` por API, `commit.sha` idéntico al tip
+de `main`, smoke 7/7 y dominios 6/6): **`2f35710`, `build-20260917-015211`**. Ese build lleva el **sistema
+de diseño Stitch completo en el panel**: la Fase 1 (tokens, Plus Jakarta + JetBrains Mono, estados
+`--status-*` y los arreglos de contraste), la Fase 2 (las **7 pantallas**: KDS, POS, Resumen, Menú,
+Locales, Usuarios y Personalización) y la segunda pasada (los **modales** y las pantallas secundarias:
+Inventario, Zonas, Promos, Menú completo, catálogo por local y detalle de orden), más el **horario único
+por sucursal** (Personalización dejó de editarlo y Locales tiene «Aplicar a todas las sucursales»).
+Antes en ese mismo día: `2b9df47` (`build-20260917-003340`, cierre de la Fase 2) y el 2026-09-15
+`3708f40` (`build-20260915-121551`, POS de mostrador).
 
-**Estado (2026-09-15)**: el plan `plna.md` quedó **sin tareas pendientes**. El frente nuevo es el
-**plan de UI `plan2uiux.md`** (raíz, sin versionar), con su **CAPA 0 cerrada del todo**: `DESIGN_REFERENCES.md`
-como ADN, `AGENTS.md` (300 líneas, sección de UI + checklist de 5 estados), `DESIGN_SYSTEM.md` (250 líneas,
-**20 reglas de interfaz** con qué/por qué/cómo verificar + 5 ejemplos reales con `ruta:línea`), el registro
-`src/shared/ui/registry.json` con `file`/`variants`/`sizes`/`use_when`/`dont_use_when`, los tres docs
-obsoletos borrados y el contrato `src/shared/contracts/ui-rules-contract.test.ts` que lo sostiene. De la
-**CAPA 1** ya están C1-1/C1-2/C1-3 y **C1-4a**: el mockup de `/admin` está hecho, con su pipeline de
-Impeccable corrido (**27/40**, 0 P0) y **esperando la validación del owner**, que es el único stop humano
-del plan. Lo otro que sigue es lo que el owner elija
-de la cola de auditoría, que creció con **tres consultas** que él pidió el 2026-09-15 (caja/POS,
-fiscal/recibo y design system) y que se respondieron **sin plan y sin código**: el inventario medido de las
-tres quedó resumido en `ops/project-state.md` §2 y desglosado como **A-15 a A-23** en el backlog.
+**Estado (2026-09-17)**: el plan `plna.md` quedó **sin tareas pendientes** y el plan de UI
+`plan2uiux.md` (raíz, sin versionar) está **cerrado en sus tres fases**: la fuente de verdad visual es
+[`ops/references/stitch/design-system.md`](../references/stitch/design-system.md) (v3.0.0) con las 7
+pantallas de referencia al lado, los documentos viejos (`DESIGN_REFERENCES.md`, `DESIGN_SYSTEM.md`,
+`design/*.md`) y el mockup HTML están **borrados**, y el detalle de las decisiones quedó en
+`ops/DESIGN_LOG.md` (entry del 2026-09-16) y del segundo pase. En el panel **no queda ningún archivo con
+tokens viejos** (cero `bg-card`, `border-border`, `text-foreground`, `rounded-2xl`, `shadow-sm`,
+`text-[Npx]`). Lo que sigue es la **cola de auditoría** de abajo (A-24 a A-28 son los pendientes que dejó
+la migración) y lo que el owner elija de las decisiones abiertas.
 
 ## 4. Cola de pendientes (en orden recomendado)
 
 **No hay tareas de plan pendientes.** La cola viva es
-[`ops/audit-backlog.md`](../audit-backlog.md). Cerrados **A-01/A-07** (`83d7433`) y **A-08** (`f0366c8`).
-**A-02 a A-06** están **bloqueados** (datos, infraestructura o decisiones del owner). **A-09 a A-14** los
-registró el agente al cerrar las comandas. **A-15 a A-23** salen de las tres consultas del 2026-09-15:
+[`ops/audit-backlog.md`](../audit-backlog.md). Cerrados **A-01/A-07** (`83d7433`), **A-08** (`f0366c8`) y
+**A-06** (el owner rotó el `EASYPANEL_TOKEN` el 2026-09-17). **A-02 a A-05** están **bloqueados** (datos,
+infraestructura o decisiones del owner). **A-09 a A-14** los registró el agente al cerrar las comandas.
+**A-15 a A-23** salen de las tres consultas del 2026-09-15. **A-24 a A-28** son los pendientes que dejó
+la migración al sistema Stitch (2026-09-17).
 
 **Necesitan una decisión del owner (no se implementan sin respuesta):**
 
@@ -163,6 +163,12 @@ arqueo por moneda (hoy `expectedByCurrency` vive solo en la respuesta) · **A-22
 **A-21 quedó cerrado el 2026-09-15** con la Capa 0 del plan de UI: los documentos que mentían se
 reescribieron y un contrato lo verifica.
 
+**Pendientes que dejó la migración al sistema Stitch (2026-09-17):** **A-24** los 57 controles crudos que
+todavía no son primitivos (Menú, Inventario, Categorías; los tokens ya están) · **A-26** partir
+`settings-client.tsx` (951 líneas) · **A-25** los tres `window.confirm` → `Modal` (toca dos specs de E2E) ·
+**A-27** hacer determinista el E2E alrededor de la medianoche · **A-28** la barra superior del KDS y la
+regla del 20%. El orden sugerido es **A-24 → A-26 → A-25 → A-28 → A-27**.
+
 **Antes de arrancar, preguntale al owner qué task quiere** (el ciclo de auditoría es una por vez, la
 primera de la cola, y cada una cierra entera). Los otros pendientes operativos siguen igual:
 
@@ -176,7 +182,8 @@ primera de la cola, y cada una cierra entera). Los otros pendientes operativos s
    `postimage` 8585). Receta: runbook §8.4. Necesita el OK de quien administra esos servicios.
 4. **Cargar la carta completa** (categorías, productos, precios, fotos) desde `/admin/menu`. Es del
    owner; la app ya está lista (hoy hay 2 categorías y 6 productos).
-5. **Rotar el `EASYPANEL_TOKEN`** (se pasó por chat cinco veces; da acceso total al servidor).
+5. ~~**Rotar el `EASYPANEL_TOKEN`**~~ — **hecho el 2026-09-17** (A-06 cerrado; el nuevo token no viajó
+   por chat).
 
 **QA interactiva que necesita la sesión del owner** (el recorrido está cubierto por el E2E local, pero
 conviene verlo con sus ojos): **cobrar una venta real en el mostrador** y ver el pedido en comandas —es lo

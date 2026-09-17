@@ -25,6 +25,7 @@ import { fileExists, readRepoFile } from "./contract-files";
  */
 
 const GLOBALS_CSS = "src/app/globals.css";
+const ADMIN_EDIT_SHEET = "src/app/(admin)/admin/_components/admin-edit-sheet.tsx";
 
 /** Los 16 tokens muertos que se eliminaron: si vuelven, es una fuga, no una decisión. */
 const FORBIDDEN_TOKENS = [
@@ -200,5 +201,15 @@ describe("contrato · modo oscuro del panel (sistema Stitch)", () => {
 
   it("el sistema oficial está versionado en el repo", () => {
     expect(fileExists("ops/references/stitch/design-system.md")).toBe(true);
+  });
+
+  it("los modales del panel llevan el alcance oscuro (portal fuera del shell)", () => {
+    // La hoja se monta con `createPortal(document.body)`, o sea **fuera** del `<div class="dark">` del
+    // shell: sin la clase en su propio contenedor hereda los tokens del modo claro y todo modal sale
+    // blanco dentro de un panel oscuro (pasó hasta el 2026-09-17). Es el mismo truco que usa el login.
+    const source = readRepoFile(ADMIN_EDIT_SHEET);
+
+    expect(source).toContain("createPortal");
+    expect(source).toContain('className="dark fixed inset-0');
   });
 });
