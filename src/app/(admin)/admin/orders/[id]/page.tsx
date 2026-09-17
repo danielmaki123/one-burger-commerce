@@ -30,6 +30,7 @@ import {
   describeAdminPickup,
   resolveAdminPickupTiming,
 } from "../../_components/admin-pickup-timing";
+import OrderTicketButton from "../order-ticket-button";
 
 type OrderType = "delivery" | "pickup" | "table";
 type OrderStatus =
@@ -375,6 +376,12 @@ export default function AdminOrderDetailPage() {
               <AdminStatusSolid status={getAdminOrderSolidStatus(order.status)}>
                 {getAdminOrderStatusLabel(order.status)}
               </AdminStatusSolid>
+            </div>
+
+            {/* Bloque 10.4 del roadmap del POS (Fase 2): el ticket del cliente se reimprime desde acá,
+                con los mismos datos que ya cargó la pantalla. */}
+            <div className="flex flex-wrap items-center gap-2">
+              <OrderTicketButton order={order} />
             </div>
             <p className="text-st-caption text-ink-secondary">
               Recibida {new Date(order.createdAt).toLocaleString()} ·{" "}

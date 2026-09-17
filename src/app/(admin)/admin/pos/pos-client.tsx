@@ -13,7 +13,6 @@ import {
 } from "@/modules/pos/domain/pos-draft";
 import { filterPosProducts } from "@/modules/pos/domain/search-pos-products";
 import type { PosCatalogProduct } from "@/modules/pos/ports/pos-catalog";
-import { buildKitchenTicketLines } from "@/shared/lib/kitchen-ticket";
 import { useBusinessSettings, useCurrencyFormat } from "@/shared/lib/business-settings";
 import { formatCurrency } from "@/shared/lib/format-currency";
 import { Button } from "@/shared/ui/button";
@@ -31,6 +30,7 @@ import {
   toCashCountRows,
   type CashCountValues,
 } from "./cash-count-grid";
+import PosTicketButtons from "./pos-ticket-buttons";
 
 /**
  * TASK-302 + TASK-303b — el mostrador: catálogo del local a un lado, venta al otro.
@@ -101,6 +101,8 @@ type PosSaleSummary = {
   orderNumber: string;
   total: number;
   change: number | null;
+  /** Cuándo se cobró: es la hora que llevan los tickets (no la de la impresión). */
+  chargedAt: string;
   /** Lo que hace falta para reimprimir el recibo cuando el cajero lo pide (TASK-307). */
   receipt: {
     customerName: string;
@@ -113,60 +115,6 @@ type PosSaleSummary = {
 
 function catalogUrl(locationId: string) {
   return `/api/admin/pos/catalog?locationId=${encodeURIComponent(locationId)}`;
-}
-
-/**
- * Bloque 10.1 del roadmap del POS (Fase 2) — imprime el ticket de cocina con la hoja del sistema.
- *
- * El **texto** sale de `buildKitchenTicketLines` (función pura, probada): negocio, «COCINA», número de
- * pedido, hora prometida, cada ítem con sus modificadores y notas, y las aclaraciones — **sin
- * importes**. Acá solo se abre una ventana con ese texto y se llama a `print()`: sin dependencias ni
- * impresora de red (la decisión del owner para este bloque). Si el navegador bloquea la ventana no se
- * rompe nada: el cobro ya quedó hecho.
- */
-function openKitchenTicket(
-  sale: {
-    orderNumber: string;
-    pickupTime: string;
-    pickupScheduled: boolean;
-    pickupNotes: string | null;
-    notes: string | null;
-    receipt: {
-      packagingAmount: number;
-      payments: { methodLabel: string; amount: number; currency: string | null }[];
-    };
-    lines: { name: string; quantity: number; notes: string | null; modifiers?: { name: string }[] }[];
-  },
-  options: { businessName: string; timezone: string; locale: string },
-) {
-  if (typeof window === "undefined") return;
-
-  const lineas = buildKitchenTicketLines(
-    {
-      orderNumber: sale.orderNumber,
-      pickupTime: sale.pickupTime,
-      pickupScheduled: sale.pickupScheduled,
-      pickupNotes: sale.pickupNotes,
-      notes: sale.notes,
-      items: sale.lines.map((line) => ({
-        name: line.name,
-        quantity: line.quantity,
-        notes: line.notes,
-        modifiers: line.modifiers ?? [],
-      })),
-    },
-    { ...options, label: "COCINA" },
-  );
-
-  const ventana = window.open("", "_blank", "width=380,height=600");
-  if (!ventana) return;
-
-  ventana.document.write(
-    `<pre style="font: 14px/1.5 ui-monospace, monospace; margin: 0; padding: 12px;">${lineas.join("\n")}</pre>`,
-  );
-  ventana.document.close();
-  ventana.focus();
-  ventana.print();
 }
 
 export default function PosClient({ locations }: { locations: PosLocationOption[] }) {  const currency = useCurrencyFormat();
@@ -517,6 +465,9 @@ export default function PosClient({ locations }: { locations: PosLocationOption[
 
       setLastSale({
         ...body.data,
+        // La hora del cobro queda fija acá: los tickets llevan la hora de la venta, no la de la
+        // impresión (el cajero puede imprimir el de cliente un rato después).
+        chargedAt: new Date().toISOString(),
         // El recibo se arma con lo que se acaba de cobrar: el borrador se limpia enseguida.
         receipt: {
           customerName: customer.name,
@@ -1068,42 +1019,12 @@ export default function PosClient({ locations }: { locations: PosLocationOption[
                       </span>
                     ) : null}
                     {/*
-                      Bloque 10.1 del roadmap del POS (Fase 2) — el ticket de cocina.
-                      Se imprime con la hoja del sistema (decisión: sin dependencia ni impresora de
-                      red), en texto plano y **sin importes**: la cocina necesita qué preparar y para
-                      cuándo, no cuánto costó.
+                      Bloque 10.1/10.2 del roadmap del POS (Fase 2) — los dos papeles de la venta:
+                      el de cocina (sin importes) y el del cliente (el comprobante con precios, total
+                      y con qué pagó). Se imprimen con la hoja del sistema, en texto plano: sin
+                      dependencia ni impresora de red, que es la decisión para este bloque.
                     */}
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="min-h-11"
-                      onClick={() =>
-                        openKitchenTicket(
-                          {
-                            orderNumber: lastSale.orderNumber,
-                            // El KDS y el ticket comparten la hora prometida; el POS arma una venta
-                            // "lo antes posible", que es lo que el servidor resolvió al crear.
-                            pickupTime: new Date().toISOString(),
-                            pickupScheduled: false,
-                            pickupNotes: null,
-                            notes: null,
-                            receipt: lastSale.receipt,
-                            lines: lastSale.receipt.lines.map((line) => ({
-                              name: line.name,
-                              quantity: line.quantity,
-                              notes: null,
-                            })),
-                          },
-                          {
-                            businessName: settings.name,
-                            timezone: settings.timezone,
-                            locale: settings.locale,
-                          },
-                        )
-                      }
-                    >
-                      Ticket de cocina
-                    </Button>
+                    <PosTicketButtons sale={lastSale} />
                   </div>
                 </div>
               ) : null}

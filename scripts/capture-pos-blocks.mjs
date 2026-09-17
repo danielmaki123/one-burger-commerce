@@ -115,6 +115,37 @@ try {
     await page.waitForTimeout(400);
     await shot(page, "bloque-9-cobro-bloqueado", viewport.name);
 
+    // Bloque 10.1/10.2: los dos papeles de una venta de mostrador. Se cobra una venta de verdad
+    // (contra la base local) para que la confirmación muestre los dos botones, y se captura el ticket
+    // del cliente tal como sale impreso.
+    await ensureOpenShift(page);
+    await page.getByRole("button", { name: /^Agregar / }).first().click();
+    // Se paga el doble del total mostrado (mismo camino que el E2E del POS) para que la confirmación
+    // muestre el cambio, que es parte del ticket del cliente.
+    const etiquetaCobrar = await page.getByRole("button", { name: /^Cobrar / }).textContent();
+    const totalVenta = Number((etiquetaCobrar ?? "").replace(/[^\d.]/g, ""));
+    await page.getByLabel("Nombre del cliente").fill("Cliente captura");
+    await page.getByLabel("Número del cliente").fill("88887777");
+    await page.getByLabel("Con cuánto paga").fill(String(totalVenta * 2));
+    await page.getByRole("button", { name: /^Cobrar / }).click();
+    // La confirmación del cobro (no cualquier `role=status` de la pantalla) vive al final del
+    // formulario: se espera y se baja hasta ahí para que la captura muestre los dos botones.
+    const confirmacionVenta = page.getByRole("status").filter({ hasText: /Venta P-/ });
+    await confirmacionVenta.waitFor({ timeout: 30_000 });
+    await confirmacionVenta.scrollIntoViewIfNeeded();
+    await page.waitForTimeout(600);
+    await shot(page, "bloque-10-botones-ticket", viewport.name);
+
+    const [ticketCliente] = await Promise.all([
+      page.waitForEvent("popup"),
+      page.getByRole("button", { name: "Ticket de cliente" }).click(),
+    ]);
+    await ticketCliente.waitForLoadState("domcontentloaded");
+    await ticketCliente.setViewportSize({ width: 420, height: 820 });
+    await ticketCliente.waitForTimeout(400);
+    await shot(ticketCliente, "bloque-10-ticket-cliente", viewport.name);
+    await ticketCliente.close();
+
     await context.close();
   }
 
@@ -156,6 +187,41 @@ try {
 
       return null;
     });
+  }
+
+  /**
+   * Deja una caja abierta en el primer local con mostrador: cobrar una venta lo exige (Bloque 9.2), y
+   * la captura del ticket de cliente necesita una venta cobrada de verdad.
+   */
+  async function ensureOpenShift(target) {
+    await target.evaluate(async () => {
+      const locations = ((await (await fetch("/api/admin/locations")).json()).data ?? []).filter(
+        (location) => location.posEnabled,
+      );
+
+      for (const location of locations) {
+        const open = (
+          await (
+            await fetch(`/api/admin/pos/shift?locationId=${encodeURIComponent(location.id)}`, {
+              cache: "no-store",
+            })
+          ).json()
+        ).data;
+
+        if (open) return;
+
+        const created = await fetch("/api/admin/pos/shift/open", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ locationId: location.id, counts: [] }),
+        });
+
+        if (created.ok) return;
+      }
+    });
+
+    await target.reload({ waitUntil: "domcontentloaded" });
+    await target.waitForSelector('[aria-label="Venta en curso"]', { timeout: 30_000 });
   }
 
   async function shot(target, file, viewportName) {

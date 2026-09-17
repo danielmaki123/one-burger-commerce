@@ -193,6 +193,22 @@ test.describe("punto de venta", () => {
     expect((await descarga).suggestedFilename()).toBe(`recibo-${numero}.jpg`);
     await expect(page.getByText("Recibo listo para enviar o imprimir.")).toBeVisible();
 
+    // Bloque 10.2: el ticket de cliente se imprime con la hoja del sistema. Es el comprobante, así que
+    // lleva el número, el total cobrado y con qué pagó — lo contrario del de cocina, que va sin importes.
+    const [ticket] = await Promise.all([
+      page.waitForEvent("popup"),
+      page.getByRole("button", { name: "Ticket de cliente" }).click(),
+    ]);
+    await ticket.waitForLoadState("domcontentloaded");
+    const papel = (await ticket.locator("pre").textContent()) ?? "";
+
+    expect(papel).toContain("TICKET DE CLIENTE");
+    expect(papel).toContain(`Pedido ${numero}`);
+    expect(papel).toContain("Total C$");
+    expect(papel).toContain("Efectivo C$");
+    expect(papel).toContain("Cambio C$");
+    await ticket.close();
+
     // El camino real: el pedido cobrado en el mostrador está en el tablero de la cocina...
     await page.goto("/admin/orders");
     await expect(page.getByText(numero!)).toBeVisible();
@@ -207,6 +223,22 @@ test.describe("punto de venta", () => {
     await page.getByRole("link", { name: /Abrir orden/ }).filter({ hasText: numero! }).first().click();
     await expect(page.getByText("Cobrado en el mostrador")).toBeVisible();
     await expect(page.getByText(/Efectivo C\$/)).toBeVisible();
+
+    // Bloque 10.4: y desde el detalle del pedido se **reimprime** el mismo ticket, con los datos que la
+    // pantalla ya cargó (ítems, totales y cobros). Sin el precio unitario —el `lineTotal` incluye
+    // empaque y modificadores, dividirlo daría un número falso— pero con el total y el medio de pago.
+    const [reimpresion] = await Promise.all([
+      page.waitForEvent("popup"),
+      page.getByRole("button", { name: "Reimprimir ticket" }).click(),
+    ]);
+    await reimpresion.waitForLoadState("domcontentloaded");
+    const reimpreso = (await reimpresion.locator("pre").textContent()) ?? "";
+
+    expect(reimpreso).toContain(`Pedido ${numero}`);
+    expect(reimpreso).toContain("TICKET DE CLIENTE");
+    expect(reimpreso).toContain("Total C$");
+    expect(reimpreso).toContain("Efectivo C$");
+    await reimpresion.close();
   });
 
   test("la caja se abre y se cierra contando billetes (TASK-305b)", async ({ page }) => {
