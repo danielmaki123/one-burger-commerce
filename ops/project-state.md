@@ -1,23 +1,46 @@
 # Estado del proyecto — One Burger Commerce
 
-> Actualizado: 2026-09-18 · Último deploy a producción: 2026-09-18, commit `32ae7e0` (build
-> `build-20260918-145218`, deploy por API, acción `done`; readiness `ready` y smokes en verde: menú 7/7 y
-> hosts 6/6). Ese build cierra el **Punto 1 del roadmap**: el **layout unificado de Órdenes** —barra
-> lateral y encabezado «Órdenes» siempre visibles, los cinco tabs de estado como filtro (carriles para
-> Todas/Nuevas/Preparando/Listas, lista para Cerradas), sin el sub-filtro Hoy/Historial y con la barra de
-> trabajo única (`orders-toolbar.tsx`; la página pasó de 1385 a 947 líneas)— verificado en producción con
-> capturas reales (`ops/tasks/audit-ui/tarea-layout-ordenes-*-produccion-*.png`).
+> **Actualizado: 2026-09-18 (cierre de sesión)** · **Último deploy a producción: `build-20260918-152408`,
+> commit `2b86bb9`** (deploy por API sobre `oneburguerweb`, acción `done`; readiness `ready` con la base en
+> 6 ms y los dos smokes en verde: menú **7/7** y hosts **6/6**). Verificado con capturas reales del panel
+> (`ops/tasks/audit-ui/tarea-historial-*-produccion-*.png`).
 >
-> Después de ese deploy entró el **Punto 2 (sección Historial)**, desplegado el 2026-09-18 como build
-> `build-20260918-152408` (commit `2b86bb9`, acción `done`, readiness `ready`, smokes 7/7 y 6/6, capturas
-> de producción en `ops/tasks/audit-ui/tarea-historial-*-produccion-*.png`): `/admin/history`
-> con dos tabs de URL propia (`/cierres` y `/facturas`), un solo ítem «Historial» en Control (owner y
-> manager; el cajero no audita su propio turno y cocina no maneja plata), la anulación de facturas como
-> **soft delete** (`voidedAt` / `voidedByUserId` / `voidReason`, migración `20260918180000`, solo el dueño,
-> motivo de lista cerrada con «Otro» libre y asiento `invoice.void`), la API nueva
-> `GET /api/admin/invoices` con alcance por sucursal y `GET /api/admin/history/cierres` (cierres de todas
-> las sucursales del alcance, con nombre del cajero). 2855 tests unitarios, 50 contratos y los gates
-> locales en verde; capturas locales en `ops/tasks/audit-ui/tarea-historial-*.png`.
+> **Ronda del roadmap del owner (2026-09-18) — estado de los cuatro puntos:**
+>
+> | # | Punto | Estado |
+> |---|---|---|
+> | 1 | **Layout unificado de Órdenes** (opción (a): carriles conservados) | **cerrado** — commit `a83e3a1`, deploy `build-20260918-145218` |
+> | 2 | **Sección Historial** (`/admin/history`: cierres + facturas) | **cerrado** — commit `2b86bb9`, deploy `build-20260918-152408` |
+> | 3 | **Modo cocina opt-in** (botón + `localStorage`, oculta sidebar y header) | **pendiente** |
+> | 4 | **Checkbox fiscal en el POS** (RUC + razón social → `Customer` y factura) | **pendiente** |
+>
+> **Tests actuales: 2855 unitarios en 419 archivos + 50 de contrato** (`npx vitest run src/shared/contracts`).
+> Gates locales al cierre: `test`, `lint`, `typecheck`, `build`, `build:webpack`, `security:secrets` y
+> `prisma migrate diff` sin drift.
+>
+> **Desvío abierto a verificar (A-32)**: el ítem **Historial** del sidebar vive en el grupo Control y
+> `withControlGroup` (`admin-layout-helpers.ts:114`) hace `if (!posAvailable) return groups`, con
+> `posAvailable` resuelto en el shell desde `GET /api/admin/pos/availability` (`admin-shell.tsx:96`). Es
+> decir: **hoy, sin POS disponible, el Historial no se dibuja**, aunque no dependa del POS. Verificado por
+> lectura del código en el cierre de sesión del 2026-09-18; **falta corregirlo** (que el grupo se dibuje si
+> **cualquiera** de sus hijos aplica).
+>
+> **Punto 1 (2026-09-18)** — barra lateral y encabezado «Órdenes» siempre visibles, los cinco tabs de estado
+> como filtro (carriles para Todas/Nuevas/Preparando/Listas, lista para Cerradas), **sin** el sub-filtro
+> Hoy/Historial y con la barra de trabajo única (`orders-toolbar.tsx`; la página pasó de 1385 a 947 líneas).
+> El modo que oculta el chrome quedó **apagado por defecto**: es la base del Punto 3.
+>
+> **Punto 2 (2026-09-18)** — `/admin/history` con dos tabs de URL propia (`/cierres` y `/facturas`), un solo
+> ítem «Historial» en Control (owner y manager; el cajero no audita su propio turno y cocina no maneja
+> plata), anulación de facturas como **soft delete** (`voidedAt` / `voidedByUserId` / `voidReason`,
+> migración `20260918180000`, solo el dueño, motivo de lista cerrada con «Otro» libre y asiento
+> `invoice.void`), `GET /api/admin/invoices` con alcance por sucursal y `GET /api/admin/history/cierres`
+> (cierres de todas las sucursales del alcance, con nombre del cajero). Capturas locales y de producción en
+> `ops/tasks/audit-ui/tarea-historial-*`.
+>
+> **Handoff de la próxima sesión**: `ops/tasks/handoff-next-session.md` (mensaje listo para pegar, arranca
+> por el desvío A-32 y sigue con el Punto 3).
+
 
 > Actualizado: 2026-09-18 · Último deploy a producción: 2026-09-18, commit `45c44d9` (build
 > `build-20260918-054017`, deploy por API sobre el servicio `oneburguerweb`, acción `done`; readiness

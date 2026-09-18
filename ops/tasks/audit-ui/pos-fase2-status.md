@@ -5,6 +5,19 @@
 > «Requiere decisión» y en el registro de bloques; el estado detallado por tarea no se reescribe para
 > no perder la foto original (la evidencia de cada archivo está en el commit que lo cerró).
 
+## Ronda del roadmap del owner (2026-09-18) — cuatro puntos
+
+| # | Punto | Estado | Evidencia |
+|---|---|---|---|
+| 1 | **Layout unificado de Órdenes** (opción (a): carriles conservados, chrome siempre visible, sin sub-filtro Hoy/Historial) | **cerrado** | commit `a83e3a1` · deploy `build-20260918-145218` · capturas `tarea-layout-ordenes-*-produccion-*.png` |
+| 2 | **Sección Historial** (`/admin/history` con tabs `/cierres` y `/facturas`, anulación de facturas con motivo obligatorio y soft delete) | **cerrado** | commit `2b86bb9` · deploy `build-20260918-152408` · capturas `tarea-historial-*` (locales y de producción) |
+| 3 | **Modo cocina opt-in** (botón en la toolbar de Órdenes, `localStorage` por dispositivo, oculta sidebar y header, «Salir», tabs de cocina con «Despachadas hace poco») | **pendiente** | — |
+| 4 | **Checkbox fiscal en el POS** («Cliente pide factura con RUC» → RUC mínimo 8 + razón social, guarda en `Customer` y congela en la factura) | **pendiente** | — |
+
+> Lo que sigue de la Fase 2 del POS (los bloques 1.x a 13.x de este inventario) conserva el estado que
+> tiene más abajo. El **Punto 3** toca la pantalla de Órdenes y el **Punto 4** el POS: ninguno de los dos
+> reabre tareas cerradas.
+
 ## Requiere decisión (lo que NO se puede implementar sin respuesta del owner)
 
 1. **9.1 «POS limpio sin tab de Caja»** — ¿el cajero abre y cierra la caja desde `/admin/cash` (hoy

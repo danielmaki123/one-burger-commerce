@@ -3,6 +3,11 @@
 Este archivo es la **puerta de entrada**. Todo lo que hace falta saber está versionado en el repo: no
 hace falta nada de conversaciones anteriores. Si algo acá contradice a `AGENTS.md`, manda `AGENTS.md`.
 
+> **Handoff de la ronda en curso (2026-09-18)**: el mensaje listo para pegar —con los Puntos 1 y 2
+> cerrados, el desvío A-32 a verificar y el **Punto 3 (Modo cocina opt-in)** a ejecutar— está en
+> [`handoff-next-session.md`](handoff-next-session.md). El prompt genérico de abajo sigue sirviendo
+> para cualquier otro arranque.
+
 ## 1. Prompt para pegar en el chat nuevo
 
 > Trabajás en `one-burger-commerce` (Next.js 16 + Prisma + Postgres, deploy en Easypanel).
