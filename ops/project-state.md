@@ -1,8 +1,16 @@
 # Estado del proyecto — One Burger Commerce
 
-> Actualizado: 2026-09-17 · Último deploy a producción: 2026-09-17, commit `1dfd051` (build
-> `build-20260917-170108`, deploy por API sobre el servicio `oneburguerweb`, acción `done`; readiness
-> `ready` con la base en 3 ms y los dos smokes en verde: menú 7/7 y hosts 6/6). Ese build incluye también
+> Actualizado: 2026-09-18 · Último deploy a producción: 2026-09-18, commit `8bf1b08` (build
+> `build-20260918-042336`, deploy por API sobre el servicio `oneburguerweb`, acción `done`; readiness
+> `ready` con la base en 1 ms y los dos smokes en verde: menú 7/7 y hosts 6/6). Ese build lleva la
+> **venta en espera del POS** (tareas 9.4/9.5: dejar la venta a un lado, liberar el mostrador y retomarla
+> completa, con la clave del intento de cobro viajando con ella) y el arreglo del primitivo `Modal`
+> (salía pegado a la esquina porque el reset de Tailwind borra el `margin: auto` con el que el navegador
+> centra el `dialog:modal`). Verificado **en producción** con capturas reales del panel
+> (`ops/tasks/audit-ui/tarea-9-4-venta-en-espera-produccion-*.png`,
+> `tarea-9-5-descartar-confirmacion-produccion-*.png`). El build anterior
+> (`build-20260917-193443`, commit `d5da7ce`) llevaba el reporte diario de caja (1.5) y el cierre del PDF del cierre
+> en el navegador (1.6). Lleva también
 > la configuración de las **alertas Telegram** (driver `telegram_alerts`, token del bot y scheduler del
 > outbox por entorno), con el grupo del negocio cargado y la conexión probada con un mensaje real
 > (`Conectado`, captura en `ops/tasks/audit-ui/alertas-telegram-produccion-1280.png`). Lleva el **panel entero migrado al sistema Stitch** —Fase 1 (tokens, tipografías,
