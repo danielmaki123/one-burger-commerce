@@ -209,8 +209,8 @@ Una tarea está terminada cuando:
 
 ## Git y CI
 
-Repo: `github.com/danielmaki123/one-burger-commerce`. Rama de deploy: **`main`**, que está **protegida:
-nunca se hace push directo**.
+Repo: `github.com/danielmaki123/one-burger-commerce`. Rama de deploy: **`main`**, que **no recibe push
+directo** (ver *Protección de `main`*, abajo: hoy la regla la sostiene el equipo).
 
 ### Flujo obligatorio para cada tarea
 
@@ -225,8 +225,8 @@ nunca se hace push directo**.
 
 **Nomenclatura de ramas**: `feature/` funcionalidad nueva · `fix/` corrección de bug · `refactor/` sin
 cambio de comportamiento · `docs/` solo documentación · `chore/` mantenimiento (deps, config, CI).
-**Prohibiciones de Git**: push directo a `main` (rechazado por la protección de rama) · `git push
---force` a `main`, siempre · trabajar en ramas ajenas sin avisar.
+**Prohibiciones de Git**: push directo a `main` · `git push --force` a `main`, siempre · trabajar en
+ramas ajenas sin avisar.
 
 ### Commits
 
@@ -235,20 +235,23 @@ cambio de comportamiento · `docs/` solo documentación · `chore/` mantenimient
 - **Nunca commitear**: secretos, `.env` o tokens · caches y artefactos de build · metadata de agentes
   (`.claude/`, `.cursor/`, …). `npm run security:secrets` lo verifica en CI.
 
-### CI (`.github/workflows/publish-ghcr.yml`)
+### CI y protección de `main`
 
-Corre en cada push, a `main` y a ramas: **verify** (secrets, lint, typecheck, tests, build) →
-**migrations** (aplica migraciones en Postgres limpio, falla ante drift) → **container** (construye la
-imagen, la ejecuta contra Postgres, exige readiness y prueba el bootstrap del primer admin) →
-**publish** (imagen a GHCR, **solo en `main`**). Si algo está rojo, no está listo.
+**CI** (`.github/workflows/publish-ghcr.yml`): hoy dispara con `push` a **`main`** (y a mano con
+`workflow_dispatch`), **todavía no corre en las ramas ni en los PRs**, así que un PR se mergea con lo
+verde que hayas corrido **local** (`Validación mínima`, arriba). Los jobs: **verify** (secrets, lint,
+typecheck, tests, build) → **migrations** (aplica migraciones en Postgres limpio, falla ante drift) →
+**container** (construye la imagen, la ejecuta contra Postgres, exige readiness y prueba el bootstrap
+del primer admin) → **publish** (imagen a GHCR). Si algo está rojo después del merge, `main` está
+roto: **el arreglo va en otra rama y otro PR**, nunca encima.
 
-### Protección de `main` (configurada por el owner en GitHub)
-
-En GitHub → Settings → Branches → `main`: *Require a pull request before merging* · *Require 1
-approval* · *Require status checks to pass* (`verify`, `migrations`, `container`) · *Require branches
-to be up to date before merging* · *Do not allow bypassing the above settings*. El agente **no puede
-modificar esta configuración**: si algo falla por protección de rama, se reporta al humano, no se
-intenta saltar.
+**Protección de `main`** (la configura el owner con Settings → Branches): **estado real: todavía no
+está activada**, así que hoy la regla de este archivo la sostiene el equipo, no GitHub —el push directo
+funciona y **no hay que usarlo igual**—. La configuración a dejar activa es *Require a pull request
+before merging* · *Require 1 approval* · *Require status checks to pass* (`verify`, `migrations`,
+`container`) · *Require branches to be up to date before merging* · *Do not allow bypassing the above
+settings*. El agente **no puede modificar esa configuración**: si algo falla por protección de rama, se
+reporta al humano, no se intenta saltar.
 
 ## Deploy (Easypanel)
 
