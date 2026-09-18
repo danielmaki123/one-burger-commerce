@@ -1,9 +1,41 @@
 # Estado del proyecto — One Burger Commerce
 
-> **Actualizado: 2026-09-18 (cierre de sesión)** · **Último deploy a producción: `build-20260918-152408`,
-> commit `2b86bb9`** (deploy por API sobre `oneburguerweb`, acción `done`; readiness `ready` con la base en
-> 6 ms y los dos smokes en verde: menú **7/7** y hosts **6/6**). Verificado con capturas reales del panel
-> (`ops/tasks/audit-ui/tarea-historial-*-produccion-*.png`).
+> **Actualizado: 2026-09-18 (cierre de la sesión de git/CI)** · **Último deploy a producción: sin cambios
+> en esta sesión** (el último sigue siendo `build-20260918-170109`, commit `bcdb059`; esta sesión fue
+> solo documentación y CI).
+>
+> ### Flujo de git y CI (2026-09-18) — lo que cambió y lo que falta
+>
+> **Documentado en `AGENTS.md` § *Git y CI*.** Se reemplazó el «push directo a `main` autorizado» por
+> **rama + Pull Request obligatorio**. Medido contra GitHub y el repo el 2026-09-18:
+>
+> | Cosa | Estado **verificado** |
+> |---|---|
+> | **Workflow corre en PRs** | ✅ `pull_request: [main]` — run `35379018496` (evento `pull_request`, head `ci/pull-request-trigger`): **`verify` pass (2m6s) · `contracts` pass (33s) · `migrations` pass (56s) · `container` pass (2m1s) · `publish` skipped** |
+> | **PR #1** (`docs/git-flow-ramas-y-prs`) | ✅ **MERGED** (2026-09-18 17:46 UTC) |
+> | **PR #2** (`ci/pull-request-trigger`) | ⚠️ **`OPEN` al cierre** — verificado con `gh pr view 2` (`state: OPEN`, `mergedAt: null`). El dueño lo reportó como mergeado, pero **GitHub todavía no lo registra** |
+> | **Branch protection en `main`** | ⚠️ **NO activa**: `gh api repos/…/branches/main/protection` → **404 «Branch not protected»**. El dueño la está configurando |
+> | **`AGENTS.md` de `main`** | ⚠️ **desactualizado**: como el PR #2 no entró, en `main` la sección *CI* todavía dice que el CI «no corre en las ramas ni en los PRs» y el workflow **no tiene** `pull_request` (solo existen en la rama `ci/pull-request-trigger`) |
+>
+> **Configuración de branch protection acordada con el dueño** (a activar en GitHub → Settings →
+> Branches → `main`): *Require a pull request before merging* · **approvals 0** (sin ceremonia: el PR
+> es obligatorio, la aprobación de otro dev no) · *Require status checks to pass*: **`verify`,
+> `contracts`, `migrations`, `container`** · *Do not allow force pushes* · *Do not allow deletions*.
+> ⚠️ **`publish` NO va como required check**: no corre en PRs (tiene `if: push && ref == main`) y el PR
+> quedaría trabado en «Expected» para siempre (A-35 del backlog).
+>
+> **Pendientes que deja esta sesión**: (1) mergear el **PR #2** (los 4 checks ya están verdes);
+> (2) activar la protección con los 4 checks; (3) con el PR #2 dentro, `AGENTS.md` en `main` queda
+> correcto. **Ninguno de los tres es código.**
+>
+> ### Próxima tarea: rediseño del menú público — **PAUSADA**
+>
+> El dueño anunció el **rediseño del menú público (9 pantallas de Stitch)** como próximo trabajo y pidió
+> **no arrancarlo** hasta su confirmación explícita. Antes de tocar nada: **verificar la rama
+> `feat/design-system` del otro dev** (A-36 del backlog) — existe en remoto, no es de esta sesión y puede
+> chocar con el sistema de diseño.
+>
+> ---
 >
 > **Ronda del roadmap del owner (2026-09-18) — estado de los cuatro puntos:**
 >

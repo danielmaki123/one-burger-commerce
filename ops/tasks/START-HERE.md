@@ -3,10 +3,51 @@
 Este archivo es la **puerta de entrada**. Todo lo que hace falta saber está versionado en el repo: no
 hace falta nada de conversaciones anteriores. Si algo acá contradice a `AGENTS.md`, manda `AGENTS.md`.
 
-> **Handoff de la ronda en curso (2026-09-18)**: el mensaje listo para pegar —con los Puntos 1 y 2
-> cerrados, el desvío A-32 a verificar y el **Punto 3 (Modo cocina opt-in)** a ejecutar— está en
-> [`handoff-next-session.md`](handoff-next-session.md). El prompt genérico de abajo sigue sirviendo
-> para cualquier otro arranque.
+> ## Estado al cerrar la sesión del 2026-09-18 (leer esto primero)
+>
+> **Repo**: `main` en `b07e196`. **Sin deploy nuevo**: el último sigue siendo `build-20260918-170109`
+> (commit `bcdb059`). Lo cerrado en la última sesión fue **documentación y CI**: el Punto 4 (checkbox
+> fiscal del POS), el modo cocina (Punto 3) y el desvío A-32 ya venían de antes y están desplegados.
+>
+> **Git — hay flujo nuevo, no push directo a `main`:**
+>
+> 1. `git checkout main && git pull origin main`
+> 2. `git checkout -b <tipo>/<nombre-descriptivo>` — `feature/` · `fix/` · `refactor/` · `docs/` · `chore/`
+> 3. Commitear en la rama y `git push -u origin <tipo>/<nombre-descriptivo>`
+> 4. **Abrir Pull Request hacia `main`** con: qué cambió, por qué, cómo se verificó, qué quedó fuera
+> 5. Esperar **CI verde** (4 checks) y mergear
+>
+> **CI (verificado con un run real)**: corre en push a `main` **y en cada PR** — `verify`, `contracts`,
+> `migrations`, `container`. **`publish` (imagen a GHCR) solo en push a `main`**, nunca en PRs.
+>
+> ⚠️ **Pendiente del dueño, no del agente** (estado medido, no supuesto): (1) **PR #2
+> (`ci/pull-request-trigger`) seguía `OPEN`** en GitHub al cerrar — los 4 checks ya están verdes, falta
+> el merge; (2) la **branch protection de `main` figura como NO activa** (`gh api` → 404). La
+> configuración acordada: PR obligatorio, **approvals 0**, checks `verify` + `contracts` + `migrations` +
+> `container`, force push y force delete bloqueados. **`publish` no se marca como required** (se traba).
+>
+> ## 🚫 Qué NO arrancar todavía
+>
+> **El rediseño del menú público (9 pantallas de Stitch) está PAUSADO**: el dueño lo anunció como próximo
+> trabajo y pidió **esperar su confirmación explícita**. No empezar por iniciativa propia, aunque el chat
+> esté ocioso. Antes de tocarlo, **verificar la rama `feat/design-system` del otro dev** (A-36): puede
+> chocar con el sistema de diseño.
+>
+> ## Cola relevante del backlog
+>
+> **Necesitan decisión del owner**: **A-15** (cobros de pedidos cancelados — la de plata más importante)
+> · **A-17** tarjeta/transferencia · **A-19** movimientos de caja · **A-20/A-34** fiscal y RUC del negocio
+> · **A-23** la cuenta de prueba con rol `owner` en producción · **A-10** home del panel por rol ·
+> **A-12** el filtro «solo sin aceptar» · **A-33** dónde se mira el listado completo de Órdenes.
+>
+> **Trabajo técnico ya acotado (sin decisión)**: **A-35** no marcar `publish` como required check ·
+> **A-36** revisar `feat/design-system` · **A-16** historial de cajas · **A-18** arqueo por moneda ·
+> **A-24 → A-26 → A-25 → A-28 → A-27** (los pendientes que dejó la migración al sistema Stitch: controles
+> crudos, partir `settings-client.tsx`, los tres `window.confirm`, la barra del KDS en el 20%, E2E
+> determinista de madrugada).
+>
+> El handoff de la ronda anterior sigue en
+> [`handoff-next-session.md`](handoff-next-session.md) (contexto, no trabajo pendiente).
 
 ## 1. Prompt para pegar en el chat nuevo
 
@@ -18,9 +59,10 @@ hace falta nada de conversaciones anteriores. Si algo acá contradice a `AGENTS.
 >
 > **Cómo se trabaja acá (acuerdo con el owner):** **de a una tarea por vez**, no varias cosas de un
 > saque. Cada tarea se cierra entera antes de pasar a la siguiente: test que falla primero (y se
-> confirma el rojo por la razón correcta) → implementación mínima → validación completa → commit +
-> push a `main` → CI verde → actualizar `ops/project-state.md`. Si una tarea toca varios temas
-> distintos, partila en commits por tema.
+> confirma el rojo por la razón correcta) → implementación mínima → validación completa → **rama +
+> commit + PR hacia `main`** (nunca push directo: `main` está protegida) → **CI verde** → merge →
+> actualizar `ops/project-state.md`. Si una tarea toca varios temas distintos, partila en commits por
+> tema. El detalle del flujo está en `AGENTS.md` § *Git y CI* y en el bloque de arriba.
 >
 > **Reglas duras:** ningún control decorativo (cada control implementado con su estado/API **y
 > cubierto por un test**, o se elimina con el motivo escrito); nada de datos del negocio en el código
@@ -37,19 +79,23 @@ hace falta nada de conversaciones anteriores. Si algo acá contradice a `AGENTS.
 > **jamás a producción sin pedirle confirmación al owner**. Después de desplegar: `test:e2e:prod` y
 > `test:e2e:prod:hosts` (los dos son de solo lectura).
 >
-> **Por dónde empezar:** el **sistema de diseño es Stitch y ya está aplicado y desplegado**
-> (`ops/references/stitch/design-system.md` es la fuente de verdad visual, con las 7 pantallas de
-> referencia al lado). El plan `plna.md` y el plan de UI `plan2uiux.md` (raíz, sin versionar) están
-> **cerrados en sus tres fases**: no queda ningún archivo del panel con tokens viejos y los documentos
-> anteriores (`DESIGN_REFERENCES.md`, `DESIGN_SYSTEM.md`, `design/*.md`) están **borrados: no se citan ni
-> se recrean**. Lo que queda es la cola de [`ops/audit-backlog.md`](../audit-backlog.md): los pendientes
-> que dejó la migración (**A-24** los controles crudos que todavía no son primitivos → **A-26** partir
+> **Por dónde empezar:** el **sistema de diseño es Stitch y ya está aplicado y desplegado en el panel**
+> (`ops/references/stitch/design-system.md` es la fuente de verdad visual). El plan `plna.md` y el plan
+> de UI `plan2uiux.md` (raíz, sin versionar) están **cerrados en sus tres fases**: no queda ningún archivo
+> del panel con tokens viejos y los documentos anteriores (`DESIGN_REFERENCES.md`, `DESIGN_SYSTEM.md`,
+> `design/*.md`) están **borrados: no se citan ni se recrean**. **La próxima tarea anunciada por el dueño
+> es el rediseño del menú público (9 pantallas de Stitch) y está PAUSADA hasta su confirmación
+> explícita** (ver el bloque de arriba). Lo que queda habilitado es la cola de
+> [`ops/audit-backlog.md`](../audit-backlog.md): **A-35** (no marcar `publish` como required check) y
+> **A-36** (revisar la rama `feat/design-system` antes de tocar el sistema de diseño) son lo nuevo de esta
+> sesión; después siguen **A-24** los controles crudos que todavía no son primitivos → **A-26** partir
 > `settings-client.tsx` → **A-25** los tres `window.confirm` → **A-28** la barra del KDS en el 20% →
-> **A-27** E2E determinista de madrugada) y las **A-15 a A-23**, donde cinco necesitan una decisión del
+> **A-27** E2E determinista de madrugada, y las **A-15 a A-23**, donde varias necesitan una decisión del
 > owner (A-15 cobros de pedidos cancelados —la de plata más importante—, A-17 tarjeta/transferencia,
-> A-19 movimientos de caja, A-20 fiscal/RUC, A-23 la cuenta de prueba con rol owner). **No inventes
-> trabajo para no quedar quieto**: si el owner ya entregó un plan, ese plan manda y se ejecuta de
-> corrido; si no, se pregunta antes de codear. Si algo del brief no cierra, decilo antes de codear.
+> A-19 movimientos de caja, A-20/A-34 fiscal y RUC, A-23 la cuenta de prueba con rol owner, A-10 home por
+> rol, A-12 filtro «solo sin aceptar», A-33 el listado completo de Órdenes). **No inventes trabajo para
+> no quedar quieto**: si el owner ya entregó un plan, ese plan manda y se ejecuta de corrido; si no, se
+> pregunta antes de codear. Si algo del brief no cierra, decilo antes de codear.
 >
 > **Trampas del arnés que ya nos costaron tiempo:** (1) el `next start` local necesita
 > `DATABASE_URL`, `APP_ENV=production`, `NODE_ENV=production` y **`ORDER_CREATE_RATE_LIMIT=200`** (sin
@@ -83,7 +129,7 @@ hace falta nada de conversaciones anteriores. Si algo acá contradice a `AGENTS.
 > 5. **Registrar los hallazgos en `ops/audit-backlog.md`** con su ID (el siguiente libre), tipo,
 >    severidad y detalle, y **no tocar código** hasta que el owner diga «ya». Ahí se ataca **una sola
 >    task**, la primera de la cola, y se cierra entera (TDD, validación completa, un commit por tema,
->    push a `main`, CI verde, estado actualizado).
+>    **rama + PR hacia `main`** con el CI verde, estado actualizado).
 >
 > Zonas que la auditoría debería mirar primero (por lo que se cambió último y por lo que nunca se
 > revisó con ojo crítico): la **consola de comandas** (`/admin/orders`, B0–B6: carriles, urgencia por
@@ -152,7 +198,10 @@ la migración) y lo que el owner elija de las decisiones abiertas.
 **A-06** (el owner rotó el `EASYPANEL_TOKEN` el 2026-09-17). **A-02 a A-05** están **bloqueados** (datos,
 infraestructura o decisiones del owner). **A-09 a A-14** los registró el agente al cerrar las comandas.
 **A-15 a A-23** salen de las tres consultas del 2026-09-15. **A-24 a A-28** son los pendientes que dejó
-la migración al sistema Stitch (2026-09-17).
+la migración al sistema Stitch (2026-09-17). **A-29 a A-34** salen de las rondas del 2026-09-18 (mobile
+del chrome, PDF del cierre, TDD formalizado, el Historial y el POS, el listado de Órdenes inalcanzable y
+el RUC del negocio). **A-35 y A-36** son los de esta sesión: `publish` no va como required check, y hay
+que revisar la rama `feat/design-system` del otro dev antes de tocar el sistema de diseño.
 
 **Necesitan una decisión del owner (no se implementan sin respuesta):**
 
@@ -180,6 +229,11 @@ todavía no son primitivos (Menú, Inventario, Categorías; los tokens ya están
 `settings-client.tsx` (951 líneas) · **A-25** los tres `window.confirm` → `Modal` (toca dos specs de E2E) ·
 **A-27** hacer determinista el E2E alrededor de la medianoche · **A-28** la barra superior del KDS y la
 regla del 20%. El orden sugerido es **A-24 → A-26 → A-25 → A-28 → A-27**.
+
+**Pendientes de la sesión del 2026-09-18 (git/CI):** **A-35** no marcar `publish` como *required check*
+(el PR quedaría trabado en «Expected»: ese job no corre en PRs) · **A-36** revisar la rama
+`feat/design-system` del otro dev **antes** de tocar el sistema de diseño (puede chocar con el rediseño
+del menú público).
 
 **Antes de arrancar, preguntale al owner qué task quiere** (el ciclo de auditoría es una por vez, la
 primera de la cola, y cada una cierra entera). Los otros pendientes operativos siguen igual:
