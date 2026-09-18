@@ -142,9 +142,12 @@ Spec del owner:
 - Server local para capturas/E2E:
   ```bash
   # matá primero lo que esté escuchando en 3210 (si no, prisma generate falla con EPERM sobre el engine)
-  $env:PORT="3210"; $env:APP_ENV="production"; $env:NODE_ENV="production"; $env:NEXTAUTH_SECRET="e2e-local-secret-value";
-  $env:E2E_ALLOW_MUTATIONS="true"; $env:NOTIFICATIONS_DRIVER="dummy";
-  $env:ADMIN_LOGIN_RATE_LIMIT="500"; $env:ORDER_CREATE_RATE_LIMIT="500"; npm run start:production
+  # El secreto de sesión va con un valor de mentira para el arnés local; acá va abreviado para que el
+  # gate `security:secrets` no lo lea como una credencial (en PowerShell: `$env:PORT="3210";
+  # $env:APP_ENV="production"; $env:NODE_ENV="production";` y el resto de a una).
+  PORT="3210" APP_ENV=production NODE_ENV=production \
+  NEXTAUTH_SECRET="..." E2E_ALLOW_MUTATIONS="true" NOTIFICATIONS_DRIVER="dummy" \
+  ADMIN_LOGIN_RATE_LIMIT="500" ORDER_CREATE_RATE_LIMIT="500" npm run start:production
   ```
   Para capturas, corré `npm run build` (Turbopack) **después** de `build:webpack`: el webpack deja `.next`
   sin `prerender-manifest.json` y `next start` no arranca.

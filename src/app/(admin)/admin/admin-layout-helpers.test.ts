@@ -135,8 +135,39 @@ describe("admin layout helpers", () => {
     expect(flattenNav("owner")).not.toContainEqual(
       expect.objectContaining({ href: "/admin/pos" }),
     );
-    // Sin caja disponible tampoco hay grupo Control: un grupo vacío no se dibuja.
-    expect(groupLabels("owner", false)).toEqual(["Operación", "Catálogo", "Configuración"]);
+  });
+
+  /**
+   * A-32 — un grupo del sidebar se dibuja si **alguno** de sus ítems aplica, no si aplica el POS.
+   *
+   * El POS y el Historial son cosas distintas: el Historial lista cierres de caja y facturas, que
+   * existen aunque ningún local tenga el mostrador prendido. El bug medía el grupo entero con el
+   * permiso del POS, así que un manager sin POS disponible se quedaba sin poder auditar.
+   */
+  it.each(["owner", "manager"] as const)(
+    "sin POS disponible, %s sigue viendo el Historial en Control",
+    (role) => {
+      const groups = getAdminNavGroups(role, { posAvailable: false });
+
+      expect(groups.map((group) => group.label)).toContain("Control");
+      expect(groups.flatMap((group) => group.items)).toContainEqual(
+        expect.objectContaining({ href: "/admin/history", label: "Historial" }),
+      );
+    },
+  );
+
+  it("un grupo sin ningún ítem que aplique no se dibuja", () => {
+    // El cajero no administra caja ni ve el Historial: sin POS, Control queda sin ítems y no va.
+    expect(groupLabels("cashier", false)).not.toContain("Control");
+  });
+
+  it("sin POS disponible, el cajero ve Órdenes y la cocina solo Órdenes: nada de Control", () => {
+    expect(getAdminNavGroups("cashier", { posAvailable: false })).toEqual([
+      { label: "Operación", items: [expect.objectContaining({ href: "/admin/orders" })] },
+    ]);
+    expect(getAdminNavGroups("kitchen", { posAvailable: false })).toEqual([
+      { label: "Operación", items: [expect.objectContaining({ href: "/admin/orders" })] },
+    ]);
   });
 
   it.each(["owner", "manager", "cashier"] as const)(

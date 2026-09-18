@@ -127,16 +127,27 @@ function withControlGroup(
   role: AdminRole | undefined,
   posAvailable: boolean,
 ): AdminNavGroup[] {
-  if (!posAvailable) return groups;
-
-  // La caja se administra desde su pantalla (tarea 1 del brief): la ve quien cobra. Las aprobaciones
-  // siguen siendo de quien administra el dinero.
+  /**
+   * A-32 (2026-09-18) — **cada ítem con su propio permiso**.
+   *
+   * Antes el grupo entero se dibujaba solo si el POS estaba disponible (`if (!posAvailable) return
+   * groups`), así que sin mostrador un manager perdía también el **Historial**, que no depende del POS:
+   * los cierres y las facturas existen igual. Lo que decide es si queda **al menos un ítem**.
+   *
+   * «Caja del día» se pide con `canUsePOS` **y** con el mostrador prendido en algún local: esa pantalla
+   * es donde el cajero abre y cierra **su** turno, así que sin POS no tiene nada que hacer ahí —el
+   * cajero no audita— y ofrecerla sería un enlace a una pantalla sin uso. El **Historial** no lleva
+   * `posAvailable` porque no lee la caja del turno: lee los cierres cerrados y las facturas emitidas.
+   */
   const items = [
-    ADMIN_POS_NAV_ITEM,
-    ...(role && canUsePOS(role) ? [ADMIN_CONTROL_NAV_ITEMS[0]] : []),
+    ...(posAvailable ? [ADMIN_POS_NAV_ITEM] : []),
+    ...(posAvailable && role && canUsePOS(role) ? [ADMIN_CONTROL_NAV_ITEMS[0]] : []),
     ...(role && canManageCash(role) ? [ADMIN_CONTROL_NAV_ITEMS[1]] : []),
     ...(role && canViewHistory(role) ? [ADMIN_HISTORY_NAV_ITEM] : []),
   ];
+
+  // Un grupo sin ítems no se dibuja: un encabezado «Control» vacío no dice nada.
+  if (items.length === 0) return groups;
 
   const next: AdminNavGroup[] = [];
   for (const group of groups) {
