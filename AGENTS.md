@@ -163,10 +163,10 @@ mínimo · 4. refactorizá · 5. cerrá con la validación completa.
 propio (`src/shared/ui/` y `_components/`) · commit sin test de código nuevo funcional · «después lo
 testeo».
 
-**Si el rojo no se observa, se documenta en el commit con el motivo** (2026-09-18): qué caso no se vio y por
-qué (test e implementación en el mismo paso, test de caracterización, algo que el entorno no reproduce), más
-la mutación si se puede. **Excepciones** (commit y gate): refactor puro · hotfix urgente con test en el commit
-siguiente · configuración o datos sin lógica (JSON, tokens, seeds, migraciones aditivas).
+**TDD — observación del rojo** (2026-09-18): si no se pudo observar el rojo (test y código en el mismo
+paso, contexto agotado, caracterización), se documenta en el commit el **motivo**, **cómo se validó el
+test** (mutación) y **qué flujo cubre**; escribirlo después sin documentarlo está **prohibido**, y si se
+validó invirtiendo el código (verde → rojo → verde) cuenta como TDD efectivo y se documenta igual.
 
 El gate `src/shared/contracts/tdd-contract.test.ts` congela la deuda vieja con su motivo escrito y **no
 crece**: una ruta, feature o primitivo nuevo sin test lo pone en rojo. Corre en `npm run test:contracts`
