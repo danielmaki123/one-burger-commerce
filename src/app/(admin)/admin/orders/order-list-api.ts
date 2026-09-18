@@ -64,6 +64,13 @@ export type OrderQueryInput = {
 };
 
 /**
+ * El valor del control de sucursal cuando no hay filtro. **No es un id de local**: si viaja, la API lo
+ * aplica literal y devuelve 0 pedidos (bug encontrado en el arnés local el 2026-09-18, al verificar el
+ * Punto 3). El centinela se queda en la pantalla.
+ */
+const ALL_LOCATIONS = "all";
+
+/**
  * Arma la consulta con **solo** lo que la API acepta: un filtro con un valor que no corresponde se descarta
  * (y la pantalla sigue funcionando con el resto) en vez de viajar y volver como 400.
  */
@@ -76,8 +83,9 @@ export function sanitizeOrderQuery(input: OrderQueryInput): URLSearchParams {
   if (input.type && (ORDER_TYPES as readonly string[]).includes(input.type)) {
     params.set("type", input.type);
   }
-  if (input.locationId && input.locationId.trim() !== "") {
-    params.set("locationId", input.locationId.trim());
+  const locationId = input.locationId?.trim();
+  if (locationId && locationId !== ALL_LOCATIONS) {
+    params.set("locationId", locationId);
   }
   if (input.search && input.search.trim() !== "") {
     params.set("search", input.search.trim());

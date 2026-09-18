@@ -57,6 +57,20 @@ describe("sanitizeOrderQuery", () => {
     expect(sanitizeOrderQuery({ paymentMethod: "card" }).get("paymentMethod")).toBe("card");
     expect(sanitizeOrderQuery({ lateOnly: false }).get("lateOnly")).toBeNull();
   });
+
+  /**
+   * Bug encontrado en el arnés local el 2026-09-18, al verificar el Punto 3: el control de sucursal usa
+   * `"all"` como valor de «todas», y ese centinela viajaba como si fuera un id de local. La API lo
+   * aplicaba literal (`locationIds: ["all"]`), no encontraba esa sucursal y devolvía **0 pedidos**: el
+   * tablero quedaba vacío y las pruebas que buscan una comanda recién creada fallaban sin que hubiera
+   * nada roto en el producto.
+   */
+  it("«todas las sucursales» no es una sucursal: el centinela no viaja", () => {
+    const params = sanitizeOrderQuery({ locationId: "all", dateFrom: "2026-09-18T06:00:00.000Z" });
+
+    expect(params.get("locationId")).toBeNull();
+    expect(params.toString()).toBe("dateFrom=2026-09-18T06%3A00%3A00.000Z");
+  });
 });
 
 describe("readAdminOrders", () => {
