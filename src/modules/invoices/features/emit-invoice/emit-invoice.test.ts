@@ -41,6 +41,9 @@ const emitted: InvoiceRecord = {
   total: 110,
   issuedAt: "2026-09-18T15:00:00.000Z",
   issuedByUserId: "admin_1",
+  voidedAt: null,
+  voidedByUserId: null,
+  voidReason: null,
 };
 
 function repository(overrides: Partial<InvoiceRepository> = {}): {
@@ -55,6 +58,12 @@ function repository(overrides: Partial<InvoiceRepository> = {}): {
       findByOrderId: async () => null,
       findLatestNumber: async () => null,
       create,
+      // El puerto se implementa completo: emitir no lista ni anula (eso es del Historial).
+      findById: async () => null,
+      list: async () => [],
+      void: async () => {
+        throw new Error("emitir no anula");
+      },
       ...overrides,
     },
   };

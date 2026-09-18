@@ -217,3 +217,27 @@ export function manualDiscountAudit(input: {
     detail: { kind: input.kind, value: input.value, reason: input.reason },
   });
 }
+
+/**
+ * Punto 2 del roadmap (2026-09-18) — anular una factura emitida.
+ *
+ * El asiento guarda el **motivo** de la lista cerrada y, cuando el motivo es «Otro», el texto que
+ * escribió quien anuló: la factura marca *que* está anulada, y esto explica *por qué*. El documento en
+ * sí no se borra nunca (`voidedAt` / `voidedByUserId` / `voidReason`).
+ */
+export function invoiceVoidAudit(input: {
+  actorUserId: string;
+  invoiceId: string;
+  reason: string;
+  note?: string | null;
+}) {
+  const note = input.note?.trim();
+
+  return recordAdminAudit({
+    action: "invoice.void",
+    actorUserId: input.actorUserId,
+    targetType: "Invoice",
+    targetId: input.invoiceId,
+    detail: { reason: input.reason, ...(note ? { note } : {}) },
+  });
+}

@@ -14,6 +14,12 @@ const invoiceRepository = (overrides: Partial<InvoiceRepository> = {}): InvoiceR
   findByOrderId: async () => null,
   findLatestNumber: async () => null,
   create: vi.fn(),
+  // El puerto se implementa completo: consultar una factura no lista ni anula.
+  findById: async () => null,
+  list: async () => [],
+  void: async () => {
+    throw new Error("consultar no anula");
+  },
   ...overrides,
 });
 
@@ -60,6 +66,9 @@ describe("getOrderInvoice", () => {
             total: 100,
             issuedAt: "2026-09-18T15:00:00.000Z",
             issuedByUserId: "admin_1",
+            voidedAt: null,
+            voidedByUserId: null,
+            voidReason: null,
           }),
         }),
         findOrder: async () => ({ id: "ord_01" }),

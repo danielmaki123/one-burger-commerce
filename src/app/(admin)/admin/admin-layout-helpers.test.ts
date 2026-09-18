@@ -195,6 +195,32 @@ describe("admin layout helpers", () => {
     expect(isAdminNavItemActive("/admin/cash/history/shift-1", "/admin/cash")).toBe(true);
   });
 
+  /**
+   * Punto 2 del roadmap (2026-09-18) — **Historial**: un solo ítem que queda activo en sus dos tabs.
+   *
+   * Por eso el `href` es la sección y no una de las tabs. Lo ven owner y manager; el cajero no (se
+   * auditaría a sí mismo) y cocina tampoco, porque no maneja plata.
+   */
+  it.each(["owner", "manager"] as const)("ofrece Historial a %s", (role) => {
+    expect(flattenNavWithPos(role)).toContainEqual(
+      expect.objectContaining({ href: "/admin/history", label: "Historial" }),
+    );
+  });
+
+  it("ni el cajero ni cocina ven el Historial", () => {
+    expect(flattenNavWithPos("cashier")).not.toContainEqual(
+      expect.objectContaining({ href: "/admin/history" }),
+    );
+    expect(flattenNavWithPos("kitchen")).not.toContainEqual(
+      expect.objectContaining({ href: "/admin/history" }),
+    );
+  });
+
+  it("el ítem Historial queda activo en las dos tabs", () => {
+    expect(isAdminNavItemActive("/admin/history/cierres", "/admin/history")).toBe(true);
+    expect(isAdminNavItemActive("/admin/history/facturas", "/admin/history")).toBe(true);
+  });
+
   it.each([
     [{ focusableCount: 3, currentIndex: 2, shiftKey: false }, 0],
     [{ focusableCount: 3, currentIndex: 0, shiftKey: true }, 2],

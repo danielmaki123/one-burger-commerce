@@ -3,7 +3,12 @@ import type { Decimal } from "@prisma/client/runtime/library";
 import { getPrismaClient } from "@/infrastructure/database/prisma";
 
 import type { InvoiceRecord } from "../domain/invoice";
-import type { CreateInvoiceInput, InvoiceRepository } from "../ports/invoice-repository";
+import type {
+  CreateInvoiceInput,
+  InvoiceRepository,
+  ListInvoicesFilters,
+  VoidInvoiceInput,
+} from "../ports/invoice-repository";
 
 /**
  * Factura simple (2026-09-18) — el adaptador Prisma del documento.
@@ -44,6 +49,9 @@ type InvoiceRow = {
   total: Decimal;
   issuedAt: Date;
   issuedByUserId: string | null;
+  voidedAt: Date | null;
+  voidedByUserId: string | null;
+  voidReason: string | null;
 };
 
 function mapInvoice(row: InvoiceRow): InvoiceRecord {
@@ -75,6 +83,9 @@ function mapInvoice(row: InvoiceRow): InvoiceRecord {
     total: toNumber(row.total),
     issuedAt: row.issuedAt.toISOString(),
     issuedByUserId: row.issuedByUserId,
+    voidedAt: row.voidedAt ? row.voidedAt.toISOString() : null,
+    voidedByUserId: row.voidedByUserId,
+    voidReason: row.voidReason,
   };
 }
 
@@ -121,6 +132,67 @@ export class PrismaInvoiceRepository implements InvoiceRepository {
         tipAmount: input.tipAmount,
         total: input.total,
         issuedByUserId: input.issuedByUserId,
+      },
+    });
+
+    return mapInvoice(row);
+  }
+
+  async findById(id: string): Promise<InvoiceRecord | null> {
+    const row = await getPrismaClient().invoice.findUnique({ where: { id } });
+
+    return row ? mapInvoice(row) : null;
+  }
+
+  /**
+   * La lista del Historial. El alcance por sucursal se resuelve **en la consulta** (la factura cuelga del
+   * pedido, que es el que tiene local): así un manager no puede traer las de otra sucursal ni pidiéndolas.
+   */
+  async list(filters: ListInvoicesFilters): Promise<InvoiceRecord[]> {
+    const search = filters.search?.trim();
+
+    const rows = await getPrismaClient().invoice.findMany({
+      where: {
+        ...(filters.status ? { status: filters.status } : {}),
+        ...(filters.number ? { number: filters.number } : {}),
+        ...(filters.customer
+          ? { customerName: { contains: filters.customer, mode: "insensitive" as const } }
+          : {}),
+        ...(filters.issuedFrom || filters.issuedTo
+          ? {
+              issuedAt: {
+                ...(filters.issuedFrom ? { gte: filters.issuedFrom } : {}),
+                ...(filters.issuedTo ? { lte: filters.issuedTo } : {}),
+              },
+            }
+          : {}),
+        ...(search
+          ? {
+              OR: [
+                { number: { contains: search, mode: "insensitive" as const } },
+                { customerName: { contains: search, mode: "insensitive" as const } },
+              ],
+            }
+          : {}),
+        ...(filters.locationIds
+          ? { order: { locationId: { in: [...filters.locationIds] } } }
+          : {}),
+      },
+      orderBy: { issuedAt: "desc" },
+      take: filters.limit ?? 100,
+    });
+
+    return rows.map(mapInvoice);
+  }
+
+  async void(id: string, input: VoidInvoiceInput): Promise<InvoiceRecord> {
+    const row = await getPrismaClient().invoice.update({
+      where: { id },
+      data: {
+        status: "voided",
+        voidedAt: input.voidedAt,
+        voidedByUserId: input.actorUserId,
+        voidReason: input.reason,
       },
     });
 

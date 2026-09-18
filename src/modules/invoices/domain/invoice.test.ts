@@ -43,6 +43,9 @@ const invoice: InvoiceRecord = {
   total: 110,
   issuedAt: "2026-09-18T15:00:00.000Z",
   issuedByUserId: "admin_1",
+  voidedAt: null,
+  voidedByUserId: null,
+  voidReason: null,
 };
 
 describe("nextInvoiceNumber", () => {

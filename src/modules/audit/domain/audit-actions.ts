@@ -20,6 +20,11 @@ export const AUDIT_ACTIONS = [
    * cliente deja de pagar sin promo que lo respalde. Se firma con su forma, su valor y **su motivo**.
    */
   "order.manual_discount",
+  /**
+   * Punto 2 del roadmap (2026-09-18) — anular una factura ya emitida. No se borra: queda el motivo (de
+   * una lista cerrada) y, cuando es «Otro», el texto que escribió quien anuló.
+   */
+  "invoice.void",
   "settings.update",
 ] as const;
 
@@ -36,6 +41,7 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   "refund.reject": "Devolución rechazada",
   "order.cancel_paid": "Pedido cobrado cancelado",
   "order.manual_discount": "Descuento manual en el mostrador",
+  "invoice.void": "Factura anulada",
   "settings.update": "Configuración actualizada",
 };
 

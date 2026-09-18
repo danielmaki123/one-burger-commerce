@@ -47,6 +47,9 @@ const invoice: InvoiceRecord = {
   total: 70,
   issuedAt: "2026-09-18T12:35:00.000Z",
   issuedByUserId: "admin_1",
+  voidedAt: null,
+  voidedByUserId: null,
+  voidReason: null,
 };
 
 const items = [

@@ -4,6 +4,7 @@ import { AUDIT_ACTIONS } from "@/modules/audit/domain/audit-actions";
 
 import {
   cashMovementAudit,
+  invoiceVoidAudit,
   manualDiscountAudit,
   paidOrderCancelledAudit,
   recordAdminAudit,
@@ -288,6 +289,26 @@ const shortcuts: Array<[string, () => Promise<void>, Record<string, unknown>]> =
       targetType: "Order",
       targetId: "order_01",
       detail: { kind: "percentage", value: 10, reason: "Cliente de siempre" },
+    },
+  ],
+  /**
+   * Punto 2 del roadmap (2026-09-18) — anular una factura: el motivo de la lista cerrada y, cuando es
+   * «Otro», el texto que lo explica. Un asiento sin el motivo diría «alguien anuló una factura».
+   */
+  [
+    "invoice.void",
+    () =>
+      invoiceVoidAudit({
+        actorUserId: "user_owner",
+        invoiceId: "inv_01",
+        reason: "otro",
+        note: "Se emitió con el RUC viejo",
+      }),
+    {
+      action: "invoice.void",
+      targetType: "Invoice",
+      targetId: "inv_01",
+      detail: { reason: "otro", note: "Se emitió con el RUC viejo" },
     },
   ],
 ];

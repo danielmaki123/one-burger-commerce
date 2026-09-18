@@ -15,6 +15,7 @@ import {
   canUsePOS,
   canViewCashHistory,
   canViewDashboardSummary,
+  canViewHistory,
   canViewOutboxEvents,
 } from "@/modules/auth/domain/admin-permissions";
 import { ADMIN_ROLES } from "@/modules/auth/domain/admin-role";
@@ -158,5 +159,19 @@ describe("admin permissions", () => {
     expect(canViewCashHistory(ADMIN_ROLES.manager)).toBe(true);
     expect(canViewCashHistory(ADMIN_ROLES.cashier)).toBe(false);
     expect(canViewCashHistory(ADMIN_ROLES.kitchen)).toBe(false);
+  });
+
+  /**
+   * Punto 2 del roadmap (2026-09-18) — la sección **Historial** (`/admin/history`: cierres y facturas).
+   *
+   * Es una sección propia y por eso tiene su permiso: adentro lista dos cosas distintas (arqueos de
+   * caja y facturas emitidas). El cajero no la ve —se estaría auditando—, cocina tampoco, y el manager
+   * entra pero acotado a sus sucursales (eso lo resuelve el alcance, no este permiso).
+   */
+  it("canViewHistory: el Historial es de owner y manager", () => {
+    expect(canViewHistory(ADMIN_ROLES.owner)).toBe(true);
+    expect(canViewHistory(ADMIN_ROLES.manager)).toBe(true);
+    expect(canViewHistory(ADMIN_ROLES.cashier)).toBe(false);
+    expect(canViewHistory(ADMIN_ROLES.kitchen)).toBe(false);
   });
 });

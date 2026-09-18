@@ -51,6 +51,13 @@ export type InvoiceRecord = {
   total: number;
   issuedAt: string;
   issuedByUserId: string | null;
+  /**
+   * Anulación (Punto 2 del roadmap, 2026-09-18): **soft delete**. El documento no se borra —puede estar
+   * en la mano del cliente—, se marca como anulado con cuándo, quién y el motivo de la lista cerrada.
+   */
+  voidedAt: string | null;
+  voidedByUserId: string | null;
+  voidReason: string | null;
 };
 
 /** Prefijo del número: `F` de factura simple. */

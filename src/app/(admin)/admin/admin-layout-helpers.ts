@@ -2,6 +2,7 @@ import {
   Bell,
   Calculator,
   ClipboardList,
+  History,
   LayoutDashboard,
   MapPin,
   ReceiptText,
@@ -12,7 +13,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-import { canManageCash, canUsePOS } from "@/modules/auth/domain/admin-permissions";
+import { canManageCash, canUsePOS, canViewHistory } from "@/modules/auth/domain/admin-permissions";
 import type { AdminRole } from "@/modules/auth/domain/admin-role";
 
 export type AdminNavItem = {
@@ -104,6 +105,21 @@ export const ADMIN_CONTROL_NAV_ITEMS: AdminNavItem[] = [
   { href: "/admin/approvals", label: "Aprobaciones", description: "Devoluciones y ajustes", icon: ShieldCheck },
 ];
 
+/**
+ * Punto 2 del roadmap (2026-09-18) — **Historial**: una sola entrada para las dos consultas.
+ *
+ * El owner pidió un ítem único en Control que quede activo en las dos tabs, y por eso el `href` es la
+ * sección (`/admin/history`, que redirige a los cierres) y no una de las tabs: así
+ * `isAdminNavItemActive` lo marca en `/admin/history/cierres` y en `/admin/history/facturas` sin reglas
+ * especiales. Es de consulta: lo ven owner y manager, no el cajero (se auditaría a sí mismo) ni cocina.
+ */
+export const ADMIN_HISTORY_NAV_ITEM: AdminNavItem = {
+  href: "/admin/history",
+  label: "Historial",
+  description: "Cierres y facturas",
+  icon: History,
+};
+
 const CONTROL_GROUP_LABEL = "Control";
 
 function withControlGroup(
@@ -119,6 +135,7 @@ function withControlGroup(
     ADMIN_POS_NAV_ITEM,
     ...(role && canUsePOS(role) ? [ADMIN_CONTROL_NAV_ITEMS[0]] : []),
     ...(role && canManageCash(role) ? [ADMIN_CONTROL_NAV_ITEMS[1]] : []),
+    ...(role && canViewHistory(role) ? [ADMIN_HISTORY_NAV_ITEM] : []),
   ];
 
   const next: AdminNavGroup[] = [];

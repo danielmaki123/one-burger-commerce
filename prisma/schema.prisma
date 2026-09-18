@@ -1078,9 +1078,17 @@ model Invoice {
   total             Decimal       @db.Decimal(10, 2)
   issuedAt          DateTime      @default(now())
   issuedByUserId    String?
+  /// Anulación (Punto 2 del roadmap, 2026-09-18): **soft delete**, nunca borrado. Una factura es un
+  /// documento que puede estar en la mano del cliente, así que se marca anulada y se dice por qué. El
+  /// motivo sale de la lista cerrada del dominio (`invoice-void.ts`) y el texto libre de «Otro» queda en
+  /// el detalle del asiento de auditoría (`invoice.void`).
+  voidedAt          DateTime?
+  voidedByUserId    String?
+  voidReason        String?
   order             Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@index([issuedAt])
+  @@index([status, issuedAt])
 }
 
 /// Bloque 13.1 del roadmap del POS (Fase 2) — el asiento de una acción sensible.

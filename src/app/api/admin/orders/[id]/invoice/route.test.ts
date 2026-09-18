@@ -32,11 +32,21 @@ const inMemoryRepository: InvoiceRepository = {
       id: `inv_${invoices.length + 1}`,
       status: "emitted",
       issuedAt: "2026-09-18T15:00:00.000Z",
+      // Punto 2 (2026-09-18): el documento nace sin anular.
+      voidedAt: null,
+      voidedByUserId: null,
+      voidReason: null,
       ...input,
     };
     invoices.push(invoice);
 
     return invoice;
+  },
+  // Lo que agregó el Historial no lo usa esta ruta: el puerto se implementa completo igual.
+  findById: async (id) => invoices.find((invoice) => invoice.id === id) ?? null,
+  list: async () => invoices,
+  void: async () => {
+    throw new Error("la emisión no anula facturas");
   },
 };
 

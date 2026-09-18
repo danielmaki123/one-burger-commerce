@@ -106,6 +106,18 @@ export function canViewCashHistory(role: AdminRole) {
 }
 
 /**
+ * Punto 2 del roadmap (2026-09-18) — **ver el Historial**: los cierres de caja y las facturas emitidas.
+ *
+ * Es la puerta de la sección `/admin/history`, que junta las dos consultas en un solo lugar. Hoy
+ * responde lo mismo que `canViewCashHistory` (dueño y manager) y es propia por el mismo motivo: el
+ * Historial es una **sección**, no una pantalla de la caja, y las facturas que lista no son arqueos. El
+ * cajero no entra —no audita su propio turno— y cocina tampoco, porque no maneja plata.
+ */
+export function canViewHistory(role: AdminRole) {
+  return role === ADMIN_ROLES.owner || role === ADMIN_ROLES.manager;
+}
+
+/**
  * Tarea 9.7 del roadmap del POS (Fase 2) — **descontar plata a mano** en una venta de mostrador.
  *
  * Un **cupón** es una promo cargada, con su lista de códigos y sus usos: el cajero solo escribe el código

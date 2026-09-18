@@ -1,5 +1,22 @@
 # Estado del proyecto — One Burger Commerce
 
+> Actualizado: 2026-09-18 · Último deploy a producción: 2026-09-18, commit `32ae7e0` (build
+> `build-20260918-145218`, deploy por API, acción `done`; readiness `ready` y smokes en verde: menú 7/7 y
+> hosts 6/6). Ese build cierra el **Punto 1 del roadmap**: el **layout unificado de Órdenes** —barra
+> lateral y encabezado «Órdenes» siempre visibles, los cinco tabs de estado como filtro (carriles para
+> Todas/Nuevas/Preparando/Listas, lista para Cerradas), sin el sub-filtro Hoy/Historial y con la barra de
+> trabajo única (`orders-toolbar.tsx`; la página pasó de 1385 a 947 líneas)— verificado en producción con
+> capturas reales (`ops/tasks/audit-ui/tarea-layout-ordenes-*-produccion-*.png`).
+>
+> Después de ese deploy entró el **Punto 2 (sección Historial)**, todavía **sin desplegar**: `/admin/history`
+> con dos tabs de URL propia (`/cierres` y `/facturas`), un solo ítem «Historial» en Control (owner y
+> manager; el cajero no audita su propio turno y cocina no maneja plata), la anulación de facturas como
+> **soft delete** (`voidedAt` / `voidedByUserId` / `voidReason`, migración `20260918180000`, solo el dueño,
+> motivo de lista cerrada con «Otro» libre y asiento `invoice.void`), la API nueva
+> `GET /api/admin/invoices` con alcance por sucursal y `GET /api/admin/history/cierres` (cierres de todas
+> las sucursales del alcance, con nombre del cajero). 2855 tests unitarios, 50 contratos y los gates
+> locales en verde; capturas locales en `ops/tasks/audit-ui/tarea-historial-*.png`.
+
 > Actualizado: 2026-09-18 · Último deploy a producción: 2026-09-18, commit `45c44d9` (build
 > `build-20260918-054017`, deploy por API sobre el servicio `oneburguerweb`, acción `done`; readiness
 > `ready` con la base en 1 ms y los dos smokes en verde: menú 7/7 y hosts 6/6). Ese build cierra la ronda
