@@ -56,8 +56,9 @@ try {
 
     // Una terminal limpia: ni borrador ni esperas de una corrida anterior.
     await page.evaluate(() => {
-      for (const key of Object.keys(window.localStorage)) {
-        if (key.startsWith("one-burger-pos-")) window.localStorage.removeItem(key);
+      const store = globalThis.localStorage;
+      for (const key of Object.keys(store)) {
+        if (key.startsWith("one-burger-pos-")) store.removeItem(key);
       }
     });
     await page.reload({ waitUntil: "domcontentloaded" });

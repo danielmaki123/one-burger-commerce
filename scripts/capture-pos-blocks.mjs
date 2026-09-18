@@ -166,8 +166,9 @@ try {
     // cuándo). Después se descarta con su confirmación —lo único que no se deshace— y se limpia, para
     // que las capturas que vienen muestren el mostrador como lo encuentra el cajero.
     await page.evaluate(() => {
-      for (const key of Object.keys(window.localStorage)) {
-        if (key.startsWith("one-burger-pos-holds")) window.localStorage.removeItem(key);
+      const store = globalThis.localStorage;
+      for (const key of Object.keys(store)) {
+        if (key.startsWith("one-burger-pos-holds")) store.removeItem(key);
       }
     });
     await page.getByRole("button", { name: /^Agregar / }).first().click();
