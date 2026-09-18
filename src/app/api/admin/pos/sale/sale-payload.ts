@@ -65,6 +65,20 @@ const saleSchema = z.object({
    * checkout): el código se guarda en mayúsculas y el que lo escribe no tiene por qué saberlo.
    */
   couponCode: z.string().trim().max(40, "El código es muy largo").nullable().optional(),
+  /**
+   * Tarea 9.7 del roadmap del POS (Fase 2) — el **descuento manual** autorizado por quien administra la caja.
+   *
+   * Viaja como **forma** (porcentaje o monto) y con su motivo: el monto lo calcula el servidor. El permiso se
+   * comprueba en la ruta (`canDiscountPosSale`); acá solo se valida que los datos tengan sentido.
+   */
+  manualDiscount: z
+    .object({
+      kind: z.enum(["percentage", "amount"]),
+      value: z.number().positive("El descuento tiene que ser mayor que cero"),
+      reason: z.string().trim().min(3, "Escribí por qué se hace el descuento").max(200),
+    })
+    .nullable()
+    .optional(),
 });
 
 export type PosSalePayload = z.infer<typeof saleSchema>;
@@ -139,6 +153,13 @@ export function parsePosSalePayload(body: unknown): {
       })),
       idempotencyKey: parsed.data.idempotencyKey ?? null,
       couponCode: parsed.data.couponCode ? normalizeCouponCode(parsed.data.couponCode) : null,
+      manualDiscount: parsed.data.manualDiscount
+        ? {
+            kind: parsed.data.manualDiscount.kind,
+            value: parsed.data.manualDiscount.value,
+            reason: parsed.data.manualDiscount.reason,
+          }
+        : null,
     },
   };
 }

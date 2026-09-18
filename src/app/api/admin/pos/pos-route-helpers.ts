@@ -1,4 +1,4 @@
-import { canUsePOS } from "@/modules/auth/domain/admin-permissions";
+import { canDiscountPosSale, canUsePOS } from "@/modules/auth/domain/admin-permissions";
 import { AuthError } from "@/modules/auth/domain/auth-errors";
 import type { AdminRole } from "@/modules/auth/domain/admin-role";
 import { resolveOrderLocationScope } from "@/modules/orders/domain/order-visibility";
@@ -16,6 +16,25 @@ export function assertCanUsePos(role: AdminRole): void {
   if (!canUsePOS(role)) {
     throw new AuthError(403, "FORBIDDEN", "Insufficient permissions");
   }
+}
+
+/**
+ * Tarea 9.7 del roadmap del POS (Fase 2) — **descontar a mano** en una venta de mostrador.
+ *
+ * Un cupón es una promo cargada (el cajero solo escribe el código); un descuento manual es plata que el
+ * cliente deja de pagar porque alguien lo decidió en el momento, y lo autoriza quien administra la caja
+ * (`canDiscountPosSale`). La comprobación vive acá, con las otras puertas del POS, y corre **antes** de
+ * crear nada: la venta con un descuento que este rol no puede dar no se cobra ni se firma.
+ */
+export function assertCanDiscountPosSale(
+  role: AdminRole,
+  manualDiscount: { kind: string; value: number; reason: string } | null | undefined,
+): void {
+  if (!manualDiscount || canDiscountPosSale(role)) return;
+
+  throw new AuthError(403, "FORBIDDEN", "No tenés permiso para descontar a mano en el mostrador.", {
+    discount: "Solo un encargado o el dueño pueden autorizar un descuento manual.",
+  });
 }
 
 /**

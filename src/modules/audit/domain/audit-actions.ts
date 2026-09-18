@@ -15,6 +15,11 @@ export const AUDIT_ACTIONS = [
   "refund.approve",
   "refund.reject",
   "order.cancel_paid",
+  /**
+   * Tarea 9.7 del roadmap del POS (Fase 2) — descuento manual en una venta de mostrador: plata que el
+   * cliente deja de pagar sin promo que lo respalde. Se firma con su forma, su valor y **su motivo**.
+   */
+  "order.manual_discount",
   "settings.update",
 ] as const;
 
@@ -30,6 +35,7 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   "refund.approve": "Devolución aprobada",
   "refund.reject": "Devolución rechazada",
   "order.cancel_paid": "Pedido cobrado cancelado",
+  "order.manual_discount": "Descuento manual en el mostrador",
   "settings.update": "Configuración actualizada",
 };
 

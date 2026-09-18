@@ -881,8 +881,7 @@ describe("PosClient", () => {
     expect(totalDeLaVenta()).toBe("C$65.00");
   });
 
-  it("un código que no sirve dice el motivo y no toca el total", async () => {
-    const user = userEvent.setup();
+  it("un código que no sirve dice el motivo y no toca el total", async () => {    const user = userEvent.setup();
     fetchMock.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
       if (url.startsWith("/api/admin/pos/catalog")) return jsonResponse(productos);
@@ -913,5 +912,64 @@ describe("PosClient", () => {
       await screen.findByText("Ese código ya se usó todas las veces que se podía."),
     ).toBeTruthy();
     expect(totalDeLaVenta()).toBe("C$40.00");
+  });
+
+  /**
+   * Tarea 9.7 del roadmap del POS (Fase 2) — el **descuento manual con permiso**.
+   *
+   * El control solo existe para quien puede darlo (`canDiscountPosSale`: owner y manager) y el descuento
+   * mueve el total antes de cobrar. El número lo calcula el servidor; la pantalla muestra el mismo.
+   */
+  it("el cajero no tiene el descuento manual: no ve el control (9.7)", async () => {
+    render(<PosClient locations={locations} />);
+
+    await screen.findByText("Taco de birria");
+
+    expect(screen.queryByRole("region", { name: "Descuento manual" })).toBeNull();
+  });
+
+  it("con permiso, un descuento manual baja el total y viaja al cobrar (9.7)", async () => {
+    const user = userEvent.setup();
+    fetchMock.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.startsWith("/api/admin/pos/catalog")) return jsonResponse(productos);
+      if (url.startsWith("/api/admin/pos/shift?")) return jsonResponse({ data: turnoAbierto });
+      if (url === "/api/admin/pos/sale" && init?.method === "POST") {
+        // El alta devuelve el pedido con el descuento aplicado (40 − 10 % de 35).
+        return jsonResponse({ data: { ...ventaCobrada.data, total: 36.5, paid: 40, change: 3.5 } }, true, 201);
+      }
+      return jsonResponse({ data: [] });
+    });
+
+    render(<PosClient locations={locations} canDiscount />);
+
+    await screen.findByText("Taco de birria");
+    await user.click(screen.getByRole("button", { name: "Agregar Taco de birria a la venta" }));
+    expect(totalDeLaVenta()).toBe("C$40.00");
+
+    await user.clear(screen.getByLabelText("Descuento (%)"));
+    await user.type(screen.getByLabelText("Descuento (%)"), "10");
+    await user.type(screen.getByLabelText("Motivo del descuento"), "Cliente de siempre");
+    await user.click(screen.getByRole("button", { name: "Aplicar descuento" }));
+
+    expect(await screen.findByText("Descuento manual · 10 %")).toBeTruthy();
+    expect(totalDeLaVenta()).toBe("C$36.50");
+
+    await fillCustomer(user);
+    await user.type(screen.getByLabelText("Con cuánto paga"), "40");
+    await user.click(screen.getByRole("button", { name: /^Cobrar / }));
+    await screen.findByRole("status");
+
+    const saleBody = JSON.parse(
+      String(
+        (fetchMock.mock.calls.find(([input]) => String(input) === "/api/admin/pos/sale")![1] as RequestInit)
+          .body,
+      ),
+    );
+    expect(saleBody.manualDiscount).toEqual({
+      kind: "percentage",
+      value: 10,
+      reason: "Cliente de siempre",
+    });
   });
 });

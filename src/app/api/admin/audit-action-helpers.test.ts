@@ -4,6 +4,7 @@ import { AUDIT_ACTIONS } from "@/modules/audit/domain/audit-actions";
 
 import {
   cashMovementAudit,
+  manualDiscountAudit,
   paidOrderCancelledAudit,
   recordAdminAudit,
   refundRequestAudit,
@@ -267,6 +268,27 @@ const shortcuts: Array<[string, () => Promise<void>, Record<string, unknown>]> =
     "settings.update",
     () => settingsUpdateAudit({ actorUserId: "user_owner" }),
     { action: "settings.update", targetType: "BusinessSettings", targetId: "business-settings" },
+  ],
+  /**
+   * Tarea 9.7 del roadmap del POS (Fase 2) — el descuento manual: la forma, el valor y el motivo que lo
+   * explica. Sin el motivo, el asiento sería «alguien descontó algo».
+   */
+  [
+    "order.manual_discount",
+    () =>
+      manualDiscountAudit({
+        actorUserId: "user_manager",
+        orderId: "order_01",
+        kind: "percentage",
+        value: 10,
+        reason: "Cliente de siempre",
+      }),
+    {
+      action: "order.manual_discount",
+      targetType: "Order",
+      targetId: "order_01",
+      detail: { kind: "percentage", value: 10, reason: "Cliente de siempre" },
+    },
   ],
 ];
 

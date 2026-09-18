@@ -3,6 +3,10 @@ import {
   calculateOrderChange,
   validatePaidWithAmount,
 } from "@/modules/orders/domain/payment-change";
+import {
+  composeSaleDiscount,
+  manualDiscountAmount,
+} from "@/modules/orders/domain/sale-discount";
 import type { PaymentRepository } from "@/modules/orders/ports/payment-repository";
 import type { CreateOrderRequest } from "@/modules/orders/features/create-order/create-order";
 
@@ -43,6 +47,11 @@ export type RegisterPosSaleInput = {
    * el cajero. El alta (`createOrder`) es la que lo valida, calcula el descuento y consume el uso.
    */
   couponCode?: string | null;
+  /**
+   * Tarea 9.7 del roadmap del POS (Fase 2) — el **descuento manual** autorizado (permiso aparte en la ruta,
+   * `canDiscountPosSale`). Llega como forma y motivo; el monto lo calcula el servidor.
+   */
+  manualDiscount?: { kind: "percentage" | "amount"; value: number; reason: string } | null;
 };
 
 export type RegisterPosSaleDependencies = {
@@ -142,7 +151,35 @@ export async function registerPosSale(
           })
         ).discount
       : 0;
-  const expectedTotal = posDraftTotals(input.draft, couponDiscount).total;
+
+  /**
+   * Tarea 9.7 — el descuento manual se calcula sobre el subtotal del borrador (lo que el cajero le está
+   * cobrando al cliente) y se compone con el del cupón: entre los dos nunca pasan de la venta.
+   */
+  const manualAmount = input.manualDiscount
+    ? manualDiscountAmount({
+        discount: input.manualDiscount,
+        subtotal: posDraftTotals(input.draft).subtotal,
+      })
+    : { ok: true as const, amount: 0 };
+
+  if (!manualAmount.ok) {
+    const message =
+      manualAmount.reason === "missing-reason"
+        ? "Escribí por qué se hace el descuento."
+        : "El descuento tiene que ser un monto mayor que cero o un porcentaje de hasta 100 %.";
+
+    throw new PosError(422, "VALIDATION_ERROR", message, { discount: message });
+  }
+
+  const expectedTotal = posDraftTotals(
+    input.draft,
+    composeSaleDiscount({
+      couponDiscount,
+      manualDiscount: manualAmount.amount,
+      subtotal: posDraftTotals(input.draft).subtotal,
+    }),
+  ).total;
 
   const draftProblem = validatePaidWithAmount({
     paidWithAmount: paidInBusinessCurrency,
@@ -186,8 +223,10 @@ export async function registerPosSale(
     pickupTime: null,
     pickupScheduled: false,
     tipOptIn: false,
-    // Tarea 9.6: el cupón se aplica en el alta (valida, calcula y consume el uso).
+    // Tarea 9.6: el cupón se aplica en el alta (valida, calcula y consume el uso). Tarea 9.7: el descuento
+    // manual viaja como forma y motivo, y el alta lo compone con el cupón.
     couponCode,
+    manualDiscount: input.manualDiscount ?? null,
     idempotencyKey: input.idempotencyKey ?? null,
   });
 

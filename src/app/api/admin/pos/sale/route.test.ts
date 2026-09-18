@@ -19,6 +19,8 @@ import { InMemoryPaymentRepository } from "@/modules/orders/adapters/in-memory-p
 
 const requireAdminSessionMock = vi.fn();
 const canUsePOSMock = vi.fn();
+const canDiscountPosSaleMock = vi.fn();
+const manualDiscountAuditMock = vi.fn();
 const createPosOrderMock = vi.fn();
 const quoteCouponMock = vi.fn();
 const paymentRepository = new InMemoryPaymentRepository();
@@ -29,6 +31,11 @@ vi.mock("@/modules/auth/features/require-admin-session/require-admin-session", (
 
 vi.mock("@/modules/auth/domain/admin-permissions", () => ({
   canUsePOS: canUsePOSMock,
+  canDiscountPosSale: canDiscountPosSaleMock,
+}));
+
+vi.mock("@/app/api/admin/audit-action-helpers", () => ({
+  manualDiscountAudit: (input: unknown) => manualDiscountAuditMock(input),
 }));
 
 vi.mock("@/modules/pos/adapters/production-pos-sale", () => ({
@@ -85,6 +92,7 @@ describe("admin pos sale route", () => {
       user: { id: "admin_1", role: "cashier", locationIds: [] },
     });
     canUsePOSMock.mockReturnValue(true);
+    canDiscountPosSaleMock.mockReturnValue(true);
     createPosOrderMock.mockResolvedValue({
       order: { id: "ord_01", orderNumber: "P-ABC123", total: 80 } as OrderRecord,
       reused: false,
@@ -221,6 +229,54 @@ describe("admin pos sale route", () => {
     });
     expect(createPosOrderMock.mock.calls[0][0]).toMatchObject({ couponCode: "BIENVENIDA10" });
     expect(body.data.payments[0].amount).toBe(73);
+  });
+
+  /**
+   * Tarea 9.7 del roadmap del POS (Fase 2) — el **descuento manual**: permiso propio y asiento en el log.
+   *
+   * Un cupón lo escribe el cajero (tarea 9.6); un descuento manual es plata que el cliente deja de pagar
+   * porque alguien lo decidió: lo autoriza quien administra la caja y tiene que quedar firmado con su motivo.
+   */
+  it("sin permiso para descontar a mano, la venta con descuento responde 403 y no crea nada", async () => {
+    canDiscountPosSaleMock.mockReturnValue(false);
+
+    const response = await callRoute({
+      ...venta,
+      manualDiscount: { kind: "percentage", value: 10, reason: "Cliente de siempre" },
+      payments: [{ method: "cash", currency: "NIO", amount: 73 }],
+    });
+    const body = await response.json();
+
+    expect(response.status).toBe(403);
+    expect(body.error.fields.discount).toContain("descuento manual");
+    expect(createPosOrderMock).not.toHaveBeenCalled();
+    expect(manualDiscountAuditMock).not.toHaveBeenCalled();
+  });
+
+  it("con permiso, el descuento manual baja el cobro y queda asentado con su motivo", async () => {
+    canDiscountPosSaleMock.mockReturnValue(true);
+    createPosOrderMock.mockResolvedValue({
+      order: { id: "ord_01", orderNumber: "P-ABC123", total: 73 } as OrderRecord,
+      reused: false,
+    });
+
+    const response = await callRoute({
+      ...venta,
+      manualDiscount: { kind: "percentage", value: 10, reason: "Cliente de siempre" },
+      payments: [{ method: "cash", currency: "NIO", amount: 73 }],
+    });
+
+    expect(response.status).toBe(201);
+    expect(createPosOrderMock.mock.calls[0][0]).toMatchObject({
+      manualDiscount: { kind: "percentage", value: 10, reason: "Cliente de siempre" },
+    });
+    expect(manualDiscountAuditMock).toHaveBeenCalledWith({
+      actorUserId: "admin_1",
+      orderId: "ord_01",
+      kind: "percentage",
+      value: 10,
+      reason: "Cliente de siempre",
+    });
   });
 
   /**

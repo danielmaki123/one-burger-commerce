@@ -10,6 +10,10 @@ import {
 } from "@/modules/orders/domain/coupon-eligibility";
 import { resolveCouponDiscount } from "@/modules/orders/domain/coupon-discount";
 import {
+  composeSaleDiscount,
+  manualDiscountAmount,
+} from "@/modules/orders/domain/sale-discount";
+import {
   isOrderPaymentMethod,
   type DeliveryFeeStatus,
   type DeliveryZoneRecord,
@@ -59,6 +63,14 @@ export type CreateOrderRequest = {
   customerEmail?: string | null;
   items: OrderItemRequest[];
   couponCode?: string | null;
+  /**
+   * Tarea 9.7 del roadmap del POS (Fase 2) — el **descuento manual** que autoriza quien administra la caja.
+   *
+   * Viaja como **forma** (porcentaje o monto) y con su motivo, nunca como monto calculado: el número sale del
+   * subtotal que resuelve el servidor. El POS lo permite solo con `canDiscountPosSale`; el alta lo valida
+   * igual, porque la puerta de la plata es una sola.
+   */
+  manualDiscount?: { kind: "percentage" | "amount"; value: number; reason: string } | null;
   address?: string | null;
   deliveryNotes?: string | null;
   deliveryFeeStatus?: DeliveryFeeStatus | null;
@@ -370,8 +382,31 @@ export async function createOrder(
   // Calculate totals
   const subtotal = itemDetails.reduce((sum, item) => sum + item.lineTotal, 0);
 
+  /**
+   * Tarea 9.7 del roadmap del POS (Fase 2) — el descuento manual autorizado. Se valida acá (motivo, monto,
+   * porcentaje) y se compone con el del cupón: entre los dos nunca descuentan más que la venta.
+   */
+  let manualDiscount = 0;
+  if (input.manualDiscount) {
+    const resolvedManual = manualDiscountAmount({
+      discount: input.manualDiscount,
+      subtotal,
+    });
+
+    if (!resolvedManual.ok) {
+      const message =
+        resolvedManual.reason === "missing-reason"
+          ? "Escribí por qué se hace el descuento."
+          : "El descuento tiene que ser un monto mayor que cero o un porcentaje de hasta 100 %.";
+
+      throw new OrderError(422, "VALIDATION_ERROR", message, { discount: message });
+    }
+
+    manualDiscount = resolvedManual.amount;
+  }
+
   // Apply coupon if provided
-  let discount = 0;
+  let couponDiscount = 0;
   let appliedCouponCode: string | null = null;
   let consumedCouponId: string | null = null;
 
@@ -405,10 +440,9 @@ export async function createOrder(
       );
     }
 
-    discount = resolved.discount;
+    couponDiscount = resolved.discount;
 
-    // Reserve the use atomically before persisting the order: two concurrent
-    // orders can no longer both pass the limit check.
+    // Reserve the use atomically before persisting the order: two concurrent    // orders can no longer both pass the limit check.
     const reserved = await repository.consumeCouponUsage(
       coupon.id,
       coupon.usageLimit,
@@ -421,6 +455,12 @@ export async function createOrder(
     consumedCouponId = coupon.id;
     appliedCouponCode = coupon.code;
   }
+
+  /**
+   * El descuento final: el cupón (ya limitado al subtotal) más el descuento manual autorizado, sin pasar
+   * nunca del subtotal (tarea 9.7). El empaque y el envío se pagan igual.
+   */
+  const discount = composeSaleDiscount({ couponDiscount, manualDiscount, subtotal });
 
   const deliveryFeeAmount = input.type === "delivery" && selectedZone ? selectedZone.baseFee : 0;
   const { packagingAmount, tipAmount, tipRate, total } = calculateOrderTotals({

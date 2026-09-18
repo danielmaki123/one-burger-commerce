@@ -76,4 +76,37 @@ describe("parsePosSalePayload", () => {
   it("un código imposible de guardar se rechaza", () => {
     expect(() => parsePosSalePayload(body({ couponCode: "x".repeat(41) }))).toThrow(PosError);
   });
+
+  /**
+   * Tarea 9.7 del roadmap del POS (Fase 2) — el **descuento manual** autorizado.
+   *
+   * Viaja como forma (porcentaje o monto) y con su motivo: el monto lo calcula el servidor sobre el subtotal
+   * que él mismo resolvió. Sin motivo no hay descuento: es plata que sale del arqueo y tiene que estar
+   * explicada.
+   */
+  it("lleva el descuento manual con su motivo", () => {
+    const parsed = parsePosSalePayload(
+      body({ manualDiscount: { kind: "percentage", value: 10, reason: "Cliente de siempre" } }),
+    );
+
+    expect(parsed.input.manualDiscount).toEqual({
+      kind: "percentage",
+      value: 10,
+      reason: "Cliente de siempre",
+    });
+  });
+
+  it("sin descuento manual la venta no lleva ninguno", () => {
+    expect(parsePosSalePayload(body()).input.manualDiscount).toBeNull();
+  });
+
+  it("un descuento sin motivo o sin monto se rechaza", () => {
+    expect(() =>
+      parsePosSalePayload(body({ manualDiscount: { kind: "amount", value: 10, reason: "  " } })),
+    ).toThrow(PosError);
+
+    expect(() =>
+      parsePosSalePayload(body({ manualDiscount: { kind: "amount", value: 0, reason: "Cortesía" } })),
+    ).toThrow(PosError);
+  });
 });

@@ -988,8 +988,102 @@ describe("createOrder", () => {
     expect(result.data.total).toBe(109);
   });
 
-  it("guarda si el retiro fue programado por el cliente o es lo antes posible", async () => {
+  /**
+   * Tarea 9.7 del roadmap del POS (Fase 2) — el **descuento manual** que autoriza quien administra la caja.
+   *
+   * Llega como **forma** (porcentaje o monto) y con su motivo; el monto lo calcula el servidor sobre el
+   * subtotal que él mismo resolvió. Se compone con el cupón y nunca pasa de la venta.
+   */
+  it("aplica un descuento manual sobre el subtotal (9.7)", async () => {
     const repository = createRepository();
+    seedProduct(repository, { basePrice: 100, packagingFeeAmount: 10 });
+
+    const result = await createOrder(
+      {
+        type: "pickup",
+        customerName: "Juan",
+        customerWhatsapp: "+50588887777",
+        items: [{ productId: "prod_01", quantity: 2, modifierOptionIds: [] }],
+        manualDiscount: { kind: "percentage", value: 10, reason: "Cliente de siempre" },
+      },
+      { repository },
+    );
+
+    expect(result.data.subtotal).toBe(200);
+    // 10 % de 200; el empaque (20) se sigue pagando.
+    expect(result.data.discount).toBe(20);
+    expect(result.data.total).toBe(200);
+  });
+
+  it("el cupón y el descuento manual se suman sin pasar de la venta (9.7)", async () => {
+    const repository = createRepository();
+    seedProduct(repository, { basePrice: 100 });
+    repository.coupons.push({
+      id: "coupon_01",
+      code: "MITAD",
+      type: "fixed_amount",
+      value: 150,
+      isActive: true,
+      usageLimit: 0,
+      usedCount: 0,
+      expiresAt: null,
+    });
+
+    const result = await createOrder(
+      {
+        type: "pickup",
+        customerName: "Juan",
+        customerWhatsapp: "+50588887777",
+        items: [{ productId: "prod_01", quantity: 1, modifierOptionIds: [] }],
+        couponCode: "MITAD",
+        manualDiscount: { kind: "amount", value: 80, reason: "Cortesía" },
+      },
+      { repository },
+    );
+
+    // El cupón ya descontaba el subtotal entero: el manual no puede dejar el total en negativo.
+    expect(result.data.subtotal).toBe(100);
+    expect(result.data.discount).toBe(100);
+    expect(result.data.total).toBe(0);
+  });
+
+  it("un descuento manual sin motivo se rechaza (9.7)", async () => {
+    const repository = createRepository();
+    seedProduct(repository);
+
+    await expect(
+      createOrder(
+        {
+          type: "pickup",
+          customerName: "Juan",
+          customerWhatsapp: "+50588887777",
+          items: [{ productId: "prod_01", quantity: 1, modifierOptionIds: [] }],
+          manualDiscount: { kind: "percentage", value: 10, reason: "  " },
+        },
+        { repository },
+      ),
+    ).rejects.toMatchObject({ status: 422 });
+  });
+
+  it("un descuento manual de más del 100 % se rechaza en vez de recortarse (9.7)", async () => {
+    const repository = createRepository();
+    seedProduct(repository);
+
+    await expect(
+      createOrder(
+        {
+          type: "pickup",
+          customerName: "Juan",
+          customerWhatsapp: "+50588887777",
+          items: [{ productId: "prod_01", quantity: 1, modifierOptionIds: [] }],
+          manualDiscount: { kind: "percentage", value: 120, reason: "Cortesía" },
+        },
+        { repository },
+      ),
+    ).rejects.toMatchObject({ status: 422 });
+  });
+
+  it("guarda si el retiro fue programado por el cliente o es lo antes posible", async () => {    const repository = createRepository();
     seedProduct(repository);
 
     const programado = await createOrder(

@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-import { canUsePOS } from "@/modules/auth/domain/admin-permissions";
+import { canDiscountPosSale, canUsePOS } from "@/modules/auth/domain/admin-permissions";
 import { requireAdminSession } from "@/modules/auth/features/require-admin-session/require-admin-session";
 import { resolveOrderLocationScope } from "@/modules/orders/domain/order-visibility";
 import { createProductionPosLocationDependencies } from "@/modules/pos/adapters/production-pos-location";
@@ -45,5 +45,5 @@ export default async function AdminPosPage() {
     redirect("/admin/orders");
   }
 
-  return <PosClient locations={locations} />;
+  return <PosClient locations={locations} canDiscount={canDiscountPosSale(session.user.role)} />;
 }

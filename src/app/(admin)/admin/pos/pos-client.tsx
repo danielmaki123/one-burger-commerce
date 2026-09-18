@@ -29,6 +29,8 @@ import {
 import { AdminEmptyState, AdminPageHeader } from "../_components/admin-operational-ui";
 import PosChargePanel from "./pos-charge-panel";
 import PosCouponPanel from "./pos-coupon-panel";
+import PosCustomerFields from "./pos-customer-fields";
+import PosDiscountPanel, { type AppliedManualDiscount } from "./pos-discount-panel";
 import PosHoldsPanel from "./pos-holds-panel";
 import PosPaymentRows from "./pos-payment-rows";
 import PosSaleLines from "./pos-sale-lines";
@@ -70,7 +72,18 @@ function catalogUrl(locationId: string) {
   return `/api/admin/pos/catalog?locationId=${encodeURIComponent(locationId)}`;
 }
 
-export default function PosClient({ locations }: { locations: PosLocationOption[] }) {  const currency = useCurrencyFormat();
+export default function PosClient({
+  locations,
+  canDiscount = false,
+}: {
+  locations: PosLocationOption[];
+  /**
+   * Tarea 9.7 del roadmap del POS (Fase 2) — si esta sesión puede dar un **descuento manual**. Lo resuelve
+   * el servidor (`canDiscountPosSale`: owner y manager) y la ruta lo vuelve a comprobar: acá solo decide si
+   * el control se muestra.
+   */
+  canDiscount?: boolean;
+}) {  const currency = useCurrencyFormat();
   const settings = useBusinessSettings();
 
   const [locationId, setLocationId] = React.useState(locations[0]?.id ?? "");
@@ -108,6 +121,11 @@ export default function PosClient({ locations }: { locations: PosLocationOption[
   } | null>(null);
   const [couponBusy, setCouponBusy] = React.useState(false);
   const [couponError, setCouponError] = React.useState<string | null>(null);
+  /**
+   * Tarea 9.7 del roadmap del POS (Fase 2) — el descuento manual autorizado, si lo hay. El panel solo se
+   * muestra a quien puede darlo y acá se guarda lo que quedó aplicado (forma, motivo y monto).
+   */
+  const [manualDiscount, setManualDiscount] = React.useState<AppliedManualDiscount | null>(null);
   const [reloadKey, setReloadKey] = React.useState(0);
   const [customer, setCustomer] = React.useState({ name: "", whatsapp: "", email: "" });
   /**
@@ -259,6 +277,7 @@ export default function PosClient({ locations }: { locations: PosLocationOption[
     setLastSale(null);
     setCoupon(null);
     setCouponError(null);
+    setManualDiscount(null);
   }, [locationId, settings.currencyCode]);
 
   const visibleProducts = React.useMemo(
@@ -272,7 +291,10 @@ export default function PosClient({ locations }: { locations: PosLocationOption[
     .join("|");
   const appliedCoupon =
     coupon !== null && coupon.cartSignature === cartSignature ? coupon : null;
-  const totals = posDraftTotals(draft, appliedCoupon?.discount ?? 0);
+  const totals = posDraftTotals(
+    draft,
+    (appliedCoupon?.discount ?? 0) + (manualDiscount?.amount ?? 0),
+  );
 
   /**
    * Tarea 9.6 — pide al servidor cuánto descuenta el código sobre **esta** venta. El descuento lo calcula el
@@ -482,6 +504,14 @@ export default function PosClient({ locations }: { locations: PosLocationOption[
           idempotencyKey: attemptKey,
           // Tarea 9.6: el código viaja al servidor, que es el que valida, calcula y consume el uso.
           couponCode: appliedCoupon?.code ?? null,
+          // Tarea 9.7: el descuento manual viaja como forma y motivo; el monto lo calcula el servidor.
+          manualDiscount: manualDiscount
+            ? {
+                kind: manualDiscount.kind,
+                value: manualDiscount.value,
+                reason: manualDiscount.reason,
+              }
+            : null,
         }),
       });
 
@@ -524,9 +554,10 @@ export default function PosClient({ locations }: { locations: PosLocationOption[
       setDraft(createPosDraft(locationId));
       setCustomer({ name: "", whatsapp: "", email: "" });
       setPayments([{ id: "pay_1", method: "cash", currency: settings.currencyCode, amount: "" }]);
-      // La venta se cobró: el cupón ya se consumió y la que venga empieza sin promo.
+      // La venta se cobró: el cupón ya se consumió y la que venga empieza sin promo ni descuento.
       setCoupon(null);
       setCouponError(null);
+      setManualDiscount(null);
       // La operación se resolvió (cobrada o reconocida): la venta que venga es otra y necesita su clave.
       renewAttemptKey();
     } catch {
@@ -722,31 +753,10 @@ export default function PosClient({ locations }: { locations: PosLocationOption[
             ) : null}
 
             <div className="space-y-3 border-t border-line-subtle pt-3">
-              <Input
-                label="Nombre del cliente"
-                value={customer.name}
-                error={fieldErrors.name ?? fieldErrors.customerName}
-                onChange={(event) =>
-                  setCustomer((current) => ({ ...current, name: event.target.value }))
-                }
-              />
-              <Input
-                label="Número del cliente"
-                inputMode="tel"
-                value={customer.whatsapp}
-                error={fieldErrors.whatsapp ?? fieldErrors.customerWhatsapp}
-                onChange={(event) =>
-                  setCustomer((current) => ({ ...current, whatsapp: event.target.value }))
-                }
-              />
-              <Input
-                label="Correo (opcional)"
-                type="email"
-                value={customer.email}
-                error={fieldErrors.customerEmail}
-                onChange={(event) =>
-                  setCustomer((current) => ({ ...current, email: event.target.value }))
-                }
+              <PosCustomerFields
+                customer={customer}
+                setCustomer={setCustomer}
+                fieldErrors={fieldErrors}
               />
 
               <PosPaymentRows
@@ -787,10 +797,7 @@ export default function PosClient({ locations }: { locations: PosLocationOption[
                 </p>
               ) : null}
 
-              {/*
-                Tarea 9.6 del roadmap del POS (Fase 2): el cupón del cliente, cotizado por el servidor antes
-                de cobrar. Va pegado al total que cambia y al botón de cobrar, que es donde el cajero lo mira.
-              */}
+              {/* Tarea 9.6: el cupón del cliente, cotizado por el servidor antes de cobrar. */}
               <PosCouponPanel
                 applied={
                   appliedCoupon
@@ -811,6 +818,16 @@ export default function PosClient({ locations }: { locations: PosLocationOption[
                   setCouponError(null);
                 }}
               />
+
+              {/* Tarea 9.7: el descuento manual, solo para quien puede darlo (owner o manager). */}
+              {canDiscount ? (
+                <PosDiscountPanel
+                  subtotal={totals.subtotal}
+                  currency={currency}
+                  applied={manualDiscount}
+                  onChange={setManualDiscount}
+                />
+              ) : null}
 
               {/*
                 Bloque 12.3/12.4 del roadmap del POS (Fase 2): el cobro, con el aviso de caja cerrada, el

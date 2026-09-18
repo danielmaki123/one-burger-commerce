@@ -105,6 +105,18 @@ export function canViewCashHistory(role: AdminRole) {
   return role === ADMIN_ROLES.owner || role === ADMIN_ROLES.manager;
 }
 
+/**
+ * Tarea 9.7 del roadmap del POS (Fase 2) — **descontar plata a mano** en una venta de mostrador.
+ *
+ * Un **cupón** es una promo cargada, con su lista de códigos y sus usos: el cajero solo escribe el código
+ * (tarea 9.6). Un **descuento manual** es distinto: es plata que el cliente deja de pagar porque alguien lo
+ * decidió en el momento, sin promo que lo respalde. Lo autoriza quien administra la caja —owner o manager—,
+ * no el cajero, y queda asentado en el log de acciones sensibles con su motivo.
+ */
+export function canDiscountPosSale(role: AdminRole) {
+  return role === ADMIN_ROLES.owner || role === ADMIN_ROLES.manager;
+}
+
 export function canViewDashboardSummary(role: AdminRole) {
   return role === ADMIN_ROLES.owner;
 }

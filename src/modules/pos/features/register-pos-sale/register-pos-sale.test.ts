@@ -467,4 +467,53 @@ describe("venta de mostrador", () => {
     expect(quoteCoupon).not.toHaveBeenCalled();
     expect(createPosOrder.mock.calls[0][0]).toMatchObject({ couponCode: null });
   });
+
+  /**
+   * Tarea 9.7 del roadmap del POS (Fase 2) — el **descuento manual** autorizado.
+   *
+   * El permiso lo comprueba la ruta (`canDiscountPosSale`); acá lo que importa es que el descuento mueva el
+   * total que se le pide al cliente **y** viaje al alta como forma y motivo, para que el monto lo calcule el
+   * servidor y quede el porqué.
+   */
+  it("un descuento manual autorizado baja el total que se le pide al cliente", async () => {
+    const createPosOrder = vi.fn(async (_input: CreateOrderRequest) => ({
+      order: order({ subtotal: 70, discount: 7, packagingAmount: 10, total: 73 }),
+      reused: false,
+    }));
+    const { deps } = setup(createPosOrder);
+
+    const result = await registerPosSale(
+      {
+        draft: draftWithTaco(),
+        customer,
+        // 70 de taco + 10 de empaque − 10 % de 70 = 73.
+        payments: [{ method: "cash", currency: "NIO", amount: 73 }],
+        manualDiscount: { kind: "percentage", value: 10, reason: "Cliente de siempre" },
+      },
+      deps,
+    );
+
+    expect(createPosOrder.mock.calls[0][0]).toMatchObject({
+      manualDiscount: { kind: "percentage", value: 10, reason: "Cliente de siempre" },
+    });
+    expect(result.order.total).toBe(73);
+  });
+
+  it("un descuento manual sin motivo no cobra nada", async () => {
+    const { createPosOrder, deps } = setup();
+
+    await expect(
+      registerPosSale(
+        {
+          draft: draftWithTaco(),
+          customer,
+          payments: [{ method: "cash", currency: "NIO", amount: 80 }],
+          manualDiscount: { kind: "amount", value: 10, reason: "   " },
+        },
+        deps,
+      ),
+    ).rejects.toMatchObject({ status: 422, message: "Escribí por qué se hace el descuento." });
+
+    expect(createPosOrder).not.toHaveBeenCalled();
+  });
 });

@@ -195,3 +195,25 @@ export function settingsUpdateAudit(input: { actorUserId: string }) {
     targetId: "business-settings",
   });
 }
+
+/**
+ * Tarea 9.7 del roadmap del POS (Fase 2) — un descuento manual en el mostrador.
+ *
+ * Se firma con la **forma** (porcentaje o monto), el valor que se pidió y el **motivo** que escribió quien
+ * lo autorizó: es lo único que seis meses después explica por qué esa venta entró con menos plata.
+ */
+export function manualDiscountAudit(input: {
+  actorUserId: string;
+  orderId: string;
+  kind: string;
+  value: number;
+  reason: string;
+}) {
+  return recordAdminAudit({
+    action: "order.manual_discount",
+    actorUserId: input.actorUserId,
+    targetType: "Order",
+    targetId: input.orderId,
+    detail: { kind: input.kind, value: input.value, reason: input.reason },
+  });
+}

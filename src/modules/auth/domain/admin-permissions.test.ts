@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  canDiscountPosSale,
   canManageBusinessSettings,
   canManageCash,
   canManageCriticalConfig,
@@ -19,6 +20,20 @@ import {
 import { ADMIN_ROLES } from "@/modules/auth/domain/admin-role";
 
 describe("admin permissions", () => {
+  /**
+   * Tarea 9.7 del roadmap del POS (Fase 2) — **descontar plata a mano** en el mostrador.
+   *
+   * Un cupón es una promo cargada con su lista de códigos y sus usos: el cajero solo escribe el código. Un
+   * descuento manual, en cambio, es plata que el cliente deja de pagar porque alguien lo decidió en el
+   * momento: lo autoriza quien administra la caja (owner o manager), no el cajero.
+   */
+  it("solo owner y manager descuentan a mano en el POS (9.7)", () => {
+    expect(canDiscountPosSale(ADMIN_ROLES.owner)).toBe(true);
+    expect(canDiscountPosSale(ADMIN_ROLES.manager)).toBe(true);
+    expect(canDiscountPosSale(ADMIN_ROLES.cashier)).toBe(false);
+    expect(canDiscountPosSale(ADMIN_ROLES.kitchen)).toBe(false);
+  });
+
   /**
    * TASK-105 — el permiso del punto de venta.
    *

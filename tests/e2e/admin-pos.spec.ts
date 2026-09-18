@@ -306,7 +306,7 @@ test.describe("punto de venta", () => {
       const totalSinPromo = (await page.getByRole("button", { name: /^Cobrar / }).textContent())!;
 
       await page.getByLabel("Código de promo (opcional)").fill(code);
-      await page.getByRole("button", { name: "Aplicar" }).click();
+      await page.getByRole("button", { name: "Aplicar", exact: true }).click();
 
       // La cotización se ve con su descripción y el total ya la tiene descontada.
       await expect(page.getByText("10 % de descuento")).toBeVisible();
@@ -321,7 +321,7 @@ test.describe("punto de venta", () => {
       // Un código que no existe se dice sin tocar el total, y la promo se puede quitar.
       await page.getByRole("button", { name: "Quitar", exact: true }).click();
       await page.getByLabel("Código de promo (opcional)").fill("NOEXISTE");
-      await page.getByRole("button", { name: "Aplicar" }).click();
+      await page.getByRole("button", { name: "Aplicar", exact: true }).click();
       await expect(page.getByText("Ese código no existe.")).toBeVisible();
       await expect(page.getByRole("button", { name: /^Cobrar / })).toHaveText(totalSinPromo);
     } finally {
@@ -333,8 +333,50 @@ test.describe("punto de venta", () => {
     }
   });
 
-  test("el cajero cobra la venta y el pedido llega a comandas", async ({ page }) => {
-    test.skip(!mutationsAllowed, "Order creation is disabled unless E2E_ALLOW_MUTATIONS=true.");
+  /**
+   * Tarea 9.7 del roadmap del POS (Fase 2) — el **descuento manual con permiso**, en el navegador de verdad.
+   *
+   * El dueño (que puede darlo) ve el control, lo aplica con su motivo y el total baja antes de cobrar; el
+   * cajero no lo ve (eso lo mide `admin-cashier.spec.ts`). El caso no cobra nada: no toca la base.
+   */
+  test("el dueño aplica un descuento manual y el total baja (9.7)", async ({ page }) => {
+    await loginAsOwner(page);
+    await page.goto("/admin/pos");
+
+    // Una terminal nueva: el borrador que haya dejado otro caso no es de esta venta.
+    await page.evaluate(() => {
+      for (const key of Object.keys(globalThis.localStorage)) {
+        if (key.startsWith("one-burger-pos-")) globalThis.localStorage.removeItem(key);
+      }
+    });
+    await page.reload();
+
+    const agregar = page.getByRole("button", { name: /^Agregar .+ a la venta$/ }).first();
+    await expect(agregar).toBeVisible();
+    await agregar.click();
+
+    const totalSinDescuento = (await page.getByRole("button", { name: /^Cobrar / }).textContent())!;
+
+    const descuento = page.getByRole("region", { name: "Descuento manual" });
+    await expect(descuento).toBeVisible();
+    await page.getByLabel("Descuento (%)").fill("10");
+    await page.getByLabel("Motivo del descuento").fill("Cliente de siempre");
+    await page.getByRole("button", { name: "Aplicar descuento" }).click();
+
+    await expect(page.getByText("Descuento manual · 10 %")).toBeVisible();
+    await expect(page.getByText("Cliente de siempre")).toBeVisible();
+
+    const totalConDescuento = (await page.getByRole("button", { name: /^Cobrar / }).textContent())!;
+    const aNumero = (etiqueta: string) => Number(etiqueta.replace(/[^\d.]/g, ""));
+    expect(aNumero(totalConDescuento)).toBeLessThan(aNumero(totalSinDescuento));
+
+    // El descuento se puede quitar: el total vuelve al de antes y la venta queda limpia.
+    await page.getByRole("button", { name: "Quitar descuento" }).click();
+    await expect(page.getByRole("button", { name: /^Cobrar / })).toHaveText(totalSinDescuento);
+    await page.getByRole("button", { name: /^Sacar / }).first().click();
+  });
+
+  test("el cajero cobra la venta y el pedido llega a comandas", async ({ page }) => {    test.skip(!mutationsAllowed, "Order creation is disabled unless E2E_ALLOW_MUTATIONS=true.");
 
     await loginAsOwner(page);
     await page.goto("/admin/pos");

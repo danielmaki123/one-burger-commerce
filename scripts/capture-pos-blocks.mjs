@@ -202,7 +202,7 @@ try {
     await page.getByRole("button", { name: /^Agregar / }).first().click();
     await page.getByLabel("Nombre del cliente").fill("Cliente captura");
     await page.getByLabel("Código de promo (opcional)").fill(promoCode);
-    await page.getByRole("button", { name: "Aplicar" }).click();
+    await page.getByRole("button", { name: "Aplicar", exact: true }).click();
     await page.getByText("10 % de descuento").waitFor({ timeout: 30_000 });
     await page.getByRole("button", { name: /^Cobrar / }).scrollIntoViewIfNeeded();
     await page.waitForTimeout(500);
@@ -215,6 +215,20 @@ try {
       const promo = list.data.find((item) => item.code === code);
       if (promo) await fetch(`/api/admin/promotions/${promo.id}`, { method: "DELETE" });
     }, promoCode);
+
+    // Tarea 9.7 del roadmap (2026-09-17): el **descuento manual** con permiso (el dueño lo ve). Se aplica
+    // con su motivo —obligatorio— y el total baja; después se quita para dejar el mostrador limpio.
+    await page.getByRole("button", { name: /^Agregar / }).first().click();
+    await page.getByLabel("Descuento (%)").fill("10");
+    await page.getByLabel("Motivo del descuento").fill("Cliente de siempre");
+    await page.getByRole("button", { name: "Aplicar descuento" }).click();
+    await page.getByText("Descuento manual · 10 %").waitFor({ timeout: 30_000 });
+    await page.getByRole("button", { name: /^Cobrar / }).scrollIntoViewIfNeeded();
+    await page.waitForTimeout(500);
+    await shot(page, "tarea-9-7-descuento-manual", viewport.name);
+
+    await page.getByRole("button", { name: "Quitar descuento" }).click();
+    await page.getByRole("button", { name: /^Sacar / }).first().click();
 
     // El aviso y el botón bloqueado viven al final del formulario de cobro: se baja hasta ahí para
     // que la captura muestre **el efecto** del bloqueo, no solo el estado de la caja.

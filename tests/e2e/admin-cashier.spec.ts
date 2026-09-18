@@ -40,5 +40,12 @@ test.describe("el cajero", () => {
 
     await page.goto("/admin/approvals");
     await expect(page).toHaveURL(/\/admin\/orders$/);
+
+    // 4. El mostrador: cobra y **no descuenta a mano** (tarea 9.7). Un descuento manual es plata que el
+    //    cliente deja de pagar porque alguien lo decidió, y lo autoriza quien administra la caja.
+    await page.goto("/admin/pos");
+    await expect(page.getByRole("region", { name: "Venta en curso" })).toBeVisible();
+    await expect(page.getByRole("region", { name: "Descuento manual" })).toHaveCount(0);
+    await expect(page.getByLabel("Código de promo (opcional)")).toBeVisible();
   });
 });
