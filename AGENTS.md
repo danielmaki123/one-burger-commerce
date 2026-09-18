@@ -12,9 +12,6 @@ explícito del humano, gana el humano; después de resolverlo, actualizá este a
   el que pase por el chat) ya define se ejecuta **de corrido**, cerrando una tarea por vez. Se sigue
   preguntando por lo que el plan **no** decide (alcance nuevo, producto, dependencias, deploy) y, si
   choca con este archivo, gana el plan y la excepción se anota acá en el mismo commit.
-- El punto de entrada para un chat nuevo es
-  [`ops/tasks/START-HERE.md`](ops/tasks/START-HERE.md): tiene el prompt listo para pegar, el
-  mapa de documentos y la cola de pendientes en orden.
 
 ## Qué es el proyecto
 
@@ -26,9 +23,8 @@ explícito del humano, gana el humano; después de resolverlo, actualizá este a
 - Pago: **en el local al retirar**. No hay pasarela de pago.
 - Propina: opcional, desmarcada por defecto.
 
-Fuera del MVP (código presente, **no** ofrecido en UI ni APIs públicas): reservas, mesas, delivery,
-inventario y reportes avanzados. Sus páginas quedan accesibles solo por URL directa: no reactivarlos en
-la navegación ni en las APIs públicas sin aprobación explícita.
+Fuera del MVP (código presente, **no** ofrecido en UI ni APIs públicas): reservas, mesas, delivery, inventario y
+reportes avanzados; sus páginas quedan solo por URL directa y no se reactivan en la navegación ni en las APIs públicas sin aprobación explícita.
 
 ## Dónde está el estado (leer antes de trabajar)
 
@@ -47,8 +43,7 @@ es este archivo + `ops/`.
 ## Stack
 
 - Next.js 16 (App Router, Turbopack) + React 19 + TypeScript estricto · Prisma 6 + PostgreSQL 17
-- Tailwind CSS 4 con tokens CSS propios (`src/app/globals.css`) · Vitest (unitarios) · Playwright
-  (E2E) · ESLint
+- Tailwind CSS 4 con tokens CSS propios (`src/app/globals.css`) · Vitest (unitarios) · Playwright (E2E) · ESLint
 - Docker multi-stage → **Easypanel** (build desde GitHub `main`)
 
 ## Arquitectura (DDD)
@@ -64,18 +59,13 @@ src/infrastructure/** prisma, event bus
   externo · `adapters`: implementaciones (Prisma; `in-memory-*` para tests).
 - `features/<caso-de-uso>`: un caso de uso por carpeta, con dependencias inyectadas
   (`{ repository, ... }`); **no** instancia Prisma.
-- Los API routes y las páginas son la capa de composición: validan con zod, resuelven sesión y
-  permisos, instancian adaptadores y llaman casos de uso. Los errores de dominio van tipados por módulo
-  (`OrderError`, `AuthError`, …) y se mapean en `src/shared/lib/http/error-response.ts`.
 
 ## Jerarquía de fuentes (qué gana cuando hay conflicto)
 
-1. **`ops/references/stitch/design-system.md`** — el **sistema de diseño oficial**. Se lee antes de
-   escribir UI y **siempre gana** en lo visual.
+1. **`ops/references/stitch/design-system.md`** — el **sistema de diseño oficial**: se lee antes de escribir UI y **siempre gana** en lo visual.
 2. **`ops/references/stitch/stitch_redise_o_de_secci_n_existente/<pantalla>/code.html`** (+ `screen.png`)
    — la **referencia visual** de las 7 pantallas. Es referencia: se **traduce** a componentes, no se copia.
-3. **`AGENTS.md`** (este archivo) — alcance, arquitectura, testing, validación, git/CI, deploy, idioma
-   y prohibiciones. **Sigue mandando sobre el sistema** cuando el conflicto no es visual: en ese caso
+3. **`AGENTS.md`** (este archivo) — **sigue mandando sobre el sistema** cuando el conflicto no es visual: en ese caso
    gana este archivo y el documento de diseño se corrige en el mismo commit.
 4. **Skills de diseño** — **referencia secundaria, no fuente de verdad**: si contradicen al sistema,
    **gana el repo** (se reporta y no se cambia).
@@ -105,8 +95,7 @@ Dos modos a propósito (owner, 2026-09-16): el **panel** (KDS/POS/Admin) es **os
 - **Prohibido el HTML crudo equivalente** (`<button>`, `<input>`, `<select>`, `<textarea>`) cuando el
   primitivo existe, y prohibido **copiar el HTML de Stitch**: se traduce a componentes del repo. Si falta
   un primitivo, se documenta en `src/shared/ui/registry.json` antes de inventar el sexto `className`.
-- **Prohibido el color fuera de token**: nada de `#hex`, `rgba()`, paleta cruda de Tailwind
-  (`slate-*`, `sky-*`, `amber-*`, `emerald-*`, `rose-*`) donde hay token, ni `fontFamily` inline.
+- **Prohibido el color fuera de token**: nada de `#hex`, `rgba()`, paleta cruda de Tailwind (`slate-*`, `sky-*`, `amber-*`…) donde hay token, ni `fontFamily` inline.
 - **Los 16 tokens muertos están prohibidos y ya no existen** (C1-3): `--primary`, `--popover`,
   `--destructive`, `--ring` y la familia `--sidebar-*` se eliminaron porque nadie los consumía.
 - **Contraste**: texto/fondo **4.5:1** y borde de control **3:1** (WCAG 1.4.11); lo mide
@@ -134,8 +123,6 @@ Dos modos a propósito (owner, 2026-09-16): el **panel** (KDS/POS/Admin) es **os
   son deuda inventariada: no se agrandan y se parten cuando se los toque por otra razón.
 - **Antes de crear, buscar**: si la regla, el cálculo o el texto ya existen, se reusan. Duplicar para
   "no tocar lo otro" no es una opción.
-- **Docs**: prohibido crear archivos `.md` nuevos sin aprobación humana; si el cambio deja un doc
-  desactualizado, se actualiza en el mismo commit.
 
 ## Testing (no negociable)
 
@@ -164,8 +151,7 @@ se escribió después, se verifica por mutación y se deja dicho en el commit).
 
 **Sistema Stitch (el panel es oscuro):**
 
-- [ ] ¿Los **números** van en `font-mono` con `tabular-nums` y los **estados del sistema**
-      (`--status-pending|prep|ready|sla`) en vez de colores sueltos?
+- [ ] ¿Los **números** van en `font-mono` con `tabular-nums` y los **estados del sistema** (`--status-pending|prep|ready|sla`) en vez de colores sueltos?
 - [ ] ¿Ámbar solo para identidad/cocina/acción y **azul cielo** para administración y POS?
 - [ ] ¿La cabecera y los filtros entran en el **20%** del alto y el resto es operación?
 - [ ] ¿Los controles táctiles tienen **≥44 px** y foco visible propio (≥3:1)?
@@ -188,8 +174,7 @@ npm run test && npm run lint && npm run typecheck && npm run build && npm run se
 Si tocaste flujos públicos o de admin, además los E2E locales
 (`BASE_URL=http://127.0.0.1:3210 npm run test:e2e:prod:full`); si tocás una **página**
 (`src/app/**/page.tsx`), `npm run build:webpack`, porque el build de Turbopack no valida los exports
-de una página y el problema queda escondido. Componentes y helpers van en su propio archivo (por eso
-`orders-page-helpers.ts` no vive dentro de la página).
+de una página y el problema queda escondido. Componentes y helpers van en su propio archivo.
 
 ## Definition of Done
 
@@ -202,15 +187,16 @@ Una tarea está terminada cuando:
 - Captura antes/después si toca UI
 - ops/project-state.md actualizado
 - Commit + push a la rama de trabajo
-- PR abierto, CI verde, revisión aprobada
-- Merge a main
+- PR abierto, CI verde (los 4 checks)
+- Merge con `--squash` a main
+- Sesión cerrada con el procedimiento de abajo
 - Si toca deploy: aprobación del owner + los 2 smokes después
 - Excepciones documentadas en el commit (ej: TDD sin rojo observable)
 
 ## Git y CI
 
 Repo: `github.com/danielmaki123/one-burger-commerce`. Rama de deploy: **`main`**, que **no recibe push
-directo** (ver *Protección de `main`*, abajo: hoy la regla la sostiene el equipo).
+directo**: un ruleset lo bloquea (ver *Protección de `main`*, abajo).
 
 ### Flujo obligatorio para cada tarea
 
@@ -219,9 +205,9 @@ directo** (ver *Protección de `main`*, abajo: hoy la regla la sostiene el equip
 2. **Trabajar y commitear en la rama** (commits con el formato de *Commits*, abajo).
 3. **Push de la rama**: `git push -u origin <tipo>/<nombre-descriptivo>`.
 4. **Abrir Pull Request hacia `main`** con: qué cambió, por qué, cómo se verificó, qué quedó fuera.
-5. **Esperar revisión + CI verde.** No hay merge con un check rojo, sin la aprobación de otro dev o con
-   conflictos sin resolver.
-6. **Merge a `main`**, solo después del paso 5.
+5. **Esperar el CI verde.** No hay merge con un check rojo o con conflictos sin resolver; la aprobación
+   de otro dev **no** se exige (approvals 0), así que el PR lo mergea quien lo abrió.
+6. **Merge con `--squash`** (`gh pr merge <n> --squash --delete-branch`), solo después del paso 5.
 
 **Nomenclatura de ramas**: `feature/` funcionalidad nueva · `fix/` corrección de bug · `refactor/` sin
 cambio de comportamiento · `docs/` solo documentación · `chore/` mantenimiento (deps, config, CI).
@@ -244,13 +230,32 @@ y **container** (imagen real, readiness y bootstrap del admin); **publish** (ima
 en push a `main`. Si un check está rojo, el PR no se mergea. ⚠️ **Nunca marcar `publish` como
 *required check***: no corre en PRs y el PR quedaría trabado en «Expected» para siempre.
 
-**Protección de `main`** (la configura el owner con Settings → Branches): **estado real: todavía no
-está activada**, así que hoy la regla de este archivo la sostiene el equipo, no GitHub —el push directo
-funciona y **no hay que usarlo igual**—. La configuración a dejar activa es *Require a pull request
-before merging* · *Require 1 approval* · *Require status checks to pass* (`verify`, `contracts`,
-`migrations`, `container`) · *Require branches to be up to date before merging* · *Do not allow
-bypassing the above settings*. El agente **no puede modificar esa configuración**: si algo falla por
-protección de rama, se reporta al humano, no se intenta saltar.
+**Protección de `main`**: está **activa** como **ruleset** (`Protect main`, enforcement `active`, sobre
+`refs/heads/main`), no como branch protection clásica: se verifica con
+`gh api repos/danielmaki123/one-burger-commerce/rulesets`, **no** con `/branches/main/protection`, que
+devuelve **404** cuando la regla es un ruleset (ese 404 **no** significa «sin protección»). Reglas:
+**`deletion`** · **`non_fast_forward`** (force push bloqueado) · **`required_status_checks`** con
+`strict_required_status_checks_policy: true`.
+
+⚠️ **Dos huecos medidos el 2026-09-18**: (1) la lista de checks requeridos está **vacía**, así que el CI
+**no bloquea** el merge —hay que marcar `verify`, `contracts`, `migrations` y `container`, **nunca**
+`publish` (no corre en PRs)—; (2) **no hay regla de PR obligatorio**: el push directo lo bloquea el
+ruleset, pero mergear sin PR sigue siendo posible y lo sostiene el equipo.
+
+El agente **no puede modificar la configuración de rama**: si algo falla por protección, se reporta al
+humano, no se intenta saltar.
+
+### Cierre de sesión
+
+Antes de dar una sesión por terminada, **en este orden**:
+
+1. Mergear el PR de la tarea (`--squash --delete-branch`) y volver a `main` con `git pull`.
+2. Actualizar `ops/project-state.md` (qué se cerró, qué quedó desplegado y **qué falta**),
+   `ops/tasks/START-HERE.md` (el arranque del próximo chat) y `ops/audit-backlog.md` si hay hallazgos.
+3. **Ese cierre también va por PR**: no se pushea a `main` para documentar.
+4. Reportar al humano: rama actual, **último commit de `main`**, `git status` limpio y qué queda
+   pendiente. Si algo del pedido no coincide con lo que dice GitHub, **se reporta la diferencia** en vez
+   de documentar el estado esperado.
 
 ## Deploy (Easypanel)
 
@@ -280,9 +285,8 @@ protección de rama, se reporta al humano, no se intenta saltar.
 
 ## Datos
 
-- Migraciones Prisma versionadas y **sin BOM** (un BOM rompe `prisma migrate deploy` en cualquier
-  base nueva): hay un test que lo verifica.
-- `prisma/seed.ts` es **solo para local/demo** (crea credenciales conocidas): nunca en producción.
+- Migraciones Prisma versionadas y **sin BOM** (un BOM rompe `prisma migrate deploy` en cualquier base nueva): hay un
+  test que lo verifica. `prisma/seed.ts` es **solo para local/demo**, nunca en producción.
 - Los datos del negocio (nombre, colores, contacto, horarios, precios, propina) **no se hardcodean**:
   se leen de la configuración editable en el admin (`ops/tasks/TASK-whitelabel-branding.md`).
 
@@ -292,7 +296,4 @@ protección de rama, se reporta al humano, no se intenta saltar.
 - No tocar servicios ajenos del panel compartido (`cacommerce`, `capostgres`, `imagehost`,
   `postimage`, proyecto `n8n`).
 - No hacer `db:seed` ni `migrate reset` contra producción.
-- No borrar ni reescribir tests existentes para que pasen: si un test cambia de contrato,
-  actualizalo explicando por qué en el commit.
 - No dejar `BOOTSTRAP_ADMIN_*` ni secretos temporales en el entorno del servicio.
-- No crear `AGENTS.md` anidados, `docs/ai/` ni skills: no es el patrón del repo.
