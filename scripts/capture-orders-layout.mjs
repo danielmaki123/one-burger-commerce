@@ -16,9 +16,11 @@ const email = process.env.E2E_ADMIN_EMAIL ?? "admin@example.com";
 const password = process.env.E2E_ADMIN_PASSWORD ?? "Admin1234!";
 const repoRoot = path.resolve(import.meta.dirname, "..");
 const outputRoot = path.join(repoRoot, "ops", "tasks", "audit-ui");
+/** Contra producción el nombre lo dice: la captura local y la real no se pisan. */
+const sufijo = /127\.0\.0\.1|localhost/.test(baseUrl) ? "" : "-produccion";
 
 async function shot(page, name, viewport) {
-  const file = path.join(outputRoot, `${name}-${viewport}.png`);
+  const file = path.join(outputRoot, `${name}${sufijo}-${viewport}.png`);
   await page.screenshot({ path: file, fullPage: false });
   console.log(`captura: ${path.relative(repoRoot, file)}`);
 }
