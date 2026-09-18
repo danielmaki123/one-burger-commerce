@@ -237,21 +237,20 @@ ramas ajenas sin avisar.
 
 ### CI y protección de `main`
 
-**CI** (`.github/workflows/publish-ghcr.yml`): hoy dispara con `push` a **`main`** (y a mano con
-`workflow_dispatch`), **todavía no corre en las ramas ni en los PRs**, así que un PR se mergea con lo
-verde que hayas corrido **local** (`Validación mínima`, arriba). Los jobs: **verify** (secrets, lint,
-typecheck, tests, build) → **migrations** (aplica migraciones en Postgres limpio, falla ante drift) →
-**container** (construye la imagen, la ejecuta contra Postgres, exige readiness y prueba el bootstrap
-del primer admin) → **publish** (imagen a GHCR). Si algo está rojo después del merge, `main` está
-roto: **el arreglo va en otra rama y otro PR**, nunca encima.
+**CI** (`.github/workflows/publish-ghcr.yml`): corre en **cada push a `main`, en cada PR hacia `main`**
+y a mano con `workflow_dispatch`. Los jobs de validación son **verify** (secrets, lint, typecheck,
+tests, build), **contracts** (los guardrails de este archivo), **migrations** (Postgres limpio + drift)
+y **container** (imagen real, readiness y bootstrap del admin); **publish** (imagen a GHCR) solo corre
+en push a `main`. Si un check está rojo, el PR no se mergea. ⚠️ **Nunca marcar `publish` como
+*required check***: no corre en PRs y el PR quedaría trabado en «Expected» para siempre.
 
 **Protección de `main`** (la configura el owner con Settings → Branches): **estado real: todavía no
 está activada**, así que hoy la regla de este archivo la sostiene el equipo, no GitHub —el push directo
 funciona y **no hay que usarlo igual**—. La configuración a dejar activa es *Require a pull request
-before merging* · *Require 1 approval* · *Require status checks to pass* (`verify`, `migrations`,
-`container`) · *Require branches to be up to date before merging* · *Do not allow bypassing the above
-settings*. El agente **no puede modificar esa configuración**: si algo falla por protección de rama, se
-reporta al humano, no se intenta saltar.
+before merging* · *Require 1 approval* · *Require status checks to pass* (`verify`, `contracts`,
+`migrations`, `container`) · *Require branches to be up to date before merging* · *Do not allow
+bypassing the above settings*. El agente **no puede modificar esa configuración**: si algo falla por
+protección de rama, se reporta al humano, no se intenta saltar.
 
 ## Deploy (Easypanel)
 

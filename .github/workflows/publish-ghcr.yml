@@ -5,6 +5,12 @@ on:
   push:
     branches:
       - main
+  # La validación también corre en los PRs hacia `main`: sin esto, un PR se mergeaba con lo verde que
+  # cada uno hubiera corrido en su máquina. Verificado el 2026-09-18: el PR que trajo este trigger ya
+  # disparó los cuatro jobs (`verify`, `contracts`, `migrations`, `container`) sin `publish`.
+  pull_request:
+    branches:
+      - main
 
 permissions:
   contents: read
@@ -210,6 +216,10 @@ jobs:
           docker logs obc-bootstrap 2>&1 | tail -40 || true
 
   publish:
+    # La imagen a GHCR es del artefacto de producción: solo se publica desde `main`, nunca desde un PR.
+    # En un PR los cuatro checks de validación (`verify`, `contracts`, `migrations`, `container`) corren
+    # igual, pero este job no se dispara.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs:
       - verify
       - contracts
