@@ -496,13 +496,15 @@ describe("bandeja de órdenes: sin red (B0)", () => {
 
     render(<AdminOrdersPage />);
 
-    expect(await screen.findByText("No se pudieron cargar las órdenes.")).toBeTruthy();
+    // Bug de producción (2026-09-18): el cartel dice **qué** pasó, no un genérico.
+    expect(await screen.findByText(/No se pudo hablar con el servidor/)).toBeTruthy();
     expect(screen.getByRole("button", { name: "Reintentar" })).toBeTruthy();
   });
 
   it("reintentar vuelve a pedir la lista", async () => {
     const user = userEvent.setup();
     let ordersCalls = 0;
+    let caida = true;
     const fetchMock = vi.fn((url: string) => {
       const href = String(url);
       if (href.includes("/api/admin/locations")) {
@@ -519,7 +521,9 @@ describe("bandeja de órdenes: sin red (B0)", () => {
           json: async () => ({ data: [order()], meta: { count: 1 } }),
         });
       }
-      if (ordersCalls === 2) return Promise.reject(new Error("sin red"));
+      // La caída es sostenida mientras «caida» siga prendida: un bache de un solo intento ya no llega a la
+      // pantalla (se reintenta solo). Cuando la red vuelve, el botón trae la lista nueva.
+      if (caida) return Promise.reject(new Error("sin red"));
 
       return Promise.resolve({
         ok: true,
@@ -533,6 +537,8 @@ describe("bandeja de órdenes: sin red (B0)", () => {
     await user.click(screen.getByRole("button", { name: "Actualizar" }));
     await screen.findByText(/No se pudo actualizar la bandeja/);
 
+    // La red vuelve y el botón trae la lista nueva.
+    caida = false;
     await user.click(screen.getByRole("button", { name: "Reintentar" }));
 
     expect(await screen.findByText("OB-2")).toBeTruthy();
@@ -891,6 +897,9 @@ describe("bandeja de órdenes: aceptar y rechazar desde la fila (B2)", () => {
     await renderWithActions({ orders: [order({ status: "new" })], ordersFailFrom: 2 });
 
     await user.click(screen.getByRole("button", { name: "Actualizar" }));
+    // `setTimeout` no está falseado en este bloque: los reintentos de la lectura (bug de producción
+    // 2026-09-18) esperan de verdad antes de darse por vencidos.
+    await new Promise((resolve) => setTimeout(resolve, 1_600));
     await flush();
 
     // La lista se conserva (B0) y las acciones quedan deshabilitadas con el motivo a la vista.

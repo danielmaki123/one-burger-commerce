@@ -52,6 +52,7 @@ import { OrderComandaBoard } from "./order-comanda-board";
 import type { ComandaItem } from "./order-comanda-card";
 import { useComandaView, useFullscreen } from "./use-comanda-view";
 import { readOrderUrlFilters, writeOrderUrlFilters, type OrderPaymentFilter } from "./comanda-url";
+import { readAdminOrders, sanitizeOrderQuery, type OrderListFailure } from "./order-list-api";
 import {
   AdminCompactToolbar,
   AdminEmptyState,
@@ -176,6 +177,8 @@ export default function AdminOrdersPage() {
   const [orders, setOrders] = useState<OrderSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  /** Por qué falló la última lectura: la pantalla elige la acción (reintentar o limpiar los filtros). */
+  const [errorKind, setErrorKind] = useState<OrderListFailure["kind"] | null>(null);
   const [authRequired, setAuthRequired] = useState(false);
   /** Cuándo se leyó la lista por última vez: el aviso de «sin actualizar» no puede mentir. */
   const [lastUpdatedAt, setLastUpdatedAt] = useState<number | null>(null);
@@ -301,15 +304,17 @@ export default function AdminOrdersPage() {
   const showBoard = view === "today";
 
   const queryString = useMemo(() => {
-    const query = new URLSearchParams();
-    if (!showBoard && statusFilter !== "all") query.set("status", statusFilter);
-    if (typeFilter !== "all") query.set("type", typeFilter);
-    if (locationFilter !== "all") query.set("locationId", locationFilter);
-    if (searchQuery) query.set("search", searchQuery);
-    if (paymentFilter !== "all") query.set("paymentMethod", paymentFilter);
-    if (range.from) query.set("dateFrom", range.from);
-    if (range.to) query.set("dateTo", range.to);
-    return query.toString();
+    // Los filtros se sanean acá (bug de producción, 2026-09-18): un valor que la API rechaza se descarta
+    // en vez de viajar y volver como 400, que era lo que dejaba el cartel de «no se pudieron cargar».
+    return sanitizeOrderQuery({
+      status: showBoard ? null : statusFilter,
+      type: typeFilter,
+      locationId: locationFilter,
+      search: searchQuery,
+      paymentMethod: paymentFilter,
+      dateFrom: range.from ?? null,
+      dateTo: range.to ?? null,
+    }).toString();
   }, [
     range,
     statusFilter,
@@ -347,24 +352,26 @@ export default function AdminOrdersPage() {
       setAuthRequired(false);
 
       try {
-        const response = await fetch(
-          `/api/admin/orders${queryString ? `?${queryString}` : ""}`,
-        );
+        const result = await readAdminOrders({ queryString });
 
-        if (response.status === 401) {
-          setAuthRequired(true);
-          setOrders([]);
+        if (!result.ok) {
+          // B0: **no** se borra la lista. Un fallo de red en una cocina no puede dejar la pantalla sin
+          // pedidos; se conserva lo último que se leyó y se dice qué pasó, con el motivo real (bug de
+          // producción, 2026-09-18: antes cualquier fallo decía «no se pudieron cargar»).
+          if (result.failure.kind === "auth") {
+            setAuthRequired(true);
+            setOrders([]);
+            return;
+          }
+
+          setError(result.failure.message);
+          setErrorKind(result.failure.kind);
           return;
         }
 
-        if (!response.ok) {
-          // B0: **no** se borra la lista. Un fallo de red en una cocina no puede dejar la pantalla
-          // sin pedidos; se conserva lo último que se leyó y se dice que está viejo.
-          setError("read-failed");
-          return;
-        }
+        setErrorKind(null);
 
-        const payload = (await response.json()) as AdminOrdersResponse;
+        const payload = { data: result.orders, meta: result.meta } as AdminOrdersResponse;
         const incoming = payload.data ?? [];
 
         /**
@@ -393,7 +400,9 @@ export default function AdminOrdersPage() {
         setAveragePrepMinutes(payload.meta?.averagePrepMinutes ?? null);
         setLastUpdatedAt(Date.now());
       } catch {
-        setError("read-failed");
+        // `readAdminOrders` no tira, pero un error inesperado no puede dejar la pantalla sin explicación.
+        setError("No se pudieron cargar las órdenes.");
+        setErrorKind("network");
       } finally {
         setLoading(false);
       }
@@ -1281,17 +1290,36 @@ export default function AdminOrdersPage() {
         </div>
       ) : null}
 
-      {/* Sin lista que conservar, el error se explica entero. */}
+      {/* Sin lista que conservar, el error se explica entero, con el motivo real y la acción que sirve. */}
       {!authRequired && error && orders.length === 0 ? (
         <div className="flex flex-col gap-3 rounded-md border border-danger-strong/30 bg-danger p-4 text-st-body text-danger-foreground sm:flex-row sm:items-center sm:justify-between">
-          <span>No se pudieron cargar las órdenes.</span>
-          <Button
-            variant="outline"
-            className="min-h-11 shrink-0"
-            onClick={() => setRefreshToken((token) => token + 1)}
-          >
-            Reintentar
-          </Button>
+          <span>{error}</span>
+          <div className="flex shrink-0 flex-wrap gap-2">
+            <Button
+              variant="outline"
+              className="min-h-11"
+              onClick={() => setRefreshToken((token) => token + 1)}
+            >
+              Reintentar
+            </Button>
+            {errorKind === "filters" ? (
+              <Button
+                variant="outline"
+                className="min-h-11"
+                onClick={() => {
+                  setStatusFilter("all");
+                  setTypeFilter("all");
+                  setLocationFilter("all");
+                  setPaymentFilter("all");
+                  setSearchQuery("");
+                  setSearchTerm("");
+                  setLateOnly(false);
+                }}
+              >
+                Limpiar filtros
+              </Button>
+            ) : null}
+          </div>
         </div>
       ) : null}
 
