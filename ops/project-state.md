@@ -8,7 +8,9 @@
 > trabajo única (`orders-toolbar.tsx`; la página pasó de 1385 a 947 líneas)— verificado en producción con
 > capturas reales (`ops/tasks/audit-ui/tarea-layout-ordenes-*-produccion-*.png`).
 >
-> Después de ese deploy entró el **Punto 2 (sección Historial)**, todavía **sin desplegar**: `/admin/history`
+> Después de ese deploy entró el **Punto 2 (sección Historial)**, desplegado el 2026-09-18 como build
+> `build-20260918-152408` (commit `2b86bb9`, acción `done`, readiness `ready`, smokes 7/7 y 6/6, capturas
+> de producción en `ops/tasks/audit-ui/tarea-historial-*-produccion-*.png`): `/admin/history`
 > con dos tabs de URL propia (`/cierres` y `/facturas`), un solo ítem «Historial» en Control (owner y
 > manager; el cajero no audita su propio turno y cocina no maneja plata), la anulación de facturas como
 > **soft delete** (`voidedAt` / `voidedByUserId` / `voidReason`, migración `20260918180000`, solo el dueño,
