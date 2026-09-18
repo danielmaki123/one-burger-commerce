@@ -38,6 +38,11 @@ export type RegisterPosSaleInput = {
   payments: PosSalePaymentInput[];
   /** Clave de la operación: un reintento del mismo cobro no crea dos ventas (TASK-101). */
   idempotencyKey?: string | null;
+  /**
+   * Tarea 9.6 del roadmap del POS (Fase 2) — el código de promo que el cliente trajo, tal como lo escribió
+   * el cajero. El alta (`createOrder`) es la que lo valida, calcula el descuento y consume el uso.
+   */
+  couponCode?: string | null;
 };
 
 export type RegisterPosSaleDependencies = {
@@ -59,6 +64,18 @@ export type RegisterPosSaleDependencies = {
    * del control; ahora es un 409 con el motivo, y el mostrador lo dice antes de cobrar.
    */
   findOpenShift?: (locationId: string) => Promise<{ id: string } | null>;
+  /**
+   * Tarea 9.6 del roadmap del POS (Fase 2) — la **misma** cotización que vio el cajero, para comparar el
+   * cobro contra el total con descuento.
+   *
+   * El descuento autoritativo sigue siendo el del alta (que puede rechazar el cupón); esta cotización existe
+   * para no rechazar una venta que el cliente ya pagó bien: sin ella, la comprobación previa comparaba
+   * contra el total **sin** cupón y una venta con descuento «no alcanzaba».
+   */
+  quoteCoupon?: (input: {
+    couponCode: string;
+    lines: { productId: string; quantity: number }[];
+  }) => Promise<{ discount: number }>;
 };
 
 export type RegisterPosSaleResult = {
@@ -108,10 +125,28 @@ export async function registerPosSale(
     usdExchangeRate: deps.usdExchangeRate,
   });
 
-  const draftTotal = posDraftTotals(input.draft).total;
+  /**
+   * Tarea 9.6 — el cupón mueve el total que se le pide al cliente. Se cotiza **antes** de comparar: el
+   * cajero ya le mostró ese número al cliente, así que la comprobación previa tiene que usar el mismo.
+   */
+  const couponCode = input.couponCode?.trim() ? input.couponCode.trim() : null;
+  const couponDiscount =
+    couponCode && deps.quoteCoupon
+      ? (
+          await deps.quoteCoupon({
+            couponCode,
+            lines: input.draft.lines.map((line) => ({
+              productId: line.productId,
+              quantity: line.quantity,
+            })),
+          })
+        ).discount
+      : 0;
+  const expectedTotal = posDraftTotals(input.draft, couponDiscount).total;
+
   const draftProblem = validatePaidWithAmount({
     paidWithAmount: paidInBusinessCurrency,
-    total: draftTotal,
+    total: expectedTotal,
     paymentMethod: "cash",
   });
   if (draftProblem) {
@@ -151,6 +186,8 @@ export async function registerPosSale(
     pickupTime: null,
     pickupScheduled: false,
     tipOptIn: false,
+    // Tarea 9.6: el cupón se aplica en el alta (valida, calcula y consume el uso).
+    couponCode,
     idempotencyKey: input.idempotencyKey ?? null,
   });
 

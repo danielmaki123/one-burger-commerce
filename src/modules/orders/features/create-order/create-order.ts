@@ -8,6 +8,7 @@ import {
   normalizeCouponCode,
   resolveCouponEligibility,
 } from "@/modules/orders/domain/coupon-eligibility";
+import { resolveCouponDiscount } from "@/modules/orders/domain/coupon-discount";
 import {
   isOrderPaymentMethod,
   type DeliveryFeeStatus,
@@ -24,11 +25,6 @@ import {
 } from "@/modules/orders/domain/order-tracking";
 import type { OrderRepository } from "@/modules/orders/ports/order-repository";
 import { generatePickupPin } from "@/modules/orders/domain/pickup-pin";
-import {
-  calculateBogoDiscount,
-  hasEligibleBogoUnits,
-  validateBogoCouponConfig,
-} from "@/modules/orders/domain/promo-bogo";
 import { randomInt } from "node:crypto";
 import { calculateOrderTotals, roundCurrency } from "@/shared/lib/order-totals";
 import { normalizeWhatsapp } from "@/shared/lib/normalize-whatsapp";
@@ -395,25 +391,21 @@ export async function createOrder(
     }
 
     // El descuento se calcula **antes** de consumir el uso: un código de promo que
-    // no aplica al pedido se rechaza sin quemar un uso (T9).
-    if (coupon.type === "bogo") {
-      const configError = validateBogoCouponConfig(coupon);
-      if (configError) {
-        throw new OrderError(409, "CONFLICT", `Coupon is misconfigured: ${configError.message}`);
-      }
-      if (!hasEligibleBogoUnits({ items: promoUnits, coupon })) {
-        throw new OrderError(409, "CONFLICT", "Coupon does not apply to this order");
-      }
-
-      discount = Math.min(
-        subtotal,
-        calculateBogoDiscount({ items: promoUnits, coupon }),
+    // no aplica al pedido se rechaza sin quemar un uso (T9). La cuenta vive en el
+    // dominio (`coupon-discount.ts`) porque el POS la **cotiza** antes de cobrar
+    // (tarea 9.6): una sola fórmula para los dos caminos.
+    const resolved = resolveCouponDiscount({ coupon, items: promoUnits, subtotal });
+    if (!resolved.ok) {
+      throw new OrderError(
+        409,
+        "CONFLICT",
+        resolved.reason === "misconfigured"
+          ? `Coupon is misconfigured: ${resolved.detail}`
+          : "Coupon does not apply to this order",
       );
-    } else if (coupon.type === "percentage") {
-      discount = roundCurrency((subtotal * coupon.value) / 100);
-    } else {
-      discount = Math.min(coupon.value, subtotal);
     }
+
+    discount = resolved.discount;
 
     // Reserve the use atomically before persisting the order: two concurrent
     // orders can no longer both pass the limit check.

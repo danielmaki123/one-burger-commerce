@@ -122,12 +122,19 @@ export function posDraftSubtotal(draft: PosDraft): number {
 
 /**
  * TASK-303b — el total que el cajero va a cobrar, con la **misma fórmula que el servidor**
- * (`calculateOrderTotals`, la fuente única del total) y sin propina ni descuentos: el POS no los usa.
+ * (`calculateOrderTotals`, la fuente única del total) y sin propina: el POS no la usa.
  *
  * Se calcula acá y no en la pantalla porque el cliente tiene que ver el número que se le va a
  * cobrar: mostrar solo el subtotal hacía que el empaque apareciera recién en la comanda.
+ *
+ * Tarea 9.6 del roadmap (Fase 2) — el **descuento del cupón** entra por acá. Se limita al subtotal (el
+ * servidor hace lo mismo con el cupón y con el descuento manual): un descuento más grande que la venta
+ * descuenta la venta, no la vuelve negativa, y el empaque se sigue pagando.
  */
-export function posDraftTotals(draft: PosDraft): {
+export function posDraftTotals(
+  draft: PosDraft,
+  discount = 0,
+): {
   subtotal: number;
   packagingAmount: number;
   total: number;
@@ -137,10 +144,11 @@ export function posDraftTotals(draft: PosDraft): {
   }));
 
   const subtotal = posDraftSubtotal(draft);
+  const safeDiscount = Math.min(Math.max(discount, 0), subtotal);
 
   const totals = calculateOrderTotals({
     subtotal,
-    discount: 0,
+    discount: safeDiscount,
     deliveryFeeAmount: 0,
     items,
     tipOptIn: false,

@@ -56,4 +56,24 @@ describe("parsePosSalePayload", () => {
   it("sin cobros no se cobra nada", () => {
     expect(() => parsePosSalePayload(body({ payments: [] }))).toThrow(PosError);
   });
+
+  /**
+   * Tarea 9.6 del roadmap del POS (Fase 2) — el cupón viaja con la venta.
+   *
+   * El código lo escribe el cajero y lo aplica el **servidor** (valida, calcula y consume el uso). La
+   * pantalla manda el texto tal cual: normalizarlo es del dominio, que es el que conoce los códigos.
+   */
+  it("lleva el código de la promo que el cliente trajo", () => {
+    const parsed = parsePosSalePayload(body({ couponCode: " bienvenida10 " }));
+
+    expect(parsed.input.couponCode).toBe("BIENVENIDA10");
+  });
+
+  it("sin código de promo la venta no lleva cupón", () => {
+    expect(parsePosSalePayload(body()).input.couponCode).toBeNull();
+  });
+
+  it("un código imposible de guardar se rechaza", () => {
+    expect(() => parsePosSalePayload(body({ couponCode: "x".repeat(41) }))).toThrow(PosError);
+  });
 });

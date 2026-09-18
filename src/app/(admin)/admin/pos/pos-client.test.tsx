@@ -128,6 +128,23 @@ describe("PosClient", () => {
       const url = String(input);
       if (url.startsWith("/api/admin/pos/catalog")) return jsonResponse(productos);
       if (url === "/api/admin/pos/sale" && init?.method === "POST") return jsonResponse(ventaCobrada, true, 201);
+      if (url === "/api/admin/pos/coupon" && init?.method === "POST") {
+        return jsonResponse({
+          data: {
+            coupon: {
+              code: "BIENVENIDA10",
+              type: "percentage",
+              value: 10,
+              buyQuantity: null,
+              freeQuantity: null,
+              scopeType: null,
+              scopeId: null,
+            },
+            subtotal: 35,
+            discount: 3.5,
+          },
+        });
+      }
       if (url.startsWith("/api/admin/pos/shift?")) return jsonResponse({ data: turnoAbierto });
       if (url === "/api/admin/pos/shift/open" && init?.method === "POST") {
         return jsonResponse(
@@ -804,5 +821,97 @@ describe("PosClient", () => {
 
     expect(claves).toHaveLength(2);
     expect(claves[1]).toBe(claves[0]);
+  });
+
+  /**
+   * Tarea 9.6 del roadmap del POS (Fase 2) — el cupón que el cliente trajo.
+   *
+   * El cajero escribe el código, el servidor cotiza el descuento sobre **esta** venta y el número que se le
+   * muestra al cliente es el que se cobra: el total baja antes de cobrar y el código viaja en el cobro, que
+   * es donde el servidor lo valida y consume el uso.
+   */
+  it("un cupón cotizado baja el total y viaja al cobrar", async () => {
+    const user = userEvent.setup();
+    render(<PosClient locations={locations} />);
+
+    await screen.findByText("Taco de birria");
+    await user.click(screen.getByRole("button", { name: "Agregar Taco de birria a la venta" }));
+    // Sin cupón: 35 del taco + 5 de empaque.
+    expect(totalDeLaVenta()).toBe("C$40.00");
+
+    await user.type(screen.getByLabelText("Código de promo (opcional)"), "BIENVENIDA10");
+    await user.click(screen.getByRole("button", { name: "Aplicar" }));
+
+    // La cotización se ve (qué promo es) y el total ya la tiene descontada: 35 + 5 de empaque − 3.50.
+    expect(await screen.findByText("10 % de descuento")).toBeTruthy();
+    expect(totalDeLaVenta()).toBe("C$36.50");
+    expect(screen.getByRole("button", { name: "Cobrar C$36.50" })).toBeTruthy();
+
+    await fillCustomer(user);
+    await user.type(screen.getByLabelText("Con cuánto paga"), "40");
+    await user.click(screen.getByRole("button", { name: /^Cobrar / }));
+    await screen.findByRole("status");
+
+    const saleBody = JSON.parse(
+      String(
+        (fetchMock.mock.calls.find(([input]) => String(input) === "/api/admin/pos/sale")![1] as RequestInit)
+          .body,
+      ),
+    );
+    expect(saleBody.couponCode).toBe("BIENVENIDA10");
+  });
+
+  it("si la venta cambia, el cupón deja de valer y hay que volver a aplicarlo", async () => {
+    const user = userEvent.setup();
+    render(<PosClient locations={locations} />);
+
+    await screen.findByText("Taco de birria");
+    await user.click(screen.getByRole("button", { name: "Agregar Taco de birria a la venta" }));
+    await user.type(screen.getByLabelText("Código de promo (opcional)"), "BIENVENIDA10");
+    await user.click(screen.getByRole("button", { name: "Aplicar" }));
+    expect(await screen.findByText("10 % de descuento")).toBeTruthy();
+
+    // Otra ronda de la misma venta: la cotización era de lo que había antes.
+    await user.click(screen.getByRole("button", { name: "Agregar Cola a la venta" }));
+
+    expect(screen.queryByText("10 % de descuento")).toBeNull();
+    expect(
+      screen.getByText("La venta cambió: volvé a aplicar el código para recalcular el descuento."),
+    ).toBeTruthy();
+    expect(totalDeLaVenta()).toBe("C$65.00");
+  });
+
+  it("un código que no sirve dice el motivo y no toca el total", async () => {
+    const user = userEvent.setup();
+    fetchMock.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.startsWith("/api/admin/pos/catalog")) return jsonResponse(productos);
+      if (url.startsWith("/api/admin/pos/shift?")) return jsonResponse({ data: turnoAbierto });
+      if (url === "/api/admin/pos/coupon" && init?.method === "POST") {
+        return jsonResponse(
+          {
+            error: {
+              message: "Ese código ya se usó todas las veces que se podía.",
+              fields: { coupon: "Ese código ya se usó todas las veces que se podía." },
+            },
+          },
+          false,
+          409,
+        );
+      }
+      return jsonResponse({ data: [] });
+    });
+
+    render(<PosClient locations={locations} />);
+    await screen.findByText("Taco de birria");
+    await user.click(screen.getByRole("button", { name: "Agregar Taco de birria a la venta" }));
+
+    await user.type(screen.getByLabelText("Código de promo (opcional)"), "UNICA");
+    await user.click(screen.getByRole("button", { name: "Aplicar" }));
+
+    expect(
+      await screen.findByText("Ese código ya se usó todas las veces que se podía."),
+    ).toBeTruthy();
+    expect(totalDeLaVenta()).toBe("C$40.00");
   });
 });

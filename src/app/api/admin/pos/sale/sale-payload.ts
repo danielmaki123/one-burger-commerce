@@ -3,6 +3,7 @@ import { z } from "zod";
 import { PosError } from "@/modules/pos/domain/pos-errors";
 import type { PosDraft } from "@/modules/pos/domain/pos-draft";
 import { POS_PAYMENT_METHODS } from "@/modules/pos/domain/pos-sale";
+import { normalizeCouponCode } from "@/modules/orders/domain/coupon-eligibility";
 import type {
   RegisterPosSaleInput,
   RegisterPosSaleResult,
@@ -57,6 +58,13 @@ const saleSchema = z.object({
   lines: z.array(lineSchema).min(1, "Agregá al menos un producto"),
   payments: z.array(paymentSchema).min(1, "Registrá al menos un cobro"),
   idempotencyKey: z.string().trim().min(1).max(80).nullable().optional(),
+  /**
+   * Tarea 9.6 del roadmap del POS (Fase 2) — el código de la promo que el cliente trajo.
+   *
+   * Llega como lo escribió el cajero y se **normaliza** acá (mayúsculas y sin espacios, la misma regla del
+   * checkout): el código se guarda en mayúsculas y el que lo escribe no tiene por qué saberlo.
+   */
+  couponCode: z.string().trim().max(40, "El código es muy largo").nullable().optional(),
 });
 
 export type PosSalePayload = z.infer<typeof saleSchema>;
@@ -130,6 +138,7 @@ export function parsePosSalePayload(body: unknown): {
         ...(payment.reference ? { reference: payment.reference } : {}),
       })),
       idempotencyKey: parsed.data.idempotencyKey ?? null,
+      couponCode: parsed.data.couponCode ? normalizeCouponCode(parsed.data.couponCode) : null,
     },
   };
 }

@@ -11,6 +11,8 @@ import {
 } from "@/modules/orders/features/create-order/create-order";
 
 import type { RegisterPosSaleDependencies } from "../features/register-pos-sale/register-pos-sale";
+import { quotePosCoupon } from "../features/quote-pos-coupon/quote-pos-coupon";
+import { createProductionPosCouponDependencies } from "./production-pos-coupon";
 
 /**
  * TASK-303b — el cobro del POS en producción.
@@ -51,5 +53,11 @@ export async function createProductionPosSaleDependencies(): Promise<RegisterPos
     // Bloque 9.2: sin caja abierta no se cobra (`registerPosSale` corta con 409).
     findOpenShift: async (locationId) =>
       (await getCurrentShift({ locationId }, { shiftRepository })).data,
+    /**
+     * Tarea 9.6 del roadmap del POS (Fase 2) — el cupón se cotiza con el **mismo** caso de uso que usa la
+     * pantalla antes de comparar el cobro contra el total: sin esto, una venta con descuento «no alcanzaba»
+     * aunque el cliente hubiera pagado bien.
+     */
+    quoteCoupon: (input) => quotePosCoupon(input, createProductionPosCouponDependencies()),
   };
 }

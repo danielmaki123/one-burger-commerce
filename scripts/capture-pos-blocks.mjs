@@ -187,6 +187,35 @@ try {
     await page.getByRole("button", { name: "Sí, descartar" }).click();
     await page.getByText("No hay ventas en espera.").waitFor({ timeout: 30_000 });
 
+    // Tarea 9.6 del roadmap (2026-09-17): el **cupón** que trajo el cliente. Se crea una promo real por la
+    // API del admin (10 %), se aplica en el mostrador —el servidor cotiza el descuento y el total baja—, se
+    // captura y se borra: la base local queda como estaba.
+    const promoCode = `CAPTURA${Date.now().toString(36).toUpperCase()}`;
+    await page.evaluate(async (code) => {
+      await fetch("/api/admin/promotions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code, type: "percentage", value: 10, isActive: true, usageLimit: 0 }),
+      });
+    }, promoCode);
+
+    await page.getByRole("button", { name: /^Agregar / }).first().click();
+    await page.getByLabel("Nombre del cliente").fill("Cliente captura");
+    await page.getByLabel("Código de promo (opcional)").fill(promoCode);
+    await page.getByRole("button", { name: "Aplicar" }).click();
+    await page.getByText("10 % de descuento").waitFor({ timeout: 30_000 });
+    await page.getByRole("button", { name: /^Cobrar / }).scrollIntoViewIfNeeded();
+    await page.waitForTimeout(500);
+    await shot(page, "tarea-9-6-promo-aplicada", viewport.name);
+
+    await page.getByRole("button", { name: "Quitar", exact: true }).click();
+    await page.getByRole("button", { name: /^Sacar / }).first().click();
+    await page.evaluate(async (code) => {
+      const list = await (await fetch("/api/admin/promotions")).json();
+      const promo = list.data.find((item) => item.code === code);
+      if (promo) await fetch(`/api/admin/promotions/${promo.id}`, { method: "DELETE" });
+    }, promoCode);
+
     // El aviso y el botón bloqueado viven al final del formulario de cobro: se baja hasta ahí para
     // que la captura muestre **el efecto** del bloqueo, no solo el estado de la caja.
     await page.evaluate(() => {

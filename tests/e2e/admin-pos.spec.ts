@@ -158,7 +158,6 @@ test.describe("punto de venta", () => {
 
   test.describe("en escritorio", () => {
     test.use({ viewport: { width: 1280, height: 900 } });
-
     test("el catálogo y la venta conviven en dos columnas", async ({ page }) => {
       await loginAsOwner(page);
       await page.goto("/admin/pos");
@@ -256,6 +255,82 @@ test.describe("punto de venta", () => {
     await page.getByRole("button", { name: "Sí, descartar" }).click();
     await expect(page.getByText("No hay ventas en espera.")).toBeVisible();
     expect(await horizontalOverflow(page)).toBeLessThanOrEqual(1);
+  });
+
+  /**
+   * Tarea 9.6 del roadmap del POS (Fase 2) — el cupón que el cliente trajo, en el navegador de verdad.
+   *
+   * Se crea una promo real por la API del admin (10 %), el cajero la aplica en el mostrador y el **total
+   * baja** antes de cobrar: el número que el cajero le dice al cliente es el que se va a cobrar. Después se
+   * prueba el otro lado —un código que no existe— y se borra la promo para no ensuciar la base local.
+   */
+  test("el cajero aplica una promo y el total baja antes de cobrar (9.6)", async ({ page }) => {
+    test.skip(!mutationsAllowed, "Creating a promo is disabled unless E2E_ALLOW_MUTATIONS=true.");
+
+    await loginAsOwner(page);
+
+    const code = `E2E10${Date.now().toString(36).toUpperCase()}`;
+    // La promo se crea desde la propia página (mismo origen y misma sesión que el navegador).
+    const created = await page.evaluate(async (promoCode) => {
+      const response = await fetch("/api/admin/promotions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code: promoCode,
+          type: "percentage",
+          value: 10,
+          isActive: true,
+          usageLimit: 0,
+        }),
+      });
+      const body = (await response.json()) as { data?: { id: string } };
+
+      return { ok: response.ok, status: response.status, id: body.data?.id ?? null };
+    }, code);
+    expect(created.ok, `no se pudo crear la promo: ${created.status}`).toBeTruthy();
+
+    try {
+      await page.goto("/admin/pos");
+      // Una terminal nueva: el borrador que haya dejado otro caso no es de esta venta.
+      await page.evaluate(() => {
+        for (const key of Object.keys(globalThis.localStorage)) {
+          if (key.startsWith("one-burger-pos-")) globalThis.localStorage.removeItem(key);
+        }
+      });
+      await page.reload();
+
+      const agregar = page.getByRole("button", { name: /^Agregar .+ a la venta$/ }).first();
+      await expect(agregar).toBeVisible();
+      await agregar.click();
+
+      const totalSinPromo = (await page.getByRole("button", { name: /^Cobrar / }).textContent())!;
+
+      await page.getByLabel("Código de promo (opcional)").fill(code);
+      await page.getByRole("button", { name: "Aplicar" }).click();
+
+      // La cotización se ve con su descripción y el total ya la tiene descontada.
+      await expect(page.getByText("10 % de descuento")).toBeVisible();
+      const totalConPromo = (await page.getByRole("button", { name: /^Cobrar / }).textContent())!;
+      expect(totalConPromo).not.toBe(totalSinPromo);
+
+      const aNumero = (etiqueta: string) => Number(etiqueta.replace(/[^\d.]/g, ""));
+      expect(aNumero(totalConPromo)).toBeLessThan(aNumero(totalSinPromo));
+      // El descuento se ve en el desglose (y en el resumen del cupón) con su signo.
+      await expect(page.getByText(/^−C\$/).first()).toBeVisible();
+
+      // Un código que no existe se dice sin tocar el total, y la promo se puede quitar.
+      await page.getByRole("button", { name: "Quitar", exact: true }).click();
+      await page.getByLabel("Código de promo (opcional)").fill("NOEXISTE");
+      await page.getByRole("button", { name: "Aplicar" }).click();
+      await expect(page.getByText("Ese código no existe.")).toBeVisible();
+      await expect(page.getByRole("button", { name: /^Cobrar / })).toHaveText(totalSinPromo);
+    } finally {
+      if (created.id) {
+        await page.evaluate(async (promotionId) => {
+          await fetch(`/api/admin/promotions/${promotionId}`, { method: "DELETE" });
+        }, created.id);
+      }
+    }
   });
 
   test("el cajero cobra la venta y el pedido llega a comandas", async ({ page }) => {

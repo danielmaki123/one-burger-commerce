@@ -11,11 +11,11 @@ import {
   setPosLineQuantity,
 } from "@/modules/pos/domain/pos-draft";
 import type { PosHeldSale } from "@/modules/pos/domain/pos-holds";
-import { POS_PAYMENT_METHODS } from "@/modules/pos/domain/pos-sale";
 import { filterPosProducts } from "@/modules/pos/domain/search-pos-products";
 import { mustCloseShiftBeforeCharging } from "@/modules/pos/domain/shift-close-policy";
 import type { PosCatalogProduct } from "@/modules/pos/ports/pos-catalog";
 import { useBusinessSettings, useCurrencyFormat } from "@/shared/lib/business-settings";
+import { describeCouponLabel } from "@/shared/lib/coupon-label";
 import { formatCurrency } from "@/shared/lib/format-currency";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
@@ -28,7 +28,9 @@ import {
 } from "@/shared/lib/receipt-image";
 import { AdminEmptyState, AdminPageHeader } from "../_components/admin-operational-ui";
 import PosChargePanel from "./pos-charge-panel";
+import PosCouponPanel from "./pos-coupon-panel";
 import PosHoldsPanel from "./pos-holds-panel";
+import PosPaymentRows from "./pos-payment-rows";
 import PosSaleLines from "./pos-sale-lines";
 import PosTicketButtons from "./pos-ticket-buttons";
 import type {
@@ -64,18 +66,6 @@ const CLOSE_SHIFT_FIRST_MESSAGE =
  */
 export const POS_REFRESH_MS = 3000;
 
-/**
- * Bloque 4 del roadmap del POS (Fase 2) — los medios que ofrece el mostrador.
- *
- * Tareas 9.4/9.5 — la lista y las etiquetas salen del dominio (`POS_PAYMENT_METHODS`) y del mapa de
- * etiquetas del pedido: estaban escritas acá y en la API por separado. `mixed` no está porque el mixto es
- * un **resultado** de partir el cobro entre dos medios, no algo que el cajero elija.
- */
-const PAYMENT_METHOD_CHOICES = POS_PAYMENT_METHODS.map((id) => ({
-  id,
-  label: PAYMENT_METHOD_TYPE_LABELS[id],
-}));
-
 function catalogUrl(locationId: string) {
   return `/api/admin/pos/catalog?locationId=${encodeURIComponent(locationId)}`;
 }
@@ -103,6 +93,21 @@ export default function PosClient({ locations }: { locations: PosLocationOption[
    * acá y el trabajo de guardar y leer, en el hook (y en el dominio).
    */
   const { holds, hold, discard, full: holdsFull } = usePosHolds(locationId, settings.currencyCode);
+  /**
+   * Tarea 9.6 del roadmap del POS (Fase 2) — el cupón que el cliente trajo, **cotizado por el servidor**.
+   *
+   * Se guarda con la **firma de la venta** sobre la que se cotizó: un código aplicado a una venta que
+   * después cambió vale para esa venta, no para esta (el descuento se calculó sobre lo que había). Con la
+   * firma, la cotización vencida se descarta sola, sin efectos ni estados que se pisen.
+   */
+  const [coupon, setCoupon] = React.useState<{
+    code: string;
+    label: string;
+    discount: number;
+    cartSignature: string;
+  } | null>(null);
+  const [couponBusy, setCouponBusy] = React.useState(false);
+  const [couponError, setCouponError] = React.useState<string | null>(null);
   const [reloadKey, setReloadKey] = React.useState(0);
   const [customer, setCustomer] = React.useState({ name: "", whatsapp: "", email: "" });
   /**
@@ -247,17 +252,76 @@ export default function PosClient({ locations }: { locations: PosLocationOption[
   }, [locationId, applyCatalog, loadShift]);
 
   // Cambiar de local empieza una venta nueva: el borrador lleva el local y sus precios y lo resetea el
-  // hook (que además lo guarda en el dispositivo, Bloque 12.3); acá se renueva el cobro y la confirmación.
+  // hook (que además lo guarda en el dispositivo, Bloque 12.3); acá se renueva el cobro, el cupón y la
+  // confirmación.
   React.useEffect(() => {
     setPayments([{ id: "pay_1", method: "cash", currency: settings.currencyCode, amount: "" }]);
     setLastSale(null);
+    setCoupon(null);
+    setCouponError(null);
   }, [locationId, settings.currencyCode]);
 
   const visibleProducts = React.useMemo(
     () => filterPosProducts(products, query),
     [products, query],
   );
-  const totals = posDraftTotals(draft);
+
+  /** La firma de la venta: si cambia, el cupón cotizado ya no vale para lo que hay en el mostrador. */
+  const cartSignature = draft.lines
+    .map((line) => `${line.productId}x${line.quantity}`)
+    .join("|");
+  const appliedCoupon =
+    coupon !== null && coupon.cartSignature === cartSignature ? coupon : null;
+  const totals = posDraftTotals(draft, appliedCoupon?.discount ?? 0);
+
+  /**
+   * Tarea 9.6 — pide al servidor cuánto descuenta el código sobre **esta** venta. El descuento lo calcula el
+   * servidor con la misma fórmula que el alta y sin consumir el cupón; acá solo se muestra.
+   */
+  const applyCoupon = async (code: string) => {
+    setCouponBusy(true);
+    setCouponError(null);
+
+    try {
+      const response = await fetch("/api/admin/pos/coupon", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          locationId,
+          code,
+          lines: draft.lines.map((line) => ({
+            productId: line.productId,
+            quantity: line.quantity,
+          })),
+        }),
+      });
+
+      const body = (await response.json()) as {
+        data?: {
+          coupon: Parameters<typeof describeCouponLabel>[0];
+          discount: number;
+        };
+        error?: { message?: string; fields?: Record<string, string> };
+      };
+
+      if (!response.ok || !body.data) {
+        setCoupon(null);
+        setCouponError(body.error?.message ?? "No se pudo aplicar el código.");
+        return;
+      }
+
+      setCoupon({
+        code: body.data.coupon.code,
+        label: describeCouponLabel(body.data.coupon, currency.symbol),
+        discount: body.data.discount,
+        cartSignature,
+      });
+    } catch {
+      setCouponError("No se pudo aplicar el código: revisá la conexión.");
+    } finally {
+      setCouponBusy(false);
+    }
+  };
 
   /**
    * Tarea 3 del brief (2026-09-17) — cierre obligatorio por sucursal (1.7).
@@ -416,6 +480,8 @@ export default function PosClient({ locations }: { locations: PosLocationOption[
             ...(payment.reference ? { reference: payment.reference } : {}),
           })),
           idempotencyKey: attemptKey,
+          // Tarea 9.6: el código viaja al servidor, que es el que valida, calcula y consume el uso.
+          couponCode: appliedCoupon?.code ?? null,
         }),
       });
 
@@ -458,6 +524,9 @@ export default function PosClient({ locations }: { locations: PosLocationOption[
       setDraft(createPosDraft(locationId));
       setCustomer({ name: "", whatsapp: "", email: "" });
       setPayments([{ id: "pay_1", method: "cash", currency: settings.currencyCode, amount: "" }]);
+      // La venta se cobró: el cupón ya se consumió y la que venga empieza sin promo.
+      setCoupon(null);
+      setCouponError(null);
       // La operación se resolvió (cobrada o reconocida): la venta que venga es otra y necesita su clave.
       renewAttemptKey();
     } catch {
@@ -630,6 +699,16 @@ export default function PosClient({ locations }: { locations: PosLocationOption[
                   </dd>
                 </div>
               ) : null}
+              {appliedCoupon ? (
+                <div className="flex items-baseline justify-between">
+                  <dt className="text-ink-secondary">
+                    Promo <span className="font-mono">{appliedCoupon.code}</span>
+                  </dt>
+                  <dd className="font-mono tabular-nums text-brand-primary">
+                    {`−${formatCurrency(appliedCoupon.discount, currency)}`}
+                  </dd>
+                </div>
+              ) : null}
               <div className="flex items-baseline justify-between">
                 <dt className="font-medium text-ink">Total</dt>
                 <dd className="font-mono text-st-display font-bold tabular-nums text-brand-primary" aria-live="polite">
@@ -670,106 +749,15 @@ export default function PosClient({ locations }: { locations: PosLocationOption[
                 }
               />
 
-              {payments.map((payment, index) => (
-                <div key={payment.id} className="space-y-3 rounded-stitch-md border border-line-subtle p-3">
-                  {index > 0 ? (
-                    <p className="text-st-body font-semibold text-ink">Cobro {index + 1}</p>
-                  ) : null}
+              <PosPaymentRows
+                payments={payments}
+                setPayments={setPayments}
+                fieldErrors={fieldErrors}
+                currencyCode={settings.currencyCode}
+                usdExchangeRate={settings.usdExchangeRate}
+              />
 
-                  <div className="space-y-1.5">
-                    <p className="text-st-body font-medium leading-none text-ink">¿Cómo paga?</p>
-                    <div className="flex flex-wrap gap-2">
-                      {PAYMENT_METHOD_CHOICES.map((option) => (
-                        <Button
-                          key={option.id}
-                          type="button"
-                          size="pill"
-                          variant={payment.method === option.id ? "primary" : "secondary"}
-                          aria-pressed={payment.method === option.id}
-                          onClick={() =>
-                            setPayments((current) =>
-                              current.map((item) =>
-                                item.id === payment.id ? { ...item, method: option.id } : item,
-                              ),
-                            )
-                          }
-                        >
-                          {option.label}
-                        </Button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {settings.usdExchangeRate !== null ? (
-                    <Select
-                      label="Moneda del cobro"
-                      value={payment.currency}
-                      onChange={(event) =>
-                        setPayments((current) =>
-                          current.map((item) =>
-                            item.id === payment.id ? { ...item, currency: event.target.value } : item,
-                          ),
-                        )
-                      }
-                      options={[
-                        { value: settings.currencyCode, label: settings.currencyCode },
-                        { value: "USD", label: "USD" },
-                      ]}
-                    />
-                  ) : null}
-
-                  <Input
-                    label={
-                      payment.currency === settings.currencyCode
-                        ? "Con cuánto paga"
-                        : `Con cuánto paga (en ${payment.currency})`
-                    }
-                    type="number"
-                    inputMode="decimal"
-                    min={0}
-                    step="0.01"
-                    value={payment.amount}
-                    error={fieldErrors.amount ?? fieldErrors.payments}
-                    onChange={(event) =>
-                      setPayments((current) =>
-                        current.map((item) =>
-                          item.id === payment.id ? { ...item, amount: event.target.value } : item,
-                        ),
-                      )
-                    }
-                  />
-
-                  {payment.method === "transfer" ? (
-                    <Input
-                      label="Referencia de la transferencia (opcional)"
-                      value={payment.reference ?? ""}
-                      onChange={(event) =>
-                        setPayments((current) =>
-                          current.map((item) =>
-                            item.id === payment.id ? { ...item, reference: event.target.value } : item,
-                          ),
-                        )
-                      }
-                    />
-                  ) : null}
-
-                  {index > 0 ? (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      className="min-h-11"
-                      onClick={() =>
-                        setPayments((current) => current.filter((item) => item.id !== payment.id))
-                      }
-                    >
-                      Quitar este cobro
-                    </Button>
-                  ) : null}
-                </div>
-              ))}
-
-              {/* Bloque 4: partir el cobro entre medios (efectivo + transferencia, dos tarjetas). */}
-              <Button
+              {/* Bloque 4: partir el cobro entre medios (efectivo + transferencia, dos tarjetas). */}              <Button
                 type="button"
                 variant="outline"
                 className="min-h-11"
@@ -798,6 +786,31 @@ export default function PosClient({ locations }: { locations: PosLocationOption[
                   . En un cobro partido no hay vuelto.
                 </p>
               ) : null}
+
+              {/*
+                Tarea 9.6 del roadmap del POS (Fase 2): el cupón del cliente, cotizado por el servidor antes
+                de cobrar. Va pegado al total que cambia y al botón de cobrar, que es donde el cajero lo mira.
+              */}
+              <PosCouponPanel
+                applied={
+                  appliedCoupon
+                    ? {
+                        code: appliedCoupon.code,
+                        label: appliedCoupon.label,
+                        discount: appliedCoupon.discount,
+                      }
+                    : null
+                }
+                stale={coupon !== null && appliedCoupon === null}
+                busy={couponBusy}
+                error={couponError}
+                currency={currency}
+                onApply={(code) => void applyCoupon(code)}
+                onRemove={() => {
+                  setCoupon(null);
+                  setCouponError(null);
+                }}
+              />
 
               {/*
                 Bloque 12.3/12.4 del roadmap del POS (Fase 2): el cobro, con el aviso de caja cerrada, el

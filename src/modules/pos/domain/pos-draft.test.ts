@@ -127,12 +127,44 @@ describe("borrador del POS", () => {
     );
   });
 
+  /**
+   * Tarea 9.6 del roadmap del POS (Fase 2) — el descuento de un cupón entra por el **mismo** total.
+   *
+   * El subtotal y el empaque no cambian (el cupón descuenta sobre lo que se pidió, no sobre el empaque) y
+   * el total sale de `calculateOrderTotals`, que es la fórmula del servidor: el número que ve el cajero es
+   * el que se cobra.
+   */
+  it("un descuento baja el total sin tocar el subtotal ni el empaque", () => {
+    const draft = addPosLine(createPosDraft("loc_centro"), {
+      ...taco,
+      quantity: 2,
+      packagingUnitAmount: 5,
+    });
+
+    expect(posDraftTotals(draft, 7)).toEqual({ subtotal: 70, packagingAmount: 10, total: 73 });
+    expect(posDraftTotals(draft, 7).total).toBe(
+      calculateOrderTotals({
+        subtotal: 70,
+        discount: 7,
+        deliveryFeeAmount: 0,
+        items: [{ packagingTotalAmount: 10 }],
+        tipOptIn: false,
+        orderType: "pickup",
+      }).total,
+    );
+  });
+
+  it("un descuento más grande que la venta no deja el total en negativo", () => {
+    const draft = addPosLine(createPosDraft("loc_centro"), { ...taco, quantity: 1 });
+
+    expect(posDraftTotals(draft, 9999).total).toBe(0);
+  });
+
   it("no deja confirmar un borrador vacío ni sin local", () => {
     expect(() => assertPosDraftReady(createPosDraft("loc_centro"))).toThrow(PosError);
     expect(() =>
       assertPosDraftReady({ ...addPosLine(createPosDraft("  "), taco), locationId: "  " }),
-    ).toThrow(PosError);
-  });
+    ).toThrow(PosError);  });
 
   it("deja confirmar un borrador con líneas y local", () => {
     expect(() => assertPosDraftReady(addPosLine(createPosDraft("loc_centro"), taco))).not.toThrow();

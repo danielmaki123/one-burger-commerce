@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type { OrderRecord } from "@/modules/orders/domain/order.types";
+import type { CreateOrderRequest } from "@/modules/orders/features/create-order/create-order";
 import { InMemoryPaymentRepository } from "@/modules/orders/adapters/in-memory-payment-repository";
 
 import { addPosLine, createPosDraft, type PosDraft } from "../../domain/pos-draft";
@@ -51,7 +52,10 @@ function draftWithTaco(): PosDraft {
 }
 
 function setup(
-  createPosOrder = vi.fn(async () => ({ order: order(), reused: false })),
+  createPosOrder = vi.fn(async (_input: CreateOrderRequest) => ({
+    order: order(),
+    reused: false,
+  })),
   findOpenShift: () => Promise<{ id: string } | null> = async () => ({ id: "shift_01" }),
 ) {
   const paymentRepository = new InMemoryPaymentRepository();
@@ -401,5 +405,66 @@ describe("venta de mostrador", () => {
     ).rejects.toBeInstanceOf(PosError);
 
     expect(createPosOrder).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Tarea 9.6 del roadmap del POS (Fase 2) — el cupón que el cliente trajo.
+   *
+   * El cajero ya lo **cotizó** antes de cobrar (el descuento se le mostró al cliente), así que el cobro
+   * tiene que pedir el total **con el descuento**: comparar contra el total sin cupón hacía que la venta se
+   * rechazara por «no alcanza» aunque el cliente hubiera pagado bien. El código viaja al alta, que es la
+   * única puerta que valida la elegibilidad, calcula el descuento y consume el uso.
+   */
+  it("un cupón cotizado descuenta lo que se le pide al cliente y viaja al alta", async () => {
+    const createPosOrder = vi.fn(async (_input: CreateOrderRequest) => ({
+      order: order({ subtotal: 70, discount: 7, packagingAmount: 10, total: 73 }),
+      reused: false,
+    }));
+    const quoteCoupon = vi.fn(async () => ({
+      coupon: {
+        code: "BIENVENIDA10",
+        type: "percentage" as const,
+        value: 10,
+        buyQuantity: null,
+        freeQuantity: null,
+        scopeType: null,
+        scopeId: null,
+      },
+      subtotal: 70,
+      discount: 7,
+    }));
+    const { deps } = setup(createPosOrder);
+
+    const result = await registerPosSale(
+      {
+        draft: draftWithTaco(),
+        customer,
+        // Con el cupón el cliente paga 73: sin el descuento, este cobro «no alcanzaría» (80).
+        payments: [{ method: "cash", currency: "NIO", amount: 73 }],
+        couponCode: "BIENVENIDA10",
+      },
+      { ...deps, quoteCoupon },
+    );
+
+    expect(quoteCoupon).toHaveBeenCalledWith({
+      couponCode: "BIENVENIDA10",
+      lines: [{ productId: "prod_taco", quantity: 2 }],
+    });
+    expect(createPosOrder).toHaveBeenCalledTimes(1);
+    expect(createPosOrder.mock.calls[0][0]).toMatchObject({ couponCode: "BIENVENIDA10" });
+    expect(result.order.total).toBe(73);
+  });
+
+  it("sin código de cupón no se cotiza nada y el alta no recibe cupón", async () => {
+    const quoteCoupon = vi.fn();
+    const { createPosOrder, deps } = setup();
+
+    await registerPosSale(
+      { draft: draftWithTaco(), customer, payments: [{ method: "cash", currency: "NIO", amount: 80 }] },
+      { ...deps, quoteCoupon },
+    );
+
+    expect(quoteCoupon).not.toHaveBeenCalled();
+    expect(createPosOrder.mock.calls[0][0]).toMatchObject({ couponCode: null });
   });
 });

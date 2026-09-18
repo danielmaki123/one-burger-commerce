@@ -20,6 +20,7 @@ import { InMemoryPaymentRepository } from "@/modules/orders/adapters/in-memory-p
 const requireAdminSessionMock = vi.fn();
 const canUsePOSMock = vi.fn();
 const createPosOrderMock = vi.fn();
+const quoteCouponMock = vi.fn();
 const paymentRepository = new InMemoryPaymentRepository();
 
 vi.mock("@/modules/auth/features/require-admin-session/require-admin-session", () => ({
@@ -36,6 +37,7 @@ vi.mock("@/modules/pos/adapters/production-pos-sale", () => ({
     paymentRepository,
     businessCurrencyCode: "NIO",
     usdExchangeRate: 36.5,
+    quoteCoupon: quoteCouponMock,
   }),
 }));
 
@@ -177,6 +179,48 @@ describe("admin pos sale route", () => {
     expect(body.data.payments[0].currency).toBe("USD");
     // 3 × 36.5 = 109.50 contra un total de 80.
     expect(body.data.change).toBe(29.5);
+  });
+
+  /**
+   * Tarea 9.6 del roadmap del POS (Fase 2) — una venta con cupón cobra el total **con descuento**.
+   *
+   * El cliente ya vio el número (el POS lo cotizó al aplicar el código): con el cupón, esta venta se paga
+   * con 73 y el código viaja al alta, que es la que valida y consume el uso de la promo.
+   */
+  it("una venta con cupón cotiza el descuento antes de cobrar y lo manda al alta", async () => {
+    quoteCouponMock.mockResolvedValue({
+      coupon: {
+        code: "BIENVENIDA10",
+        type: "percentage",
+        value: 10,
+        buyQuantity: null,
+        freeQuantity: null,
+        scopeType: null,
+        scopeId: null,
+      },
+      subtotal: 70,
+      discount: 7,
+    });
+    // El alta crea el pedido con el descuento aplicado: 70 + 10 de empaque − 7 de cupón.
+    createPosOrderMock.mockResolvedValue({
+      order: { id: "ord_01", orderNumber: "P-ABC123", total: 73 } as OrderRecord,
+      reused: false,
+    });
+
+    const response = await callRoute({
+      ...venta,
+      couponCode: "bienvenida10",
+      payments: [{ method: "cash", currency: "NIO", amount: 73 }],
+    });
+    const body = await response.json();
+
+    expect(response.status).toBe(201);
+    expect(quoteCouponMock).toHaveBeenCalledWith({
+      couponCode: "BIENVENIDA10",
+      lines: [{ productId: "prod_taco", quantity: 2 }],
+    });
+    expect(createPosOrderMock.mock.calls[0][0]).toMatchObject({ couponCode: "BIENVENIDA10" });
+    expect(body.data.payments[0].amount).toBe(73);
   });
 
   /**

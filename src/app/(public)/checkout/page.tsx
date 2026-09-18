@@ -49,11 +49,8 @@ import {
   type OrderPaymentMethod,
 } from "@/modules/orders/domain/order.types";
 import { calculateOrderChange, validatePaidWithAmount } from "@/modules/orders/domain/payment-change";
-import {
-  describeCouponLabel,
-  estimateCouponDiscount,
-  type AppliedCoupon,
-} from "./coupon-helpers";
+import { describeCouponLabel, type AppliedCoupon } from "@/shared/lib/coupon-label";
+import { estimateCouponDiscount } from "./coupon-helpers";
 import {
   getPublicCheckoutMobileActionClassName,
   publicCheckoutScaleClasses,
