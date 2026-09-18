@@ -10,6 +10,7 @@ import { OutboxError } from "@/modules/notifications/domain/outbox-errors";
 import { OrderError } from "@/modules/orders/domain/order-errors";
 import { ShiftError } from "@/modules/orders/domain/shift-errors";
 import { InventoryError } from "@/modules/inventory/domain/inventory-errors";
+import { InvoiceError } from "@/modules/invoices/domain/invoice-errors";
 import { LocationError } from "@/modules/locations/domain/location-errors";
 import { AuditError } from "@/modules/audit/domain/audit-errors";
 import { PosError } from "@/modules/pos/domain/pos-errors";
@@ -177,6 +178,20 @@ export function createErrorResponse(error: unknown) {
 
   // Parte 3 del brief: la configuración de alertas por Telegram (chat inválido, umbral, envío que falló).
   if (error instanceof NotificationSettingsError) {
+    return NextResponse.json(
+      {
+        error: {
+          code: error.code,
+          message: error.message,
+          ...(error.fields ? { fields: error.fields } : {}),
+        },
+      },
+      { status: error.status },
+    );
+  }
+
+  // Factura simple (2026-09-18): el pedido no existe, no se cobró o está cancelado.
+  if (error instanceof InvoiceError) {
     return NextResponse.json(
       {
         error: {

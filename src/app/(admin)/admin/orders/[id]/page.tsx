@@ -9,14 +9,8 @@ import { useBusinessSettings, useCurrencyFormat } from "@/shared/lib/business-se
 import { formatCurrency } from "@/shared/lib/format-currency";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
-import {
-  formatPickupAddress,
-  type PickupLocation,
-} from "@/modules/locations/domain/location-rules";
-import {
-  PAYMENT_METHOD_LABELS,
-  type OrderPaymentMethod,
-} from "@/modules/orders/domain/order.types";
+import { formatPickupAddress } from "@/modules/locations/domain/location-rules";
+import { PAYMENT_METHOD_LABELS } from "@/modules/orders/domain/order.types";
 import { calculateOrderChange } from "@/modules/orders/domain/payment-change";
 import { getAllowedNextStatuses } from "@/modules/orders/domain/order-workflows";
 
@@ -31,94 +25,9 @@ import {
   resolveAdminPickupTiming,
 } from "../../_components/admin-pickup-timing";
 import OrderTicketButton from "../order-ticket-button";
+import OrderInvoicePanel from "../order-invoice-panel";
 
-type OrderType = "delivery" | "pickup" | "table";
-type OrderStatus =
-  | "new"
-  | "confirmed"
-  | "preparing"
-  | "ready"
-  | "out_for_delivery"
-  | "delivered"
-  | "closed"
-  | "ready_for_pickup"
-  | "picked_up"
-  | "accepted"
-  | "served"
-  | "cancelled";
-
-type OrderModifier = {
-  id: string;
-  modifierOptionId: string;
-  name: string;
-  priceDelta: number;
-};
-
-type OrderItem = {
-  id: string;
-  productName: string;
-  quantity: number;
-  packagingUnitAmount: number;
-  packagingQuantity: number;
-  packagingTotalAmount: number;
-  lineTotal: number;
-  notes: string | null;
-  modifiers: OrderModifier[];
-};
-
-type OrderDetail = {
-  id: string;
-  orderNumber: string;
-  type: OrderType;
-  status: OrderStatus;
-  customerName: string;
-  customerWhatsapp: string;
-  subtotal: number;
-  discount: number;
-  packagingAmount: number;
-  deliveryFeeAmount: number;
-  deliveryFeeStatus?: string | null;
-  tipAmount: number;
-  tipRate?: number | null;
-  total: number;
-  items: OrderItem[];
-  createdAt: string;
-  updatedAt: string;
-  address?: string | null;
-  deliveryNotes?: string | null;
-  deliveryZoneId?: string | null;
-  deliveryZoneName?: string | null;
-  customerLat?: number | null;
-  customerLng?: number | null;
-  geoAccuracy?: number | null;
-  geoCapturedAt?: string | null;
-  pickupTime?: string | null;
-  /** Si el cliente programó el retiro; sin programar es "lo antes posible". */
-  pickupScheduled?: boolean;
-  pickupNotes?: string | null;
-  /** Forma de pago declarada por el cliente (T11). */
-  paymentMethod?: OrderPaymentMethod | null;
-  /** Con cuánto paga el cliente cuando es efectivo (T12). */
-  paidWithAmount?: number | null;
-  /** PIN de retiro para dictar en caja (T13). */
-  pickupPin?: string | null;
-  /**
-   * Cobros registrados (TASK-304): una venta de mostrador los tiene; un pedido del checkout no,
-   * porque se paga al retirar. Es lo que la caja necesita para saber con qué pagó el cliente.
-   */
-  payments?: {
-    id: string;
-    method: OrderPaymentMethod;
-    amount: number;
-    currency: string | null;
-  }[];
-  /** Local del que sale el pedido (T8 fase 7); `null` si el local ya no existe. */
-  pickupLocation?: PickupLocation | null;
-};
-
-type GetOrderResponse = {
-  data: OrderDetail;
-};
+import type { GetOrderResponse, OrderDetail, OrderStatus, OrderType } from "./order-detail-types";
 
 type ReviewMode = "manual" | "reject" | null;
 
@@ -383,6 +292,27 @@ export default function AdminOrderDetailPage() {
             <div className="flex flex-wrap items-center gap-2">
               <OrderTicketButton order={order} />
             </div>
+
+            {/* Factura simple (2026-09-18): el documento que se lleva el cliente. Lo emite quien cobra y
+                queda congelado; el detalle solo lo muestra, lo emite y lo vuelve a imprimir. */}
+            <section
+              className="space-y-3 rounded-stitch-md border border-line-subtle bg-surface-card p-4"
+              aria-label="Factura"
+            >
+              <h2 className="text-st-h3 text-ink">Factura</h2>
+              <OrderInvoicePanel
+                orderId={order.id}
+                lines={order.items.map((item) => ({
+                  name: item.productName,
+                  quantity: item.quantity,
+                  unitPrice: item.unitPrice,
+                  lineTotal: item.lineTotal,
+                }))}
+                currency={currency}
+                businessCurrencyCode={businessCurrencyCode}
+                locationName={order.pickupLocation?.name ?? null}
+              />
+            </section>
             <p className="text-st-caption text-ink-secondary">
               Recibida {new Date(order.createdAt).toLocaleString()} ·{" "}
               <span className="font-mono font-semibold text-ink">

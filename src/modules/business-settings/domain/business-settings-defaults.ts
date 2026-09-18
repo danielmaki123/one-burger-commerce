@@ -32,6 +32,10 @@ export type BusinessSettingsDefaults = Omit<
 export const DEFAULT_BUSINESS_SETTINGS: BusinessSettingsDefaults = {
   id: BUSINESS_SETTINGS_ID,
   name: "One Burger",
+  // Factura simple (2026-09-18): sin razón social ni RUC cargados, el documento sale con el nombre del
+  // negocio. No se inventan datos fiscales.
+  legalName: null,
+  taxId: null,
   tagline: "Burgers preparadas al momento para llevar.",
   description: "Menu and pickup ordering platform for One Burger.",
   logoUrl: null,

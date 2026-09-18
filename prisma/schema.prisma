@@ -17,17 +17,17 @@ enum AdminRole {
 }
 
 model AdminUser {
-  id           String              @id @default(cuid())
-  name         String
-  email        String              @unique
-  passwordHash String
-  role         AdminRole
-  createdAt    DateTime            @default(now())
-  updatedAt    DateTime            @updatedAt
-  sessions     AdminSession[]
-  locations    AdminUserLocation[]
+  id            String              @id @default(cuid())
+  name          String
+  email         String              @unique
+  passwordHash  String
+  role          AdminRole
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  sessions      AdminSession[]
+  locations     AdminUserLocation[]
   /// TASK-104 — los turnos de caja que abrió y cerró este usuario.
-  shifts       Shift[]
+  shifts        Shift[]
   /// Bloque 2 del POS — los movimientos de caja que registró.
   cashMovements CashMovement[]
 }
@@ -62,6 +62,10 @@ model Customer {
   id                 String            @id @default(cuid())
   fullName           String?
   whatsappNormalized String            @unique
+  /// Factura simple (2026-09-18) — datos fiscales del cliente, si los pide. **No** es una factura
+  /// fiscal: es el documento que el cliente se lleva y donde quiere su razón social y su RUC.
+  legalName          String?
+  taxId              String?
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
   orders             Order[]
@@ -175,46 +179,46 @@ model Product {
 /// minutos de preparación y si acepta pedidos. La marca, la moneda y las promos siguen
 /// siendo del negocio entero y viven en `BusinessSettings`.
 model Location {
-  id                String              @id @default(cuid())
-  name              String
-  slug              String              @unique
-  isActive          Boolean             @default(true)
+  id                 String              @id @default(cuid())
+  name               String
+  slug               String              @unique
+  isActive           Boolean             @default(true)
   /// Orden manual; el primero activo es el local por defecto.
-  sortOrder         Int                 @default(0)
-  addressLine       String?
-  city              String?
-  addressReference  String?
-  mapsUrl           String?
-  latitude          Float?
-  longitude         Float?
-  phone             String?
-  whatsapp          String?
-  businessHours     Json
-  pickupLeadMinutes Int                 @default(25)
+  sortOrder          Int                 @default(0)
+  addressLine        String?
+  city               String?
+  addressReference   String?
+  mapsUrl            String?
+  latitude           Float?
+  longitude          Float?
+  phone              String?
+  whatsapp           String?
+  businessHours      Json
+  pickupLeadMinutes  Int                 @default(25)
   /// Máximo del rango de preparación (`null` = se promete un instante, no una franja).
-  pickupMaxMinutes  Int?
+  pickupMaxMinutes   Int?
   /// B5: minutos que puede esperar un pedido **sin aceptar** antes de avisar en el tablero de comandas.
-  acceptAlertMinutes Int                @default(10)
+  acceptAlertMinutes Int                 @default(10)
   /// B5: minutos que puede estar un pedido **en cocina** (aceptado, preparando o listo) antes de avisar.
-  prepAlertMinutes   Int                @default(15)
-  isAcceptingOrders Boolean             @default(true)
+  prepAlertMinutes   Int                 @default(15)
+  isAcceptingOrders  Boolean             @default(true)
   /// TASK-308 — si este local usa el punto de venta (mostrador). Nace prendido para no cambiarle
   /// nada al negocio de un solo local; apagado, la API del POS responde 403 en ese local.
-  posEnabled        Boolean             @default(true)
+  posEnabled         Boolean             @default(true)
   /// Tarea 3 del brief (2026-09-17) — cierre **obligatorio** de caja en este local: la caja no puede
   /// quedar abierta de un día para el otro. Nace apagado (cada sucursal lo decide desde su ficha); si
   /// está prendido y la caja sigue abierta con fecha de otro día, el POS no deja cobrar hasta cerrarla.
-  requireShiftClose Boolean             @default(false)
-  closedMessage     String?
-  createdAt         DateTime            @default(now())
-  updatedAt         DateTime            @updatedAt
-  products          LocationProduct[]
-  orders            Order[]
-  adminUsers        AdminUserLocation[]
+  requireShiftClose  Boolean             @default(false)
+  closedMessage      String?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  products           LocationProduct[]
+  orders             Order[]
+  adminUsers         AdminUserLocation[]
   /// TASK-104 — los turnos de caja de este local.
-  shifts            Shift[]
+  shifts             Shift[]
   /// Tarea 7 del brief (2026-09-17) — los traspasos de caja firmados en este local.
-  shiftHandovers    ShiftHandover[]
+  shiftHandovers     ShiftHandover[]
 
   @@index([isActive, sortOrder])
 }
@@ -366,6 +370,18 @@ enum ShiftStatus {
   closed
 }
 
+/// Factura simple (2026-09-18) — el documento que se le entrega al cliente.
+///
+/// **No es una factura fiscal**: no hay autorización de la DGI, ni rango de numeración oficial, ni
+/// impuestos discriminados. Es el papel que el cliente se lleva con lo que compró, lo que pagó y los
+/// datos del negocio; los datos fiscales del cliente (razón social y RUC) se guardan tal como los dio.
+enum InvoiceStatus {
+  /// Emitida: es un documento entregado y **no se edita** (como el arqueo de un turno cerrado).
+  emitted
+  /// Anulada: se emitió y después se anuló. No se borra: un documento entregado no desaparece.
+  voided
+}
+
 enum OrderStatus {
   new
   confirmed
@@ -496,6 +512,8 @@ model Order {
   /// Bloque 3 del POS — las devoluciones de este pedido. Cuelgan de la orden además del cobro para
   /// poder listar "qué se le devolvió a este pedido" sin pasar por los pagos.
   refunds              Refund[]
+  /// Factura simple (2026-09-18) — el documento que el cliente se lleva. Una por pedido.
+  invoice              Invoice?
 
   @@index([type])
   @@index([status])
@@ -541,15 +559,15 @@ model OrderItemModifier {
 }
 
 model OrderStatusHistory {
-  id        String      @id @default(cuid())
-  orderId   String
-  status    OrderStatus
-  note      String?
+  id              String      @id @default(cuid())
+  orderId         String
+  status          OrderStatus
+  note            String?
   /// B5: quién hizo el cambio (id del usuario del panel). Sin FK a propósito: borrar una cuenta no
   /// puede borrar ni romper el historial de lo que pasó con los pedidos.
   changedByUserId String?
-  createdAt DateTime    @default(now())
-  order     Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  createdAt       DateTime    @default(now())
+  order           Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@index([orderId])
   @@index([createdAt])
@@ -686,6 +704,10 @@ model BusinessSettings {
   id                  String   @id @default("default")
   // Identidad
   name                String   @default("One Burger")
+  /// Factura simple (2026-09-18) — razón social y RUC del negocio para el documento del cliente.
+  /// **No** es una factura fiscal: no hay autorización de la DGI ni correlativo oficial.
+  legalName           String?
+  taxId               String?
   tagline             String?
   description         String?
   logoUrl             String?
@@ -744,26 +766,26 @@ model BusinessSettings {
 /// devolución, ni un pago repartido entre efectivo y tarjeta. Por eso una tabla aparte, y por eso
 /// `Order.paymentMethod` se mantiene: la declaración del cliente y el cobro real son dos cosas.
 model Payment {
-  id        String            @id @default(cuid())
-  orderId   String
-  method    PaymentMethodType
-  amount    Decimal           @db.Decimal(10, 2)
+  id           String            @id @default(cuid())
+  orderId      String
+  method       PaymentMethodType
+  amount       Decimal           @db.Decimal(10, 2)
   /// TASK-303b — moneda en la que entró **este** cobro (el cliente puede pagar en dólares).
   /// `null` = la moneda del negocio: un cobro viejo no declara moneda y se cuenta como tal.
-  currency  String?
+  currency     String?
   /// Propina cobrada en este pago. Va aparte del monto porque en un pago mixto puede pagarse sola.
-  tip       Decimal           @default(0) @db.Decimal(10, 2)
+  tip          Decimal           @default(0) @db.Decimal(10, 2)
   /// TASK-305 — vuelto que salió del cajón con este cobro, en la **moneda del negocio**. Es un hecho
   /// del momento (lo que se le devolvió al cliente), y el arqueo lo necesita: sin él, un día con
   /// vueltos parecería que falta plata. El detalle del pedido sigue **derivando** el cambio (T12).
-  changeAmount Decimal        @default(0) @db.Decimal(10, 2)
+  changeAmount Decimal           @default(0) @db.Decimal(10, 2)
   /// Referencia externa del cobro (número de voucher, id de transferencia). Vacío si no aplica.
-  reference String?
-  createdAt DateTime          @default(now())
-  order     Order             @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  reference    String?
+  createdAt    DateTime          @default(now())
+  order        Order             @relation(fields: [orderId], references: [id], onDelete: Cascade)
   /// Bloque 3 del POS — las devoluciones de este cobro. Se guardan para no devolver dos veces la
   /// misma plata: el cupo disponible es `amount` menos las devoluciones no rechazadas.
-  refunds   Refund[]
+  refunds      Refund[]
 
   @@index([orderId])
   @@index([createdAt])
@@ -777,62 +799,62 @@ model Payment {
 /// que la regla se escribe a mano en el SQL; hay un test de contrato que exige que el índice exista,
 /// porque sin él dos cajas podrían abrir el mismo turno y el arqueo quedaría partido en dos.
 model Shift {
-  id             String      @id @default(cuid())
-  locationId     String
-  userId         String
-  status         ShiftStatus @default(open)
-  openedAt       DateTime    @default(now())
-  closedAt       DateTime?
+  id                  String           @id @default(cuid())
+  locationId          String
+  userId              String
+  status              ShiftStatus      @default(open)
+  openedAt            DateTime         @default(now())
+  closedAt            DateTime?
   /// Fondo con el que arranca la caja.
-  openingAmount  Decimal     @default(0) @db.Decimal(10, 2)
+  openingAmount       Decimal          @default(0) @db.Decimal(10, 2)
   /// Lo que se contó al cerrar. `null` mientras el turno está abierto.
-  closingAmount  Decimal?    @db.Decimal(10, 2)
+  closingAmount       Decimal?         @db.Decimal(10, 2)
   /// Lo que el sistema esperaba según los cobros. Se guarda congelado al cerrar: el arqueo de un
   /// turno cerrado no puede cambiar porque después se editó un pedido.
-  expectedAmount Decimal?    @db.Decimal(10, 2)
+  expectedAmount      Decimal?         @db.Decimal(10, 2)
   /// Bloque 1.1 del POS (Fase 2) — el esperado **por moneda**, tal como se calculó al cerrar
   /// (`{"NIO": 1200, "USD": 40}`). Antes viajaba solo en la respuesta: recomputar un cierre viejo
   /// usaba la tasa de cambio de hoy y mostraba un número que nunca existió.
-  expectedByCurrency Json?
+  expectedByCurrency  Json?
   /// Bloque 1.2 del POS (Fase 2) — lo que entró **en efectivo** en el turno, en la moneda del
   /// negocio (monto + propina − vuelto). La tarjeta no entra: no pasó por el cajón.
-  cashSalesAmount Decimal?   @db.Decimal(10, 2)
+  cashSalesAmount     Decimal?         @db.Decimal(10, 2)
   /// Tarea 1.2 del roadmap + decisión del owner (2026-09-17) — el **desglose por medio de pago** del turno,
   /// congelado al cerrar junto con el arqueo. Antes solo se guardaba el efectivo: la plata de la tarjeta y
   /// de la transferencia no quedaba en ningún lado del turno (había que recomputarla de los cobros).
-  cardSalesAmount     Decimal? @db.Decimal(10, 2)
-  transferSalesAmount Decimal? @db.Decimal(10, 2)
+  cardSalesAmount     Decimal?         @db.Decimal(10, 2)
+  transferSalesAmount Decimal?         @db.Decimal(10, 2)
   /// Mixto y otro: entró, pero no es efectivo ni una tarjeta de la terminal.
-  otherSalesAmount    Decimal? @db.Decimal(10, 2)
+  otherSalesAmount    Decimal?         @db.Decimal(10, 2)
   /// Propinas del turno. Van **dentro** de cada medio (es plata que el cliente pagó); acá quedan como
   /// detalle, para no tener que sumarlas de los cobros.
-  tipsAmount          Decimal? @db.Decimal(10, 2)
+  tipsAmount          Decimal?         @db.Decimal(10, 2)
   /// Bloque 2 del POS (Fase 2) — el neto de los movimientos del turno (retiros restan, ingresos
   /// suman), en la moneda del negocio. Congelado al cerrar, igual que el resto del arqueo.
-  cashMovementsAmount Decimal? @db.Decimal(10, 2)
+  cashMovementsAmount Decimal?         @db.Decimal(10, 2)
   /// Bloque 3 del POS (Fase 2) — el neto de las devoluciones en efectivo aprobadas del turno, en la
   /// moneda del negocio (negativo o 0). Congelado al cerrar, igual que el resto del arqueo.
-  refundsAmount  Decimal?    @db.Decimal(10, 2)
+  refundsAmount       Decimal?         @db.Decimal(10, 2)
   /// `closingAmount - expectedAmount`. Negativo = faltó plata.
-  difference     Decimal?    @db.Decimal(10, 2)
+  difference          Decimal?         @db.Decimal(10, 2)
   /// Bloque 1.10 del POS (Fase 2) — reapertura de un turno cerrado. Queda firmado quién, cuándo y
   /// por qué: reabrir una caja ya cerrada es la operación más sensible del arqueo, y una reapertura
   /// sin motivo escrito no se puede auditar.
-  reopenedAt     DateTime?
-  reopenedByUserId String?
-  reopenReason   String?
-  notes          String?
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
-  location       Location    @relation(fields: [locationId], references: [id], onDelete: Restrict)
-  user           AdminUser   @relation(fields: [userId], references: [id], onDelete: Restrict)
-  cashCounts     ShiftCashCount[]
-  movements      CashMovement[]
+  reopenedAt          DateTime?
+  reopenedByUserId    String?
+  reopenReason        String?
+  notes               String?
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+  location            Location         @relation(fields: [locationId], references: [id], onDelete: Restrict)
+  user                AdminUser        @relation(fields: [userId], references: [id], onDelete: Restrict)
+  cashCounts          ShiftCashCount[]
+  movements           CashMovement[]
   /// Bloque 3 del POS — las devoluciones registradas en este turno. Solo las **aprobadas** y **en
   /// efectivo** restan del esperado: son las que sacaron plata del cajón.
-  refunds        Refund[]
+  refunds             Refund[]
   /// Tarea 7 del brief (2026-09-17) — los traspasos de esta caja (Bloque 1.13).
-  handovers      ShiftHandover[]
+  handovers           ShiftHandover[]
 
   @@index([locationId, status])
   @@index([userId])
@@ -850,15 +872,15 @@ enum ShiftCountKind {
 }
 
 model ShiftCashCount {
-  id           String          @id @default(cuid())
+  id           String         @id @default(cuid())
   shiftId      String
   kind         ShiftCountKind
   /// Código ISO de la moneda contada (`NIO`, `USD`): la caja puede tener las dos.
   currency     String
-  denomination Decimal         @db.Decimal(10, 2)
+  denomination Decimal        @db.Decimal(10, 2)
   quantity     Int
-  createdAt    DateTime        @default(now())
-  shift        Shift           @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+  createdAt    DateTime       @default(now())
+  shift        Shift          @relation(fields: [shiftId], references: [id], onDelete: Cascade)
 
   /// Una sola fila por billete y por tipo de conteo: contar dos veces el mismo billete es un error de
   /// carga, no un dato.
@@ -874,22 +896,22 @@ model ShiftCashCount {
 /// cierre: recalcularlo después —con la tasa de cambio de hoy o con cobros que entraron más tarde— diría
 /// un número que nadie firmó.
 model ShiftHandover {
-  id             String   @id @default(cuid())
-  shiftId        String
-  locationId     String
+  id                 String   @id @default(cuid())
+  shiftId            String
+  locationId         String
   /// Quién entrega (usuario del panel). `null` si no se pudo resolver: el nombre queda igual.
-  handedByUserId String?
-  handedByName   String?
+  handedByUserId     String?
+  handedByName       String?
   /// Quién recibe, tal como se firmó. Texto libre: el que sigue no siempre tiene usuario del panel.
-  receivedByName String
+  receivedByName     String
   /// El esperado del corte X al firmar, en la moneda del negocio.
-  expectedAmount Decimal  @db.Decimal(10, 2)
+  expectedAmount     Decimal  @db.Decimal(10, 2)
   /// El detalle por moneda del mismo momento (`{"NIO": 1500, "USD": 20}`).
   expectedByCurrency Json?
-  notes          String?
-  createdAt      DateTime @default(now())
-  shift          Shift    @relation(fields: [shiftId], references: [id], onDelete: Cascade)
-  location       Location @relation(fields: [locationId], references: [id], onDelete: Restrict)
+  notes              String?
+  createdAt          DateTime @default(now())
+  shift              Shift    @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+  location           Location @relation(fields: [locationId], references: [id], onDelete: Restrict)
 
   @@index([shiftId, createdAt])
   @@index([locationId, createdAt])
@@ -905,30 +927,30 @@ model ShiftHandover {
 /// lo hace una persona desde una pantalla que ya sabe de qué caja es, así que no hay motivo para
 /// adivinar a qué turno pertenece.
 model CashMovement {
-  id         String             @id @default(cuid())
-  shiftId    String
-  kind       CashMovementKind
-  category   CashMovementCategory
+  id                    String               @id @default(cuid())
+  shiftId               String
+  kind                  CashMovementKind
+  category              CashMovementCategory
   /// Monto, siempre positivo: el signo lo da el `kind` (retiro resta, ingreso suma).
-  amount     Decimal            @db.Decimal(10, 2)
+  amount                Decimal              @db.Decimal(10, 2)
   /// Código ISO de la moneda que se movió (`NIO`, `USD`).
-  currency   String
+  currency              String
   /// Por qué se movió. Obligatorio: un retiro sin motivo no se puede auditar.
-  reason     String
+  reason                String
   /// Quién lo registró.
-  userId     String
+  userId                String
   /// Bloque 2.5/2.6 — aprobación de un movimiento por encima del límite. `null` = no requiere.
   /// Decisión del owner (2026-09-17): **no hay aprobación del supervisor**, así que estos dos quedan
   /// en `null`; el límite marca el movimiento (`withdrawalLimitAmount`) para que se vea, no lo bloquea.
-  approvedByUserId String?
-  approvedAt DateTime?
+  approvedByUserId      String?
+  approvedAt            DateTime?
   /// Tarea 2 del brief (2026-09-17) — el límite de retiro **vigente cuando se registró**. `null` = no
   /// había límite configurado. Se guarda congelado: cambiar el límite después no reescribe la historia
   /// (es la misma regla que el arqueo de un cierre).
-  withdrawalLimitAmount Decimal?  @db.Decimal(10, 2)
-  createdAt  DateTime           @default(now())
-  shift      Shift              @relation(fields: [shiftId], references: [id], onDelete: Cascade)
-  user       AdminUser          @relation(fields: [userId], references: [id], onDelete: Restrict)
+  withdrawalLimitAmount Decimal?             @db.Decimal(10, 2)
+  createdAt             DateTime             @default(now())
+  shift                 Shift                @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+  user                  AdminUser            @relation(fields: [userId], references: [id], onDelete: Restrict)
 
   @@index([shiftId, createdAt])
   @@index([userId])
@@ -961,7 +983,7 @@ enum CashMovementCategory {
 /// El `status` arranca en `pending` cuando quien la pide no tiene permiso de aprobar: nadie firma su
 /// propia devolución, así que la cola de aprobaciones es la que le da salida.
 model Refund {
-  id                String             @id @default(cuid())
+  id                String            @id @default(cuid())
   paymentId         String
   orderId           String
   /// Turno donde se registró. `null` = no había caja abierta (el cobro pudo ser de otro momento):
@@ -971,19 +993,19 @@ model Refund {
   /// Medio original del cobro: solo `cash` saca plata del cajón.
   method            PaymentMethodType
   /// Monto, siempre positivo: lo que se le devuelve al cliente. El signo lo pone el arqueo.
-  amount            Decimal            @db.Decimal(10, 2)
+  amount            Decimal           @db.Decimal(10, 2)
   /// Código ISO de la moneda devuelta (`NIO`, `USD`): devolver US$20 no resta 20 córdobas.
   currency          String
   /// Por qué se devolvió. Obligatorio: una devolución sin motivo no se puede auditar.
   reason            String
-  status            RefundStatus       @default(pending)
+  status            RefundStatus      @default(pending)
   requestedByUserId String?
   approvedByUserId  String?
   approvedAt        DateTime?
-  createdAt         DateTime           @default(now())
-  payment           Payment            @relation(fields: [paymentId], references: [id], onDelete: Cascade)
-  order             Order              @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  shift             Shift?             @relation(fields: [shiftId], references: [id], onDelete: SetNull)
+  createdAt         DateTime          @default(now())
+  payment           Payment           @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  order             Order             @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  shift             Shift?            @relation(fields: [shiftId], references: [id], onDelete: SetNull)
 
   /// Todas las devoluciones de un cobro: es lo que se suma para saber cuánto queda por devolver.
   @@index([paymentId])
@@ -1011,7 +1033,42 @@ enum RefundStatus {
   rejected
 }
 
+/// Factura simple (2026-09-18) — el documento que el cliente se lleva, **congelado al emitir**.
+///
+/// Los datos del negocio y del cliente se copian acá en el momento de emitir (igual que el arqueo de un
+/// turno): cambiar el RUC del negocio mañana no puede reescribir un papel que ya está en la mano del
+/// cliente. Los montos también se congelan: si el pedido se edita después, el documento sigue diciendo lo
+/// que se entregó.
+model Invoice {
+  id                String        @id @default(cuid())
+  /// Número del documento, correlativo y único: es lo que el cliente cita si reclama.
+  number            String        @unique
+  orderId           String        @unique
+  status            InvoiceStatus @default(emitted)
+  /// Datos del cliente al emitir (los fiscales son opcionales: sin ellos es "consumidor final").
+  customerName      String
+  customerLegalName String?
+  customerTaxId     String?
+  /// Datos del negocio al emitir.
+  businessName      String
+  businessLegalName String?
+  businessTaxId     String?
+  businessAddress   String?
+  businessPhone     String?
+  /// Moneda y montos del pedido, congelados.
+  currencyCode      String
+  subtotal          Decimal       @db.Decimal(10, 2)
+  discount          Decimal       @default(0) @db.Decimal(10, 2)
+  packagingAmount   Decimal       @default(0) @db.Decimal(10, 2)
+  deliveryFeeAmount Decimal       @default(0) @db.Decimal(10, 2)
+  tipAmount         Decimal       @default(0) @db.Decimal(10, 2)
+  total             Decimal       @db.Decimal(10, 2)
+  issuedAt          DateTime      @default(now())
+  issuedByUserId    String?
+  order             Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
+  @@index([issuedAt])
+}
 
 /// Bloque 13.1 del roadmap del POS (Fase 2) — el asiento de una acción sensible.
 ///
@@ -1041,20 +1098,20 @@ model AdminAuditLog {
 /// recibir (`eventsEnabled`, lista cerrada del dominio): todos los eventos del sistema se registran en
 /// el outbox igual, y esta configuración decide cuáles se reenvían.
 model NotificationSettings {
-  id       String  @id @default("default")
+  id                       String  @id @default("default")
   /// Grupo/canal de Telegram del negocio. `null` = sin configurar.
-  chatId   String?
-  enabled  Boolean @default(false)
+  chatId                   String?
+  enabled                  Boolean @default(false)
   /// Claves de `TELEGRAM_EVENTS` que el owner quiere recibir. Por defecto, el cierre de cada turno
   /// (decisión del owner, 2026-09-17): es el aviso de operación normal; los de problema se prenden a mano.
-  eventsEnabled Json @default("[\"shift_closed\"]")
+  eventsEnabled            Json    @default("[\"shift_closed\"]")
   /// Devolución que supera este monto avisa al dueño (decisión del owner: C$500).
-  refundAlertThreshold     Float  @default(500)
+  refundAlertThreshold     Float   @default(500)
   /// Diferencia de caja que supera este monto avisa. `null` = no avisar (lo decide el owner).
   differenceAlertThreshold Float?
 
   lastSentAt DateTime?
   lastError  String?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 }

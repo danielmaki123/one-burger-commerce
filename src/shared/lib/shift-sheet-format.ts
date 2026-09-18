@@ -24,15 +24,28 @@ export type ShiftSheetOptions = {
 /** La línea para firmar. Un papel de caja sin firma es un papel que después no explica nada. */
 export const SHIFT_SIGNATURE_LINE = "Firma: ______________________________";
 
-export function sheetCurrencyFormat(currencyCode: string, options: ShiftSheetOptions): CurrencyFormat {
+export function sheetCurrencyFormat(
+  currencyCode: string,
+  options: SheetMoneyOptions,
+): CurrencyFormat {
   return { symbol: options.currencySymbol, locale: options.locale };
 }
+
+/**
+ * Lo mínimo para escribir un monto en un papel: la moneda del negocio (su código y su símbolo) y el
+ * locale. La hoja de cierre pasa sus opciones completas; la **factura simple** (2026-09-18) solo necesita
+ * esto, y así el formato de plata de los dos papeles sigue siendo el mismo.
+ */
+export type SheetMoneyOptions = Pick<
+  ShiftSheetOptions,
+  "currencyCode" | "currencySymbol" | "locale"
+>;
 
 /** Un monto en su moneda: la del negocio con símbolo (`C$305.00`), otra con su código (`USD 20.00`). */
 export function formatSheetAmount(
   amount: number,
   currency: string,
-  options: ShiftSheetOptions,
+  options: SheetMoneyOptions,
 ): string {
   if (currency.toUpperCase() === options.currencyCode.toUpperCase()) {
     return formatCurrency(amount, sheetCurrencyFormat(currency, options));

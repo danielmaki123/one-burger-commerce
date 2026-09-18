@@ -327,6 +327,9 @@ try {
     await page.waitForTimeout(600);
     await shot(page, "tarea-10-conciliacion", viewport.name);
 
+    // Factura simple (2026-09-18): el documento del pedido, con su emisión y su papel.
+    await capturarFactura(page, viewport.name);
+
     await context.close();
   }
 
@@ -405,8 +408,49 @@ try {
     await target.waitForSelector('[aria-label="Venta en curso"]', { timeout: 30_000 });
   }
 
-  async function shot(target, file, viewportName) {
-    const full = path.join(outputRoot, `${file}-${viewportName}.png`);
+  /**
+   * Factura simple (2026-09-18) — el documento del pedido. Se abre el primer pedido de la lista, se captura
+   * la sección, se emite la factura (local, sobre la base de desarrollo) y se captura el papel tal como sale
+   * impreso: el navegador lo guarda como PDF, que es la decisión para este documento.
+   */
+  async function capturarFactura(target, viewportName) {
+    const pedidoCobrado = await target.evaluate(async () => {
+      const lista = await (await fetch("/api/admin/orders?limit=20")).json();
+      const conAlgo = lista.data ?? [];
+
+      return conAlgo[0]?.id ?? null;
+    });
+
+    if (!pedidoCobrado) return;
+
+    await target.goto(`${baseUrl}/admin/orders/${pedidoCobrado}`, { waitUntil: "domcontentloaded" });
+    await target.waitForSelector('[aria-label="Factura"]', { timeout: 30_000 });
+    await target.evaluate(() => {
+      document.querySelector('[aria-label="Factura"]')?.scrollIntoView({ block: "center" });
+    });
+    await target.waitForTimeout(600);
+    await shot(target, "tarea-factura-simple", viewportName);
+
+    const emitir = target.getByRole("button", { name: "Emitir factura" });
+    if ((await emitir.count()) === 0) return;
+
+    await emitir.click();
+    await target.getByText(/^F-\d{6}$/).waitFor({ timeout: 30_000 });
+    await target.waitForTimeout(500);
+    await shot(target, "tarea-factura-emitida", viewportName);
+
+    const [hoja] = await Promise.all([
+      target.waitForEvent("popup"),
+      target.getByRole("button", { name: "Imprimir o guardar PDF" }).click(),
+    ]);
+    await hoja.waitForLoadState("domcontentloaded");
+    await hoja.setViewportSize({ width: 420, height: 900 });
+    await hoja.waitForTimeout(400);
+    await shot(hoja, "tarea-factura-impresa", viewportName);
+    await hoja.close();
+  }
+
+  async function shot(target, file, viewportName) {    const full = path.join(outputRoot, `${file}-${viewportName}.png`);
     await target.screenshot({ path: full, fullPage: false });
     console.log(`captura: ${path.relative(repoRoot, full)}`);
   }

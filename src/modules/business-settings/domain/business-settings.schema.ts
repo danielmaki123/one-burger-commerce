@@ -166,6 +166,12 @@ export const businessSettingsPatchSchema = z.object({
   tiktok: socialHandleSchema().optional(),
   addressLine: optionalText(200).optional(),
   city: optionalText(120).optional(),
+  /**
+   * Factura simple (2026-09-18) — razón social y RUC del negocio para el documento del cliente. Son
+   * **opcionales**: un negocio sin RUC cargado emite igual (el documento sale con el nombre del negocio).
+   */
+  legalName: optionalText(160).optional(),
+  taxId: optionalText(40).optional(),
   addressReference: optionalText(200).optional(),
   mapsUrl: assetUrlSchema().optional(),
   latitude: z.number().min(-90, "Tiene que estar entre -90 y 90").max(90, "Tiene que estar entre -90 y 90").nullable().optional(),
