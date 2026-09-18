@@ -83,6 +83,52 @@ try {
     await page.getByRole("button", { name: "Sí, descartar" }).click();
     await page.getByText("No hay ventas en espera.").waitFor({ timeout: 30_000 });
 
+    /**
+     * Tarea 9.6 — el cupón. Se crea una promo real (10 %) desde la propia página, se aplica en el mostrador
+     * —el servidor la cotiza y el total baja— y **se borra** al final: la base de producción queda igual.
+     */
+    const promoCode = `CAPTURA${Date.now().toString(36).toUpperCase()}`;
+    const promo = await page.evaluate(async (code) => {
+      const response = await fetch("/api/admin/promotions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code, type: "percentage", value: 10, isActive: true, usageLimit: 0 }),
+      });
+      const body = await response.json();
+
+      return { ok: response.ok, id: body.data?.id ?? null };
+    }, promoCode);
+    if (!promo.ok) throw new Error("no se pudo crear la promo de la captura");
+
+    await page.getByRole("button", { name: /^Agregar / }).first().click();
+    await page.getByLabel("Nombre del cliente").fill("Cliente captura");
+    await page.getByLabel("Código de promo (opcional)").fill(promoCode);
+    await page.getByRole("button", { name: "Aplicar", exact: true }).click();
+    await page.getByText("10 % de descuento").waitFor({ timeout: 30_000 });
+    await page.getByRole("button", { name: /^Cobrar / }).scrollIntoViewIfNeeded();
+    await page.waitForTimeout(600);
+    await shot(page, "tarea-9-6-promo-aplicada-produccion", viewport.name);
+
+    await page.getByRole("button", { name: "Quitar", exact: true }).click();
+    if (promo.id) {
+      await page.evaluate(async (id) => {
+        await fetch(`/api/admin/promotions/${id}`, { method: "DELETE" });
+      }, promo.id);
+    }
+
+    // Tarea 9.7 — el descuento manual, que en producción lo ve el dueño (la cuenta de QA es admin).
+    await page.getByLabel("Descuento (%)").fill("10");
+    await page.getByLabel("Motivo del descuento").fill("Cliente de siempre");
+    await page.getByRole("button", { name: "Aplicar descuento" }).click();
+    await page.getByText("Descuento manual · 10 %").waitFor({ timeout: 30_000 });
+    await page.getByRole("button", { name: /^Cobrar / }).scrollIntoViewIfNeeded();
+    await page.waitForTimeout(600);
+    await shot(page, "tarea-9-7-descuento-manual-produccion", viewport.name);
+
+    // La venta queda limpia: la captura no deja nada a medio armar en el mostrador.
+    await page.getByRole("button", { name: "Quitar descuento" }).click();
+    await page.getByRole("button", { name: /^Sacar / }).first().click();
+
     await context.close();
   }
 } finally {

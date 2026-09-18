@@ -1,16 +1,17 @@
 # Estado del proyecto — One Burger Commerce
 
-> Actualizado: 2026-09-18 · Último deploy a producción: 2026-09-18, commit `8bf1b08` (build
-> `build-20260918-042336`, deploy por API sobre el servicio `oneburguerweb`, acción `done`; readiness
-> `ready` con la base en 1 ms y los dos smokes en verde: menú 7/7 y hosts 6/6). Ese build lleva la
-> **venta en espera del POS** (tareas 9.4/9.5: dejar la venta a un lado, liberar el mostrador y retomarla
-> completa, con la clave del intento de cobro viajando con ella) y el arreglo del primitivo `Modal`
-> (salía pegado a la esquina porque el reset de Tailwind borra el `margin: auto` con el que el navegador
-> centra el `dialog:modal`). Verificado **en producción** con capturas reales del panel
-> (`ops/tasks/audit-ui/tarea-9-4-venta-en-espera-produccion-*.png`,
-> `tarea-9-5-descartar-confirmacion-produccion-*.png`). El build anterior
-> (`build-20260917-193443`, commit `d5da7ce`) llevaba el reporte diario de caja (1.5) y el cierre del PDF del cierre
-> en el navegador (1.6). Lleva también
+> Actualizado: 2026-09-18 · Último deploy a producción: 2026-09-18, commit `9cf30f7` (build
+> `build-20260918-051408`, deploy por API sobre el servicio `oneburguerweb`, acción `done`; readiness
+> `ready` con la base en 1 ms y los dos smokes en verde: menú 7/7 y hosts 6/6). Ese build lleva las
+> cuatro tareas del POS de esta ronda: **9.4/9.5** (la venta **en espera**: dejar la venta a un lado,
+> liberar el mostrador y retomarla completa, con la clave del intento de cobro viajando con ella),
+> **9.6** (cupones en el POS: el servidor cotiza el descuento sobre la venta en curso antes de cobrar)
+> y **9.7** (descuentos manuales con permiso propio —owner y manager—, firmados en el log con su
+> motivo), más el arreglo del primitivo `Modal` (salía pegado a la esquina porque el reset de Tailwind
+> borra el `margin: auto` con el que el navegador centra el `dialog:modal`). Verificado **en
+> producción** con capturas reales del panel
+> (`ops/tasks/audit-ui/tarea-9-*-produccion-*.png`). El build anterior
+> (`build-20260918-042336`, commit `8bf1b08`) llevaba las tareas 1.2/1.5/1.6/7.3. Lleva también
 > la configuración de las **alertas Telegram** (driver `telegram_alerts`, token del bot y scheduler del
 > outbox por entorno), con el grupo del negocio cargado y la conexión probada con un mensaje real
 > (`Conectado`, captura en `ops/tasks/audit-ui/alertas-telegram-produccion-1280.png`). Lleva el **panel entero migrado al sistema Stitch** —Fase 1 (tokens, tipografías,
@@ -48,12 +49,15 @@
 > **Ronda del roadmap POS (en curso, 2026-09-17)**: de las 8 tareas que el owner confirmó para cerrar el
 > roadmap antes del rediseño del menú público, ya están **1.2** (desglose por medio al cerrar), **1.5**
 > (reporte diario de caja consolidado), **1.6** (el PDF del cierre se genera desde el navegador, sin
-> dependencia nueva) y **7.3** (helper E2E con rol `cashier`). Recién cerradas: **9.4/9.5** — la venta
-> **en espera** del mostrador (guardar la venta a un lado y retomarla completa, con la clave del intento
-> viajando con ella; vive en la terminal, como el borrador) y, en el camino, un bug del primitivo
-> `Modal` (salía pegado a la esquina: el reset de Tailwind borra el `margin: auto` con el que el navegador
-> centra el `dialog:modal`). Faltan **9.6** (promos/cupones en el POS), **9.7** (descuentos manuales con
-> permiso) y la **factura simple no fiscal**. El **rediseño del menú público no se toca** en esta ronda.
+> dependencia nueva), **7.3** (helper E2E con rol `cashier`), **9.4/9.5** (la venta **en espera** del
+> mostrador: guardar la venta a un lado y retomarla completa, con la clave del intento viajando con ella;
+> vive en la terminal, como el borrador), **9.6** (cupones en el POS: el servidor cotiza el descuento
+> sobre la venta en curso antes de cobrar, con la misma fórmula que usa el alta) y **9.7** (descuentos
+> manuales con permiso propio —owner y manager—, con motivo obligatorio y asentados en el log de acciones
+> sensibles). En el camino apareció y se arregló un bug del primitivo `Modal` (salía pegado a la esquina:
+> el reset de Tailwind borra el `margin: auto` con el que el navegador centra el `dialog:modal`).
+> **Falta la factura simple no fiscal** (ítem 4 de la ronda) para cerrar el roadmap. El **rediseño del
+> menú público no se toca** en esta ronda.
 
 ## 1. Qué está vivo hoy
 
