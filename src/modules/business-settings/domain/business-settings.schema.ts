@@ -167,11 +167,14 @@ export const businessSettingsPatchSchema = z.object({
   addressLine: optionalText(200).optional(),
   city: optionalText(120).optional(),
   /**
-   * Factura simple (2026-09-18) — razón social y RUC del negocio para el documento del cliente. Son
-   * **opcionales**: un negocio sin RUC cargado emite igual (el documento sale con el nombre del negocio).
+   * Factura simple (2026-09-18) — datos fiscales del negocio para el documento del cliente. Son
+   * **opcionales**: un negocio sin RUC cargado emite igual (el documento sale con el nombre del negocio y
+   * el contacto de siempre).
    */
   legalName: optionalText(160).optional(),
   taxId: optionalText(40).optional(),
+  taxAddress: optionalText(200).optional(),
+  taxPhone: optionalText(30).optional(),
   addressReference: optionalText(200).optional(),
   mapsUrl: assetUrlSchema().optional(),
   latitude: z.number().min(-90, "Tiene que estar entre -90 y 90").max(90, "Tiene que estar entre -90 y 90").nullable().optional(),

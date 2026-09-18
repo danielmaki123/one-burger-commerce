@@ -33,6 +33,8 @@ function mapRow(row: BusinessSettings): BusinessSettingsRecord {
     name: row.name,
     legalName: row.legalName,
     taxId: row.taxId,
+    taxAddress: row.taxAddress,
+    taxPhone: row.taxPhone,
     tagline: row.tagline,
     description: row.description,
     logoUrl: row.logoUrl,

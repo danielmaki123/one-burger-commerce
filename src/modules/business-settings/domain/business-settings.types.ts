@@ -56,9 +56,11 @@ export type BusinessSettingsRecord = {
   id: string;
   // Identidad
   name: string;
-  /** Factura simple (2026-09-18) — razón social y RUC para el documento del cliente (no fiscal). */
+  /** Factura simple (2026-09-18) — datos fiscales del negocio para el documento (no fiscal). */
   legalName: string | null;
   taxId: string | null;
+  taxAddress: string | null;
+  taxPhone: string | null;
   tagline: string | null;
   description: string | null;
   logoUrl: string | null;

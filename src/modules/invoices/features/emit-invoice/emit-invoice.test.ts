@@ -197,4 +197,57 @@ describe("emitInvoice", () => {
       }),
     );
   });
+
+  /**
+   * Factura simple (2026-09-18) — los datos fiscales del negocio **mandan** sobre el contacto de siempre.
+   *
+   * Se cargan en Personalización (sección «Datos fiscales») y son otra cosa: la dirección fiscal no es la
+   * dirección del local y el teléfono fiscal no es el del mostrador. Sin ellos, el documento usa el
+   * contacto del negocio.
+   */
+  it("la dirección y el teléfono fiscales mandan sobre los del negocio", async () => {
+    const { repository: invoiceRepository, create } = repository();
+
+    await emitInvoice(
+      { orderId: "ord_01", actorUserId: "admin_1" },
+      {
+        invoiceRepository,
+        findOrder: async () => order,
+        countPayments: async () => 1,
+        business: {
+          ...business,
+          taxAddress: "  Km 5 Carretera Masaya, Managua  ",
+          taxPhone: "+50522223333",
+        },
+      },
+    );
+
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        businessAddress: "Km 5 Carretera Masaya, Managua",
+        businessPhone: "+50522223333",
+      }),
+    );
+  });
+
+  it("sin datos fiscales el documento sigue usando el contacto del negocio", async () => {
+    const { repository: invoiceRepository, create } = repository();
+
+    await emitInvoice(
+      { orderId: "ord_01", actorUserId: "admin_1" },
+      {
+        invoiceRepository,
+        findOrder: async () => order,
+        countPayments: async () => 1,
+        business: { ...business, taxAddress: null, taxPhone: "  " },
+      },
+    );
+
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        businessAddress: "Camino de Oriente, Managua",
+        businessPhone: "+50588887777",
+      }),
+    );
+  });
 });

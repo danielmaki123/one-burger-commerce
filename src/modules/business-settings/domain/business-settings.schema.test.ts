@@ -195,4 +195,31 @@ describe("validación de la configuración del negocio", () => {
       name: "One Burger",
     });
   });
+
+  /**
+   * Factura simple (2026-09-18) — los **datos fiscales del negocio** (Personalización → «Datos fiscales»).
+   *
+   * Son opcionales y se guardan como los demás textos: un campo vacío se limpia (la factura no imprime esa
+   * línea) y un dato que no sea texto no se cuela.
+   */
+  it("acepta los datos fiscales y limpia los vacíos", () => {
+    expect(
+      parseBusinessSettingsPatch({
+        legalName: "One Burger S.A.",
+        taxId: "J0310000123456",
+        taxAddress: "Camino de Oriente, Managua",
+        taxPhone: "+50588887777",
+      }),
+    ).toEqual({
+      legalName: "One Burger S.A.",
+      taxId: "J0310000123456",
+      taxAddress: "Camino de Oriente, Managua",
+      taxPhone: "+50588887777",
+    });
+
+    // Vacíos: se guardan como `null` (la línea no se imprime), no como cadena vacía.
+    expect(
+      parseBusinessSettingsPatch({ legalName: "", taxId: "   ", taxAddress: "", taxPhone: "" }),
+    ).toEqual({ legalName: null, taxId: null, taxAddress: null, taxPhone: null });
+  });
 });

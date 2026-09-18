@@ -704,10 +704,14 @@ model BusinessSettings {
   id                  String   @id @default("default")
   // Identidad
   name                String   @default("One Burger")
-  /// Factura simple (2026-09-18) — razón social y RUC del negocio para el documento del cliente.
-  /// **No** es una factura fiscal: no hay autorización de la DGI ni correlativo oficial.
+  /// Factura simple (2026-09-18) — datos fiscales del negocio para el documento del cliente.
+  /// **No** es una factura fiscal: no hay autorización de la DGI ni correlativo oficial. Son opcionales
+  /// (se cargan en Personalización): sin ellos el documento sale con el nombre del negocio y sus datos de
+  /// contacto de siempre.
   legalName           String?
   taxId               String?
+  taxAddress          String?
+  taxPhone            String?
   tagline             String?
   description         String?
   logoUrl             String?

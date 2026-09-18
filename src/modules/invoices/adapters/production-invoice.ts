@@ -27,6 +27,10 @@ export async function createProductionInvoiceDependencies(): Promise<EmitInvoice
       name: settings.name,
       legalName: settings.legalName,
       taxId: settings.taxId,
+      // Los datos fiscales (Personalización → Datos fiscales) son los que van al documento; sin ellos, el
+      // contacto de siempre. La decisión la toma el caso de uso, que es el que sabe qué se imprime.
+      taxAddress: settings.taxAddress,
+      taxPhone: settings.taxPhone,
       addressLine: settings.addressLine,
       city: settings.city,
       phone: settings.phone,

@@ -46,6 +46,9 @@ export type EmitInvoiceDependencies = {
     name: string;
     legalName?: string | null;
     taxId?: string | null;
+    /** Dirección fiscal: si está cargada, manda sobre la del negocio (son datos distintos). */
+    taxAddress?: string | null;
+    taxPhone?: string | null;
     addressLine?: string | null;
     city?: string | null;
     phone?: string | null;
@@ -66,6 +69,16 @@ function businessAddressOf(business: EmitInvoiceDependencies["business"]): strin
   );
 
   return parts.length > 0 ? parts.join(", ") : null;
+}
+
+/**
+ * La dirección que va al documento: la **fiscal** si está cargada (es la que el cliente espera ver en su
+ * factura) y, si no, la del negocio. No se mezclan: una dirección fiscal a medias no es la del local.
+ */
+function documentAddressOf(business: EmitInvoiceDependencies["business"]): string | null {
+  const taxAddress = business.taxAddress?.trim();
+
+  return taxAddress ? taxAddress : businessAddressOf(business);
 }
 
 export async function emitInvoice(
@@ -101,8 +114,8 @@ export async function emitInvoice(
     businessName: deps.business.name,
     businessLegalName: deps.business.legalName?.trim() || null,
     businessTaxId: deps.business.taxId?.trim() || null,
-    businessAddress: businessAddressOf(deps.business),
-    businessPhone: deps.business.phone?.trim() || null,
+    businessAddress: documentAddressOf(deps.business),
+    businessPhone: deps.business.taxPhone?.trim() || deps.business.phone?.trim() || null,
     currencyCode: deps.business.currencyCode,
     subtotal: order.subtotal,
     discount: order.discount,

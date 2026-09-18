@@ -291,4 +291,43 @@ describe("AdminSettingsClientPage", () => {
     expect(body.isAcceptingOrders).toBe(saved.isAcceptingOrders);
     expect(body.closedMessage).toBe(saved.closedMessage);
   });
+
+  /**
+   * Factura simple (2026-09-18) — los **datos fiscales del negocio**.
+   *
+   * Los campos existían en la base desde la migración de la factura, pero no estaban cableados al admin: la
+   * factura salía siempre sin razón social ni RUC. La sección los edita, son **opcionales** (vacío = la
+   * línea no se imprime) y viajan con el mismo «Guardar cambios» que el resto.
+   */
+  it("la sección de datos fiscales se precarga con lo que hay guardado", () => {
+    const saved = { ...initialSettings(), legalName: "One Burger S.A.", taxId: "J0310000123456" };
+    render(<AdminSettingsClientPage initialSettings={saved} />);
+
+    expect(inputValue(screen.getByLabelText("Razón social"))).toBe("One Burger S.A.");
+    expect(inputValue(screen.getByLabelText("RUC"))).toBe("J0310000123456");
+    expect(inputValue(screen.getByLabelText("Dirección fiscal"))).toBe("");
+    expect(inputValue(screen.getByLabelText("Teléfono fiscal"))).toBe("");
+  });
+
+  it("los datos fiscales viajan en el payload al guardar", async () => {
+    const user = userEvent.setup();
+    render(<AdminSettingsClientPage initialSettings={initialSettings()} />);
+
+    await user.type(screen.getByLabelText("Razón social"), "One Burger S.A.");
+    await user.type(screen.getByLabelText("RUC"), "J0310000123456");
+    await user.type(screen.getByLabelText("Dirección fiscal"), "Camino de Oriente, Managua");
+    await user.type(screen.getByLabelText("Teléfono fiscal"), "+50588887777");
+    await user.click(screen.getByRole("button", { name: "Guardar cambios" }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+
+    const body = JSON.parse(
+      String((fetchMock.mock.calls[0] as [string, RequestInit])[1].body),
+    ) as Record<string, unknown>;
+
+    expect(body.legalName).toBe("One Burger S.A.");
+    expect(body.taxId).toBe("J0310000123456");
+    expect(body.taxAddress).toBe("Camino de Oriente, Managua");
+    expect(body.taxPhone).toBe("+50588887777");
+  });
 });

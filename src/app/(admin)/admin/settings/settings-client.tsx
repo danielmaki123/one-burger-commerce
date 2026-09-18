@@ -99,6 +99,11 @@ export function toSettingsPayload(draft: BusinessSettingsDraft) {
     city: draft.city,
     addressReference: draft.addressReference,
     mapsUrl: draft.mapsUrl,
+    // Factura simple (2026-09-18): los datos fiscales del negocio viajan con el mismo guardado.
+    legalName: draft.legalName,
+    taxId: draft.taxId,
+    taxAddress: draft.taxAddress,
+    taxPhone: draft.taxPhone,
     latitude: draft.latitude,
     longitude: draft.longitude,
     timezone: draft.timezone,
@@ -510,8 +515,77 @@ export default function AdminSettingsClientPage({
         </SettingsField>
       </SettingsSection>
 
-      {/* El horario no se edita acá: vive en cada sucursal (`/admin/locations`). El del negocio
-          queda solo como plantilla para el alta de una sucursal nueva, no como fuente. */}
+      {/*
+        Factura simple (2026-09-18) — los datos fiscales del negocio. Los campos ya existían en la base
+        (migración de la factura y `add_business_tax_contact`), pero no estaban cableados acá: la factura
+        salía siempre sin razón social ni RUC. Son **opcionales** y se guardan con el mismo botón; en el
+        documento, una línea que no está cargada no se imprime (no se inventan datos fiscales).
+      */}
+      <SettingsSection
+        title="Datos fiscales"
+        description="Aparecen en la factura simple del pedido. Son opcionales: si los dejás vacíos, la factura sale sin esas líneas."
+      >
+        <SettingsField
+          id="settings-legal-name"
+          label="Razón social"
+          hint="Aparece en la factura simple. Si lo dejás vacío, la factura usa el nombre del negocio."
+          error={fieldErrors.legalName}
+          onReset={() => resetField("legalName")}
+        >
+          <Input
+            id="settings-legal-name"
+            placeholder="Ej: Mi Restaurante S.A."
+            value={draft.legalName ?? ""}
+            onChange={(event) => setField("legalName", event.target.value)}
+          />
+        </SettingsField>
+
+        <SettingsField
+          id="settings-tax-id"
+          label="RUC"
+          hint="Aparece en la factura simple. Si lo dejás vacío, la factura sale sin la línea del RUC."
+          error={fieldErrors.taxId}
+          onReset={() => resetField("taxId")}
+        >
+          <Input
+            id="settings-tax-id"
+            placeholder="Ej: J0310000123456"
+            value={draft.taxId ?? ""}
+            onChange={(event) => setField("taxId", event.target.value)}
+          />
+        </SettingsField>
+
+        <SettingsField
+          id="settings-tax-address"
+          label="Dirección fiscal"
+          hint="Aparece en la factura simple. Si la dejás vacía, se imprime la dirección del negocio."
+          error={fieldErrors.taxAddress}
+          onReset={() => resetField("taxAddress")}
+        >
+          <Input
+            id="settings-tax-address"
+            placeholder="Ej: Km 8 Carretera Sur, Managua"
+            value={draft.taxAddress ?? ""}
+            onChange={(event) => setField("taxAddress", event.target.value)}
+          />
+        </SettingsField>
+
+        <SettingsField
+          id="settings-tax-phone"
+          label="Teléfono fiscal"
+          hint="Aparece en la factura simple. Si lo dejás vacío, se imprime el teléfono del negocio."
+          error={fieldErrors.taxPhone}
+          onReset={() => resetField("taxPhone")}
+        >
+          <Input
+            id="settings-tax-phone"
+            placeholder="Ej: +50588887777"
+            value={draft.taxPhone ?? ""}
+            onChange={(event) => setField("taxPhone", event.target.value)}
+          />
+        </SettingsField>
+      </SettingsSection>
+
       <SettingsSection
         title="Horarios"
         description="Cada sucursal define su horario; acá solo se recuerda dónde."
