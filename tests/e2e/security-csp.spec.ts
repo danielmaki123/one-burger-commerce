@@ -64,7 +64,9 @@ test.describe("CSP del sitio", () => {
     });
 
     await page.goto("/admin/orders");
-    await expect(page.getByRole("heading", { name: "Comandas", exact: true }).first()).toBeVisible();
+    // El layout unificado (Punto 1, 2026-09-18) dejó de rotular la pantalla como «Comandas»: el
+    // encabezado del shell es «Órdenes». La aserción medía el nombre viejo, así que fallaba siempre.
+    await expect(page.getByRole("heading", { name: "Órdenes", exact: true }).first()).toBeVisible();
 
     expect(violations).toEqual([]);
   });

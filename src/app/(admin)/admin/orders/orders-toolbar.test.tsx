@@ -41,8 +41,10 @@ function props(overrides: Partial<OrdersToolbarProps> = {}): OrdersToolbarProps 
     offline: false,
     soundEnabled: false,
     onToggleSound: vi.fn(),
-    immersive: false,
-    onToggleImmersive: vi.fn(),
+    kitchenMode: false,
+    kitchenTab: "all",
+    onKitchenTabChange: vi.fn(),
+    onToggleKitchenMode: vi.fn(),
     onRefresh: vi.fn(),
     showClearFilters: false,
     onClearFilters: vi.fn(),
@@ -170,5 +172,85 @@ describe("OrdersToolbar", () => {
 
     await user.click(screen.getByRole("button", { name: "Limpiar filtros" }));
     expect(onClearFilters).toHaveBeenCalledTimes(1);
+  });
+
+  /**
+   * Punto 3 del roadmap (2026-09-18) — el **modo cocina**.
+   *
+   * Es lo que el owner pidió: un botón en la barra de trabajo que esconde la barra lateral y el
+   * encabezado y deja solo los carriles, con su propia salida («Salir») que devuelve el panel **sin
+   * cerrar sesión**. Los tabs del panel se cambian por los cinco de la cocina (sin «Cerradas» y sin
+   * «Historial»): la auditoría del turno no es trabajo de la cocina.
+   */
+  describe("modo cocina", () => {
+    function kitchenProps(overrides: Partial<OrdersToolbarProps> = {}) {
+      return props({ kitchenMode: true, kitchenTab: "all", ...overrides });
+    }
+
+    it("el botón que lo prende está en la barra de trabajo", async () => {
+      const user = userEvent.setup();
+      const onToggleKitchenMode = vi.fn();
+
+      render(<OrdersToolbar {...props({ onToggleKitchenMode })} />);
+
+      await user.click(screen.getByRole("button", { name: "Modo cocina" }));
+      expect(onToggleKitchenMode).toHaveBeenCalledTimes(1);
+    });
+
+    it("en modo cocina los tabs son los cinco de la cocina y no el filtro del panel", () => {
+      render(<OrdersToolbar {...kitchenProps({ statusFilter: "all" })} />);
+
+      const kitchenLabels = ["Todas", "Nuevas", "Preparando", "Listas", "Despachadas hace poco"];
+      const chips = screen
+        .getByRole("group", { name: "Tabs del modo cocina" })
+        .querySelectorAll("button");
+
+      expect(Array.from(chips).map((chip) => chip.textContent)).toEqual(kitchenLabels);
+      for (const id of ["all", "new", "preparing", "ready", "dispatched"]) {
+        expect(screen.getByTestId(`kitchen-tab-${id}`)).toBeTruthy();
+      }
+      // «Cerradas» no existe en cocina: el tablero no tiene carril para eso.
+      expect(screen.queryByTestId("kitchen-tab-closed")).toBeNull();
+    });
+
+    it("elegir un tab de cocina avisa cuál se eligió", async () => {
+      const user = userEvent.setup();
+      const onKitchenTabChange = vi.fn();
+
+      render(<OrdersToolbar {...kitchenProps({ onKitchenTabChange })} />);
+
+      await user.click(screen.getByTestId("kitchen-tab-dispatched"));
+      expect(onKitchenTabChange).toHaveBeenCalledWith("dispatched");
+    });
+
+    it("el tab activo se lee sin depender del color", () => {
+      render(<OrdersToolbar {...kitchenProps({ kitchenTab: "preparing" })} />);
+
+      expect(
+        screen.getByTestId("kitchen-tab-preparing").getAttribute("aria-pressed"),
+      ).toBe("true");
+      expect(screen.getByTestId("kitchen-tab-all").getAttribute("aria-pressed")).toBe("false");
+    });
+
+    it("«Salir» está en la barra y devuelve el panel sin cerrar sesión", async () => {
+      const user = userEvent.setup();
+      const onToggleKitchenMode = vi.fn();
+
+      render(<OrdersToolbar {...kitchenProps({ onToggleKitchenMode })} />);
+
+      expect(screen.queryByRole("button", { name: "Cerrar sesión" })).toBeNull();
+      expect(screen.queryByTestId("comandas-topbar")).toBeNull();
+
+      await user.click(screen.getByRole("button", { name: "Salir" }));
+      expect(onToggleKitchenMode).toHaveBeenCalledTimes(1);
+    });
+
+    it("los controles de emergencia siguen a mano: busqueda, sonido y actualizar", () => {
+      render(<OrdersToolbar {...kitchenProps()} />);
+
+      expect(screen.getByLabelText("Buscar comanda")).toBeTruthy();
+      expect(screen.getByRole("button", { name: "Aviso sonoro" })).toBeTruthy();
+      expect(screen.getByRole("button", { name: "Actualizar" })).toBeTruthy();
+    });
   });
 });

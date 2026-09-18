@@ -1,11 +1,12 @@
 "use client";
 
-import { AlarmClock, Bell, BellOff, Maximize2, PanelLeft, RefreshCw } from "lucide-react";
+import { AlarmClock, Bell, BellOff, ChefHat, RefreshCw } from "lucide-react";
 
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Select } from "@/shared/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/shared/ui/tabs";
+import { KitchenToolbar } from "./kitchen-toolbar";
 import { formatUpdatedAgo } from "./orders-page-helpers";
 import type { OrderPaymentFilter } from "./comanda-url";
 
@@ -19,6 +20,10 @@ import type { OrderPaymentFilter } from "./comanda-url";
  * preparación promedio, la frescura y los controles del turno.
  *
  * Es de presentación: no lee ni escribe nada por su cuenta, todo entra y sale por props.
+ *
+ * **Punto 3 (2026-09-18)**: la barra tiene dos formas. En **modo cocina** queda solo lo que la cocina
+ * necesita —los cinco tabs de cocina, el buscador, el aviso sonoro, actualizar y **Salir**— sin los
+ * controles de administración del panel: el tablero ocupa la pantalla y el modo se sale desde acá.
  */
 
 const CHIP_LIST_CLASS = "flex flex-wrap gap-2 bg-transparent p-0";
@@ -62,13 +67,20 @@ export type OrdersToolbarProps = {
   offline: boolean;
   soundEnabled: boolean;
   onToggleSound: () => void;
-  immersive: boolean;
-  onToggleImmersive: () => void;
+  /** Modo cocina: solo los carriles, con los tabs de la cocina y su salida. */
+  kitchenMode: boolean;
+  kitchenTab: string;
+  onKitchenTabChange: (value: string) => void;
+  onToggleKitchenMode: () => void;
   onRefresh: () => void;
   showClearFilters: boolean;
   onClearFilters: () => void;
 };
 
+/**
+ * La barra de trabajo del panel. El modo cocina tiene la suya (`kitchen-toolbar.tsx`): son otro juego
+ * de controles, no una variante de esta.
+ */
 export function OrdersToolbar({
   statusFilter,
   onStatusChange,
@@ -92,12 +104,32 @@ export function OrdersToolbar({
   offline,
   soundEnabled,
   onToggleSound,
-  immersive,
-  onToggleImmersive,
+  kitchenMode,
+  kitchenTab,
+  onKitchenTabChange,
+  onToggleKitchenMode,
   onRefresh,
   showClearFilters,
   onClearFilters,
 }: OrdersToolbarProps) {
+  if (kitchenMode) {
+    return (
+      <KitchenToolbar
+        kitchenTab={kitchenTab}
+        onKitchenTabChange={onKitchenTabChange}
+        searchTerm={searchTerm}
+        onSearchTermChange={onSearchTermChange}
+        lastUpdatedAt={lastUpdatedAt}
+        nowMs={nowMs}
+        soundEnabled={soundEnabled}
+        onToggleSound={onToggleSound}
+        offline={offline}
+        onRefresh={onRefresh}
+        onToggleKitchenMode={onToggleKitchenMode}
+      />
+    );
+  }
+
   return (
     <div
       data-testid="comandas-topbar"
@@ -117,6 +149,7 @@ export function OrdersToolbar({
                 activeValue={statusFilter}
                 onClick={onStatusChange}
                 className={CHIP_TRIGGER_CLASS}
+                testId={`orders-status-tab-${option.value}`}
               >
                 {option.label}
               </TabsTrigger>
@@ -267,25 +300,19 @@ export function OrdersToolbar({
           </Button>
 
           {/*
-            B6 — un solo control para volver: el tablero se abre a pantalla completa (sin la barra
-            lateral del panel, que es lo que la cocina quiere en el tablet de pared) y este botón
-            devuelve el panel, con su navegación y su sesión, **sin cerrar sesión**. Es lo que el
-            owner necesitaba: cada tablet tiene su sección (comandas, POS, inventario) y hay que
-            poder volver a elegir. Si el navegador lo permite, además entra o sale de pantalla
-            completa de verdad.
+            B6 · Punto 3 — el modo cocina. Antes este control entraba al *Fullscreen API* y escondía
+            la barra lateral; ahora que el chrome se ve siempre, lo que hace es cambiar de modo: la
+            barra lateral y el encabezado se van, quedan los carriles, y la vuelta es «Salir» (que se
+            ve en el modo). La elección queda guardada en el dispositivo, así que la tablet de pared
+            vuelve a entrar en modo cocina sola.
           */}
           <Button
             variant="outline"
             className="min-h-11 gap-2"
-            aria-pressed={!immersive}
-            onClick={onToggleImmersive}
+            onClick={onToggleKitchenMode}
           >
-            {immersive ? (
-              <PanelLeft aria-hidden="true" className="h-4 w-4" />
-            ) : (
-              <Maximize2 aria-hidden="true" className="h-4 w-4" />
-            )}
-            {immersive ? "Ver el panel" : "Pantalla completa"}
+            <ChefHat aria-hidden="true" className="h-4 w-4" />
+            Modo cocina
           </Button>
 
           <Button variant="outline" className="min-h-11 gap-2" onClick={onRefresh}>

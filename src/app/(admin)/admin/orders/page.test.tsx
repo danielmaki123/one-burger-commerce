@@ -968,32 +968,57 @@ describe("bandeja de órdenes: tablero de comandas (B3)", () => {
   });
 
   /**
-   * B6 — la vuelta al panel está en la barra del turno.
+   * B6 · Punto 3 — el modo cocina se prende y se sale desde la barra del turno.
    *
-   * El bug lo encontró el owner en producción: el tablero se abría sin la barra lateral del panel y no
-   * había manera de recuperarla. Desde el layout unificado (2026-09-18) la barra lateral se ve siempre
-   * y el control solo sigue sirviendo para el modo cocina, que se sale sin cerrar sesión: la sesión y
-   * la navegación viven en esa barra.
+   * El owner lo pidió así: la barra lateral y el encabezado se **esconden** y quedan solo los carriles,
+   * con «Salir» arriba a la derecha para volver al panel **sin cerrar sesión** (la sesión y la
+   * navegación viven en esa barra). Es un modo, no un permiso: cualquiera que entre a Órdenes puede
+   * prenderlo.
    */
-  it("la barra del turno deja volver al panel (B6)", async () => {
+  it("el modo cocina esconde el chrome y «Salir» lo devuelve (Punto 3)", async () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     await renderBoardWith([order({ status: "new" })]);
 
-    // El tablero entra con el chrome del panel: la barra lateral no se esconde.
+    // Órdenes entra con el chrome del panel: la barra lateral no se esconde.
     expect(document.documentElement.classList.contains("comandas-view")).toBe(false);
 
-    const toggle = screen.getByRole("button", { name: "Pantalla completa" });
-    expect(within(screen.getByTestId("comandas-topbar")).getByRole("button", { name: "Pantalla completa" })).toBe(toggle);
+    const enter = screen.getByRole("button", { name: "Modo cocina" });
+    expect(within(screen.getByTestId("comandas-topbar")).getByRole("button", { name: "Modo cocina" })).toBe(enter);
 
-    await user.click(toggle);
+    await user.click(enter);
     expect(document.documentElement.classList.contains("comandas-view")).toBe(true);
 
+    // En modo cocina la barra de trabajo es la de la cocina: cinco tabs y la salida, sin «Cerradas».
+    expect(screen.queryByTestId("kitchen-tab-closed")).toBeNull();
+    expect(screen.getByTestId("kitchen-tab-dispatched")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Cerrar sesión" })).toBeNull();
+
     // Y se sale: vuelve el chrome del panel, sin cerrar sesión.
-    await user.click(screen.getByRole("button", { name: "Ver el panel" }));
+    await user.click(screen.getByRole("button", { name: "Salir" }));
 
     expect(document.documentElement.classList.contains("comandas-view")).toBe(false);
-    expect(screen.getByRole("button", { name: "Pantalla completa" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Modo cocina" })).toBeTruthy();
+    expect(screen.queryByTestId("kitchen-tab-dispatched")).toBeNull();
     expect(screen.queryByRole("button", { name: "Cerrar sesión" })).toBeNull();
+  });
+
+  /**
+   * El modo cocina es **del dispositivo**: una tablet de pared vuelve a entrar en modo cocina al
+   * recargar y el mostrador no. Es la diferencia entre una preferencia y un permiso.
+   */
+  it("la tablet que quedó en modo cocina vuelve a entrar así (Punto 3)", async () => {
+    window.localStorage.setItem("one-burger:comanda-view", "1");
+
+    await renderBoardWith([order({ status: "new" })]);
+    // El modo se restaura después de montar (leer el almacenamiento en el render rompería la
+    // hidratación), así que la pantalla necesita un ciclo más para quedar en modo cocina.
+    await flush();
+
+    expect(document.documentElement.classList.contains("comandas-view")).toBe(true);
+    expect(screen.getByRole("button", { name: "Salir" })).toBeTruthy();
+    expect(screen.queryByTestId("comandas-topbar")).toBeNull();
+
+    window.localStorage.clear();
   });
 
   it("el conmutador de celular ofrece un carril por vez, con su cuenta", async () => {

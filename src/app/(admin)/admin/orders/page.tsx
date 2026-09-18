@@ -13,7 +13,7 @@ import {
   BUCKET_META,
   BUCKET_ORDER,
   businessDate,
-  businessDayRange,
+  businessTurnRange,
   findNewOrderIds,
   orderBucket,
   orderTypePresentation,
@@ -38,7 +38,8 @@ import {
 } from "./comanda-helpers";
 import { OrderComandaBoard } from "./order-comanda-board";
 import type { ComandaItem } from "./order-comanda-card";
-import { useComandaView, useFullscreen } from "./use-comanda-view";
+import { useComandaView } from "./use-comanda-view";
+import { filterOrdersForBoardView } from "./orders-board-view";
 import { readOrderUrlFilters, writeOrderUrlFilters, type OrderPaymentFilter } from "./comanda-url";
 import { readAdminOrders, sanitizeOrderQuery, type OrderListFailure } from "./order-list-api";
 import {
@@ -174,9 +175,15 @@ export default function AdminOrdersPage() {
   );
   const [lateOnly, setLateOnly] = useState(initialFilters.lateOnly);
 
-  // B3: la barra lateral del panel se esconde mientras esta vista está montada.
-  const { immersive, setImmersive } = useComandaView();
-  const fullscreen = useFullscreen();
+  // Punto 3: el modo cocina —el del dispositivo— esconde el chrome y deja los carriles.
+  const { immersive: kitchenMode, setImmersive: setKitchenMode } = useComandaView();
+
+  /**
+   * El tab del modo cocina (Punto 3). Vive solo en memoria: es «qué estoy mirando ahora», no un filtro
+   * que se comparta por enlace. El modo sí es del dispositivo, pero la pestaña con la que se entra a
+   * un turno es una pregunta del momento.
+   */
+  const [kitchenTab, setKitchenTab] = useState("all");
 
   // La preferencia del aviso sonoro vive en el dispositivo (el navegador exige un toque para sonar).
   useEffect(() => {
@@ -222,11 +229,15 @@ export default function AdminOrdersPage() {
   const currency = useCurrencyFormat();
 
   /**
-   * La bandeja de Órdenes es **el turno**: del día del negocio, no de la semana. El histórico con
+   * La bandeja de Órdenes es **el turno**: el día del negocio, no la semana. El histórico con
    * sus rangos vive en `/admin/history` (sección Historial), que es donde se pregunta por meses.
+   *
+   * El rango incluye **mañana**, no solo hoy: el aviso de «comandas programadas para otro día» y el
+   * grupo «Programados» del listado salen de pedidos que hoy no son del turno, y con el rango de un
+   * día esos dos lugares quedaban siempre vacíos (`businessTurnRange`).
    */
   const range = useMemo<{ from?: string; to?: string }>(
-    () => businessDayRange(today, timeZone),
+    () => businessTurnRange(today, timeZone),
     [today, timeZone],
   );
 
@@ -234,8 +245,10 @@ export default function AdminOrdersPage() {
    * Los tabs de estado son el filtro **y** el contenido: los activos se miran como tablero de
    * comandas —los carriles son el filtro— y las cerradas se miran como lista, porque el tablero no
    * tiene carril de cerradas (opción (a) del owner, 2026-09-18).
+   *
+   * En **modo cocina** (Punto 3) el tablero es la única vista: no hay lista de cerradas a la que ir.
    */
-  const showBoard = statusFilter !== "closed";
+  const showBoard = kitchenMode || statusFilter !== "closed";
 
   const queryString = useMemo(() => {
     // Los filtros se sanean acá (bug de producción, 2026-09-18): un valor que la API rechaza se descarta
@@ -516,13 +529,17 @@ export default function AdminOrdersPage() {
 
     // "Atrasados" se filtra en el cliente a propósito: la urgencia es el tiempo en la etapa **ahora**,
     // y eso cambia entre lecturas; pedirlo al servidor devolvería una foto que ya venció.
-    if (!lateOnly) return queue;
+    const visible = !lateOnly
+      ? queue
+      : queue.filter(
+          (order) =>
+            resolveComandaUrgency({ stageChangedAt: order.stageChangedAt, nowMs }).level === "late",
+        );
 
-    return queue.filter(
-      (order) =>
-        resolveComandaUrgency({ stageChangedAt: order.stageChangedAt, nowMs }).level === "late",
-    );
-  }, [orders, scheduledForAnotherDay, lateOnly, nowMs]);
+    // Punto 3: en modo cocina el tab elegido manda (y trae lo despachado hace poco, que ya no está
+    // en los carriles).
+    return filterOrdersForBoardView(visible, { kitchenMode, kitchenTab, nowMs });
+  }, [orders, scheduledForAnotherDay, lateOnly, nowMs, kitchenMode, kitchenTab]);
   const bucketedOrders = useMemo(() => {
     const buckets = new Map<OrderBucket, OrderSummary[]>();
     for (const bucket of BUCKET_ORDER) buckets.set(bucket, []);
@@ -679,10 +696,15 @@ export default function AdminOrdersPage() {
 
   return (
     <div className="min-w-0 space-y-6" aria-busy={loading}>
-      <AdminPageHeader
-        title="Órdenes"
-        description="Bandeja de turno: prioriza ingresos nuevos y sigue cada pedido hasta su cierre."
-      />
+      {/* Punto 3 — en modo cocina **el encabezado también se va**: la regla del 20% de cabecera del
+          sistema no aplica cuando la pantalla entera es el tablero, y el título («Órdenes», que la
+          cocina ya sabe) le robaba alto a los carriles. */}
+      {kitchenMode ? null : (
+        <AdminPageHeader
+          title="Órdenes"
+          description="Bandeja de turno: prioriza ingresos nuevos y sigue cada pedido hasta su cierre."
+        />
+      )}
 
       {/* Una sola barra de trabajo para todo el shell (layout unificado, 2026-09-18): los tabs
           de estado son el filtro —carriles para los activos, lista para las cerradas—, y el
@@ -714,11 +736,10 @@ export default function AdminOrdersPage() {
           setSoundEnabled(next);
           setAlertSoundEnabled(next);
         }}
-        immersive={immersive}
-        onToggleImmersive={() => {
-          setImmersive(!immersive);
-          if (fullscreen.supported) void fullscreen.toggle();
-        }}
+        kitchenMode={kitchenMode}
+        kitchenTab={kitchenTab}
+        onKitchenTabChange={setKitchenTab}
+        onToggleKitchenMode={() => setKitchenMode(!kitchenMode)}
         onRefresh={() => setRefreshToken((token) => token + 1)}
         showClearFilters={
           statusFilter !== "all" ||

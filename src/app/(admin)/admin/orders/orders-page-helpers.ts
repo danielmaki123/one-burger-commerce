@@ -1,6 +1,6 @@
 import { ShoppingBag, Table2, Truck } from "lucide-react";
 
-import { dateInTimeZone } from "@/modules/business-settings/domain/pickup-days";
+import { addDays, dateInTimeZone, pickupInstant } from "@/modules/business-settings/domain/pickup-days";
 import type { OrderType } from "@/modules/orders/domain/order.types";
 
 /**
@@ -33,6 +33,33 @@ export function orderTypePresentation(type: OrderType): {
 
 /** El día natural (`YYYY-MM-DD`) del negocio para un instante. */
 export { businessDate, businessDayRange, shiftBusinessDays } from "@/shared/lib/business-days";
+
+/**
+ * El rango de la **bandeja del turno**: hoy y también mañana.
+ *
+ * La bandeja es el turno, pero no solo hoy: el aviso «N comandas programadas para otro día» y el grupo
+ * «Programados» del listado viven de los pedidos que el cliente dejó para **mañana**, y con el rango de
+ * un solo día esos dos lugares quedaban siempre vacíos (bug encontrado en el arnés local el 2026-09-18,
+ * al verificar el Punto 3). El rango del día exacto sigue existiendo (`businessDayRange`) para las
+ * pantallas que preguntan por un día: el cierre, la conciliación y el reporte.
+ *
+ * Una fecha inválida deja el filtro abierto, igual que `businessDayRange`: mejor mostrar de más que una
+ * pantalla vacía.
+ */
+export function businessTurnRange(
+  today: string,
+  timeZone: string,
+): { from: string | undefined; to: string | undefined } {
+  const start = pickupInstant({ date: today, time: "00:00", timeZone });
+  const end = pickupInstant({ date: addDays(addDays(today, 1), 1), time: "00:00", timeZone });
+
+  if (!start || !end) return { from: undefined, to: undefined };
+
+  return {
+    from: start.toISOString(),
+    to: new Date(end.getTime() - 1).toISOString(),
+  };
+}
 
 /** Buckets de turno, en el orden en que el encargado los atiende. */
 export type OrderBucket = "programados" | "nuevas" | "cocina" | "listas" | "otras" | "cerradas";

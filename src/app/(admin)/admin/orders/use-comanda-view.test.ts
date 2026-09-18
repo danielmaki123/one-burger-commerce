@@ -1,23 +1,27 @@
 // @vitest-environment jsdom
 
-import { act, cleanup, renderHook } from "@testing-library/react";
+import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { COMANDA_VIEW_CLASS, useComandaView, useFullscreen } from "./use-comanda-view";
+import { KITCHEN_MODE_STORAGE_KEY } from "./kitchen-mode";
+import { COMANDA_VIEW_CLASS, useComandaView } from "./use-comanda-view";
 
 /**
- * B3/B6 — el chrome del panel se esconde solo en el modo cocina.
+ * B3/B6 · Punto 3 (2026-09-18) — el chrome del panel se esconde solo en el modo cocina.
  *
  * Desde el layout unificado (opción (a) del owner, 2026-09-18) Órdenes entra **con** barra lateral y
  * encabezado: esconderlos es un modo explícito que se prende y se sale. La clase vive en `<html>`
  * porque la barra lateral la dibuja el shell, fuera de esta página: si el día que se desmonta no se
  * limpia, la persona queda sin navegación en el resto del panel.
+ *
+ * El modo es **del dispositivo**: se guarda en el navegador y se restaura al montar, así que una tablet
+ * de cocina queda en modo cocina al recargar y el mostrador no.
  */
 afterEach(() => {
   cleanup();
   document.documentElement.classList.remove(COMANDA_VIEW_CLASS);
+  window.localStorage.clear();
   vi.restoreAllMocks();
-  Object.defineProperty(document, "fullscreenElement", { configurable: true, value: null });
 });
 
 describe("vista de comandas (B3)", () => {
@@ -45,71 +49,81 @@ describe("vista de comandas (B3)", () => {
     unmount();
     expect(document.documentElement.classList.contains(COMANDA_VIEW_CLASS)).toBe(false);
   });
-});
 
-describe("pantalla completa (B3)", () => {
-  function stubFullscreen() {
-    const requestFullscreen = vi.fn().mockResolvedValue(undefined);
-    const exitFullscreen = vi.fn().mockResolvedValue(undefined);
+  it("la elección queda guardada en el dispositivo", async () => {
+    const { result } = renderHook(() => useComandaView());
 
-    Object.defineProperty(document.documentElement, "requestFullscreen", {
-      configurable: true,
-      value: requestFullscreen,
-    });
-    Object.defineProperty(document, "exitFullscreen", {
-      configurable: true,
-      value: exitFullscreen,
-    });
+    act(() => result.current.setImmersive(true));
+    await waitFor(() => expect(window.localStorage.getItem(KITCHEN_MODE_STORAGE_KEY)).toBe("1"));
 
-    return { requestFullscreen, exitFullscreen };
-  }
-
-  it("entra y sale del modo pantalla completa", async () => {
-    const { requestFullscreen, exitFullscreen } = stubFullscreen();
-    const { result } = renderHook(() => useFullscreen());
-
-    await act(async () => {
-      await result.current.toggle();
-    });
-    expect(requestFullscreen).toHaveBeenCalledTimes(1);
-
-    // El navegador avisa el cambio; ahí la pantalla se entera de que está en pantalla completa.
-    Object.defineProperty(document, "fullscreenElement", {
-      configurable: true,
-      value: document.documentElement,
-    });
-    await act(async () => {
-      document.dispatchEvent(new Event("fullscreenchange"));
-    });
-    expect(result.current.isFullscreen).toBe(true);
-
-    await act(async () => {
-      await result.current.toggle();
-    });
-    expect(exitFullscreen).toHaveBeenCalledTimes(1);
+    act(() => result.current.setImmersive(false));
+    await waitFor(() => expect(window.localStorage.getItem(KITCHEN_MODE_STORAGE_KEY)).toBeNull());
   });
 
-  it("un navegador que lo rechaza no rompe la pantalla", async () => {
-    Object.defineProperty(document.documentElement, "requestFullscreen", {
-      configurable: true,
-      value: vi.fn().mockRejectedValue(new Error("no permitido")),
-    });
-    const { result } = renderHook(() => useFullscreen());
+  it("un dispositivo que quedó en modo cocina arranca así al volver", async () => {
+    window.localStorage.setItem(KITCHEN_MODE_STORAGE_KEY, "1");
 
-    await act(async () => {
-      await result.current.toggle();
-    });
+    const { result } = renderHook(() => useComandaView());
 
-    expect(result.current.isFullscreen).toBe(false);
+    await waitFor(() => expect(result.current.immersive).toBe(true));
+    expect(document.documentElement.classList.contains(COMANDA_VIEW_CLASS)).toBe(true);
   });
 
-  it("sin soporte lo dice, para no ofrecer un botón que no hace nada", () => {
-    Object.defineProperty(document.documentElement, "requestFullscreen", {
-      configurable: true,
-      value: undefined,
-    });
-    const { result } = renderHook(() => useFullscreen());
+  it("el modo no se limpia de la memoria del dispositivo al desmontar", async () => {
+    const { result, unmount } = renderHook(() => useComandaView());
+    act(() => result.current.setImmersive(true));
+    await waitFor(() => expect(window.localStorage.getItem(KITCHEN_MODE_STORAGE_KEY)).toBe("1"));
 
-    expect(result.current.supported).toBe(false);
+    unmount();
+
+    // La clase sí se va (nadie queda sin navegación), pero la tablet sigue siendo de cocina.
+    expect(document.documentElement.classList.contains(COMANDA_VIEW_CLASS)).toBe(false);
+    expect(window.localStorage.getItem(KITCHEN_MODE_STORAGE_KEY)).toBe("1");
+  });
+
+  /**
+   * Bug que encontró el E2E (2026-09-18): al entrar sin tocar nada, el efecto que guarda escribía
+   * «apagado» **antes** de que el efecto que restaura leyera el almacenamiento, así que la tablet de
+   * cocina se apagaba sola al recargar. Por eso solo se persiste una elección explícita.
+   */
+  it("entrar sin tocar nada no borra la preferencia guardada", async () => {
+    window.localStorage.setItem(KITCHEN_MODE_STORAGE_KEY, "1");
+
+    const { result } = renderHook(() => useComandaView());
+
+    await waitFor(() => expect(result.current.immersive).toBe(true));
+    expect(window.localStorage.getItem(KITCHEN_MODE_STORAGE_KEY)).toBe("1");
+  });
+
+  it("entrar en un dispositivo sin preferencia no escribe nada", async () => {
+    renderHook(() => useComandaView());
+
+    expect(window.localStorage.getItem(KITCHEN_MODE_STORAGE_KEY)).toBeNull();
+  });
+
+  it("un navegador que niega el almacenamiento no rompe la pantalla", () => {
+    const denied = {
+      getItem: () => {
+        throw new Error("acceso denegado");
+      },
+      setItem: () => {
+        throw new Error("acceso denegado");
+      },
+      removeItem: () => {
+        throw new Error("acceso denegado");
+      },
+    };
+    const original = Object.getOwnPropertyDescriptor(window, "localStorage");
+    Object.defineProperty(window, "localStorage", { configurable: true, value: denied });
+
+    try {
+      const { result } = renderHook(() => useComandaView());
+
+      expect(result.current.immersive).toBe(false);
+      expect(() => act(() => result.current.setImmersive(true))).not.toThrow();
+      expect(document.documentElement.classList.contains(COMANDA_VIEW_CLASS)).toBe(true);
+    } finally {
+      if (original) Object.defineProperty(window, "localStorage", original);
+    }
   });
 });

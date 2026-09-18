@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   businessDayRange,
+  businessTurnRange,
   findNewOrderIds,
   formatUpdatedAgo,
   orderBucket,
@@ -15,6 +16,28 @@ import {
  * cocina lo empieza hoy. El día se calcula en la **zona del negocio**
  * (`BusinessSettings.timezone`), no en una fija: un negocio en otra zona ve su propio "hoy".
  */
+describe("businessTurnRange", () => {
+  const managua = "America/Managua";
+
+  /**
+   * Bug encontrado en el arnés local el 2026-09-18, al verificar el Punto 3: el tablero pedía **solo el
+   * día de hoy**, así que un pedido programado para mañana no llegaba nunca a la lista y los dos lugares
+   * que dependen de él —el aviso «comandas programadas para otro día» y el grupo «Programados» del
+   * listado— quedaban siempre vacíos.
+   */
+  it("trae el turno de hoy y además lo que está programado para mañana", () => {
+    const range = businessTurnRange("2026-09-18", managua);
+
+    // 2026-09-18 00:00 en Managua (UTC-6) = 06:00Z; el tope es la medianoche del 20 en Managua.
+    expect(range.from).toBe("2026-09-18T06:00:00.000Z");
+    expect(range.to).toBe("2026-09-20T05:59:59.999Z");
+  });
+
+  it("una fecha inválida deja el filtro abierto en vez de romper la vista", () => {
+    expect(businessTurnRange("no-es-un-dia", managua)).toEqual({ from: undefined, to: undefined });
+  });
+});
+
 describe("orderBucket", () => {
   const today = "2026-09-11";
   const managua = "America/Managua";

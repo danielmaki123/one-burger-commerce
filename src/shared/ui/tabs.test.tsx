@@ -71,4 +71,28 @@ describe("Tabs", () => {
     expect(screen.getByRole("group", { name: "Período de rendimiento" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Período hoy" })).toBeTruthy();
   });
+
+  /**
+   * Punto 3 del roadmap (2026-09-18) — un anclaje estable para el disparador.
+   *
+   * El modo cocina tiene su propio juego de tabs («Preparando», «Listas») dentro de la misma pantalla
+   * que el juego del panel, así que buscar por nombre accesible encuentra dos elementos. El E2E y los
+   * tests de página necesitan decir **cuál**; es un atributo de datos, no una etiqueta de más.
+   */
+  it("acepta un anclaje de datos para el disparador", () => {
+    render(
+      <TabsList ariaLabel="Tabs del modo cocina">
+        <TabsTrigger
+          value="ready"
+          activeValue="ready"
+          onClick={() => {}}
+          testId="kitchen-tab-ready"
+        >
+          Listas
+        </TabsTrigger>
+      </TabsList>,
+    );
+
+    expect(screen.getByTestId("kitchen-tab-ready").textContent).toBe("Listas");
+  });
 });

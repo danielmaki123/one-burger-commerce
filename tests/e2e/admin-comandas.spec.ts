@@ -47,8 +47,8 @@ test.describe("comandas: el tablero del turno (B3)", () => {
     await expect(topbar).toContainText("Nuevas");
     await expect(topbar).toContainText("Preparando");
     await expect(topbar).toContainText("Listas");
-    // La vuelta al panel vive en la barra del turno (B6): el tablero se abre sin la barra lateral.
-    await expect(page.getByRole("button", { name: "Ver el panel" })).toBeVisible();
+    // El modo cocina se prende desde la barra del turno (Punto 3): es lo que esconde el chrome.
+    await expect(page.getByRole("button", { name: "Modo cocina" })).toBeVisible();
 
     // La comanda está en el carril de lo que nadie aceptó todavía.
     const pending = page.getByRole("region", { name: "Por aceptar" });
@@ -68,29 +68,64 @@ test.describe("comandas: el tablero del turno (B3)", () => {
   test("la vista ocupa el ancho: la barra lateral del panel queda escondida (B3)", async ({ page }) => {
     await openBoard(page);
 
+    // El layout unificado (2026-09-18) dejó el chrome visible por defecto: esconderlo es el modo
+    // cocina (Punto 3), no la entrada a Órdenes.
+    await expect(page.locator(".admin-sidebar-shell")).toBeVisible();
+
+    await page.getByRole("button", { name: "Modo cocina" }).click();
+
     await expect(page.locator(".admin-sidebar-shell")).toBeHidden();
   });
 
   /**
-   * B6 — la vuelta al panel desde el tablero.
+   * B6 · Punto 3 — el modo cocina y su vuelta.
    *
-   * La vista se abre sin la barra lateral del panel (es lo que la cocina quiere en el tablet de pared),
-   * así que el control del turno tiene que devolverla: cada tablet tiene su sección —comandas, POS,
-   * inventario— y hay que poder volver a elegir. **Sin cerrar sesión**: la sesión vive en esa barra.
+   * La cocina quiere la tablet de pared sin la navegación del panel, con los carriles ocupando la
+   * pantalla. El modo se prende a propósito, tiene sus propios tabs de estado (sin «Cerradas» y sin
+   * «Historial») y se sale con **«Salir»**, que devuelve la barra lateral **sin cerrar sesión**: la
+   * sesión vive ahí. La elección queda guardada en el dispositivo, así que la tablet vuelve a entrar
+   * en modo cocina al recargar.
    */
-  test("el tablero deja volver al panel sin cerrar sesión (B6)", async ({ page }) => {
+  test("el modo cocina esconde el chrome y «Salir» lo devuelve sin cerrar sesión (Punto 3)", async ({
+    page,
+  }) => {
     await openBoard(page);
 
+    await expect(page.locator(".admin-sidebar-shell")).toBeVisible();
+    await page.getByRole("button", { name: "Modo cocina" }).click();
+
+    // Sin barra lateral ni encabezado, y con los cinco tabs de la cocina en la barra.
     await expect(page.locator(".admin-sidebar-shell")).toBeHidden();
+    await expect(page.getByRole("heading", { name: "Órdenes", exact: true })).toBeHidden();
+    await expect(page.getByTestId("kitchen-tab-dispatched")).toBeVisible();
+    await expect(page.getByTestId("kitchen-tab-all")).toBeVisible();
     await expect(page.getByRole("button", { name: "Cerrar sesión" })).toHaveCount(0);
 
-    await page.getByRole("button", { name: "Ver el panel" }).click();
+    // El tab de la cocina filtra el tablero: «Despachadas hace poco» no es un carril.
+    await page.getByTestId("kitchen-tab-dispatched").click();
+    await expect(page.getByRole("heading", { name: /Por aceptar \(0\)/ })).toBeVisible();
+
+    await page.getByRole("button", { name: "Salir" }).click();
 
     await expect(page.locator(".admin-sidebar-shell")).toBeVisible();
     await expect(page.getByRole("button", { name: "Cerrar sesión" })).toBeVisible();
-    // Sigue adentro: volver al panel no es salir de la sesión.
+    await expect(page.getByTestId("comandas-topbar")).toBeVisible();
+    // Sigue adentro: salir del modo cocina no es salir de la sesión, y **olvida** la preferencia
+    // (salir es una decisión de la persona, no de la tablet).
     await expect(page).toHaveURL(/\/admin\/orders/);
-    await expect(page.getByRole("heading", { name: "Comandas", exact: true })).toBeVisible();
+
+    // Y al volver a prenderlo, la tablet queda en modo cocina: la preferencia sobrevive a recargar.
+    await page.getByRole("button", { name: "Modo cocina" }).click();
+    await expect(page.getByTestId("kitchen-tab-dispatched")).toBeVisible();
+
+    await page.reload();
+
+    await expect(page.getByTestId("kitchen-tab-dispatched")).toBeVisible();
+    await expect(page.locator(".admin-sidebar-shell")).toBeHidden();
+
+    // Se apaga al final para no dejar el resto de la suite en modo cocina.
+    await page.getByRole("button", { name: "Salir" }).click();
+    await expect(page.getByTestId("comandas-topbar")).toBeVisible();
   });
 
   test("buscar deja solo la comanda que se está preguntando y lo deja en la URL (B4)", async ({ page }) => {

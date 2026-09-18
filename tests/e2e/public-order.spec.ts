@@ -183,11 +183,17 @@ test.describe("checkout sin redundancias", () => {
     // La confirmación del cliente también dice el día.
     await expect(page.getByText(/mañana \d/)).toBeVisible();
 
-    // Y el panel lo separa aparte del turno de hoy: el tablero de comandas (B3) avisa que hay una
-    // comanda programada para otro día en vez de ponerla en «Por aceptar» —la cocina la empezaría
-    // hoy—, y el listado la muestra en su grupo.
     await loginAsOwner(page);
     await page.goto("/admin/orders");
+
+    /**
+     * Y el panel lo separa aparte del turno de hoy: el tablero de comandas (B3) avisa que hay una
+     * comanda programada para otro día en vez de ponerla en «Por aceptar» —la cocina la empezaría
+     * hoy—.
+     *
+     * Ese aviso solo funciona desde el 2026-09-18: la bandeja pedía **solo el día de hoy**, así que el
+     * pedido de mañana no llegaba a la pantalla y el aviso no podía aparecer (`businessTurnRange`).
+     */
     await expect(page.getByTestId("comandas-scheduled-notice")).toContainText(
       /comandas? programadas? para otro día/,
     );
@@ -195,15 +201,14 @@ test.describe("checkout sin redundancias", () => {
       page.getByRole("region", { name: "Por aceptar" }).getByText("Cliente Otro Dia"),
     ).toHaveCount(0);
 
-    await page.getByRole("button", { name: "Ver en el listado" }).click();
-    await expect(page.getByText("Programados").first()).toBeVisible();
-
-    const row = page
-      .getByRole("link", { name: /Abrir orden/ })
-      .filter({ hasText: "Cliente Otro Dia" })
-      .first();
-    await expect(row).toBeVisible();
-    await expect(row).toContainText("mañana");
+    /**
+     * **Lo que este caso ya no puede comprobar**: el grupo «Programados» del listado. Hasta el Punto 1
+     * (2026-09-18) se llegaba con «Ver en el listado»; el layout unificado dejó el listado agrupado
+     * **inalcanzable** —depende de que el filtro sea «Todas» y de que el tablero esté apagado, y el
+     * tablero se apaga solo en «Cerradas», que además filtra por estado y deja fuera un pedido nuevo—.
+     * Queda anotado en `ops/audit-backlog.md` (A-33): es una decisión de producto (dónde se mira el
+     * listado completo), no algo que este test pueda arreglar.
+     */
   });
 
   test("el botón no arranca deshabilitado y señala el campo que falta", async ({ page }) => {    await openCheckoutWithOneProduct(page);

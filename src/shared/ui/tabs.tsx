@@ -40,6 +40,7 @@ export function TabsTrigger({
   children,
   className = "",
   ariaLabel,
+  testId,
   disabled = false,
 }: {
   value: string;
@@ -48,6 +49,12 @@ export function TabsTrigger({
   children: React.ReactNode;
   className?: string;
   ariaLabel?: string;
+  /**
+   * Anclaje estable para un disparador cuando la misma pantalla tiene dos juegos de tabs y el nombre
+   * accesible se repite (el modo cocina y el filtro del panel, Punto 3 del roadmap). Los tests y el
+   * E2E necesitan decir **cuál** de los dos.
+   */
+  testId?: string;
   disabled?: boolean;
 }) {
   const isActive = value === activeValue;
@@ -57,6 +64,7 @@ export function TabsTrigger({
       type="button"
       aria-pressed={isActive}
       aria-label={ariaLabel}
+      data-testid={testId}
       disabled={disabled}
       onClick={() => onClick(value)}
       className={[
