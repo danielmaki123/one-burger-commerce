@@ -11,8 +11,16 @@
 |---|---|---|---|
 | 1 | **Layout unificado de Órdenes** (opción (a): carriles conservados, chrome siempre visible, sin sub-filtro Hoy/Historial) | **cerrado** | commit `a83e3a1` · deploy `build-20260918-145218` · capturas `tarea-layout-ordenes-*-produccion-*.png` |
 | 2 | **Sección Historial** (`/admin/history` con tabs `/cierres` y `/facturas`, anulación de facturas con motivo obligatorio y soft delete) | **cerrado** | commit `2b86bb9` · deploy `build-20260918-152408` · capturas `tarea-historial-*` (locales y de producción) |
-| 3 | **Modo cocina opt-in** (botón en la toolbar de Órdenes, `localStorage` por dispositivo, oculta sidebar y header, «Salir», tabs de cocina con «Despachadas hace poco») | **pendiente** | — |
-| 4 | **Checkbox fiscal en el POS** («Cliente pide factura con RUC» → RUC mínimo 8 + razón social, guarda en `Customer` y congela en la factura) | **pendiente** | — |
+| 3 | **Modo cocina opt-in** (botón en la toolbar de Órdenes, `localStorage` por dispositivo, oculta sidebar y header, «Salir», tabs de cocina con «Despachadas hace poco») | **cerrado** | commit `398f0c8` · deploy `build-20260918-163329` · capturas `tarea-punto3-modo-cocina-*-1280/375.png` · E2E `admin-comandas.spec.ts` («Punto 3») |
+| 4 | **Checkbox fiscal en el POS** («Cliente pide factura con RUC» → RUC mínimo 8 + razón social, guarda en `Customer` y congela en la factura) | **cerrado** | commits del cierre · capturas `tarea-punto4-pos-factura-*-1280/375.png` · E2E `admin-pos.spec.ts` («Punto 4») |
+
+> **Nota del Punto 4 (2026-09-18)**: el punto pide los **datos del cliente** (RUC y razón social), no el RUC
+> del negocio: la factura sigue siendo **simple, no fiscal**, y quién la imprime con la hoja del sistema ya
+> estaba decidido (A-20). Eso queda anotado como **A-34** en el backlog.
+>
+> **Nota del Punto 3**: el listado agrupado de Órdenes quedó **inalcanzable** con el layout unificado del
+> Punto 1 y por eso el caso D1 del E2E ya no puede comprobar el grupo «Programados»; es la decisión abierta
+> **A-33** del backlog (dónde se mira el listado completo).
 
 > Lo que sigue de la Fase 2 del POS (los bloques 1.x a 13.x de este inventario) conserva el estado que
 > tiene más abajo. El **Punto 3** toca la pantalla de Órdenes y el **Punto 4** el POS: ninguno de los dos

@@ -12,10 +12,10 @@
 > | 1 | **Layout unificado de Órdenes** (opción (a): carriles conservados) | **cerrado** — commit `a83e3a1`, deploy `build-20260918-145218` |
 > | 2 | **Sección Historial** (`/admin/history`: cierres + facturas) | **cerrado** — commit `2b86bb9`, deploy `build-20260918-152408` |
 > | — | **A-32** (el Historial no depende del POS para dibujarse) | **cerrado** — commit `f35755c`, deploy `build-20260918-154317` |
-> | 3 | **Modo cocina opt-in** (botón + `localStorage`, oculta sidebar y header) | **cerrado** — ver «Punto 3» abajo |
-> | 4 | **Checkbox fiscal en el POS** (RUC + razón social → `Customer` y factura) | **pendiente** |
+> | 3 | **Modo cocina opt-in** (botón + `localStorage`, oculta sidebar y header) | **cerrado** — commit `398f0c8`, deploy `build-20260918-163329` |
+> | 4 | **Checkbox fiscal en el POS** (RUC + razón social → `Customer` y factura) | **cerrado** — ver «Punto 4» abajo |
 >
-> **Tests actuales: 2889 unitarios en 422 archivos + 50 de contrato** (`npx vitest run src/shared/contracts`).
+> **Tests actuales: 2920 unitarios en 425 archivos + 50 de contrato** (`npx vitest run src/shared/contracts`).
 > Gates locales al cierre: `test`, `lint`, `typecheck`, `build`, `build:webpack`, `security:secrets` y
 > `prisma migrate diff` sin drift.
 >
@@ -23,6 +23,23 @@
 > disponible, así que sin mostrador un manager perdía también el **Historial**. Ahora cada ítem lleva su
 > permiso propio y el grupo se dibuja si queda al menos uno (`admin-layout-helpers.ts`). El detalle y el
 > desvío respecto del brief están en `ops/audit-backlog.md` (A-32).
+>
+> **Punto 3 (2026-09-18, commit `398f0c8`, deploy `build-20260918-163329`)** — el **modo cocina** es un modo
+> de verdad: botón en la barra de trabajo, persistencia **por dispositivo** (`localStorage`), sin barra
+> lateral, encabezado ni barra de administración, con **«Salir»** arriba a la derecha (sin cerrar sesión) y
+> sus cinco tabs `[Todas] [Nuevas] [Preparando] [Listas] [Despachadas hace poco]` (sin «Cerradas» y sin
+> «Historial»). Se retiró la entrada al Fullscreen API. Capturas en `ops/tasks/audit-ui/tarea-punto3-*`.
+> De camino se arreglaron dos bugs que impedían verificar: **`locationId=all` vaciaba el tablero** (la API
+> lo aplicaba como id de local y devolvía 0 pedidos, commit `892a46b`) y la bandeja pedía **solo el día de
+> hoy**, así que el aviso de «comandas programadas para otro día» nunca podía aparecer (`businessTurnRange`).
+>
+> **Punto 4 (2026-09-18)** — el POS pregunta **«Cliente pide factura con RUC»** después del correo, con
+> ícono; con el tilde puesto el RUC (mínimo 8) y la razón social son obligatorios y al destildarlo se
+> limpian. Al cobrar, los datos se guardan en el **`Customer`** (se actualizan si ya existía) y la factura
+> —que puede emitirse desde el detalle, donde el RUC no viaja en el body— los toma del cliente vinculado:
+> `findCustomerById` + `updateCustomerFiscalData` en el puerto y su adaptador Prisma, `findOrCreateCustomer`,
+> `createOrder`, `sale-payload`/`register-pos-sale`/`pos-customer-fields.tsx` y `emitInvoice`. Capturas en
+> `ops/tasks/audit-ui/tarea-punto4-*`.
 >
 > **Punto 1 (2026-09-18)** — barra lateral y encabezado «Órdenes» siempre visibles, los cinco tabs de estado
 > como filtro (carriles para Todas/Nuevas/Preparando/Listas, lista para Cerradas), **sin** el sub-filtro
