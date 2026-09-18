@@ -1,23 +1,26 @@
+import type { ReactNode } from "react";
+
 import { PAYMENT_METHOD_TYPE_LABELS, type PaymentMethodType } from "@/modules/orders/domain/order.types";
 import type { InvoiceRecord } from "@/modules/invoices/domain/invoice";
 import { formatCurrency, type CurrencyFormat } from "@/shared/lib/format-currency";
 import { formatSheetAmount } from "@/shared/lib/shift-sheet-format";
 
 /**
- * Factura simple (2026-09-18) — la **hoja A4** del documento (rediseño).
+ * Factura simple (2026-09-18) — la hoja de **80 mm** (impresora térmica de mostrador).
  *
- * **No es una factura fiscal.** Es el papel que el cliente se lleva y por eso es un documento, no una
- * pantalla: fondo blanco siempre (aunque el panel sea oscuro), nada de controles, y todo lo que se imprime
- * sale de datos que ya existen —el negocio, la sucursal congelada en la factura, el cliente y el pedido—.
+ * **No es una factura fiscal.** Es el papel que el cliente se lleva y se imprime en el rollo del local, así
+ * que: una sola columna, ancho fijo de 80 mm (302 px a 96 dpi), negro sobre blanco, separadores punteados y
+ * **mono para los números** para que las columnas no bailen. La decisión del owner (2026-09-18) es 80 mm y
+ * no A4: es la impresora que hay en el mostrador.
  *
  * Tres reglas:
  *
- * 1. **Lo que falta no se imprime.** Sin logo queda el isotipo; sin isotipo, el nombre. Sin RUC no hay
- *    línea de RUC. No se inventa una dirección ni un teléfono.
- * 2. **Los montos son los de la factura** (congelados al emitir) y los cobros son los reales del pedido:
- *    efectivo con su vuelto, tarjeta, transferencia o el detalle de un cobro partido.
- * 3. **Los números en mono con `tabular-nums`**, como pide el sistema, para que la columna de importes no
- *    baile al imprimir.
+ * 1. **Lo que falta no se imprime.** Sin logo queda el isotipo; sin isotipo, el nombre. Sin RUC del cliente
+ *    no hay esa línea. No se inventa una dirección ni un teléfono.
+ * 2. **El logo es el isotipo** (`logoMarkUrl`) y no el logo completo: la térmica imprime en 1 bit y un logo
+ *    con color sale manchado.
+ * 3. **Los montos son los de la factura** (congelados al emitir) y los cobros son los **reales** del pedido:
+ *    efectivo con su vuelto, tarjeta, transferencia o el detalle de un cobro partido, con la propina aparte.
  */
 
 export type InvoicePrintItem = {
@@ -42,12 +45,27 @@ type InvoicePrintSheetProps = {
   orderNumber: string;
   items: InvoicePrintItem[];
   payments: InvoicePrintPayment[];
-  /** El logo del negocio, o el isotipo si no hay logo completo. `null` = solo el nombre. */
+  /** El isotipo del negocio. `null` = solo el nombre (la térmica no imprime bien un logo con color). */
   logoUrl: string | null;
-  /** Moneda del negocio: lo que no está en ella se imprime con su código (no con el símbolo local). */
+  /** WhatsApp del cliente, del pedido (la factura no lo congela). */
+  customerWhatsapp?: string | null;
+  /** Moneda del negocio: lo que no está en ella se imprime con su código. */
   businessCurrencyCode: string;
   currency: CurrencyFormat;
 };
+
+/** Ancho de la hoja: 80 mm a 96 dpi. */
+const SHEET_WIDTH = "80mm";
+
+function Separator() {
+  return <div aria-hidden="true" className="my-2 border-t border-dashed border-black/40" />;
+}
+
+function SectionLabel({ children }: { children: ReactNode }) {
+  return (
+    <p className="text-st-overline font-bold uppercase tracking-widest opacity-70">{children}</p>
+  );
+}
 
 export default function InvoicePrintSheet({
   invoice,
@@ -55,6 +73,7 @@ export default function InvoicePrintSheet({
   items,
   payments,
   logoUrl,
+  customerWhatsapp = null,
   businessCurrencyCode,
   currency,
 }: InvoicePrintSheetProps) {
@@ -69,8 +88,7 @@ export default function InvoicePrintSheet({
   const branchLines = [
     invoice.branchAddressLine,
     invoice.branchCity,
-    invoice.branchPhone ? `Tel. ${invoice.branchPhone}` : null,
-    invoice.branchWhatsapp ? `WhatsApp ${invoice.branchWhatsapp}` : null,
+    invoice.branchPhone ? `Tel: ${invoice.branchPhone}` : null,
   ].filter((line): line is string => Boolean(line && line.trim()));
 
   const hasBranch = Boolean(invoice.branchName || branchLines.length > 0);
@@ -80,92 +98,99 @@ export default function InvoicePrintSheet({
   return (
     <article
       aria-label="Factura simple"
-      className="mx-auto w-full max-w-[210mm] bg-white p-6 text-black sm:p-10 print:max-w-none print:p-0"
+      style={{ width: SHEET_WIDTH }}
+      className="mx-auto bg-white px-2 py-3 text-black print:w-auto print:px-0 print:py-0"
     >
-      <header className="flex items-start justify-between gap-6 border-b border-black/20 pb-5">
-        <div className="flex min-w-0 items-center gap-4">
-          {logoUrl ? (
-            // El logo se resuelve desde la configuración y se imprime tal cual (sin fondo ni filtros).
-            // Es una imagen externa del negocio: `<img>` y no `next/image` (que pediría optimizarla).
-            <img src={logoUrl} alt="" className="h-16 w-auto max-w-[52mm] object-contain" />
-          ) : (
-            <p className="text-xl font-bold uppercase tracking-wide">{invoice.businessName}</p>
-          )}
-        </div>
-
-        <div className="min-w-0 text-right text-xs leading-relaxed">
-          <p className="text-sm font-bold">{invoice.businessLegalName ?? invoice.businessName}</p>
-          {invoice.businessLegalName ? <p>{invoice.businessName}</p> : null}
-          {invoice.businessTaxId ? <p>RUC {invoice.businessTaxId}</p> : null}
-          {invoice.businessAddress ? <p>{invoice.businessAddress}</p> : null}
-          {invoice.businessPhone ? <p>{invoice.businessPhone}</p> : null}
-        </div>
+      <header className="text-center">
+        {logoUrl ? (
+          // El isotipo, centrado y chico: en 1 bit un logo grande con color sale manchado.
+          <img src={logoUrl} alt="" className="mx-auto h-10 w-auto max-w-[40mm] object-contain" />
+        ) : null}
+        <p className="text-st-body font-bold">{invoice.businessLegalName ?? invoice.businessName}</p>
+        {invoice.businessLegalName ? <p className="text-st-caption">{invoice.businessName}</p> : null}
+        {invoice.businessTaxId ? (
+          <p className="text-st-caption">RUC: {invoice.businessTaxId}</p>
+        ) : null}
+        {invoice.businessAddress ? (
+          <p className="text-st-caption">{invoice.businessAddress}</p>
+        ) : null}
+        {invoice.businessPhone ? (
+          <p className="text-st-caption">Tel: {invoice.businessPhone}</p>
+        ) : null}
       </header>
 
-      <section className="flex flex-wrap items-end justify-between gap-3 py-4">
-        <h1 className="text-lg font-bold uppercase tracking-widest">Factura simple</h1>
-        <div className="text-right text-xs">
-          <p className="font-mono text-sm font-bold tabular-nums">No. {invoice.number}</p>
-          <p className="font-mono tabular-nums">
-            {new Date(invoice.issuedAt).toLocaleString(currency.locale, {
-              dateStyle: "short",
-              timeStyle: "short",
-            })}
-          </p>
-        </div>
+      <Separator />
+
+      <section className="text-center">
+        <h1 className="text-st-body font-bold uppercase tracking-widest">Factura simple</h1>
+        <p className="font-mono text-st-caption tabular-nums">No. {invoice.number}</p>
+        <p className="font-mono text-st-caption tabular-nums">
+          {new Date(invoice.issuedAt).toLocaleString(currency.locale, {
+            dateStyle: "short",
+            timeStyle: "short",
+          })}
+        </p>
       </section>
 
-      <section className="grid gap-4 border-y border-black/20 py-4 text-xs sm:grid-cols-2">
-        {hasBranch ? (
-          <div>
-            <p className="mb-1 text-st-overline font-bold uppercase tracking-widest opacity-70">
-              Sucursal de retiro
-            </p>
-            {invoice.branchName ? <p className="text-sm font-semibold">{invoice.branchName}</p> : null}
-            {branchLines.map((line) => (
-              <p key={line}>{line}</p>
-            ))}
-            {invoice.branchMapsUrl ? (
-              // El mapa es un dato del local: se imprime el enlace, no un mapa embebido (eso pide red).
-              <p className="break-all opacity-70">{invoice.branchMapsUrl}</p>
-            ) : null}
-          </div>
+      <Separator />
+
+      <section>
+        <SectionLabel>Cliente</SectionLabel>
+        <p className="text-st-caption font-semibold">{invoice.customerName}</p>
+        {customerWhatsapp ? <p className="text-st-caption">{customerWhatsapp}</p> : null}
+        {invoice.customerTaxId ? (
+          <p className="text-st-caption">RUC: {invoice.customerTaxId}</p>
         ) : null}
-
-        <div>
-          <p className="mb-1 text-st-overline font-bold uppercase tracking-widest opacity-70">Cliente</p>
-          <p className="text-sm font-semibold">{invoice.customerName}</p>
-          {invoice.customerLegalName ? <p>{invoice.customerLegalName}</p> : null}
-          {invoice.customerTaxId ? <p>RUC {invoice.customerTaxId}</p> : null}
-        </div>
+        {invoice.customerLegalName ? (
+          <p className="text-st-caption">{invoice.customerLegalName}</p>
+        ) : null}
       </section>
 
-      <table className="mt-5 w-full border-collapse text-left text-xs">
+      {hasBranch ? (
+        <>
+          <Separator />
+          <section>
+            <SectionLabel>Sucursal de retiro</SectionLabel>
+            {invoice.branchName ? (
+              <p className="text-st-caption font-semibold">{invoice.branchName}</p>
+            ) : null}
+            {branchLines.map((line) => (
+              <p key={line} className="text-st-caption">
+                {line}
+              </p>
+            ))}
+            {invoice.branchWhatsapp ? (
+              <p className="text-st-caption">WhatsApp: {invoice.branchWhatsapp}</p>
+            ) : null}
+            {invoice.branchMapsUrl ? (
+              <p className="break-all text-st-overline opacity-70">{invoice.branchMapsUrl}</p>
+            ) : null}
+          </section>
+        </>
+      ) : null}
+
+      <Separator />
+
+      <table className="w-full border-collapse text-left">
         <thead>
-          <tr className="border-b border-black/40">
-            <th className="w-8 py-2 font-bold uppercase tracking-wide">#</th>
-            <th className="py-2 font-bold uppercase tracking-wide">Producto</th>
-            <th className="w-16 py-2 text-right font-bold uppercase tracking-wide">Cant.</th>
-            <th className="w-24 py-2 text-right font-bold uppercase tracking-wide">P. unit.</th>
-            <th className="w-24 py-2 text-right font-bold uppercase tracking-wide">Importe</th>
+          <tr className="text-st-overline font-bold uppercase tracking-widest opacity-70">
+            <th className="w-10 pb-1 pr-1 text-left">Cant</th>
+            <th className="pb-1 text-left">Descripción</th>
+            <th className="w-20 pb-1 text-right">Importe</th>
           </tr>
         </thead>
         <tbody>
           {items.map((item, index) => (
-            <tr key={`${item.name}-${index}`} className="border-b border-black/10 align-top">
-              <td className="py-2 font-mono tabular-nums">{index + 1}</td>
-              <td className="py-2">
-                <p className="font-medium">{item.name}</p>
+            <tr key={`${item.name}-${index}`} className="align-top">
+              <td className="py-0.5 font-mono text-st-caption tabular-nums">{item.quantity}</td>
+              <td className="py-0.5 text-st-caption">
+                <p>{item.name}</p>
                 {item.modifiers?.length ? (
                   <p className="opacity-70">{item.modifiers.join(" · ")}</p>
                 ) : null}
                 {item.notes ? <p className="opacity-70">{item.notes}</p> : null}
               </td>
-              <td className="py-2 text-right font-mono tabular-nums">{item.quantity}</td>
-              <td className="py-2 text-right font-mono tabular-nums">
-                {moneyInBusiness(item.unitPrice)}
-              </td>
-              <td className="py-2 text-right font-mono tabular-nums">
+              <td className="py-0.5 text-right font-mono text-st-caption tabular-nums">
                 {moneyInBusiness(item.lineTotal)}
               </td>
             </tr>
@@ -173,72 +198,77 @@ export default function InvoicePrintSheet({
         </tbody>
       </table>
 
-      <section className="mt-5 flex flex-col gap-5 sm:flex-row sm:justify-between">
-        <div className="order-2 text-xs sm:order-1 sm:max-w-[90mm]">
-          <p className="mb-1 text-st-overline font-bold uppercase tracking-widest opacity-70">Pago</p>
-          {payments.length === 0 ? (
-            <p>Sin cobros registrados.</p>
-          ) : (
-            <ul>
-              {payments.map((payment, index) => (
-                <li key={`${payment.method}-${index}`} className="flex items-baseline gap-2">
-                  <span className="font-medium">
-                    {isSingleCash
-                      ? `Pagó con ${moneyIn(payment.amount, payment.currency)}`
-                      : `${PAYMENT_METHOD_TYPE_LABELS[payment.method]} ${moneyIn(payment.amount, payment.currency)}`}
-                  </span>
-                </li>
-              ))}
-              {isSingleCash && change > 0 ? (
-                <li>
-                  <span className="font-medium">Vuelto {moneyIn(change, businessCurrencyCode)}</span>
-                </li>
-              ) : null}
-              {invoice.tipAmount > 0 ? (
-                <li>
-                  <span className="font-medium">Propina {moneyInBusiness(invoice.tipAmount)}</span>
-                </li>
-              ) : null}
-            </ul>
-          )}
-        </div>
+      <Separator />
 
-        <dl className="order-1 w-full text-xs sm:order-2 sm:w-[75mm]">
-          <div className="flex items-baseline justify-between border-b border-black/10 py-1.5">
-            <dt>Subtotal</dt>
-            <dd className="font-mono tabular-nums">{moneyInBusiness(invoice.subtotal)}</dd>
-          </div>
-          {invoice.discount > 0 ? (
-            <div className="flex items-baseline justify-between border-b border-black/10 py-1.5">
-              <dt>Descuento</dt>
-              <dd className="font-mono tabular-nums">-{moneyInBusiness(invoice.discount)}</dd>
-            </div>
-          ) : null}
-          {invoice.packagingAmount > 0 ? (
-            <div className="flex items-baseline justify-between border-b border-black/10 py-1.5">
-              <dt>Empaque</dt>
-              <dd className="font-mono tabular-nums">{moneyInBusiness(invoice.packagingAmount)}</dd>
-            </div>
-          ) : null}
-          {invoice.tipAmount > 0 ? (
-            <div className="flex items-baseline justify-between border-b border-black/10 py-1.5">
-              <dt>Propina</dt>
-              <dd className="font-mono tabular-nums">{moneyInBusiness(invoice.tipAmount)}</dd>
-            </div>
-          ) : null}
-          <div className="flex items-baseline justify-between border-t-2 border-black pt-2 text-base font-bold">
-            <dt>TOTAL</dt>
-            <dd className="font-mono tabular-nums">{moneyInBusiness(invoice.total)}</dd>
-          </div>
-        </dl>
+      <dl className="text-st-caption">
+        <div className="flex items-baseline justify-between">
+          <dt>Subtotal</dt>
+          <dd className="font-mono tabular-nums">{moneyInBusiness(invoice.subtotal)}</dd>
+        </div>
+        <div className="flex items-baseline justify-between">
+          <dt>Empaque</dt>
+          <dd className="font-mono tabular-nums">{moneyInBusiness(invoice.packagingAmount)}</dd>
+        </div>
+        <div className="flex items-baseline justify-between">
+          <dt>Descuento</dt>
+          <dd className="font-mono tabular-nums">-{moneyInBusiness(invoice.discount)}</dd>
+        </div>
+        <div className="flex items-baseline justify-between">
+          <dt>Propina</dt>
+          <dd className="font-mono tabular-nums">{moneyInBusiness(invoice.tipAmount)}</dd>
+        </div>
+      </dl>
+
+      <div className="mt-1 flex items-baseline justify-between border-t border-black pt-1">
+        <span className="text-st-body font-bold uppercase">Total</span>
+        <span className="font-mono text-st-body font-bold tabular-nums">
+          {moneyInBusiness(invoice.total)}
+        </span>
+      </div>
+
+      <Separator />
+
+      <section className="text-st-caption">
+        <SectionLabel>Pago</SectionLabel>
+        {payments.length === 0 ? (
+          <p>Sin cobros registrados.</p>
+        ) : (
+          <ul>
+            {payments.map((payment, index) => (
+              <li key={`${payment.method}-${index}`} className="flex items-baseline justify-between">
+                <span>{PAYMENT_METHOD_TYPE_LABELS[payment.method]}</span>
+                <span className="font-mono tabular-nums">
+                  {moneyIn(payment.amount, payment.currency)}
+                </span>
+              </li>
+            ))}
+            {isSingleCash && change > 0 ? (
+              <li className="flex items-baseline justify-between">
+                <span>Vuelto</span>
+                <span className="font-mono tabular-nums">
+                  {moneyIn(change, businessCurrencyCode)}
+                </span>
+              </li>
+            ) : null}
+            {invoice.tipAmount > 0 ? (
+              <li className="flex items-baseline justify-between">
+                <span>Propina</span>
+                <span className="font-mono tabular-nums">{moneyInBusiness(invoice.tipAmount)}</span>
+              </li>
+            ) : null}
+          </ul>
+        )}
       </section>
 
-      <footer className="mt-6 border-t border-black/20 pt-3 text-st-overline">
-        <p className="font-semibold">Documento no fiscal.</p>
+      <Separator />
+
+      <footer className="text-center text-st-overline">
+        <p className="font-bold">Documento no fiscal.</p>
         <p className="opacity-70">
-          Pedido <span className="font-mono tabular-nums">{orderNumber}</span> · {invoice.businessName}
+          Pedido <span className="font-mono tabular-nums">{orderNumber}</span>
           {invoice.branchName ? ` · ${invoice.branchName}` : ""}
         </p>
+        <p className="opacity-70">Gracias por su compra.</p>
       </footer>
     </article>
   );

@@ -50,8 +50,8 @@ export default async function InvoicePrintPage({ params }: { params: Promise<{ i
   return (
     <div className="min-h-screen bg-white text-black">
       <style>{`
-        /* La hoja, en A4: 2 cm arriba y abajo, 1,5 cm a los costados. */
-        @page { size: A4; margin: 2cm 1.5cm; }
+        /* La hoja es del rollo de 80 mm: ancho fijo y alto libre (2 mm de margen a los costados). */
+        @page { size: 80mm auto; margin: 2mm; }
         @media print {
           /*
            * Solo se imprime la hoja: el panel del admin (barra lateral, navegación y contenedores) sale del
@@ -69,7 +69,7 @@ export default async function InvoicePrintPage({ params }: { params: Promise<{ i
         }
       `}</style>
 
-      <div className="mx-auto flex max-w-[210mm] flex-wrap items-center justify-between gap-3 px-6 py-4 print:hidden">
+      <div className="mx-auto flex w-full max-w-[80mm] flex-wrap items-center justify-between gap-2 px-2 py-3 print:hidden">
         <a
           href={`/admin/orders/${encodeURIComponent(id)}`}
           className="inline-flex min-h-11 items-center text-sm font-semibold underline underline-offset-2"
@@ -98,7 +98,8 @@ export default async function InvoicePrintPage({ params }: { params: Promise<{ i
             changeAmount: payment.changeAmount,
             tip: payment.tip,
           }))}
-          logoUrl={settings.logoUrl ?? settings.logoMarkUrl ?? null}
+          logoUrl={settings.logoMarkUrl ?? null}
+          customerWhatsapp={order.data.customerWhatsapp}
           businessCurrencyCode={settings.currencyCode}
           currency={{ symbol: settings.currencySymbol, locale: settings.locale }}
         />

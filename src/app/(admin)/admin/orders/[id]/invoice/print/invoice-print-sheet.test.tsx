@@ -9,12 +9,12 @@ import { DEFAULT_BUSINESS_SETTINGS } from "@/modules/business-settings/domain/bu
 import InvoicePrintSheet from "./invoice-print-sheet";
 
 /**
- * Factura simple (2026-09-18) — la hoja A4 del documento (rediseño).
+ * Factura simple (2026-09-18) — la hoja de **80 mm** (impresora térmica del mostrador).
  *
- * Lo que se fija acá es lo que el cliente ve en el papel: el logo del negocio, su razón social y su RUC, la
- * sucursal de retiro (congelada en la factura), el detalle, el total destacado, **cómo pagó** (efectivo con
- * su vuelto, o el detalle de un cobro partido) y el pie que aclara que no es un documento fiscal. Y lo que
- * **no** sale: una línea que no tiene dato no se imprime ni se inventa.
+ * Lo que se fija acá es lo que sale en el rollo: el isotipo del negocio (o su nombre), su razón social y su
+ * RUC, la sucursal de retiro (congelada en la factura), el cliente con sus datos fiscales si los dio, el
+ * detalle, el total destacado, **cómo pagó** (efectivo con su vuelto, o el detalle de un cobro partido) y el
+ * pie que aclara que no es un documento fiscal. Y lo que **no** sale: una línea sin dato no se imprime.
  */
 
 afterEach(cleanup);
@@ -67,7 +67,8 @@ function renderSheet(props: Partial<Parameters<typeof InvoicePrintSheet>[0]> = {
       payments={[
         { method: "cash", amount: 100, currency: "NIO", changeAmount: 30, tip: 0 },
       ]}
-      logoUrl="/brand/one-burger-logo.svg"
+      logoUrl="/brand/one-burger-mark.svg"
+      customerWhatsapp="+50588887777"
       businessCurrencyCode="NIO"
       currency={currency}
       {...props}
@@ -76,28 +77,57 @@ function renderSheet(props: Partial<Parameters<typeof InvoicePrintSheet>[0]> = {
 }
 
 describe("InvoicePrintSheet", () => {
-  it("lleva el logo del negocio, su razón social y su RUC", () => {
+  it("es una hoja de 80 mm: ancho del rollo y una sola columna", () => {
     renderSheet();
 
-    expect(document.querySelector("img")?.getAttribute("src")).toBe("/brand/one-burger-logo.svg");
+    const hoja = screen.getByRole("article", { name: "Factura simple" });
+
+    expect(hoja.getAttribute("style")).toContain("80mm");
+  });
+
+  it("lleva el isotipo del negocio, su razón social y su RUC", () => {
+    renderSheet();
+
+    expect(document.querySelector("img")?.getAttribute("src")).toBe("/brand/one-burger-mark.svg");
     expect(screen.getByText("One Burger S.A.")).toBeTruthy();
-    expect(screen.getByText("RUC J0310000123456")).toBeTruthy();
+    expect(screen.getByText("RUC: J0310000123456")).toBeTruthy();
     expect(screen.getByText("Camino de Oriente, Managua")).toBeTruthy();
   });
 
-  it("sin logo ni isotipo queda el nombre del negocio (no un hueco)", () => {
+  it("sin isotipo queda el nombre del negocio (no un hueco)", () => {
     renderSheet({ logoUrl: null });
 
     expect(document.querySelector("img")).toBeNull();
     expect(screen.getAllByText("One Burger").length).toBeGreaterThan(0);
   });
 
-  it("dice el número, la fecha y a quién le factura", () => {
+  it("dice el número, la fecha y el cliente con su WhatsApp", () => {
     renderSheet();
 
     expect(screen.getByText(/No\. F-000003/)).toBeTruthy();
     expect(screen.getByText("Cliente")).toBeTruthy();
     expect(screen.getByText("Ana")).toBeTruthy();
+    expect(screen.getByText("+50588887777")).toBeTruthy();
+  });
+
+  it("muestra los datos fiscales del cliente cuando los dio", () => {
+    renderSheet({
+      invoice: {
+        ...invoice,
+        customerTaxId: "J0310000999999",
+        customerLegalName: "Empresa XYZ S.A.",
+      },
+    });
+
+    expect(screen.getByText("RUC: J0310000999999")).toBeTruthy();
+    expect(screen.getByText("Empresa XYZ S.A.")).toBeTruthy();
+  });
+
+  it("sin datos fiscales del cliente no imprime esas líneas", () => {
+    renderSheet();
+
+    expect(screen.queryByText(/^RUC: J0310000999999$/)).toBeNull();
+    expect(screen.queryByText("Empresa XYZ S.A.")).toBeNull();
   });
 
   it("muestra la sucursal de retiro congelada, con su dirección y su teléfono", () => {
@@ -107,7 +137,7 @@ describe("InvoicePrintSheet", () => {
     expect(screen.getByText("Camino de Oriente")).toBeTruthy();
     expect(screen.getByText("Km 8 Carretera Sur")).toBeTruthy();
     expect(screen.getByText("Managua")).toBeTruthy();
-    expect(screen.getByText("Tel. +50522223333")).toBeTruthy();
+    expect(screen.getByText("Tel: +50522223333")).toBeTruthy();
     expect(screen.getByText("https://maps.google.com/?q=camino")).toBeTruthy();
   });
 
@@ -131,18 +161,21 @@ describe("InvoicePrintSheet", () => {
     renderSheet();
 
     expect(screen.getByText("Taco de birria")).toBeTruthy();
-    expect(screen.getByText("Producto")).toBeTruthy();
+    expect(screen.getByText("Descripción")).toBeTruthy();
     expect(screen.getByText("Importe")).toBeTruthy();
-    expect(screen.getByText("TOTAL")).toBeTruthy();
+    expect(screen.getByText("Total")).toBeTruthy();
     // El total de la factura, formateado con la moneda del negocio.
     expect(screen.getAllByText(/C\$70\.00/).length).toBeGreaterThanOrEqual(2);
   });
 
-  it("en efectivo dice con cuánto pagó y el vuelto", () => {
+  it("en efectivo dice el medio, el monto y el vuelto", () => {
     renderSheet();
 
-    expect(screen.getByText(/Pagó con/)).toBeTruthy();
-    expect(screen.getByText(/Vuelto/)).toBeTruthy();
+    // El cobro real: el medio con su monto y, aparte, el vuelto (la línea del POS).
+    expect(screen.getByText("Efectivo")).toBeTruthy();
+    expect(screen.getByText("Vuelto")).toBeTruthy();
+    expect(screen.getByText(/C\$100\.00/)).toBeTruthy();
+    expect(screen.getByText(/C\$30\.00/)).toBeTruthy();
   });
 
   it("un cobro partido lista cada medio con su monto (y no inventa un vuelto)", () => {
