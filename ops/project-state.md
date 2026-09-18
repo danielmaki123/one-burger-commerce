@@ -11,19 +11,18 @@
 > |---|---|---|
 > | 1 | **Layout unificado de Órdenes** (opción (a): carriles conservados) | **cerrado** — commit `a83e3a1`, deploy `build-20260918-145218` |
 > | 2 | **Sección Historial** (`/admin/history`: cierres + facturas) | **cerrado** — commit `2b86bb9`, deploy `build-20260918-152408` |
-> | 3 | **Modo cocina opt-in** (botón + `localStorage`, oculta sidebar y header) | **pendiente** |
+> | — | **A-32** (el Historial no depende del POS para dibujarse) | **cerrado** — commit `f35755c`, deploy `build-20260918-154317` |
+> | 3 | **Modo cocina opt-in** (botón + `localStorage`, oculta sidebar y header) | **cerrado** — ver «Punto 3» abajo |
 > | 4 | **Checkbox fiscal en el POS** (RUC + razón social → `Customer` y factura) | **pendiente** |
 >
-> **Tests actuales: 2855 unitarios en 419 archivos + 50 de contrato** (`npx vitest run src/shared/contracts`).
+> **Tests actuales: 2889 unitarios en 422 archivos + 50 de contrato** (`npx vitest run src/shared/contracts`).
 > Gates locales al cierre: `test`, `lint`, `typecheck`, `build`, `build:webpack`, `security:secrets` y
 > `prisma migrate diff` sin drift.
 >
-> **Desvío abierto a verificar (A-32)**: el ítem **Historial** del sidebar vive en el grupo Control y
-> `withControlGroup` (`admin-layout-helpers.ts:114`) hace `if (!posAvailable) return groups`, con
-> `posAvailable` resuelto en el shell desde `GET /api/admin/pos/availability` (`admin-shell.tsx:96`). Es
-> decir: **hoy, sin POS disponible, el Historial no se dibuja**, aunque no dependa del POS. Verificado por
-> lectura del código en el cierre de sesión del 2026-09-18; **falta corregirlo** (que el grupo se dibuje si
-> **cualquiera** de sus hijos aplica).
+> **A-32 (cerrado el 2026-09-18)** — el grupo **Control** del sidebar se dibujaba solo si el POS estaba
+> disponible, así que sin mostrador un manager perdía también el **Historial**. Ahora cada ítem lleva su
+> permiso propio y el grupo se dibuja si queda al menos uno (`admin-layout-helpers.ts`). El detalle y el
+> desvío respecto del brief están en `ops/audit-backlog.md` (A-32).
 >
 > **Punto 1 (2026-09-18)** — barra lateral y encabezado «Órdenes» siempre visibles, los cinco tabs de estado
 > como filtro (carriles para Todas/Nuevas/Preparando/Listas, lista para Cerradas), **sin** el sub-filtro

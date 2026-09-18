@@ -68,7 +68,8 @@ Estados: `reportado` · `a reproducir` · `en curso` · `cerrado` · `no-repro` 
 | A-29 | **Mobile Órdenes: el chrome ocupa ~49% a 375 px** (encabezado + las tres filas de la barra de trabajo del layout unificado, 2026-09-18). Los contadores del turno duplican lo que ya dicen los carriles: candidato a colapsar en el Modo cocina (Punto 3) o a posponer | UI | P3 | `reportado` (agente) | — |
 | A-30 | **No existe un PDF del cierre de caja**: el Historial › Cierres quedó con «Ver detalle» (al detalle que ya existe) porque el repo solo tiene el export CSV del día; una hoja imprimible del cierre es producto nuevo. **Opcional: se hace cuando el owner lo pida** | feat / decisión | P3 | `decisión-pendiente` (owner) | — |
 | A-31 | **TDD: formalizar el caso «el rojo no se observó»**: la regla del repo prohíbe el test después de la implementación y pide decirlo en el commit, pero no dice **cómo**. En el Punto 2 (2026-09-18) el dominio y los dos casos de uso se escribieron junto con su test y el rojo no se pudo observar (se dijo en el commit, sin formato). Se formalizó en `AGENTS.md` §Testing: **si el rojo no se observa, se documenta en el commit con el motivo** y se verifica por mutación cuando el caso lo permita | deuda / proceso | P3 | `cerrado` (2026-09-18, `AGENTS.md`) | — |
-| A-32 | **El Historial depende del POS para dibujarse**: `ADMIN_HISTORY_NAV_ITEM` vive en el grupo Control y `withControlGroup` (`admin-layout-helpers.ts:114`) hace `if (!posAvailable) return groups`, con `posAvailable` resuelto desde `GET /api/admin/pos/availability` (`admin-shell.tsx:96`). Sin POS disponible, un manager **no ve** el Historial aunque el Historial no dependa del POS (los cierres sí vienen de la caja). Verificado por lectura de código el 2026-09-18; **arreglar**: que el grupo se dibuje si **cualquiera** de sus hijos aplica (y que cada ítem tenga su propio permiso, no el del POS) | bug | P2 | `reportado` (agente) | — |
+| A-33 | **El listado agrupado de Órdenes quedó inalcanzable**: `page.tsx` dibuja el listado por grupos solo con `!showBoard` y `statusFilter === "all"`, y el tablero se apaga únicamente en «Cerradas» (que además manda `status=closed` y excluye un pedido nuevo). El layout unificado del Punto 1 se llevó el «Ver en el listado» y con él la única entrada. Se descubrió el 2026-09-18 verificando el Punto 3 (el caso D1 de `public-order.spec` ya no puede comprobar el grupo «Programados») | decisión / UI | P3 | `reportado` (agente) | — |
+| A-32 | **El Historial depende del POS para dibujarse**: `ADMIN_HISTORY_NAV_ITEM` vive en el grupo Control y `withControlGroup` (`admin-layout-helpers.ts:114`) hacía `if (!posAvailable) return groups`, con `posAvailable` resuelto desde `GET /api/admin/pos/availability` (`admin-shell.tsx:96`). Sin POS disponible, un manager **no veía** el Historial aunque el Historial no dependa del POS. **Arreglado el 2026-09-18**: cada ítem lleva su permiso propio y el grupo se dibuja si queda al menos uno | bug | P2 | `cerrado` | `f35755c` |
 | A-19 | **No existen los movimientos de caja**: sin `CashMovement` (retiro/ingreso con motivo y responsable) ni configuración de caja en ningún lado; la propina en efectivo entra al cajón por decisión implícita (`close-shift.ts:143-144`) y la caja puede quedar abierta para siempre | decisión | P3 | `decisión-pendiente` (owner) | — |
 | A-20 | **No hay un solo campo fiscal** (`ruc`/`taxId`/`fiscal`/`legalName`/`documentNumber`: cero coincidencias en `prisma/` + `src/**`) y `Customer` solo tiene nombre + WhatsApp (`schema.prisma:59-69`). El recibo es un **JPG sin logo y sin RUC** (`src/shared/lib/receipt-image.ts`) y **solo se emite desde el POS al cobrar**, no desde el detalle del pedido | decisión | P3 | `decisión-pendiente` (owner) | — |
 | A-21 | **Documentación desactualizada en cuatro puntos verificados**: `DESIGN_SYSTEM.md §3.4:273` decía "2 literales de carga" (había **18** distintos), `§2.1:164` decía 15 tokens huérfanos (había **16**: también `--ring`, `globals.css:40`), `AGENTS.md:109` mandaba a `DESIGN_SYSTEM.md §5` por la lista de copy decorativo y **§5 no la tenía**, y `plna.md:546` afirma un `Payment.shiftId` que no existe. **Cerrado el 2026-09-15** (Capa 0 del plan de UI): los tres puntos del repo se corrigieron reescribiendo `DESIGN_SYSTEM.md` (los números viejos ya no existen: §2.1 y §3.4 se reescribieron) y `AGENTS.md` (el puntero a `§5` ahora es verdadero), y un contrato falla si `AGENTS.md` cita una sección que no existe. El cuarto punto es de `plna.md`, un documento **no versionado**: queda anotado en A-18 | documentación | P3 | `cerrado` | commit de la Capa 0 |
@@ -501,6 +502,45 @@ si los documentos pasan su tope de líneas o si el catálogo deja de tener la li
   filas. `design-system.md` §8.4 pide que cabecera, filtros y utilidades no pasen el 20%.
 - **Cierre esperado**: compactar la barra (contadores y buscador en una fila, acciones al menú) sin
   perder ninguno de los anclajes que usan los E2E (`Local de las comandas`, `Buscar comanda`, `Atrasados`).
+
+### A-33 · El listado agrupado de Órdenes quedó inalcanzable — `reportado` (agente, 2026-09-18)
+
+- **Qué es**: `src/app/(admin)/admin/orders/page.tsx` dibuja el listado **por grupos** del turno
+  (`BUCKET_ORDER`: Programados, Nuevas, En cocina, Listas, Otras, Cerradas) solo cuando
+  `!showBoard && statusFilter === "all"`. Desde el layout unificado del Punto 1 (2026-09-18),
+  `showBoard = statusFilter !== "closed"`, así que:
+  - con el filtro en «Todas» se ve el tablero y **no** el listado;
+  - con «Cerradas» el tablero se apaga pero `groupByBucket` es falso (el filtro no es «all») y además
+    la consulta manda `status=closed`, que deja fuera lo que no está cerrado;
+  - con «Nuevas»/«Preparando»/«Listas» la lista plana se dibuja pero el rango del turno (`businessDate`)
+    contra el filtro de estado deja fuera los pedidos programados para otro día.
+- **Consecuencia**: el grupo «Programados» no se puede ver en ningún camino, y el caso D1 de
+  `tests/e2e/public-order.spec.ts` perdió su segunda mitad (el `Ver en el listado`, que el Punto 1 se
+  llevó). Ahí quedó anotado, con la verificación que sí es alcanzable (el aviso del tablero).
+- **No se inventó producto**: dónde se mira el listado completo —¿un enlace desde el tablero?, ¿un tab
+  propio?, ¿el Historial?— es una decisión del owner. El aviso «N comandas programadas para otro día»
+  sí funciona desde el 2026-09-18 (`businessTurnRange` incluye mañana), así que la cocina no queda
+  ciega: sabe que hay pedidos de otro día y cuántos.
+
+### A-32 · El Historial depende del POS para dibujarse — `cerrado` (`f35755c`, 2026-09-18)
+
+- **Qué era**: `withControlGroup` (`admin-layout-helpers.ts`) arrancaba con `if (!posAvailable) return
+  groups`, y `posAvailable` se resuelve en el shell desde `GET /api/admin/pos/availability`. Sin mostrador
+  prendido en ningún local, el grupo **Control** no se dibujaba y un manager perdía también el
+  **Historial**, que no lee la caja del turno: lista cierres cerrados y facturas emitidas.
+- **El arreglo**: cada ítem del grupo lleva **su propio permiso** y el grupo se dibuja si queda **al menos
+  uno**. `POS` solo con el mostrador prendido; `Caja del día` con `canUsePOS` **y** mostrador prendido (es
+  donde el cajero abre y cierra su turno: sin POS no tiene nada que hacer ahí y no administra caja, que es
+  la mitad de auditoría de la pantalla); `Aprobaciones` con `canManageCash`; `Historial` con
+  `canViewHistory`, sin mirar el POS.
+- **Desvío respecto del pedido**: el brief pedía `Caja del día` con `canUsePOS` a secas. Con esa regla un
+  cajero sin POS quedaba con un grupo Control de un solo ítem que lleva a una pantalla sin uso, y el
+  propio caso de test del brief pedía lo contrario. Se agregó la condición del mostrador a ese ítem, que es
+  el único que de verdad depende del POS.
+- **Verificación**: el test se confirmó **rojo** por la razón correcta (`expected ['Operación',
+  'Catálogo', …] to include 'Control'`). 2859 unitarios en 419 archivos, lint, typecheck, `build`,
+  `security:secrets` y `prisma migrate diff` sin drift. Deploy a producción `build-20260918-154317`
+  (commit `f35755c`), readiness `ready` y smokes **7/7** (menú) y **6/6** (hosts).
 
 ## 2b. Deuda de TDD medida por el gate (2026-09-17)
 
