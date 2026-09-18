@@ -7,7 +7,6 @@ explícito del humano, gana el humano; después de resolverlo, actualizá este a
 
 - **De a una tarea por vez**: cada tarea se cierra entera (implementación, tests, validación, commit,
   push, CI verde y estado actualizado) antes de empezar la siguiente.
-- Si una tarea mezcla temas distintos, se parte en **un commit por tema**.
 - Ante una duda de alcance, se pregunta **antes** de codear; no se inventa producto.
 - **Plan escrito = alcance ya resuelto** (2026-09-14): lo que un plan o un brief (`ops/tasks/*.md` o
   el que pase por el chat) ya define se ejecuta **de corrido**, cerrando una tarea por vez. Se sigue
@@ -186,23 +185,11 @@ se escribió después, se verifica por mutación y se deja dicho en el commit).
 npm run test && npm run lint && npm run typecheck && npm run build && npm run security:secrets
 ```
 
-Si tocaste flujos públicos o de admin, además:
-
-```bash
-# local (levanta Postgres + seed + server) o contra producción, solo lectura
-BASE_URL=http://127.0.0.1:3210 npm run test:e2e:prod:full
-BASE_URL=https://oneburgernic.com npm run test:e2e:prod
-```
-
-Si tocás una **página** (`src/app/**/page.tsx`), además:
-
-```bash
-npm run build:webpack   # el build de Turbopack no valida esto
-```
-
-Una página de Next solo puede exportar lo que Next conoce (`default`, `metadata`, …): el build con
-Webpack lo exige y falla si exporta de más, y con Turbopack el problema queda escondido. Componentes
-y helpers van en su propio archivo (por eso `orders-page-helpers.ts` no vive dentro de la página).
+Si tocaste flujos públicos o de admin, además los E2E locales
+(`BASE_URL=http://127.0.0.1:3210 npm run test:e2e:prod:full`); si tocás una **página**
+(`src/app/**/page.tsx`), `npm run build:webpack`, porque el build de Turbopack no valida los exports
+de una página y el problema queda escondido. Componentes y helpers van en su propio archivo (por eso
+`orders-page-helpers.ts` no vive dentro de la página).
 
 ## Definition of Done
 
@@ -214,23 +201,57 @@ Una tarea está terminada cuando:
 - Verificación en navegador real (375 px + 1280 px) si toca UI
 - Captura antes/después si toca UI
 - ops/project-state.md actualizado
-- Commit + push a main
+- Commit + push a la rama de trabajo
+- PR abierto, CI verde, revisión aprobada
+- Merge a main
 - Si toca deploy: aprobación del owner + los 2 smokes después
 - Excepciones documentadas en el commit (ej: TDD sin rojo observable)
 
 ## Git y CI
 
-- Repo: `github.com/danielmaki123/one-burger-commerce`, rama de trabajo y deploy: **`main`**.
-- Commits en español, con prefijo: `fix|feat|refactor|docs|chore|test(<área>): resumen`.
-  El cuerpo explica el problema y la evidencia de verificación.
-- Push directo a `main` autorizado para este proyecto.
-- **Nunca** commitear secretos, `.env`, tokens, caches, artefactos de build ni metadata
-  de agentes (`npm run security:secrets` lo verifica).
-- CI (`.github/workflows/publish-ghcr.yml`) corre en cada push a `main`:
-  `verify` (secrets, lint, typecheck, tests, build) → `migrations` (aplica migraciones en
-  Postgres limpio y falla ante drift) → `container` (construye la imagen, la ejecuta
-  contra Postgres, exige readiness y **prueba el bootstrap del primer admin**) →
-  `publish` (imagen a GHCR). Si algo está rojo, no está listo.
+Repo: `github.com/danielmaki123/one-burger-commerce`. Rama de deploy: **`main`**, que **no recibe push
+directo** (ver *Protección de `main`*, abajo: hoy la regla la sostiene el equipo).
+
+### Flujo obligatorio para cada tarea
+
+1. **Rama desde main actualizado**:
+   `git checkout main && git pull origin main && git checkout -b <tipo>/<nombre-descriptivo>`.
+2. **Trabajar y commitear en la rama** (commits con el formato de *Commits*, abajo).
+3. **Push de la rama**: `git push -u origin <tipo>/<nombre-descriptivo>`.
+4. **Abrir Pull Request hacia `main`** con: qué cambió, por qué, cómo se verificó, qué quedó fuera.
+5. **Esperar revisión + CI verde.** No hay merge con un check rojo, sin la aprobación de otro dev o con
+   conflictos sin resolver.
+6. **Merge a `main`**, solo después del paso 5.
+
+**Nomenclatura de ramas**: `feature/` funcionalidad nueva · `fix/` corrección de bug · `refactor/` sin
+cambio de comportamiento · `docs/` solo documentación · `chore/` mantenimiento (deps, config, CI).
+**Prohibiciones de Git**: push directo a `main` · `git push --force` a `main`, siempre · trabajar en
+ramas ajenas sin avisar.
+
+### Commits
+
+- **Un commit por tema** (no mezclar). Mensaje en español, prefijo + área + resumen; cuerpo con
+  **problema, evidencia de verificación y excepciones documentadas**.
+- **Nunca commitear**: secretos, `.env` o tokens · caches y artefactos de build · metadata de agentes
+  (`.claude/`, `.cursor/`, …). `npm run security:secrets` lo verifica en CI.
+
+### CI y protección de `main`
+
+**CI** (`.github/workflows/publish-ghcr.yml`): hoy dispara con `push` a **`main`** (y a mano con
+`workflow_dispatch`), **todavía no corre en las ramas ni en los PRs**, así que un PR se mergea con lo
+verde que hayas corrido **local** (`Validación mínima`, arriba). Los jobs: **verify** (secrets, lint,
+typecheck, tests, build) → **migrations** (aplica migraciones en Postgres limpio, falla ante drift) →
+**container** (construye la imagen, la ejecuta contra Postgres, exige readiness y prueba el bootstrap
+del primer admin) → **publish** (imagen a GHCR). Si algo está rojo después del merge, `main` está
+roto: **el arreglo va en otra rama y otro PR**, nunca encima.
+
+**Protección de `main`** (la configura el owner con Settings → Branches): **estado real: todavía no
+está activada**, así que hoy la regla de este archivo la sostiene el equipo, no GitHub —el push directo
+funciona y **no hay que usarlo igual**—. La configuración a dejar activa es *Require a pull request
+before merging* · *Require 1 approval* · *Require status checks to pass* (`verify`, `migrations`,
+`container`) · *Require branches to be up to date before merging* · *Do not allow bypassing the above
+settings*. El agente **no puede modificar esa configuración**: si algo falla por protección de rama, se
+reporta al humano, no se intenta saltar.
 
 ## Deploy (Easypanel)
 
@@ -243,8 +264,8 @@ Una tarea está terminada cuando:
   `oneburguerweb`, `forceRebuild: true`) con `EASYPANEL_TOKEN` en el entorno; la secuencia
   exacta está en `ops/production-readiness.md` §2. ⚠️ **No** usar `npm run deploy:easypanel`:
   fusiona variables y puede crear servicios.
-- **No desplegar sin confirmación del owner**; después del deploy correr los dos smokes de
-  solo lectura (`test:e2e:prod` y `test:e2e:prod:hosts`).
+- **Solo se deploya desde `main` después del merge. Nunca desde una rama de trabajo.**
+- Después del deploy, los dos smokes de solo lectura (`test:e2e:prod` y `test:e2e:prod:hosts`).
 - El contenedor, al arrancar: valida entorno → aplica migraciones → (opcional) crea el primer admin →
   `next start`. Si el arranque falla, Easypanel **no** promueve la versión y sigue sirviendo la
   anterior. El token del panel da acceso total al servidor: solo por entorno, nunca en el repo.
@@ -275,5 +296,4 @@ Una tarea está terminada cuando:
 - No borrar ni reescribir tests existentes para que pasen: si un test cambia de contrato,
   actualizalo explicando por qué en el commit.
 - No dejar `BOOTSTRAP_ADMIN_*` ni secretos temporales en el entorno del servicio.
-- No agregar dependencias nuevas sin aprobación humana.
 - No crear `AGENTS.md` anidados, `docs/ai/` ni skills: no es el patrón del repo.
