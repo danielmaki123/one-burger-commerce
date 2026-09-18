@@ -6,8 +6,8 @@ on:
     branches:
       - main
   # La validación también corre en los PRs hacia `main`: sin esto, un PR se mergeaba con lo verde que
-  # cada uno hubiera corrido en su máquina. Ojo: un evento `pull_request` usa el workflow de la **rama
-  # base**, así que este trigger recién se ve en los PRs abiertos después de que llegue a `main`.
+  # cada uno hubiera corrido en su máquina. Verificado el 2026-09-18: el PR que trajo este trigger ya
+  # disparó los cuatro jobs (`verify`, `contracts`, `migrations`, `container`) sin `publish`.
   pull_request:
     branches:
       - main

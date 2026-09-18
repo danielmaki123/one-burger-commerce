@@ -238,11 +238,11 @@ ramas ajenas sin avisar.
 ### CI y protección de `main`
 
 **CI** (`.github/workflows/publish-ghcr.yml`): corre en **cada push a `main`, en cada PR hacia `main`**
-y a mano con `workflow_dispatch` —un PR dispara el workflow de la rama base, así que un trigger nuevo
-se estrena en el PR **siguiente** al merge—. Los jobs de validación son **verify** (secrets, lint,
-typecheck, tests, build), **contracts** (los guardrails de este archivo), **migrations** (Postgres
-limpio + drift) y **container** (imagen real, readiness y bootstrap del admin); **publish** (imagen a
-GHCR) solo corre en push a `main`. Si un check está rojo, el PR no se mergea.
+y a mano con `workflow_dispatch`. Los jobs de validación son **verify** (secrets, lint, typecheck,
+tests, build), **contracts** (los guardrails de este archivo), **migrations** (Postgres limpio + drift)
+y **container** (imagen real, readiness y bootstrap del admin); **publish** (imagen a GHCR) solo corre
+en push a `main`. Si un check está rojo, el PR no se mergea. ⚠️ **Nunca marcar `publish` como
+*required check***: no corre en PRs y el PR quedaría trabado en «Expected» para siempre.
 
 **Protección de `main`** (la configura el owner con Settings → Branches): **estado real: todavía no
 está activada**, así que hoy la regla de este archivo la sostiene el equipo, no GitHub —el push directo
