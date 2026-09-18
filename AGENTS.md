@@ -13,12 +13,6 @@ explícito del humano, gana el humano; después de resolverlo, actualizá este a
   el que pase por el chat) ya define se ejecuta **de corrido**, cerrando una tarea por vez. Se sigue
   preguntando por lo que el plan **no** decide (alcance nuevo, producto, dependencias, deploy) y, si
   choca con este archivo, gana el plan y la excepción se anota acá en el mismo commit.
-- **Sistema de diseño (2026-09-16, reemplaza a todo lo anterior):** la fuente de verdad visual es
-  [`ops/references/stitch/design-system.md`](ops/references/stitch/design-system.md), con las **7
-  pantallas de referencia** (KDS, POS, Resumen, Menú, Locales, Usuarios, Personalización) al lado en
-  `ops/references/stitch/`. **Gana siempre** en lo visual. Los documentos viejos
-  (`DESIGN_REFERENCES.md`, `DESIGN_SYSTEM.md`, `design/*.md`, `docs/ui/admin-design-system.md`) y el
-  mockup HTML anterior se **borraron**: no se recrean ni se citan.
 - El punto de entrada para un chat nuevo es
   [`ops/tasks/START-HERE.md`](ops/tasks/START-HERE.md): tiene el prompt listo para pegar, el
   mapa de documentos y la cola de pendientes en orden.
@@ -26,8 +20,6 @@ explícito del humano, gana el humano; después de resolverlo, actualizá este a
 ## Qué es el proyecto
 
 **One Burger Commerce** — plataforma de pedidos para un restaurante, **solo retiro en el local**.
-
-Alcance MVP:
 
 - Público: home, menú, detalle de producto, carrito, checkout para retirar, confirmación y seguimiento.
 - Admin: órdenes, menú, usuarios (roles) y **personalización del negocio** (`/admin/settings`).
@@ -79,9 +71,8 @@ src/infrastructure/** prisma, event bus
 
 ## Jerarquía de fuentes (qué gana cuando hay conflicto)
 
-1. **`ops/references/stitch/design-system.md`** — el **sistema de diseño oficial** (2026-09-16): tokens,
-   tipografía, espaciado, radios, elevaciones, componentes con variantes, estados y reglas de uso. Se
-   lee antes de escribir UI y **siempre gana** en lo visual.
+1. **`ops/references/stitch/design-system.md`** — el **sistema de diseño oficial**. Se lee antes de
+   escribir UI y **siempre gana** en lo visual.
 2. **`ops/references/stitch/stitch_redise_o_de_secci_n_existente/<pantalla>/code.html`** (+ `screen.png`)
    — la **referencia visual** de las 7 pantallas. Es referencia: se **traduce** a componentes, no se copia.
 3. **`AGENTS.md`** (este archivo) — alcance, arquitectura, testing, validación, git/CI, deploy, idioma
@@ -93,11 +84,9 @@ src/infrastructure/** prisma, event bus
 
 ## UI y design system
 
-El **sistema oficial** es [`ops/references/stitch/design-system.md`](ops/references/stitch/design-system.md)
-y **gana siempre** en lo visual. Dos modos a propósito (owner, 2026-09-16): el **panel** (KDS/POS/Admin)
-es **oscuro** —su shell lleva `class="dark"`— y el **público** sigue **claro** con la paleta del negocio.
-
-**Reglas del sistema, vinculantes** (`design-system.md` §2, §6, §7 y §8):
+Dos modos a propósito (owner, 2026-09-16): el **panel** (KDS/POS/Admin) es **oscuro** —su shell lleva
+`class="dark"`— y el **público** sigue **claro** con la paleta del negocio. Las reglas del sistema son
+**vinculantes** (`design-system.md` §2, §6, §7 y §8), más estas:
 
 - **Los números van en `font-mono` con `tabular-nums`**: precios (`C$ 305.00`), cronómetros, IDs de
   ticket, PIN y contadores. Es lo que evita que la interfaz "tiemble" cuando cambian solos.
@@ -111,9 +100,6 @@ es **oscuro** —su shell lleva `class="dark"`— y el **público** sigue **clar
 - **Nada de contenedores blancos planos**: el lienzo del panel es `--bg-canvas` con superficies por capas.
 - **Los datos del negocio son los reales**: `C$`/`NIO`, `+505` y las sucursales `Camino de Oriente`,
   `Carretera Masaya` y `Casa Antigua`. Prohibido inventar nombres, ciudades o monedas.
-
-Y las reglas de siempre, que el sistema no reemplaza:
-
 - **Componente que existe, componente que se usa**: primero `src/shared/ui/`, después
   `(admin)/admin/_components/` y `(public)/_components/`. El registro legible por máquina es
   `src/shared/ui/registry.json`, con `file`, `variants`, `sizes`, `use_when` y `dont_use_when`.
@@ -177,30 +163,22 @@ se escribió después, se verifica por mutación y se deja dicho en el commit).
 
 ## Checklist de UI antes de cerrar una tarea con pantalla
 
-Ninguna tarea que toque UI se cierra con un "no" acá. El sistema está en
-`ops/references/stitch/design-system.md` y el registro de componentes en `src/shared/ui/registry.json`.
-
 **Sistema Stitch (el panel es oscuro):**
 
-- [ ] ¿Los **números** (plata, cronómetros, IDs, PIN, contadores) van en `font-mono` con `tabular-nums`?
-- [ ] ¿Usé los **estados del sistema** (`--status-pending|prep|ready|sla`) y no colores sueltos?
+- [ ] ¿Los **números** van en `font-mono` con `tabular-nums` y los **estados del sistema**
+      (`--status-pending|prep|ready|sla`) en vez de colores sueltos?
 - [ ] ¿Ámbar solo para identidad/cocina/acción y **azul cielo** para administración y POS?
 - [ ] ¿La cabecera y los filtros entran en el **20%** del alto y el resto es operación?
 - [ ] ¿Los controles táctiles tienen **≥44 px** y foco visible propio (≥3:1)?
 - [ ] ¿`animate-pulse` aparece **solo** en SLA vencido o desincronización?
-- [ ] ¿La pantalla es **oscura** y no quedó ningún contenedor blanco plano?
-- [ ] ¿Los datos son los reales (`C$` / `+505` / las tres sucursales), sin inventar?
+- [ ] ¿La pantalla es **oscura** y los datos son los reales (`C$` / `+505` / las tres sucursales)?
 
 **Código y componentes:**
 
 - [ ] ¿Usé los primitivos de `src/shared/ui/` y **traduje** el HTML de Stitch en vez de copiarlo?
-- [ ] ¿Cero `text-[Npx]`, cero paleta cruda, cero `rounded-[Npx]` y cero `shadow-[...]`?
 - [ ] ¿Hay **una sola** acción primaria y ningún texto decorativo?
 - [ ] ¿Están los **5 estados**: con datos, cargando, vacío, error y **"nada pendiente"**?
-- [ ] ¿Contraste ≥4.5:1 en texto, ≥3:1 en el borde de control, y sin scroll horizontal entre 320 y
-      1280 px?
-- [ ] ¿La verifiqué en **navegador real a 375 px y 1280 px** (Playwright), no en HTML estático?
-- [ ] ¿Corrí los gates (`npm run test:contracts`, `npm run test`) y el E2E si toqué flujos?
+- [ ] ¿Contraste ≥4.5:1 en texto, ≥3:1 en el borde de control, sin scroll horizontal entre 320 y 1280 px?
 
 ## Validación mínima antes de cerrar
 
@@ -216,9 +194,6 @@ BASE_URL=http://127.0.0.1:3210 npm run test:e2e:prod:full
 BASE_URL=https://oneburgernic.com npm run test:e2e:prod
 ```
 
-Ningún cambio se considera cerrado sin: tests verdes, CI verde y verificación del
-camino real (contenedor o producción).
-
 Si tocás una **página** (`src/app/**/page.tsx`), además:
 
 ```bash
@@ -228,6 +203,20 @@ npm run build:webpack   # el build de Turbopack no valida esto
 Una página de Next solo puede exportar lo que Next conoce (`default`, `metadata`, …): el build con
 Webpack lo exige y falla si exporta de más, y con Turbopack el problema queda escondido. Componentes
 y helpers van en su propio archivo (por eso `orders-page-helpers.ts` no vive dentro de la página).
+
+## Definition of Done
+
+Una tarea está terminada cuando:
+
+- Tests verdes (unitarios + contratos + E2E si toca flujos)
+- lint, typecheck, build, security:secrets verdes
+- CI verde
+- Verificación en navegador real (375 px + 1280 px) si toca UI
+- Captura antes/después si toca UI
+- ops/project-state.md actualizado
+- Commit + push a main
+- Si toca deploy: aprobación del owner + los 2 smokes después
+- Excepciones documentadas en el commit (ej: TDD sin rojo observable)
 
 ## Git y CI
 
@@ -286,14 +275,5 @@ y helpers van en su propio archivo (por eso `orders-page-helpers.ts` no vive den
 - No borrar ni reescribir tests existentes para que pasen: si un test cambia de contrato,
   actualizalo explicando por qué en el commit.
 - No dejar `BOOTSTRAP_ADMIN_*` ni secretos temporales en el entorno del servicio.
-
-UI y código:
-
-- No escribir HTML crudo (`button`, `input`, `select`, `textarea`) donde ya hay componente, ni
-  `#hex`, `rgba()` o paleta cruda de Tailwind donde hay token.
-- No crear un componente en `_components/` sin registrarlo en `src/shared/ui/registry.json` en el mismo
-  commit, ni copiar el HTML de Stitch: se traduce a componentes del repo.
-- No duplicar un cálculo ni una transición de estado que ya tiene fuente única (`order-totals.ts`, `order-workflows.ts`).
-- No pasar de **400 líneas por archivo**, **80 por función** ni **50 por route handler**.
 - No agregar dependencias nuevas sin aprobación humana.
 - No crear `AGENTS.md` anidados, `docs/ai/` ni skills: no es el patrón del repo.
