@@ -117,7 +117,6 @@
       "src/app/(admin)/admin/menu/products/product-dish-card.tsx": 1,
       "src/app/(admin)/admin/orders/[id]/page.tsx": 2,
       "src/app/(admin)/admin/orders/order-comanda-board.tsx": 1,
-      "src/app/(admin)/admin/orders/page.tsx": 4,
       "src/app/(admin)/admin/promotions/page.tsx": 1,
       "src/app/(admin)/admin/promotions/promotion-helpers.ts": 2,
       "src/app/(public)/activity/order-history-views.tsx": 1,

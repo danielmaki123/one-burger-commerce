@@ -375,6 +375,7 @@ describe("admin ui contracts", () => {
     const overviewSource = readAdminFile("_components/admin-overview-client.tsx");
     const productsSource = readAdminFile("menu/products/page.tsx");
     const ordersSource = readAdminFile("orders/page.tsx");
+    const ordersToolbarSource = readAdminFile("orders/orders-toolbar.tsx");
 
     expect(componentSource).toContain("AdminPageHeader");
     expect(componentSource).toContain("AdminMetricStrip");
@@ -384,7 +385,11 @@ describe("admin ui contracts", () => {
     expect(overviewSource).toContain("AdminPageHeader");
     expect(productsSource).toContain("AdminCompactToolbar");
     expect(ordersSource).toContain("ordersStatusCounts");
-    expect(ordersSource).toContain("AdminCompactToolbar");
+    // Órdenes tiene su propia barra de trabajo (layout unificado, 2026-09-18): la misma para el
+    // tablero y la lista, así que el shell no cambia de forma al cambiar de tab.
+    expect(ordersSource).toContain("<OrdersToolbar");
+    expect(ordersSource).toContain("AdminPageHeader");
+    expect(ordersToolbarSource).toContain("ORDERS_STATUS_TABS");
   });
 
   it("el panel de Locales usa el sistema: sin alias viejos ni valores arbitrarios", () => {
@@ -540,7 +545,9 @@ describe("admin ui contracts", () => {
   });
 
   it("keeps order filters readable on narrow screens", () => {
-    const source = readAdminFile("orders/page.tsx");
+    // Los filtros de la bandeja viven en la barra de trabajo (layout unificado, 2026-09-18): es ahí
+    // donde se envuelven en varias filas a 375 px en vez de scrollear a lo ancho.
+    const source = readAdminFile("orders/orders-toolbar.tsx");
 
     expect(source).not.toContain("overflow-x-auto");
     expect(source).toContain("flex flex-wrap");
@@ -660,14 +667,18 @@ describe("admin ui contracts", () => {
     expect(source).not.toContain('aria-label="Filtros de reservas"');
   });
 
-  it("keeps order operations compact and reveals secondary filters on demand", () => {
+  it("keeps order operations in one toolbar for the whole shell", () => {
     const source = readAdminFile("orders/page.tsx");
+    const toolbarSource = readAdminFile("orders/orders-toolbar.tsx");
 
     expect(source).not.toContain("AdminMetricStrip");
     expect(source).toContain("Órdenes en vista");
-    expect(source).toContain("Mostrar filtros");
-    expect(source).toContain('aria-label="Filtros de órdenes"');
-    expect(source).toContain("filtersOpen");
+    // Una sola barra de trabajo y siempre visible (layout unificado, 2026-09-18): los tabs de estado
+    // son el filtro, así que ya no hay panel secundario que se abra y cierre.
+    expect(source).toContain("<OrdersToolbar");
+    expect(source).not.toContain("Mostrar filtros");
+    expect(source).not.toContain("filtersOpen");
+    expect(toolbarSource).toContain("Filtro por tipo de pedido");
   });
 
   it("removes technical internal copy from the order detail view", () => {

@@ -2,37 +2,25 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  AlarmClock,
-  Bell,
-  BellOff,
-  ClipboardList,
-  Maximize2,
-  PanelLeft,
-  RefreshCw,
-  SlidersHorizontal,
-} from "lucide-react";
+import { ClipboardList } from "lucide-react";
 
 import { formatCurrency } from "@/shared/lib/format-currency";
 import { getAdminOrderStatusLabel } from "@/shared/lib/admin-status-labels";
 import { useBusinessSettings, useCurrencyFormat } from "@/shared/lib/business-settings";
 import { formatTimeInTimeZone } from "@/modules/business-settings/domain/format-time-in-timezone";
 import { Button } from "@/shared/ui/button";
-import { Input } from "@/shared/ui/input";
-import { Tabs, TabsList, TabsTrigger } from "@/shared/ui/tabs";
 import {
   BUCKET_META,
   BUCKET_ORDER,
   businessDate,
   businessDayRange,
   findNewOrderIds,
-  formatUpdatedAgo,
   orderBucket,
   orderTypePresentation,
-  shiftBusinessDays,
   sortQueueOrders,
   type OrderBucket,
 } from "./orders-page-helpers";
+import { OrdersToolbar } from "./orders-toolbar";
 import {
   isAlertSoundEnabled,
   playNewOrderAlert,
@@ -54,7 +42,6 @@ import { useComandaView, useFullscreen } from "./use-comanda-view";
 import { readOrderUrlFilters, writeOrderUrlFilters, type OrderPaymentFilter } from "./comanda-url";
 import { readAdminOrders, sanitizeOrderQuery, type OrderListFailure } from "./order-list-api";
 import {
-  AdminCompactToolbar,
   AdminEmptyState,
   AdminPageHeader,
   AdminPickupTimingChip,
@@ -118,9 +105,6 @@ type AdminOrdersResponse = {
   };
 };
 
-type OrdersView = "today" | "history";
-type HistoryPreset = "week" | "month" | "all" | "custom";
-
 /**
  * B1 — cada cuánto se pide la lista sola, y cada cuánto late el reloj del turno.
  *
@@ -137,37 +121,8 @@ const HIGHLIGHT_MS = 1_200;
 /** B4: la demora del buscador. Con 300 ms, escribir «Ana» hace un viaje en vez de tres. */
 const SEARCH_DEBOUNCE_MS = 300;
 
-const STATUS_FILTERS: Array<{ value: string; label: string }> = [
-  { value: "all", label: "Todos" },
-  { value: "new", label: "Nuevos" },
-  { value: "preparing", label: "Preparando" },
-  { value: "ready", label: "Listos" },
-  { value: "closed", label: "Cerrados" },
-];
-
-const TYPE_FILTERS: Array<{ value: string; label: string }> = [
-  { value: "all", label: "Todos" },
-  { value: "pickup", label: "Retiro" },
-];
-
-// Órdenes "abiertas" = aún en operación (no terminales).
-const OPEN_STATUSES: ReadonlySet<OrderStatus> = new Set<OrderStatus>([
-  "new",
-  "confirmed",
-  "accepted",
-  "preparing",
-  "ready",
-  "ready_for_pickup",
-  "out_for_delivery",
-]);
-
 // Buckets de turno: viven en `orders-page-helpers` para poder probarlos solos.
 // Un pedido abierto para otro día va a "Programados".
-
-const CHIP_LIST_CLASS =
-  "flex flex-wrap gap-2 bg-transparent p-0";
-const CHIP_TRIGGER_CLASS =
-  "min-h-11 flex-none whitespace-nowrap rounded-stitch-md border border-line-subtle bg-surface-card px-3";
 
 export default function AdminOrdersPage() {
   const { timezone: timeZone } = useBusinessSettings();
@@ -228,13 +183,8 @@ export default function AdminOrdersPage() {
     setSoundEnabled(isAlertSoundEnabled());
   }, []);
 
-  const [view, setView] = useState<OrdersView>("today");
-  const [historyPreset, setHistoryPreset] = useState<HistoryPreset>("week");
   const [statusFilter, setStatusFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
-  const [filtersOpen, setFiltersOpen] = useState(false);
   const [locationFilter, setLocationFilter] = useState("all");
   const [locations, setLocations] = useState<
     Array<{ id: string; name: string; acceptAlertMinutes?: number; prepAlertMinutes?: number }>
@@ -269,45 +219,29 @@ export default function AdminOrdersPage() {
     };
   }, []);
 
-  const [olderOpenCount, setOlderOpenCount] = useState<number | null>(null);
   const currency = useCurrencyFormat();
 
-  const range = useMemo<{ from?: string; to?: string }>(() => {
-    if (view === "today") {
-      return businessDayRange(today, timeZone);
-    }
-    if (historyPreset === "week") {
-      return {
-        from: businessDayRange(shiftBusinessDays(today, -6), timeZone).from,
-        to: businessDayRange(today, timeZone).to,
-      };
-    }
-    if (historyPreset === "month") {
-      return {
-        from: businessDayRange(shiftBusinessDays(today, -29), timeZone).from,
-        to: businessDayRange(today, timeZone).to,
-      };
-    }
-    if (historyPreset === "all") {
-      return {};
-    }
-    return {
-      from: dateFrom ? businessDayRange(dateFrom, timeZone).from : undefined,
-      to: dateTo ? businessDayRange(dateTo, timeZone).to : undefined,
-    };
-  }, [view, historyPreset, dateFrom, dateTo, today, timeZone]);
+  /**
+   * La bandeja de Órdenes es **el turno**: del día del negocio, no de la semana. El histórico con
+   * sus rangos vive en `/admin/history` (sección Historial), que es donde se pregunta por meses.
+   */
+  const range = useMemo<{ from?: string; to?: string }>(
+    () => businessDayRange(today, timeZone),
+    [today, timeZone],
+  );
 
   /**
-   * B3 — el turno se mira como **tablero de comandas**: los carriles son el filtro, así que el filtro
-   * por estado (que es del historial) no viaja en la consulta del día.
+   * Los tabs de estado son el filtro **y** el contenido: los activos se miran como tablero de
+   * comandas —los carriles son el filtro— y las cerradas se miran como lista, porque el tablero no
+   * tiene carril de cerradas (opción (a) del owner, 2026-09-18).
    */
-  const showBoard = view === "today";
+  const showBoard = statusFilter !== "closed";
 
   const queryString = useMemo(() => {
     // Los filtros se sanean acá (bug de producción, 2026-09-18): un valor que la API rechaza se descarta
     // en vez de viajar y volver como 400, que era lo que dejaba el cartel de «no se pudieron cargar».
     return sanitizeOrderQuery({
-      status: showBoard ? null : statusFilter,
+      status: statusFilter === "all" ? null : statusFilter,
       type: typeFilter,
       locationId: locationFilter,
       search: searchQuery,
@@ -322,7 +256,6 @@ export default function AdminOrdersPage() {
     locationFilter,
     searchQuery,
     paymentFilter,
-    showBoard,
   ]);
 
   /** El buscador no dispara un viaje por tecla: espera a que la persona termine de escribir. */
@@ -411,29 +344,6 @@ export default function AdminOrdersPage() {
     void fetchOrders();
   }, [queryString, refreshToken]);
 
-  // Conteo en segundo plano de órdenes abiertas de días anteriores, para que no
-  // desaparezcan al enfocar el día. Solo lectura; no bloquea la vista principal.
-  useEffect(() => {
-    async function fetchOlderOpen() {
-      try {
-        const params = new URLSearchParams({
-          dateTo: businessDayRange(shiftBusinessDays(today, -1), timeZone).to ?? "",
-        });
-        const response = await fetch(`/api/admin/orders?${params.toString()}`);
-        if (!response.ok) return;
-        const payload = (await response.json()) as AdminOrdersResponse;
-        const open = (payload.data ?? []).filter((order) =>
-          OPEN_STATUSES.has(order.status),
-        ).length;
-        setOlderOpenCount(open);
-      } catch {
-        // best-effort: si falla, simplemente no mostramos el aviso
-      }
-    }
-
-    void fetchOlderOpen();
-  }, [today, timeZone]);
-
   const ordersStatusCounts = {
     total: orders.length,
     new: orders.filter((order) => order.status === "new").length,
@@ -449,10 +359,6 @@ export default function AdminOrdersPage() {
         order.status === "served",
     ).length,
   };
-
-  const showOlderOpenNotice = view === "today" && (olderOpenCount ?? 0) > 0;
-  const activeStatusLabel = STATUS_FILTERS.find((option) => option.value === statusFilter)?.label ?? "Todos";
-  const activeTypeLabel = TYPE_FILTERS.find((option) => option.value === typeFilter)?.label ?? "Todos";
 
   /**
    * Las sucursales que este usuario puede mirar (A): las del alcance cuando lo hay, todas si no.
@@ -505,14 +411,10 @@ export default function AdminOrdersPage() {
 
   /**
    * La cola del turno se ordena por **hora prometida** (B0): la API devuelve por creación
-   * descendente, que es lo correcto para el historial, pero en el turno el que hay que empezar ya no
-   * puede quedar debajo de uno comprometido para más tarde. El historial conserva el orden del
-   * servidor (lo más reciente primero).
+   * descendente, pero en el turno el que hay que empezar ya no puede quedar debajo de uno
+   * comprometido para más tarde.
    */
-  const queueOrders = useMemo(
-    () => (view === "today" ? sortQueueOrders(orders) : orders),
-    [orders, view],
-  );
+  const queueOrders = useMemo(() => sortQueueOrders(orders), [orders]);
 
   /**
    * La lista se agrupa por etapa cuando no hay un filtro de estado puesto. Es la forma en que el
@@ -635,6 +537,21 @@ export default function AdminOrdersPage() {
   }, [queueOrders, today, timeZone]);
 
   /**
+   * Dejar la bandeja sin filtros. Lo usan el botón de la barra de trabajo y el error de filtros: la
+   * acción que arregla un 400 por un filtro inválido es exactamente la misma, y antes estaba escrita
+   * dos veces.
+   */
+  function clearAllFilters() {
+    setStatusFilter("all");
+    setTypeFilter("all");
+    setLocationFilter("all");
+    setPaymentFilter("all");
+    setSearchQuery("");
+    setSearchTerm("");
+    setLateOnly(false);
+  }
+
+  /**
    * B2 — cambiar el estado de un pedido desde la fila.
    *
    * Devuelve una promesa que **rechaza con un mensaje legible**: el componente de acciones lo muestra
@@ -676,14 +593,6 @@ export default function AdminOrdersPage() {
     );
     setRefreshToken((token) => token + 1);
   }
-
-  const STATUS_CHIP_OPTIONS: Array<{ value: string; label: string; count: number }> = [
-    { value: "all", label: "Todas", count: ordersStatusCounts.total },
-    { value: "new", label: "Nuevas", count: ordersStatusCounts.new },
-    { value: "preparing", label: "Preparando", count: ordersStatusCounts.preparing },
-    { value: "ready", label: "Listas", count: ordersStatusCounts.ready },
-    { value: "closed", label: "Cerradas", count: ordersStatusCounts.closed },
-  ];
 
   function renderTicket(order: OrderSummary) {
     const { label: typeLabel, Icon } = orderTypePresentation(order.type);
@@ -770,256 +679,74 @@ export default function AdminOrdersPage() {
 
   return (
     <div className="min-w-0 space-y-6" aria-busy={loading}>
-      {/*
-        B3 — la barra de las comandas. Es la única navegación de esta vista (la barra lateral del panel
-        se esconde, §4.1), así que lleva el enlace para volver, los contadores del turno, el estado de
-        la conexión y los tres controles: sonido, pantalla completa y refresco.
-      */}
-      {showBoard ? (
-        <div
-          data-testid="comandas-topbar"
-          /* Pegajosa solo en escritorio: ahí las columnas scrollean **adentro** y la barra no se mueve.
-             En celular la barra envuelve en varias filas y, pegada, taparía el conmutador de carriles.
-             Sin márgenes negativos: la barra vive en el mismo ancho que el tablero, así no empuja la
-             página a lo ancho (con `-mx-*` se pasaba 16 px del viewport a 1280). */
-          className="z-30 border-b border-line-subtle bg-canvas/95 py-2 backdrop-blur lg:sticky lg:top-0"
-        >
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="font-heading text-st-h3 font-bold tracking-tight text-ink">
-              Comandas
-            </h1>
+      <AdminPageHeader
+        title="Órdenes"
+        description="Bandeja de turno: prioriza ingresos nuevos y sigue cada pedido hasta su cierre."
+      />
 
-            <Tabs className="min-w-0">
-              <TabsList className={CHIP_LIST_CLASS}>
-                <TabsTrigger
-                  value="today"
-                  activeValue={view}
-                  onClick={(value) => setView(value as OrdersView)}
-                  className={CHIP_TRIGGER_CLASS}
-                >
-                  Hoy
-                </TabsTrigger>
-                <TabsTrigger
-                  value="history"
-                  activeValue={view}
-                  onClick={(value) => setView(value as OrdersView)}
-                  className={CHIP_TRIGGER_CLASS}
-                >
-                  Historial
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
-
-            {showLocationFilter ? (
-              <label className="flex min-h-11 items-center gap-2 text-st-body">
-                <span className="sr-only sm:not-sr-only sm:text-st-caption sm:font-semibold sm:uppercase sm:tracking-wide sm:text-ink-secondary">
-                  Local
-                </span>
-                <select
-                  aria-label="Local de las comandas"
-                  className="h-11 rounded-md border border-line-subtle bg-surface-card px-3 text-st-body text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
-                  value={locationFilter}
-                  onChange={(event) => setLocationFilter(event.target.value)}
-                >
-                  <option value="all">
-                    {scopeLocationIds ? "Mis sucursales" : "Todas las sucursales"}
-                  </option>
-                  {scopedLocations.map((location) => (
-                    <option key={location.id} value={location.id}>
-                      {location.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            ) : null}
-
-            <p
-              className="flex flex-wrap items-center gap-2"
-              aria-label="Comandas en el turno"
-            >
-              {/* Los contadores del sistema: una píldora por estado, con su punto y el número en
-                  mono (`design-system.md` §6.5 y §2.1), para leer el turno de un vistazo. */}
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-status-pending-bg px-2.5 py-1 font-mono text-st-caption font-semibold tabular-nums text-status-pending-text">
-                <span
-                  aria-hidden="true"
-                  className="h-1.5 w-1.5 rounded-full bg-status-pending-dot motion-safe:animate-pulse"
-                />
-                Nuevas: {boardCounters.pending}
-              </span>
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-status-prep-bg px-2.5 py-1 font-mono text-st-caption font-semibold tabular-nums text-status-prep-text">
-                <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-status-prep-dot" />
-                Preparando: {boardCounters.preparing}
-              </span>
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-status-ready-bg px-2.5 py-1 font-mono text-st-caption font-semibold tabular-nums text-status-ready-text">
-                <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-status-ready-dot" />
-                Listas: {boardCounters.ready}
-              </span>
-            </p>
-
-            <span className="ml-auto flex flex-wrap items-center gap-2">
-              {/* B5: el ritmo de la cocina hoy. Sin pedidos listos dice que todavía no hay datos,
-                  porque un "0 min" se leería como una cocina instantánea. */}
-              <span
-                data-testid="orders-average-prep"
-                className="font-mono text-st-caption font-semibold text-ink-secondary tabular-nums"
-              >
-                {averagePrepMinutes === null
-                  ? "Preparación promedio: sin datos todavía"
-                  : `Preparación promedio hoy: ${averagePrepMinutes} min`}
-              </span>
-
-              <span
-                className={`text-st-caption font-semibold tabular-nums ${error ? "text-status-pending-text" : "text-ink-secondary"}`}
-                data-testid="orders-freshness"
-              >
-                {error ? "Sin conexión · " : ""}Actualizado{" "}
-                {lastUpdatedAt ? formatUpdatedAgo(lastUpdatedAt, nowMs) : "…"}
-              </span>
-
-              <Button
-                variant="outline"
-                className="min-h-11 gap-2"
-                aria-pressed={soundEnabled}
-                onClick={() => {
-                  const next = !soundEnabled;
-                  setSoundEnabled(next);
-                  setAlertSoundEnabled(next);
-                }}
-              >
-                {soundEnabled ? (
-                  <Bell aria-hidden="true" className="h-4 w-4" />
-                ) : (
-                  <BellOff aria-hidden="true" className="h-4 w-4" />
-                )}
-                Aviso sonoro
-              </Button>
-
-              {/*
-                B6 — un solo control para volver: el tablero se abre a pantalla completa (sin la barra
-                lateral del panel, que es lo que la cocina quiere en el tablet de pared) y este botón
-                devuelve el panel, con su navegación y su sesión, **sin cerrar sesión**. Es lo que el
-                owner necesitaba: cada tablet tiene su sección (comandas, POS, inventario) y hay que
-                poder volver a elegir. Si el navegador lo permite, además entra o sale de pantalla
-                completa de verdad.
-              */}
-              <Button
-                variant="outline"
-                className="min-h-11 gap-2"
-                aria-pressed={!immersive}
-                onClick={() => {
-                  setImmersive(!immersive);
-                  if (fullscreen.supported) void fullscreen.toggle();
-                }}
-              >
-                {immersive ? (
-                  <PanelLeft aria-hidden="true" className="h-4 w-4" />
-                ) : (
-                  <Maximize2 aria-hidden="true" className="h-4 w-4" />
-                )}
-                {immersive ? "Ver el panel" : "Pantalla completa"}
-              </Button>
-
-              <Button
-                variant="outline"
-                className="min-h-11 gap-2"
-                onClick={() => setRefreshToken((token) => token + 1)}
-              >
-                <RefreshCw aria-hidden="true" className="h-4 w-4" />
-                Actualizar
-              </Button>
-            </span>
-          </div>
-
-          {/* B4 — buscar y acotar el turno. El buscador no dispara un viaje por tecla (300 ms) y los
-              filtros quedan en la URL: lo que se está mirando se puede compartir y sobrevive al
-              recargar. */}
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            <label className="flex min-h-11 min-w-[12rem] flex-1 items-center gap-2">
-              <span className="sr-only">Buscar comanda</span>
-              <Input
-                type="search"
-                className="h-11"
-                placeholder="Número, nombre, WhatsApp o PIN"
-                value={searchTerm}
-                onChange={(event) => setSearchTerm(event.target.value)}
-              />
-            </label>
-
-            <label className="flex min-h-11 items-center gap-2">
-              <span className="text-st-caption font-semibold uppercase tracking-wide text-ink-secondary">
-                Pago
-              </span>
-              <select
-                aria-label="Forma de pago"
-                className="h-11 rounded-md border border-line-subtle bg-surface-card px-3 text-st-body text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
-                value={paymentFilter}
-                onChange={(event) =>
-                  setPaymentFilter(event.target.value as OrderPaymentFilter)
-                }
-              >
-                <option value="all">Todas</option>
-                <option value="cash">Efectivo</option>
-                <option value="card">Tarjeta</option>
-              </select>
-            </label>
-
-            <Button
-              variant="outline"
-              className="min-h-11 gap-2"
-              aria-pressed={lateOnly}
-              onClick={() => setLateOnly((only) => !only)}
-            >
-              <AlarmClock aria-hidden="true" className="h-4 w-4" />
-              Atrasados
-            </Button>
-
-            {searchQuery || paymentFilter !== "all" || lateOnly ? (
-              <Button
-                variant="ghost"
-                className="min-h-11"
-                onClick={() => {
-                  setSearchTerm("");
-                  setSearchQuery("");
-                  setPaymentFilter("all");
-                  setLateOnly(false);
-                }}
-              >
-                Limpiar filtros
-              </Button>
-            ) : null}
-          </div>
-        </div>
-      ) : (
-        <AdminPageHeader
-          title="Órdenes"
-          description="Bandeja de turno: prioriza ingresos nuevos y sigue cada pedido hasta su cierre."
-        />
-      )}
+      {/* Una sola barra de trabajo para todo el shell (layout unificado, 2026-09-18): los tabs
+          de estado son el filtro —carriles para los activos, lista para las cerradas—, y el
+          local, los contadores y los controles del turno viven acá y no dentro de una vista. */}
+      <OrdersToolbar
+        statusFilter={statusFilter}
+        onStatusChange={setStatusFilter}
+        typeFilter={typeFilter}
+        onTypeChange={setTypeFilter}
+        paymentFilter={paymentFilter}
+        onPaymentChange={setPaymentFilter}
+        lateOnly={lateOnly}
+        onToggleLateOnly={() => setLateOnly((only) => !only)}
+        searchTerm={searchTerm}
+        onSearchTermChange={setSearchTerm}
+        showLocationFilter={showLocationFilter}
+        scopeLocationIds={scopeLocationIds}
+        scopedLocations={scopedLocations}
+        locationFilter={locationFilter}
+        onLocationChange={setLocationFilter}
+        counters={boardCounters}
+        averagePrepMinutes={averagePrepMinutes}
+        lastUpdatedAt={lastUpdatedAt}
+        nowMs={nowMs}
+        offline={error !== null}
+        soundEnabled={soundEnabled}
+        onToggleSound={() => {
+          const next = !soundEnabled;
+          setSoundEnabled(next);
+          setAlertSoundEnabled(next);
+        }}
+        immersive={immersive}
+        onToggleImmersive={() => {
+          setImmersive(!immersive);
+          if (fullscreen.supported) void fullscreen.toggle();
+        }}
+        onRefresh={() => setRefreshToken((token) => token + 1)}
+        showClearFilters={
+          statusFilter !== "all" ||
+          typeFilter !== "all" ||
+          locationFilter !== "all" ||
+          searchQuery !== "" ||
+          paymentFilter !== "all" ||
+          lateOnly
+        }
+        onClearFilters={clearAllFilters}
+      />
 
       {/* B3: lo que se anuncia por lector de pantalla cuando una comanda se pasa de tiempo. */}
       <p role="status" aria-live="polite" className="sr-only" data-testid="comandas-late-announcement">
         {lateAnnouncement ?? ""}
       </p>
 
-      {/* B3: los programados para otro día no son trabajo del turno; se ven en el listado. */}
+      {/* B3: los programados para otro día no son trabajo del turno. El aviso queda informativo: el
+          listado con rangos vive en /admin/history (sección Historial), no en esta pantalla. */}
       {showBoard && scheduledForAnotherDay.length > 0 ? (
         <div
           data-testid="comandas-scheduled-notice"
-          className="flex flex-col gap-2 rounded-stitch-lg border border-line-subtle bg-surface-card px-4 py-3 text-st-body sm:flex-row sm:items-center sm:justify-between"
+          className="rounded-stitch-lg border border-line-subtle bg-surface-card px-4 py-3 text-st-body font-semibold text-ink"
         >
-          <span className="font-semibold text-ink">
-            {scheduledForAnotherDay.length === 1
-              ? "1 comanda programada para otro día"
-              : `${scheduledForAnotherDay.length} comandas programadas para otro día`}
-            .
-          </span>
-          <Button
-            variant="outline"
-            className="min-h-11 shrink-0"
-            onClick={() => setView("history")}
-          >
-            Ver en el listado
-          </Button>
+          {scheduledForAnotherDay.length === 1
+            ? "1 comanda programada para otro día"
+            : `${scheduledForAnotherDay.length} comandas programadas para otro día`}
+          .
         </div>
       ) : null}
 
@@ -1062,43 +789,6 @@ export default function AdminOrdersPage() {
         </div>
       ) : null}
 
-      {/* B1: frescura de la lista y los dos controles del turno (actualizar y sonido). En el tablero
-          de comandas estos controles viven en la barra superior (B3), así que acá quedan para el
-          historial. */}
-      {!showBoard ? (
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="text-st-caption text-ink-secondary" data-testid="orders-freshness">
-          Actualizado{" "}
-          {lastUpdatedAt ? formatUpdatedAgo(lastUpdatedAt, nowMs) : "…"}
-        </span>
-        <Button
-          variant="outline"
-          className="min-h-11 gap-2"
-          onClick={() => setRefreshToken((token) => token + 1)}
-        >
-          <RefreshCw aria-hidden="true" className="h-4 w-4" />
-          Actualizar
-        </Button>
-        <Button
-          variant="outline"
-          className="min-h-11 gap-2"
-          aria-pressed={soundEnabled}
-          onClick={() => {
-            const next = !soundEnabled;
-            setSoundEnabled(next);
-            setAlertSoundEnabled(next);
-          }}
-        >
-          {soundEnabled ? (
-            <Bell aria-hidden="true" className="h-4 w-4" />
-          ) : (
-            <BellOff aria-hidden="true" className="h-4 w-4" />
-          )}
-          Aviso sonoro
-        </Button>
-      </div>
-      ) : null}
-
       {/* La vista del turno es el tablero de comandas (B3): la lista con chips, resumen y barra de
           filtros queda para el historial, donde sí hace falta. */}
       {!showBoard ? (
@@ -1127,145 +817,7 @@ export default function AdminOrdersPage() {
         </div>
       </section>
 
-      <div role="group" aria-label="Filtro rápido por estado" className="flex flex-wrap gap-2">
-        {STATUS_CHIP_OPTIONS.map((option) => {
-          const isActive = statusFilter === option.value;
-          return (
-            <button
-              key={option.value}
-              type="button"
-              aria-pressed={isActive}
-              onClick={() => setStatusFilter(option.value)}
-              className={[
-                "inline-flex min-h-11 flex-none items-center gap-2 whitespace-nowrap rounded-full px-4 text-st-body font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary motion-reduce:transition-none",
-                isActive
-                  ? "bg-foreground text-background"
-                  : "bg-surface-low text-ink hover:bg-surface-elevated",
-              ].join(" ")}
-            >
-              {option.label}
-              <span className={`rounded-full px-1.5 py-0.5 font-mono text-st-caption font-bold ${isActive ? "bg-white/20" : "bg-black/10"}`}>
-                {option.count}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-
-      <AdminCompactToolbar className="space-y-3">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <div className="min-w-0 space-y-1.5">
-            <p className="text-st-caption font-medium uppercase tracking-wide text-ink-secondary">Vista</p>
-            <Tabs className="min-w-0">
-              <TabsList className={CHIP_LIST_CLASS}>
-                <TabsTrigger value="today" activeValue={view} onClick={(value) => setView(value as OrdersView)} className={CHIP_TRIGGER_CLASS}>
-                  Hoy
-                </TabsTrigger>
-                <TabsTrigger value="history" activeValue={view} onClick={(value) => setView(value as OrdersView)} className={CHIP_TRIGGER_CLASS}>
-                  Historial
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
-          </div>
-          <Button
-            type="button"
-            variant="outline"
-            className="h-11 shrink-0 gap-2 px-3"
-            aria-expanded={filtersOpen}
-            aria-controls="order-filters"
-            onClick={() => setFiltersOpen((isOpen) => !isOpen)}
-          >
-            <SlidersHorizontal aria-hidden="true" className="h-4 w-4" />
-            {filtersOpen ? "Ocultar filtros" : "Mostrar filtros"}
-          </Button>
-        </div>
-
-        <p className="text-st-caption text-ink-secondary">
-          {`Historial · estado: ${activeStatusLabel} · tipo: ${activeTypeLabel}.`}
-        </p>
-
-        {filtersOpen ? (
-          <div id="order-filters" aria-label="Filtros de órdenes" className="space-y-4 border-t border-line-subtle pt-3">
-            <div className="min-w-0 space-y-2">
-                <p className="text-st-caption font-medium uppercase tracking-wide text-ink-secondary">Rango</p>
-                <Tabs className="min-w-0">
-                  <TabsList className={CHIP_LIST_CLASS}>
-                    <TabsTrigger value="week" activeValue={historyPreset} onClick={(value) => setHistoryPreset(value as HistoryPreset)} className={CHIP_TRIGGER_CLASS}>Semana</TabsTrigger>
-                    <TabsTrigger value="month" activeValue={historyPreset} onClick={(value) => setHistoryPreset(value as HistoryPreset)} className={CHIP_TRIGGER_CLASS}>Mes</TabsTrigger>
-                    <TabsTrigger value="all" activeValue={historyPreset} onClick={(value) => setHistoryPreset(value as HistoryPreset)} className={CHIP_TRIGGER_CLASS}>Todo</TabsTrigger>
-                    <TabsTrigger value="custom" activeValue={historyPreset} onClick={(value) => setHistoryPreset(value as HistoryPreset)} className={CHIP_TRIGGER_CLASS}>Rango</TabsTrigger>
-                  </TabsList>
-                </Tabs>
-                {historyPreset === "custom" ? (
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <div className="space-y-1"><label className="text-st-caption uppercase tracking-wide text-ink-secondary">Desde</label><Input className="h-11" type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} /></div>
-                    <div className="space-y-1"><label className="text-st-caption uppercase tracking-wide text-ink-secondary">Hasta</label><Input className="h-11" type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} /></div>
-                  </div>
-                ) : null}
-              </div>
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="min-w-0 space-y-2">
-                <p className="text-st-caption font-medium uppercase tracking-wide text-ink-secondary">Estado</p>
-                <Tabs className="min-w-0"><TabsList className={CHIP_LIST_CLASS}>{STATUS_FILTERS.map((option) => <TabsTrigger key={option.value} value={option.value} activeValue={statusFilter} onClick={setStatusFilter} className={CHIP_TRIGGER_CLASS}>{option.label}</TabsTrigger>)}</TabsList></Tabs>
-              </div>
-              <div className="min-w-0 space-y-2">
-                <p className="text-st-caption font-medium uppercase tracking-wide text-ink-secondary">Tipo</p>
-                <Tabs className="min-w-0"><TabsList className={CHIP_LIST_CLASS}>{TYPE_FILTERS.map((option) => <TabsTrigger key={option.value} value={option.value} activeValue={typeFilter} onClick={setTypeFilter} className={CHIP_TRIGGER_CLASS}>{option.label}</TabsTrigger>)}</TabsList></Tabs>
-              </div>
-            </div>
-
-            {/* Filtro por local: las sucursales del alcance del usuario (A) y solo si hay más de
-                una; el servidor vuelve a aplicar el alcance aunque se pida otra por query. */}
-            {showLocationFilter ? (
-              <div className="min-w-0 space-y-2">
-                <label
-                  htmlFor="orders-location-filter"
-                  className="text-st-caption font-medium uppercase tracking-wide text-ink-secondary"
-                >
-                  Local
-                </label>
-                <select
-                  id="orders-location-filter"
-                  className="h-11 w-full rounded-md border border-line-subtle bg-surface-card px-3 text-st-body text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary sm:max-w-xs"
-                  value={locationFilter}
-                  onChange={(event) => setLocationFilter(event.target.value)}
-                >
-                  <option value="all">
-                    {scopeLocationIds ? "Mis sucursales" : "Todas las sucursales"}
-                  </option>
-                  {scopedLocations.map((location) => (
-                    <option key={location.id} value={location.id}>
-                      {location.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            ) : null}
-          </div>
-        ) : null}
-      </AdminCompactToolbar>
       </>
-      ) : null}
-
-      {showOlderOpenNotice ? (
-        <div className="flex flex-col gap-2 rounded-stitch-md border border-warning-strong/30 bg-warning p-4 text-st-body text-status-pending-text sm:flex-row sm:items-center sm:justify-between">
-          <span>
-            Hay {olderOpenCount} orden{olderOpenCount === 1 ? "" : "es"} abierta
-            {olderOpenCount === 1 ? "" : "s"} de días anteriores.
-          </span>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              setHistoryPreset("all");
-              setStatusFilter("all");
-              setView("history");
-            }}
-          >
-            Ver en Historial
-          </Button>
-        </div>
       ) : null}
 
       {/* B0: el spinner solo cuando todavía no hay nada que mostrar. Si la lista ya está, un
@@ -1303,19 +855,7 @@ export default function AdminOrdersPage() {
               Reintentar
             </Button>
             {errorKind === "filters" ? (
-              <Button
-                variant="outline"
-                className="min-h-11"
-                onClick={() => {
-                  setStatusFilter("all");
-                  setTypeFilter("all");
-                  setLocationFilter("all");
-                  setPaymentFilter("all");
-                  setSearchQuery("");
-                  setSearchTerm("");
-                  setLateOnly(false);
-                }}
-              >
+              <Button variant="outline" className="min-h-11" onClick={clearAllFilters}>
                 Limpiar filtros
               </Button>
             ) : null}
@@ -1404,6 +944,4 @@ export default function AdminOrdersPage() {
     </div>
   );
 }
-
-
 

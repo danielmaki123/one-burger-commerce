@@ -5,15 +5,10 @@ import { useCallback, useEffect, useState } from "react";
 /**
  * B3/B6 — la vista de comandas y la vuelta al panel.
  *
- * El tablero se abre **a pantalla completa** (sin la barra lateral del panel): es lo que la cocina
- * quiere en el tablet de pared, y era el diseño acordado. Pero el primer intento la escondía sin
- * salida: el owner entró con una cuenta de sucursal, tocó «Volver al panel» y volvió a la misma
- * pantalla, sin manera de recuperar el chrome del panel.
- *
- * Ahora es un **modo que se sale**, no una puerta que se cierra: `immersive` arranca encendido y la
- * barra del turno ofrece «Ver el panel», que devuelve la barra lateral —donde están la navegación y la
- * sesión— sin cerrar sesión. Eso es lo que hace falta cuando cada tablet tiene su sección (comandas,
- * POS, inventario) y la persona necesita volver a elegir.
+ * El tablero se abría **a pantalla completa** por defecto (sin la barra lateral del panel) y el shell
+ * cambiaba de forma según la vista. Desde el layout unificado (opción (a) del owner, 2026-09-18) el
+ * chrome **se ve siempre**: Órdenes tiene barra lateral y encabezado igual que el resto del panel, y
+ * esconderlos es un modo explícito —el de cocina— que se prende a propósito y se sale con «Salir».
  *
  * La clase vive en `<html>` porque la barra lateral la dibuja el shell del panel, fuera de esta página,
  * y se limpia al desmontar: nadie queda sin navegación en el resto del panel.
@@ -22,11 +17,11 @@ import { useCallback, useEffect, useState } from "react";
 export const COMANDA_VIEW_CLASS = "comandas-view";
 
 export function useComandaView(): {
-  /** `true` = tablero a pantalla completa (sin barra lateral). */
+  /** `true` = modo cocina: solo los carriles, sin barra lateral ni encabezado. */
   immersive: boolean;
   setImmersive: (value: boolean) => void;
 } {
-  const [immersive, setImmersive] = useState(true);
+  const [immersive, setImmersive] = useState(false);
 
   useEffect(() => {
     const root = document.documentElement;

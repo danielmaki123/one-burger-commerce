@@ -74,14 +74,15 @@ function order(overrides: Record<string, unknown> = {}) {
 }
 
 /**
- * B3 — la vista del turno es el **tablero de comandas**; la lista con sus chips, su resumen y la barra
- * de filtros quedó en el historial. Los casos que prueban esa lista (el semáforo del retiro y los
- * filtros) entran al historial a propósito.
+ * La lista del turno se abre con el tab **Cerradas** (layout unificado, 2026-09-18): los cinco tabs de
+ * estado son el filtro de la pantalla —carriles para los activos— y el tablero de comandas no tiene
+ * carril de cerradas. Los casos que prueban esa lista (el semáforo del retiro y los filtros) entran
+ * por ahí.
  */
 async function goToHistory() {
   const user = userEvent.setup();
-  await user.click(screen.getByRole("button", { name: "Historial" }));
-  await screen.findByRole("button", { name: "Mostrar filtros" });
+  await user.click(screen.getByRole("button", { name: "Cerradas" }));
+  await screen.findByLabelText("Resumen de órdenes");
 }
 
 /**
@@ -227,14 +228,12 @@ describe("bandeja de órdenes: hora de retiro y semáforo", () => {
   });
 
   it("con un solo local no dibuja el filtro por local (T8)", async () => {
-    const user = userEvent.setup();
     await renderWithLocations([order()], [{ id: "loc_principal", name: "Principal", isActive: true }]);
 
-    // El panel de filtros se abre a propósito: si no, la ausencia no probaría nada.
+    // La barra de trabajo está siempre a la vista (layout unificado): la ausencia del control es real.
     await goToHistory();
-    await user.click(screen.getByRole("button", { name: "Mostrar filtros" }));
 
-    expect(screen.queryByLabelText("Local")).toBeNull();
+    expect(screen.queryByLabelText("Local de las comandas")).toBeNull();
   });
 
   it("con varios locales deja filtrar y muestra de qué local es cada pedido (T8)", async () => {
@@ -251,8 +250,7 @@ describe("bandeja de órdenes: hora de retiro y semáforo", () => {
     expect(screen.getByText(/· Norte/)).toBeTruthy();
 
     await goToHistory();
-    await user.click(screen.getByRole("button", { name: "Mostrar filtros" }));
-    await user.selectOptions(screen.getByLabelText("Local"), "loc_norte");
+    await user.selectOptions(screen.getByLabelText("Local de las comandas"), "loc_norte");
 
     await waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("locationId=loc_norte")),
@@ -301,15 +299,13 @@ describe("bandeja de órdenes: alcance por sucursal (A)", () => {
   }
 
   it("solo ofrece las sucursales del alcance del usuario", async () => {
-    const user = userEvent.setup();
     stubWithScope(["loc_norte", "loc_sur"]);
     render(<AdminOrdersPage />);
 
     await screen.findByText("OB-1");
     await goToHistory();
-    await user.click(screen.getByRole("button", { name: "Mostrar filtros" }));
 
-    const select = screen.getByLabelText("Local");
+    const select = screen.getByLabelText("Local de las comandas");
     const options = within(select)
       .getAllByRole("option")
       .map((option) => option.textContent);
@@ -359,13 +355,12 @@ describe("bandeja de órdenes: alcance por sucursal (A)", () => {
     render(<AdminOrdersPage />);
     await screen.findByText("OB-1");
     await goToHistory();
-    await user.click(screen.getByRole("button", { name: "Mostrar filtros" }));
-    await user.selectOptions(screen.getByLabelText("Local"), "loc_norte");
+    await user.selectOptions(screen.getByLabelText("Local de las comandas"), "loc_norte");
 
     await waitFor(() => expect(listCalls).toBeGreaterThan(1));
 
     // El control sigue ahí, con las dos sucursales del alcance.
-    const options = within(screen.getByLabelText("Local"))
+    const options = within(screen.getByLabelText("Local de las comandas"))
       .getAllByRole("option")
       .map((option) => option.textContent);
 
@@ -373,15 +368,13 @@ describe("bandeja de órdenes: alcance por sucursal (A)", () => {
   });
 
   it("sin alcance (dueño o sin asignar) ofrece todos los locales", async () => {
-    const user = userEvent.setup();
     stubWithScope(undefined);
     render(<AdminOrdersPage />);
 
     await screen.findByText("OB-1");
     await goToHistory();
-    await user.click(screen.getByRole("button", { name: "Mostrar filtros" }));
 
-    const select = screen.getByLabelText("Local");
+    const select = screen.getByLabelText("Local de las comandas");
     const options = within(select)
       .getAllByRole("option")
       .map((option) => option.textContent);
@@ -390,15 +383,13 @@ describe("bandeja de órdenes: alcance por sucursal (A)", () => {
   });
 
   it("con una sola sucursal en el alcance no dibuja el filtro", async () => {
-    const user = userEvent.setup();
     stubWithScope(["loc_norte"]);
     render(<AdminOrdersPage />);
 
     await screen.findByText("OB-1");
     await goToHistory();
-    await user.click(screen.getByRole("button", { name: "Mostrar filtros" }));
 
-    expect(screen.queryByLabelText("Local")).toBeNull();
+    expect(screen.queryByLabelText("Local de las comandas")).toBeNull();
   });
 
   it("publica aria-busy mientras carga la lista", async () => {
@@ -979,23 +970,27 @@ describe("bandeja de órdenes: tablero de comandas (B3)", () => {
   /**
    * B6 — la vuelta al panel está en la barra del turno.
    *
-   * El bug lo encontró el owner en producción: el tablero se abre sin la barra lateral del panel y no
-   * había manera de recuperarla. El control dice «Ver el panel» y la devuelve (sin cerrar sesión: la
-   * sesión y la navegación viven en esa barra).
+   * El bug lo encontró el owner en producción: el tablero se abría sin la barra lateral del panel y no
+   * había manera de recuperarla. Desde el layout unificado (2026-09-18) la barra lateral se ve siempre
+   * y el control solo sigue sirviendo para el modo cocina, que se sale sin cerrar sesión: la sesión y
+   * la navegación viven en esa barra.
    */
   it("la barra del turno deja volver al panel (B6)", async () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     await renderBoardWith([order({ status: "new" })]);
 
-    // El tablero arranca a pantalla completa: sin la barra lateral del panel.
-    expect(document.documentElement.classList.contains("comandas-view")).toBe(true);
+    // El tablero entra con el chrome del panel: la barra lateral no se esconde.
+    expect(document.documentElement.classList.contains("comandas-view")).toBe(false);
 
-    const toggle = screen.getByRole("button", { name: "Ver el panel" });
-    expect(within(screen.getByTestId("comandas-topbar")).getByRole("button", { name: "Ver el panel" })).toBe(toggle);
+    const toggle = screen.getByRole("button", { name: "Pantalla completa" });
+    expect(within(screen.getByTestId("comandas-topbar")).getByRole("button", { name: "Pantalla completa" })).toBe(toggle);
 
     await user.click(toggle);
+    expect(document.documentElement.classList.contains("comandas-view")).toBe(true);
 
-    // Al volver, la barra lateral del panel queda accesible otra vez y el control invita a lo contrario.
+    // Y se sale: vuelve el chrome del panel, sin cerrar sesión.
+    await user.click(screen.getByRole("button", { name: "Ver el panel" }));
+
     expect(document.documentElement.classList.contains("comandas-view")).toBe(false);
     expect(screen.getByRole("button", { name: "Pantalla completa" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Cerrar sesión" })).toBeNull();
@@ -1062,21 +1057,26 @@ describe("bandeja de órdenes: tablero de comandas (B3)", () => {
     expect(within(pending).getByText("OB-1")).toBeTruthy();
     expect(within(pending).queryByText("OB-2")).toBeNull();
 
-    // Y se anuncia aparte, con la salida al listado donde tiene su grupo.
+    // Y se anuncia aparte. El aviso es informativo: el listado con rangos vive en /admin/history.
     expect(screen.getByTestId("comandas-scheduled-notice").textContent).toMatch(
       /1 comanda programada para otro día/,
     );
-    expect(screen.getByRole("button", { name: "Ver en el listado" })).toBeTruthy();
   });
 
-  it("el historial conserva la lista con sus filtros, sin el tablero", async () => {    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+  /**
+   * El shell es uno solo (opción (a) del owner, 2026-09-18): el tablero no se lleva la barra lateral
+   * ni el encabezado, y las cerradas se miran como lista desde el mismo shell.
+   */
+  it("las cerradas se miran como lista dentro del mismo shell, sin el tablero", async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     await renderBoardWith([order({ status: "new" })]);
 
-    await user.click(screen.getByRole("button", { name: "Historial" }));
+    await user.click(screen.getByRole("button", { name: "Cerradas" }));
     await flush();
 
-    expect(screen.queryByTestId("comandas-topbar")).toBeNull();
-    expect(screen.getByRole("button", { name: "Mostrar filtros" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Órdenes" })).toBeTruthy();
+    expect(screen.queryByRole("region", { name: "Por aceptar" })).toBeNull();
+    expect(screen.getByLabelText("Resumen de órdenes")).toBeTruthy();
     expect(screen.getByText("OB-1")).toBeTruthy();
   });
 });

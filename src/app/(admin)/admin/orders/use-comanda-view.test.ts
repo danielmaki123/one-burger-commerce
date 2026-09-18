@@ -6,12 +6,12 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { COMANDA_VIEW_CLASS, useComandaView, useFullscreen } from "./use-comanda-view";
 
 /**
- * B3/B6 — la vista de comandas es un modo que se sale.
+ * B3/B6 — el chrome del panel se esconde solo en el modo cocina.
  *
- * La clase vive en `<html>` porque la barra lateral la dibuja el shell, fuera de esta página: si el
- * día que se desmonta no se limpia, la persona queda sin navegación en el resto del panel. Y el modo
- * tiene que poder apagarse desde la propia pantalla: es el bug que encontró el owner en producción
- * (entró con una cuenta de sucursal y no pudo volver al panel).
+ * Desde el layout unificado (opción (a) del owner, 2026-09-18) Órdenes entra **con** barra lateral y
+ * encabezado: esconderlos es un modo explícito que se prende y se sale. La clase vive en `<html>`
+ * porque la barra lateral la dibuja el shell, fuera de esta página: si el día que se desmonta no se
+ * limpia, la persona queda sin navegación en el resto del panel.
  */
 afterEach(() => {
   cleanup();
@@ -21,24 +21,25 @@ afterEach(() => {
 });
 
 describe("vista de comandas (B3)", () => {
-  it("arranca a pantalla completa (sin la barra lateral del panel)", () => {
+  it("arranca con el chrome del panel: la barra lateral se ve", () => {
     renderHook(() => useComandaView());
 
-    expect(document.documentElement.classList.contains(COMANDA_VIEW_CLASS)).toBe(true);
+    expect(document.documentElement.classList.contains(COMANDA_VIEW_CLASS)).toBe(false);
   });
 
-  it("«Ver el panel» devuelve la barra lateral y se puede volver a pantalla completa", () => {
+  it("el modo cocina se prende y se sale", () => {
     const { result } = renderHook(() => useComandaView());
-
-    act(() => result.current.setImmersive(false));
-    expect(document.documentElement.classList.contains(COMANDA_VIEW_CLASS)).toBe(false);
 
     act(() => result.current.setImmersive(true));
     expect(document.documentElement.classList.contains(COMANDA_VIEW_CLASS)).toBe(true);
+
+    act(() => result.current.setImmersive(false));
+    expect(document.documentElement.classList.contains(COMANDA_VIEW_CLASS)).toBe(false);
   });
 
-  it("marca el documento mientras está montada y lo limpia al salir", () => {
-    const { unmount } = renderHook(() => useComandaView());
+  it("el modo se limpia al desmontar, aunque esté prendido", () => {
+    const { result, unmount } = renderHook(() => useComandaView());
+    act(() => result.current.setImmersive(true));
     expect(document.documentElement.classList.contains(COMANDA_VIEW_CLASS)).toBe(true);
 
     unmount();
