@@ -26,6 +26,12 @@ const emitted: InvoiceRecord = {
   businessTaxId: "J0310000000",
   businessAddress: "Camino de Oriente",
   businessPhone: "+50588887777",
+  branchName: "Camino de Oriente",
+  branchAddressLine: "Km 8 Carretera Sur",
+  branchCity: "Managua",
+  branchPhone: "+50588887777",
+  branchWhatsapp: "50588887777",
+  branchMapsUrl: null,
   currencyCode: "NIO",
   subtotal: 100,
   discount: 0,
@@ -59,6 +65,7 @@ const order = {
   orderNumber: "P-ABC123",
   status: "picked_up",
   customerName: "Ana",
+  locationId: "loc_centro",
   subtotal: 100,
   discount: 0,
   packagingAmount: 10,
@@ -247,6 +254,66 @@ describe("emitInvoice", () => {
       expect.objectContaining({
         businessAddress: "Camino de Oriente, Managua",
         businessPhone: "+50588887777",
+      }),
+    );
+  });
+
+  /**
+   * Factura simple (2026-09-18) — la **sucursal de retiro** queda congelada en el documento.
+   *
+   * El documento dice de qué local salió el pedido y con qué datos: si mañana se edita la dirección del
+   * local, la factura que ya está en la mano del cliente tiene que seguir diciendo lo mismo.
+   */
+  it("congela la sucursal del pedido al emitir", async () => {
+    const { repository: invoiceRepository, create } = repository();
+
+    await emitInvoice(
+      { orderId: "ord_01", actorUserId: "admin_1" },
+      {
+        invoiceRepository,
+        findOrder: async () => order,
+        countPayments: async () => 1,
+        business,
+        findBranch: async (locationId) => ({
+          name: "Camino de Oriente",
+          addressLine: "Km 8 Carretera Sur",
+          city: "Managua",
+          phone: "+50588887777",
+          whatsapp: "50588887777",
+          mapsUrl: "https://maps.google.com/?q=camino",
+          ...(locationId === "loc_centro" ? {} : { name: "otro local" }),
+        }),
+      },
+    );
+
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        branchName: "Camino de Oriente",
+        branchAddressLine: "Km 8 Carretera Sur",
+        branchCity: "Managua",
+        branchPhone: "+50588887777",
+        branchWhatsapp: "50588887777",
+        branchMapsUrl: "https://maps.google.com/?q=camino",
+      }),
+    );
+  });
+
+  it("sin sucursal el documento sale sin el bloque (no se inventa una dirección)", async () => {
+    const { repository: invoiceRepository, create } = repository();
+
+    await emitInvoice(
+      { orderId: "ord_01", actorUserId: "admin_1" },
+      { invoiceRepository, findOrder: async () => order, countPayments: async () => 1, business },
+    );
+
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        branchName: null,
+        branchAddressLine: null,
+        branchCity: null,
+        branchPhone: null,
+        branchWhatsapp: null,
+        branchMapsUrl: null,
       }),
     );
   });

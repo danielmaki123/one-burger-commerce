@@ -29,6 +29,12 @@ type InvoiceRow = {
   businessTaxId: string | null;
   businessAddress: string | null;
   businessPhone: string | null;
+  branchName: string | null;
+  branchAddressLine: string | null;
+  branchCity: string | null;
+  branchPhone: string | null;
+  branchWhatsapp: string | null;
+  branchMapsUrl: string | null;
   currencyCode: string;
   subtotal: Decimal;
   discount: Decimal;
@@ -54,6 +60,12 @@ function mapInvoice(row: InvoiceRow): InvoiceRecord {
     businessTaxId: row.businessTaxId,
     businessAddress: row.businessAddress,
     businessPhone: row.businessPhone,
+    branchName: row.branchName,
+    branchAddressLine: row.branchAddressLine,
+    branchCity: row.branchCity,
+    branchPhone: row.branchPhone,
+    branchWhatsapp: row.branchWhatsapp,
+    branchMapsUrl: row.branchMapsUrl,
     currencyCode: row.currencyCode,
     subtotal: toNumber(row.subtotal),
     discount: toNumber(row.discount),
@@ -95,6 +107,12 @@ export class PrismaInvoiceRepository implements InvoiceRepository {
         businessTaxId: input.businessTaxId,
         businessAddress: input.businessAddress,
         businessPhone: input.businessPhone,
+        branchName: input.branchName,
+        branchAddressLine: input.branchAddressLine,
+        branchCity: input.branchCity,
+        branchPhone: input.branchPhone,
+        branchWhatsapp: input.branchWhatsapp,
+        branchMapsUrl: input.branchMapsUrl,
         currencyCode: input.currencyCode,
         subtotal: input.subtotal,
         discount: input.discount,

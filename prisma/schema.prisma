@@ -1059,6 +1059,15 @@ model Invoice {
   businessTaxId     String?
   businessAddress   String?
   businessPhone     String?
+  /// Sucursal de retiro **al emitir** (2026-09-18): se congela como el resto del documento porque una
+  /// factura es un papel entregado — si mañana se edita la dirección del local, la factura vieja tiene que
+  /// seguir mostrando la que existía. Las facturas emitidas antes de este bloque salen sin él.
+  branchName        String?
+  branchAddressLine String?
+  branchCity        String?
+  branchPhone       String?
+  branchWhatsapp    String?
+  branchMapsUrl     String?
   /// Moneda y montos del pedido, congelados.
   currencyCode      String
   subtotal          Decimal       @db.Decimal(10, 2)

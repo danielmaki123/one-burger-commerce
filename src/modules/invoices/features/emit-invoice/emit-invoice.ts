@@ -24,11 +24,12 @@ export type EmitInvoiceInput = {
   customer?: { legalName?: string | null; taxId?: string | null } | null;
 };
 
-/** Lo que el caso de uso necesita del pedido: sus montos y su estado. */
+/** Lo que el caso de uso necesita del pedido: sus montos, su estado y de qué sucursal salió. */
 export type InvoiceOrderLookup = {
   id: string;
   status: string;
   customerName: string;
+  locationId: string;
   subtotal: number;
   discount: number;
   packagingAmount: number;
@@ -37,10 +38,26 @@ export type InvoiceOrderLookup = {
   total: number;
 };
 
+/** La sucursal que va al documento, tal como está al emitir. */
+export type InvoiceBranchSnapshot = {
+  name: string;
+  addressLine: string | null;
+  city: string | null;
+  phone: string | null;
+  whatsapp: string | null;
+  mapsUrl: string | null;
+};
+
 export type EmitInvoiceDependencies = {
   invoiceRepository: InvoiceRepository;
   findOrder: (orderId: string) => Promise<InvoiceOrderLookup | null>;
   countPayments: (orderId: string) => Promise<number>;
+  /**
+   * La sucursal del pedido. Se **congela** en el documento: una factura es un papel entregado y no puede
+   * cambiar porque mañana se edite la dirección del local. Sin sucursal (o sin datos) el bloque no se
+   * imprime; no se inventa.
+   */
+  findBranch?: (locationId: string) => Promise<InvoiceBranchSnapshot | null>;
   /** Los datos del negocio que van al documento (de la configuración, no hardcodeados). */
   business: {
     name: string;
@@ -105,6 +122,8 @@ export async function emitInvoice(
     throw new InvoiceError(409, "CONFLICT", check.message, { invoice: check.message });
   }
 
+  const branch = deps.findBranch ? await deps.findBranch(order.locationId) : null;
+
   const invoice = await deps.invoiceRepository.create({
     number: nextInvoiceNumber(await deps.invoiceRepository.findLatestNumber()),
     orderId: order.id,
@@ -116,6 +135,13 @@ export async function emitInvoice(
     businessTaxId: deps.business.taxId?.trim() || null,
     businessAddress: documentAddressOf(deps.business),
     businessPhone: deps.business.taxPhone?.trim() || deps.business.phone?.trim() || null,
+    // La sucursal, congelada: los datos del local al momento de entregar el documento.
+    branchName: branch?.name ?? null,
+    branchAddressLine: branch?.addressLine ?? null,
+    branchCity: branch?.city ?? null,
+    branchPhone: branch?.phone ?? null,
+    branchWhatsapp: branch?.whatsapp ?? null,
+    branchMapsUrl: branch?.mapsUrl ?? null,
     currencyCode: deps.business.currencyCode,
     subtotal: order.subtotal,
     discount: order.discount,

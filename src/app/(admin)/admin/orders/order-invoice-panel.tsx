@@ -2,10 +2,10 @@
 
 import * as React from "react";
 
+import Link from "next/link";
+
 import type { InvoiceRecord } from "@/modules/invoices/domain/invoice";
 import { formatCurrency, type CurrencyFormat } from "@/shared/lib/format-currency";
-import { invoiceSheetLines, type InvoiceSheetLine } from "@/shared/lib/invoice-sheet";
-import { printLines } from "@/shared/lib/print-lines";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 
@@ -19,27 +19,18 @@ import { Input } from "@/shared/ui/input";
  *    control que el servidor vaya a rechazar.
  * 2. **Una vez emitida, no se edita.** Se muestra congelada (número, fecha, datos y montos) y solo se puede
  *    volver a imprimir: es el papel que ya está en la mano del cliente.
- * 3. **Se imprime con la hoja del sistema** y el navegador la guarda como PDF, la misma decisión que la hoja
- *    de cierre (1.6): sin dependencias nuevas ni generador de PDF en el servidor.
+ * 3. **Se imprime en la hoja A4 del sistema** (`/admin/orders/[id]/invoice/print`): HTML real con el logo,
+ *    los datos del negocio y los de la sucursal, que el navegador guarda como PDF. Es la misma decisión que
+ *    la hoja de cierre (1.6): sin dependencias nuevas ni generador de PDF en el servidor.
  */
 
 type OrderInvoicePanelProps = {
   orderId: string;
-  /** Las líneas del pedido, tal como quedaron (el documento no las recalcula). */
-  lines: InvoiceSheetLine[];
+  /** El formato de la moneda del negocio (símbolo y locale). */
   currency: CurrencyFormat;
-  /** Moneda del negocio: una factura en otra moneda se imprime con su código. */
-  businessCurrencyCode: string;
-  locationName?: string | null;
 };
 
-export default function OrderInvoicePanel({
-  orderId,
-  lines,
-  currency,
-  businessCurrencyCode,
-  locationName = null,
-}: OrderInvoicePanelProps) {
+export default function OrderInvoicePanel({ orderId, currency }: OrderInvoicePanelProps) {
   const [invoice, setInvoice] = React.useState<InvoiceRecord | null>(null);
   const [canEmit, setCanEmit] = React.useState(false);
   const [loading, setLoading] = React.useState(true);
@@ -114,11 +105,7 @@ export default function OrderInvoicePanel({
     }
   };
 
-  const print = () => {
-    if (!invoice) return;
-
-    printLines(invoiceSheetLines({ invoice, lines, currency, businessCurrencyCode, locationName }));
-  };
+  const printHref = `/admin/orders/${encodeURIComponent(orderId)}/invoice/print`;
 
   if (loading) {
     return <p className="text-st-body text-ink-secondary">Leyendo la factura…</p>;
@@ -195,9 +182,18 @@ export default function OrderInvoicePanel({
         </div>
       </dl>
 
-      <Button type="button" variant="outline" className="min-h-11" onClick={print}>
+      <p className="text-st-body text-ink-secondary">
+        La factura simple se imprime en hoja A4, con el logo, los datos del negocio y los de la sucursal
+        donde se retiró el pedido.
+      </p>
+      <Link
+        href={printHref}
+        target="_blank"
+        rel="noopener"
+        className="inline-flex min-h-11 items-center rounded-md border border-border px-4 text-st-body font-semibold text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+      >
         Imprimir o guardar PDF
-      </Button>
+      </Link>
 
       {error ? <p className="text-st-body font-medium text-status-sla-text">{error}</p> : null}
     </div>

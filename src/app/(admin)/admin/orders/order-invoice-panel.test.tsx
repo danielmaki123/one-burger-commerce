@@ -7,7 +7,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const { printLinesMock } = vi.hoisted(() => ({ printLinesMock: vi.fn((_lines: string[]) => true) }));
 
 vi.mock("@/shared/lib/print-lines", () => ({ printLines: printLinesMock }));
-
 import OrderInvoicePanel from "./order-invoice-panel";
 
 /**
@@ -50,25 +49,14 @@ function jsonResponse(body: unknown, ok = true, status = 200) {
   return Promise.resolve({ ok, status, json: () => Promise.resolve(body) } as Response);
 }
 
-const lines = [{ name: "Taco de birria", quantity: 1, unitPrice: 100, lineTotal: 100 }];
-
 function renderPanel() {
-  return render(
-    <OrderInvoicePanel
-      orderId="ord_01"
-      lines={lines}
-      currency={currency}
-      businessCurrencyCode="NIO"
-      locationName="Camino de Oriente"
-    />,
-  );
+  return render(<OrderInvoicePanel orderId="ord_01" currency={currency} />);
 }
 
 describe("OrderInvoicePanel", () => {
   let fetchMock: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
-    printLinesMock.mockClear();
     fetchMock = vi.fn((_input: RequestInfo | URL, init?: RequestInit) => {
       if (init?.method === "POST") return jsonResponse({ data: { invoice, reused: false } }, true, 201);
 
@@ -98,21 +86,17 @@ describe("OrderInvoicePanel", () => {
     });
   });
 
-  it("con la factura emitida se muestra congelada y se imprime con la hoja del sistema", async () => {
-    const user = userEvent.setup();
+  it("con la factura emitida se muestra congelada y se ofrece la hoja A4 para imprimir", async () => {
     fetchMock.mockImplementation(() => jsonResponse({ data: { invoice, canEmit: true } }));
     renderPanel();
 
     expect(await screen.findByText("F-000001")).toBeTruthy();
     expect(screen.getByText(/100\.00/)).toBeTruthy();
 
-    await user.click(screen.getByRole("button", { name: "Imprimir o guardar PDF" }));
-
-    expect(printLinesMock).toHaveBeenCalledTimes(1);
-    const hojas = printLinesMock.mock.calls[0][0] as string[];
-    expect(hojas.join("\n")).toContain("FACTURA SIMPLE");
-    expect(hojas.join("\n")).toContain("No. F-000001");
-    expect(hojas.join("\n")).toContain("Documento no fiscal.");
+    // La hoja A4 vive en su propia página (con el logo y la sucursal): acá solo se enlaza.
+    const imprimir = screen.getByRole("link", { name: "Imprimir o guardar PDF" });
+    expect(imprimir.getAttribute("href")).toBe("/admin/orders/ord_01/invoice/print");
+    expect(imprimir.getAttribute("target")).toBe("_blank");
   });
 
   it("quien no cobra no ve el formulario (y con factura emitida la ve igual)", async () => {

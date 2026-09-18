@@ -31,6 +31,17 @@ export type InvoiceRecord = {
   businessTaxId: string | null;
   businessAddress: string | null;
   businessPhone: string | null;
+  /**
+   * Sucursal de retiro **al emitir** (2026-09-18). Se congela como el resto del documento: si mañana se
+   * edita la dirección del local, una factura ya entregada tiene que seguir mostrando la que existía.
+   * `null` en las facturas emitidas antes de este bloque (salen sin bloque de sucursal).
+   */
+  branchName: string | null;
+  branchAddressLine: string | null;
+  branchCity: string | null;
+  branchPhone: string | null;
+  branchWhatsapp: string | null;
+  branchMapsUrl: string | null;
   currencyCode: string;
   subtotal: number;
   discount: number;

@@ -18,6 +18,12 @@ export type CreateInvoiceInput = {
   businessTaxId: string | null;
   businessAddress: string | null;
   businessPhone: string | null;
+  branchName: string | null;
+  branchAddressLine: string | null;
+  branchCity: string | null;
+  branchPhone: string | null;
+  branchWhatsapp: string | null;
+  branchMapsUrl: string | null;
   currencyCode: string;
   subtotal: number;
   discount: number;

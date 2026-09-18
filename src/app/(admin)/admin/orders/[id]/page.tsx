@@ -300,18 +300,7 @@ export default function AdminOrderDetailPage() {
               aria-label="Factura"
             >
               <h2 className="text-st-h3 text-ink">Factura</h2>
-              <OrderInvoicePanel
-                orderId={order.id}
-                lines={order.items.map((item) => ({
-                  name: item.productName,
-                  quantity: item.quantity,
-                  unitPrice: item.unitPrice,
-                  lineTotal: item.lineTotal,
-                }))}
-                currency={currency}
-                businessCurrencyCode={businessCurrencyCode}
-                locationName={order.pickupLocation?.name ?? null}
-              />
+              <OrderInvoicePanel orderId={order.id} currency={currency} />
             </section>
             <p className="text-st-caption text-ink-secondary">
               Recibida {new Date(order.createdAt).toLocaleString()} ·{" "}

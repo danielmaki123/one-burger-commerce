@@ -1,5 +1,6 @@
 import { PrismaBusinessSettingsRepository } from "@/modules/business-settings/adapters/prisma-business-settings-repository";
 import { loadBusinessSettings } from "@/modules/business-settings/features/get-public-business-settings/get-public-business-settings";
+import { PrismaLocationRepository } from "@/modules/locations/adapters/prisma-location-repository";
 import { PrismaOrderRepository } from "@/modules/orders/adapters/prisma-order-repository";
 import { PrismaPaymentRepository } from "@/modules/orders/adapters/prisma-payment-repository";
 
@@ -18,11 +19,29 @@ export async function createProductionInvoiceDependencies(): Promise<EmitInvoice
   });
   const orderRepository = new PrismaOrderRepository();
   const paymentRepository = new PrismaPaymentRepository();
+  const locationRepository = new PrismaLocationRepository();
 
   return {
     invoiceRepository: new PrismaInvoiceRepository(),
     findOrder: (orderId) => orderRepository.findOrderById(orderId),
     countPayments: async (orderId) => (await paymentRepository.listPaymentsByOrder(orderId)).length,
+    /**
+     * La sucursal del pedido, para congelarla en el documento. Sin local (o sin datos) el bloque no se
+     * imprime: el documento no inventa una dirección.
+     */
+    findBranch: async (locationId) => {
+      const location = await locationRepository.findLocationById(locationId);
+      if (!location) return null;
+
+      return {
+        name: location.name,
+        addressLine: location.addressLine,
+        city: location.city,
+        phone: location.phone,
+        whatsapp: location.whatsapp,
+        mapsUrl: location.mapsUrl,
+      };
+    },
     business: {
       name: settings.name,
       legalName: settings.legalName,
