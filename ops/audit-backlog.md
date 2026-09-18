@@ -69,6 +69,8 @@ Estados: `reportado` · `a reproducir` · `en curso` · `cerrado` · `no-repro` 
 | A-30 | **No existe un PDF del cierre de caja**: el Historial › Cierres quedó con «Ver detalle» (al detalle que ya existe) porque el repo solo tiene el export CSV del día; una hoja imprimible del cierre es producto nuevo. **Opcional: se hace cuando el owner lo pida** | feat / decisión | P3 | `decisión-pendiente` (owner) | — |
 | A-31 | **TDD: formalizar el caso «el rojo no se observó»**: la regla del repo prohíbe el test después de la implementación y pide decirlo en el commit, pero no dice **cómo**. En el Punto 2 (2026-09-18) el dominio y los dos casos de uso se escribieron junto con su test y el rojo no se pudo observar (se dijo en el commit, sin formato). Se formalizó en `AGENTS.md` §Testing: **si el rojo no se observa, se documenta en el commit con el motivo** y se verifica por mutación cuando el caso lo permita | deuda / proceso | P3 | `cerrado` (2026-09-18, `AGENTS.md`) | — |
 | A-33 | **El listado agrupado de Órdenes quedó inalcanzable**: `page.tsx` dibuja el listado por grupos solo con `!showBoard` y `statusFilter === "all"`, y el tablero se apaga únicamente en «Cerradas» (que además manda `status=closed` y excluye un pedido nuevo). El layout unificado del Punto 1 se llevó el «Ver en el listado» y con él la única entrada. Se descubrió el 2026-09-18 verificando el Punto 3 (el caso D1 de `public-order.spec` ya no puede comprobar el grupo «Programados») | decisión / UI | P3 | `reportado` (agente) | — |
+| A-35 | **No marcar `publish` como *required check*** en la protección de `main`: el job tiene `if: github.event_name == 'push' && github.ref == 'refs/heads/main'`, así que **no corre en PRs** y GitHub lo deja en «Expected» para siempre: el PR nunca se puede mergear. Los required son `verify`, `contracts`, `migrations` y `container` | infra / guardrail | P2 | `reportado` (agente, 2026-09-18) | — |
+| A-36 | **Verificar la rama `feat/design-system` del otro dev antes de tocar el sistema de diseño**: existe en el remoto y no la creó esta sesión. El próximo trabajo anunciado es el **rediseño del menú público (9 pantallas de Stitch)**, así que hay que ver qué trae esa rama para no pisarla ni duplicar criterios de tokens | deuda / coordinación | P2 | `reportado` (agente, 2026-09-18) | — |
 | A-34 | **A-20 (fiscal) avanzó a medias**: el Punto 4 (2026-09-18) guarda `taxId`/`legalName` en el `Customer` y la factura los congela, pero **el negocio no tiene RUC** (no hay campo en `BusinessSettings`/`Local`) y el recibo JPG sigue sin logo ni RUC. Falta decidir si la factura es fiscal de verdad (RUC del negocio, numeración autorizada) | decisión | P3 | `decisión-pendiente` (owner) | — |
 | A-32 | **El Historial depende del POS para dibujarse**: `ADMIN_HISTORY_NAV_ITEM` vive en el grupo Control y `withControlGroup` (`admin-layout-helpers.ts:114`) hacía `if (!posAvailable) return groups`, con `posAvailable` resuelto desde `GET /api/admin/pos/availability` (`admin-shell.tsx:96`). Sin POS disponible, un manager **no veía** el Historial aunque el Historial no dependa del POS. **Arreglado el 2026-09-18**: cada ítem lleva su permiso propio y el grupo se dibuja si queda al menos uno | bug | P2 | `cerrado` | `f35755c` |
 | A-19 | **No existen los movimientos de caja**: sin `CashMovement` (retiro/ingreso con motivo y responsable) ni configuración de caja en ningún lado; la propina en efectivo entra al cajón por decisión implícita (`close-shift.ts:143-144`) y la caja puede quedar abierta para siempre | decisión | P3 | `decisión-pendiente` (owner) | — |
@@ -503,6 +505,34 @@ si los documentos pasan su tope de líneas o si el catálogo deja de tener la li
   filas. `design-system.md` §8.4 pide que cabecera, filtros y utilidades no pasen el 20%.
 - **Cierre esperado**: compactar la barra (contadores y buscador en una fila, acciones al menú) sin
   perder ninguno de los anclajes que usan los E2E (`Local de las comandas`, `Buscar comanda`, `Atrasados`).
+
+### A-35 · `publish` no va como required check — `reportado` (agente, 2026-09-18)
+
+- **Qué es**: la protección de `main` tiene que exigir los checks de validación (`verify`, `contracts`,
+  `migrations`, `container`) y **no** el job `publish`. Ese job lleva
+  `if: github.event_name == 'push' && github.ref == 'refs/heads/main'`: **no se ejecuta en un PR**.
+- **Por qué importa**: en GitHub, un *required check* que nunca reporta deja el PR en estado
+  **«Expected — waiting for status» para siempre**: no hay forma de mergearlo, ni con la aprobación ni
+  con permisos de admin (salvo saltear la protección, que es justo lo que no se quiere).
+- **Evidencia**: el PR #2 corrió los cuatro jobs de validación y `publish` quedó **`skipped`**
+  (run `35379018496`, `gh run view --json jobs`). El `if` está en
+  `.github/workflows/publish-ghcr.yml`.
+- **Estado**: anotado en `AGENTS.md` § *CI y protección de `main`* con la advertencia explícita. Se
+  cierra cuando la protección quede configurada con los cuatro checks y **sin** `publish`.
+
+### A-36 · Verificar `feat/design-system` antes de tocar el sistema de diseño — `reportado` (agente, 2026-09-18)
+
+- **Qué es**: hay una rama remota **`feat/design-system`** que no creó esta sesión (la rama aparece al
+  hacer `git fetch origin`). El próximo trabajo anunciado por el owner es el **rediseño del menú público
+  (9 pantallas de Stitch)**, que toca de lleno tokens, tipografía y componentes.
+- **Por qué importa**: si esa rama cambia `globals.css`, `design-system.md` o los primitivos de
+  `src/shared/ui/`, arrancar el rediseño desde `main` sin mirarla termina en un conflicto grande o en dos
+  criterios de diseño distintos conviviendo. También puede explicar por qué el dueño pidió pausar.
+- **Qué falta**: leerla (`git log origin/feat/design-system`, `git diff main...origin/feat/design-system`)
+  y decidir con el owner si se mergea antes, se descarta o se trabaja encima. **Nada de esto se hace sin
+  su confirmación**, porque el rediseño está pausado a pedido suyo.
+- **Nota**: es una tarea de **coordinación con el otro dev**, no de código; si el dueño dice que la rama
+  es de un experimento descartado, se cierra como *descartado* con ese motivo escrito.
 
 ### A-33 · El listado agrupado de Órdenes quedó inalcanzable — `reportado` (agente, 2026-09-18)
 
