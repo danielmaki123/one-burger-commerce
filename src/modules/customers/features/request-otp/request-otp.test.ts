@@ -61,6 +61,12 @@ function createRepository(
     async findCustomerByWhatsapp() {
       return null;
     },
+    async findCustomerById() {
+      return null;
+    },
+    async updateCustomerFiscalData() {
+      throw new Error("Not used in requestOtp");
+    },
     async createCustomer() {
       throw new Error("Not used in requestOtp");
     },

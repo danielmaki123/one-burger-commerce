@@ -269,10 +269,13 @@ describe("PosClient", () => {
     const body = JSON.parse(String((saleCall![1] as RequestInit).body));
 
     expect(body.locationId).toBe("loc_norte");
+    // Punto 4: sin factura pedida, los datos fiscales viajan en null.
     expect(body.customer).toEqual({
       name: "Cliente Mostrador",
       whatsapp: "88887777",
       email: null,
+      taxId: null,
+      legalName: null,
     });
     expect(body.lines).toHaveLength(1);
     expect(body.lines[0]).toMatchObject({
@@ -288,6 +291,54 @@ describe("PosClient", () => {
     expect(confirmacion.textContent).toContain("Cambio C$60.00");
     // El mostrador queda listo para la venta siguiente.
     expect(screen.getByText("Agregá productos del catálogo para armar la venta.")).toBeTruthy();
+  });
+
+  /**
+   * Punto 4 del roadmap (2026-09-18) — el cliente que pide **factura con RUC**.
+   *
+   * El tilde va después del correo y, con él puesto, el RUC (mínimo 8 caracteres) y la razón social son
+   * obligatorios: sin los dos el cobro no sale, y el aviso queda junto al campo que falta. Al destildarlo,
+   * los datos se limpian para que el próximo cliente no herede los del anterior.
+   */
+  it("la factura con RUC pide los dos datos y viaja en el cobro (Punto 4)", async () => {
+    const user = userEvent.setup();
+    render(<PosClient locations={locations} />);
+
+    await esperarCajaAbierta();
+    await screen.findByText("Taco de birria");
+    await user.click(screen.getByRole("button", { name: "Agregar Taco de birria a la venta" }));
+    await fillCustomer(user);
+    await user.type(screen.getByLabelText("Con cuánto paga"), "100");
+
+    // Apagado por defecto: sin tilde no se piden los datos fiscales.
+    expect(screen.queryByLabelText("RUC (mínimo 8 caracteres)")).toBeNull();
+
+    await user.click(screen.getByLabelText("Cliente pide factura con RUC"));
+    expect(screen.getByLabelText("RUC (mínimo 8 caracteres)")).toBeTruthy();
+    expect(screen.getByLabelText("Razón social")).toBeTruthy();
+
+    // Con el tilde puesto y el RUC corto, el cobro no sale y lo dice junto al campo.
+    await user.type(screen.getByLabelText("RUC (mínimo 8 caracteres)"), "J0310");
+    await user.type(screen.getByLabelText("Razón social"), "Distribuidora La Unión");
+    await user.click(screen.getByRole("button", { name: /^Cobrar / }));
+
+    expect(fetchMock.mock.calls.some(([input]) => String(input) === "/api/admin/pos/sale")).toBe(
+      false,
+    );
+
+    // Se corrige el RUC y la venta sale con los dos datos.
+    await user.clear(screen.getByLabelText("RUC (mínimo 8 caracteres)"));
+    await user.type(screen.getByLabelText("RUC (mínimo 8 caracteres)"), "J0310000001");
+    await user.click(screen.getByRole("button", { name: /^Cobrar / }));
+
+    const saleCall = fetchMock.mock.calls.find(([input]) => String(input) === "/api/admin/pos/sale");
+    expect(saleCall).toBeTruthy();
+    const body = JSON.parse(String((saleCall![1] as RequestInit).body));
+
+    expect(body.customer).toMatchObject({
+      taxId: "J0310000001",
+      legalName: "Distribuidora La Unión",
+    });
   });
 
   /**

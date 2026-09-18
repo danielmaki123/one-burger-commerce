@@ -70,6 +70,15 @@ function createRepository(input: {
     async findCustomerByWhatsapp() {
       return currentCustomer;
     },
+    async findCustomerById() {
+      return currentCustomer;
+    },
+    async updateCustomerFiscalData(_, fiscal) {
+      if (!currentCustomer) throw new Error("not used");
+
+      currentCustomer = { ...currentCustomer, taxId: fiscal.taxId, legalName: fiscal.legalName };
+      return currentCustomer;
+    },
     async createCustomer(createInput) {
       currentCustomer = createCustomerRecord({
         id: "cus_created",

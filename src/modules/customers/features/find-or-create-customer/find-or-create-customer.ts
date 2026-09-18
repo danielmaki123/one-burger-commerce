@@ -1,15 +1,25 @@
 import { PrismaCustomerAuthRepository } from "@/modules/customers/adapters/prisma-customer-auth-repository";
+import { resolveCustomerFiscalData } from "@/modules/customers/domain/customer-fiscal-data";
 import { maskWhatsapp } from "@/modules/customers/domain/mask-whatsapp";
 import type { CustomerAuthRepository } from "@/modules/customers/ports/customer-auth-repository";
 
 type CustomerLinkRepository = Pick<
   CustomerAuthRepository,
-  "findCustomerByWhatsapp" | "createCustomer" | "updateCustomerFullName"
+  | "findCustomerByWhatsapp"
+  | "createCustomer"
+  | "updateCustomerFullName"
+  | "updateCustomerFiscalData"
 >;
 
 type FindOrCreateCustomerInput = {
   fullName: string;
   whatsappNormalized: string;
+  /**
+   * Punto 4 del roadmap (2026-09-18) — los datos fiscales que el cliente dio para su factura. Llegan
+   * **sin normalizar**: `resolveCustomerFiscalData` decide si sirven (los dos o ninguno).
+   */
+  taxId?: string | null;
+  legalName?: string | null;
 };
 
 type FindOrCreateCustomerDependencies = {
@@ -49,6 +59,11 @@ export async function findOrCreateCustomer(
     dependencies.repository ?? new PrismaCustomerAuthRepository();
   const logger = dependencies.logger ?? console;
   const normalizedName = normalizeName(input.fullName);
+  /**
+   * Punto 4 — los datos fiscales se resuelven **antes** de tocar la base: media factura no se guarda y el
+   * cliente que no pidió factura no pierde el RUC que dio la vez anterior.
+   */
+  const fiscal = resolveCustomerFiscalData({ taxId: input.taxId, legalName: input.legalName });
 
   try {
     let customer = await repository.findCustomerByWhatsapp(
@@ -62,7 +77,7 @@ export async function findOrCreateCustomer(
           fullName: normalizedName,
         });
 
-        return created.id;
+        return await saveFiscalData(created.id, fiscal, repository, logger, input.whatsappNormalized);
       } catch (error) {
         if (isUniqueConstraintError(error)) {
           customer = await repository.findCustomerByWhatsapp(
@@ -91,6 +106,14 @@ export async function findOrCreateCustomer(
       return null;
     }
 
+    const saved = await saveFiscalData(
+      customer.id,
+      fiscal,
+      repository,
+      logger,
+      input.whatsappNormalized,
+    );
+
     if (normalizedName && !customer.fullName?.trim()) {
       try {
         const updated = await repository.updateCustomerFullName(
@@ -104,13 +127,40 @@ export async function findOrCreateCustomer(
           "update_customer_full_name_failed",
           input.whatsappNormalized,
         );
-        return customer.id;
+        return saved;
       }
     }
 
-    return customer.id;
+    return saved;
   } catch {
     warnAutoLink(logger, "auto_link_failed", input.whatsappNormalized);
     return null;
+  }
+}
+
+/**
+ * Punto 4 — guardar los datos fiscales del cliente, si los dio completos.
+ *
+ * **No hace fallar la venta**: la factura es un dato del cliente, no el cobro. Si el guardado fiscal falla
+ * se avisa en el log y se sigue con el id del cliente, que es lo que el pedido necesita.
+ */
+async function saveFiscalData(
+  customerId: string,
+  fiscal: { taxId: string | null; legalName: string | null },
+  repository: CustomerLinkRepository,
+  logger: Pick<Console, "warn">,
+  whatsappNormalized: string,
+): Promise<string> {
+  if (!fiscal.taxId || !fiscal.legalName) return customerId;
+
+  try {
+    const updated = await repository.updateCustomerFiscalData(customerId, {
+      taxId: fiscal.taxId,
+      legalName: fiscal.legalName,
+    });
+    return updated.id;
+  } catch {
+    warnAutoLink(logger, "update_customer_fiscal_data_failed", whatsappNormalized);
+    return customerId;
   }
 }

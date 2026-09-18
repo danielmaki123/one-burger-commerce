@@ -61,6 +61,14 @@ export type CreateOrderRequest = {
   customerWhatsapp: string;
   /** TASK-303b — correo opcional (la venta de mostrador lo pide y el cliente puede dejarlo vacío). */
   customerEmail?: string | null;
+  /**
+   * Punto 4 del roadmap (2026-09-18) — los datos fiscales del cliente cuando pidió factura con RUC.
+   *
+   * Viajan tal como los dio el POS: el alta es la única puerta de los datos del cliente, así que la
+   * normalización (los dos o ninguno) la hace `findOrCreateCustomer` y no la pantalla.
+   */
+  customerTaxId?: string | null;
+  customerLegalName?: string | null;
   items: OrderItemRequest[];
   couponCode?: string | null;
   /**
@@ -121,6 +129,8 @@ export async function createOrder(
     resolveCustomerId?: (input: {
       fullName: string;
       whatsappNormalized: string;
+      taxId?: string | null;
+      legalName?: string | null;
     }) => Promise<string | null>;
     orderLookupTokenGenerator?: () => string;
     /**
@@ -485,6 +495,10 @@ export async function createOrder(
     customerId = await resolveCustomerId({
       fullName: customerName,
       whatsappNormalized: normalizedWhatsapp,
+      // Punto 4: el RUC y la razón social viajan al cliente, no al pedido: la factura los busca por
+      // `customerId` al emitirse (`emitInvoice`).
+      taxId: input.customerTaxId ?? null,
+      legalName: input.customerLegalName ?? null,
     });
   } catch {
     console.warn(

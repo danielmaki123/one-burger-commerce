@@ -53,7 +53,13 @@ function createRepository(session: CustomerSessionRecord | null) {
     async findCustomerByWhatsapp() {
       return null;
     },
+    async findCustomerById() {
+      return null;
+    },
     async createCustomer() {
+      throw new Error("not used");
+    },
+    async updateCustomerFiscalData() {
       throw new Error("not used");
     },
     async updateCustomerFullName() {

@@ -74,6 +74,7 @@ const order = {
   orderNumber: "P-ABC123",
   status: "picked_up",
   customerName: "Ana",
+  customerId: null as string | null,
   locationId: "loc_centro",
   subtotal: 100,
   discount: 0,
@@ -324,6 +325,102 @@ describe("emitInvoice", () => {
         branchWhatsapp: null,
         branchMapsUrl: null,
       }),
+    );
+  });
+
+  /**
+   * Punto 4 del roadmap (2026-09-18) — **el respaldo de los datos fiscales del cliente**.
+   *
+   * La factura se emite desde el detalle del pedido, donde el RUC que el cajero cargó en el POS **no está
+   * en el body**: lo que viaja es el pedido, con su `customerId`. Si no se leyeran del cliente, la factura
+   * del POS saldría sin RUC —que es justo lo que el cliente pidió— aunque el dato esté guardado.
+   *
+   * Lo que el POS manda explícito manda: el cuerpo de la emisión es la última palabra.
+   */
+  it("toma el RUC del cliente del pedido cuando la emisión no lo manda", async () => {
+    const { repository: invoiceRepository, create } = repository();
+    const findCustomer = vi.fn(async () => ({
+      id: "cus_01",
+      fullName: "Ana",
+      whatsappNormalized: "+50588887777",
+      taxId: "J0310000001",
+      legalName: "Ana S.A.",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }));
+
+    await emitInvoice(
+      { orderId: "ord_01", actorUserId: "admin_1" },
+      {
+        invoiceRepository,
+        findOrder: async () => ({ ...order, customerId: "cus_01" }),
+        countPayments: async () => 1,
+        business,
+        findCustomer,
+      },
+    );
+
+    expect(findCustomer).toHaveBeenCalledWith("cus_01");
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        customerTaxId: "J0310000001",
+        customerLegalName: "Ana S.A.",
+      }),
+    );
+  });
+
+  it("lo que manda la emisión le gana a lo guardado en el cliente", async () => {
+    const { repository: invoiceRepository, create } = repository();
+
+    await emitInvoice(
+      {
+        orderId: "ord_01",
+        actorUserId: "admin_1",
+        customer: { taxId: "J0399999999", legalName: "Otra Razón" },
+      },
+      {
+        invoiceRepository,
+        findOrder: async () => ({ ...order, customerId: "cus_01" }),
+        countPayments: async () => 1,
+        business,
+        findCustomer: async () => ({
+          id: "cus_01",
+          fullName: "Ana",
+          whatsappNormalized: "+50588887777",
+          taxId: "J0310000001",
+          legalName: "Ana S.A.",
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }),
+      },
+    );
+
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        customerTaxId: "J0399999999",
+        customerLegalName: "Otra Razón",
+      }),
+    );
+  });
+
+  it("un pedido sin cliente vinculado (o sin datos fiscales) no inventa un RUC", async () => {
+    const { repository: invoiceRepository, create } = repository();
+
+    await emitInvoice(
+      { orderId: "ord_01", actorUserId: "admin_1" },
+      {
+        invoiceRepository,
+        findOrder: async () => order,
+        countPayments: async () => 1,
+        business,
+        findCustomer: async () => {
+          throw new Error("no se llama sin customerId");
+        },
+      },
+    );
+
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({ customerTaxId: null, customerLegalName: null }),
     );
   });
 });

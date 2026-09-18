@@ -759,6 +759,41 @@ describe("createOrder", () => {
     expect(resolveCustomerId).toHaveBeenCalledWith({
       fullName: "Juan Perez",
       whatsappNormalized: "+50588887777",
+      // Punto 4: sin factura pedida, los datos fiscales viajan en null.
+      taxId: null,
+      legalName: null,
+    });
+    expect(result.data.customerId).toBe("customer_01");
+  });
+
+  /**
+   * Punto 4 del roadmap (2026-09-18) — el RUC del cliente llega al alta y se vincula a su persona.
+   *
+   * El pedido **no** guarda los datos fiscales: se guardan en el `Customer` (una sola verdad por cliente) y
+   * la factura los busca por `customerId` al emitirse. Lo que se fija acá es que el alta los deja pasar.
+   */
+  it("lleva los datos fiscales del cliente al vínculo (Punto 4)", async () => {
+    const repository = createRepository();
+    seedProduct(repository);
+    const resolveCustomerId = vi.fn().mockResolvedValue("customer_01");
+
+    const result = await createOrder(
+      {
+        type: "pickup",
+        customerName: "Distribuidora La Unión",
+        customerWhatsapp: "+50588887777",
+        customerTaxId: "J0310000001",
+        customerLegalName: "Distribuidora La Unión",
+        items: [{ productId: "prod_01", quantity: 1, modifierOptionIds: [] }],
+      },
+      { repository, resolveCustomerId },
+    );
+
+    expect(resolveCustomerId).toHaveBeenCalledWith({
+      fullName: "Distribuidora La Unión",
+      whatsappNormalized: "+50588887777",
+      taxId: "J0310000001",
+      legalName: "Distribuidora La Unión",
     });
     expect(result.data.customerId).toBe("customer_01");
   });

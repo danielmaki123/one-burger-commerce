@@ -1,5 +1,6 @@
 import { PrismaBusinessSettingsRepository } from "@/modules/business-settings/adapters/prisma-business-settings-repository";
 import { loadBusinessSettings } from "@/modules/business-settings/features/get-public-business-settings/get-public-business-settings";
+import { PrismaCustomerAuthRepository } from "@/modules/customers/adapters/prisma-customer-auth-repository";
 import { PrismaLocationRepository } from "@/modules/locations/adapters/prisma-location-repository";
 import { PrismaOrderRepository } from "@/modules/orders/adapters/prisma-order-repository";
 import { PrismaPaymentRepository } from "@/modules/orders/adapters/prisma-payment-repository";
@@ -20,11 +21,22 @@ export async function createProductionInvoiceDependencies(): Promise<EmitInvoice
   const orderRepository = new PrismaOrderRepository();
   const paymentRepository = new PrismaPaymentRepository();
   const locationRepository = new PrismaLocationRepository();
+  const customerRepository = new PrismaCustomerAuthRepository();
 
   return {
     invoiceRepository: new PrismaInvoiceRepository(),
     findOrder: (orderId) => orderRepository.findOrderById(orderId),
     countPayments: async (orderId) => (await paymentRepository.listPaymentsByOrder(orderId)).length,
+    /**
+     * Punto 4 del roadmap (2026-09-18) — el cliente del pedido, para el respaldo de los datos fiscales: el
+     * RUC que el cajero cargó en el POS quedó guardado en el cliente, no en el pedido.
+     */
+    findCustomer: async (customerId) => {
+      const customer = await customerRepository.findCustomerById(customerId);
+      if (!customer) return null;
+
+      return { legalName: customer.legalName ?? null, taxId: customer.taxId ?? null };
+    },
     /**
      * La sucursal del pedido, para congelarla en el documento. Sin local (o sin datos) el bloque no se
      * imprime: el documento no inventa una dirección.

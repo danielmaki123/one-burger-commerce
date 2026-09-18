@@ -43,7 +43,16 @@ export type PosHeldSale = {
   /** Cuándo se dejó en espera (ISO). `""` cuando el guardado no traía una fecha legible. */
   savedAt: string;
   lines: PosDraftLine[];
-  customer: { name: string; whatsapp: string; email: string };
+  customer: {
+    name: string;
+    whatsapp: string;
+    email: string;
+    /**
+     * Punto 4 del roadmap (2026-09-18) — la factura con RUC que el cajero dejó a medio cargar. Es opcional
+     * para que una venta guardada antes de este cambio se siga pudiendo retomar (sin factura).
+     */
+    fiscal?: { wantsInvoice: boolean; taxId: string; legalName: string };
+  };
   payments: PosHeldPayment[];
   /** `null` cuando el guardado es viejo o la clave no sirve: al retomar se genera una nueva. */
   attemptKey: string | null;
@@ -116,7 +125,28 @@ function readCustomer(value: unknown): PosHeldSale["customer"] {
   // Los espacios de los costados son de la pantalla, no del cliente: "  " no es un nombre.
   const text = (field: unknown) => (typeof field === "string" ? field.trim() : "");
 
-  return { name: text(candidate.name), whatsapp: text(candidate.whatsapp), email: text(candidate.email) };
+  /**
+   * Punto 4 — la factura que el cajero dejó cargada. Solo se restaura si de verdad venía marcada: un
+   * guardado viejo (sin el campo) retoma sin factura, que es el estado por defecto.
+   */
+  const fiscalCandidate = (candidate as { fiscal?: unknown }).fiscal;
+  const fiscal =
+    typeof fiscalCandidate === "object" &&
+    fiscalCandidate !== null &&
+    (fiscalCandidate as { wantsInvoice?: unknown }).wantsInvoice === true
+      ? {
+          wantsInvoice: true,
+          taxId: text((fiscalCandidate as { taxId?: unknown }).taxId),
+          legalName: text((fiscalCandidate as { legalName?: unknown }).legalName),
+        }
+      : undefined;
+
+  return {
+    name: text(candidate.name),
+    whatsapp: text(candidate.whatsapp),
+    email: text(candidate.email),
+    ...(fiscal ? { fiscal } : {}),
+  };
 }
 
 function readHold(value: unknown): PosHeldSale | null {

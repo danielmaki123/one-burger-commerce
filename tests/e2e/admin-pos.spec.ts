@@ -456,6 +456,55 @@ test.describe("punto de venta", () => {
     await reimpresion.close();
   });
 
+  /**
+   * Punto 4 del roadmap (2026-09-18) — el cliente que pide **factura con RUC**.
+   *
+   * El recorrido entero, en un navegador real: el cajero marca el tilde, carga el RUC y la razón social, y
+   * la venta sale. Después, desde el **detalle del pedido** (donde el RUC no viaja en el body), la factura
+   * tiene que salir **con el RUC del cliente**: es el respaldo que se agregó por esto mismo.
+   */
+  test("el cliente pide factura con RUC y la factura sale con sus datos (Punto 4)", async ({ page }) => {
+    test.skip(!mutationsAllowed, "Order creation is disabled unless E2E_ALLOW_MUTATIONS=true.");
+
+    await loginAsOwner(page);
+    await page.goto("/admin/pos");
+    await ensureOpenShift(page);
+    await addFirstProduct(page);
+
+    const etiqueta = await page.getByRole("button", { name: /^Cobrar / }).textContent();
+    const total = Number((etiqueta ?? "").replace(/[^\d.]/g, ""));
+    expect(total).toBeGreaterThan(0);
+
+    await page.getByLabel("Nombre del cliente").fill("Distribuidora La Unión");
+    await page.getByLabel("Número del cliente").fill("88887777");
+    await page.getByLabel("Con cuánto paga").fill(String(total));
+
+    // Con el tilde puesto, el RUC y la razón social son obligatorios: con el RUC corto el cobro no sale.
+    await page.getByLabel("Cliente pide factura con RUC").check();
+    await page.getByLabel("RUC (mínimo 8 caracteres)").fill("J0310");
+    await page.getByLabel("Razón social").fill("Distribuidora La Unión");
+    await page.getByRole("button", { name: /^Cobrar / }).click();
+    await expect(page.getByText("Revisá los datos marcados.")).toBeVisible();
+
+    await page.getByLabel("RUC (mínimo 8 caracteres)").fill("J0310000001");
+    await page.getByRole("button", { name: /^Cobrar / }).click();
+
+    const confirmacion = page.getByRole("status");
+    await expect(confirmacion).toContainText("Venta P-");
+    const numero = (await confirmacion.textContent())?.match(/P-[A-Z0-9]+/)?.[0];
+    expect(numero, "la confirmación trae el número de pedido").toBeTruthy();
+
+    // Y la factura del pedido sale con el RUC del cliente, emitida desde el detalle.
+    await page.goto("/admin/orders");
+    await page.getByRole("link", { name: /Abrir orden/ }).filter({ hasText: numero! }).first().click();
+
+    await page.getByRole("button", { name: "Emitir factura" }).click();
+    // El panel de la factura imprime el RUC y la razón social del cliente: salieron del `Customer`, no del
+    // body de la emisión (el detalle no los pide cuando ya están guardados).
+    await expect(page.getByText("RUC J0310000001")).toBeVisible();
+    await expect(page.getByText("Distribuidora La Unión").first()).toBeVisible();
+  });
+
   test("la caja se abre y se cierra contando billetes (TASK-305b)", async ({ page }) => {
     test.skip(!mutationsAllowed, "Order creation is disabled unless E2E_ALLOW_MUTATIONS=true.");
 

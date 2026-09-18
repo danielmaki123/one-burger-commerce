@@ -30,6 +30,8 @@ import { AdminEmptyState, AdminPageHeader } from "../_components/admin-operation
 import PosChargePanel from "./pos-charge-panel";
 import PosCouponPanel from "./pos-coupon-panel";
 import PosCustomerFields from "./pos-customer-fields";
+import type { PosCustomerDraft } from "./pos-customer-fields";
+import { buildPosFiscalPayload, EMPTY_POS_FISCAL_DRAFT } from "./pos-fiscal-payload";
 import PosDiscountPanel, { type AppliedManualDiscount } from "./pos-discount-panel";
 import PosHoldsPanel from "./pos-holds-panel";
 import PosPaymentRows from "./pos-payment-rows";
@@ -127,7 +129,13 @@ export default function PosClient({
    */
   const [manualDiscount, setManualDiscount] = React.useState<AppliedManualDiscount | null>(null);
   const [reloadKey, setReloadKey] = React.useState(0);
-  const [customer, setCustomer] = React.useState({ name: "", whatsapp: "", email: "" });
+  const [customer, setCustomer] = React.useState<PosCustomerDraft>({
+    name: "",
+    whatsapp: "",
+    email: "",
+    // Punto 4: la factura con RUC arranca **apagada** (la mayoría de las ventas no llevan factura).
+    fiscal: EMPTY_POS_FISCAL_DRAFT,
+  });
   /**
    * Bloque 4 del roadmap del POS (Fase 2) — el cobro es una **lista**.
    *
@@ -399,7 +407,7 @@ export default function PosClient({
     });
 
     setDraft(createPosDraft(locationId));
-    setCustomer({ name: "", whatsapp: "", email: "" });
+    setCustomer({ name: "", whatsapp: "", email: "", fiscal: { ...EMPTY_POS_FISCAL_DRAFT } });
     setPayments([{ id: "pay_1", method: "cash", currency: settings.currencyCode, amount: "" }]);
     renewAttemptKey();
     setSaleError(null);
@@ -409,7 +417,8 @@ export default function PosClient({
   /** Tareas 9.4 y 9.5 — traer de vuelta la venta en espera, con su cliente, su cobro y su clave. */
   const resumeHeldSale = (heldSale: PosHeldSale) => {
     setDraft({ locationId, lines: heldSale.lines });
-    setCustomer(heldSale.customer);
+    // Punto 4: la factura que quedó a medio cargar vuelve con la venta; sin ella, arranca apagada.
+    setCustomer({ ...heldSale.customer, fiscal: heldSale.customer.fiscal ?? EMPTY_POS_FISCAL_DRAFT });
     setPayments(
       heldSale.payments.length === 0
         ? [{ id: "pay_1", method: "cash", currency: settings.currencyCode, amount: "" }]
@@ -468,6 +477,12 @@ export default function PosClient({
     if (draft.lines.length === 0) problems.lines = "Agregá al menos un producto.";
     if (customer.name.trim() === "") problems.name = "Escribí el nombre del cliente.";
     if (customer.whatsapp.trim() === "") problems.whatsapp = "Escribí el número del cliente.";
+    /**
+     * Punto 4 — la factura con RUC. El servidor valida lo mismo; acá el cajero lo ve junto al campo que
+     * falta, en vez de descubrirlo después del viaje.
+     */
+    const fiscal = buildPosFiscalPayload(customer.fiscal);
+    if (!fiscal.ok) problems[fiscal.field] = fiscal.message;
     if (filled.length === 0) problems.amount = "Escribí con cuánto paga el cliente.";
     // Bloque 4: cada fila del cobro partido tiene que tener monto, o el total cobrado no cierra.
     else if (filled.length !== payments.length) {
@@ -493,6 +508,9 @@ export default function PosClient({
             name: customer.name,
             whatsapp: customer.whatsapp,
             email: customer.email.trim() === "" ? null : customer.email,
+            // Punto 4: ya validados arriba; sin factura viajan los dos en null.
+            taxId: fiscal.ok ? fiscal.taxId : null,
+            legalName: fiscal.ok ? fiscal.legalName : null,
           },
           lines: draft.lines,
           payments: filled.map((payment) => ({
@@ -552,7 +570,7 @@ export default function PosClient({
         },
       });
       setDraft(createPosDraft(locationId));
-      setCustomer({ name: "", whatsapp: "", email: "" });
+      setCustomer({ name: "", whatsapp: "", email: "", fiscal: { ...EMPTY_POS_FISCAL_DRAFT } });
       setPayments([{ id: "pay_1", method: "cash", currency: settings.currencyCode, amount: "" }]);
       // La venta se cobró: el cupón ya se consumió y la que venga empieza sin promo ni descuento.
       setCoupon(null);

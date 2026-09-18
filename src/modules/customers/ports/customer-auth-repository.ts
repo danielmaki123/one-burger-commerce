@@ -23,6 +23,11 @@ export interface CustomerAuthRepository {
   findCustomerByWhatsapp(
     whatsappNormalized: string,
   ): Promise<CustomerRecord | null>;
+  /**
+   * Punto 4 del roadmap (2026-09-18) — el cliente por id. Lo necesita `emitInvoice`: la factura se emite
+   * desde el detalle del pedido, donde el RUC que el cajero cargó en el POS no está en el body.
+   */
+  findCustomerById(customerId: string): Promise<CustomerRecord | null>;
   createCustomer(input: {
     whatsappNormalized: string;
     fullName: string | null;
@@ -30,6 +35,14 @@ export interface CustomerAuthRepository {
   updateCustomerFullName(
     customerId: string,
     fullName: string,
+  ): Promise<CustomerRecord>;
+  /**
+   * Punto 4 — **actualiza** los datos fiscales del cliente (los dos, ya normalizados). Se llama en cada
+   * venta con factura: el cliente que ya existía se queda con el RUC que dio esta vez.
+   */
+  updateCustomerFiscalData(
+    customerId: string,
+    fiscal: { taxId: string; legalName: string },
   ): Promise<CustomerRecord>;
 
   createSession(input: {

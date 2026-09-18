@@ -10,6 +10,8 @@ function mapCustomer(customer: {
   id: string;
   fullName: string | null;
   whatsappNormalized: string;
+  taxId?: string | null;
+  legalName?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }): CustomerRecord {
@@ -17,6 +19,8 @@ function mapCustomer(customer: {
     id: customer.id,
     fullName: customer.fullName,
     whatsappNormalized: customer.whatsappNormalized,
+    taxId: customer.taxId ?? null,
+    legalName: customer.legalName ?? null,
     createdAt: customer.createdAt,
     updatedAt: customer.updatedAt,
   };
@@ -105,6 +109,15 @@ export class PrismaCustomerAuthRepository implements CustomerAuthRepository {
     return customer ? mapCustomer(customer) : null;
   }
 
+  async findCustomerById(customerId: string) {
+    const prisma = getPrismaClient();
+    const customer = await prisma.customer.findUnique({
+      where: { id: customerId },
+    });
+
+    return customer ? mapCustomer(customer) : null;
+  }
+
   async createCustomer(input: {
     whatsappNormalized: string;
     fullName: string | null;
@@ -122,6 +135,19 @@ export class PrismaCustomerAuthRepository implements CustomerAuthRepository {
     const customer = await prisma.customer.update({
       where: { id: customerId },
       data: { fullName },
+    });
+
+    return mapCustomer(customer);
+  }
+
+  async updateCustomerFiscalData(
+    customerId: string,
+    fiscal: { taxId: string; legalName: string },
+  ) {
+    const prisma = getPrismaClient();
+    const customer = await prisma.customer.update({
+      where: { id: customerId },
+      data: { taxId: fiscal.taxId, legalName: fiscal.legalName },
     });
 
     return mapCustomer(customer);

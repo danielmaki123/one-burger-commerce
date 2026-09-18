@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { MIN_TAX_ID_LENGTH } from "@/modules/customers/domain/customer-fiscal-data";
 import { PosError } from "@/modules/pos/domain/pos-errors";
 import type { PosDraft } from "@/modules/pos/domain/pos-draft";
 import { POS_PAYMENT_METHODS } from "@/modules/pos/domain/pos-sale";
@@ -48,38 +49,67 @@ const paymentSchema = z.object({
   reference: z.string().trim().max(80).nullable().optional(),
 });
 
-const saleSchema = z.object({
-  locationId: z.string().trim().min(1, "Elegí el local"),
-  customer: z.object({
-    name: z.string().trim().min(1, "Escribí el nombre del cliente").max(120),
-    whatsapp: z.string().trim().min(1, "Escribí el número del cliente").max(30),
-    email: z.string().trim().max(160).nullable().optional(),
-  }),
-  lines: z.array(lineSchema).min(1, "Agregá al menos un producto"),
-  payments: z.array(paymentSchema).min(1, "Registrá al menos un cobro"),
-  idempotencyKey: z.string().trim().min(1).max(80).nullable().optional(),
-  /**
-   * Tarea 9.6 del roadmap del POS (Fase 2) — el código de la promo que el cliente trajo.
-   *
-   * Llega como lo escribió el cajero y se **normaliza** acá (mayúsculas y sin espacios, la misma regla del
-   * checkout): el código se guarda en mayúsculas y el que lo escribe no tiene por qué saberlo.
-   */
-  couponCode: z.string().trim().max(40, "El código es muy largo").nullable().optional(),
-  /**
-   * Tarea 9.7 del roadmap del POS (Fase 2) — el **descuento manual** autorizado por quien administra la caja.
-   *
-   * Viaja como **forma** (porcentaje o monto) y con su motivo: el monto lo calcula el servidor. El permiso se
-   * comprueba en la ruta (`canDiscountPosSale`); acá solo se valida que los datos tengan sentido.
-   */
-  manualDiscount: z
-    .object({
-      kind: z.enum(["percentage", "amount"]),
-      value: z.number().positive("El descuento tiene que ser mayor que cero"),
-      reason: z.string().trim().min(3, "Escribí por qué se hace el descuento").max(200),
-    })
-    .nullable()
-    .optional(),
-});
+const saleSchema = z
+  .object({
+    locationId: z.string().trim().min(1, "Elegí el local"),
+    customer: z.object({
+      name: z.string().trim().min(1, "Escribí el nombre del cliente").max(120),
+      whatsapp: z.string().trim().min(1, "Escribí el número del cliente").max(30),
+      email: z.string().trim().max(160).nullable().optional(),
+      /**
+       * Punto 4 del roadmap (2026-09-18) — el cliente que pide **factura con RUC**. Los dos datos van juntos
+       * y el RUC tiene el mismo mínimo que la pantalla (8 caracteres): el cobro del POS es una API, no puede
+       * aceptar media factura por más que el mostrador lo impida.
+       */
+      taxId: z.string().trim().max(40).nullable().optional(),
+      legalName: z.string().trim().max(120).nullable().optional(),
+    }),
+    lines: z.array(lineSchema).min(1, "Agregá al menos un producto"),
+    payments: z.array(paymentSchema).min(1, "Registrá al menos un cobro"),
+    idempotencyKey: z.string().trim().min(1).max(80).nullable().optional(),
+    /**
+     * Tarea 9.6 del roadmap del POS (Fase 2) — el código de la promo que el cliente trajo.
+     *
+     * Llega como lo escribió el cajero y se **normaliza** acá (mayúsculas y sin espacios, la misma regla del
+     * checkout): el código se guarda en mayúsculas y el que lo escribe no tiene por qué saberlo.
+     */
+    couponCode: z.string().trim().max(40, "El código es muy largo").nullable().optional(),
+    /**
+     * Tarea 9.7 del roadmap del POS (Fase 2) — el **descuento manual** autorizado por quien administra la caja.
+     *
+     * Viaja como **forma** (porcentaje o monto) y con su motivo: el monto lo calcula el servidor. El permiso se
+     * comprueba en la ruta (`canDiscountPosSale`); acá solo se valida que los datos tengan sentido.
+     */
+    manualDiscount: z
+      .object({
+        kind: z.enum(["percentage", "amount"]),
+        value: z.number().positive("El descuento tiene que ser mayor que cero"),
+        reason: z.string().trim().min(3, "Escribí por qué se hace el descuento").max(200),
+      })
+      .nullable()
+      .optional(),
+  })
+  .superRefine((value, context) => {
+    const taxId = value.customer.taxId?.trim() ?? "";
+    const legalName = value.customer.legalName?.trim() ?? "";
+    if (!taxId && !legalName) return;
+
+    if (taxId.length < MIN_TAX_ID_LENGTH) {
+      context.addIssue({
+        code: "custom",
+        path: ["taxId"],
+        message: `El RUC tiene que tener al menos ${MIN_TAX_ID_LENGTH} caracteres`,
+      });
+    }
+
+    if (!legalName) {
+      context.addIssue({
+        code: "custom",
+        path: ["legalName"],
+        message: "Escribí la razón social",
+      });
+    }
+  });
 
 export type PosSalePayload = z.infer<typeof saleSchema>;
 
@@ -144,6 +174,9 @@ export function parsePosSalePayload(body: unknown): {
         name: parsed.data.customer.name,
         whatsapp: parsed.data.customer.whatsapp,
         email: parsed.data.customer.email ?? null,
+        // Punto 4: ya validados (los dos, con el mínimo del RUC) o vacíos.
+        taxId: parsed.data.customer.taxId ?? null,
+        legalName: parsed.data.customer.legalName ?? null,
       },
       payments: parsed.data.payments.map((payment) => ({
         method: payment.method,

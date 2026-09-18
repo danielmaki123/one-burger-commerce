@@ -109,4 +109,62 @@ describe("parsePosSalePayload", () => {
       parsePosSalePayload(body({ manualDiscount: { kind: "amount", value: 0, reason: "Cortesía" } })),
     ).toThrow(PosError);
   });
+
+  /**
+   * Punto 4 del roadmap (2026-09-18) — el cliente que pide **factura con RUC**.
+   *
+   * Los dos datos viajan juntos y el RUC tiene el mínimo de 8 caracteres: es lo que la pantalla exige y lo
+   * que el servidor no puede dejar pasar, porque el cobro del POS es una API.
+   */
+  it("lleva el RUC y la razón social del cliente", () => {
+    const parsed = parsePosSalePayload(
+      body({
+        customer: {
+          name: "Distribuidora La Unión",
+          whatsapp: "88887777",
+          taxId: " J0310000001 ",
+          legalName: " Distribuidora La Unión ",
+        },
+      }),
+    );
+
+    expect(parsed.input.customer).toMatchObject({
+      taxId: "J0310000001",
+      legalName: "Distribuidora La Unión",
+    });
+  });
+
+  it("sin factura, los datos fiscales quedan en null", () => {
+    expect(parsePosSalePayload(body()).input.customer.taxId).toBeNull();
+    expect(parsePosSalePayload(body()).input.customer.legalName).toBeNull();
+  });
+
+  it("un RUC de menos de 8 caracteres se rechaza con el campo señalado", () => {
+    try {
+      parsePosSalePayload(
+        body({
+          customer: {
+            name: "Distribuidora",
+            whatsapp: "88887777",
+            taxId: "J0310",
+            legalName: "Distribuidora La Unión",
+          },
+        }),
+      );
+      throw new Error("tenía que rechazarse");
+    } catch (error) {
+      expect(error).toBeInstanceOf(PosError);
+      expect((error as PosError).fields?.taxId).toMatch(/8/);
+    }
+  });
+
+  it("media factura se rechaza: el RUC sin razón social no pasa", () => {
+    expect(() =>
+      parsePosSalePayload(
+        body({
+          customer: { name: "Distribuidora", whatsapp: "88887777", taxId: "J0310000001" },
+        }),
+      ),
+    ).toThrow(PosError);
+  });
 });

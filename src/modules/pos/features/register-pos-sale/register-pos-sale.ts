@@ -38,7 +38,14 @@ import {
 
 export type RegisterPosSaleInput = {
   draft: PosDraft;
-  customer: { name: string; whatsapp: string; email?: string | null };
+  customer: {
+    name: string;
+    whatsapp: string;
+    email?: string | null;
+    /** Punto 4 del roadmap (2026-09-18) — factura con RUC: los dos datos, ya validados por la ruta. */
+    taxId?: string | null;
+    legalName?: string | null;
+  };
   payments: PosSalePaymentInput[];
   /** Clave de la operación: un reintento del mismo cobro no crea dos ventas (TASK-101). */
   idempotencyKey?: string | null;
@@ -195,6 +202,10 @@ export async function registerPosSale(
     customerName: input.customer.name,
     customerWhatsapp: input.customer.whatsapp,
     customerEmail: input.customer.email ?? null,
+    // Punto 4: el alta es la única puerta de los datos del cliente, así que los fiscales también van por ahí
+    // (los normaliza y los guarda en el `Customer`).
+    customerTaxId: input.customer.taxId ?? null,
+    customerLegalName: input.customer.legalName ?? null,
     items: input.draft.lines.map((line) => ({
       productId: line.productId,
       quantity: line.quantity,

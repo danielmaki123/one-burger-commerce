@@ -29,6 +29,11 @@ export type InvoiceOrderLookup = {
   id: string;
   status: string;
   customerName: string;
+  /**
+   * Punto 4 del roadmap (2026-09-18) — el cliente vinculado al pedido, si lo hay. La factura se emite
+   * desde el detalle, donde el RUC que el cajero cargó en el POS no viaja en el body: se lee del cliente.
+   */
+  customerId?: string | null;
   locationId: string;
   subtotal: number;
   discount: number;
@@ -58,6 +63,14 @@ export type EmitInvoiceDependencies = {
    * imprime; no se inventa.
    */
   findBranch?: (locationId: string) => Promise<InvoiceBranchSnapshot | null>;
+  /**
+   * Punto 4 del roadmap (2026-09-18) — **el respaldo de los datos fiscales del cliente**.
+   *
+   * La factura se emite desde el detalle del pedido, donde el RUC que el cajero cargó en el POS no viaja en
+   * el body: lo que se conoce es el `customerId`. Sin esta lectura, la factura del POS saldría sin RUC
+   * aunque el dato esté guardado en el cliente. Lo que la emisión manda explícito siempre gana.
+   */
+  findCustomer?: (customerId: string) => Promise<InvoiceCustomerLookup | null>;
   /** Los datos del negocio que van al documento (de la configuración, no hardcodeados). */
   business: {
     name: string;
@@ -78,6 +91,37 @@ export type EmitInvoiceResult = {
   /** `true` cuando el pedido ya tenía factura: no se emitió otra. */
   reused: boolean;
 };
+
+/** El cliente del pedido, reducido a lo que la factura necesita (Punto 4). */
+export type InvoiceCustomerLookup = {
+  legalName?: string | null;
+  taxId?: string | null;
+};
+
+/**
+ * Los datos fiscales que van al documento: lo que mandó la emisión y, si no vino, lo que el cliente tiene
+ * guardado. **Sin combinar campos**: media factura de un lado y media del otro armaría un documento que
+ * nadie pidió. Si la emisión no trae nada, se usan los dos del cliente; si trae algo, se respetan los suyos.
+ */
+function fiscalDataFor(input: {
+  emitted?: { legalName?: string | null; taxId?: string | null } | null;
+  stored?: InvoiceCustomerLookup | null;
+}): { legalName: string | null; taxId: string | null } {
+  const emittedLegalName = input.emitted?.legalName?.trim() ?? "";
+  const emittedTaxId = input.emitted?.taxId?.trim() ?? "";
+
+  if (emittedLegalName || emittedTaxId) {
+    return {
+      legalName: emittedLegalName || null,
+      taxId: emittedTaxId || null,
+    };
+  }
+
+  return {
+    legalName: input.stored?.legalName?.trim() || null,
+    taxId: input.stored?.taxId?.trim() || null,
+  };
+}
 
 /** La dirección del documento: la línea y la ciudad, sin repetir el separador si falta una. */
 function businessAddressOf(business: EmitInvoiceDependencies["business"]): string | null {
@@ -124,12 +168,20 @@ export async function emitInvoice(
 
   const branch = deps.findBranch ? await deps.findBranch(order.locationId) : null;
 
+  /**
+   * Punto 4 — el RUC del cliente. Se lee del cliente vinculado **solo si la emisión no lo mandó**: el
+   * detalle del pedido no tiene por qué saber que el POS ya lo cargó al cobrar.
+   */
+  const storedCustomer =
+    order.customerId && deps.findCustomer ? await deps.findCustomer(order.customerId) : null;
+  const fiscal = fiscalDataFor({ emitted: input.customer, stored: storedCustomer });
+
   const invoice = await deps.invoiceRepository.create({
     number: nextInvoiceNumber(await deps.invoiceRepository.findLatestNumber()),
     orderId: order.id,
     customerName: order.customerName,
-    customerLegalName: input.customer?.legalName?.trim() || null,
-    customerTaxId: input.customer?.taxId?.trim() || null,
+    customerLegalName: fiscal.legalName,
+    customerTaxId: fiscal.taxId,
     businessName: deps.business.name,
     businessLegalName: deps.business.legalName?.trim() || null,
     businessTaxId: deps.business.taxId?.trim() || null,
