@@ -10,6 +10,7 @@
  *   node scripts/capture-pos-catalogo.mjs <etiqueta> [baseUrl]
  *   node scripts/capture-pos-catalogo.mjs antes http://127.0.0.1:3210
  */
+/* global document */
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
