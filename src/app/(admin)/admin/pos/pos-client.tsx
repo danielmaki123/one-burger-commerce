@@ -681,7 +681,11 @@ export default function PosClient({
         />
       ) : (
         <div className="grid gap-5 lg:grid-cols-[1.6fr_1fr]">
-          <div className="space-y-4">
+          {/*
+            `min-w-0`: sin eso la columna del catálogo se estira con su contenido (la fila de chips con
+            scroll horizontal la dejaba más ancha que la pantalla y aparecía scroll horizontal a 375 px).
+          */}
+          <div className="min-w-0 space-y-4">
             <Select
               label="Local"
               value={locationId}

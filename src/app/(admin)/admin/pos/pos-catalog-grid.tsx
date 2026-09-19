@@ -56,7 +56,7 @@ export default function PosCatalogGrid({
   }, [products, query, activeCategoryId]);
 
   return (
-    <section className="space-y-4" aria-label="Catálogo">
+    <section className="min-w-0 space-y-4" aria-label="Catálogo">
       <Input
         label="Buscar en el catálogo"
         value={query}
