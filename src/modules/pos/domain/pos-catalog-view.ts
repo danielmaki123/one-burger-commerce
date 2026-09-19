@@ -1,5 +1,5 @@
+import { canQuickAddProduct } from "@/modules/menu/domain/modifier-selection";
 import type { ProductRecord, PublicMenuCategory } from "@/modules/menu/domain/menu.types";
-import { canQuickAddProduct } from "@/shared/lib/product-quick-add";
 
 import type {
   PosCatalogCategoryChip,

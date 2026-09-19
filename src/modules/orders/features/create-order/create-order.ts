@@ -2,6 +2,7 @@ import { publish } from "@/infrastructure/events/event-bus";
 import { DEFAULT_BUSINESS_SETTINGS } from "@/modules/business-settings/domain/business-settings-defaults";
 import { maskWhatsapp } from "@/modules/customers/domain/mask-whatsapp";
 import { findOrCreateCustomer } from "@/modules/customers/features/find-or-create-customer/find-or-create-customer";
+import { isModifierSelectionRequired } from "@/modules/menu/domain/modifier-selection";
 import { OrderError } from "@/modules/orders/domain/order-errors";
 import {
   COUPON_REJECTION_MESSAGES,
@@ -320,6 +321,14 @@ export async function createOrder(
       const selectedInGroup = selectedModifierIds.filter((id) =>
         group.options.some((opt) => opt.id === id),
       );
+
+      /**
+       * A-37 — un grupo obligatorio **sin opciones activas** no exige nada: no habría qué elegir. La
+       * regla es la del dominio del menú, la misma que decide el "+" de la carta y el «Agregar» del
+       * mostrador; antes acá se exigía igual y el alta rechazaba (422) un pedido que la carta dejaba
+       * agregar.
+       */
+      if (!isModifierSelectionRequired(group)) continue;
 
       if (group.isRequired && selectedInGroup.length === 0) {
         throw new OrderError(422, "VALIDATION_ERROR", "Required modifier missing", {

@@ -3,7 +3,9 @@ import { describe, expect, it } from "vitest";
 import type { ModifierGroupRecord } from "./menu.types";
 import {
   applyModifierSelection,
+  canQuickAddProduct,
   hasSelectableModifiers,
+  isModifierSelectionRequired,
   validateModifierSelections,
 } from "./modifier-selection";
 
@@ -126,5 +128,46 @@ describe("hasSelectableModifiers", () => {
     });
 
     expect(hasSelectableModifiers([soloInactivas])).toBe(false);
+  });
+});
+
+/**
+ * A-37 (2026-09-19) — **la** regla de "¿obliga a elegir?": la que decide el "+" de la carta, el
+ * `requiresOptions` del catálogo del mostrador y la validación del alta. Los casos de
+ * `canQuickAddProduct` se movieron acá desde `shared/lib/product-quick-add.test.ts`.
+ */
+describe("isModifierSelectionRequired / canQuickAddProduct", () => {
+  it("un grupo obligatorio con opciones exige elegir", () => {
+    expect(isModifierSelectionRequired(mockGroup({ isRequired: true }))).toBe(true);
+    expect(
+      canQuickAddProduct({
+        modifierGroups: [{ isRequired: true, minSelections: 0, options: [{ isActive: true }] }],
+      }),
+    ).toBe(false);
+  });
+
+  it("un mínimo mayor que cero también exige, aunque no sea obligatorio", () => {
+    expect(isModifierSelectionRequired(mockGroup({ isRequired: false, minSelections: 1 }))).toBe(
+      true,
+    );
+  });
+
+  it("un grupo opcional sin mínimo no exige: se agrega directo", () => {
+    expect(isModifierSelectionRequired(mockGroup({ isRequired: false, minSelections: 0 }))).toBe(
+      false,
+    );
+    expect(canQuickAddProduct({ modifierGroups: [] })).toBe(true);
+    expect(canQuickAddProduct({})).toBe(true);
+  });
+
+  it("un grupo obligatorio sin opciones activas no exige: no habría nada que elegir", () => {
+    const sinActivas = mockGroup({
+      isRequired: true,
+      minSelections: 1,
+      options: [{ id: "o1", name: "Queso", priceDelta: 0, isActive: false }],
+    });
+
+    expect(isModifierSelectionRequired(sinActivas)).toBe(false);
+    expect(canQuickAddProduct({ modifierGroups: [sinActivas] })).toBe(true);
   });
 });

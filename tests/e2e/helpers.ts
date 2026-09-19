@@ -1,8 +1,8 @@
 import { expect, type APIRequestContext, type Page } from "@playwright/test";
 
 import { ADMIN_ROLES, type AdminRole } from "@/modules/auth/domain/admin-role";
+import { canQuickAddProduct } from "@/modules/menu/domain/modifier-selection";
 import { normalizeSearchText } from "@/shared/lib/normalize-search-text";
-import { canQuickAddProduct } from "@/shared/lib/product-quick-add";
 
 export const ADMIN_EMAIL = "admin@example.com";
 export const ADMIN_PASSWORD = "Admin1234!";

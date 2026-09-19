@@ -1,6 +1,19 @@
 import type { ModifierGroupRecord } from "./menu.types";
 
 /**
+ * Lo mínimo que un grupo tiene que tener para decidir si **exige** una elección.
+ *
+ * Se tipa así y no con el `ModifierGroupRecord` completo porque el pedido
+ * (`getProductWithModifiers`, en el módulo `orders`) trae su propio shape, sin `sortOrder`: la regla es
+ * una sola y la consumen los dos.
+ */
+export type ModifierGroupSelectionRule = {
+  isRequired?: boolean | null;
+  minSelections?: number | null;
+  options?: readonly { isActive?: boolean | null }[] | null;
+};
+
+/**
  * Las reglas de selección de modificadores, en el **dominio del menú**.
  *
  * Vivían en `src/app/(public)/menu/[productId]/modifier-validation.ts`, o sea dentro de la carpeta de
@@ -61,4 +74,32 @@ export function applyModifierSelection(
  */
 export function hasSelectableModifiers(groups: readonly ModifierGroupRecord[]): boolean {
   return groups.some((group) => group.options.some((option) => option.isActive !== false));
+}
+
+/**
+ * ¿Este grupo **obliga** a elegir algo? Sí cuando es obligatorio (o pide un mínimo) **y tiene opciones
+ * activas**: un grupo obligatorio sin ninguna opción activa no obliga a nada, porque no habría qué
+ * elegir.
+ *
+ * Es **la** regla: la consumen el "+" de la carta (`canQuickAddProduct`), el `requiresOptions` del
+ * catálogo del mostrador y la validación del alta (`create-order`). Antes eran dos: `createOrder`
+ * exigía igual el grupo vacío y respondía 422 a un pedido que la carta dejaba agregar (A-37).
+ */
+export function isModifierSelectionRequired(group: ModifierGroupSelectionRule): boolean {
+  const activeOptions = (group.options ?? []).filter((option) => option.isActive !== false);
+  if (activeOptions.length === 0) return false;
+
+  return Boolean(group.isRequired) || (group.minSelections ?? 0) > 0;
+}
+
+/**
+ * ¿Se puede agregar el producto sin abrir la pantalla de opciones?
+ *
+ * Es lo que decide si la tarjeta de la carta muestra el "+" que agrega directo o lleva a elegir, y lo
+ * que marca `requiresOptions` en el catálogo del mostrador.
+ */
+export function canQuickAddProduct(product: {
+  modifierGroups?: readonly ModifierGroupSelectionRule[] | null;
+}): boolean {
+  return !(product.modifierGroups ?? []).some(isModifierSelectionRequired);
 }

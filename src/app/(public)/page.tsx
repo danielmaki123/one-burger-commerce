@@ -14,7 +14,8 @@ import {
 } from "@/shared/lib/business-settings";
 import { formatCurrency } from "@/shared/lib/format-currency";
 import { getPublicStartingPrice } from "@/shared/lib/public-product-pricing";
-import { buildQuickAddCartItem, canQuickAddProduct } from "@/shared/lib/product-quick-add";
+import { buildQuickAddCartItem } from "@/shared/lib/product-quick-add";
+import { canQuickAddProduct } from "@/modules/menu/domain/modifier-selection";
 import { PublicLocationsList } from "@/shared/ui/public-locations-list";
 import { getMenuSearchEmptyState } from "./menu/menu-page-helpers";
 import {
