@@ -3,12 +3,13 @@
 Este archivo es la **puerta de entrada**. Todo lo que hace falta saber está versionado en el repo: no
 hace falta nada de conversaciones anteriores. Si algo acá contradice a `AGENTS.md`, manda `AGENTS.md`.
 
-> ## Estado al cerrar la sesión del 2026-09-19 (tercera ronda — mejoras visuales del POS)
+> ## Estado al cerrar la sesión del 2026-09-19 (tercera ronda — mejoras visuales del POS, desplegadas)
 >
 > **Repo**: `main` — el HEAD real es `git log -1 main`; el cierre de esta ronda quedó en **`bce20da`**
-> (PR **#10**, squash, rama borrada).
-> **Sin deploy nuevo**: el último sigue siendo `build-20260918-170109` (commit `bcdb059`). Los PR #8 y #10
-> **no están desplegados**: desplegar es una decisión del owner.
+> (PR **#10**, squash, rama borrada) y el cierre documental en **`904683d`** (PR #11).
+> **Deploy hecho el 2026-09-19**: `build-20260919-030008`, commit **`904683d`**, sobre el servicio
+> `oneburguerweb` (una sola llamada a `deployService`). **Producción ya sirve los PR #8 y #10**: health
+> `ok`, readiness `ready` (base en 1 ms) y los dos smokes en verde (**menú 7/7**, **hosts 6/6**).
 >
 > **Lo que se cerró (PR #10)**: la **UI del mostrador** sobre el catálogo que dejó el PR #8. Ahora el POS
 > **vende cualquier producto de la carta** (con modificadores, pregunta en un modal oscuro), muestra las
@@ -57,9 +58,11 @@ hace falta nada de conversaciones anteriores. Si algo acá contradice a `AGENTS.
 >
 > ## ➡️ Próxima tarea: **la que elija el owner** (los dos pedidos del POS están cerrados)
 >
-> **No hay brief pendiente ni tarea de producto abierta.** `main` es desplegable, pero **los PR #8 y #10 no
-> están en producción**: si el owner quiere verlos en el mostrador, el paso es el deploy (una sola llamada
-> a `deployService`, runbook §2, y los dos smokes después) — **con su OK explícito**.
+> **No hay brief pendiente ni tarea de producto abierta.** `main` **está desplegado** (`build-20260919-030008`,
+> commit `904683d`), así que lo que se mergee después necesita un deploy nuevo: una sola llamada a
+> `deployService` (runbook §2) **con el OK explícito del owner**, y los dos smokes después. Un deploy
+> tarda unos minutos y la llamada **corta por timeout** sin que eso signifique que falló: se confirma con
+> `inspectService` (`commit.sha`) y con el `version` de `/api/health`.
 >
 > Lo que queda vivo es la cola de [`ops/audit-backlog.md`](../audit-backlog.md). **Preguntale al owner qué
 > quiere**; lo que necesita su decisión: **A-15** (cobros de pedidos cancelados — la de plata), **A-17**
