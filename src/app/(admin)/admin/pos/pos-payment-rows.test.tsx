@@ -20,10 +20,12 @@ function Probe({
   initial = [{ id: "pay_1", method: "cash", currency: "NIO", amount: "" }],
   fieldErrors = {},
   usdExchangeRate = null,
+  total = 145,
 }: {
   initial?: PosPaymentDraft[];
   fieldErrors?: Record<string, string>;
   usdExchangeRate?: number | null;
+  total?: number;
 }) {
   const [payments, setPayments] = React.useState<PosPaymentDraft[]>(initial);
 
@@ -34,6 +36,8 @@ function Probe({
         setPayments={setPayments}
         fieldErrors={fieldErrors}
         currencyCode="NIO"
+        currency={{ symbol: "C$", locale: "es-NI" }}
+        total={total}
         usdExchangeRate={usdExchangeRate}
       />
       <button
@@ -118,5 +122,38 @@ describe("PosPaymentRows", () => {
     render(<Probe fieldErrors={{ amount: "Escribí con cuánto paga el cliente." }} />);
 
     expect(screen.getByText("Escribí con cuánto paga el cliente.")).toBeTruthy();
+  });
+
+  /**
+   * Los montos rápidos del efectivo: el cajero no tipea, toca el billete con el que le pagaron. Solo en
+   * efectivo y solo en córdobas (los billetes son de córdobas; en un cobro en dólares no aplican).
+   */
+  it("con efectivo ofrece «Exacto» y los billetes, y llenan el monto", async () => {
+    const user = userEvent.setup();
+    render(<Probe total={145} />);
+
+    await user.click(screen.getByRole("button", { name: /500\.00/ }));
+    expect((screen.getByLabelText("Con cuánto paga") as HTMLInputElement).value).toBe("500");
+
+    await user.click(screen.getByRole("button", { name: "Exacto" }));
+    expect((screen.getByLabelText("Con cuánto paga") as HTMLInputElement).value).toBe("145");
+  });
+
+  it("con tarjeta no ofrece los montos del efectivo", async () => {
+    const user = userEvent.setup();
+    render(<Probe />);
+
+    await user.click(screen.getByRole("button", { name: /tarjeta/i }));
+
+    expect(screen.queryByRole("group", { name: "Montos rápidos de efectivo" })).toBeNull();
+  });
+
+  it("en un cobro en dólares no ofrece los billetes de córdobas", async () => {
+    const user = userEvent.setup();
+    render(<Probe usdExchangeRate={36.5} />);
+
+    await user.selectOptions(screen.getByLabelText("Moneda del cobro"), "USD");
+
+    expect(screen.queryByRole("group", { name: "Montos rápidos de efectivo" })).toBeNull();
   });
 });

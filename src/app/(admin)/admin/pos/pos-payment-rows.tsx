@@ -4,11 +4,13 @@ import * as React from "react";
 
 import { PAYMENT_METHOD_TYPE_LABELS } from "@/modules/orders/domain/order.types";
 import { POS_PAYMENT_METHODS } from "@/modules/pos/domain/pos-sale";
+import { type CurrencyFormat } from "@/shared/lib/format-currency";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Select } from "@/shared/ui/select";
 
 import type { PosPaymentDraft } from "./pos-types";
+import PosQuickCash from "./pos-quick-cash";
 
 /**
  * Bloque 4 del roadmap del POS (Fase 2) — las filas del cobro del mostrador.
@@ -20,6 +22,9 @@ import type { PosPaymentDraft } from "./pos-types";
  * **`mixed` no está en la lista y es a propósito**: el mixto es un **resultado** de partir el cobro entre dos
  * medios, no algo que el cajero elija. La lista de medios sale del dominio (`POS_PAYMENT_METHODS`), la misma
  * que acepta la API del cobro y la que se guarda en una venta en espera.
+ *
+ * **Mejoras visuales (2026-09-19)**: la fila en efectivo y en la moneda del negocio ofrece los montos
+ * rápidos (`pos-quick-cash.tsx`): el cajero toca el billete con el que le pagaron en vez de tipearlo.
  */
 
 const PAYMENT_METHOD_CHOICES = POS_PAYMENT_METHODS.map((id) => ({
@@ -33,6 +38,10 @@ type PosPaymentRowsProps = {
   /** Los errores por campo que devolvió el servidor (o los de la validación de la pantalla). */
   fieldErrors: Record<string, string>;
   currencyCode: string;
+  /** El formato de la moneda del negocio, para los montos rápidos. */
+  currency: CurrencyFormat;
+  /** El total de la venta: es lo que llena el botón «Exacto». */
+  total: number;
   /** Con tasa cargada el cajero puede cobrar en dólares; sin tasa, la moneda no se elige. */
   usdExchangeRate: number | null;
 };
@@ -42,6 +51,8 @@ export default function PosPaymentRows({
   setPayments,
   fieldErrors,
   currencyCode,
+  currency,
+  total,
   usdExchangeRate,
 }: PosPaymentRowsProps) {
   return (
@@ -114,6 +125,20 @@ export default function PosPaymentRows({
               )
             }
           />
+
+          {payment.method === "cash" && payment.currency === currencyCode ? (
+            <PosQuickCash
+              total={total}
+              currency={currency}
+              onPick={(amount) =>
+                setPayments((current) =>
+                  current.map((item) =>
+                    item.id === payment.id ? { ...item, amount: String(amount) } : item,
+                  ),
+                )
+              }
+            />
+          ) : null}
 
           {payment.method === "transfer" ? (
             <Input

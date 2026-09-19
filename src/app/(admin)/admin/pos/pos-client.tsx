@@ -771,6 +771,8 @@ export default function PosClient({
                 setPayments={setPayments}
                 fieldErrors={fieldErrors}
                 currencyCode={settings.currencyCode}
+                currency={currency}
+                total={totals.total}
                 usdExchangeRate={settings.usdExchangeRate}
               />
 
