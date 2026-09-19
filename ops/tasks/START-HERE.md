@@ -5,7 +5,8 @@ hace falta nada de conversaciones anteriores. Si algo acá contradice a `AGENTS.
 
 > ## Estado al cerrar la sesión del 2026-09-19 (leer esto primero)
 >
-> **Repo**: `main` en `85c7b5a`. **Sin deploy nuevo**: el último sigue siendo `build-20260918-170109`
+> **Repo**: `main` — el HEAD real es `git log -1 main` (el cierre del 2026-09-19 quedó en `e8ff6a8`).
+> **Sin deploy nuevo**: el último sigue siendo `build-20260918-170109`
 > (commit `bcdb059`). Las últimas sesiones fueron **documentación y CI, sin producto**: el Punto 4
 > (checkbox fiscal del POS), el modo cocina (Punto 3) y el desvío A-32 ya venían de antes y están
 > desplegados.
@@ -21,8 +22,9 @@ hace falta nada de conversaciones anteriores. Si algo acá contradice a `AGENTS.
 > **CI (verificado con un run real)**: corre en push a `main` **y en cada PR** — `verify`, `contracts`,
 > `migrations`, `container`. **`publish` (imagen a GHCR) solo en push a `main`**, nunca en PRs.
 >
-> **Medido contra GitHub al cerrar** (estado real, no supuesto): los **PR #1 a #5 están MERGED** (#2 a #5
-> con **squash** y rama borrada) y la protección de `main` está **ACTIVA como ruleset** `Protect main`
+> **Medido contra GitHub al cerrar** (estado real, no supuesto): **todos los PR de la ronda están MERGED**
+> (con **squash** y rama borrada, salvo el #1), el listado vive en `gh pr list --state merged`, y la
+> protección de `main` está **ACTIVA como ruleset** `Protect main`
 > (id `23673659`, `enforcement: active`, `refs/heads/main`): bloquea el borrado y el force push, y **exige
 > los 4 checks** con `strict` (la rama tiene que estar al día con `main` antes de mergear). Se verifica con
 > `gh api repos/danielmaki123/one-burger-commerce/rulesets/23673659` —
@@ -77,11 +79,11 @@ hace falta nada de conversaciones anteriores. Si algo acá contradice a `AGENTS.
 > · **A-23** la cuenta de prueba con rol `owner` en producción · **A-10** home del panel por rol ·
 > **A-12** el filtro «solo sin aceptar» · **A-33** dónde se mira el listado completo de Órdenes.
 >
-> **Trabajo técnico ya acotado (sin decisión)**: **A-35** no marcar `publish` como required check ·
-> **A-36** revisar `feat/design-system` · **A-16** historial de cajas · **A-18** arqueo por moneda ·
-> **A-24 → A-26 → A-25 → A-28 → A-27** (los pendientes que dejó la migración al sistema Stitch: controles
-> crudos, partir `settings-client.tsx`, los tres `window.confirm`, la barra del KDS en el 20%, E2E
-> determinista de madrugada).
+> **Trabajo técnico ya acotado (sin decisión)**: **A-36** revisar `feat/design-system` · **A-16** historial
+> de cajas · **A-18** arqueo por moneda · **A-24 → A-26 → A-25 → A-28 → A-27** (los pendientes que dejó la
+> migración al sistema Stitch: controles crudos, partir `settings-client.tsx`, los tres `window.confirm`,
+> la barra del KDS en el 20%, E2E determinista de madrugada). **A-35 quedó cerrado el 2026-09-19** (los 4
+> checks están cargados en el ruleset).
 >
 > El handoff de la ronda anterior sigue en
 > [`handoff-next-session.md`](handoff-next-session.md) (contexto, no trabajo pendiente).
@@ -123,9 +125,9 @@ hace falta nada de conversaciones anteriores. Si algo acá contradice a `AGENTS.
 > `design/*.md`) están **borrados: no se citan ni se recrean**. **La próxima tarea es el POS (mejoras
 > visuales): confirmá el alcance con el owner y hacé primero las 4 verificaciones del bloque de arriba**
 > — el rediseño del menú público sigue **PAUSADO**. Lo que queda habilitado es la cola de
-> [`ops/audit-backlog.md`](../audit-backlog.md): **A-35** (no marcar `publish` como required check) y
-> **A-36** (revisar la rama `feat/design-system` antes de tocar el sistema de diseño) son lo nuevo de esta
-> sesión; después siguen **A-24** los controles crudos que todavía no son primitivos → **A-26** partir
+> [`ops/audit-backlog.md`](../audit-backlog.md): **A-36** (revisar la rama `feat/design-system` antes de
+> tocar el sistema de diseño) es lo nuevo de esta sesión; después siguen **A-24** los controles crudos que
+> todavía no son primitivos → **A-26** partir
 > `settings-client.tsx` → **A-25** los tres `window.confirm` → **A-28** la barra del KDS en el 20% →
 > **A-27** E2E determinista de madrugada, y las **A-15 a A-23**, donde varias necesitan una decisión del
 > owner (A-15 cobros de pedidos cancelados —la de plata más importante—, A-17 tarjeta/transferencia,
@@ -237,8 +239,9 @@ infraestructura o decisiones del owner). **A-09 a A-14** los registró el agente
 **A-15 a A-23** salen de las tres consultas del 2026-09-15. **A-24 a A-28** son los pendientes que dejó
 la migración al sistema Stitch (2026-09-17). **A-29 a A-34** salen de las rondas del 2026-09-18 (mobile
 del chrome, PDF del cierre, TDD formalizado, el Historial y el POS, el listado de Órdenes inalcanzable y
-el RUC del negocio). **A-35 y A-36** son los de esta sesión: `publish` no va como required check, y hay
-que revisar la rama `feat/design-system` del otro dev antes de tocar el sistema de diseño.
+el RUC del negocio). **A-36** es el de esta sesión: hay que revisar la rama `feat/design-system` del otro
+dev antes de tocar el sistema de diseño. **A-35** (`publish` no va como required check) **quedó cerrado el
+2026-09-19**: los 4 checks ya están cargados en el ruleset.
 
 **Necesitan una decisión del owner (no se implementan sin respuesta):**
 
@@ -267,10 +270,10 @@ todavía no son primitivos (Menú, Inventario, Categorías; los tokens ya están
 **A-27** hacer determinista el E2E alrededor de la medianoche · **A-28** la barra superior del KDS y la
 regla del 20%. El orden sugerido es **A-24 → A-26 → A-25 → A-28 → A-27**.
 
-**Pendientes de la sesión del 2026-09-18 (git/CI):** **A-35** no marcar `publish` como *required check*
-(el PR quedaría trabado en «Expected»: ese job no corre en PRs) · **A-36** revisar la rama
+**Pendiente de la sesión del 2026-09-18 (git/CI):** **A-36** revisar la rama
 `feat/design-system` del otro dev **antes** de tocar el sistema de diseño (puede chocar con el rediseño
-del menú público).
+del menú público). **A-35 quedó cerrado el 2026-09-19**: el ruleset `Protect main` ya exige `verify`,
+`contracts`, `migrations` y `container`, **sin** `publish`.
 
 **Antes de arrancar, preguntale al owner qué task quiere** (el ciclo de auditoría es una por vez, la
 primera de la cola, y cada una cierra entera). Los otros pendientes operativos siguen igual:
