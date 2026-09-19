@@ -73,8 +73,8 @@ Estados: `reportado` · `a reproducir` · `en curso` · `cerrado` · `no-repro` 
 | A-36 | **Verificar la rama `feat/design-system` del otro dev antes de tocar el sistema de diseño**: existe en el remoto y no la creó esta sesión. El **rediseño del menú público (9 pantallas de Stitch) sigue pausado** (la próxima tarea es el POS), así que hay que ver qué trae esa rama para no pisarla ni duplicar criterios de tokens | deuda / coordinación | P2 | `reportado` (agente, 2026-09-18) | — |
 | A-34 | **A-20 (fiscal) avanzó a medias**: el Punto 4 (2026-09-18) guarda `taxId`/`legalName` en el `Customer` y la factura los congela, pero **el negocio no tiene RUC** (no hay campo en `BusinessSettings`/`Local`) y el recibo JPG sigue sin logo ni RUC. Falta decidir si la factura es fiscal de verdad (RUC del negocio, numeración autorizada) | decisión | P3 | `decisión-pendiente` (owner) | — |
 | A-32 | **El Historial depende del POS para dibujarse**: `ADMIN_HISTORY_NAV_ITEM` vive en el grupo Control y `withControlGroup` (`admin-layout-helpers.ts:114`) hacía `if (!posAvailable) return groups`, con `posAvailable` resuelto desde `GET /api/admin/pos/availability` (`admin-shell.tsx:96`). Sin POS disponible, un manager **no veía** el Historial aunque el Historial no dependa del POS. **Arreglado el 2026-09-18**: cada ítem lleva su permiso propio y el grupo se dibuja si queda al menos uno | bug | P2 | `cerrado` | `f35755c` |
-| A-37 | **`canQuickAddProduct` deja pasar un grupo obligatorio sin opciones activas**: con `isRequired: true` y todas las opciones inactivas la función devuelve `true` (no lo exige) y `createOrder` responde **422**. El "+" de la home y del menú, y el **Agregar** del POS, ofrecen algo que el alta rechaza | bug / regla compartida | P2 | `reportado` (agente, 2026-09-19) | — |
-| A-38 | **`applyLocationPricing` deja pasar un producto sin fila en `LocationProduct`**: el comentario del schema dice que sin fila el producto **no se vende** en ese local (`schema.prisma:226-227`), pero el código solo descarta la fila `isActive: false` y sin fila lo deja con el precio del negocio. Dos verdades sobre lo mismo, en la carta y en el mostrador | dato / decisión | P3 | `reportado` (agente, 2026-09-19) | — |
+| A-37 | **`canQuickAddProduct` deja pasar un grupo obligatorio sin opciones activas**: con `isRequired: true` y todas las opciones inactivas la función devolvía `true` (no lo exigía) y `createOrder` respondía **422**. El "+" de la home y del menú, y el **Agregar** del POS, ofrecían algo que el alta rechazaba. **Cerrado el 2026-09-19**: la regla es una sola (`isModifierSelectionRequired` / `canQuickAddProduct` en `modules/menu/domain/modifier-selection.ts`) y el alta la consume | bug / regla compartida | P2 | `cerrado` (2026-09-19) | `af80d93` |
+| A-38 | **`applyLocationPricing` deja pasar un producto sin fila en `LocationProduct`**: el comentario del schema decía que sin fila el producto **no se vende** en ese local, pero el código lo deja con el precio del negocio. Dos verdades sobre lo mismo. **Cerrado el 2026-09-19**: el owner confirmó que sin fila **sí se vende** y se corrigió el comentario (no el código) | dato / decisión | P3 | `cerrado` (2026-09-19) | `61d8ed5` |
 | A-19 | **No existen los movimientos de caja**: sin `CashMovement` (retiro/ingreso con motivo y responsable) ni configuración de caja en ningún lado; la propina en efectivo entra al cajón por decisión implícita (`close-shift.ts:143-144`) y la caja puede quedar abierta para siempre | decisión | P3 | `decisión-pendiente` (owner) | — |
 | A-20 | **No hay un solo campo fiscal** (`ruc`/`taxId`/`fiscal`/`legalName`/`documentNumber`: cero coincidencias en `prisma/` + `src/**`) y `Customer` solo tiene nombre + WhatsApp (`schema.prisma:59-69`). El recibo es un **JPG sin logo y sin RUC** (`src/shared/lib/receipt-image.ts`) y **solo se emite desde el POS al cobrar**, no desde el detalle del pedido | decisión | P3 | `decisión-pendiente` (owner) | — |
 | A-21 | **Documentación desactualizada en cuatro puntos verificados**: `DESIGN_SYSTEM.md §3.4:273` decía "2 literales de carga" (había **18** distintos), `§2.1:164` decía 15 tokens huérfanos (había **16**: también `--ring`, `globals.css:40`), `AGENTS.md:109` mandaba a `DESIGN_SYSTEM.md §5` por la lista de copy decorativo y **§5 no la tenía**, y `plna.md:546` afirma un `Payment.shiftId` que no existe. **Cerrado el 2026-09-15** (Capa 0 del plan de UI): los tres puntos del repo se corrigieron reescribiendo `DESIGN_SYSTEM.md` (los números viejos ya no existen: §2.1 y §3.4 se reescribieron) y `AGENTS.md` (el puntero a `§5` ahora es verdadero), y un contrato falla si `AGENTS.md` cita una sección que no existe. El cuarto punto es de `plna.md`, un documento **no versionado**: queda anotado en A-18 | documentación | P3 | `cerrado` | commit de la Capa 0 |
@@ -578,38 +578,35 @@ si los documentos pasan su tope de líneas o si el catálogo deja de tener la li
   `security:secrets` y `prisma migrate diff` sin drift. Deploy a producción `build-20260918-154317`
   (commit `f35755c`), readiness `ready` y smokes **7/7** (menú) y **6/6** (hosts).
 
-### A-37 · `canQuickAddProduct` deja pasar un grupo obligatorio sin opciones activas — `reportado` (agente, 2026-09-19)
+### A-37 · `canQuickAddProduct` deja pasar un grupo obligatorio sin opciones activas — `cerrado` (`af80d93`, 2026-09-19)
 
-- **Qué es**: `canQuickAddProduct` (`src/shared/lib/product-quick-add.ts:23-32`) devuelve **`true`**
-  cuando un grupo tiene `isRequired: true` pero **todas** sus opciones están inactivas: el bucle hace
-  `if (activeOptions.length === 0) return false` (no lo exige) y sigue. `createOrder`
-  (`src/modules/orders/features/create-order/create-order.ts:324-328`) sí lo exige y responde **422
-  «Required modifier missing»**.
-- **Por qué importa**: el "+" de la home y del menú (`(public)/page.tsx:179`,
-  `menu/menu-product-card.tsx:78`) y el botón **Agregar** del POS (`pos-catalog-view.ts:34`, vía
-  `requiresOptions`) ofrecen agregar de un toque un producto que el alta va a rechazar. Es la misma
-  clase de bug que el POS ya tuvo por otro motivo: un botón que promete algo que el servidor no acepta.
-- **Qué falta**: decidir la regla (¿un grupo obligatorio sin opciones activas bloquea el producto, o se
-  saltea?) y alinear las dos puntas. **No se tocó**: la regla es compartida por la carta, la home y el
-  mostrador, y el cambio de comportamiento necesita decisión del owner.
-- **Cómo se detectó**: revisando el camino de modificadores al hacer el POS con modificadores
-  (rama `feature/pos-catalogo-modificadores`, 2026-09-19).
+- **Qué era**: `canQuickAddProduct` (`src/shared/lib/product-quick-add.ts`) devolvía **`true`** cuando un
+  grupo tiene `isRequired: true` pero **todas** sus opciones están inactivas (no habría qué elegir), y
+  `createOrder` lo exigía igual: respondía **422 «Required modifier missing»**. El "+" de la home y del
+  menú, y el **Agregar** del POS (vía `requiresOptions`), ofrecían agregar de un toque un producto que el
+  alta rechazaba.
+- **Decisión del owner (2026-09-19)**: `canQuickAddProduct` es la **fuente única** y `createOrder` la
+  consume; la regla vive en el **dominio del módulo `menu`**.
+- **El arreglo**: `isModifierSelectionRequired(group)` y `canQuickAddProduct(product)` en
+  `src/modules/menu/domain/modifier-selection.ts` (la regla: obligatorio o con mínimo, **y con opciones
+  activas**). El alta la importa y saltea los grupos que no exigen nada; los códigos y mensajes de los
+  casos reales (obligatorio sin elegir, mínimo, máximo) quedan igual. `shared/lib/product-quick-add.ts`
+  se queda solo con `buildQuickAddCartItem`.
+- **Verificación**: test que fallaba con el error real (`OrderError: Required modifier missing`) y pasa
+  después; suite completa **3010 tests en 434 archivos** verdes.
 
-### A-38 · `applyLocationPricing` deja pasar un producto sin fila en `LocationProduct` — `reportado` (agente, 2026-09-19)
+### A-38 · `applyLocationPricing` deja pasar un producto sin fila en `LocationProduct` — `cerrado` (`61d8ed5`, 2026-09-19)
 
-- **Qué es**: el comentario del schema dice que sin fila en `LocationProduct` **el producto no se vende
-  en ese local** (`prisma/schema.prisma:226-227`), pero `applyLocationPricing`
-  (`src/modules/menu/features/get-catalog/apply-location-pricing.ts:37-40`) solo descarta el producto
-  cuando **hay** fila y está `isActive: false`; sin fila lo deja pasar con el precio del negocio.
-- **Por qué importa**: son dos verdades sobre lo mismo. Cargar un local nuevo (o desactivar toda su
-  carta) no vacía el catálogo: los productos siguen ofreciéndose con el precio del negocio, sin control
-  por sucursal. Afecta a la carta pública **y** al mostrador (leen el mismo caso de uso desde el
-  2026-09-19).
-- **Qué falta**: decidir cuál de las dos reglas vale (¿sin fila = no se vende, o sin fila = precio del
-  negocio?), documentarla y alinear el comentario del schema o el código. Cambia qué se puede pedir por
-  local, así que **necesita decisión del owner**.
-- **Cómo se detectó**: al unificar el catálogo en `getCatalog` (rama `feature/pos-catalogo-modificadores`,
-  2026-09-19).
+- **Qué era**: el comentario del schema decía que sin fila en `LocationProduct` **el producto no se vende
+  en ese local**, pero `applyLocationPricing` solo descarta el producto cuando **hay** fila y está
+  `isActive: false`; sin fila lo deja pasar con el precio del negocio. Dos verdades sobre lo mismo, en la
+  carta y en el mostrador.
+- **Decisión del owner (2026-09-19)**: un producto sin fila **sí se vende** (con el precio del negocio).
+  Se corrige **el comentario, no el código**, porque el comportamiento es el que se quiere.
+- **El arreglo**: el comentario del modelo `LocationProduct` explica qué significa la ausencia de fila y
+  cada campo (`priceOverride` en `null` = precio base, `isAvailable: false` = agotado en el local,
+  `isActive: false` = ese local no lo vende), y nombra este ítem para dejar la traza.
+- **Verificación**: `prisma validate` válido y `prisma migrate diff` **sin drift** (es un comentario).
 
 ## 2b. Deuda de TDD medida por el gate (2026-09-17)
 
