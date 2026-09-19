@@ -2,9 +2,11 @@
 
 import * as React from "react";
 
+import { calculateOrderChange } from "@/modules/orders/domain/payment-change";
 import { PAYMENT_METHOD_TYPE_LABELS } from "@/modules/orders/domain/order.types";
 import { POS_PAYMENT_METHODS } from "@/modules/pos/domain/pos-sale";
-import { type CurrencyFormat } from "@/shared/lib/format-currency";
+import { formatCurrency, type CurrencyFormat } from "@/shared/lib/format-currency";
+import { roundCurrency } from "@/shared/lib/order-totals";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Select } from "@/shared/ui/select";
@@ -31,6 +33,48 @@ const PAYMENT_METHOD_CHOICES = POS_PAYMENT_METHODS.map((id) => ({
   id,
   label: PAYMENT_METHOD_TYPE_LABELS[id],
 }));
+
+/**
+ * El vuelto en vivo de un cobro **único en efectivo**, mientras el cajero escribe.
+ *
+ * Sale de `calculateOrderChange`, la misma fórmula que usa el servidor al registrar el cobro, así que el
+ * número de la pantalla y el del arqueo no pueden discrepar. Si todavía no alcanza, lo dice: cobrar con
+ * un monto menor lo rechaza el alta.
+ */
+function LiveChange({
+  paidWith,
+  total,
+  currency,
+}: {
+  paidWith: number;
+  total: number;
+  currency: CurrencyFormat;
+}) {
+  if (!Number.isFinite(paidWith) || paidWith <= 0) return null;
+
+  const change = calculateOrderChange({ paidWithAmount: paidWith, total });
+  if (change === null) return null;
+
+  const missing = roundCurrency(total - paidWith);
+
+  if (missing > 0) {
+    return (
+      <p className="text-st-caption font-medium text-status-sla-text">
+        Faltan{" "}
+        <span className="font-mono tabular-nums">{formatCurrency(missing, currency)}</span>
+      </p>
+    );
+  }
+
+  return (
+    <p className="text-st-body text-ink-secondary">
+      Vuelto{" "}
+      <span className="font-mono text-st-body font-bold tabular-nums text-ink">
+        {formatCurrency(change, currency)}
+      </span>
+    </p>
+  );
+}
 
 type PosPaymentRowsProps = {
   payments: PosPaymentDraft[];
@@ -137,6 +181,14 @@ export default function PosPaymentRows({
                   ),
                 )
               }
+            />
+          ) : null}
+
+          {payment.method === "cash" && payment.currency === currencyCode && payment.amount.trim() !== "" ? (
+            <LiveChange
+              paidWith={Number(payment.amount)}
+              total={total}
+              currency={currency}
             />
           ) : null}
 

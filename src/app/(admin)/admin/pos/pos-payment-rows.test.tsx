@@ -156,4 +156,49 @@ describe("PosPaymentRows", () => {
 
     expect(screen.queryByRole("group", { name: "Montos rápidos de efectivo" })).toBeNull();
   });
+
+  /**
+   * El vuelto en vivo: el cajero ve cuánto tiene que devolver **mientras escribe**, no después de cobrar.
+   * Sale de la misma fórmula que usa el servidor (`calculateOrderChange`), así que el número de la
+   * pantalla y el del arqueo no pueden discrepar.
+   */
+  it("mientras escribe el efectivo, el vuelto se ve en vivo", async () => {
+    const user = userEvent.setup();
+    render(<Probe total={145} />);
+
+    expect(screen.queryByText(/Vuelto/)).toBeNull();
+
+    await user.type(screen.getByLabelText("Con cuánto paga"), "200");
+
+    expect(screen.getByText(/Vuelto/).textContent).toContain("55.00");
+  });
+
+  it("si el monto todavía no alcanza, lo dice antes de cobrar", async () => {
+    const user = userEvent.setup();
+    render(<Probe total={145} />);
+
+    await user.type(screen.getByLabelText("Con cuánto paga"), "100");
+
+    expect(screen.getByText(/Faltan/).textContent).toContain("45.00");
+    expect(screen.queryByText(/Vuelto/)).toBeNull();
+  });
+
+  it("con lo justo el vuelto es cero", async () => {
+    const user = userEvent.setup();
+    render(<Probe total={145} />);
+
+    await user.type(screen.getByLabelText("Con cuánto paga"), "145");
+
+    expect(screen.getByText(/Vuelto/).textContent).toContain("0.00");
+  });
+
+  it("en un cobro en dólares no se muestra un vuelto en córdobas", async () => {
+    const user = userEvent.setup();
+    render(<Probe total={145} usdExchangeRate={36.5} />);
+
+    await user.selectOptions(screen.getByLabelText("Moneda del cobro"), "USD");
+    await user.type(screen.getByLabelText("Con cuánto paga (en USD)"), "10");
+
+    expect(screen.queryByText(/Vuelto/)).toBeNull();
+  });
 });
