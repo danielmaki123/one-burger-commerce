@@ -1,24 +1,25 @@
 import { describe, expect, it } from "vitest";
 
-import { applyModifierSelection, validateModifierSelections } from "./modifier-validation";
+import type { ModifierGroupRecord } from "./menu.types";
+import { applyModifierSelection, validateModifierSelections } from "./modifier-selection";
 
-const mockGroup = (overrides: Partial<{
-  id: string;
-  name: string;
-  isRequired: boolean;
-  minSelections: number;
-  maxSelections: number;
-  options: { id: string; name: string; priceDelta: number }[];
-}> = {}) => ({
+/**
+ * Las reglas de selección del menú (movidas desde la carpeta de la ruta pública del producto).
+ *
+ * El grupo del caso es un `ModifierGroupRecord` **del dominio**, no una copia local: es el mismo shape
+ * que devuelve `/api/menu`, así que el test mide lo que el producto realmente entrega.
+ */
+const mockGroup = (overrides: Partial<ModifierGroupRecord> = {}): ModifierGroupRecord => ({
   id: "g1",
   name: "Toppings",
   isRequired: false,
   minSelections: 0,
   maxSelections: 3,
+  sortOrder: 0,
   options: [
-    { id: "o1", name: "Queso", priceDelta: 0 },
-    { id: "o2", name: "Jamón", priceDelta: 10 },
-    { id: "o3", name: "Champiñones", priceDelta: 15 },
+    { id: "o1", name: "Queso", priceDelta: 0, isActive: true },
+    { id: "o2", name: "Jamón", priceDelta: 10, isActive: true },
+    { id: "o3", name: "Champiñones", priceDelta: 15, isActive: true },
   ],
   ...overrides,
 });

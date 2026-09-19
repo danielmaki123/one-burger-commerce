@@ -1,20 +1,21 @@
-interface ModifierOption {
-  id: string;
-  name: string;
-  priceDelta: number;
-}
+import type { ModifierGroupRecord } from "./menu.types";
 
-interface ModifierGroup {
-  id: string;
-  name: string;
-  isRequired: boolean;
-  minSelections: number;
-  maxSelections: number;
-  options: ModifierOption[];
-}
+/**
+ * Las reglas de selección de modificadores, en el **dominio del menú**.
+ *
+ * Vivían en `src/app/(public)/menu/[productId]/modifier-validation.ts`, o sea dentro de la carpeta de
+ * una ruta: el POS no podía reusarlas sin importar de la carta pública. Acá son de quien son — el menú —
+ * y las consumen la ficha pública y el mostrador.
+ *
+ * Los tipos también salen del dominio (`ModifierGroupRecord`): antes este archivo declaraba sus propios
+ * `ModifierGroup`/`ModifierOption`, una segunda definición del mismo shape que el de `menu.types.ts`.
+ *
+ * La misma regla la aplica el **servidor** al crear el pedido (`create-order.ts`): si acá y allá
+ * divergieran, el cliente vería un CTA habilitado y el alta rechazaría la venta.
+ */
 
 export function validateModifierSelections(
-  groups: ModifierGroup[],
+  groups: ModifierGroupRecord[],
   selected: Record<string, string[]>,
 ): Record<string, string> {
   const errors: Record<string, string> = {};

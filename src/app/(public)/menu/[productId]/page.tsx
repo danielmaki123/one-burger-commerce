@@ -8,28 +8,17 @@ import { useBusinessSettings, useCurrencyFormat } from "@/shared/lib/business-se
 import { formatCurrency } from "@/shared/lib/format-currency";
 import { getPublicStartingPrice } from "@/shared/lib/public-product-pricing";
 import { Button } from "@/shared/ui/button";
+import type { ModifierGroupRecord } from "@/modules/menu/domain/menu.types";
+import { applyModifierSelection, validateModifierSelections } from "@/modules/menu/domain/modifier-selection";
 import { publicProductDetailScaleClasses, countAvailableSelectionGroups } from "../product-detail-page-helpers";
 import {
   findPublicProductById,
   formatModifierOptionPrice,
   getProductDetailEyebrow,
 } from "./product-detail-copy";
-import { applyModifierSelection, validateModifierSelections } from "./modifier-validation";
 
-interface ModifierOption {
-  id: string;
-  name: string;
-  priceDelta: number;
-}
-
-interface ModifierGroup {
-  id: string;
-  name: string;
-  isRequired: boolean;
-  minSelections: number;
-  maxSelections: number;
-  options: ModifierOption[];
-}
+/** La ficha usa el grupo de modificadores **del dominio**, no una copia local del mismo shape. */
+type ModifierGroup = ModifierGroupRecord;
 
 interface Product {
   id: string;
