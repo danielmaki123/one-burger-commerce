@@ -1,0 +1,150 @@
+{
+  "locationId": "loc_principal",
+  "locationName": "Principal",
+  "view": {
+    "products": [
+      {
+        "id": "seed-prod-01",
+        "categoryId": "cmu2txcu80001sd6g569uwnd6",
+        "subcategoryId": "cmu2txcuo0005sd6ghjnuvupi",
+        "name": "Taco de Birria",
+        "description": "Taco de res estilo Jalisco con consomé",
+        "basePrice": 35,
+        "packagingFeeAmount": null,
+        "images": [],
+        "availability": {
+          "isAvailable": true,
+          "isActive": true
+        },
+        "modifierGroups": [],
+        "bundleRules": [],
+        "createdAt": "2026-09-15T15:31:17.729Z",
+        "updatedAt": "2026-09-15T15:31:17.729Z",
+        "categoryName": "Tacos",
+        "requiresOptions": false
+      },
+      {
+        "id": "seed-prod-02",
+        "categoryId": "cmu2txcu80001sd6g569uwnd6",
+        "subcategoryId": "cmu2txcuo0005sd6ghjnuvupi",
+        "name": "Taco de Asada",
+        "description": "Carne de res a las brasas",
+        "basePrice": 30,
+        "packagingFeeAmount": null,
+        "images": [],
+        "availability": {
+          "isAvailable": true,
+          "isActive": true
+        },
+        "modifierGroups": [],
+        "bundleRules": [],
+        "createdAt": "2026-09-15T15:31:17.738Z",
+        "updatedAt": "2026-09-15T15:31:17.738Z",
+        "categoryName": "Tacos",
+        "requiresOptions": false
+      },
+      {
+        "id": "seed-prod-03",
+        "categoryId": "cmu2txcu80001sd6g569uwnd6",
+        "subcategoryId": "cmu2txcuw0007sd6gfa86qpbm",
+        "name": "Taco de Pastor",
+        "description": "Cerdo marinado con achiote",
+        "basePrice": 28,
+        "packagingFeeAmount": null,
+        "images": [],
+        "availability": {
+          "isAvailable": true,
+          "isActive": true
+        },
+        "modifierGroups": [
+          {
+            "id": "seed-mod-01",
+            "name": "Tipo de carne",
+            "isRequired": true,
+            "minSelections": 1,
+            "maxSelections": 1,
+            "sortOrder": 1,
+            "options": [
+              {
+                "id": "seed-mod-opt-01",
+                "name": "Res",
+                "priceDelta": 0,
+                "isActive": true
+              },
+              {
+                "id": "seed-mod-opt-02",
+                "name": "Cerdo",
+                "priceDelta": 0,
+                "isActive": true
+              }
+            ]
+          }
+        ],
+        "bundleRules": [],
+        "createdAt": "2026-09-15T15:31:17.742Z",
+        "updatedAt": "2026-09-15T15:31:17.742Z",
+        "categoryName": "Tacos",
+        "requiresOptions": true
+      },
+      {
+        "id": "seed-prod-04",
+        "categoryId": "cmu2txcug0002sd6ga0xwbelc",
+        "subcategoryId": "cmu2txcv00009sd6gycgcvv4j",
+        "name": "Agua de Jamaica",
+        "description": "Agua fresca de flor de jamaica",
+        "basePrice": 25,
+        "packagingFeeAmount": null,
+        "images": [],
+        "availability": {
+          "isAvailable": true,
+          "isActive": true
+        },
+        "modifierGroups": [],
+        "bundleRules": [],
+        "createdAt": "2026-09-15T15:31:17.747Z",
+        "updatedAt": "2026-09-15T15:31:17.747Z",
+        "categoryName": "Bebidas",
+        "requiresOptions": false
+      },
+      {
+        "id": "seed-prod-05",
+        "categoryId": "cmu2txcuk0003sd6gj4y34er1",
+        "subcategoryId": null,
+        "name": "Flan Napolitano",
+        "description": "Flan casero con cajeta",
+        "basePrice": 40,
+        "packagingFeeAmount": null,
+        "images": [],
+        "availability": {
+          "isAvailable": false,
+          "isActive": true
+        },
+        "modifierGroups": [],
+        "bundleRules": [],
+        "createdAt": "2026-09-15T15:31:17.751Z",
+        "updatedAt": "2026-09-15T15:31:17.751Z",
+        "categoryName": "Postres",
+        "requiresOptions": false
+      }
+    ],
+    "categories": [
+      {
+        "id": "cmu2txcu80001sd6g569uwnd6",
+        "name": "Tacos",
+        "count": 3
+      },
+      {
+        "id": "cmu2txcug0002sd6ga0xwbelc",
+        "name": "Bebidas",
+        "count": 1
+      },
+      {
+        "id": "cmu2txcuk0003sd6gj4y34er1",
+        "name": "Postres",
+        "count": 1
+      }
+    ],
+    "total": 5,
+    "query": ""
+  }
+}
