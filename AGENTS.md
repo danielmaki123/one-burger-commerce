@@ -237,13 +237,13 @@ devuelve **404** cuando la regla es un ruleset (ese 404 **no** significa «sin p
 **`deletion`** · **`non_fast_forward`** (force push bloqueado) · **`required_status_checks`** con
 `strict_required_status_checks_policy: true`.
 
-⚠️ **Dos huecos medidos el 2026-09-18**: (1) la lista de checks requeridos está **vacía**, así que el CI
-**no bloquea** el merge —hay que marcar `verify`, `contracts`, `migrations` y `container`, **nunca**
-`publish` (no corre en PRs)—; (2) **no hay regla de PR obligatorio**: el push directo lo bloquea el
-ruleset, pero mergear sin PR sigue siendo posible y lo sostiene el equipo.
+**Checks requeridos** (en el ruleset desde el 2026-09-19): `verify`, `contracts`, `migrations` y
+`container`, con `strict`; **nunca `publish`** (no corre en PRs y el PR queda en «Expected»). Falta la
+regla de **PR obligatorio**: el push directo lo bloquea el ruleset, pero mergear sin PR lo sostiene el equipo.
 
-El agente **no puede modificar la configuración de rama**: si algo falla por protección, se reporta al
-humano, no se intenta saltar.
+La configuración de rama se toca **solo con pedido explícito del owner** (los 4 checks se cargaron el
+2026-09-19 a su pedido, con `gh api --method PUT`); el agente no la cambia por iniciativa propia y, si algo
+falla por protección, **se reporta al humano**, no se saltea.
 
 ### Cierre de sesión
 

@@ -3,11 +3,12 @@
 Este archivo es la **puerta de entrada**. Todo lo que hace falta saber está versionado en el repo: no
 hace falta nada de conversaciones anteriores. Si algo acá contradice a `AGENTS.md`, manda `AGENTS.md`.
 
-> ## Estado al cerrar la sesión del 2026-09-18 (leer esto primero)
+> ## Estado al cerrar la sesión del 2026-09-19 (leer esto primero)
 >
-> **Repo**: `main` en `74ea819`. **Sin deploy nuevo**: el último sigue siendo `build-20260918-170109`
-> (commit `bcdb059`). Lo cerrado en la última sesión fue **documentación y CI**: el Punto 4 (checkbox
-> fiscal del POS), el modo cocina (Punto 3) y el desvío A-32 ya venían de antes y están desplegados.
+> **Repo**: `main` en `85c7b5a`. **Sin deploy nuevo**: el último sigue siendo `build-20260918-170109`
+> (commit `bcdb059`). Las últimas sesiones fueron **documentación y CI, sin producto**: el Punto 4
+> (checkbox fiscal del POS), el modo cocina (Punto 3) y el desvío A-32 ya venían de antes y están
+> desplegados.
 >
 > **Git — hay flujo nuevo, no push directo a `main`:**
 >
@@ -20,26 +21,54 @@ hace falta nada de conversaciones anteriores. Si algo acá contradice a `AGENTS.
 > **CI (verificado con un run real)**: corre en push a `main` **y en cada PR** — `verify`, `contracts`,
 > `migrations`, `container`. **`publish` (imagen a GHCR) solo en push a `main`**, nunca en PRs.
 >
-> **Medido contra GitHub al cerrar** (estado real, no supuesto): los **PR #1 a #4 están MERGED** (#2, #3 y
-> #4 con **squash**, rama borrada) y la protección de `main` está **ACTIVA como ruleset** `Protect main`
-> (`enforcement: active`, `refs/heads/main`): bloquea el borrado y el force push, y exige status checks con
-> `strict`. Se verifica con `gh api repos/danielmaki123/one-burger-commerce/rulesets` —
+> **Medido contra GitHub al cerrar** (estado real, no supuesto): los **PR #1 a #5 están MERGED** (#2 a #5
+> con **squash** y rama borrada) y la protección de `main` está **ACTIVA como ruleset** `Protect main`
+> (id `23673659`, `enforcement: active`, `refs/heads/main`): bloquea el borrado y el force push, y **exige
+> los 4 checks** con `strict` (la rama tiene que estar al día con `main` antes de mergear). Se verifica con
+> `gh api repos/danielmaki123/one-burger-commerce/rulesets/23673659` —
 > `/branches/main/protection` devuelve **404** y ese 404 **no** significa «sin protección».
 >
-> ⚠️ **Pendiente del dueño, no del agente**: el ruleset tiene *require status checks* **marcado pero sin
-> checks elegidos** (`required_status_checks: []`), así que hoy el CI verde no bloquea el merge. **No es un
-> bug, es el orden**: el workflow no corría en PRs hasta el PR #2 y recién ahora se pueden marcar
-> `verify` + `contracts` + `migrations` + `container` (**nunca `publish`**: se traba en «Expected», A-35).
-> Tampoco hay regla de PR obligatorio: el push directo lo bloquea el ruleset, pero mergear sin PR sigue
-> dependiendo del equipo. Las dos cosas se cambian en GitHub → Settings → Rules y el agente **no** puede
-> tocarlas.
+> ✅ **Ruleset con los 4 checks requeridos** (configurado el 2026-09-19): `verify`, `contracts`,
+> `migrations` y `container`. **`publish` queda afuera a propósito** (no corre en PRs y el PR quedaría en
+> «Expected» para siempre: A-35, cerrado). Sigue **sin regla de PR obligatorio**: el push directo lo
+> bloquea el ruleset, pero mergear sin PR depende del equipo.
+>
+> **Ramas remotas**: quedaron **`main`** y **`feat/design-system`** (la del otro dev, A-36). Las ramas
+> muertas `ci/pull-request-trigger` y `docs/git-flow-ramas-y-prs` se borraron.
+>
+> ## ➡️ Próxima tarea: **mejoras visuales del POS**
+>
+> La próxima tarea es el **POS** y es de **mejoras visuales**. El owner la pasó por chat el 2026-09-19 y
+> **todavía no hay brief escrito en el repo** (no existe `ops/tasks/TASK-pos-visual*.md`): **confirmá el
+> alcance con él antes de codear**, no lo inventes ni lo amplíes.
+>
+> **Las 4 verificaciones previas que pidió el owner, antes de escribir código** (son comprobaciones sobre
+> el código actual, no tareas nuevas; el detalle de cada una salió por chat y no está en el repo, así que
+> **si algo no cierra, preguntá antes de codear**):
+>
+> 1. **Modal de modificadores** — en `src/app/(admin)/admin/pos/` **no hay selector de modificadores** (el
+>    único `modifiers` de la carpeta es `pos-ticket-buttons.tsx`, que manda `modifiers: []`). Verificar si
+>    las mejoras visuales lo piden y si reusa lo del menú en vez de inventar otro.
+> 2. **`imageUrl`** — el POS **no dibuja la foto del producto** (cero coincidencias de `image`/`images` en
+>    la carpeta, salvo el `receipt-image` del JPG del recibo) y **`imageUrl` no existe** ahí: el producto
+>    del menú guarda `images[]`. Verificar de dónde saldría la imagen antes de agregar un campo.
+> 3. **Categorías** — el POS muestra `product.categoryName` en la tarjeta (`pos-client.tsx:691`) y **no
+>    tiene pestañas ni filtro por categoría**. Verificar si las mejoras visuales los piden.
+> 4. **Vuelto** — `lastSale.change` ya se muestra («Cambio C$ …», `pos-client.tsx:888`) y en un **cobro
+>    partido no hay vuelto** (`pos-client.tsx:814`). Verificar ese caso antes de tocar el bloque de cobro.
+>
+> ⚠️ **Lo que esta tarea NO incluye** — son features de la **Fase 2 del POS**, alcance aparte
+> ([`pos-roadmap.md`](pos-roadmap.md), con su inventario en
+> [`audit-ui/pos-fase2-status.md`](audit-ui/pos-fase2-status.md)): **partir el cobro** (Bloque 4.2/4.3) ·
+> **pedidos «En espera»** (Bloque 9.4/9.5) · **métodos de pago nuevos** (Bloque 4.1, transferencia).
+> **No implementarlos acá.**
 >
 > ## 🚫 Qué NO arrancar todavía
 >
-> **El rediseño del menú público (9 pantallas de Stitch) está PAUSADO**: el dueño lo anunció como próximo
-> trabajo y pidió **esperar su confirmación explícita**. No empezar por iniciativa propia, aunque el chat
-> esté ocioso. Antes de tocarlo, **verificar la rama `feat/design-system` del otro dev** (A-36): puede
-> chocar con el sistema de diseño.
+> **El rediseño del menú público (9 pantallas de Stitch) sigue PAUSADO**: ya no es la próxima tarea (lo es
+> el POS) y el owner pidió **esperar su confirmación explícita** para arrancarlo. No empezar por iniciativa
+> propia, aunque el chat esté ocioso. Antes de tocarlo, **verificar la rama `feat/design-system` del otro
+> dev** (A-36): puede chocar con el sistema de diseño.
 >
 > ## Cola relevante del backlog
 >
@@ -91,9 +120,9 @@ hace falta nada de conversaciones anteriores. Si algo acá contradice a `AGENTS.
 > (`ops/references/stitch/design-system.md` es la fuente de verdad visual). El plan `plna.md` y el plan
 > de UI `plan2uiux.md` (raíz, sin versionar) están **cerrados en sus tres fases**: no queda ningún archivo
 > del panel con tokens viejos y los documentos anteriores (`DESIGN_REFERENCES.md`, `DESIGN_SYSTEM.md`,
-> `design/*.md`) están **borrados: no se citan ni se recrean**. **La próxima tarea anunciada por el dueño
-> es el rediseño del menú público (9 pantallas de Stitch) y está PAUSADA hasta su confirmación
-> explícita** (ver el bloque de arriba). Lo que queda habilitado es la cola de
+> `design/*.md`) están **borrados: no se citan ni se recrean**. **La próxima tarea es el POS (mejoras
+> visuales): confirmá el alcance con el owner y hacé primero las 4 verificaciones del bloque de arriba**
+> — el rediseño del menú público sigue **PAUSADO**. Lo que queda habilitado es la cola de
 > [`ops/audit-backlog.md`](../audit-backlog.md): **A-35** (no marcar `publish` como required check) y
 > **A-36** (revisar la rama `feat/design-system` antes de tocar el sistema de diseño) son lo nuevo de esta
 > sesión; después siguen **A-24** los controles crudos que todavía no son primitivos → **A-26** partir
