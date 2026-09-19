@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const getPublicMenuMock = vi.fn();
+const getCatalogMock = vi.fn();
 
 vi.mock("@/modules/menu/adapters/prisma-menu-repository", () => ({
   PrismaMenuRepository: vi.fn(function Repository() {
@@ -8,8 +8,8 @@ vi.mock("@/modules/menu/adapters/prisma-menu-repository", () => ({
   }),
 }));
 
-vi.mock("@/modules/menu/features/get-public-menu/get-public-menu", () => ({
-  getPublicMenu: getPublicMenuMock,
+vi.mock("@/modules/menu/features/get-catalog/get-catalog", () => ({
+  getCatalog: getCatalogMock,
 }));
 
 describe("GET /api/menu", () => {
@@ -18,8 +18,10 @@ describe("GET /api/menu", () => {
   });
 
   it("returns a no-store dynamic response", async () => {
-    getPublicMenuMock.mockResolvedValueOnce({
+    getCatalogMock.mockResolvedValueOnce({
       categories: [{ id: "cat_1", name: "Entradas", slug: "entradas", products: [] }],
+      marketingBlocks: [],
+      generatedAt: "2026-09-19T00:00:00.000Z",
     });
 
     const route = await import("./route");
@@ -31,5 +33,33 @@ describe("GET /api/menu", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("no-store");
     expect(body.categories).toHaveLength(1);
+  });
+
+  it("lee la carta con el alcance público y le pasa los filtros de la URL", async () => {
+    getCatalogMock.mockResolvedValueOnce({
+      categories: [],
+      marketingBlocks: [],
+      generatedAt: "2026-09-19T00:00:00.000Z",
+    });
+
+    const route = await import("./route");
+    await route.GET(
+      new Request(
+        "http://localhost/api/menu?category=tacos&locationId=loc_norte&includeUnavailable=true",
+      ),
+    );
+
+    expect(getCatalogMock).toHaveBeenCalledWith(
+      {
+        scope: "public",
+        categorySlug: "tacos",
+        locationId: "loc_norte",
+        includeUnavailable: true,
+      },
+      expect.objectContaining({
+        repository: expect.anything(),
+        locationRepository: expect.anything(),
+      }),
+    );
   });
 });

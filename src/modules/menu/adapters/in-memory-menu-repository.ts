@@ -17,10 +17,17 @@ export class InMemoryMenuRepository implements MenuRepository {
   modifierGroups: ModifierGroupRecord[] = [];
   marketingBlocks: MenuMarketingBlockRecord[] = [];
 
-  async getPublicMenu(_params: {
+  async getPublicMenu(params: {
     categorySlug?: string;
     includeUnavailable?: boolean;
   }): Promise<PublicMenuCategory[]> {
+    // El doble respeta la misma pregunta que el adaptador de Prisma: `includeUnavailable` decide si el
+    // agotado viaja (el mostrador lo necesita, la carta no). Estaba ignorado y el doble devolvía siempre
+    // todo lo activo: medía un catálogo que producción no entrega.
+    const visible = (product: ProductRecord) =>
+      product.availability.isActive &&
+      (Boolean(params.includeUnavailable) || product.availability.isAvailable);
+
     return this.categories
       .filter((c) => c.isActive)
       .map((category) => ({
@@ -37,11 +44,11 @@ export class InMemoryMenuRepository implements MenuRepository {
             slug: sub.slug,
             sortOrder: sub.sortOrder,
             products: this.products.filter(
-              (p) => p.subcategoryId === sub.id && p.availability.isActive,
+              (p) => p.subcategoryId === sub.id && visible(p),
             ),
           })),
         products: this.products.filter(
-          (p) => p.categoryId === category.id && !p.subcategoryId && p.availability.isActive,
+          (p) => p.categoryId === category.id && !p.subcategoryId && visible(p),
         ),
       }));
   }

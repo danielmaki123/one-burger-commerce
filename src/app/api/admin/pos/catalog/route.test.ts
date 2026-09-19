@@ -14,7 +14,7 @@ import type { ProductRecord, PublicMenuCategory } from "@/modules/menu/domain/me
 
 const requireAdminSessionMock = vi.fn();
 const canUsePOSMock = vi.fn();
-const getPublicMenuMock = vi.fn();
+const getCatalogMock = vi.fn();
 const findLocationByIdMock = vi.fn();
 
 vi.mock("@/modules/auth/features/require-admin-session/require-admin-session", () => ({
@@ -25,8 +25,8 @@ vi.mock("@/modules/auth/domain/admin-permissions", () => ({
   canUsePOS: canUsePOSMock,
 }));
 
-vi.mock("@/modules/menu/features/get-public-menu/get-public-menu", () => ({
-  getPublicMenu: getPublicMenuMock,
+vi.mock("@/modules/menu/features/get-catalog/get-catalog", () => ({
+  getCatalog: getCatalogMock,
 }));
 
 vi.mock("@/modules/menu/adapters/prisma-menu-repository", () => ({
@@ -88,7 +88,7 @@ describe("admin pos catalog route", () => {
       user: { id: "admin_1", role: "cashier", locationIds: [] },
     });
     canUsePOSMock.mockReturnValue(true);
-    getPublicMenuMock.mockResolvedValue(menu);
+    getCatalogMock.mockResolvedValue(menu);
     findLocationByIdMock.mockResolvedValue({ id: "loc_norte", posEnabled: true });
   });
 
@@ -98,7 +98,7 @@ describe("admin pos catalog route", () => {
     const response = await callRoute("?locationId=loc_norte");
 
     expect(response.status).toBe(401);
-    expect(getPublicMenuMock).not.toHaveBeenCalled();
+    expect(getCatalogMock).not.toHaveBeenCalled();
   });
 
   it("cocina no usa el punto de venta: 403", async () => {
@@ -109,7 +109,7 @@ describe("admin pos catalog route", () => {
 
     expect(response.status).toBe(403);
     expect(body.error.code).toBe("FORBIDDEN");
-    expect(getPublicMenuMock).not.toHaveBeenCalled();
+    expect(getCatalogMock).not.toHaveBeenCalled();
   });
 
   it("sin local pedido responde 400 con el campo señalado", async () => {
@@ -125,8 +125,8 @@ describe("admin pos catalog route", () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(getPublicMenuMock).toHaveBeenCalledWith(
-      { locationId: "loc_norte" },
+    expect(getCatalogMock).toHaveBeenCalledWith(
+      { scope: "pos", locationId: "loc_norte" },
       expect.objectContaining({
         repository: expect.anything(),
         locationRepository: expect.anything(),
@@ -158,7 +158,7 @@ describe("admin pos catalog route", () => {
 
     expect(response.status).toBe(403);
     expect(body.error.fields.locationId).toContain("acceso");
-    expect(getPublicMenuMock).not.toHaveBeenCalled();
+    expect(getCatalogMock).not.toHaveBeenCalled();
   });
 
   // TASK-308: el local con el POS apagado no lee el catálogo ni por URL directa.
@@ -170,6 +170,6 @@ describe("admin pos catalog route", () => {
 
     expect(response.status).toBe(403);
     expect(body.error.code).toBe("FORBIDDEN");
-    expect(getPublicMenuMock).not.toHaveBeenCalled();
+    expect(getCatalogMock).not.toHaveBeenCalled();
   });
 });
