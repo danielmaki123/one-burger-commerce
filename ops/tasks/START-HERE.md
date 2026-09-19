@@ -3,15 +3,40 @@
 Este archivo es la **puerta de entrada**. Todo lo que hace falta saber está versionado en el repo: no
 hace falta nada de conversaciones anteriores. Si algo acá contradice a `AGENTS.md`, manda `AGENTS.md`.
 
-> ## Estado al cerrar la sesión del 2026-09-19 (leer esto primero)
+> ## Estado al cerrar la sesión del 2026-09-19 (segunda ronda — catálogo unificado y modificadores)
 >
-> **Repo**: `main` — el HEAD real es `git log -1 main` (el cierre del 2026-09-19 quedó en `e8ff6a8`).
-> **Sin deploy nuevo**: el último sigue siendo `build-20260918-170109`
-> (commit `bcdb059`). Las últimas sesiones fueron **documentación y CI, sin producto**: el Punto 4
-> (checkbox fiscal del POS), el modo cocina (Punto 3) y el desvío A-32 ya venían de antes y están
-> desplegados.
+> **Repo**: `main` — el HEAD real es `git log -1 main`; el cierre de esta ronda quedó en **`d937b5e`**
+> (PR **#8**, squash, rama borrada).
+> **Sin deploy nuevo**: el último sigue siendo `build-20260918-170109` (commit `bcdb059`). Esta ronda no
+> cambió nada de lo desplegado.
 >
-> **Git — hay flujo nuevo, no push directo a `main`:**
+> **Lo que se cerró (PR #8)**: la carta pública y el mostrador leen por el **mismo caso de uso**
+> (`src/modules/menu/features/get-catalog/get-catalog.ts` con `scope`) y la venta de mostrador **manda los
+> modificadores elegidos**. Antes **4 de los 6 productos reales** (las hamburguesas con el grupo `EXTRAS`
+> obligatorio) **no se podían cobrar desde el mostrador**: el alta respondía 422.
+>
+> Cómo quedó el código (leer esto antes de tocar el POS):
+>
+> | Pieza | Archivo | Qué es |
+> |---|---|---|
+> | El catálogo, un solo caso de uso | `src/modules/menu/features/get-catalog/get-catalog.ts` | `getCatalog({ scope: "public" \| "pos", locationId, query, categorySlug, includeUnavailable })`. La única diferencia entre las dos superficies es el alcance (`catalog-policy.ts`) |
+> | La regla de modificadores | `src/modules/menu/domain/modifier-selection.ts` | `validateModifierSelections` / `applyModifierSelection` (movidas de la carpeta de la ruta pública; **no** crear otra) |
+> | La búsqueda | `src/modules/menu/domain/catalog-search.ts` | `matchesCatalogQuery` — **una sola** para el servidor y la pantalla |
+> | La vista del mostrador | `src/modules/pos/domain/pos-catalog-view.ts` | `projectPosCatalog`: aplana, deduplica, deriva `requiresOptions` (`canQuickAddProduct`) y arma `categories: [{id, name, count}]` |
+> | La tarjeta del producto | `src/app/(admin)/admin/pos/pos-catalog-card.tsx` | Tres estados: **Agregar**, **Se elige en la carta** y **Agotado** (sin botón) |
+> | El borrador | `src/modules/pos/domain/pos-draft.ts` | `posLineKey` = producto + modificadores + nota; `modifierOptionIds` / `modifierNames` viajan en la línea (y en el guardado del dispositivo) |
+>
+> **Dos cambios de comportamiento que ya están en `main`**: el catálogo del mostrador **incluye los
+> agotados** (marcados «Agotado», sin botón) y el campo `price` de la respuesta del POS pasó a ser
+> `basePrice` (el shape es `PosCatalogProduct extends ProductRecord`). **El contrato público `/api/menu`
+> no cambió**: quedó idéntico byte a byte (único campo normalizado `generatedAt`).
+>
+> **Bugs latentes anotados ese día (no tocar sin decisión del owner)**: **A-37**
+> (`canQuickAddProduct` deja pasar un grupo obligatorio sin opciones activas y `createOrder` lo rechaza) y
+> **A-38** (`applyLocationPricing` deja pasar un producto sin fila en `LocationProduct`, contra lo que dice
+> el comentario del schema). Los dos en [`ops/audit-backlog.md`](../audit-backlog.md).
+>
+> **Git — el flujo sigue igual, no hay push directo a `main`:**
 >
 > 1. `git checkout main && git pull origin main`
 > 2. `git checkout -b <tipo>/<nombre-descriptivo>` — `feature/` · `fix/` · `refactor/` · `docs/` · `chore/`
@@ -19,60 +44,51 @@ hace falta nada de conversaciones anteriores. Si algo acá contradice a `AGENTS.
 > 4. **Abrir Pull Request hacia `main`** con: qué cambió, por qué, cómo se verificó, qué quedó fuera
 > 5. Esperar **CI verde** (4 checks) y mergear con `--squash --delete-branch`
 >
-> **CI (verificado con un run real)**: corre en push a `main` **y en cada PR** — `verify`, `contracts`,
-> `migrations`, `container`. **`publish` (imagen a GHCR) solo en push a `main`**, nunca en PRs.
+> **CI**: `verify` (secrets, lint, typecheck, tests, build), `contracts`, `migrations` y `container` corren
+> en cada PR; **`publish` (imagen a GHCR) solo en push a `main`**. La protección de `main` está **ACTIVA
+> como ruleset** `Protect main` (id `23673659`): bloquea borrado y force push y **exige los 4 checks** con
+> `strict`. Se verifica con `gh api repos/danielmaki123/one-burger-commerce/rulesets/23673659` —
+> `/branches/main/protection` devuelve **404** y ese 404 **no** significa «sin protección». **Falta la
+> regla de PR obligatorio** (lo bloquea el equipo, no GitHub).
 >
-> **Medido contra GitHub al cerrar** (estado real, no supuesto): **todos los PR de la ronda están MERGED**
-> (con **squash** y rama borrada, salvo el #1), el listado vive en `gh pr list --state merged`, y la
-> protección de `main` está **ACTIVA como ruleset** `Protect main`
-> (id `23673659`, `enforcement: active`, `refs/heads/main`): bloquea el borrado y el force push, y **exige
-> los 4 checks** con `strict` (la rama tiene que estar al día con `main` antes de mergear). Se verifica con
-> `gh api repos/danielmaki123/one-burger-commerce/rulesets/23673659` —
-> `/branches/main/protection` devuelve **404** y ese 404 **no** significa «sin protección».
+> **Ramas remotas**: `main` y `feat/design-system` (la del otro dev, A-36).
 >
-> ✅ **Ruleset con los 4 checks requeridos** (configurado el 2026-09-19): `verify`, `contracts`,
-> `migrations` y `container`. **`publish` queda afuera a propósito** (no corre en PRs y el PR quedaría en
-> «Expected» para siempre: A-35, cerrado). Sigue **sin regla de PR obligatorio**: el push directo lo
-> bloquea el ruleset, pero mergear sin PR depende del equipo.
+> ## ➡️ Próxima tarea: **la UI del POS (mejoras visuales)** — la segunda mitad del mismo pedido
 >
-> **Ramas remotas**: quedaron **`main`** y **`feat/design-system`** (la del otro dev, A-36). Las ramas
-> muertas `ci/pull-request-trigger` y `docs/git-flow-ramas-y-prs` se borraron.
+> El alcance lo confirmó el owner por chat (2026-09-19) y **la arquitectura ya está en `main`** (PR #8):
+> ahora falta la **UI**. Lo que pide, con el mockup `mockup/pos mostrador` como referencia **solo estética**:
 >
-> ## ➡️ Próxima tarea: **mejoras visuales del POS**
+> 1. **Todos los productos con «Agregar»**: sin modificadores → agrega directo; **con modificadores →
+>    abre el selector** (reusar la regla del dominio `modifier-selection.ts` y montar un selector
+>    **oscuro** del panel; el del público es una página, no un componente: no se puede importar). Los
+>    `modifierGroups` y las `images` **ya vienen** en la respuesta del catálogo.
+> 2. **Fotos en las tarjetas** (`images[]`, con el ícono de la categoría como respaldo: el host es externo
+>    y hay que manejar el `onError`).
+> 3. **Chips de categoría con contador**: el dato ya llega armado en `categories` de la respuesta.
+> 4. **Formulario del cliente**: iconos (persona, teléfono, correo) a la derecha y spacing más limpio.
+> 5. **Botones rápidos de efectivo**: `[Exacto] [C$200] [C$500] [C$1000]` (billetes reales de Nicaragua;
+>    **nada de C$150**), con `formatCurrency` y una constante en el componente con su test.
+> 6. **Vuelto en vivo** mientras se escribe (el cálculo ya existe: `calculateOrderChange`).
+> 7. **El aviso de caja cerrada**, más destacado.
 >
-> La próxima tarea es el **POS** y es de **mejoras visuales**. El owner la pasó por chat el 2026-09-19 y
-> **todavía no hay brief escrito en el repo** (no existe `ops/tasks/TASK-pos-visual*.md`): **confirmá el
-> alcance con él antes de codear**, no lo inventes ni lo amplíes.
+> **NO copiar del mockup**: el **sidebar** (el de producción queda como está) ni las features que ya
+> existen y **no se agregan**: **partir el cobro**, **«En espera»** y los **métodos de pago** (hoy hay
+> cuatro: efectivo, tarjeta, transferencia y otro). Tampoco se toca `createOrder` ni la lógica de cobro.
 >
-> **Las 4 verificaciones previas que pidió el owner, antes de escribir código** (son comprobaciones sobre
-> el código actual, no tareas nuevas; el detalle de cada una salió por chat y no está en el repo, así que
-> **si algo no cierra, preguntá antes de codear**):
->
-> 1. **Modal de modificadores** — en `src/app/(admin)/admin/pos/` **no hay selector de modificadores** (el
->    único `modifiers` de la carpeta es `pos-ticket-buttons.tsx`, que manda `modifiers: []`). Verificar si
->    las mejoras visuales lo piden y si reusa lo del menú en vez de inventar otro.
-> 2. **`imageUrl`** — el POS **no dibuja la foto del producto** (cero coincidencias de `image`/`images` en
->    la carpeta, salvo el `receipt-image` del JPG del recibo) y **`imageUrl` no existe** ahí: el producto
->    del menú guarda `images[]`. Verificar de dónde saldría la imagen antes de agregar un campo.
-> 3. **Categorías** — el POS muestra `product.categoryName` en la tarjeta (`pos-client.tsx:691`) y **no
->    tiene pestañas ni filtro por categoría**. Verificar si las mejoras visuales los piden.
-> 4. **Vuelto** — `lastSale.change` ya se muestra («Cambio C$ …», `pos-client.tsx:888`) y en un **cobro
->    partido no hay vuelto** (`pos-client.tsx:814`). Verificar ese caso antes de tocar el bloque de cobro.
->
-> ⚠️ **Lo que esta tarea NO incluye** — son features de la **Fase 2 del POS**, alcance aparte
-> ([`pos-roadmap.md`](pos-roadmap.md), con su inventario en
-> [`audit-ui/pos-fase2-status.md`](audit-ui/pos-fase2-status.md)): **partir el cobro** (Bloque 4.2/4.3) ·
-> **pedidos «En espera»** (Bloque 9.4/9.5) · **métodos de pago nuevos** (Bloque 4.1, transferencia).
-> **No implementarlos acá.**
+> ⚠️ `pos-client.tsx` (`src/app/(admin)/admin/pos/pos-client.tsx`) sigue siendo **deuda con techo
+> congelado** (más de 900 líneas): la UI nueva va en **archivos nuevos** de `pos/` con su test, y lo que
+> se toque se **extrae** en vez de agrandarlo (así se hizo con `pos-catalog-card.tsx`).
 >
 > ## 🚫 Qué NO arrancar todavía
 >
-> **El rediseño del menú público (9 pantallas de Stitch) sigue PAUSADO**: ya no es la próxima tarea (lo es
-> el POS) y el owner pidió **esperar su confirmación explícita** para arrancarlo. No empezar por iniciativa
-> propia, aunque el chat esté ocioso. Antes de tocarlo, **verificar la rama `feat/design-system` del otro
-> dev** (A-36): puede chocar con el sistema de diseño.
+> **El rediseño del menú público (9 pantallas de Stitch) sigue PAUSADO**: el owner pidió **esperar su
+> confirmación explícita**. Antes de tocarlo, **verificar la rama `feat/design-system` del otro dev**
+> (A-36): puede chocar con el sistema de diseño.
 >
 > ## Cola relevante del backlog
+>
+> **Nuevos del 2026-09-19**: **A-37** (`canQuickAddProduct` vs `createOrder`, P2) y **A-38**
+> (`applyLocationPricing` y la fila de `LocationProduct`, P3).
 >
 > **Necesitan decisión del owner**: **A-15** (cobros de pedidos cancelados — la de plata más importante)
 > · **A-17** tarjeta/transferencia · **A-19** movimientos de caja · **A-20/A-34** fiscal y RUC del negocio
@@ -122,19 +138,21 @@ hace falta nada de conversaciones anteriores. Si algo acá contradice a `AGENTS.
 > (`ops/references/stitch/design-system.md` es la fuente de verdad visual). El plan `plna.md` y el plan
 > de UI `plan2uiux.md` (raíz, sin versionar) están **cerrados en sus tres fases**: no queda ningún archivo
 > del panel con tokens viejos y los documentos anteriores (`DESIGN_REFERENCES.md`, `DESIGN_SYSTEM.md`,
-> `design/*.md`) están **borrados: no se citan ni se recrean**. **La próxima tarea es el POS (mejoras
-> visuales): confirmá el alcance con el owner y hacé primero las 4 verificaciones del bloque de arriba**
-> — el rediseño del menú público sigue **PAUSADO**. Lo que queda habilitado es la cola de
-> [`ops/audit-backlog.md`](../audit-backlog.md): **A-36** (revisar la rama `feat/design-system` antes de
-> tocar el sistema de diseño) es lo nuevo de esta sesión; después siguen **A-24** los controles crudos que
-> todavía no son primitivos → **A-26** partir
-> `settings-client.tsx` → **A-25** los tres `window.confirm` → **A-28** la barra del KDS en el 20% →
-> **A-27** E2E determinista de madrugada, y las **A-15 a A-23**, donde varias necesitan una decisión del
-> owner (A-15 cobros de pedidos cancelados —la de plata más importante—, A-17 tarjeta/transferencia,
-> A-19 movimientos de caja, A-20/A-34 fiscal y RUC, A-23 la cuenta de prueba con rol owner, A-10 home por
-> rol, A-12 filtro «solo sin aceptar», A-33 el listado completo de Órdenes). **No inventes trabajo para
-> no quedar quieto**: si el owner ya entregó un plan, ese plan manda y se ejecuta de corrido; si no, se
-> pregunta antes de codear. Si algo del brief no cierra, decilo antes de codear.
+> `design/*.md`) están **borrados: no se citan ni se recrean**. **La próxima tarea es la UI del POS
+> (mejoras visuales): el alcance ya está confirmado por el owner y la arquitectura ya está en `main`
+> (PR #8)**, así que se ejecuta **de corrido** con el bloque *Próxima tarea* de arriba — el rediseño del
+> menú público sigue **PAUSADO** (y A-36, revisar `feat/design-system`, sigue abierto antes de tocarlo).
+> Lo otro habilitado es la cola de
+> [`ops/audit-backlog.md`](../audit-backlog.md): los nuevos **A-37** y **A-38** (los dos bugs latentes
+> que aparecieron unificando el catálogo) y después **A-24** los controles crudos que todavía no son
+> primitivos → **A-26** partir `settings-client.tsx` → **A-25** los tres `window.confirm` → **A-28** la
+> barra del KDS en el 20% → **A-27** E2E determinista de madrugada, y las **A-15 a A-23**, donde varias
+> necesitan una decisión del owner (A-15 cobros de pedidos cancelados —la de plata más importante—,
+> A-17 tarjeta/transferencia, A-19 movimientos de caja, A-20/A-34 fiscal y RUC, A-23 la cuenta de prueba
+> con rol owner, A-10 home por rol, A-12 filtro «solo sin aceptar», A-33 el listado completo de Órdenes).
+> **No inventes trabajo para no quedar quieto**: si el owner ya entregó un plan, ese plan manda y se
+> ejecuta de corrido; si no, se pregunta antes de codear. Si algo del brief no cierra, decilo antes de
+> codear.
 >
 > **Trampas del arnés que ya nos costaron tiempo:** (1) el `next start` local necesita
 > `DATABASE_URL`, `APP_ENV=production`, `NODE_ENV=production` y **`ORDER_CREATE_RATE_LIMIT=200`** (sin
@@ -312,12 +330,13 @@ npm run test && npm run lint && npm run typecheck && npm run build && npm run se
 npx prisma generate   # solo si el build local falla por el cliente de Prisma
 ```
 
-Y la última línea de base conocida, para comparar: **2097 tests unitarios en 312 archivos** y
-**contracts 42/42** (2026-09-17, cierre de la segunda pasada de UI; antes: 2093/311 el mismo día, 2055/304
-el 2026-09-15), CI (`verify` + `contracts` + `migrations` + `container` + `publish`)
-verde en cada push, **E2E completo local 106 pasaron / 6 salteados / 0 fallos** (con
-`E2E_APEX_HOST=oneburgernic.com` y `E2E_APEX_PORT=3210` para que el apex no quede salteado), smoke
-productivo **7/7**, hosts **6/6** y la QA pública de solo lectura contra `menu.oneburgernic.com` **31 / 2 / 0**.
+Y la última línea de base conocida, para comparar: **2952 tests unitarios en 427 archivos** y
+**contracts 50/50** (2026-09-19, cierre del catálogo unificado del POS; antes: 2940/427 el mismo día,
+2920/425 el 2026-09-18), CI (`verify` + `contracts` + `migrations` + `container` + `publish`)
+verde en cada push, **E2E completo local con mutaciones 122 pasaron / 7 salteados / 0 fallos** (con
+`E2E_ALLOW_MUTATIONS=true`, `E2E_APEX_HOST=oneburgernic.com` y `E2E_APEX_PORT=3210`; **sin** esa variable
+los specs que cobran y crean pedidos se saltean solos), smoke productivo **7/7**, hosts **6/6** y la QA
+pública de solo lectura contra `menu.oneburgernic.com` **31 / 2 / 0**.
 
 ⚠️ **El E2E local necesita Docker arriba** (Postgres) y **dos límites de tasa altos al levantar el
 servidor**: `ADMIN_LOGIN_RATE_LIMIT=200` y `ORDER_CREATE_RATE_LIMIT=200`. El alta pública de pedidos tiene
