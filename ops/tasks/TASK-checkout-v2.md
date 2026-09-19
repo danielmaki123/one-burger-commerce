@@ -425,5 +425,6 @@ BASE_URL=http://127.0.0.1:3210 E2E_ALLOW_MUTATIONS=true npm run test:e2e:prod:fu
 > y `security:secrets` antes de cerrar cada fase. Si tocás `schema.prisma`, corré
 > `npx prisma generate` (el build local no lo regenera).
 > Lo visual se verifica en navegador real (Playwright) a 375 px y 1280 px, no en HTML estático.
-> Al terminar cada fase: actualizá `ops/project-state.md`, hacé push a `main` y confirmá que el CI
-> quedó verde. **No despliegues a producción sin pedir confirmación.**
+> Al terminar cada fase: actualizá `ops/project-state.md` y cerrá con **rama + PR hacia `main` + los 4
+> checks verdes + merge `--squash`** (nunca push directo a `main`), y confirmá que el CI quedó verde.
+> **No despliegues a producción sin pedir confirmación.**
