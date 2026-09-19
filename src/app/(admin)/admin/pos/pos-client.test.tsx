@@ -696,9 +696,10 @@ describe("PosClient", () => {
 
     const cobrar = screen.getByRole("button", { name: /^Cobrar / });
     expect((cobrar as HTMLButtonElement).disabled).toBe(true);
-    expect(
-      screen.getByText(/Abrí la caja para poder cobrar: un cobro con la caja cerrada/),
-    ).toBeTruthy();
+    // La alerta de caja cerrada, con su borde ámbar (la tarjeta destacada de las mejoras visuales).
+    const alerta = screen.getByText("Caja cerrada").closest("[role='status']");
+    expect(alerta?.textContent).toContain("no entra a ningún arqueo");
+    expect(alerta?.className).toContain("border-brand-amber");
 
     // Y no se manda nada al servidor si igual se intenta.
     await user.click(cobrar);

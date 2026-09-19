@@ -1,5 +1,7 @@
 "use client";
 
+import { TriangleAlert } from "lucide-react";
+
 import type { CurrencyFormat } from "@/shared/lib/format-currency";
 import { formatCurrency } from "@/shared/lib/format-currency";
 import { useOnlineStatus } from "@/shared/lib/online-status";
@@ -14,6 +16,10 @@ import { Button } from "@/shared/ui/button";
  * armada queda guardada en el dispositivo (Bloque 12.3) para retomarla al volver la conexión.
  *
  * Vive en su propio archivo porque el `pos-client.tsx` es deuda con techo congelado: no puede crecer.
+ *
+ * **Mejoras visuales (2026-09-19)**: la caja cerrada (y el bloqueo por una caja de otro día) pasan de ser
+ * una línea más a una **tarjeta de alerta con borde ámbar**, que es lo primero que el cajero ve cuando
+ * toca «Cobrar» y no puede. El ámbar acá es el del sistema (`--brand-amber`), no un color suelto.
  */
 export default function PosChargePanel({
   needsOpenShift,
@@ -45,24 +51,28 @@ export default function PosChargePanel({
 }) {
   const online = useOnlineStatus();
 
+  const warning = needsOpenShift
+    ? {
+        title: "Caja cerrada",
+        text: "El cobro requiere abrir el turno antes: un cobro con la caja cerrada no entra a ningún arqueo.",
+      }
+    : blockedReason
+      ? { title: "Caja cerrada", text: blockedReason }
+      : null;
+
   return (
     <>
-      {needsOpenShift ? (
-        <p
+      {warning ? (
+        <div
           role="status"
-          className="rounded-stitch-lg border border-status-prep-border bg-status-prep-bg px-3 py-2 text-st-body text-status-prep-text"
+          className="flex items-start gap-3 rounded-stitch-lg border-2 border-brand-amber bg-brand-amber/10 px-3 py-3"
         >
-          Abrí la caja para poder cobrar: un cobro con la caja cerrada no entra a ningún arqueo.
-        </p>
-      ) : null}
-
-      {blockedReason ? (
-        <p
-          role="status"
-          className="rounded-stitch-lg border border-status-prep-border bg-status-prep-bg px-3 py-2 text-st-body text-status-prep-text"
-        >
-          {blockedReason}
-        </p>
+          <TriangleAlert aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0 text-brand-amber" />
+          <div className="space-y-1">
+            <p className="text-st-h3 text-brand-amber">{warning.title}</p>
+            <p className="text-st-body text-ink">{warning.text}</p>
+          </div>
+        </div>
       ) : null}
 
       {/*
