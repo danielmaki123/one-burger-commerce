@@ -129,6 +129,43 @@ describe("venta de mostrador", () => {
   });
 
   /**
+   * Los modificadores que el cajero eligió son parte de la venta: el alta los valida y **cotiza** la
+   * línea (`basePrice + Σ priceDelta`). Antes viajaba `[]` fijo, así que cualquier producto con un grupo
+   * obligatorio —la mitad de la carta real— no se podía cobrar desde el mostrador (422 del alta).
+   */
+  it("manda al alta los modificadores elegidos en la línea", async () => {
+    const { createPosOrder, deps } = setup();
+
+    await registerPosSale(
+      {
+        draft: addPosLine(createPosDraft("loc_centro"), {
+          productId: "prod_doble",
+          name: "DOBLE",
+          unitPrice: 80,
+          modifierOptionIds: ["opt_papas"],
+          modifierNames: ["PAPAS FRITAS"],
+        }),
+        customer,
+        payments: [{ method: "cash", currency: "NIO", amount: 80 }],
+      },
+      deps,
+    );
+
+    expect(createPosOrder).toHaveBeenCalledWith(
+      expect.objectContaining({
+        items: [
+          {
+            productId: "prod_doble",
+            quantity: 1,
+            modifierOptionIds: ["opt_papas"],
+            notes: null,
+          },
+        ],
+      }),
+    );
+  });
+
+  /**
    * Bloque 4 del roadmap del POS (Fase 2) — el cobro partido y la transferencia.
    *
    * El contrato ya aceptaba N cobros y el caso de uso los registraba uno por uno, pero **el POS no

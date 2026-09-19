@@ -39,11 +39,29 @@ export function readPosDraftLine(value: unknown): PosDraftLine | null {
   const quantity = candidate.quantity;
   const notes = typeof candidate.notes === "string" ? candidate.notes : undefined;
   const packaging = candidate.packagingUnitAmount;
+  const modifierOptionIds = candidate.modifierOptionIds;
+  const modifierNames = candidate.modifierNames;
 
   if (productId === "" || name === "") return null;
   if (typeof unitPrice !== "number" || !Number.isFinite(unitPrice) || unitPrice < 0) return null;
   if (typeof quantity !== "number" || !Number.isInteger(quantity) || quantity < 1) return null;
   if (packaging !== undefined && (typeof packaging !== "number" || !Number.isFinite(packaging) || packaging < 0)) {
+    return null;
+  }
+  // Los modificadores son ids: una lista de textos no vacíos o nada. Un guardado con basura acá se
+  // descarta entero (la línea), porque cobrar un producto con modificadores a medias es peor que
+  // perder esa línea.
+  if (
+    modifierOptionIds !== undefined &&
+    (!Array.isArray(modifierOptionIds) ||
+      !modifierOptionIds.every((id) => typeof id === "string" && id.trim() !== ""))
+  ) {
+    return null;
+  }
+  if (
+    modifierNames !== undefined &&
+    (!Array.isArray(modifierNames) || !modifierNames.every((label) => typeof label === "string"))
+  ) {
     return null;
   }
 
@@ -54,6 +72,8 @@ export function readPosDraftLine(value: unknown): PosDraftLine | null {
     quantity,
     ...(packaging === undefined ? {} : { packagingUnitAmount: packaging }),
     ...(notes === undefined ? {} : { notes }),
+    ...(modifierOptionIds === undefined ? {} : { modifierOptionIds }),
+    ...(modifierNames === undefined ? {} : { modifierNames }),
   };
 }
 
@@ -78,6 +98,8 @@ export function serializePosDraftLine(line: PosDraftLine): PosDraftLine {
       : { packagingUnitAmount: line.packagingUnitAmount }),
     quantity: line.quantity,
     ...(line.notes === undefined ? {} : { notes: line.notes }),
+    ...(line.modifierOptionIds === undefined ? {} : { modifierOptionIds: line.modifierOptionIds }),
+    ...(line.modifierNames === undefined ? {} : { modifierNames: line.modifierNames }),
   };
 }
 

@@ -46,6 +46,30 @@ describe("serializePosDraft", () => {
     expect(parsed?.draft).toEqual(draft);
     expect(parsed?.attemptKey).toBeNull();
   });
+
+  /**
+   * Los modificadores viajan con la línea: si se pierden al recuperar la venta, el cajero cobraría un
+   * DOBLE con papas sin las papas (y la cocina no sabría qué preparar).
+   */
+  it("guarda y recupera los modificadores elegidos de cada línea", () => {
+    const conModificadores = {
+      locationId: "loc_centro",
+      lines: [
+        {
+          productId: "prod_doble",
+          name: "DOBLE",
+          unitPrice: 424,
+          quantity: 1,
+          modifierOptionIds: ["opt_papas"],
+          modifierNames: ["PAPAS FRITAS"],
+        },
+      ],
+    };
+
+    const parsed = parsePosDraft(serializePosDraft(conModificadores), "loc_centro");
+
+    expect(parsed?.draft).toEqual(conModificadores);
+  });
 });
 
 describe("parsePosDraft", () => {
@@ -97,5 +121,49 @@ describe("parsePosDraft", () => {
     });
 
     expect(parsePosDraft(raw, "loc_centro")?.attemptKey).toBeNull();
+  });
+
+  it("un borrador guardado antes de los modificadores se sigue leyendo", () => {
+    // Es el guardado que ya está en el dispositivo de un cajero: sin los campos nuevos, y válido.
+    const raw = JSON.stringify({
+      locationId: "loc_centro",
+      lines: [
+        { productId: "seed-prod-01", name: "Taco de Birria", unitPrice: 35, quantity: 2 },
+      ],
+    });
+
+    expect(parsePosDraft(raw, "loc_centro")?.draft.lines[0]).toEqual({
+      productId: "seed-prod-01",
+      name: "Taco de Birria",
+      unitPrice: 35,
+      quantity: 2,
+    });
+  });
+
+  it("una línea con modificadores corruptos se descarta sin llevarse el resto", () => {
+    const raw = JSON.stringify({
+      locationId: "loc_centro",
+      lines: [
+        { productId: "seed-prod-01", name: "Taco de Birria", unitPrice: 35, quantity: 1 },
+        {
+          productId: "prod_doble",
+          name: "DOBLE",
+          unitPrice: 424,
+          quantity: 1,
+          modifierOptionIds: "opt_papas",
+        },
+        {
+          productId: "prod_triple",
+          name: "TRIPLE",
+          unitPrice: 365,
+          quantity: 1,
+          modifierOptionIds: ["opt_papas", ""],
+        },
+      ],
+    });
+
+    const parsed = parsePosDraft(raw, "loc_centro");
+
+    expect(parsed?.draft.lines.map((line) => line.productId)).toEqual(["seed-prod-01"]);
   });
 });

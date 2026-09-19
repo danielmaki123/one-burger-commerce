@@ -2,7 +2,7 @@
 
 import { ShoppingCart } from "lucide-react";
 
-import type { PosDraftLine } from "@/modules/pos/domain/pos-draft";
+import { posLineKey, type PosDraftLine } from "@/modules/pos/domain/pos-draft";
 import { formatCurrency, type CurrencyFormat } from "@/shared/lib/format-currency";
 import { Button } from "@/shared/ui/button";
 
@@ -12,15 +12,19 @@ import { Button } from "@/shared/ui/button";
  * mezclada con el cobro, la caja y la confirmación.
  *
  * Las cantidades las resuelve el dominio (`setPosLineQuantity` / `removePosLine` en la pantalla): acá solo se
- * dice qué producto y cuánto, nunca cómo se recalcula la venta.
+ * dice **qué línea** y cuánto, nunca cómo se recalcula la venta.
+ *
+ * La línea se direcciona por su **clave** (`posLineKey`: producto + modificadores + nota), no por el
+ * producto: el mismo plato con dos configuraciones distintas son dos líneas y tocar "−" en una no puede
+ * cambiar la otra. Los modificadores elegidos se muestran porque son lo único que las distingue.
  */
 
 type PosSaleLinesProps = {
   lines: PosDraftLine[];
   currency: CurrencyFormat;
-  /** Cantidad nueva para un producto (0 lo saca; la regla la aplica el dominio). */
-  onChangeQuantity: (productId: string, quantity: number) => void;
-  onRemove: (productId: string) => void;
+  /** Cantidad nueva para una línea (0 la saca; la regla la aplica el dominio). */
+  onChangeQuantity: (lineKey: string, quantity: number) => void;
+  onRemove: (lineKey: string) => void;
 };
 
 export default function PosSaleLines({
@@ -44,54 +48,66 @@ export default function PosSaleLines({
 
   return (
     <ul className="space-y-3" aria-label="Productos de la venta">
-      {lines.map((line) => (
-        <li
-          key={`${line.productId}-${line.notes ?? ""}`}
-          className="flex items-center justify-between gap-3 border-b border-line-subtle pb-3 last:border-b-0 last:pb-0"
-        >
-          <div className="min-w-0">
-            <p className="truncate text-st-body font-medium text-ink">{line.name}</p>
-            <p className="font-mono text-st-caption tabular-nums text-ink-secondary">
-              {formatCurrency(line.unitPrice, currency)} × {line.quantity}
-            </p>
-          </div>
+      {lines.map((line) => {
+        const key = posLineKey(line);
 
-          <div className="flex items-center gap-1">
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              className="min-h-11 min-w-11"
-              aria-label={`Quitar una unidad de ${line.name}`}
-              onClick={() => onChangeQuantity(line.productId, line.quantity - 1)}
-            >
-              −
-            </Button>
-            <span className="w-8 text-center text-st-body font-bold tabular-nums text-ink">
-              {line.quantity}
-            </span>
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              className="min-h-11 min-w-11"
-              aria-label={`Agregar una unidad de ${line.name}`}
-              onClick={() => onChangeQuantity(line.productId, line.quantity + 1)}
-            >
-              +
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              className="min-h-11"
-              aria-label={`Sacar ${line.name} de la venta`}
-              onClick={() => onRemove(line.productId)}
-            >
-              Sacar
-            </Button>
-          </div>
-        </li>
-      ))}
+        return (
+          <li
+            key={key}
+            className="flex items-center justify-between gap-3 border-b border-line-subtle pb-3 last:border-b-0 last:pb-0"
+          >
+            <div className="min-w-0">
+              <p className="truncate text-st-body font-medium text-ink">{line.name}</p>
+              {line.modifierNames && line.modifierNames.length > 0 ? (
+                <p className="truncate text-st-caption text-ink-secondary">
+                  {line.modifierNames.join(" · ")}
+                </p>
+              ) : null}
+              {line.notes ? (
+                <p className="truncate text-st-caption text-ink-muted">{line.notes}</p>
+              ) : null}
+              <p className="font-mono text-st-caption tabular-nums text-ink-secondary">
+                {formatCurrency(line.unitPrice, currency)} × {line.quantity}
+              </p>
+            </div>
+
+            <div className="flex items-center gap-1">
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="min-h-11 min-w-11"
+                aria-label={`Quitar una unidad de ${line.name}`}
+                onClick={() => onChangeQuantity(key, line.quantity - 1)}
+              >
+                −
+              </Button>
+              <span className="w-8 text-center text-st-body font-bold tabular-nums text-ink">
+                {line.quantity}
+              </span>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="min-h-11 min-w-11"
+                aria-label={`Agregar una unidad de ${line.name}`}
+                onClick={() => onChangeQuantity(key, line.quantity + 1)}
+              >
+                +
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                className="min-h-11"
+                aria-label={`Sacar ${line.name} de la venta`}
+                onClick={() => onRemove(key)}
+              >
+                Sacar
+              </Button>
+            </div>
+          </li>
+        );
+      })}
     </ul>
   );
 }

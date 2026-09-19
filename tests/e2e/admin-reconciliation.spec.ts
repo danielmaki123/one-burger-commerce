@@ -53,10 +53,15 @@ async function sellWithCard(page: import("@playwright/test").Page) {
           basePrice: number;
           packagingFeeAmount: number;
           requiresOptions: boolean;
+          availability: { isAvailable: boolean; isActive: boolean };
         }[];
       };
 
-      const product = catalog.products.find((candidate) => !candidate.requiresOptions);
+      // El catálogo del mostrador incluye los agotados (para poder avisarlos): un caso que cobra de
+      // verdad tiene que elegir uno **vendible**, o el alta lo rechaza con 409.
+      const product = catalog.products.find(
+        (candidate) => !candidate.requiresOptions && candidate.availability.isAvailable,
+      );
       if (!product) continue;
 
       const reference = `E2E-TARJETA-${Date.now()}`;
@@ -70,7 +75,7 @@ async function sellWithCard(page: import("@playwright/test").Page) {
             {
               productId: product.id,
               name: product.name,
-              unitPrice: product.price,
+              unitPrice: product.basePrice,
               packagingUnitAmount: product.packagingFeeAmount,
               quantity: 1,
             },
@@ -79,7 +84,7 @@ async function sellWithCard(page: import("@playwright/test").Page) {
             {
               method: "card",
               currency: "NIO",
-              amount: product.price + product.packagingFeeAmount,
+              amount: product.basePrice + product.packagingFeeAmount,
               reference,
             },
           ],
@@ -91,7 +96,7 @@ async function sellWithCard(page: import("@playwright/test").Page) {
         body: await response.json(),
         locationId: location.id,
         reference,
-        amount: product.price + product.packagingFeeAmount,
+        amount: product.basePrice + product.packagingFeeAmount,
       };
     }
 

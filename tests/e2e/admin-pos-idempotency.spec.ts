@@ -58,10 +58,15 @@ test.describe("cobro reintentado (idempotencia del UUID)", () => {
             basePrice: number;
             packagingFeeAmount: number;
             requiresOptions: boolean;
+            availability: { isAvailable: boolean; isActive: boolean };
           }[];
         };
 
-        const product = catalog.products.find((candidate) => !candidate.requiresOptions);
+        // El catálogo del mostrador incluye los agotados (para poder avisarlos): un caso que cobra de
+        // verdad tiene que elegir uno **vendible**, o el alta lo rechaza con 409.
+        const product = catalog.products.find(
+          (candidate) => !candidate.requiresOptions && candidate.availability.isAvailable,
+        );
         if (!product) continue;
 
         const corte = (
@@ -75,7 +80,7 @@ test.describe("cobro reintentado (idempotencia del UUID)", () => {
         return {
           locationId: location.id,
           product,
-          amount: product.price + product.packagingFeeAmount,
+          amount: product.basePrice + product.packagingFeeAmount,
           expectedBefore: corte?.expectedAmount ?? null,
         };
       }
@@ -95,7 +100,7 @@ test.describe("cobro reintentado (idempotencia del UUID)", () => {
         {
           productId: product.id,
           name: product.name,
-          unitPrice: product.price,
+          unitPrice: product.basePrice,
           packagingUnitAmount: product.packagingFeeAmount,
           quantity: 1,
         },

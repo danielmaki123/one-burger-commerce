@@ -383,11 +383,15 @@ export default function PosClient({
     );
   };
 
-  /** Las líneas de la venta se suman, se restan y se sacan con las reglas del dominio. */
-  const changeLineQuantity = (productId: string, quantity: number) =>
-    setDraft((current) => setPosLineQuantity(current, productId, quantity));
-  const removeSaleLine = (productId: string) =>
-    setDraft((current) => removePosLine(current, productId));
+  /**
+   * Las líneas de la venta se suman, se restan y se sacan con las reglas del dominio, direccionadas por
+   * la **clave de la línea** (`producto + modificadores + nota`): el mismo plato con dos
+   * configuraciones distintas son dos líneas y tocar una no puede cambiar la otra.
+   */
+  const changeLineQuantity = (lineKey: string, quantity: number) =>
+    setDraft((current) => setPosLineQuantity(current, lineKey, quantity));
+  const removeSaleLine = (lineKey: string) =>
+    setDraft((current) => removePosLine(current, lineKey));
 
   /**
    * Tareas 9.4 y 9.5 del roadmap del POS (Fase 2) — dejar la venta en curso a un lado.
