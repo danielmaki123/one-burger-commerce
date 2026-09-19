@@ -2,7 +2,7 @@
 
 import { act, cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { BusinessSettingsProvider } from "@/shared/lib/business-settings";
 import { DEFAULT_BUSINESS_SETTINGS } from "@/modules/business-settings/domain/business-settings-defaults";
@@ -20,6 +20,24 @@ vi.mock("@/shared/lib/receipt-image", () => ({
 }));
 
 import PosClient, { POS_REFRESH_MS } from "./pos-client";
+
+/**
+ * jsdom no implementa el modo modal del `<dialog>` (igual que en `modal.test.tsx`): la pantalla abre el
+ * selector de modificadores en un `<dialog>`, así que se le agrega el mínimo para poder probar el flujo.
+ */
+beforeAll(() => {
+  const proto = window.HTMLDialogElement.prototype as HTMLDialogElement & {
+    showModal?: () => void;
+    close?: () => void;
+  };
+
+  proto.showModal = function showModal(this: HTMLDialogElement) {
+    this.open = true;
+  };
+  proto.close = function close(this: HTMLDialogElement) {
+    this.open = false;
+  };
+});
 
 /**
  * TASK-302 + TASK-303b — la pantalla del mostrador.
@@ -60,7 +78,20 @@ const productos = {
         packagingFeeAmount: 0,
         images: [],
         availability: { isAvailable: true, isActive: true },
-        modifierGroups: [],
+        modifierGroups: [
+          {
+            id: "grupo_carne",
+            name: "Tipo de carne",
+            isRequired: true,
+            minSelections: 1,
+            maxSelections: 1,
+            sortOrder: 0,
+            options: [
+              { id: "opt_res", name: "Res", priceDelta: 0, isActive: true },
+              { id: "opt_cerdo", name: "Cerdo", priceDelta: 15, isActive: true },
+            ],
+          },
+        ],
         bundleRules: [],
         createdAt: "2026-09-14T00:00:00.000Z",
         updatedAt: "2026-09-14T00:00:00.000Z",
@@ -255,13 +286,22 @@ describe("PosClient", () => {
     expect(screen.getByRole("button", { name: "Cobrar C$40.00" })).toBeTruthy();
   });
 
-  it("no ofrece agregar un producto que obliga a elegir opciones", async () => {
+  it("un producto con modificadores se elige en el selector antes de entrar a la venta", async () => {
+    const user = userEvent.setup();
     render(<PosClient locations={locations} />);
 
     await screen.findByText("Taco especial");
+    await user.click(screen.getByRole("button", { name: "Agregar Taco especial a la venta" }));
 
-    expect(screen.queryByRole("button", { name: "Agregar Taco especial a la venta" })).toBeNull();
-    expect(screen.getByText("Se elige en la carta")).toBeTruthy();
+    const selector = await screen.findByRole("dialog");
+    await user.click(within(selector).getByRole("radio", { name: "Cerdo" }));
+    await user.click(within(selector).getByRole("button", { name: /^Agregar/ }));
+
+    const venta = screen.getByRole("region", { name: "Venta en curso" });
+    // El modificador viaja en la línea y su delta entra al total: 55 del taco + 15 del cerdo.
+    expect(within(venta).getByText("Taco especial")).toBeTruthy();
+    expect(within(venta).getByText("Cerdo")).toBeTruthy();
+    expect(totalDeLaVenta()).toBe("C$70.00");
   });
 
   it("un producto agotado se ve, dice «Agotado» y no se puede agregar", async () => {

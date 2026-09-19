@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import type { ModifierGroupRecord } from "./menu.types";
-import { applyModifierSelection, validateModifierSelections } from "./modifier-selection";
+import {
+  applyModifierSelection,
+  hasSelectableModifiers,
+  validateModifierSelections,
+} from "./modifier-selection";
 
 /**
  * Las reglas de selección del menú (movidas desde la carpeta de la ruta pública del producto).
@@ -101,5 +105,26 @@ describe("validateModifierSelections", () => {
     const group = mockGroup({ isRequired: true, minSelections: 1, maxSelections: 2 });
     const errors = validateModifierSelections([group], { g1: ["o1", "o2"] });
     expect(Object.keys(errors)).toHaveLength(0);
+  });
+});
+
+describe("hasSelectableModifiers", () => {
+  it("sin grupos no hay nada que preguntar", () => {
+    expect(hasSelectableModifiers([])).toBe(false);
+  });
+
+  it("un grupo opcional con opciones también se pregunta (el cajero puede sumar el extra)", () => {
+    expect(hasSelectableModifiers([mockGroup({ isRequired: false, minSelections: 0 })])).toBe(true);
+  });
+
+  it("un grupo sin opciones activas no se pregunta: no hay nada que ofrecer", () => {
+    const soloInactivas = mockGroup({
+      options: [
+        { id: "o1", name: "Queso", priceDelta: 0, isActive: false },
+        { id: "o2", name: "Jamón", priceDelta: 10, isActive: false },
+      ],
+    });
+
+    expect(hasSelectableModifiers([soloInactivas])).toBe(false);
   });
 });

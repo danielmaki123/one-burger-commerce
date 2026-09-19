@@ -14,6 +14,7 @@ import type { PosHeldSale } from "@/modules/pos/domain/pos-holds";
 import { filterPosProducts } from "@/modules/pos/domain/search-pos-products";
 import { mustCloseShiftBeforeCharging } from "@/modules/pos/domain/shift-close-policy";
 import type { PosCatalogProduct, PosCatalogView } from "@/modules/pos/ports/pos-catalog";
+import { hasSelectableModifiers } from "@/modules/menu/domain/modifier-selection";
 import { useBusinessSettings, useCurrencyFormat } from "@/shared/lib/business-settings";
 import { describeCouponLabel } from "@/shared/lib/coupon-label";
 import { formatCurrency } from "@/shared/lib/format-currency";
@@ -34,6 +35,7 @@ import type { PosCustomerDraft } from "./pos-customer-fields";
 import { buildPosFiscalPayload, EMPTY_POS_FISCAL_DRAFT } from "./pos-fiscal-payload";
 import PosDiscountPanel, { type AppliedManualDiscount } from "./pos-discount-panel";
 import PosHoldsPanel from "./pos-holds-panel";
+import PosModifierDialog, { type PosModifierSelection } from "./pos-modifier-dialog";
 import PosPaymentRows from "./pos-payment-rows";
 import PosSaleLines from "./pos-sale-lines";
 import PosTicketButtons from "./pos-ticket-buttons";
@@ -147,6 +149,11 @@ export default function PosClient({
   const [payments, setPayments] = React.useState<PosPaymentDraft[]>(() => [
     { id: "pay_1", method: "cash", currency: settings.currencyCode, amount: "" },
   ]);
+  /**
+   * El producto cuyo selector de modificadores está abierto, si hay alguno. La venta se arma con lo que
+   * el cajero confirma en el selector: un producto con opciones no entra a la venta sin pasar por ahí.
+   */
+  const [modifierProduct, setModifierProduct] = React.useState<PosCatalogProduct | null>(null);
   const [charging, setCharging] = React.useState(false);
   const [saleError, setSaleError] = React.useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = React.useState<Record<string, string>>({});
@@ -372,13 +379,33 @@ export default function PosClient({
     timezone: settings.timezone,
   });
 
+  /**
+   * Agregar un producto a la venta. Si tiene modificadores que preguntar, primero se eligen en el
+   * selector: sin ellos el alta rechazaría la venta (y el precio de la línea saldría sin los extras).
+   */
   const addProduct = (product: PosCatalogProduct) => {
+    if (hasSelectableModifiers(product.modifierGroups)) {
+      setModifierProduct(product);
+      return;
+    }
+
+    addSaleLine(product, null);
+  };
+
+  /** La línea, con los modificadores elegidos (o sin ellos) y el precio que el selector calculó. */
+  const addSaleLine = (product: PosCatalogProduct, selection: PosModifierSelection | null) => {
     setDraft((current) =>
       addPosLine(current, {
         productId: product.id,
         name: product.name,
-        unitPrice: product.basePrice,
+        unitPrice: selection?.unitPrice ?? product.basePrice,
         packagingUnitAmount: product.packagingFeeAmount ?? 0,
+        ...(selection
+          ? {
+              modifierOptionIds: selection.modifierOptionIds,
+              modifierNames: selection.modifierNames,
+            }
+          : {}),
       }),
     );
   };
@@ -914,6 +941,21 @@ export default function PosClient({
           </section>
         </div>
       )}
+
+      {/*
+        El selector de modificadores del mostrador: se monta inline (no en un portal) para heredar el
+        alcance oscuro del shell del panel. Los datos vienen del catálogo y la regla, del dominio.
+      */}
+      <PosModifierDialog
+        product={modifierProduct}
+        currency={currency}
+        open={modifierProduct !== null}
+        onClose={() => setModifierProduct(null)}
+        onConfirm={(product, selection) => {
+          addSaleLine(product, selection);
+          setModifierProduct(null);
+        }}
+      />
     </div>
   );
 }

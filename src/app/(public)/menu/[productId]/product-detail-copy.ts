@@ -1,5 +1,3 @@
-import { formatCurrency, type CurrencyFormat } from "@/shared/lib/format-currency";
-
 type ProductSummary = {
   id: string;
   name: string;
@@ -71,15 +69,4 @@ export function getProductDetailEyebrow(product: {
   }
 
   return typeLabel || "Detalle del producto";
-}
-
-export function formatModifierOptionPrice(
-  priceDelta: number,
-  format: CurrencyFormat,
-): string {
-  if (priceDelta > 0) {
-    return `+${formatCurrency(priceDelta, format)}`;
-  }
-
-  return formatCurrency(0, format);
 }

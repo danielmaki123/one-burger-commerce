@@ -42,10 +42,9 @@ export default function PosCatalogCard({
         <p className="w-full rounded-stitch-sm border border-line-subtle bg-surface-low px-2 py-2 text-center text-st-caption font-semibold text-ink-muted">
           Agotado
         </p>
-      ) : product.requiresOptions ? (
-        // No se puede vender de un toque: la carta obliga a elegir. Sin botón que mienta.
-        <p className="text-st-caption font-medium text-ink-secondary">Se elige en la carta</p>
       ) : (
+        // Todos los productos se agregan desde acá: el que tiene modificadores los pregunta en el
+        // selector antes de entrar a la venta (lo decide la pantalla, no la tarjeta).
         <Button
           type="button"
           variant="outline"

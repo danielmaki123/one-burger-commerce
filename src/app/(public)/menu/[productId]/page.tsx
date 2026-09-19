@@ -9,11 +9,11 @@ import { formatCurrency } from "@/shared/lib/format-currency";
 import { getPublicStartingPrice } from "@/shared/lib/public-product-pricing";
 import { Button } from "@/shared/ui/button";
 import type { ModifierGroupRecord } from "@/modules/menu/domain/menu.types";
+import { describeModifierGroup, formatModifierOptionPrice } from "@/modules/menu/domain/modifier-copy";
 import { applyModifierSelection, validateModifierSelections } from "@/modules/menu/domain/modifier-selection";
 import { publicProductDetailScaleClasses, countAvailableSelectionGroups } from "../product-detail-page-helpers";
 import {
   findPublicProductById,
-  formatModifierOptionPrice,
   getProductDetailEyebrow,
 } from "./product-detail-copy";
 
@@ -63,36 +63,9 @@ function ProductHeroPlaceholder({ name }: { name: string }) {
   );
 }
 
+/** La frase de cada grupo sale del dominio (`modifier-copy`): la misma que usa el mostrador. */
 function GroupHelper({ group }: { group: ModifierGroup }) {
-  if (group.maxSelections === 1) {
-    return (
-      <p className="text-sm text-muted-foreground">
-        Elegí una opción para continuar.
-      </p>
-    );
-  }
-
-  if (group.minSelections === group.maxSelections && group.maxSelections > 1) {
-    return (
-      <p className="text-sm text-muted-foreground">
-        Elegí exactamente {group.maxSelections} opciones.
-      </p>
-    );
-  }
-
-  if (group.minSelections > 0 || group.maxSelections > 1) {
-    return (
-      <p className="text-sm text-muted-foreground">
-        Elegí entre {group.minSelections} y {group.maxSelections} opciones.
-      </p>
-    );
-  }
-
-  return (
-    <p className="text-sm text-muted-foreground">
-      Personalizá este plato a tu gusto.
-    </p>
-  );
+  return <p className="text-sm text-muted-foreground">{describeModifierGroup(group)}</p>;
 }
 
 export default function ProductDetailPage() {

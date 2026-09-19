@@ -90,12 +90,15 @@ describe("PosCatalogCard", () => {
     expect(screen.queryByText("Se elige en la carta")).toBeNull();
   });
 
-  it("un producto que exige opciones dice que se elige en la carta y no se agrega de un toque", () => {
+  it("un producto que exige opciones también se agrega: el selector las pregunta", async () => {
+    const onAdd = vi.fn();
     render(
-      <PosCatalogCard product={product({ requiresOptions: true })} currency={currency} onAdd={() => {}} />,
+      <PosCatalogCard product={product({ requiresOptions: true })} currency={currency} onAdd={onAdd} />,
     );
 
-    expect(screen.getByText("Se elige en la carta")).toBeTruthy();
-    expect(screen.queryByRole("button", { name: /Agregar DOBLE/ })).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Agregar DOBLE a la venta" }));
+
+    expect(onAdd).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText("Se elige en la carta")).toBeNull();
   });
 });

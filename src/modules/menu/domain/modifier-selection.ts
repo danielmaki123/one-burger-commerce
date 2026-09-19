@@ -51,3 +51,14 @@ export function applyModifierSelection(
   }
   return { ...current, [groupId]: [...groupSelections, optionId] };
 }
+
+/**
+ * ¿Hay algo que preguntar? Sí cuando algún grupo tiene **opciones activas**.
+ *
+ * Es distinto de "obliga a elegir" (`canQuickAddProduct`): un grupo opcional con opciones también se
+ * pregunta en el mostrador, porque el cajero necesita poder sumar el extra. Un grupo sin opciones
+ * activas no se pregunta: no hay nada que ofrecer y el alta las rechaza.
+ */
+export function hasSelectableModifiers(groups: readonly ModifierGroupRecord[]): boolean {
+  return groups.some((group) => group.options.some((option) => option.isActive !== false));
+}
