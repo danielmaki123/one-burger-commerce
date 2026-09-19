@@ -101,7 +101,7 @@ test.describe("cobro reintentado (idempotencia del UUID)", () => {
           productId: product.id,
           name: product.name,
           unitPrice: product.basePrice,
-          packagingUnitAmount: product.packagingFeeAmount,
+          packagingUnitAmount: product.packagingFeeAmount ?? 0,
           quantity: 1,
         },
       ],
