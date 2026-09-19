@@ -1,52 +1,56 @@
 # Estado del proyecto — One Burger Commerce
 
-> **Actualizado: 2026-09-19 (catálogo unificado y modificadores en la venta del POS, PR #8)** ·
-> **Último deploy a producción: sin cambios** (sigue `build-20260918-170109`, commit `bcdb059`: esta
-> tarea no cambia nada de lo desplegado, es la base de las mejoras visuales del POS).
+> **Actualizado: 2026-09-19 (mejoras visuales del POS, PR #10)** ·
+> **Último deploy a producción: sin cambios** (sigue `build-20260918-170109`, commit `bcdb059`: esta ronda
+> no cambia nada de lo desplegado — es la UI del POS, que se despliega cuando el owner lo pida).
 >
-> ### Lo que se cerró (2026-09-19, PR #8, squash `d937b5e`)
+> ### Lo que se cerró (2026-09-19, PR #10, squash `bce20da`)
 >
-> La carta pública y el mostrador pasaron a leer por el **mismo caso de uso**
-> (`src/modules/menu/features/get-catalog/get-catalog.ts`, con `scope: "public" | "pos"`) y la venta de
-> mostrador **manda los modificadores elegidos** en vez de `[]`. Antes, 4 de los 6 productos reales —las
-> hamburguesas con el grupo `EXTRAS` obligatorio— **no se podían cobrar desde el mostrador**: el alta
-> respondía 422.
+> La **UI del mostrador**, sobre el catálogo que dejó el PR #8 (que ya traía fotos, modificadores,
+> categorías con contador y agotados):
 >
-> - La regla de modificadores vive en el dominio del menú
->   (`src/modules/menu/domain/modifier-selection.ts`, movida desde la carpeta de la ruta pública) y la
->   búsqueda del catálogo es **una sola regla** (`src/modules/menu/domain/catalog-search.ts`).
-> - El POS dejó de tener un shape paralelo: `PosCatalogProduct extends ProductRecord` con
->   `requiresOptions` derivado, y una **proyección** pura en `src/modules/pos/domain/pos-catalog-view.ts`
->   (aplana, deduplica y arma los chips de categoría con su contador). Se borraron
->   `adapters/menu-pos-catalog.ts` y `features/search-pos-catalog/`.
-> - La tarjeta del producto se extrajo a `src/app/(admin)/admin/pos/pos-catalog-card.tsx` con el estado
->   **Agotado**: el catálogo del mostrador **ahora incluye los agotados** (decisión del owner) para poder
->   avisarlos, y la carta pública no cambió.
-> - La línea de la venta se direcciona por `posLineKey` (producto + modificadores + nota) y el borrador
->   guardado en el dispositivo lee y escribe los modificadores de forma defensiva.
-> - **El contrato público `/api/menu` quedó idéntico byte a byte** (único campo normalizado
->   `generatedAt`): 4737 bytes y sha256 `D1D663F9…DED0` en los dos lados.
+> - **Selector de modificadores** en un modal oscuro (`pos-modifier-dialog.tsx`): grupos con su badge
+>   (Obligatorio/Opcional), opciones con su delta, el precio en vivo y el error del dominio si falta
+>   elegir. Reusa la **regla del dominio del menú** (`validateModifierSelections` /
+>   `applyModifierSelection`) y los primitivos `Modal`, `RadioGroupItem` y `Checkbox`. Con esto **todos**
+>   los productos se agregan desde el mostrador: los que tienen modificadores pasan por el selector.
+> - **Fotos** en las tarjetas (`pos-catalog-photo.tsx`) con respaldo por fallo de carga, **chips de
+>   categoría** con el contador que ya venía del servidor (`pos-category-chips.tsx`) y **formulario del
+>   cliente** con íconos a la derecha.
+> - **Cobro**: montos rápidos `[Exacto] [C$200] [C$500] [C$1000]` (`pos-quick-cash.tsx`), **vuelto en
+>   vivo** con la fórmula del servidor y la **alerta de caja cerrada** como tarjeta con borde ámbar.
+> - El panel del catálogo se extrajo a `pos-catalog-grid.tsx`: `pos-client.tsx` **bajó** de tamaño (es
+>   deuda con techo congelado).
+> - **A-37 cerrado**: la regla de «¿obliga a elegir?» es **una sola** en el dominio del menú
+>   (`isModifierSelectionRequired` / `canQuickAddProduct`) y `createOrder` la consume, así que un grupo
+>   obligatorio sin opciones activas ya no rechaza una venta que la carta deja agregar.
+> - **A-38 cerrado**: un producto sin fila en `LocationProduct` **sí se vende** (se corrigió el comentario
+>   del schema, no el código).
 >
-> **Verificación**: TDD con rojo observado en los cuatro pasos (16, 10, 7 y 11 fallos por aserción antes
-> de implementar; el move puro del paso 1 se validó por mutación, documentado en su commit);
-> **2952 unitarios en 427 archivos**, `contracts` 50/50, lint, typecheck, `build` y `security:secrets`
-> verdes; **E2E local completo con mutaciones 122 pasaron / 7 salteados / 0 fallos**; capturas
-> antes/después a 375 y 1280 en `ops/tasks/audit-ui/pos-catalogo-*.png`; los 4 checks del CI (`verify`,
-> `contracts`, `migrations`, `container`) verdes.
+> **Verificación**: TDD con rojo observado en los 7 bloques de UI (8, 5, 13, 1, 5, 3 y 2 fallos por
+> aserción) y en A-37 por el error real (`OrderError: Required modifier missing`); **3010 unitarios en 434
+> archivos**, `contracts` 50/50, lint, typecheck, `build`, `build:webpack` y `security:secrets` verdes,
+> `prisma migrate diff` sin drift; **E2E local completo con mutaciones 122 pasaron / 7 salteados / 0
+> fallos** (y encontró un bug de esta rama: los chips desbordaban 25 px a 375 px, arreglado en `038f414`);
+> capturas antes/después a 375 y 1280 en `ops/tasks/audit-ui/pos-ui-*.png`; los 4 checks del CI verdes.
 >
-> ### Próxima tarea: **la UI del POS (mejoras visuales)**
+> ### Próxima tarea: **lo que elija el owner** (no hay brief pendiente)
 >
-> Es la segunda mitad del mismo pedido del 2026-09-19: el **selector de modificadores** en el mostrador
-> (los datos ya viajan en la respuesta del catálogo), las **fotos** en las tarjetas, los **chips de
-> categoría** (el contador ya viene en `categories`), el **formulario del cliente** con iconos, los
-> **botones rápidos de efectivo**, el **vuelto en vivo** y el **aviso de caja destacado**. El detalle,
-> las reglas del mockup que NO se copian y lo que queda fuera están en
-> [`ops/tasks/START-HERE.md`](tasks/START-HERE.md) § *Próxima tarea*.
+> Los dos pedidos del 2026-09-19 (catálogo + UI del POS) están cerrados y **`main` es desplegable**: no
+> hay tarea de producto pendiente. Lo que queda vivo es la cola de
+> [`ops/audit-backlog.md`](audit-backlog.md) — con **A-36** (revisar la rama `feat/design-system` del otro
+> dev antes de tocar el sistema de diseño) y los ítems que **necesitan decisión del owner**: **A-15**
+> (cobros de pedidos cancelados, la de plata), **A-17** (tarjeta/transferencia), **A-19** (movimientos de
+> caja), **A-20/A-34** (fiscal y RUC del negocio), **A-23** (cuenta de prueba con rol `owner`), **A-10** y
+> **A-12** (home por rol y filtro «solo sin aceptar»), **A-33** (dónde se mira el listado completo de
+> Órdenes). El detalle del arranque está en [`ops/tasks/START-HERE.md`](tasks/START-HERE.md).
 >
-> **Fuera de esa tarea** (son Fase 2 del POS: [`pos-roadmap.md`](tasks/pos-roadmap.md)): **partir el
-> cobro**, **«En espera»** y **métodos de pago nuevos** — los tres ya existen y **no se agregan**. **El
-> rediseño del menú público (9 pantallas de Stitch) sigue PAUSADO** hasta que el owner lo confirme; antes
-> de tocarlo, **verificar la rama `feat/design-system` del otro dev** (A-36 del backlog).
+> **Pendiente de deploy**: los PR #8 y #10 **no están desplegados** (el último build sigue siendo
+> `build-20260918-170109` / `bcdb059`). Desplegar es una decisión del owner: una sola llamada a
+> `deployService` (runbook §2) y los dos smokes después.
+>
+> **El rediseño del menú público (9 pantallas de Stitch) sigue PAUSADO** hasta que el owner lo confirme;
+> antes de tocarlo, **verificar la rama `feat/design-system` del otro dev** (A-36 del backlog).
 >
 > ---
 >
@@ -60,7 +64,7 @@
 > | 3 | **Modo cocina opt-in** (botón + `localStorage`, oculta sidebar y header) | **cerrado** — commit `398f0c8`, deploy `build-20260918-163329` |
 > | 4 | **Checkbox fiscal en el POS** (RUC + razón social → `Customer` y factura) | **cerrado** — ver «Punto 4» abajo |
 >
-> **Tests actuales: 2952 unitarios en 427 archivos + 50 de contrato** (`npx vitest run src/shared/contracts`).
+> **Tests actuales: 3010 unitarios en 434 archivos + 50 de contrato** (`npx vitest run src/shared/contracts`).
 > Gates locales al cierre: `test`, `lint`, `typecheck`, `build`, `build:webpack`, `security:secrets` y
 > `prisma migrate diff` sin drift.
 >
