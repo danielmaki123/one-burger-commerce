@@ -1,8 +1,18 @@
 # Estado del proyecto — One Burger Commerce
 
-> **Actualizado: 2026-09-19 (mejoras visuales del POS, PR #10)** ·
-> **Último deploy a producción: sin cambios** (sigue `build-20260918-170109`, commit `bcdb059`: esta ronda
-> no cambia nada de lo desplegado — es la UI del POS, que se despliega cuando el owner lo pida).
+> **Actualizado: 2026-09-19 (deploy de las mejoras del POS, PR #10)** ·
+> **Último deploy a producción: 2026-09-19, commit `904683d`, build `build-20260919-030008`** (una sola
+> llamada a `deployService` por API sobre el servicio `oneburguerweb`, con `forceRebuild: true`).
+> **Producción sirve los PR #8 (catálogo unificado) y #10 (UI del POS)**.
+>
+> **Verificación del deploy (2026-09-19)**: `GET /api/health` → `ok` con
+> **`build-20260919-030008`** (el anterior era `build-20260918-170109`); `GET /api/readiness` → `ready`,
+> base en **1 ms**; los dos smokes de solo lectura en verde: **menú 7/7** y **hosts 6/6**. El
+> `commit.sha` del panel quedó en `904683dd2b0376cb1e83076e630a4550ded5f775`, **el commit de código que se
+> desplegó** (los commits de **documentación** posteriores dejan a `main` un paso adelante del artefacto:
+> el build es del commit de código, runbook §2).
+> Nota del runbook que se repitió: la **llamada a `deployService` corta por timeout** (240 s) y el build
+> sigue igual; se confirma con `inspectService` (`commit.sha`) y con la versión de `/api/health`.
 >
 > ### Lo que se cerró (2026-09-19, PR #10, squash `bce20da`)
 >
@@ -45,9 +55,9 @@
 > **A-12** (home por rol y filtro «solo sin aceptar»), **A-33** (dónde se mira el listado completo de
 > Órdenes). El detalle del arranque está en [`ops/tasks/START-HERE.md`](tasks/START-HERE.md).
 >
-> **Pendiente de deploy**: los PR #8 y #10 **no están desplegados** (el último build sigue siendo
-> `build-20260918-170109` / `bcdb059`). Desplegar es una decisión del owner: una sola llamada a
-> `deployService` (runbook §2) y los dos smokes después.
+> **Deploy hecho el 2026-09-19**: los PR #8 y #10 **ya están en producción** (`build-20260919-030008`,
+> commit `904683d`), con health, readiness y los dos smokes en verde. Lo que sigue es la cola del backlog
+> de arriba.
 >
 > **El rediseño del menú público (9 pantallas de Stitch) sigue PAUSADO** hasta que el owner lo confirme;
 > antes de tocarlo, **verificar la rama `feat/design-system` del otro dev** (A-36 del backlog).
