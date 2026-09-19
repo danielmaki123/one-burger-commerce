@@ -12,17 +12,19 @@
 > | Cosa | Estado **verificado** |
 > |---|---|
 > | **Workflow corre en PRs** | ✅ `pull_request: [main]` — run `35382136704` (PR #4): **`verify` pass (2m54s) · `contracts` pass (29s) · `migrations` pass (49s) · `container` pass (2m7s) · `publish` skipped** |
-> | **PR #1 … #4** | ✅ **los cuatro MERGED** el 2026-09-18 (#1 con merge commit; #2 `5a6b6b4`, #3 `c19860e` y #4 `74ea819` con **squash**, rama borrada) |
+> | **PR #1 … #5** | ✅ **los cinco MERGED** (#1 con merge commit el 2026-09-18; #2 `5a6b6b4`, #3 `c19860e`, #4 `74ea819` y #5 `85c7b5a` con **squash** y rama borrada). **`main` en `85c7b5a`** |
 > | **Protección de `main`** | ✅ **ACTIVA como ruleset** `Protect main` (id `23673659`, `enforcement: active`, `refs/heads/main`): **`deletion`** + **`non_fast_forward`** + **`required_status_checks`** (`strict: true`). Se verifica con `gh api repos/…/rulesets`; `/branches/main/protection` devuelve **404** y ese 404 **no** significa «sin protección» |
 > | **`AGENTS.md` de `main`** | ✅ actualizado (`74ea819`): flujo con PR + squash, cierre de sesión y ruleset. **299 líneas** (el contrato exige ≤300) |
 >
-> ⚠️ **Lo que falta y es del dueño**: (1) el ruleset tiene *require status checks* **marcado pero sin
-> checks elegidos** (`required_status_checks: []`), así que hoy el CI verde no bloquea el merge. **No es un
-> bug, es el orden**: el workflow no corría en PRs hasta el PR #2, y recién ahora se pueden marcar
-> `verify` + `contracts` + `migrations` + `container` (**nunca `publish`**: no corre en PRs y el PR queda
-> en «Expected» para siempre — A-35); (2) **no hay regla de PR obligatorio**: el push directo lo bloquea
-> el ruleset, pero mergear sin PR sigue dependiendo del equipo. Las dos se cambian en GitHub →
-> Settings → Rules; el agente **no** puede tocar esa configuración.
+> ✅ **Los 4 checks quedaron configurados el 2026-09-19** (`gh api --method PUT …/rulesets/23673659`):
+> `verify`, `contracts`, `migrations` y `container`, con `strict: true`. **`publish` queda afuera a
+> propósito** (A-35, cerrado): no corre en PRs y el PR quedaría en «Expected» para siempre. Antes de eso la
+> lista estaba **vacía** y no era un bug: era el orden (el workflow no corría en PRs hasta el PR #2), y
+> recién con runs reales en PRs se pudieron elegir los checks.
+>
+> ⚠️ **Lo que sigue faltando**: **no hay regla de PR obligatorio** (el push directo lo bloquea el ruleset,
+> pero mergear sin PR sigue dependiendo del equipo). Se cambia en GitHub → Settings → Rules y el agente
+> **no** puede tocar esa configuración.
 >
 > **Referencias al flujo viejo corregidas en esta sesión** (`docs/limpieza-push-directo`): `CLAUDE.md`,
 > `ops/tasks/handoff-next-session.md`, `ops/tasks/TASK-checkout-ux.md` y `ops/tasks/TASK-checkout-v2.md`
@@ -30,12 +32,17 @@
 > resuelto», un brief de `ops/tasks/` **gana sobre `AGENTS.md`**, así que esas líneas autorizaban un push
 > que el ruleset rechaza.
 >
-> ### Próxima tarea: rediseño del menú público — **PAUSADA**
+> ### Próxima tarea: **mejoras visuales del POS** (el menú público sigue pausado)
 >
-> El dueño anunció el **rediseño del menú público (9 pantallas de Stitch)** como próximo trabajo y pidió
-> **no arrancarlo** hasta su confirmación explícita. Antes de tocar nada: **verificar la rama
-> `feat/design-system` del otro dev** (A-36 del backlog) — existe en remoto, no es de esta sesión y puede
-> chocar con el sistema de diseño.
+> La próxima tarea es el **POS (mejoras visuales)**, pasada por chat el 2026-09-19. **No hay brief escrito
+> en el repo**, así que el alcance se **confirma con el owner antes de codear**. Las **4 verificaciones
+> previas** (modal de modificadores · `imageUrl` · categorías · vuelto) están detalladas en
+> [`ops/tasks/START-HERE.md`](tasks/START-HERE.md) § *Próxima tarea*.
+>
+> **Fuera de esta tarea** (son Fase 2 del POS: [`pos-roadmap.md`](tasks/pos-roadmap.md)): **partir el
+> cobro**, **«En espera»** y **métodos de pago nuevos**. **El rediseño del menú público (9 pantallas de
+> Stitch) sigue PAUSADO** hasta que el owner lo confirme; antes de tocarlo, **verificar la rama
+> `feat/design-system` del otro dev** (A-36 del backlog).
 >
 > ---
 >
