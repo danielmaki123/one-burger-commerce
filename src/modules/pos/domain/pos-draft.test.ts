@@ -9,6 +9,7 @@ import {
   createPosDraft,
   posDraftSubtotal,
   posDraftTotals,
+  posLineKey,
   removePosLine,
   setPosLineQuantity,
 } from "./pos-draft";
@@ -56,6 +57,80 @@ describe("borrador del POS", () => {
     expect(draft.lines.map((line) => line.quantity)).toEqual([1, 1]);
   });
 
+  /**
+   * Los modificadores son parte de **qué** se está vendiendo, no de cómo se cobra: un DOBLE con papas y
+   * un DOBLE sin extras cuestan distinto, así que son dos líneas. El caso que esto evita es el peor: dos
+   * configuraciones distintas sumadas en una sola línea, con el precio de una.
+   */
+  it("mantiene separadas las líneas del mismo producto con modificadores distintos", () => {
+    const conPapas = addPosLine(createPosDraft("loc_centro"), {
+      ...taco,
+      unitPrice: 424,
+      modifierOptionIds: ["opt_papas"],
+      modifierNames: ["PAPAS FRITAS"],
+    });
+    const draft = addPosLine(conPapas, {
+      ...taco,
+      modifierOptionIds: ["opt_sin"],
+      modifierNames: ["SIN EXTRAS"],
+    });
+
+    expect(draft.lines).toHaveLength(2);
+    expect(draft.lines.map((line) => line.modifierOptionIds)).toEqual([["opt_papas"], ["opt_sin"]]);
+    expect(draft.lines.map((line) => line.modifierNames)).toEqual([
+      ["PAPAS FRITAS"],
+      ["SIN EXTRAS"],
+    ]);
+  });
+
+  it("suma cantidad cuando es el mismo producto con los mismos modificadores, sin importar el orden", () => {
+    const conExtras = addPosLine(createPosDraft("loc_centro"), {
+      ...taco,
+      modifierOptionIds: ["opt_papas", "opt_torta"],
+    });
+    const draft = addPosLine(conExtras, {
+      ...taco,
+      modifierOptionIds: ["opt_torta", "opt_papas"],
+    });
+
+    expect(draft.lines).toHaveLength(1);
+    expect(draft.lines[0].quantity).toBe(2);
+  });
+
+  it("cambiar la cantidad de una configuración no toca a la otra del mismo producto", () => {
+    const conPapas = addPosLine(createPosDraft("loc_centro"), {
+      ...taco,
+      unitPrice: 424,
+      modifierOptionIds: ["opt_papas"],
+    });
+    const draft = addPosLine(conPapas, { ...taco, modifierOptionIds: ["opt_torta"] });
+
+    const cambiado = setPosLineQuantity(draft, posLineKey(draft.lines[0]), 3);
+
+    expect(cambiado.lines.map((line) => line.quantity)).toEqual([3, 1]);
+  });
+
+  it("la identidad de una línea es producto + modificadores + nota", () => {
+    expect(posLineKey({ productId: "p1" })).toBe("p1||");
+    expect(posLineKey({ productId: "p1", modifierOptionIds: ["b", "a"] })).toBe("p1|a,b|");
+    expect(posLineKey({ productId: "p1", notes: "sin cebolla" })).toBe("p1||sin cebolla");
+    expect(posLineKey({ productId: "p1", modifierOptionIds: ["a"] })).not.toBe(
+      posLineKey({ productId: "p1" }),
+    );
+  });
+
+  it("el precio de la línea ya trae los modificadores y el subtotal sale de ahí", () => {
+    const draft = addPosLine(createPosDraft("loc_centro"), {
+      ...taco,
+      // 35 del taco + 119 de las papas, que es como el servidor cotiza la línea al crear el pedido.
+      unitPrice: 35 + 119,
+      quantity: 2,
+      modifierOptionIds: ["opt_papas"],
+    });
+
+    expect(posDraftSubtotal(draft)).toBe(308);
+  });
+
   it("no muta el borrador anterior (el estado de React se reemplaza, no se toca)", () => {
     const original = createPosDraft("loc_centro");
     const conLinea = addPosLine(original, taco);
@@ -81,18 +156,19 @@ describe("borrador del POS", () => {
 
   it("setQuantity cambia la cantidad y con 0 saca la línea", () => {
     const draft = addPosLine(createPosDraft("loc_centro"), taco);
+    const key = posLineKey(draft.lines[0]);
 
-    expect(setPosLineQuantity(draft, "prod_taco", 3).lines[0].quantity).toBe(3);
-    expect(setPosLineQuantity(draft, "prod_taco", 0).lines).toHaveLength(0);
-    expect(() => setPosLineQuantity(draft, "prod_taco", -2)).toThrow(PosError);
+    expect(setPosLineQuantity(draft, key, 3).lines[0].quantity).toBe(3);
+    expect(setPosLineQuantity(draft, key, 0).lines).toHaveLength(0);
+    expect(() => setPosLineQuantity(draft, key, -2)).toThrow(PosError);
   });
 
-  it("quita la línea por producto", () => {
+  it("quita la línea por su clave", () => {
     const draft = addPosLine(addPosLine(createPosDraft("loc_centro"), taco), refresco);
 
-    expect(removePosLine(draft, "prod_taco").lines.map((line) => line.productId)).toEqual([
-      "prod_refresco",
-    ]);
+    expect(
+      removePosLine(draft, posLineKey(draft.lines[0])).lines.map((line) => line.productId),
+    ).toEqual(["prod_refresco"]);
   });
 
   it("el subtotal suma precio por cantidad, redondeado a dos decimales", () => {

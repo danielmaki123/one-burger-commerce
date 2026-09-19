@@ -209,7 +209,10 @@ export async function registerPosSale(
     items: input.draft.lines.map((line) => ({
       productId: line.productId,
       quantity: line.quantity,
-      modifierOptionIds: [],
+      // Los modificadores que el cajero eligió. El alta los valida y los cotiza
+      // (`basePrice + Σ priceDelta`): antes viajaba `[]` y un producto con un grupo obligatorio no se
+      // podía vender desde el mostrador (422 del alta).
+      modifierOptionIds: line.modifierOptionIds ?? [],
       notes: line.notes ?? null,
     })),
     // La forma de pago del pedido es la del primer cobro **traducida a lo que el pedido declara**

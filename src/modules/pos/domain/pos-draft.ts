@@ -23,6 +23,27 @@ export interface PosDraftLine {
   packagingUnitAmount?: number;
   quantity: number;
   notes?: string;
+  /** Las opciones elegidas (ids de `ModifierOption`). Sin dato = producto sin modificadores. */
+  modifierOptionIds?: string[];
+  /**
+   * Los nombres de esas opciones, para la línea de la venta. Viajan con la línea por el mismo motivo
+   * que `name`: el mostrador no depende de una lectura posterior del catálogo.
+   */
+  modifierNames?: string[];
+}
+
+/**
+ * La identidad de una línea: **producto + modificadores + nota**.
+ *
+ * Es lo que decide si tocar dos veces el mismo producto suma cantidad o abre una línea nueva. Un DOBLE
+ * con papas y un DOBLE sin extras cuestan distinto: son dos líneas. El orden de los modificadores no
+ * cambia la identidad (los ids se ordenan), porque elegir A y después B es lo mismo que B y después A.
+ */
+export function posLineKey(
+  line: Pick<PosDraftLine, "productId" | "notes" | "modifierOptionIds">,
+): string {
+  const modifiers = [...(line.modifierOptionIds ?? [])].sort().join(",");
+  return `${line.productId}|${modifiers}|${line.notes ?? ""}`;
 }
 
 export interface PosDraft {
@@ -60,8 +81,9 @@ function assertLine(line: Omit<PosDraftLine, "quantity"> & { quantity: number })
 }
 
 /**
- * Agrega una línea. Si ya hay una del mismo producto **con la misma nota**, suma la cantidad: en el
- * mostrador, tocar dos veces el mismo plato es "dos", no dos renglones iguales.
+ * Agrega una línea. Si ya hay una del mismo producto **con los mismos modificadores y la misma nota**,
+ * suma la cantidad: en el mostrador, tocar dos veces el mismo plato es "dos", no dos renglones iguales.
+ * Con modificadores distintos es una línea aparte (cuestan distinto).
  */
 export function addPosLine(
   draft: PosDraft,
@@ -70,9 +92,8 @@ export function addPosLine(
   const candidate = { ...line, quantity: line.quantity ?? 1 };
   assertLine(candidate);
 
-  const index = draft.lines.findIndex(
-    (existing) => existing.productId === candidate.productId && (existing.notes ?? "") === (candidate.notes ?? ""),
-  );
+  const key = posLineKey(candidate);
+  const index = draft.lines.findIndex((existing) => posLineKey(existing) === key);
 
   if (index === -1) {
     return { ...draft, lines: [...draft.lines, candidate] };
@@ -86,11 +107,12 @@ export function addPosLine(
 }
 
 /**
- * Cambia la cantidad de todas las líneas de un producto; con 0 las saca. Se aplica por producto
- * porque es lo que el mostrador toca (el mismo plato con dos notas distintas es un caso raro y
- * deliberado, no el camino normal).
+ * Cambia la cantidad de **una** línea del borrador; con 0 la saca.
+ *
+ * Se direcciona por `posLineKey` y no por producto: el mismo plato con dos configuraciones distintas
+ * son dos líneas, y tocar "−" en una no puede cambiar la otra.
  */
-export function setPosLineQuantity(draft: PosDraft, productId: string, quantity: number): PosDraft {
+export function setPosLineQuantity(draft: PosDraft, lineKey: string, quantity: number): PosDraft {
   if (!Number.isInteger(quantity) || quantity < 0) {
     throw new PosError(422, "VALIDATION_ERROR", "La cantidad tiene que ser un entero de 0 o más.", {
       quantity: "La cantidad tiene que ser un entero de 0 o más.",
@@ -98,19 +120,19 @@ export function setPosLineQuantity(draft: PosDraft, productId: string, quantity:
   }
 
   if (quantity === 0) {
-    return removePosLine(draft, productId);
+    return removePosLine(draft, lineKey);
   }
 
   return {
     ...draft,
     lines: draft.lines.map((line) =>
-      line.productId === productId ? { ...line, quantity } : line,
+      posLineKey(line) === lineKey ? { ...line, quantity } : line,
     ),
   };
 }
 
-export function removePosLine(draft: PosDraft, productId: string): PosDraft {
-  return { ...draft, lines: draft.lines.filter((line) => line.productId !== productId) };
+export function removePosLine(draft: PosDraft, lineKey: string): PosDraft {
+  return { ...draft, lines: draft.lines.filter((line) => posLineKey(line) !== lineKey) };
 }
 
 /** Subtotal informativo del borrador: precio × cantidad, sin empaque, propina ni descuentos. */

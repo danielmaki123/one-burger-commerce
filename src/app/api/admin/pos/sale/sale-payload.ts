@@ -27,6 +27,12 @@ const lineSchema = z.object({
   packagingUnitAmount: z.number().min(0, "El empaque no puede ser negativo").optional(),
   quantity: z.number().int("La cantidad tiene que ser un entero").min(1, "La cantidad mínima es 1"),
   notes: z.string().trim().max(200).nullable().optional(),
+  /**
+   * Las opciones elegidas del producto. **No se validan acá a propósito**: qué opción vale para qué
+   * producto, los mínimos y los máximos los resuelve el alta (`createOrder`), que es la única puerta
+   * —igual que el correo—. Acá solo se comprueba la forma, con un tope de sanidad.
+   */
+  modifierOptionIds: z.array(z.string().trim().min(1)).max(50).optional(),
 });
 
 const paymentSchema = z.object({
@@ -163,6 +169,9 @@ export function parsePosSalePayload(body: unknown): {
       packagingUnitAmount: line.packagingUnitAmount ?? 0,
       quantity: line.quantity,
       notes: line.notes ?? undefined,
+      ...(line.modifierOptionIds === undefined
+        ? {}
+        : { modifierOptionIds: line.modifierOptionIds }),
     })),
   };
 

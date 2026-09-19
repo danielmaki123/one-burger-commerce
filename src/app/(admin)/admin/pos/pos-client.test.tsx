@@ -35,33 +35,78 @@ const productos = {
     products: [
       {
         id: "prod_taco",
-        name: "Taco de birria",
-        price: 35,
-        packagingFeeAmount: 5,
         categoryId: "cat_tacos",
-        categoryName: "Tacos",
+        subcategoryId: null,
+        name: "Taco de birria",
+        description: null,
+        basePrice: 35,
+        packagingFeeAmount: 5,
+        images: [],
+        availability: { isAvailable: true, isActive: true },
+        modifierGroups: [],
+        bundleRules: [],
+        createdAt: "2026-09-14T00:00:00.000Z",
+        updatedAt: "2026-09-14T00:00:00.000Z",
         requiresOptions: false,
+        categoryName: "Tacos",
       },
       {
         id: "prod_especial",
-        name: "Taco especial",
-        price: 55,
-        packagingFeeAmount: 0,
         categoryId: "cat_tacos",
-        categoryName: "Tacos",
+        subcategoryId: null,
+        name: "Taco especial",
+        description: null,
+        basePrice: 55,
+        packagingFeeAmount: 0,
+        images: [],
+        availability: { isAvailable: true, isActive: true },
+        modifierGroups: [],
+        bundleRules: [],
+        createdAt: "2026-09-14T00:00:00.000Z",
+        updatedAt: "2026-09-14T00:00:00.000Z",
         requiresOptions: true,
+        categoryName: "Tacos",
+      },
+      {
+        id: "prod_agotado",
+        categoryId: "cat_tacos",
+        subcategoryId: null,
+        name: "Taco agotado",
+        description: null,
+        basePrice: 40,
+        packagingFeeAmount: 0,
+        images: [],
+        availability: { isAvailable: false, isActive: true },
+        modifierGroups: [],
+        bundleRules: [],
+        createdAt: "2026-09-14T00:00:00.000Z",
+        updatedAt: "2026-09-14T00:00:00.000Z",
+        requiresOptions: false,
+        categoryName: "Tacos",
       },
       {
         id: "prod_cola",
-        name: "Cola",
-        price: 25,
-        packagingFeeAmount: 0,
         categoryId: "cat_bebidas",
-        categoryName: "Bebidas",
+        subcategoryId: null,
+        name: "Cola",
+        description: null,
+        basePrice: 25,
+        packagingFeeAmount: 0,
+        images: [],
+        availability: { isAvailable: true, isActive: true },
+        modifierGroups: [],
+        bundleRules: [],
+        createdAt: "2026-09-14T00:00:00.000Z",
+        updatedAt: "2026-09-14T00:00:00.000Z",
         requiresOptions: false,
+        categoryName: "Bebidas",
       },
     ],
-    total: 3,
+    categories: [
+      { id: "cat_tacos", name: "Tacos", count: 3 },
+      { id: "cat_bebidas", name: "Bebidas", count: 1 },
+    ],
+    total: 4,
     query: "",
   },
 };
@@ -217,6 +262,15 @@ describe("PosClient", () => {
 
     expect(screen.queryByRole("button", { name: "Agregar Taco especial a la venta" })).toBeNull();
     expect(screen.getByText("Se elige en la carta")).toBeTruthy();
+  });
+
+  it("un producto agotado se ve, dice «Agotado» y no se puede agregar", async () => {
+    render(<PosClient locations={locations} />);
+
+    await screen.findByText("Taco agotado");
+
+    expect(screen.getByText("Agotado")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Agregar Taco agotado a la venta" })).toBeNull();
   });
 
   it("suma y resta unidades, y sacar deja la venta vacía", async () => {

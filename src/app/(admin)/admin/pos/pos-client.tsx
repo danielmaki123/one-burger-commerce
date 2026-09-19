@@ -13,7 +13,7 @@ import {
 import type { PosHeldSale } from "@/modules/pos/domain/pos-holds";
 import { filterPosProducts } from "@/modules/pos/domain/search-pos-products";
 import { mustCloseShiftBeforeCharging } from "@/modules/pos/domain/shift-close-policy";
-import type { PosCatalogProduct } from "@/modules/pos/ports/pos-catalog";
+import type { PosCatalogProduct, PosCatalogView } from "@/modules/pos/ports/pos-catalog";
 import { useBusinessSettings, useCurrencyFormat } from "@/shared/lib/business-settings";
 import { describeCouponLabel } from "@/shared/lib/coupon-label";
 import { formatCurrency } from "@/shared/lib/format-currency";
@@ -37,6 +37,7 @@ import PosHoldsPanel from "./pos-holds-panel";
 import PosPaymentRows from "./pos-payment-rows";
 import PosSaleLines from "./pos-sale-lines";
 import PosTicketButtons from "./pos-ticket-buttons";
+import PosCatalogCard from "./pos-catalog-card";
 import type {
   PosLocationOption,
   PosPaymentDraft,
@@ -234,7 +235,10 @@ export default function PosClient({
         const response = await fetch(catalogUrl(targetLocationId));
         if (!response.ok) throw new Error("No se pudo cargar el catálogo de ese local.");
 
-        const body = (await response.json()) as { data: { products: PosCatalogProduct[] } };
+        // La respuesta es la **vista** del catálogo (el caso de uso del menú + la proyección del POS):
+        // los productos ya traen el precio del local en `basePrice` y los agotados. Los chips de
+        // categoría (`categories`) llegan en la misma respuesta.
+        const body = (await response.json()) as { data: PosCatalogView };
         // Una respuesta de un local que el cajero ya dejó no puede pisar el catálogo del actual.
         if (locationRef.current !== targetLocationId) return;
 
@@ -373,17 +377,21 @@ export default function PosClient({
       addPosLine(current, {
         productId: product.id,
         name: product.name,
-        unitPrice: product.price,
-        packagingUnitAmount: product.packagingFeeAmount,
+        unitPrice: product.basePrice,
+        packagingUnitAmount: product.packagingFeeAmount ?? 0,
       }),
     );
   };
 
-  /** Las líneas de la venta se suman, se restan y se sacan con las reglas del dominio. */
-  const changeLineQuantity = (productId: string, quantity: number) =>
-    setDraft((current) => setPosLineQuantity(current, productId, quantity));
-  const removeSaleLine = (productId: string) =>
-    setDraft((current) => removePosLine(current, productId));
+  /**
+   * Las líneas de la venta se suman, se restan y se sacan con las reglas del dominio, direccionadas por
+   * la **clave de la línea** (`producto + modificadores + nota`): el mismo plato con dos
+   * configuraciones distintas son dos líneas y tocar una no puede cambiar la otra.
+   */
+  const changeLineQuantity = (lineKey: string, quantity: number) =>
+    setDraft((current) => setPosLineQuantity(current, lineKey, quantity));
+  const removeSaleLine = (lineKey: string) =>
+    setDraft((current) => removePosLine(current, lineKey));
 
   /**
    * Tareas 9.4 y 9.5 del roadmap del POS (Fase 2) — dejar la venta en curso a un lado.
@@ -681,35 +689,12 @@ export default function PosClient({
             ) : (
               <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3" aria-label="Productos del local">
                 {visibleProducts.map((product) => (
-                  <li
+                  <PosCatalogCard
                     key={product.id}
-                    className="flex min-h-24 flex-col justify-between gap-2 rounded-stitch-lg border border-line-subtle bg-surface-card p-3"
-                  >
-                    <div>
-                      <p className="text-st-body font-semibold text-ink">{product.name}</p>
-                      <p className="text-st-overline font-bold uppercase tracking-wider text-brand-amber">
-                        {product.categoryName}
-                      </p>
-                      <p className="mt-1 font-mono text-st-body font-bold tabular-nums text-ink">
-                        {formatCurrency(product.price, currency)}
-                      </p>
-                    </div>
-
-                    {product.requiresOptions ? (
-                      // No se puede vender de un toque: la carta obliga a elegir. Sin botón que mienta.
-                      <p className="text-st-caption font-medium text-ink-secondary">Se elige en la carta</p>
-                    ) : (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="min-h-11 w-full"
-                        aria-label={`Agregar ${product.name} a la venta`}
-                        onClick={() => addProduct(product)}
-                      >
-                        Agregar
-                      </Button>
-                    )}
-                  </li>
+                    product={product}
+                    currency={currency}
+                    onAdd={addProduct}
+                  />
                 ))}
               </ul>
             )}

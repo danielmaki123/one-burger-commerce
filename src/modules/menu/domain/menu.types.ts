@@ -134,3 +134,23 @@ export type PublicMenuCategory = {
   }[];
   products: ProductRecord[];
 };
+
+/**
+ * Desde dónde se mira el catálogo: la **carta** del cliente o el **mostrador**.
+ *
+ * Es lo único que cambia entre las dos superficies (ver `catalog-policy.ts`): el catálogo, el precio del
+ * local y la búsqueda son los mismos.
+ */
+export type CatalogScope = "public" | "pos";
+
+/**
+ * Lo que devuelve el caso de uso único del catálogo (`getCatalog`).
+ *
+ * Los productos son `ProductRecord` — el mismo shape en los dos alcances — y el público queda **igual
+ * que antes** de unificar el caso de uso. `marketingBlocks` viaja vacío fuera del alcance público.
+ */
+export type CatalogResult = {
+  categories: PublicMenuCategory[];
+  marketingBlocks: PublicMenuMarketingBlock[];
+  generatedAt: string;
+};

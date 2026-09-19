@@ -58,6 +58,37 @@ describe("parsePosSalePayload", () => {
   });
 
   /**
+   * Los modificadores que el cajero eligió en el mostrador.
+   *
+   * La ruta **no** los valida (qué opción vale para qué producto lo resuelve el alta, que es la única
+   * puerta): acá solo se comprueba que viajen al borrador con la línea, porque sin ellos el alta
+   * rechazaría cualquier producto con grupo obligatorio.
+   */
+  it("lleva los modificadores elegidos en su línea", () => {
+    const parsed = parsePosSalePayload(
+      body({
+        lines: [
+          {
+            productId: "prod_doble",
+            name: "DOBLE",
+            unitPrice: 424,
+            quantity: 1,
+            modifierOptionIds: ["opt_papas"],
+          },
+        ],
+      }),
+    );
+
+    expect(parsed.input.draft.lines[0].modifierOptionIds).toEqual(["opt_papas"]);
+  });
+
+  it("una línea sin modificadores se lee igual (el campo no es obligatorio)", () => {
+    const parsed = parsePosSalePayload(body());
+
+    expect(parsed.input.draft.lines[0].modifierOptionIds).toBeUndefined();
+  });
+
+  /**
    * Tarea 9.6 del roadmap del POS (Fase 2) — el cupón viaja con la venta.
    *
    * El código lo escribe el cajero y lo aplica el **servidor** (valida, calcula y consume el uso). La

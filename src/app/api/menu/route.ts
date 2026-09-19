@@ -2,12 +2,17 @@ import { NextResponse } from "next/server";
 
 import { PrismaLocationRepository } from "@/modules/locations/adapters/prisma-location-repository";
 import { PrismaMenuRepository } from "@/modules/menu/adapters/prisma-menu-repository";
-import { getPublicMenu } from "@/modules/menu/features/get-public-menu/get-public-menu";
+import { getCatalog } from "@/modules/menu/features/get-catalog/get-catalog";
 import { createErrorResponse } from "@/shared/lib/http/error-response";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
+/**
+ * La carta pública. Es el **mismo** caso de uso que alimenta al mostrador, con `scope: "public"`: solo
+ * lo disponible (salvo `includeUnavailable`), con el precio del local elegido y los bloques de
+ * marketing.
+ */
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -15,12 +20,12 @@ export async function GET(request: Request) {
     const locationId = searchParams.get("locationId") ?? undefined;
     const includeUnavailable = searchParams.get("includeUnavailable") === "true";
 
-    const repository = new PrismaMenuRepository();
-    // El menú público cobra lo que cobra el local (T8): sin `locationId` se usa el local
-    // por defecto, así el negocio de un solo local no cambia nada.
-    const result = await getPublicMenu(
-      { category, locationId, includeUnavailable },
-      { repository, locationRepository: new PrismaLocationRepository() },
+    const result = await getCatalog(
+      { scope: "public", categorySlug: category, locationId, includeUnavailable },
+      {
+        repository: new PrismaMenuRepository(),
+        locationRepository: new PrismaLocationRepository(),
+      },
     );
 
     return NextResponse.json(result, {

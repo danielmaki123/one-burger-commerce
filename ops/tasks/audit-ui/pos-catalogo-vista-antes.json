@@ -1,0 +1,46 @@
+{
+  "locationId": "loc_principal",
+  "locationName": "Principal",
+  "view": {
+    "products": [
+      {
+        "id": "seed-prod-01",
+        "name": "Taco de Birria",
+        "price": 35,
+        "packagingFeeAmount": 0,
+        "categoryId": "cmu2txcu80001sd6g569uwnd6",
+        "categoryName": "Tacos",
+        "requiresOptions": false
+      },
+      {
+        "id": "seed-prod-02",
+        "name": "Taco de Asada",
+        "price": 30,
+        "packagingFeeAmount": 0,
+        "categoryId": "cmu2txcu80001sd6g569uwnd6",
+        "categoryName": "Tacos",
+        "requiresOptions": false
+      },
+      {
+        "id": "seed-prod-03",
+        "name": "Taco de Pastor",
+        "price": 28,
+        "packagingFeeAmount": 0,
+        "categoryId": "cmu2txcu80001sd6g569uwnd6",
+        "categoryName": "Tacos",
+        "requiresOptions": true
+      },
+      {
+        "id": "seed-prod-04",
+        "name": "Agua de Jamaica",
+        "price": 25,
+        "packagingFeeAmount": 0,
+        "categoryId": "cmu2txcug0002sd6ga0xwbelc",
+        "categoryName": "Bebidas",
+        "requiresOptions": false
+      }
+    ],
+    "total": 4,
+    "query": ""
+  }
+}
