@@ -6,6 +6,11 @@ import type { CartItem } from "@/shared/lib/cart";
  * Lo usan la grilla de la home y la del menú: en las dos, el "+" del mock
  * (24 px, sin efecto) es un botón real cuando el producto no obliga a elegir
  * nada, y cuando sí lo obliga la tarjeta entera lleva a elegir.
+ *
+ * **La regla de "¿obliga a elegir?" no vive acá** (A-37, 2026-09-19): es
+ * `canQuickAddProduct` del dominio del menú (`modules/menu/domain/modifier-selection`), la misma que
+ * valida el alta del pedido y la que marca `requiresOptions` en el catálogo del mostrador. Acá queda
+ * solo armar la línea.
  */
 export type QuickAddProduct = {
   id: string;
@@ -13,23 +18,7 @@ export type QuickAddProduct = {
   basePrice: number;
   packagingFeeAmount?: number | null;
   images?: { url: string; alt: string | null; isPrimary?: boolean }[] | null;
-  modifierGroups?: {
-    isRequired?: boolean | null;
-    minSelections?: number | null;
-    options?: { priceDelta?: number | null; isActive?: boolean | null }[] | null;
-  }[] | null;
 };
-
-export function canQuickAddProduct(product: Pick<QuickAddProduct, "modifierGroups">): boolean {
-  return !(product.modifierGroups ?? []).some((group) => {
-    const activeOptions = (group.options ?? []).filter(
-      (option) => option.isActive !== false,
-    );
-    if (activeOptions.length === 0) return false;
-
-    return Boolean(group.isRequired) || (group.minSelections ?? 0) > 0;
-  });
-}
 
 /**
  * Línea del carrito: sin modificadores, con el empaque que cobra el producto.

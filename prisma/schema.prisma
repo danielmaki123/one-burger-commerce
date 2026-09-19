@@ -223,8 +223,13 @@ model Location {
   @@index([isActive, sortOrder])
 }
 
-/// Qué ofrece cada local y a qué precio (T8). Sin fila acá, el producto no se vende en
-/// ese local; `priceOverride` en `null` significa "el precio base del producto".
+/// Las **excepciones** de un local para un producto (T8). La ausencia de fila significa que el local
+/// vende el producto con el precio del negocio, así que la fila es para lo que se aparta de eso:
+/// `priceOverride` en `null` = el precio base del producto, `isAvailable: false` = agotado en ese local
+/// y `isActive: false` = ese local no lo vende (la carta y el mostrador lo esconden).
+///
+/// **No** es "sin fila no se vende": el catálogo deja pasar el producto con el precio del negocio
+/// (`apply-location-pricing`). Lo dice A-38 del backlog, que se corrigió acá y no en el código.
 model LocationProduct {
   id            String   @id @default(cuid())
   locationId    String

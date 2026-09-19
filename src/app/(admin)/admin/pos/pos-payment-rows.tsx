@@ -2,13 +2,17 @@
 
 import * as React from "react";
 
+import { calculateOrderChange } from "@/modules/orders/domain/payment-change";
 import { PAYMENT_METHOD_TYPE_LABELS } from "@/modules/orders/domain/order.types";
 import { POS_PAYMENT_METHODS } from "@/modules/pos/domain/pos-sale";
+import { formatCurrency, type CurrencyFormat } from "@/shared/lib/format-currency";
+import { roundCurrency } from "@/shared/lib/order-totals";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Select } from "@/shared/ui/select";
 
 import type { PosPaymentDraft } from "./pos-types";
+import PosQuickCash from "./pos-quick-cash";
 
 /**
  * Bloque 4 del roadmap del POS (Fase 2) — las filas del cobro del mostrador.
@@ -20,6 +24,9 @@ import type { PosPaymentDraft } from "./pos-types";
  * **`mixed` no está en la lista y es a propósito**: el mixto es un **resultado** de partir el cobro entre dos
  * medios, no algo que el cajero elija. La lista de medios sale del dominio (`POS_PAYMENT_METHODS`), la misma
  * que acepta la API del cobro y la que se guarda en una venta en espera.
+ *
+ * **Mejoras visuales (2026-09-19)**: la fila en efectivo y en la moneda del negocio ofrece los montos
+ * rápidos (`pos-quick-cash.tsx`): el cajero toca el billete con el que le pagaron en vez de tipearlo.
  */
 
 const PAYMENT_METHOD_CHOICES = POS_PAYMENT_METHODS.map((id) => ({
@@ -27,12 +34,58 @@ const PAYMENT_METHOD_CHOICES = POS_PAYMENT_METHODS.map((id) => ({
   label: PAYMENT_METHOD_TYPE_LABELS[id],
 }));
 
+/**
+ * El vuelto en vivo de un cobro **único en efectivo**, mientras el cajero escribe.
+ *
+ * Sale de `calculateOrderChange`, la misma fórmula que usa el servidor al registrar el cobro, así que el
+ * número de la pantalla y el del arqueo no pueden discrepar. Si todavía no alcanza, lo dice: cobrar con
+ * un monto menor lo rechaza el alta.
+ */
+function LiveChange({
+  paidWith,
+  total,
+  currency,
+}: {
+  paidWith: number;
+  total: number;
+  currency: CurrencyFormat;
+}) {
+  if (!Number.isFinite(paidWith) || paidWith <= 0) return null;
+
+  const change = calculateOrderChange({ paidWithAmount: paidWith, total });
+  if (change === null) return null;
+
+  const missing = roundCurrency(total - paidWith);
+
+  if (missing > 0) {
+    return (
+      <p className="text-st-caption font-medium text-status-sla-text">
+        Faltan{" "}
+        <span className="font-mono tabular-nums">{formatCurrency(missing, currency)}</span>
+      </p>
+    );
+  }
+
+  return (
+    <p className="text-st-body text-ink-secondary">
+      Vuelto{" "}
+      <span className="font-mono text-st-body font-bold tabular-nums text-ink">
+        {formatCurrency(change, currency)}
+      </span>
+    </p>
+  );
+}
+
 type PosPaymentRowsProps = {
   payments: PosPaymentDraft[];
   setPayments: React.Dispatch<React.SetStateAction<PosPaymentDraft[]>>;
   /** Los errores por campo que devolvió el servidor (o los de la validación de la pantalla). */
   fieldErrors: Record<string, string>;
   currencyCode: string;
+  /** El formato de la moneda del negocio, para los montos rápidos. */
+  currency: CurrencyFormat;
+  /** El total de la venta: es lo que llena el botón «Exacto». */
+  total: number;
   /** Con tasa cargada el cajero puede cobrar en dólares; sin tasa, la moneda no se elige. */
   usdExchangeRate: number | null;
 };
@@ -42,6 +95,8 @@ export default function PosPaymentRows({
   setPayments,
   fieldErrors,
   currencyCode,
+  currency,
+  total,
   usdExchangeRate,
 }: PosPaymentRowsProps) {
   return (
@@ -114,6 +169,28 @@ export default function PosPaymentRows({
               )
             }
           />
+
+          {payment.method === "cash" && payment.currency === currencyCode ? (
+            <PosQuickCash
+              total={total}
+              currency={currency}
+              onPick={(amount) =>
+                setPayments((current) =>
+                  current.map((item) =>
+                    item.id === payment.id ? { ...item, amount: String(amount) } : item,
+                  ),
+                )
+              }
+            />
+          ) : null}
+
+          {payment.method === "cash" && payment.currency === currencyCode && payment.amount.trim() !== "" ? (
+            <LiveChange
+              paidWith={Number(payment.amount)}
+              total={total}
+              currency={currency}
+            />
+          ) : null}
 
           {payment.method === "transfer" ? (
             <Input

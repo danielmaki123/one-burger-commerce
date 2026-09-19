@@ -1295,6 +1295,43 @@ describe("createOrder", () => {
       code: "VALIDATION_ERROR",
     });
   });
+
+  /**
+   * A-37 (2026-09-19) — la regla de "¿hay que elegir algo?" es **una sola** y vive en el dominio del
+   * menú (`isModifierSelectionRequired`), la misma que decide el "+" de la carta y el «Agregar» del
+   * mostrador. Antes acá se exigía igual un grupo obligatorio **sin opciones activas** (`canQuickAddProduct`
+   * lo daba por libre): la carta ofrecía agregar de un toque y el alta lo rechazaba con 422.
+   */
+  it("un grupo obligatorio sin opciones activas no bloquea la venta (A-37)", async () => {
+    const repository = createRepository();
+    const product = seedProduct(repository, {
+      modifierGroups: [
+        {
+          id: "mg_01",
+          name: "Size",
+          isRequired: true,
+          minSelections: 1,
+          maxSelections: 1,
+          options: [
+            { id: "opt_01", name: "Grande", priceDelta: 20, isActive: false },
+          ],
+        },
+      ],
+    });
+
+    const result = await createOrder(
+      {
+        type: "pickup",
+        customerName: "Juan",
+        customerWhatsapp: "+50588887777",
+        items: [{ productId: "prod_01", quantity: 1, modifierOptionIds: [] }],
+      },
+      { repository },
+    );
+
+    expect(result.data.items[0].modifiers).toEqual([]);
+    expect(result.data.items[0].unitPrice).toBe(product.basePrice);
+  });
 });
 
 describe("createOrder · el local del pedido (T8)", () => {

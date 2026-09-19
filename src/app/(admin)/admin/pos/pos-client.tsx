@@ -11,14 +11,17 @@ import {
   setPosLineQuantity,
 } from "@/modules/pos/domain/pos-draft";
 import type { PosHeldSale } from "@/modules/pos/domain/pos-holds";
-import { filterPosProducts } from "@/modules/pos/domain/search-pos-products";
 import { mustCloseShiftBeforeCharging } from "@/modules/pos/domain/shift-close-policy";
-import type { PosCatalogProduct, PosCatalogView } from "@/modules/pos/ports/pos-catalog";
+import type {
+  PosCatalogCategoryChip,
+  PosCatalogProduct,
+  PosCatalogView,
+} from "@/modules/pos/ports/pos-catalog";
+import { hasSelectableModifiers } from "@/modules/menu/domain/modifier-selection";
 import { useBusinessSettings, useCurrencyFormat } from "@/shared/lib/business-settings";
 import { describeCouponLabel } from "@/shared/lib/coupon-label";
 import { formatCurrency } from "@/shared/lib/format-currency";
 import { Button } from "@/shared/ui/button";
-import { Input } from "@/shared/ui/input";
 import { Select } from "@/shared/ui/select";
 import { PAYMENT_METHOD_TYPE_LABELS } from "@/modules/orders/domain/order.types";
 import {
@@ -27,6 +30,7 @@ import {
   type ReceiptData,
 } from "@/shared/lib/receipt-image";
 import { AdminEmptyState, AdminPageHeader } from "../_components/admin-operational-ui";
+import PosCatalogGrid from "./pos-catalog-grid";
 import PosChargePanel from "./pos-charge-panel";
 import PosCouponPanel from "./pos-coupon-panel";
 import PosCustomerFields from "./pos-customer-fields";
@@ -34,10 +38,10 @@ import type { PosCustomerDraft } from "./pos-customer-fields";
 import { buildPosFiscalPayload, EMPTY_POS_FISCAL_DRAFT } from "./pos-fiscal-payload";
 import PosDiscountPanel, { type AppliedManualDiscount } from "./pos-discount-panel";
 import PosHoldsPanel from "./pos-holds-panel";
+import PosModifierDialog, { type PosModifierSelection } from "./pos-modifier-dialog";
 import PosPaymentRows from "./pos-payment-rows";
 import PosSaleLines from "./pos-sale-lines";
 import PosTicketButtons from "./pos-ticket-buttons";
-import PosCatalogCard from "./pos-catalog-card";
 import type {
   PosLocationOption,
   PosPaymentDraft,
@@ -91,6 +95,13 @@ export default function PosClient({
 
   const [locationId, setLocationId] = React.useState(locations[0]?.id ?? "");
   const [products, setProducts] = React.useState<PosCatalogProduct[]>([]);
+  /**
+   * Los chips de categoría, con su contador, tal como los devuelve el catálogo (el servidor los arma en
+   * `categories`): la pantalla no los agrupa ni los cuenta.
+   */
+  const [catalogCategories, setCatalogCategories] = React.useState<PosCatalogCategoryChip[]>([]);
+  /** La categoría elegida en los chips; `null` es «Todos». */
+  const [activeCategoryId, setActiveCategoryId] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [loadError, setLoadError] = React.useState<string | null>(null);
   const [query, setQuery] = React.useState("");
@@ -147,6 +158,11 @@ export default function PosClient({
   const [payments, setPayments] = React.useState<PosPaymentDraft[]>(() => [
     { id: "pay_1", method: "cash", currency: settings.currencyCode, amount: "" },
   ]);
+  /**
+   * El producto cuyo selector de modificadores está abierto, si hay alguno. La venta se arma con lo que
+   * el cajero confirma en el selector: un producto con opciones no entra a la venta sin pasar por ahí.
+   */
+  const [modifierProduct, setModifierProduct] = React.useState<PosCatalogProduct | null>(null);
   const [charging, setCharging] = React.useState(false);
   const [saleError, setSaleError] = React.useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = React.useState<Record<string, string>>({});
@@ -248,10 +264,12 @@ export default function PosClient({
             ? current
             : body.data.products,
         );
+        setCatalogCategories(body.data.categories);
       } catch (error) {
         if (options.silent) return;
 
         setProducts([]);
+        setCatalogCategories([]);
         setLoadError(error instanceof Error ? error.message : "No se pudo cargar el catálogo.");
       } finally {
         if (!options.silent) setLoading(false);
@@ -292,10 +310,10 @@ export default function PosClient({
     setManualDiscount(null);
   }, [locationId, settings.currencyCode]);
 
-  const visibleProducts = React.useMemo(
-    () => filterPosProducts(products, query),
-    [products, query],
-  );
+  /** Cambiar de local vuelve a «Todos»: los chips del local anterior ya no describen este catálogo. */
+  React.useEffect(() => {
+    setActiveCategoryId(null);
+  }, [locationId]);
 
   /** La firma de la venta: si cambia, el cupón cotizado ya no vale para lo que hay en el mostrador. */
   const cartSignature = draft.lines
@@ -372,13 +390,33 @@ export default function PosClient({
     timezone: settings.timezone,
   });
 
+  /**
+   * Agregar un producto a la venta. Si tiene modificadores que preguntar, primero se eligen en el
+   * selector: sin ellos el alta rechazaría la venta (y el precio de la línea saldría sin los extras).
+   */
   const addProduct = (product: PosCatalogProduct) => {
+    if (hasSelectableModifiers(product.modifierGroups)) {
+      setModifierProduct(product);
+      return;
+    }
+
+    addSaleLine(product, null);
+  };
+
+  /** La línea, con los modificadores elegidos (o sin ellos) y el precio que el selector calculó. */
+  const addSaleLine = (product: PosCatalogProduct, selection: PosModifierSelection | null) => {
     setDraft((current) =>
       addPosLine(current, {
         productId: product.id,
         name: product.name,
-        unitPrice: product.basePrice,
+        unitPrice: selection?.unitPrice ?? product.basePrice,
         packagingUnitAmount: product.packagingFeeAmount ?? 0,
+        ...(selection
+          ? {
+              modifierOptionIds: selection.modifierOptionIds,
+              modifierNames: selection.modifierNames,
+            }
+          : {}),
       }),
     );
   };
@@ -643,7 +681,11 @@ export default function PosClient({
         />
       ) : (
         <div className="grid gap-5 lg:grid-cols-[1.6fr_1fr]">
-          <section className="space-y-4" aria-label="Catálogo">
+          {/*
+            `min-w-0`: sin eso la columna del catálogo se estira con su contenido (la fila de chips con
+            scroll horizontal la dejaba más ancha que la pantalla y aparecía scroll horizontal a 375 px).
+          */}
+          <div className="min-w-0 space-y-4">
             <Select
               label="Local"
               value={locationId}
@@ -651,54 +693,20 @@ export default function PosClient({
               options={locations.map((location) => ({ value: location.id, label: location.name }))}
             />
 
-            <Input
-              label="Buscar en el catálogo"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Taco, bebida, postre…"
+            <PosCatalogGrid
+              products={products}
+              categories={catalogCategories}
+              query={query}
+              onQueryChange={setQuery}
+              activeCategoryId={activeCategoryId}
+              onCategorySelect={setActiveCategoryId}
+              loading={loading}
+              loadError={loadError}
+              onRetry={() => setReloadKey((key) => key + 1)}
+              currency={currency}
+              onAdd={addProduct}
             />
-
-            {loading ? (
-              <p className="rounded-stitch-lg border border-line-subtle bg-surface-card px-4 py-6 text-st-body text-ink-secondary">
-                Cargando el catálogo…
-              </p>
-            ) : loadError ? (
-              <AdminEmptyState
-                title="No se pudo cargar el catálogo"
-                description={loadError}
-                action={
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="min-h-11"
-                    onClick={() => setReloadKey((key) => key + 1)}
-                  >
-                    Reintentar
-                  </Button>
-                }
-              />
-            ) : visibleProducts.length === 0 ? (
-              <AdminEmptyState
-                title={products.length === 0 ? "El local no tiene productos vendibles" : "Sin resultados"}
-                description={
-                  products.length === 0
-                    ? "Cargá la carta del local en Menú y volvé a entrar."
-                    : "Probá con otro nombre o con la categoría."
-                }
-              />
-            ) : (
-              <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3" aria-label="Productos del local">
-                {visibleProducts.map((product) => (
-                  <PosCatalogCard
-                    key={product.id}
-                    product={product}
-                    currency={currency}
-                    onAdd={addProduct}
-                  />
-                ))}
-              </ul>
-            )}
-          </section>
+          </div>
 
           <section
             className="h-fit space-y-3 rounded-stitch-xl border border-line-subtle bg-surface-card p-4"
@@ -767,6 +775,8 @@ export default function PosClient({
                 setPayments={setPayments}
                 fieldErrors={fieldErrors}
                 currencyCode={settings.currencyCode}
+                currency={currency}
+                total={totals.total}
                 usdExchangeRate={settings.usdExchangeRate}
               />
 
@@ -914,6 +924,21 @@ export default function PosClient({
           </section>
         </div>
       )}
+
+      {/*
+        El selector de modificadores del mostrador: se monta inline (no en un portal) para heredar el
+        alcance oscuro del shell del panel. Los datos vienen del catálogo y la regla, del dominio.
+      */}
+      <PosModifierDialog
+        product={modifierProduct}
+        currency={currency}
+        open={modifierProduct !== null}
+        onClose={() => setModifierProduct(null)}
+        onConfirm={(product, selection) => {
+          addSaleLine(product, selection);
+          setModifierProduct(null);
+        }}
+      />
     </div>
   );
 }

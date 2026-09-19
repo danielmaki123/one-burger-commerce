@@ -70,4 +70,19 @@ describe("pos customer fields", () => {
     expect((taxIdField() as HTMLInputElement).value).toBe("");
     expect((screen.getByLabelText("Razón social") as HTMLInputElement).value).toBe("");
   });
+
+  /**
+   * La guía visual del mockup: cada campo lleva su ícono a la derecha (persona, teléfono, correo). Es
+   * decoración: el campo se sigue leyendo por su etiqueta, así que el ícono va `aria-hidden`.
+   */
+  it("cada campo del cliente tiene su ícono a la derecha, decorativo", () => {
+    render(<Harness />);
+
+    for (const field of ["name", "whatsapp", "email"]) {
+      const icon = screen.getByTestId(`pos-customer-icon-${field}`);
+
+      expect(icon.getAttribute("aria-hidden")).toBe("true");
+      expect(icon.className).toContain("right-3");
+    }
+  });
 });

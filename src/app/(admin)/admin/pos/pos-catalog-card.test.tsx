@@ -52,6 +52,30 @@ describe("PosCatalogCard", () => {
     expect(onAdd.mock.calls[0][0].id).toBe("prod_doble");
   });
 
+  it("muestra la foto del producto y, sin foto, el respaldo", () => {
+    const { unmount } = render(
+      <PosCatalogCard
+        product={product({
+          images: [
+            { id: "img_1", url: "https://cdn.test/doble.png", alt: "DOBLE", isPrimary: true },
+          ],
+        })}
+        currency={currency}
+        onAdd={() => {}}
+      />,
+    );
+
+    expect(screen.getByRole("img", { name: "DOBLE" }).getAttribute("src")).toBe(
+      "https://cdn.test/doble.png",
+    );
+
+    unmount();
+
+    render(<PosCatalogCard product={product()} currency={currency} onAdd={() => {}} />);
+    expect(screen.queryByRole("img")).toBeNull();
+    expect(screen.getByTestId("pos-catalog-photo-fallback")).toBeTruthy();
+  });
+
   it("muestra el nombre, la categoría y el precio del local en mono", () => {
     render(<PosCatalogCard product={product()} currency={currency} onAdd={() => {}} />);
 
@@ -90,12 +114,15 @@ describe("PosCatalogCard", () => {
     expect(screen.queryByText("Se elige en la carta")).toBeNull();
   });
 
-  it("un producto que exige opciones dice que se elige en la carta y no se agrega de un toque", () => {
+  it("un producto que exige opciones también se agrega: el selector las pregunta", async () => {
+    const onAdd = vi.fn();
     render(
-      <PosCatalogCard product={product({ requiresOptions: true })} currency={currency} onAdd={() => {}} />,
+      <PosCatalogCard product={product({ requiresOptions: true })} currency={currency} onAdd={onAdd} />,
     );
 
-    expect(screen.getByText("Se elige en la carta")).toBeTruthy();
-    expect(screen.queryByRole("button", { name: /Agregar DOBLE/ })).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Agregar DOBLE a la venta" }));
+
+    expect(onAdd).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText("Se elige en la carta")).toBeNull();
   });
 });

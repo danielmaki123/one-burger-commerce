@@ -1,55 +1,19 @@
 import { describe, expect, it } from "vitest";
 
 import { calculateOrderTotals } from "@/shared/lib/order-totals";
-import {
-  buildQuickAddCartItem,
-  canQuickAddProduct,
-} from "@/shared/lib/product-quick-add";
+import { buildQuickAddCartItem } from "@/shared/lib/product-quick-add";
 
 /**
  * T3 — el "+" de la grilla del menú.
  *
  * El mock tiene un "+" de 24 px que no hace nada y un aviso de "Platillo
  * agregado" que nunca aparece. Acá el botón agrega de verdad, o no se dibuja.
+ *
+ * La regla de si el "+" se dibuja (`canQuickAddProduct`) se movió al dominio del menú en la ronda de
+ * A-37 (2026-09-19): sus casos viven en `modules/menu/domain/modifier-selection.test.ts`, junto a la
+ * validación del alta que tiene que coincidir con ella.
  */
 describe("agregar al carrito sin abrir el producto", () => {
-  it("se agrega directo cuando el producto no obliga a elegir nada", () => {
-    expect(canQuickAddProduct({ modifierGroups: [] })).toBe(true);
-    expect(canQuickAddProduct({})).toBe(true);
-    expect(
-      canQuickAddProduct({
-        modifierGroups: [
-          {
-            isRequired: false,
-            minSelections: 0,
-            options: [{ priceDelta: 5, isActive: true }],
-          },
-        ],
-      }),
-    ).toBe(true);
-  });
-
-  it("no se agrega directo cuando hay que elegir", () => {
-    expect(
-      canQuickAddProduct({
-        modifierGroups: [{ isRequired: true, minSelections: 0, options: [{ isActive: true }] }],
-      }),
-    ).toBe(false);
-    expect(
-      canQuickAddProduct({
-        modifierGroups: [{ isRequired: false, minSelections: 1, options: [{ isActive: true }] }],
-      }),
-    ).toBe(false);
-  });
-
-  it("un grupo obligatorio sin opciones activas no bloquea: no habría nada que elegir", () => {
-    expect(
-      canQuickAddProduct({
-        modifierGroups: [{ isRequired: true, minSelections: 1, options: [{ isActive: false }] }],
-      }),
-    ).toBe(true);
-  });
-
   it("arma la línea del carrito con el precio y el empaque del producto", () => {
     // `lineTotal` es el precio del producto (35): el empaque (5) va en su propio campo y se
     // suma una sola vez al mostrar el total (ver el test del invariante más abajo).

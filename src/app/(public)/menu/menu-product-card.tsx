@@ -7,9 +7,10 @@ import { useCart } from "@/shared/lib/cart";
 import { useCurrencyFormat } from "@/shared/lib/business-settings";
 import { formatCurrency } from "@/shared/lib/format-currency";
 import { getPublicStartingPrice } from "@/shared/lib/public-product-pricing";
-import { buildQuickAddCartItem, canQuickAddProduct } from "@/shared/lib/product-quick-add";
+import { buildQuickAddCartItem } from "@/shared/lib/product-quick-add";
 import { Card, CardContent } from "@/shared/ui/card";
 import { resolveCategoryCardColors } from "@/modules/menu/domain/category-color";
+import { canQuickAddProduct } from "@/modules/menu/domain/modifier-selection";
 import { getMenuProductActionCopy } from "./menu-page-helpers";
 
 export interface PublicMenuProductCardData {
