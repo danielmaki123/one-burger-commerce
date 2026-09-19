@@ -313,6 +313,22 @@ describe("PosClient", () => {
     expect(screen.queryByRole("button", { name: "Agregar Taco agotado a la venta" })).toBeNull();
   });
 
+  it("los chips de categoría (con su contador) filtran el catálogo", async () => {
+    const user = userEvent.setup();
+    render(<PosClient locations={locations} />);
+
+    await screen.findByText("Taco de birria");
+
+    const chips = screen.getByRole("group", { name: "Categorías del catálogo" });
+    expect(within(chips).getByRole("button", { name: /Tacos/ }).textContent).toContain("3");
+    expect(within(chips).getByRole("button", { name: /Bebidas/ }).textContent).toContain("1");
+
+    await user.click(within(chips).getByRole("button", { name: /Bebidas/ }));
+
+    expect(screen.getByText("Cola")).toBeTruthy();
+    expect(screen.queryByText("Taco de birria")).toBeNull();
+  });
+
   it("suma y resta unidades, y sacar deja la venta vacía", async () => {
     const user = userEvent.setup();
     render(<PosClient locations={locations} />);
