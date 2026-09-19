@@ -1,48 +1,52 @@
 # Estado del proyecto — One Burger Commerce
 
-> **Actualizado: 2026-09-18 (limpieza de las referencias al flujo viejo + estado medido del ruleset)** ·
-> **Último deploy a producción: sin cambios** (sigue `build-20260918-170109`, commit `bcdb059`; las
-> últimas sesiones fueron solo documentación y CI).
+> **Actualizado: 2026-09-19 (catálogo unificado y modificadores en la venta del POS, PR #8)** ·
+> **Último deploy a producción: sin cambios** (sigue `build-20260918-170109`, commit `bcdb059`: esta
+> tarea no cambia nada de lo desplegado, es la base de las mejoras visuales del POS).
 >
-> ### Flujo de git y CI (2026-09-18) — lo que cambió y lo que falta
+> ### Lo que se cerró (2026-09-19, PR #8, squash `d937b5e`)
 >
-> **Documentado en `AGENTS.md` § *Git y CI*.** Se reemplazó el «push directo a `main` autorizado» por
-> **rama + Pull Request + CI verde + merge `--squash`**. Medido contra GitHub y el repo el 2026-09-18:
+> La carta pública y el mostrador pasaron a leer por el **mismo caso de uso**
+> (`src/modules/menu/features/get-catalog/get-catalog.ts`, con `scope: "public" | "pos"`) y la venta de
+> mostrador **manda los modificadores elegidos** en vez de `[]`. Antes, 4 de los 6 productos reales —las
+> hamburguesas con el grupo `EXTRAS` obligatorio— **no se podían cobrar desde el mostrador**: el alta
+> respondía 422.
 >
-> | Cosa | Estado **verificado** |
-> |---|---|
-> | **Workflow corre en PRs** | ✅ `pull_request: [main]` — run `35382136704` (PR #4): **`verify` pass (2m54s) · `contracts` pass (29s) · `migrations` pass (49s) · `container` pass (2m7s) · `publish` skipped** |
-> | **PR #1 … #5** | ✅ **los cinco MERGED** (#1 con merge commit el 2026-09-18; #2 `5a6b6b4`, #3 `c19860e`, #4 `74ea819` y #5 `85c7b5a` con **squash** y rama borrada). **`main` en `85c7b5a`** |
-> | **Protección de `main`** | ✅ **ACTIVA como ruleset** `Protect main` (id `23673659`, `enforcement: active`, `refs/heads/main`): **`deletion`** + **`non_fast_forward`** + **`required_status_checks`** (`strict: true`). Se verifica con `gh api repos/…/rulesets`; `/branches/main/protection` devuelve **404** y ese 404 **no** significa «sin protección» |
-> | **`AGENTS.md` de `main`** | ✅ actualizado (`74ea819`): flujo con PR + squash, cierre de sesión y ruleset. **299 líneas** (el contrato exige ≤300) |
+> - La regla de modificadores vive en el dominio del menú
+>   (`src/modules/menu/domain/modifier-selection.ts`, movida desde la carpeta de la ruta pública) y la
+>   búsqueda del catálogo es **una sola regla** (`src/modules/menu/domain/catalog-search.ts`).
+> - El POS dejó de tener un shape paralelo: `PosCatalogProduct extends ProductRecord` con
+>   `requiresOptions` derivado, y una **proyección** pura en `src/modules/pos/domain/pos-catalog-view.ts`
+>   (aplana, deduplica y arma los chips de categoría con su contador). Se borraron
+>   `adapters/menu-pos-catalog.ts` y `features/search-pos-catalog/`.
+> - La tarjeta del producto se extrajo a `src/app/(admin)/admin/pos/pos-catalog-card.tsx` con el estado
+>   **Agotado**: el catálogo del mostrador **ahora incluye los agotados** (decisión del owner) para poder
+>   avisarlos, y la carta pública no cambió.
+> - La línea de la venta se direcciona por `posLineKey` (producto + modificadores + nota) y el borrador
+>   guardado en el dispositivo lee y escribe los modificadores de forma defensiva.
+> - **El contrato público `/api/menu` quedó idéntico byte a byte** (único campo normalizado
+>   `generatedAt`): 4737 bytes y sha256 `D1D663F9…DED0` en los dos lados.
 >
-> ✅ **Los 4 checks quedaron configurados el 2026-09-19** (`gh api --method PUT …/rulesets/23673659`):
-> `verify`, `contracts`, `migrations` y `container`, con `strict: true`. **`publish` queda afuera a
-> propósito** (A-35, cerrado): no corre en PRs y el PR quedaría en «Expected» para siempre. Antes de eso la
-> lista estaba **vacía** y no era un bug: era el orden (el workflow no corría en PRs hasta el PR #2), y
-> recién con runs reales en PRs se pudieron elegir los checks.
+> **Verificación**: TDD con rojo observado en los cuatro pasos (16, 10, 7 y 11 fallos por aserción antes
+> de implementar; el move puro del paso 1 se validó por mutación, documentado en su commit);
+> **2952 unitarios en 427 archivos**, `contracts` 50/50, lint, typecheck, `build` y `security:secrets`
+> verdes; **E2E local completo con mutaciones 122 pasaron / 7 salteados / 0 fallos**; capturas
+> antes/después a 375 y 1280 en `ops/tasks/audit-ui/pos-catalogo-*.png`; los 4 checks del CI (`verify`,
+> `contracts`, `migrations`, `container`) verdes.
 >
-> ⚠️ **Lo que sigue faltando**: **no hay regla de PR obligatorio** (el push directo lo bloquea el ruleset,
-> pero mergear sin PR sigue dependiendo del equipo). Se cambia en GitHub → Settings → Rules y el agente
-> **no** puede tocar esa configuración.
+> ### Próxima tarea: **la UI del POS (mejoras visuales)**
 >
-> **Referencias al flujo viejo corregidas en esta sesión** (`docs/limpieza-push-directo`): `CLAUDE.md`,
-> `ops/tasks/handoff-next-session.md`, `ops/tasks/TASK-checkout-ux.md` y `ops/tasks/TASK-checkout-v2.md`
-> decían «push directo autorizado» o «hacé push a `main`». Importaba: por la regla «plan escrito = alcance
-> resuelto», un brief de `ops/tasks/` **gana sobre `AGENTS.md`**, así que esas líneas autorizaban un push
-> que el ruleset rechaza.
->
-> ### Próxima tarea: **mejoras visuales del POS** (el menú público sigue pausado)
->
-> La próxima tarea es el **POS (mejoras visuales)**, pasada por chat el 2026-09-19. **No hay brief escrito
-> en el repo**, así que el alcance se **confirma con el owner antes de codear**. Las **4 verificaciones
-> previas** (modal de modificadores · `imageUrl` · categorías · vuelto) están detalladas en
+> Es la segunda mitad del mismo pedido del 2026-09-19: el **selector de modificadores** en el mostrador
+> (los datos ya viajan en la respuesta del catálogo), las **fotos** en las tarjetas, los **chips de
+> categoría** (el contador ya viene en `categories`), el **formulario del cliente** con iconos, los
+> **botones rápidos de efectivo**, el **vuelto en vivo** y el **aviso de caja destacado**. El detalle,
+> las reglas del mockup que NO se copian y lo que queda fuera están en
 > [`ops/tasks/START-HERE.md`](tasks/START-HERE.md) § *Próxima tarea*.
 >
-> **Fuera de esta tarea** (son Fase 2 del POS: [`pos-roadmap.md`](tasks/pos-roadmap.md)): **partir el
-> cobro**, **«En espera»** y **métodos de pago nuevos**. **El rediseño del menú público (9 pantallas de
-> Stitch) sigue PAUSADO** hasta que el owner lo confirme; antes de tocarlo, **verificar la rama
-> `feat/design-system` del otro dev** (A-36 del backlog).
+> **Fuera de esa tarea** (son Fase 2 del POS: [`pos-roadmap.md`](tasks/pos-roadmap.md)): **partir el
+> cobro**, **«En espera»** y **métodos de pago nuevos** — los tres ya existen y **no se agregan**. **El
+> rediseño del menú público (9 pantallas de Stitch) sigue PAUSADO** hasta que el owner lo confirme; antes
+> de tocarlo, **verificar la rama `feat/design-system` del otro dev** (A-36 del backlog).
 >
 > ---
 >
@@ -56,7 +60,7 @@
 > | 3 | **Modo cocina opt-in** (botón + `localStorage`, oculta sidebar y header) | **cerrado** — commit `398f0c8`, deploy `build-20260918-163329` |
 > | 4 | **Checkbox fiscal en el POS** (RUC + razón social → `Customer` y factura) | **cerrado** — ver «Punto 4» abajo |
 >
-> **Tests actuales: 2920 unitarios en 425 archivos + 50 de contrato** (`npx vitest run src/shared/contracts`).
+> **Tests actuales: 2952 unitarios en 427 archivos + 50 de contrato** (`npx vitest run src/shared/contracts`).
 > Gates locales al cierre: `test`, `lint`, `typecheck`, `build`, `build:webpack`, `security:secrets` y
 > `prisma migrate diff` sin drift.
 >
