@@ -120,13 +120,13 @@ describe("admin pos catalog route", () => {
     expect(body.error.fields.locationId).toBeTruthy();
   });
 
-  it("devuelve el catálogo del local con precios resueltos y sin consulta", async () => {
+  it("devuelve el catálogo del local con los agotados incluidos y los chips de categoría", async () => {
     const response = await callRoute("?locationId=loc_norte");
     const body = await response.json();
 
     expect(response.status).toBe(200);
     expect(getCatalogMock).toHaveBeenCalledWith(
-      { scope: "pos", locationId: "loc_norte" },
+      { scope: "pos", locationId: "loc_norte", query: "" },
       expect.objectContaining({
         repository: expect.anything(),
         locationRepository: expect.anything(),
@@ -137,14 +137,24 @@ describe("admin pos catalog route", () => {
       "prod_cola",
     ]);
     expect(body.data.total).toBe(2);
+    // La vista es `PosCatalogProduct extends ProductRecord`: el precio del local viaja en `basePrice`
+    // (no en un campo paralelo) y la categoría con su contador viene armada del servidor.
+    expect(body.data.products[0].basePrice).toBe(35);
+    expect(body.data.products[0]).not.toHaveProperty("price");
+    expect(body.data.products[0].requiresOptions).toBe(false);
+    expect(body.data.categories).toEqual([{ id: "cat_tacos", name: "Tacos", count: 2 }]);
   });
 
-  it("busca por nombre en la misma llamada (el filtro es del caso de uso)", async () => {
+  it("le pasa la búsqueda al caso de uso: la ruta no filtra", async () => {
     const response = await callRoute("?locationId=loc_norte&query=cola");
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(body.data.products.map((item: { id: string }) => item.id)).toEqual(["prod_cola"]);
+    expect(getCatalogMock).toHaveBeenCalledWith(
+      { scope: "pos", locationId: "loc_norte", query: "cola" },
+      expect.anything(),
+    );
+    // El filtro vive en el caso de uso (`get-catalog.test.ts`); acá se devuelve lo que él trajo.
     expect(body.data.query).toBe("cola");
   });
 

@@ -1,29 +1,40 @@
+import type { ProductRecord } from "@/modules/menu/domain/menu.types";
+
 /**
  * TASK-301 — lo que el POS necesita del catálogo.
  *
- * El puerto pide **productos vendibles de un local con su precio ya resuelto**: el POS nunca calcula
- * precios ni filtra por local por su cuenta (eso ya lo hace `getPublicMenu` con
- * `apply-location-pricing`, T8). El adaptador de producción será una composición sobre ese caso de
- * uso, no una consulta nueva a la base: si hubiera dos caminos de precios, podrían diferir.
+ * El POS no tiene un camino propio de precios ni de disponibilidad: lee el **mismo** catálogo que la
+ * carta (`getCatalog`, alcance `pos`) y su vista agrega solo dos cosas derivadas, no una copia de
+ * campos:
+ *
+ * - `requiresOptions`: si hay que elegir modificadores antes de poder venderlo (regla compartida
+ *   `canQuickAddProduct`, la misma del "+" de la home y del menú).
+ * - `categoryName`: el contexto de la categoría que lo contiene, que la tarjeta muestra y la búsqueda
+ *   usa para encontrar ("bebidas" lista las bebidas).
+ *
+ * Antes este tipo era un shape paralelo de 7 campos (con `price` en lugar de `basePrice`, sin fotos ni
+ * modificadores): dos definiciones del mismo producto que podían divergir.
  */
-
-export interface PosCatalogProduct {
-  id: string;
-  name: string;
-  /** Precio final para ese local, ya resuelto por el módulo de menú. */
-  price: number;
-  /**
-   * TASK-303b — empaque por unidad. El mostrador tiene que ver el **total** que va a cobrar y el
-   * servidor suma el empaque aparte (`packagingTotalAmount`): si el POS mostrara solo el precio, el
-   * cajero cobraría de menos. Es la misma clase de bug de dinero mostrado que arregló T5.
-   */
-  packagingFeeAmount: number;
-  categoryId: string;
-  categoryName: string;
-  /** El producto exige elegir opciones: no se puede vender de un toque desde el mostrador. */
+export interface PosCatalogProduct extends ProductRecord {
   requiresOptions: boolean;
+  categoryName: string;
 }
 
+/** El chip de categoría del mostrador, con su contador real (nada hardcodeado ni recalculado). */
+export type PosCatalogCategoryChip = {
+  id: string;
+  name: string;
+  count: number;
+};
+
+/** Lo que devuelve el puerto: los productos del local y los chips para filtrar por categoría. */
+export type PosCatalogView = {
+  products: PosCatalogProduct[];
+  categories: PosCatalogCategoryChip[];
+  total: number;
+  query: string;
+};
+
 export interface PosCatalogPort {
-  listProducts(params: { locationId: string }): Promise<PosCatalogProduct[]>;
+  listCatalog(params: { locationId: string; query: string }): Promise<PosCatalogView>;
 }

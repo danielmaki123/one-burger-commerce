@@ -50,7 +50,7 @@ async function sellWithCard(page: import("@playwright/test").Page) {
         products: {
           id: string;
           name: string;
-          price: number;
+          basePrice: number;
           packagingFeeAmount: number;
           requiresOptions: boolean;
         }[];
