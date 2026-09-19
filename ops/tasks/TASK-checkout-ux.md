@@ -235,5 +235,6 @@ Un principio: **un dato, un lugar; un viewport, una acción.**
 > validación mínima (`npm run test`, `lint`, `typecheck`, `build`, `security:secrets`) antes
 > de cerrar cada fase. La verificación de "un solo botón visible" va en navegador real
 > (Playwright) a 375 px y 1280 px, no en HTML estático.
-> Al terminar cada fase: actualizá `ops/project-state.md`, hacé push a `main` y confirmá que
-> el CI quedó verde. **No despliegues a producción sin pedirme confirmación.**
+> Al terminar cada fase: actualizá `ops/project-state.md` y cerrá con **rama + PR hacia `main` + los 4
+> checks verdes + merge `--squash`** (nunca push directo a `main`), y confirmá que el CI quedó verde.
+> **No despliegues a producción sin pedirme confirmación.**

@@ -1,32 +1,34 @@
 # Estado del proyecto — One Burger Commerce
 
-> **Actualizado: 2026-09-18 (cierre de la sesión de git/CI)** · **Último deploy a producción: sin cambios
-> en esta sesión** (el último sigue siendo `build-20260918-170109`, commit `bcdb059`; esta sesión fue
-> solo documentación y CI).
+> **Actualizado: 2026-09-18 (limpieza de las referencias al flujo viejo + estado medido del ruleset)** ·
+> **Último deploy a producción: sin cambios** (sigue `build-20260918-170109`, commit `bcdb059`; las
+> últimas sesiones fueron solo documentación y CI).
 >
 > ### Flujo de git y CI (2026-09-18) — lo que cambió y lo que falta
 >
 > **Documentado en `AGENTS.md` § *Git y CI*.** Se reemplazó el «push directo a `main` autorizado» por
-> **rama + Pull Request obligatorio**. Medido contra GitHub y el repo el 2026-09-18:
+> **rama + Pull Request + CI verde + merge `--squash`**. Medido contra GitHub y el repo el 2026-09-18:
 >
 > | Cosa | Estado **verificado** |
 > |---|---|
-> | **Workflow corre en PRs** | ✅ `pull_request: [main]` — run `35379018496` (evento `pull_request`, head `ci/pull-request-trigger`): **`verify` pass (2m6s) · `contracts` pass (33s) · `migrations` pass (56s) · `container` pass (2m1s) · `publish` skipped** |
-> | **PR #1** (`docs/git-flow-ramas-y-prs`) | ✅ **MERGED** (2026-09-18 17:46 UTC) |
-> | **PR #2** (`ci/pull-request-trigger`) | ⚠️ **`OPEN` al cierre** — verificado con `gh pr view 2` (`state: OPEN`, `mergedAt: null`). El dueño lo reportó como mergeado, pero **GitHub todavía no lo registra** |
-> | **Branch protection en `main`** | ⚠️ **NO activa**: `gh api repos/…/branches/main/protection` → **404 «Branch not protected»**. El dueño la está configurando |
-> | **`AGENTS.md` de `main`** | ⚠️ **desactualizado**: como el PR #2 no entró, en `main` la sección *CI* todavía dice que el CI «no corre en las ramas ni en los PRs» y el workflow **no tiene** `pull_request` (solo existen en la rama `ci/pull-request-trigger`) |
+> | **Workflow corre en PRs** | ✅ `pull_request: [main]` — run `35382136704` (PR #4): **`verify` pass (2m54s) · `contracts` pass (29s) · `migrations` pass (49s) · `container` pass (2m7s) · `publish` skipped** |
+> | **PR #1 … #4** | ✅ **los cuatro MERGED** el 2026-09-18 (#1 con merge commit; #2 `5a6b6b4`, #3 `c19860e` y #4 `74ea819` con **squash**, rama borrada) |
+> | **Protección de `main`** | ✅ **ACTIVA como ruleset** `Protect main` (id `23673659`, `enforcement: active`, `refs/heads/main`): **`deletion`** + **`non_fast_forward`** + **`required_status_checks`** (`strict: true`). Se verifica con `gh api repos/…/rulesets`; `/branches/main/protection` devuelve **404** y ese 404 **no** significa «sin protección» |
+> | **`AGENTS.md` de `main`** | ✅ actualizado (`74ea819`): flujo con PR + squash, cierre de sesión y ruleset. **299 líneas** (el contrato exige ≤300) |
 >
-> **Configuración de branch protection acordada con el dueño** (a activar en GitHub → Settings →
-> Branches → `main`): *Require a pull request before merging* · **approvals 0** (sin ceremonia: el PR
-> es obligatorio, la aprobación de otro dev no) · *Require status checks to pass*: **`verify`,
-> `contracts`, `migrations`, `container`** · *Do not allow force pushes* · *Do not allow deletions*.
-> ⚠️ **`publish` NO va como required check**: no corre en PRs (tiene `if: push && ref == main`) y el PR
-> quedaría trabado en «Expected» para siempre (A-35 del backlog).
+> ⚠️ **Lo que falta y es del dueño**: (1) el ruleset tiene *require status checks* **marcado pero sin
+> checks elegidos** (`required_status_checks: []`), así que hoy el CI verde no bloquea el merge. **No es un
+> bug, es el orden**: el workflow no corría en PRs hasta el PR #2, y recién ahora se pueden marcar
+> `verify` + `contracts` + `migrations` + `container` (**nunca `publish`**: no corre en PRs y el PR queda
+> en «Expected» para siempre — A-35); (2) **no hay regla de PR obligatorio**: el push directo lo bloquea
+> el ruleset, pero mergear sin PR sigue dependiendo del equipo. Las dos se cambian en GitHub →
+> Settings → Rules; el agente **no** puede tocar esa configuración.
 >
-> **Pendientes que deja esta sesión**: (1) mergear el **PR #2** (los 4 checks ya están verdes);
-> (2) activar la protección con los 4 checks; (3) con el PR #2 dentro, `AGENTS.md` en `main` queda
-> correcto. **Ninguno de los tres es código.**
+> **Referencias al flujo viejo corregidas en esta sesión** (`docs/limpieza-push-directo`): `CLAUDE.md`,
+> `ops/tasks/handoff-next-session.md`, `ops/tasks/TASK-checkout-ux.md` y `ops/tasks/TASK-checkout-v2.md`
+> decían «push directo autorizado» o «hacé push a `main`». Importaba: por la regla «plan escrito = alcance
+> resuelto», un brief de `ops/tasks/` **gana sobre `AGENTS.md`**, así que esas líneas autorizaban un push
+> que el ruleset rechaza.
 >
 > ### Próxima tarea: rediseño del menú público — **PAUSADA**
 >

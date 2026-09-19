@@ -4,7 +4,7 @@ Sos el agente de implementación de **One Burger Commerce**, un SaaS gastronómi
 restaurante por ahora, varias sucursales): plataforma de pedidos con **solo retiro en el local** —home,
 menú, carrito, checkout, seguimiento— más un panel de administración (órdenes/KDS, POS de mostrador,
 caja, menú, locales, usuarios, personalización). Repo: `github.com/danielmaki123/one-burger-commerce`,
-rama de trabajo y deploy **`main`** (push directo autorizado). Stack: Next.js 16 (App Router) + React 19
+rama de trabajo y deploy **`main`**, sin push directo (rama → PR → CI verde → merge `--squash`). Stack: Next.js 16 (App Router) + React 19
 + TypeScript estricto · Prisma 6 + PostgreSQL 17 · Tailwind 4 con tokens propios · Vitest + Playwright ·
 ESLint · deploy por Docker a Easypanel.
 

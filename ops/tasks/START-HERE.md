@@ -5,7 +5,7 @@ hace falta nada de conversaciones anteriores. Si algo acá contradice a `AGENTS.
 
 > ## Estado al cerrar la sesión del 2026-09-18 (leer esto primero)
 >
-> **Repo**: `main` en `b07e196`. **Sin deploy nuevo**: el último sigue siendo `build-20260918-170109`
+> **Repo**: `main` en `74ea819`. **Sin deploy nuevo**: el último sigue siendo `build-20260918-170109`
 > (commit `bcdb059`). Lo cerrado en la última sesión fue **documentación y CI**: el Punto 4 (checkbox
 > fiscal del POS), el modo cocina (Punto 3) y el desvío A-32 ya venían de antes y están desplegados.
 >
@@ -15,16 +15,24 @@ hace falta nada de conversaciones anteriores. Si algo acá contradice a `AGENTS.
 > 2. `git checkout -b <tipo>/<nombre-descriptivo>` — `feature/` · `fix/` · `refactor/` · `docs/` · `chore/`
 > 3. Commitear en la rama y `git push -u origin <tipo>/<nombre-descriptivo>`
 > 4. **Abrir Pull Request hacia `main`** con: qué cambió, por qué, cómo se verificó, qué quedó fuera
-> 5. Esperar **CI verde** (4 checks) y mergear
+> 5. Esperar **CI verde** (4 checks) y mergear con `--squash --delete-branch`
 >
 > **CI (verificado con un run real)**: corre en push a `main` **y en cada PR** — `verify`, `contracts`,
 > `migrations`, `container`. **`publish` (imagen a GHCR) solo en push a `main`**, nunca en PRs.
 >
-> ⚠️ **Pendiente del dueño, no del agente** (estado medido, no supuesto): (1) **PR #2
-> (`ci/pull-request-trigger`) seguía `OPEN`** en GitHub al cerrar — los 4 checks ya están verdes, falta
-> el merge; (2) la **branch protection de `main` figura como NO activa** (`gh api` → 404). La
-> configuración acordada: PR obligatorio, **approvals 0**, checks `verify` + `contracts` + `migrations` +
-> `container`, force push y force delete bloqueados. **`publish` no se marca como required** (se traba).
+> **Medido contra GitHub al cerrar** (estado real, no supuesto): los **PR #1 a #4 están MERGED** (#2, #3 y
+> #4 con **squash**, rama borrada) y la protección de `main` está **ACTIVA como ruleset** `Protect main`
+> (`enforcement: active`, `refs/heads/main`): bloquea el borrado y el force push, y exige status checks con
+> `strict`. Se verifica con `gh api repos/danielmaki123/one-burger-commerce/rulesets` —
+> `/branches/main/protection` devuelve **404** y ese 404 **no** significa «sin protección».
+>
+> ⚠️ **Pendiente del dueño, no del agente**: el ruleset tiene *require status checks* **marcado pero sin
+> checks elegidos** (`required_status_checks: []`), así que hoy el CI verde no bloquea el merge. **No es un
+> bug, es el orden**: el workflow no corría en PRs hasta el PR #2 y recién ahora se pueden marcar
+> `verify` + `contracts` + `migrations` + `container` (**nunca `publish`**: se traba en «Expected», A-35).
+> Tampoco hay regla de PR obligatorio: el push directo lo bloquea el ruleset, pero mergear sin PR sigue
+> dependiendo del equipo. Las dos cosas se cambian en GitHub → Settings → Rules y el agente **no** puede
+> tocarlas.
 >
 > ## 🚫 Qué NO arrancar todavía
 >
