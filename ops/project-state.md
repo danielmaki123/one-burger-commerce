@@ -1,5 +1,33 @@
 # Estado del proyecto — One Burger Commerce
 
+> **Actualizado: 2026-09-22 (Fase 4 del rediseño de Caja: arqueo ciego e impresión — DESPLEGADA)**
+>
+> **Último deploy: 2026-09-22, `build-20260922-164927`** (commit `5a93bd6`, squash del PR #17). Antes:
+> `build-20260922-162533` (Fase 2). **Producción sirve las Fases 1, 2 y 4 del rediseño de Caja.**
+>
+> **Fase 4 — qué cambió**: el **arqueo ciego** dejó de ser un flag mudo (con `blindCount` prendido, quien no
+> audita ve «conteo sellado», sin la diferencia; quien audita la ve igual) y el **papel del arqueo** quedó
+> para el dueño (`canPrintCashDocuments`): en Caja, la lectura parcial y el papel del traspaso se ofrecen
+> solo al dueño, y sin permiso el traspaso se firma igual y queda asentado en la base. La hoja de cierre del
+> **detalle en el Historial** se mantiene (es auditoría, no mostrador).
+>
+> **Verificación**: **3081 unitarios** en 446 archivos (eran 3078), `lint`, `typecheck`, `build:webpack` y
+> `security:secrets` verdes; CI del PR #17 con los **4 checks** verdes; smokes **menú 7/7** y **hosts 6/6**;
+> sanidad de producción a 375 px: `/admin/cash` y `/admin/cash/config` sin desborde ni error de servidor
+> (`/admin/cash/config` con sus 16 billetes). **Límite de la evidencia**: las dos reglas de esta fase se ven
+> al **abrir o cerrar un turno**, y en producción no hay caja abierta ni se muta para probarlo: quedan
+> verificadas por unitarios (con rojo observado) y por el E2E del cajero en local.
+>
+> **Pendiente declarado de la Fase 4**: `Shift.differenceNotifiedAt` (el outbox **ya** avisa la diferencia en
+> cada cierre; el campo sería solo de auditoría) → va con la Fase 3, donde el aviso cambia de forma.
+>
+> **Lo que sigue**: **Fase 3** (cierre por banco: `Bank`, `LocationBank`, `ShiftBankClose` y
+> `CashCloseModal` con consolidado y diferencia), **Fase 5** (lectura parcial en modal, sheet de movimientos
+> NIO+USD, destino de los traspasos y reapertura) y **Fase 6** (terminal por turno). Sigue abierta **A-43**
+> (la cabecera compartida, 23,3% a 375 px).
+>
+> ---
+>
 > **Actualizado: 2026-09-22 (Fase 2 del rediseño de Caja: Config de Caja — DESPLEGADA)**
 >
 > **Último deploy: 2026-09-22, `build-20260922-162533`** (commit `57e76e8`, el squash del PR #15). El build
