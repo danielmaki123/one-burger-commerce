@@ -1,10 +1,15 @@
 # Estado del proyecto — One Burger Commerce
 
-> **Actualizado: 2026-09-22 (Fase 2 del rediseño de Caja: Config de Caja — rama `feat/cash-config`)**
+> **Actualizado: 2026-09-22 (Fase 2 del rediseño de Caja: Config de Caja — DESPLEGADA)**
 >
-> **Lo que está en curso**: la **Fase 2** del rediseño de Caja —la **Config de Caja** por sucursal— en la
-> rama **`feat/cash-config`**, con PR hacia `main` y CI en curso. **Producción sigue en
-> `build-20260922-142614`** (la Fase 1): el deploy de esta fase es el paso siguiente.
+> **Último deploy: 2026-09-22, `build-20260922-162533`** (commit `57e76e8`, el squash del PR #15). El build
+> anterior era `build-20260922-142614` (Fase 1). **La Config de Caja está viva en `admin.oneburgernic.com`.**
+>
+> **QA post-deploy (solo lectura, cuenta owner)**: `/admin/cash/config` responde con los **16 billetes**
+> sembrados por la migración y el selector de las 3 sucursales; `/admin/cash` muestra **9 billetes NIO y 0
+> de USD** (la config manda la grilla, con los dólares apagados de fábrica); **cero desborde** en 375×800 y
+> 1280×800 en las dos pantallas; smokes **menú 7/7** y **hosts 6/6**. Capturas
+> `ops/tasks/audit-ui/cash-config-prod-{375,1280}.png`.
 >
 > **Qué trae (módulo nuevo `src/modules/cash-config/`)**: saca del hardcodeo las tres reglas que no se
 > podían cambiar sin tocar código — **`usdEnabled` por sucursal** (con dientes: la grilla deja de ofrecer
