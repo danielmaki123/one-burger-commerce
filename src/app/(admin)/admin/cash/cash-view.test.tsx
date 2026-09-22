@@ -91,7 +91,19 @@ describe("CashView", () => {
   });
 
   it("con turno abierto muestra el turno y sus acciones", async () => {
-    fetchMock.mockImplementation(() => jsonResponse({ data: OPEN_SHIFT }));
+    /**
+     * Cada endpoint con **su** forma: el turno devuelve un objeto y el historial de traspasos una lista.
+     * Con un mock único (`{ data: <turno> }` para todo), `ShiftHandoversList` recibía un objeto y el
+     * render tiraba — en local la carrera lo tapaba y en el CI se vio (el árbol quedaba vacío y el botón
+     * «Cerrar caja» desaparecía).
+     */
+    fetchMock.mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.startsWith("/api/admin/pos/shift/handover")) return jsonResponse({ data: [] });
+      if (url.startsWith("/api/admin/pos/shift?")) return jsonResponse({ data: OPEN_SHIFT });
+
+      return jsonResponse({ data: null });
+    });
 
     render(
       <CashView
