@@ -1,11 +1,11 @@
 # Estado del proyecto — One Burger Commerce
 
-> **Actualizado: 2026-09-23 (Fase 5 del rediseño de Caja: lectura parcial, movimientos y reapertura — implementada, PR abierto)**
+> **Actualizado: 2026-09-23 (Fase 5 del rediseño de Caja: lectura parcial, movimientos y reapertura — mergeada, pendiente de deploy)**
 >
-> **Rama `feat/cash-fase5-modal-movimientos`**. El último deploy sigue siendo **`build-20260922-164927`**
-> (Fase 4). **La Fase 3 está mergeada en `main` (`7225582`, PR
-> [#19](https://github.com/danielmaki123/one-burger-commerce/pull/19)) pero todavía no desplegada**: el owner
-> la deploya. La Fase 5 tampoco está en producción.
+> **`main` = `bbc485a`** (squash del PR [#20](https://github.com/danielmaki123/one-burger-commerce/pull/20)).
+> El último deploy sigue siendo **`build-20260922-164927`** (Fase 4). **Hay dos fases mergeadas y sin
+> desplegar: la Fase 3 (cierre por banco, PR [#19](https://github.com/danielmaki123/one-burger-commerce/pull/19)) y la Fase 5**; el
+> deploy lo corre el owner (el token del panel no está en el entorno del agente).
 >
 > **Fase 5 — qué cambia**: tres cosas del brief.
 >
@@ -37,6 +37,18 @@
 > **Pendiente de deploy acumulado**: Fase 3 (cierre por banco) y Fase 5. **Después**: **Fase 6** (terminal por
 > turno). Siguen abiertas **A-43** (la cabecera compartida, 23,3% a 375 px) y **A-45** (el arqueo ciego es
 > regla de pantalla: el corte X devuelve el esperado por API).
+>
+> **Fase 6 (terminal por turno) — lo que hay que decidir ANTES de codear** (el brief la nombra, pero el detalle
+> de producto no está en el repo y no se inventa): (1) **qué identifica a una terminal** — una etiqueta libre
+> por turno, `BankTerminal` como catálogo por sucursal (banco + etiqueta) o la terminal del dispositivo en el
+> navegador (localStorage, como la clave de idempotencia del cobro); (2) **qué reemplaza el índice único
+> actual** `Shift(locationId) WHERE status = 'open'` (hoy una sola caja abierta por sucursal): el brief pide
+> uno por terminal, lo que **permite dos turnos abiertos en el mismo local** y con eso cambia el arqueo por
+> sucursal, el reporte del día y la conciliación, que hoy suman por local; (3) **qué pasa con los turnos ya
+> existentes** (`terminalId` nulo) y si la terminal es obligatoria para abrir; (4) **dónde se elige** (POS y
+> Caja) y si el cajero puede cambiarla con la caja abierta. La base técnica ya está: `Bank` y `LocationBank`
+> de la Fase 3 son el catálogo de bancos por sucursal, y el cierre por banco ya declara `terminalLabel` por
+> turno.
 >
 > ---
 >
