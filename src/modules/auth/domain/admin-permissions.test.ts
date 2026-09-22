@@ -4,6 +4,7 @@ import {
   canDiscountPosSale,
   canManageBusinessSettings,
   canManageCash,
+  canManageCashConfig,
   canManageCriticalConfig,
   canManageInventoryOperations,
   canManageMenu,
@@ -173,5 +174,20 @@ describe("admin permissions", () => {
     expect(canViewHistory(ADMIN_ROLES.manager)).toBe(true);
     expect(canViewHistory(ADMIN_ROLES.cashier)).toBe(false);
     expect(canViewHistory(ADMIN_ROLES.kitchen)).toBe(false);
+  });
+
+  /**
+   * Fase 1a del rediseño de Caja (2026-09-19) — **configurar la caja**.
+   *
+   * Es una puerta propia y no una reutilización: `canManageCash` habilita operar y auditar el turno
+   * (owner y manager), y `canManageBusinessSettings` es la marca del negocio. Configurar la caja cambia
+   * qué monedas se cuentan, con qué billetes y si el cajero ve el esperado —las reglas con las que se
+   * firma un arqueo—, así que queda en el dueño y su función dice eso y no otra cosa.
+   */
+  it("canManageCashConfig: la configuración de la caja es del dueño", () => {
+    expect(canManageCashConfig(ADMIN_ROLES.owner)).toBe(true);
+    expect(canManageCashConfig(ADMIN_ROLES.manager)).toBe(false);
+    expect(canManageCashConfig(ADMIN_ROLES.cashier)).toBe(false);
+    expect(canManageCashConfig(ADMIN_ROLES.kitchen)).toBe(false);
   });
 });

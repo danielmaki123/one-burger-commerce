@@ -17,6 +17,7 @@ import {
   ADMIN_SECONDARY_NAV_ITEMS,
   type AdminNavGroup,
   type AdminNavItem,
+  getAdminNavItemActivePath,
   getFocusTrapTargetIndex,
   isAdminNavItemActive,
 } from "../admin-layout-helpers";
@@ -83,7 +84,7 @@ export default function AdminMobileNav({
     ...ADMIN_SECONDARY_NAV_ITEMS,
   ];
   const isMoreActive = moreItems.some((item) =>
-    isAdminNavItemActive(pathname, item.href),
+    isAdminNavItemActive(pathname, getAdminNavItemActivePath(item)),
   );
 
   useEffect(() => {
@@ -232,7 +233,7 @@ export default function AdminMobileNav({
           aria-label="Secciones secundarias"
         >
           {moreItems.map((item) => {
-            const isActive = isAdminNavItemActive(pathname, item.href);
+            const isActive = isAdminNavItemActive(pathname, getAdminNavItemActivePath(item));
             const Icon = item.icon;
 
             return (

@@ -4,6 +4,7 @@ import {
   ADMIN_NAV_GROUPS,
   getAdminDesktopFocusTargetIndex,
   getAdminNavGroups,
+  getAdminNavItemActivePath,
   getFocusTrapTargetIndex,
   isAdminNavItemActive,
   shouldRestoreAdminMobileTriggerFocus,
@@ -145,13 +146,13 @@ describe("admin layout helpers", () => {
    * permiso del POS, así que un manager sin POS disponible se quedaba sin poder auditar.
    */
   it.each(["owner", "manager"] as const)(
-    "sin POS disponible, %s sigue viendo el Historial en Control",
+    "sin POS disponible, %s sigue viendo Cierres en Control",
     (role) => {
       const groups = getAdminNavGroups(role, { posAvailable: false });
 
       expect(groups.map((group) => group.label)).toContain("Control");
       expect(groups.flatMap((group) => group.items)).toContainEqual(
-        expect.objectContaining({ href: "/admin/history", label: "Historial" }),
+        expect.objectContaining({ href: "/admin/history/cierres", label: "Cierres" }),
       );
     },
   );
@@ -190,11 +191,11 @@ describe("admin layout helpers", () => {
    * misma gente que cobra. El dueño y el manager las ven; el cajero opera el mostrador y no administra.
    */
   it.each(["owner", "manager"] as const)(
-    "ofrece historial de caja y aprobaciones a %s",
+    "ofrece Caja y aprobaciones a %s",
     (role) => {
       const items = flattenNavWithPos(role);
       expect(items).toContainEqual(
-        expect.objectContaining({ href: "/admin/cash", label: "Caja del día" }),
+        expect.objectContaining({ href: "/admin/cash", label: "Caja" }),
       );
       expect(items).toContainEqual(
         expect.objectContaining({ href: "/admin/approvals", label: "Aprobaciones" }),
@@ -204,16 +205,56 @@ describe("admin layout helpers", () => {
 
   /**
    * Tarea 1 del brief (2026-09-17) — la caja se administra desde su propia pantalla, así que el cajero
-   * **sí** entra a «Caja del día» (ahí abre y cierra su turno). Lo que no ve es «Aprobaciones», que es de
-   * quien administra el dinero, ni la mitad de auditoría de la pantalla (eso se resuelve adentro).
+   * **sí** entra a «Caja» (ahí abre y cierra su turno). Lo que no ve es «Aprobaciones» (de quien administra
+   * el dinero), ni «Cierres», ni «Config de Caja»: no audita su propio turno ni firma las reglas del arqueo.
    */
-  it("el cajero opera el POS y entra a Caja del día, pero no aprueba devoluciones", () => {
+  it("el cajero opera el POS y entra a Caja, pero no aprueba ni audita ni configura", () => {
     const items = flattenNavWithPos("cashier");
     expect(items).toContainEqual(expect.objectContaining({ href: "/admin/pos" }));
-    expect(items).toContainEqual(
-      expect.objectContaining({ href: "/admin/cash", label: "Caja del día" }),
-    );
+    expect(items).toContainEqual(expect.objectContaining({ href: "/admin/cash", label: "Caja" }));
     expect(items).not.toContainEqual(expect.objectContaining({ href: "/admin/approvals" }));
+    expect(items).not.toContainEqual(expect.objectContaining({ href: "/admin/history/cierres" }));
+    expect(items).not.toContainEqual(expect.objectContaining({ href: "/admin/cash/config" }));
+  });
+
+  /**
+   * Fase 1a del rediseño de Caja (2026-09-19) — **el orden del grupo Control**.
+   *
+   * El brief lo fija: `POS · Caja · Cierres · Aprobaciones · Config de Caja`. Config de Caja va al final
+   * porque se entra pocas veces; Cierres queda pegado a Caja porque es su lectura.
+   */
+  it("ordena Control como POS, Caja, Cierres, Aprobaciones y Config de Caja", () => {
+    const control = getAdminNavGroups("owner", { posAvailable: true }).find(
+      (group) => group.label === "Control",
+    );
+
+    expect(control?.items.map((item) => item.href)).toEqual([
+      "/admin/pos",
+      "/admin/cash",
+      "/admin/history/cierres",
+      "/admin/approvals",
+      "/admin/cash/config",
+    ]);
+  });
+
+  /**
+   * Fase 1a — **Config de Caja es del dueño** y no depende del POS: las reglas del arqueo existen aunque
+   * ningún local tenga el mostrador prendido. Los otros tres roles no ven la entrada (la pantalla también
+   * los redirige: es defensa en profundidad, no la única puerta).
+   */
+  it("solo el owner ve Config de Caja, con o sin POS disponible", () => {
+    expect(flattenNavWithPos("owner")).toContainEqual(
+      expect.objectContaining({ href: "/admin/cash/config", label: "Config de Caja" }),
+    );
+    expect(flattenNav("owner")).toContainEqual(
+      expect.objectContaining({ href: "/admin/cash/config", label: "Config de Caja" }),
+    );
+
+    for (const role of ["manager", "cashier", "kitchen"] as const) {
+      expect(flattenNavWithPos(role)).not.toContainEqual(
+        expect.objectContaining({ href: "/admin/cash/config" }),
+      );
+    }
   });
 
   it("keeps /admin/dashboard active for the Resumen compatibility redirect", () => {
@@ -227,29 +268,56 @@ describe("admin layout helpers", () => {
   });
 
   /**
-   * Punto 2 del roadmap (2026-09-18) — **Historial**: un solo ítem que queda activo en sus dos tabs.
-   *
-   * Por eso el `href` es la sección y no una de las tabs. Lo ven owner y manager; el cajero no (se
-   * auditaría a sí mismo) y cocina tampoco, porque no maneja plata.
+   * Fase 1a del rediseño de Caja (2026-09-19) — **Cierres**: el ítem del sidebar es el mismo que el del
+   * Historial de siempre, renombrado y apuntando a la ruta de la tab (no se creó ninguna ruta nueva). Lo
+   * ven owner y manager; el cajero no (se auditaría a sí mismo) y cocina tampoco, porque no maneja plata.
    */
-  it.each(["owner", "manager"] as const)("ofrece Historial a %s", (role) => {
+  it.each(["owner", "manager"] as const)("ofrece Cierres a %s", (role) => {
     expect(flattenNavWithPos(role)).toContainEqual(
-      expect.objectContaining({ href: "/admin/history", label: "Historial" }),
+      expect.objectContaining({ href: "/admin/history/cierres", label: "Cierres" }),
     );
   });
 
-  it("ni el cajero ni cocina ven el Historial", () => {
+  it("ni el cajero ni cocina ven Cierres", () => {
     expect(flattenNavWithPos("cashier")).not.toContainEqual(
-      expect.objectContaining({ href: "/admin/history" }),
+      expect.objectContaining({ href: "/admin/history/cierres" }),
     );
     expect(flattenNavWithPos("kitchen")).not.toContainEqual(
-      expect.objectContaining({ href: "/admin/history" }),
+      expect.objectContaining({ href: "/admin/history/cierres" }),
     );
   });
 
-  it("el ítem Historial queda activo en las dos tabs", () => {
-    expect(isAdminNavItemActive("/admin/history/cierres", "/admin/history")).toBe(true);
-    expect(isAdminNavItemActive("/admin/history/facturas", "/admin/history")).toBe(true);
+  /**
+   * El ítem Cierres apunta a la tab, así que su `href` no alcanza para marcarlo activo en la otra tab
+   * (Facturas), que es hermana suya. Por eso el ítem declara `matchPath` y el shell resuelve con
+   * `getAdminNavItemActivePath`: sin eso, entrar a Facturas dejaría el sidebar sin nada activo.
+   */
+  it("el ítem Cierres queda activo en las dos tabs", () => {
+    const cierres = flattenNavWithPos("owner").find(
+      (item) => item.href === "/admin/history/cierres",
+    );
+
+    expect(cierres).toBeDefined();
+    expect(isAdminNavItemActive("/admin/history/cierres", getAdminNavItemActivePath(cierres!))).toBe(
+      true,
+    );
+    expect(isAdminNavItemActive("/admin/history/facturas", getAdminNavItemActivePath(cierres!))).toBe(
+      true,
+    );
+    // Y no se marca activo en una ruta ajena que empiece igual por casualidad.
+    expect(isAdminNavItemActive("/admin/history-otra", getAdminNavItemActivePath(cierres!))).toBe(
+      false,
+    );
+  });
+
+  it("un ítem sin matchPath se marca activo con su propio href", () => {
+    const caja = flattenNavWithPos("owner").find((item) => item.href === "/admin/cash");
+
+    expect(getAdminNavItemActivePath(caja!)).toBe("/admin/cash");
+    expect(isAdminNavItemActive("/admin/cash", getAdminNavItemActivePath(caja!))).toBe(true);
+    expect(isAdminNavItemActive("/admin/cash/history/shift-1", getAdminNavItemActivePath(caja!))).toBe(
+      true,
+    );
   });
 
   it.each([

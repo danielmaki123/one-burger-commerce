@@ -118,6 +118,21 @@ export function canViewHistory(role: AdminRole) {
 }
 
 /**
+ * Fase 1a del rediseño de Caja (2026-09-19) — **configurar la caja**, que no es operarla ni auditarla.
+ *
+ * `canManageCash` habilita el turno (abrir, cerrar, mover plata) y `canViewCashHistory` su lectura. Esta
+ * puerta es la de las **reglas con las que se firma un arqueo**: qué monedas se cuentan, con qué
+ * denominaciones y si el cajero ve el esperado. Cambiarlas cambia el número que el sistema espera, así
+ * que queda en el dueño —misma razón por la que su función es propia y no una reutilización de
+ * `canManageBusinessSettings` (marca) ni de `canManageCriticalConfig` (hoy la usan módulos fuera del MVP).
+ *
+ * La pantalla que la consume vive en `/admin/cash/config`.
+ */
+export function canManageCashConfig(role: AdminRole) {
+  return role === ADMIN_ROLES.owner;
+}
+
+/**
  * Tarea 9.7 del roadmap del POS (Fase 2) — **descontar plata a mano** en una venta de mostrador.
  *
  * Un **cupón** es una promo cargada, con su lista de códigos y sus usos: el cajero solo escribe el código
