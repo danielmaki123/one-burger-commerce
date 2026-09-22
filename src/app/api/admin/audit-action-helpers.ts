@@ -50,7 +50,10 @@ export function shiftOpenAudit(input: {
   });
 }
 
-/** Cerrar la caja: lo que quedó asentado (contado, esperado y diferencia). */
+/**
+ * Cerrar la caja: lo que quedó asentado (contado, esperado y diferencia) y, desde la Fase 3 del rediseño
+ * de Caja, la diferencia del **cuadre por banco** (lo declarado contra lo cobrado sin pasar por el cajón).
+ */
 export function shiftCloseAudit(input: {
   actorUserId: string;
   locationId: string;
@@ -58,6 +61,7 @@ export function shiftCloseAudit(input: {
   counted: number | null;
   expected: number | null;
   difference: number | null;
+  bankDifference?: number | null;
 }) {
   return recordAdminAudit({
     action: "shift.close",
@@ -69,6 +73,7 @@ export function shiftCloseAudit(input: {
       counted: input.counted,
       expected: input.expected,
       difference: input.difference,
+      ...(input.bankDifference !== undefined ? { bankDifference: input.bankDifference } : {}),
     },
   });
 }

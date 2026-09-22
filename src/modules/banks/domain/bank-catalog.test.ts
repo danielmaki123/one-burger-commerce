@@ -4,8 +4,8 @@ import {
   mergeBankCatalog,
   normalizeBankCode,
   validateBankCatalog,
-  type BankCatalogEntry,
 } from "./bank-catalog";
+import type { BankCatalogEntry } from "./bank.types";
 
 /**
  * Fase 3 del rediseño de Caja (2026-09-23) — el catálogo de bancos del negocio.

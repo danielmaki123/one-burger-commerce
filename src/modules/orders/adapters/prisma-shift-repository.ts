@@ -38,6 +38,8 @@ function mapShift(shift: {
   cashMovementsAmount?: Decimal | null;
   refundsAmount?: Decimal | null;
   difference: Decimal | null;
+  bankDifferenceAmount?: Decimal | null;
+  differenceNotifiedAt?: Date | null;
   reopenedAt?: Date | null;
   reopenedByUserId?: string | null;
   reopenReason?: string | null;
@@ -45,6 +47,15 @@ function mapShift(shift: {
   createdAt: Date;
   updatedAt: Date;
   cashCounts?: { kind: string; currency: string; denomination: Decimal; quantity: number }[];
+  bankCloses?: {
+    bankId: string;
+    declaredAmount: Decimal;
+    currency: string;
+    lote: string | null;
+    terminalLabel: string | null;
+    notes: string | null;
+    bank?: { name: string; code: string | null } | null;
+  }[];
 }): ShiftRecord {
   return {
     id: shift.id,
@@ -67,6 +78,11 @@ function mapShift(shift: {
     cashMovementsAmount: decimalOrNull(shift.cashMovementsAmount ?? null),
     refundsAmount: decimalOrNull(shift.refundsAmount ?? null),
     difference: decimalOrNull(shift.difference),
+    // Fase 3 del rediseño de Caja: el cuadre por banco congelado y la firma del aviso.
+    bankDifferenceAmount: decimalOrNull(shift.bankDifferenceAmount ?? null),
+    differenceNotifiedAt: shift.differenceNotifiedAt
+      ? shift.differenceNotifiedAt.toISOString()
+      : null,
     // Bloque 1.10: la firma de la última reapertura, si hubo.
     reopenedAt: shift.reopenedAt ? shift.reopenedAt.toISOString() : null,
     reopenedByUserId: shift.reopenedByUserId ?? null,
@@ -81,6 +97,17 @@ function mapShift(shift: {
       currency: count.currency,
       denomination: decimalToNumber(count.denomination),
       quantity: count.quantity,
+    })),
+    // Fase 3: el cuadre por banco, con el nombre del banco (el cierre lo imprime: un id no lo lee nadie).
+    bankCloses: (shift.bankCloses ?? []).map((close) => ({
+      bankId: close.bankId,
+      bankName: close.bank?.name,
+      bankCode: close.bank?.code ?? null,
+      declaredAmount: decimalToNumber(close.declaredAmount),
+      currency: close.currency,
+      lote: close.lote,
+      terminalLabel: close.terminalLabel,
+      notes: close.notes,
     })),
   };
 }
@@ -159,7 +186,7 @@ export class PrismaShiftRepository implements ShiftRepository {
     const prisma = getPrismaClient();
     const shift = await prisma.shift.findFirst({
       where: { locationId, status: "open" },
-      include: { cashCounts: true },
+      include: { cashCounts: true, bankCloses: { include: { bank: true } } },
     });
 
     return shift ? mapShift(shift) : null;
@@ -167,7 +194,10 @@ export class PrismaShiftRepository implements ShiftRepository {
 
   async findShiftById(id: string): Promise<ShiftRecord | null> {
     const prisma = getPrismaClient();
-    const shift = await prisma.shift.findUnique({ where: { id }, include: { cashCounts: true } });
+    const shift = await prisma.shift.findUnique({
+      where: { id },
+      include: { cashCounts: true, bankCloses: { include: { bank: true } } },
+    });
 
     return shift ? mapShift(shift) : null;
   }
@@ -198,11 +228,35 @@ export class PrismaShiftRepository implements ShiftRepository {
           input.closingAmount === null
             ? null
             : roundCurrency(input.closingAmount - input.expectedAmount),
+        // Fase 3 del rediseño de Caja: la diferencia del cuadre por banco queda congelada con el arqueo.
+        bankDifferenceAmount: input.bankDifferenceAmount ?? null,
         ...(input.notes !== undefined ? { notes: input.notes } : {}),
       },
     });
 
     if (result.count === 0) return null;
+
+    // Fase 3: el cuadre por banco se guarda tal como se declaró (lote y terminal incluidos). Se borra
+    // primero porque un turno **reabierto** puede volver a cerrarse con otro cuadre y no se puede
+    // duplicar la fila de un banco y una moneda (el índice único lo rechazaría).
+    if (input.bankCloses !== undefined) {
+      await prisma.shiftBankClose.deleteMany({ where: { shiftId: id } });
+
+      if (input.bankCloses.length > 0) {
+        await prisma.shiftBankClose.createMany({
+          data: input.bankCloses.map((close) => ({
+            shiftId: id,
+            bankId: close.bankId.trim(),
+            declaredAmount: close.declaredAmount,
+            currency: close.currency.trim().toUpperCase(),
+            lote: close.lote?.trim() || null,
+            terminalLabel: close.terminalLabel?.trim() || null,
+            notes: close.notes?.trim() || null,
+          })),
+          skipDuplicates: true,
+        });
+      }
+    }
 
     // TASK-305: el conteo del cierre se guarda tal como se contó (billete por billete), no solo el
     // total: así el arqueo se puede reconstruir y volver a revisar.
@@ -226,7 +280,7 @@ export class PrismaShiftRepository implements ShiftRepository {
     const prisma = getPrismaClient();
     const shifts = await prisma.shift.findMany({
       where: { locationId },
-      include: { cashCounts: true },
+      include: { cashCounts: true, bankCloses: { include: { bank: true } } },
       orderBy: { openedAt: "desc" },
     });
 
@@ -250,6 +304,8 @@ export class PrismaShiftRepository implements ShiftRepository {
           status: "open",
           // El turno vuelve a estar abierto: el próximo cierre calcula y firma un arqueo nuevo.
           closedAt: null,
+          // Fase 3: el aviso anterior ya no vale — el próximo cierre avisa un número distinto.
+          differenceNotifiedAt: null,
           reopenedAt: new Date(),
           reopenedByUserId: input.userId,
           reopenReason: input.reason.trim(),
@@ -268,5 +324,12 @@ export class PrismaShiftRepository implements ShiftRepository {
     }
 
     return this.findShiftById(id);
+  }
+
+  async markDifferenceNotified(id: string, notifiedAt: string): Promise<void> {
+    await getPrismaClient().shift.updateMany({
+      where: { id },
+      data: { differenceNotifiedAt: new Date(notifiedAt) },
+    });
   }
 }

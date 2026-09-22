@@ -60,6 +60,10 @@ function makeRepository(shifts: ShiftRecord[]): Double {
       calls.push("reopen");
       throw new Error("no usado en este test");
     },
+    async markDifferenceNotified(id: string) {
+      // Fase 3 del rediseño de Caja: la firma del aviso no participa de esta lectura.
+      calls.push(`notified:${id}`);
+    },
   };
 }
 

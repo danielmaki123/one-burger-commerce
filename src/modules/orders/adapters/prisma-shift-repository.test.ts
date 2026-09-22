@@ -198,7 +198,9 @@ describe("PrismaShiftRepository", () => {
     expect(shifts).toHaveLength(1);
     expect(findManyMock).toHaveBeenCalledWith({
       where: { locationId: "loc_principal" },
-      include: { cashCounts: true },
+      // Fase 3 del rediseño de Caja: además del conteo, el cuadre por banco con el nombre del banco (el
+      // historial y el detalle lo imprimen).
+      include: { cashCounts: true, bankCloses: { include: { bank: true } } },
       orderBy: { openedAt: "desc" },
     });
   });

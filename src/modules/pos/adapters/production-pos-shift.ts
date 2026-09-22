@@ -1,3 +1,4 @@
+import { PrismaBankRepository } from "@/modules/banks/adapters/prisma-bank-repository";
 import { PrismaBusinessSettingsRepository } from "@/modules/business-settings/adapters/prisma-business-settings-repository";
 import { loadBusinessSettings } from "@/modules/business-settings/features/get-public-business-settings/get-public-business-settings";
 import { PrismaCashConfigRepository } from "@/modules/cash-config/adapters/prisma-cash-config-repository";
@@ -35,6 +36,9 @@ export async function createProductionPosShiftDependencies(input: { locationId?:
     shiftRepository: new PrismaShiftRepository(),
     locationRepository: new PrismaLocationRepository(),
     paymentRepository: new PrismaPaymentRepository(),
+    // Fase 3 del rediseño de Caja (2026-09-23) — el cuadre por banco necesita el catálogo de la sucursal
+    // para rechazar un banco que no liquida ahí.
+    bankRepository: new PrismaBankRepository(),
     businessCurrencyCode: settings.currencyCode,
     usdExchangeRate: settings.usdExchangeRate,
     cashCountConfig,

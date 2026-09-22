@@ -1,7 +1,4 @@
-import { convertToBusinessCurrency } from "@/shared/lib/money-conversion";
 import { roundCurrency } from "@/shared/lib/order-totals";
-
-import { ShiftError } from "./shift-errors";
 
 /**
  * Fase 3 del rediseño de Caja (2026-09-23) — el **cuadre por banco** del turno.
@@ -132,23 +129,6 @@ export function bankClosesTotalByCurrency(
 }
 
 /**
- * El total declarado en la moneda del negocio. Sin tasa cargada **rechaza** el cierre: un cuadre con un
- * número inventado es peor que un cuadre que no se puede firmar (misma regla que el arqueo del cajón).
- */
-export function bankClosesTotalInBusinessCurrency(input: {
-  closes: readonly ShiftBankCloseInput[];
-  businessCurrencyCode: string;
-  usdExchangeRate: number | null;
-}): number {
-  return roundCurrency(
-    Object.entries(bankClosesTotalByCurrency(input.closes)).reduce(
-      (sum, [currency, amount]) => sum + convertOrThrow(amount, currency, input),
-      0,
-    ),
-  );
-}
-
-/**
  * Lo que el sistema cobró **fuera del cajón**, por moneda: tarjeta y transferencia.
  *
  * `mixto` y `otro` quedan afuera a propósito (no tienen lote contra el cual cuadrar) y el efectivo también:
@@ -196,37 +176,6 @@ export function bankDifferenceByCurrency(input: {
 }
 
 /** Convierte a la moneda del negocio y traduce el fallo del cambio a un error de validación del cierre. */
-function convertOrThrow(
-  amount: number,
-  currency: string,
-  input: { businessCurrencyCode: string; usdExchangeRate: number | null },
-): number {
-  const converted = convertToBusinessCurrency({
-    amount,
-    currency,
-    businessCurrencyCode: input.businessCurrencyCode,
-    usdExchangeRate: input.usdExchangeRate,
-  });
-
-  if (!converted.ok) {
-    throw new ShiftError(
-      422,
-      "VALIDATION_ERROR",
-      converted.reason === "missing-rate"
-        ? "Cargá el tipo de cambio del dólar en Configuración para cerrar una caja con dólares."
-        : `Todavía no se liquida en ${converted.currency}.`,
-      {
-        bankCloses:
-          converted.reason === "missing-rate"
-            ? "Cargá el tipo de cambio del dólar en Configuración."
-            : `Todavía no se liquida en ${converted.currency}.`,
-      },
-    );
-  }
-
-  return converted.amount;
-}
-
 function normalize(currency: string | null | undefined): string {
   return (currency ?? "").trim().toUpperCase();
 }

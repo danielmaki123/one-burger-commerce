@@ -20,7 +20,7 @@ export async function POST(request: Request) {
     const session = await requireAdminSession();
     assertCanUsePos(session.user.role);
 
-    const { locationId, counts, notes } = parseShiftCashPayload(await request.json());
+    const { locationId, counts, bankCloses, notes } = parseShiftCashPayload(await request.json());
     await requirePosLocation({
       role: session.user.role,
       assignedLocationIds: session.user.locationIds,
@@ -30,6 +30,7 @@ export async function POST(request: Request) {
     const result = await closePosShiftForRoute({
       locationId,
       counts,
+      bankCloses,
       notes,
       actorUserId: session.user.id,
       actorName: session.user.name,

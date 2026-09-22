@@ -34,6 +34,7 @@ function setup(settings: Parameters<typeof InMemoryNotificationSettingsRepositor
     format: async () => ({
       businessName: "One Burger",
       currencySymbol: "C$",
+      currencyCode: "NIO",
       timezone: "America/Managua",
       locale: "es-NI",
     }),
@@ -103,7 +104,13 @@ describe("TelegramAlertSender", () => {
 });
 
 describe("buildTelegramAlertText", () => {
-  const options = { businessName: "One Burger", currencySymbol: "C$", timezone: "America/Managua", locale: "es-NI" };
+  const options = {
+    businessName: "One Burger",
+    currencySymbol: "C$",
+    currencyCode: "NIO",
+    timezone: "America/Managua",
+    locale: "es-NI",
+  };
 
   it("arma el texto de cada evento y devuelve null si el payload no da", () => {
     expect(

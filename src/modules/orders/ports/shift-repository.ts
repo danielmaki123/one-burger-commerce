@@ -1,3 +1,4 @@
+import type { ShiftBankCloseInput } from "@/modules/orders/domain/shift-bank-close";
 import type { ShiftCashCountInput } from "@/modules/orders/domain/shift-cash";
 import type { ShiftRecord } from "@/modules/orders/domain/order.types";
 
@@ -60,6 +61,16 @@ export type CloseShiftInput = {
   refundsAmount?: number;
   /** TASK-305 — con qué billetes se cerró, por moneda (se guarda el conteo, no solo el total). */
   closingCounts?: ShiftCashCountInput[];
+  /**
+   * Fase 3 del rediseño de Caja (2026-09-23) — el **cuadre por banco**: lo que declaró cada banco para
+   * este turno (monto, moneda, lote y terminal). Se guarda con el arqueo: es parte del documento.
+   */
+  bankCloses?: ShiftBankCloseInput[];
+  /**
+   * Fase 3 — la diferencia del cuadre por banco en la moneda del negocio, congelada. `null` = no hubo
+   * cuadre por banco (el turno no declaró ningún lote).
+   */
+  bankDifferenceAmount?: number | null;
   notes?: string | null;
 };
 
@@ -94,6 +105,16 @@ export interface ShiftRepository {
    * `null` si el turno no existe o si **ya está abierto** (no hay nada que reabrir). Si el local ya
    * tiene otra caja abierta, el índice único parcial de la base rechaza la operación y el adaptador
    * lo traduce a `CONFLICT`: no puede haber dos turnos abiertos en el mismo local.
+   *
+   * Fase 3 del rediseño de Caja (2026-09-23): la reapertura **borra la firma del aviso**
+   * (`differenceNotifiedAt`), porque el próximo cierre vuelve a avisar y la fecha vieja diría que ese
+   * turno ya se avisó cuando el número que se avisó ya no existe.
    */
   reopenShift(id: string, input: ReopenShiftInput): Promise<ShiftRecord | null>;
+  /**
+   * Fase 3 del rediseño de Caja (2026-09-23) — firma que el aviso del cierre salió a la cola del outbox,
+   * que es donde viaja la diferencia al grupo del dueño. Sin esto no se puede saber si el número se
+   * avisó o quedó solo en la base (el aviso es **best-effort**: el cierre no depende de él).
+   */
+  markDifferenceNotified(id: string, notifiedAt: string): Promise<void>;
 }

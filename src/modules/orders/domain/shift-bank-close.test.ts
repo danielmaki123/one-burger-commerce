@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   bankClosesTotalByCurrency,
-  bankClosesTotalInBusinessCurrency,
+  bankDifferenceByCurrency,
   nonCashTotalsByCurrency,
   validateShiftBankCloses,
   type ShiftBankCloseInput,
@@ -116,25 +116,25 @@ describe("bankClosesTotalByCurrency", () => {
   });
 });
 
-describe("bankClosesTotalInBusinessCurrency", () => {
-  it("convierte los dólares con la tasa del negocio", () => {
-    const total = bankClosesTotalInBusinessCurrency({
-      closes: [close({ declaredAmount: 1000 }), close({ currency: "USD", declaredAmount: 20 })],
-      businessCurrencyCode: "NIO",
-      usdExchangeRate: 36.5,
+describe("bankDifferenceByCurrency", () => {
+  it("resta lo cobrado de lo declarado, por moneda", () => {
+    const difference = bankDifferenceByCurrency({
+      declared: { NIO: 800, USD: 20 },
+      charged: { NIO: 750 },
     });
 
-    expect(total).toBe(1730);
+    expect(difference).toEqual({ NIO: 50, USD: 20 });
   });
 
-  it("sin tasa cargada rechaza el cierre con dólares en vez de inventar un número", () => {
-    expect(() =>
-      bankClosesTotalInBusinessCurrency({
-        closes: [close({ currency: "USD", declaredAmount: 20 })],
-        businessCurrencyCode: "NIO",
-        usdExchangeRate: null,
-      }),
-    ).toThrow(/tipo de cambio/);
+  it("una moneda que solo aparece declarada no se pierde", () => {
+    // El banco reportó un lote en una moneda que el sistema no cobró: es toda diferencia, no cero.
+    expect(bankDifferenceByCurrency({ declared: { USD: 20 }, charged: {} })).toEqual({ USD: 20 });
+  });
+
+  it("una moneda que solo aparece cobrada da diferencia negativa", () => {
+    expect(bankDifferenceByCurrency({ declared: {}, charged: { NIO: 100 } })).toEqual({
+      NIO: -100,
+    });
   });
 });
 

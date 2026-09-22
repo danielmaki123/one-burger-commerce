@@ -53,6 +53,10 @@ export class InMemoryShiftRepository implements ShiftRepository {
       cashMovementsAmount: null,
       refundsAmount: null,
       difference: null,
+      // Fase 3 del rediseño de Caja: el cuadre por banco nace vacío y la firma del aviso, sin fecha.
+      bankDifferenceAmount: null,
+      differenceNotifiedAt: null,
+      bankCloses: [],
       cashCounts: (input.openingCounts ?? []).map((count) => ({
         kind: "opening" as const,
         currency: count.currency.trim().toUpperCase(),
@@ -105,6 +109,25 @@ export class InMemoryShiftRepository implements ShiftRepository {
         ? null
         : roundCurrency(shift.closingAmount! - shift.expectedAmount);
     if (input.notes !== undefined) shift.notes = input.notes;
+    // Fase 3: el cuadre por banco se guarda tal como se declaró (y se reemplaza: un turno reabierto se
+    // vuelve a cerrar con otro cuadre).
+    shift.bankDifferenceAmount =
+      input.bankDifferenceAmount === undefined
+        ? null
+        : input.bankDifferenceAmount === null
+          ? null
+          : roundCurrency(input.bankDifferenceAmount);
+
+    if (input.bankCloses !== undefined) {
+      shift.bankCloses = input.bankCloses.map((close) => ({
+        bankId: close.bankId.trim(),
+        declaredAmount: roundCurrency(close.declaredAmount),
+        currency: close.currency.trim().toUpperCase(),
+        lote: close.lote?.trim() || null,
+        terminalLabel: close.terminalLabel?.trim() || null,
+        notes: close.notes?.trim() || null,
+      }));
+    }
     shift.cashCounts = [
       ...(shift.cashCounts ?? []).filter((count) => count.kind !== "closing"),
       ...(input.closingCounts ?? []).map((count) => ({
@@ -148,11 +171,21 @@ export class InMemoryShiftRepository implements ShiftRepository {
     shift.status = "open";
     // El turno vuelve a estar abierto: el próximo cierre calcula y firma un arqueo nuevo.
     shift.closedAt = null;
+    // Fase 3: el aviso anterior ya no vale — el próximo cierre avisa un número distinto.
+    shift.differenceNotifiedAt = null;
     shift.reopenedAt = now;
     shift.reopenedByUserId = input.userId;
     shift.reopenReason = input.reason.trim();
     shift.updatedAt = now;
 
     return shift;
+  }
+
+  async markDifferenceNotified(id: string, notifiedAt: string): Promise<void> {
+    const shift = this.shifts.find((s) => s.id === id);
+    if (!shift) return;
+
+    shift.differenceNotifiedAt = notifiedAt;
+    shift.updatedAt = notifiedAt;
   }
 }

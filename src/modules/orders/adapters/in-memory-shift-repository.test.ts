@@ -189,4 +189,76 @@ describe("InMemoryShiftRepository", () => {
 
     expect(shifts.map((s) => s.id)).toEqual(["shift_2", "shift_1"]);
   });
+
+  /**
+   * Fase 3 del rediseño de Caja (2026-09-23) — el cuadre por banco y la firma del aviso.
+   */
+  it("guarda el cuadre por banco y su diferencia congelada", async () => {
+    const repository = new InMemoryShiftRepository();
+    const shift = await repository.openShift(openInput());
+
+    const closed = await repository.closeShift(shift.id, {
+      closingAmount: 500,
+      expectedAmount: 500,
+      bankCloses: [
+        {
+          bankId: "bank_bac",
+          declaredAmount: 800.5,
+          currency: "nio",
+          lote: " 0012 ",
+          terminalLabel: " Terminal 1 ",
+          notes: "  ",
+        },
+      ],
+      bankDifferenceAmount: 50.5,
+    });
+
+    expect(closed?.bankCloses).toEqual([
+      {
+        bankId: "bank_bac",
+        declaredAmount: 800.5,
+        currency: "NIO",
+        lote: "0012",
+        terminalLabel: "Terminal 1",
+        notes: null,
+      },
+    ]);
+    expect(closed?.bankDifferenceAmount).toBe(50.5);
+  });
+
+  it("un cierre sin cuadre por banco deja la diferencia en null, no en cero", async () => {
+    const repository = new InMemoryShiftRepository();
+    const shift = await repository.openShift(openInput());
+
+    const closed = await repository.closeShift(shift.id, {
+      closingAmount: 500,
+      expectedAmount: 500,
+    });
+
+    expect(closed?.bankCloses).toEqual([]);
+    expect(closed?.bankDifferenceAmount).toBeNull();
+  });
+
+  it("firma cuándo salió el aviso del cierre", async () => {
+    const repository = new InMemoryShiftRepository();
+    const shift = await repository.openShift(openInput());
+    await repository.closeShift(shift.id, { closingAmount: 500, expectedAmount: 500 });
+
+    await repository.markDifferenceNotified(shift.id, "2026-09-23T22:00:00.000Z");
+
+    expect((await repository.findShiftById(shift.id))?.differenceNotifiedAt).toBe(
+      "2026-09-23T22:00:00.000Z",
+    );
+  });
+
+  it("reabrir borra la firma del aviso: el próximo cierre avisa un número distinto", async () => {
+    const repository = new InMemoryShiftRepository();
+    const shift = await repository.openShift(openInput());
+    await repository.closeShift(shift.id, { closingAmount: 500, expectedAmount: 500 });
+    await repository.markDifferenceNotified(shift.id, "2026-09-23T22:00:00.000Z");
+
+    await repository.reopenShift(shift.id, { userId: "user_01", reason: "Faltó un cobro" });
+
+    expect((await repository.findShiftById(shift.id))?.differenceNotifiedAt).toBeNull();
+  });
 });
