@@ -1,6 +1,46 @@
 # Estado del proyecto — One Burger Commerce
 
-> **Actualizado: 2026-09-23 (Fase 3 del rediseño de Caja: cierre por banco — implementada, PR abierto)**
+> **Actualizado: 2026-09-23 (Fase 5 del rediseño de Caja: lectura parcial, movimientos y reapertura — implementada, PR abierto)**
+>
+> **Rama `feat/cash-fase5-modal-movimientos`**. El último deploy sigue siendo **`build-20260922-164927`**
+> (Fase 4). **La Fase 3 está mergeada en `main` (`7225582`, PR
+> [#19](https://github.com/danielmaki123/one-burger-commerce/pull/19)) pero todavía no desplegada**: el owner
+> la deploya. La Fase 5 tampoco está en producción.
+>
+> **Fase 5 — qué cambia**: tres cosas del brief.
+>
+> 1. **La lectura parcial deja de ser una imprenta**: era un botón que imprimía (y solo el dueño podía, §8.e).
+>    Ahora es un **modal** (`CashPartialReadingModal`) con el número **en pantalla** —fondo, efectivo del
+>    turno, movimientos, devoluciones y el esperado con su detalle por moneda— y el papel como salida. El
+>    **arqueo ciego manda**: sin permiso de auditoría la lectura va **sellada**.
+> 2. **Los movimientos se registran por moneda en una hoja** (`CashMovementSheet`, sobre `AdminEditSheet`):
+>    tipo, categoría y motivo se escriben una vez y hay **una fila por moneda** del local. Cada fila con monto
+>    es su propio movimiento y, si una falla, el aviso dice **cuál entró y cuál no** (dos altas no son una
+>    transacción).
+> 3. **La reapertura sale de la UI** (deprecada, como pide el brief): el detalle del cierre ya no ofrece el
+>    formulario. La **API, el caso de uso y el esquema quedan intactos** (`reopenedAt`, `reopenedByUserId`,
+>    `reopenReason`), así que volver a ofrecerla es una decisión de pantalla, no un desarrollo.
+>
+> **Decisiones del agente** (el owner las confirma o las cambia): el **traspaso se queda en Caja** (es
+> operativo: el cajero le pasa la caja a otro) y la lectura es lo que se mudó a un modal; los movimientos
+> **no tienen aprobación** por decisión del owner (Tarea 2: el límite de retiro avisa, no bloquea), así que
+> no hay «movimientos sin confirmar» que bloqueen el cierre y esa parte del alcance no aplica.
+>
+> **Archivos borrados**: `shift-reopen-form.tsx` (la reapertura fuera de la UI) y `cash-movement-form.tsx`
+> (reemplazado por la hoja).
+>
+> **Verificación**: **3166 unitarios en 455 archivos** (eran 3132 en 450), contratos **50/50**, `lint`,
+> `typecheck`, `build`, `build:webpack` y `security:secrets` verdes; E2E local de Caja y POS **21/21** con el
+> build de producción (incluye el recorrido nuevo: abrir la lectura parcial, ver el esperado en pantalla,
+> imprimirla y firmar el traspaso).
+>
+> **Pendiente de deploy acumulado**: Fase 3 (cierre por banco) y Fase 5. **Después**: **Fase 6** (terminal por
+> turno). Siguen abiertas **A-43** (la cabecera compartida, 23,3% a 375 px) y **A-45** (el arqueo ciego es
+> regla de pantalla: el corte X devuelve el esperado por API).
+>
+> ---
+>
+> **Actualizado: 2026-09-23 (Fase 3 del rediseño de Caja: cierre por banco — mergeada, pendiente de deploy)**
 >
 > **Rama `feat/cash-cierre-por-banco`, PR [#19](https://github.com/danielmaki123/one-burger-commerce/pull/19)**.
 > El último deploy sigue siendo **`build-20260922-164927`** (Fase 4): la Fase 3 **todavía no está en
