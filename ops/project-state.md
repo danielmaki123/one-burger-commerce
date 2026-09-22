@@ -1,12 +1,29 @@
 # Estado del proyecto — One Burger Commerce
 
-> **Actualizado: 2026-09-19 (Fase 1 del rediseño de Caja — rama `feat/cash-redesign`, PR #13 abierto)**
+> **Actualizado: 2026-09-22 (Fase 1 del rediseño de Caja — mergeada y DESPLEGADA)**
 >
-> **Lo que está en curso**: la **Fase 1 del rediseño de la sección Caja** (brief del 2026-09-19). Va en la
-> rama **`feat/cash-redesign`** con **7 commits** y el **PR [#13](https://github.com/danielmaki123/one-burger-commerce/pull/13)**
-> hacia `main`, con **CI pendiente** al momento de escribir esto. **Producción NO tiene este cambio
-> todavía**: `admin.oneburgernic.com` sigue sirviendo `build-20260919-030008` (commit `904683d`), que es el
-> estado del PR #10.
+> **Último deploy a producción: 2026-09-22, `build-20260922-142614`** (commit **`46282a7`**, el squash del
+> PR [#13](https://github.com/danielmaki123/one-burger-commerce/pull/13) en `main`; una sola llamada a
+> `deployService` sobre `brunobot/oneburguerweb` con `forceRebuild: true`). El build anterior era
+> `build-20260919-030008`. **La Fase 1 del rediseño de Caja está viva en `admin.oneburgernic.com`.**
+>
+> **Verificación del deploy (2026-09-22)**: `commit.sha` del panel = `46282a7` ✓; `GET /api/health` → `ok`
+> con **`build-20260922-142614`**; smokes de solo lectura **menú 7/7** y **hosts 6/6**; y verificación
+> post-deploy en el panel con la cuenta owner (solo lectura):
+>
+> - **A-39 cerrado también en producción**: `/admin/cash` a 375 px mide **375/0** (la línea de base era
+>   **438**) con las **3 sucursales reales**; `/admin/history/cierres` **375/0** y `/admin/cash/report`
+>   **375/0**; cero elementos con `right > viewport` en las tres.
+> - **CONTROL**: `POS · Caja · Cierres · Aprobaciones · Config de Caja` en el sidebar.
+> - `/admin/cash/config` accesible para el owner («Config de Caja», «En construcción»).
+> - `/admin/history/cierres`: rango abierto→cerrado + fondo por turno y **Exportar CSV**; el filtro de
+>   sucursal es un `Select`.
+> - `/admin/cash/report`: la **conciliación** de tarjeta y transferencia montada.
+> - Capturas: `ops/tasks/audit-ui/cash-prod-*.png`.
+>
+> **Lo que viene**: **Fase 2** del rediseño (Config de Caja reducida — `usdEnabled`, denominaciones por
+> moneda y `blindCount`—, en rama nueva desde `main`), que además limpia `shift-cash-helpers.ts` y
+> reemplaza el placeholder de `/admin/cash/config`.
 >
 > ### Fase 1 cerrada (1a + 1b) — qué cambió en Caja
 >
@@ -41,9 +58,11 @@
 > - **E2E completo local con mutaciones: 123 pasaron / 6 salteados / 0 fallos** (3 min) contra el build de
 >   producción en `127.0.0.1:3210`, en **contexto limpio** (receta de §5 antes y después; la base quedó con
 >   1 sucursal, 1 usuario y 0 pedidos abiertos).
-> - **A-39 con evidencia**: se creó una segunda sucursal con la API real del panel, se midió a 375 px
->   (`/admin/cash`, `/admin/history/cierres` y `/admin/cash/report`: **cero desborde**) y se borró sin
->   residuo. Capturas en `ops/tasks/audit-ui/cash-fase1b-*.png`.
+> - **A-39 con evidencia en local y en producción**: en local se creó una segunda sucursal con la API del
+>   panel, se midió a 375 px (`/admin/cash`, `/admin/history/cierres` y `/admin/cash/report`: **cero
+>   desborde**) y se borró sin residuo; en producción se midió con las **3 sucursales reales** después del
+>   deploy (los números del encabezado). Capturas en `ops/tasks/audit-ui/cash-fase1b-*.png` y
+>   `cash-prod-*.png`.
 > - **Auditoría medida versionada**: `ops/tasks/audit-ui/cash-audit.md` (estructura, duplicación,
 >   permisos, split y mediciones reales en local y producción).
 >
@@ -53,8 +72,6 @@
 >   `AdminPageHeader` compartido, igual antes y después del rediseño.
 > - **`shift-cash-helpers.ts`**: `summarizeShifts`/`formatShiftDate` quedaron sin consumidor al salir la
 >   lista embebida y el día consolidado; se limpian en la **Fase 2** (commit separado).
-> - **Fase 2** (a confirmar): `cash-config` (usdEnabled, denominaciones por moneda, blindCount), pantalla
->   real en `/admin/cash/config`, API `GET/PUT` owner-only y migración aditiva.
 >
 > ---
 >

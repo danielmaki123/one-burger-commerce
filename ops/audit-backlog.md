@@ -80,7 +80,7 @@ Estados: `reportado` · `a reproducir` · `en curso` · `cerrado` · `no-repro` 
 | A-21 | **Documentación desactualizada en cuatro puntos verificados**: `DESIGN_SYSTEM.md §3.4:273` decía "2 literales de carga" (había **18** distintos), `§2.1:164` decía 15 tokens huérfanos (había **16**: también `--ring`, `globals.css:40`), `AGENTS.md:109` mandaba a `DESIGN_SYSTEM.md §5` por la lista de copy decorativo y **§5 no la tenía**, y `plna.md:546` afirma un `Payment.shiftId` que no existe. **Cerrado el 2026-09-15** (Capa 0 del plan de UI): los tres puntos del repo se corrigieron reescribiendo `DESIGN_SYSTEM.md` (los números viejos ya no existen: §2.1 y §3.4 se reescribieron) y `AGENTS.md` (el puntero a `§5` ahora es verdadero), y un contrato falla si `AGENTS.md` cita una sección que no existe. El cuarto punto es de `plna.md`, un documento **no versionado**: queda anotado en A-18 | documentación | P3 | `cerrado` | commit de la Capa 0 |
 | A-22 | **Lo que no tiene guardrail se degrada**: la paleta cruda de Tailwind (**70** usos, igual que en TASK-201), `style={{ fontFamily }}` (**30**), `rounded-[Npx]` (**37** con 9 valores), ~20 sombras `rgba()` a mano y **46** valores arbitrarios de espaciado no tienen test; `DESIGN_SYSTEM.md §6:370` lo admite. En cambio lo que sí tiene contrato (`#hex`, controles crudos, registro de componentes) se mantiene estable | deuda | P3 | `reportado` (agente) | — |
 | A-23 | **Cuenta de prueba con rol `owner` en producción** (`tester@oneburgernic.com`, 3 locales): es un acceso total más. Decidir si se mantiene, se degrada (p. ej. a `cashier`) o se borra | dato / infra | P3 | `decisión-pendiente` (owner) | — |
-| A-39 | **Scroll horizontal a 375 px en producción por el selector de sucursal del historial de Caja**: el grupo `[role=group][aria-label="Sucursal de la caja"]` medía **426 px** en un viewport de 375 (`scrollWidth` 438 contra 375) con 3 sucursales; con menos de dos el control no se dibujaba (`locations.length > 1`), y por eso el E2E local no lo veía. **Cerrado el 2026-09-19 (Fase 1b del rediseño de Caja)**: el historial salió de Caja y en `/admin/history/cierres` el filtro de sucursal es un `Select`, no un segmentado de botones | bug (UI) | **P1** | `cerrado` (2026-09-19, Fase 1b) | rama `feat/cash-redesign` |
+| A-39 | **Scroll horizontal a 375 px en producción por el selector de sucursal del historial de Caja**: el grupo `[role=group][aria-label="Sucursal de la caja"]` medía **426 px** en un viewport de 375 (`scrollWidth` 438 contra 375) con 3 sucursales; con menos de dos el control no se dibujaba (`locations.length > 1`), y por eso el E2E local no lo veía. **Cerrado el 2026-09-19 (Fase 1b del rediseño de Caja) y verificado en producción el 2026-09-22** (`build-20260922-142614`): el historial salió de Caja, en `/admin/history/cierres` el filtro de sucursal es un `Select` y `/admin/cash` mide **375/0** con las 3 sucursales reales | bug (UI) | **P1** | `cerrado` (Fase 1b; verificado en prod 2026-09-22) | PR #13 · `46282a7` |
 | A-40 | **El cajero ve «Ver el turno abierto» y el detalle lo rebota**: el enlace vive en el bloque del turno (que ve `canUsePOS`) y `/admin/cash/history/[id]` redirige a Órdenes a quien no tiene `canViewCashHistory`. **Cerrado el 2026-09-19 (Fase 1a del rediseño de Caja)**: el enlace se dibuja solo con `canSeeShiftDetail` | bug | P2 | `cerrado` (2026-09-19, Fase 1a) | rama `feat/cash-redesign` |
 | A-44 | **Una lectura fallida se dibujaba como «sin caja abierta»**: el `fetch` del estado de la caja no miraba `response.ok` (un 401/500 quedaba como caja cerrada) y tampoco limpiaba el error anterior. **Cerrado el 2026-09-19 (Fase 1a)**: `use-cash-shift` chequea el estado, propaga el mensaje del servidor y separa el error de lectura del error de acción | bug | P3 | `cerrado` (2026-09-19, Fase 1a) | rama `feat/cash-redesign` |
 | A-43 | **La cabecera del panel mide 186 px = 23,3% del viewport a 375 px** (la regla del sistema es ≤20%; a 1280 son 114 px = 14,2%). Es el `AdminPageHeader` compartido (todas las pantallas del panel) y el chrome del shell, **igual antes y después** del rediseño de Caja: no es de Caja. Deuda declarada por decisión del owner (2026-09-19): va en otro PR | UI / deuda | P2 | `reportado` (agente, 2026-09-19) | — |
@@ -632,8 +632,25 @@ si los documentos pasan su tope de líneas o si el catálogo deja de tener la li
 - **Qué se midió** (375×800, con 2 sucursales): `/admin/cash` → `scrollWidth` **375**, desborde **0**;
   `/admin/history/cierres` → **375 / 0**; `/admin/cash/report` (que ahora aloja la conciliación) → **375 / 0**.
   Cero elementos con `right > viewport` en las tres.
-- **Alcance de la evidencia**: el arreglo está medido en local con la misma cantidad de sucursales (2); en
-  producción se confirma con el deploy (la línea de base de 438 px **es** de producción).
+- **Alcance de la evidencia**: el arreglo está medido en local con la misma cantidad de sucursales (2) **y
+  verificado en producción** con las **3 reales** (ver abajo).
+
+#### Verificación en producción (2026-09-22, `build-20260922-142614`, commit `46282a7`)
+
+- **`/admin/cash` a 375×800**: `scrollWidth` **375** contra viewport 375, desborde **0** y **0** elementos
+  con `right > viewport`. La línea de base medida en la auditoría era **438** (63 px de desborde).
+- **`/admin/history/cierres` a 375×800**: **375/0**, con el filtro de sucursal como `Select`
+  («Sucursal de los cierres» + «Cajero de los cierres») — el segmentado de botones que desbordaba ya no
+  existe. La lista muestra el **rango abierto→cerrado y el fondo** de cada turno
+  (`Turno 18/09/2026, 07:54 a. m. → 18/09/2026, 08:00 a. m. · fondo C$1,000.00`) y ofrece **Exportar CSV**.
+- **`/admin/cash/report` a 375×800**: **375/0**, con la **conciliación** montada (h2 «Conciliación» y su
+  región).
+- **`/admin/cash/config`**: accesible con la cuenta owner («Config de Caja» + «En construcción»).
+- **CONTROL del sidebar**: `POS · Caja · Cierres · Aprobaciones · Config de Caja`.
+- Capturas: `ops/tasks/audit-ui/cash-prod-cash-375.png`, `cash-prod-cash-1280.png`,
+  `cash-prod-history-cierres-375.png`, `cash-prod-cierres-rango-csv-375.png`,
+  `cash-prod-cash-report-375.png`, `cash-prod-cash-config-1280.png`.
+- **Smokes del deploy**: menú **7/7** y hosts **6/6**.
 
 ### A-43 · La cabecera del panel mide 23,3% del viewport a 375 px — `reportado` (agente, 2026-09-19)
 
