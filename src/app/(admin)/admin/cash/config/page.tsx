@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation";
 
+import { PrismaBankRepository } from "@/modules/banks/adapters/prisma-bank-repository";
+import { getBankCatalog } from "@/modules/banks/features/get-bank-catalog/get-bank-catalog";
 import { canManageCashConfig } from "@/modules/auth/domain/admin-permissions";
 import { requireAdminSession } from "@/modules/auth/features/require-admin-session/require-admin-session";
 import { PrismaCashConfigRepository } from "@/modules/cash-config/adapters/prisma-cash-config-repository";
@@ -9,6 +11,7 @@ import { createProductionPosLocationDependencies } from "@/modules/pos/adapters/
 import { listCashLocations } from "@/modules/pos/domain/cash-locations";
 
 import { AdminPageHeader } from "../../_components/admin-operational-ui";
+import CashBanksSection from "./cash-banks-section";
 import CashConfigClient from "./cash-config-client";
 
 /**
@@ -23,6 +26,10 @@ import CashConfigClient from "./cash-config-client";
  *
  * Baja como dato la config de la **primera** sucursal del alcance; la pantalla tiene su selector y pide las
  * demás por API (el dueño ve las tres).
+ *
+ * Fase 3 del rediseño de Caja (2026-09-23) — la sección **Bancos** va acá y no en una pantalla propia: con
+ * qué bancos liquida la sucursal es la otra mitad de las reglas del arqueo (contra qué se cuadra el lote
+ * de la terminal). Es del negocio con asignación por sucursal, así que baja junto con la config.
  */
 export default async function AdminCashConfigPage() {
   const session = await requireAdminSession();
@@ -44,10 +51,10 @@ export default async function AdminCashConfigPage() {
   }
 
   const options = locations.map(({ id, name }) => ({ id, name }));
-  const initialConfig = await getCashConfig(
-    { locationId: options[0].id },
-    { repository: new PrismaCashConfigRepository() },
-  );
+  const [initialConfig, bankCatalog] = await Promise.all([
+    getCashConfig({ locationId: options[0].id }, { repository: new PrismaCashConfigRepository() }),
+    getBankCatalog({ repository: new PrismaBankRepository() }),
+  ]);
 
   return (
     <div className="space-y-4">
@@ -58,6 +65,8 @@ export default async function AdminCashConfigPage() {
       />
 
       <CashConfigClient locations={options} initialConfig={initialConfig} />
+
+      <CashBanksSection locations={options} initialBanks={bankCatalog.banks} />
     </div>
   );
 }
