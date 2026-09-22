@@ -15,6 +15,7 @@ import { businessDate, businessDayRange, isBusinessDay } from "@/shared/lib/busi
 import { loadBusinessSettings } from "@/modules/business-settings/features/get-public-business-settings/get-public-business-settings";
 
 import { AdminPageHeader } from "../../_components/admin-operational-ui";
+import ReconciliationPanel from "../reconciliation-panel";
 import CashDayReportPanel from "./cash-day-report-panel";
 
 /**
@@ -26,6 +27,10 @@ import CashDayReportPanel from "./cash-day-report-panel";
  *
  * El **día** es el del negocio (no el del servidor) y llega por la URL; si viene mal escrita se usa hoy, en
  * vez de mostrar el historial entero como si fuera un día. La puerta es la de auditar la caja.
+ *
+ * Fase 1b del rediseño de Caja (2026-09-19) — acá vive también la **conciliación** de tarjeta y
+ * transferencia, que salió de Caja junto con el día consolidado: las dos son la misma pregunta («cómo
+ * cerró el día»), y en la Fase 3 el cierre por banco la integra al cierre del turno.
  */
 export default async function AdminCashDayReportPage({
   searchParams,
@@ -82,6 +87,13 @@ export default async function AdminCashDayReportPage({
         totals={summarizeDayClose(dayShifts)}
         currency={{ symbol: settings.currencySymbol, locale: settings.locale }}
       />
+
+      {/*
+        Fase 1b del rediseño de Caja (2026-09-19) — la **conciliación de tarjeta y transferencia** (tareas
+        11.1/11.2 del brief del POS) se mudó acá desde Caja: es una lectura del **día**, que es exactamente
+        lo que esta pantalla hace, y en la Fase 3 se integra al cierre por banco. Se movió sin reescribirla.
+      */}
+      <ReconciliationPanel locations={locations} defaultDate={hoy} />
     </div>
   );
 }

@@ -29,9 +29,9 @@ test.describe("el cajero", () => {
       page.getByRole("button", { name: /^(Abrir|Cerrar) caja$/ }),
     ).toBeVisible();
 
-    // 2. Lo que NO es suyo: el historial de cierres y la comparación por sucursal.
-    await expect(page.getByRole("list", { name: "Cierres de caja" })).toHaveCount(0);
-    await expect(page.getByRole("region", { name: "Cierre del día" })).toHaveCount(0);
+    // 2. Lo que NO es suyo: la mitad de auditoría vive fuera de su pantalla, así que lo que se comprueba
+    //    es la **puerta** (la sección Cierres lo redirige) y no la ausencia de un bloque, que desde la
+    //    Fase 1b del rediseño de Caja ya no está para nadie.
     await expect(page.getByRole("link", { name: "Reporte del día" })).toHaveCount(0);
 
     // 2b. A-40 (Fase 1a del rediseño de Caja): tampoco el enlace al detalle del turno — el detalle lo
@@ -40,7 +40,11 @@ test.describe("el cajero", () => {
     //     no se dibuja y pasa por ausencia.
     await expect(page.getByRole("link", { name: "Ver el turno abierto" })).toHaveCount(0);
 
-    // 3. Y tampoco el reporte del día ni las aprobaciones: la pantalla lo manda a sus órdenes.
+    // 3. Y tampoco el historial de cierres, el reporte del día ni las aprobaciones: la pantalla lo manda
+    //    a sus órdenes.
+    await page.goto("/admin/history/cierres");
+    await expect(page).toHaveURL(/\/admin\/orders$/);
+
     await page.goto("/admin/cash/report");
     await expect(page).toHaveURL(/\/admin\/orders$/);
 

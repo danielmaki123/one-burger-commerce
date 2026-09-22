@@ -116,7 +116,9 @@ test.describe("conciliación de tarjeta y transferencia", () => {
     expect(sale, "hay un local con mostrador y catálogo para cobrar").toBeTruthy();
     expect(sale!.status, JSON.stringify(sale!.body)).toBe(201);
 
-    await page.goto("/admin/cash");
+    // Fase 1b del rediseño de Caja (2026-09-19): la conciliación se mudó al reporte del día (en la
+    // Fase 3 se integra al cierre por banco), así que la pantalla que la muestra es esta.
+    await page.goto("/admin/cash/report");
     const panel = page.getByRole("region", { name: "Conciliación de tarjeta y transferencia" });
     await expect(panel).toBeVisible();
 
