@@ -3,32 +3,34 @@ import { redirect } from "next/navigation";
 
 import { requireCashScope } from "@/app/api/admin/cash/cash-route-helpers";
 import { canUsePOS, canViewCashHistory } from "@/modules/auth/domain/admin-permissions";
-import { PrismaBusinessSettingsRepository } from "@/modules/business-settings/adapters/prisma-business-settings-repository";
-import { loadBusinessSettings } from "@/modules/business-settings/features/get-public-business-settings/get-public-business-settings";
 import { requireAdminSession } from "@/modules/auth/features/require-admin-session/require-admin-session";
 import { resolveOrderLocationScope } from "@/modules/orders/domain/order-visibility";
 import { createProductionPosLocationDependencies } from "@/modules/pos/adapters/production-pos-location";
 import { listCashLocations } from "@/modules/pos/domain/cash-locations";
-import { businessDate } from "@/shared/lib/business-days";
 
 import { AdminPageHeader } from "../_components/admin-operational-ui";
-import CashClient from "./cash-client";
-import CashDrawerPanel from "./cash-drawer-panel";
-import DayClosePanel from "./day-close-panel";
-import ReconciliationPanel from "./reconciliation-panel";
+import CashView from "./cash-view";
 
 /**
- * Bloque 1.3 + tarea 1 del brief (2026-09-17) — la **caja**, separada del POS.
+ * Fase 1a/1b del rediseño de Caja (2026-09-19) — la **Caja**, con un solo sujeto.
  *
- * La pantalla tiene dos mitades y cada una tiene su permiso:
+ * La pantalla es el **ciclo del turno**: apertura → operación → cierre. Sus cuatro estados viven en
+ * `CashView` (*cargando*, *error*, *sin turno*, *turno abierto*) y acá se resuelve quién entra, con qué
+ * sucursales y con qué permisos.
  *
- * - **Abrir o cerrar la caja** (el trabajo del mostrador): quien cobra, o sea `canUsePOS` — el cajero
- *   incluido. Antes esto vivía plegado dentro del POS y el pedido fue sacarlo: «POS limpio, Caja aparte».
- * - **Auditar** (historial de cierres, día consolidado, comparación por sucursal): `canViewCashHistory`.
- *   El cajero no audita su propio turno, así que esa mitad no la ve.
+ * La Fase 1b sacó de acá la mitad de auditoría que estaba apilada —el día consolidado, la conciliación de
+ * tarjeta y transferencia y el historial de cierres— porque cada una tiene su pantalla: el **reporte del
+ * día** (`/admin/cash/report`, con el día y la conciliación) y el **Historial** (`/admin/history/cierres`,
+ * con la lista de cierres, el rango de cada turno y el export CSV). Nada se perdió: se mudó.
  *
- * El alcance por sucursal se resuelve con la puerta que corresponde a cada mitad: la de control pide
- * `canManageCash` (dueño o manager) y la del mostrador respeta las sucursales asignadas del cajero.
+ * Los dos permisos siguen siendo dos:
+ *
+ * - **Operar el turno**: quien cobra (`canUsePOS`), el cajero incluido.
+ * - **Auditar**: `canViewCashHistory`. De ahí salen el detalle del turno (`canSeeShiftDetail`, A-40) y el
+ *   arqueo completo del cierre (`canSeeCloseDetail`).
+ *
+ * El alcance por sucursal se resuelve con la puerta que corresponde: la de control pide `canManageCash`
+ * (dueño o manager) y la del mostrador respeta las sucursales asignadas del cajero.
  */
 export default async function AdminCashPage() {
   const session = await requireAdminSession();
@@ -58,22 +60,14 @@ export default async function AdminCashPage() {
 
   const options = locations.map(({ id, name }) => ({ id, name }));
 
-  /**
-   * Tarea 10 del brief (2026-09-17) — el día del negocio para la conciliación se resuelve acá (el
-   * navegador tiene su propia zona y el día de caja no es el suyo).
-   */
-  const settings = canAudit
-    ? await loadBusinessSettings({ repository: new PrismaBusinessSettingsRepository() })
-    : null;
-
   return (
     <div className="space-y-4">
       <AdminPageHeader
         label="Control"
-        title="Caja del día"
+        title="Caja"
         description={
           canAudit
-            ? "Abrí y cerrá la caja del local, y auditá lo que quedó: cierres, arqueo y movimientos."
+            ? "Abrí y cerrá la caja del local. El día y la conciliación están en el reporte, y los cierres en el Historial."
             : "Abrí y cerrá la caja del local con el conteo de billetes."
         }
         actions={
@@ -89,23 +83,12 @@ export default async function AdminCashPage() {
       />
 
       {canOperate ? (
-        <CashDrawerPanel
+        <CashView
           locations={options}
+          canSeeShiftDetail={canAudit}
           canSeeCloseDetail={canAudit}
           actorName={session.user.name}
         />
-      ) : null}
-
-      {canAudit && settings ? (
-        <>
-          <DayClosePanel locations={options} />
-          {/* Tarea 10 del brief: la conciliación de tarjeta y transferencia (11.1/11.2). */}
-          <ReconciliationPanel
-            locations={options}
-            defaultDate={businessDate(new Date(), settings.timezone)}
-          />
-          <CashClient locations={options} />
-        </>
       ) : null}
     </div>
   );

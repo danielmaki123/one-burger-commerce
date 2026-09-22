@@ -575,12 +575,12 @@ describe("PosClient", () => {
   });
 
   /**
-   * Tarea 1 del brief (2026-09-17) — el POS no administra la caja: la abre y la cierra «Caja del día».
+   * Tarea 1 del brief (2026-09-17) — el POS no administra la caja: la abre y la cierra «Caja».
    *
    * Lo que el POS sí hace es **decir el estado** (es lo que habilita cobrar) y llevar al lugar donde se
    * arregla, con un enlace, en vez de esconder un arqueo plegado en la cabecera del mostrador.
    */
-  it("sin caja abierta avisa y manda a Caja del día", async () => {
+  it("sin caja abierta avisa y manda a Caja", async () => {
     fetchMock.mockImplementation((input: RequestInfo | URL) => {
       const url = String(input);
       if (url.startsWith("/api/admin/pos/catalog")) return jsonResponse(productos);

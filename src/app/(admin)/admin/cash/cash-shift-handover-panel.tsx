@@ -11,8 +11,12 @@ import { Input } from "@/shared/ui/input";
 import ShiftHandoversList, { type ShiftHandoverRow } from "./shift-handovers-list";
 
 /**
- * Tarea 7 del brief (2026-09-17) — el **corte X** (1.12) y el **traspaso de caja** (1.13), en la pantalla
- * de caja.
+ * Tarea 7 del brief (2026-09-17) — la **lectura parcial** (1.12) y el **traspaso de caja** (1.13), en la
+ * pantalla de caja.
+ *
+ * Nombres de Fase 1a del rediseño de Caja (2026-09-19): el brief viejo lo llamaba «corte X». En Fase 5 este
+ * panel pasa a un modal y la firma de custodia se muda (destino a confirmar con el owner), así que acá solo
+ * cambian los textos.
  *
  * Dos cosas del mismo momento: sacar el papel de «cómo va la caja» sin cerrarla, y firmar el traspaso
  * cuando el cajero se va y otro sigue. Las dos leen el mismo número —el del servidor— y las dos imprimen
@@ -194,20 +198,20 @@ export default function CashShiftHandoverPanel({
 
   return (
     <section
-      aria-label="Corte y traspaso de caja"
+      aria-label="Lectura parcial y traspaso"
       className="space-y-3 rounded-stitch-lg border border-line-subtle bg-surface-card p-4"
     >
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="text-st-h2 text-ink">Corte X y traspaso</h2>
+        <h2 className="text-st-h2 text-ink">Lectura parcial y traspaso</h2>
         <p className="text-st-overline font-bold uppercase tracking-wider text-ink-muted">
           Sin cerrar la caja
         </p>
       </div>
 
       <p className="text-st-body text-ink-secondary">
-        El corte muestra cómo va la caja ahora y no la cierra. Para pasarle la caja a otro cajero, escribí
-        quién la recibe: se firma el traspaso con el monto de este momento y queda en el historial del
-        turno.
+        La lectura parcial muestra cómo va la caja ahora y no la cierra. Para pasarle la caja a otro cajero,
+        escribí quién la recibe: se firma el traspaso con el monto de este momento y queda en el historial
+        del turno.
       </p>
 
       <div className="flex flex-wrap items-end gap-2">
@@ -218,7 +222,7 @@ export default function CashShiftHandoverPanel({
           disabled={busy}
           onClick={() => void printCorte()}
         >
-          {busy ? "Guardando…" : "Imprimir corte X"}
+          {busy ? "Guardando…" : "Imprimir lectura parcial"}
         </Button>
       </div>
 

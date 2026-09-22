@@ -13,6 +13,7 @@ import {
   ADMIN_SECONDARY_NAV_ITEMS,
   getAdminNavGroups,
   getAdminNavIconClassName,
+  getAdminNavItemActivePath,
   getAdminNavLinkClassName,
   isAdminNavItemActive,
 } from "../admin-layout-helpers";
@@ -158,7 +159,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
                   {group.label}
                 </p>
                 {group.items.map((item) => {
-                  const isActive = isAdminNavItemActive(pathname, item.href);
+                  const isActive = isAdminNavItemActive(pathname, getAdminNavItemActivePath(item));
                   const Icon = item.icon;
 
                   return (
@@ -194,7 +195,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
                   Avanzado
                 </p>
                 {ADMIN_SECONDARY_NAV_ITEMS.map((item) => {
-                const isActive = isAdminNavItemActive(pathname, item.href);
+                const isActive = isAdminNavItemActive(pathname, getAdminNavItemActivePath(item));
                 const Icon = item.icon;
 
                 return (

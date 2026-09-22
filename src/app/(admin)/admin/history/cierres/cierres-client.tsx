@@ -8,6 +8,7 @@ import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Select } from "@/shared/ui/select";
 import { useBusinessSettings, useCurrencyFormat } from "@/shared/lib/business-settings";
+import { downloadTextFile } from "@/shared/lib/download-file";
 import { formatCurrency } from "@/shared/lib/format-currency";
 import { formatTimeInTimeZone } from "@/modules/business-settings/domain/format-time-in-timezone";
 import {
@@ -16,6 +17,8 @@ import {
   AdminStatusPill,
 } from "../../_components/admin-operational-ui";
 import { businessDate, businessDayRange } from "../../orders/orders-page-helpers";
+import { buildShiftCsv, buildShiftCsvFileName } from "../../cash/shift-csv";
+import { formatShiftDateTime } from "../../cash/cash-shift-helpers";
 import { HistoryTabs } from "../history-tabs";
 
 /**
@@ -28,6 +31,11 @@ import { HistoryTabs } from "../history-tabs";
  * El filtro de sucursal y el de cajero se arman con **lo que hay en la lista**, así que nunca se ofrece
  * una sucursal o un cajero sin nada que mostrar. Las filas son filas y no una tabla: a 375 px una tabla de
  * seis columnas obliga a scrollear a lo ancho.
+ *
+ * Fase 1b del rediseño de Caja (2026-09-19) — esta pantalla recibe **lo que la lista embebida de Caja
+ * tenía y acá faltaba**: el rango abierto→cerrado de cada turno con su fondo, y el **export CSV**. El
+ * historial salió de Caja (queda con un solo sujeto: el ciclo del turno) y estas dos cosas vinieron con
+ * él, sin reescribirlas.
  */
 
 type HistoryShift = {
@@ -36,10 +44,18 @@ type HistoryShift = {
   locationName: string | null;
   userId: string;
   cashierName: string | null;
+  status: "open" | "closed";
+  openedAt: string;
   closedAt: string | null;
+  openingAmount: number;
   closingAmount: number | null;
   expectedAmount: number | null;
   difference: number | null;
+  /** Fase 1b — columnas del export, que antes vivía en la lista de Caja. */
+  cashSalesAmount?: number | null;
+  cashMovementsAmount?: number | null;
+  refundsAmount?: number | null;
+  notes: string | null;
 };
 
 const ALL = "all";
@@ -48,7 +64,7 @@ const LINK_BUTTON_CLASS =
   "inline-flex min-h-11 shrink-0 items-center gap-2 rounded-stitch-md border border-line-subtle bg-surface-card px-3 text-st-body font-semibold text-ink transition-colors hover:bg-surface-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary motion-reduce:transition-none";
 
 export function CierresClient() {
-  const { timezone: timeZone } = useBusinessSettings();
+  const { timezone: timeZone, locale } = useBusinessSettings();
   const currency = useCurrencyFormat();
 
   const [day, setDay] = useState(() => businessDate(new Date(), timeZone));
@@ -137,6 +153,30 @@ export function CierresClient() {
     setOnlyDifference(false);
   }, []);
 
+  /**
+   * Fase 1b — el export CSV que tenía la lista de Caja (Bloque 11.3 del roadmap del POS).
+   *
+   * El archivo lo arma `buildShiftCsv` (función pura, probada) y el navegador lo baja con
+   * `downloadTextFile`, el mismo camino que usa la conciliación. Con «Todas las sucursales» el nombre del
+   * archivo lo dice, y la columna **Local sale de cada fila**: acá la lista puede cruzar sucursales, así
+   * que un solo nombre para todo el archivo mentiría.
+   */
+  const downloadCsv = useCallback(() => {
+    const locationLabel =
+      locationId !== ALL
+        ? (locationOptions.find((option) => option.value === locationId)?.label ?? locationId)
+        : "todas-las-sucursales";
+
+    downloadTextFile({
+      fileName: buildShiftCsvFileName(
+        locationLabel,
+        day || businessDate(new Date(), timeZone),
+      ),
+      content: buildShiftCsv(rows, { timezone: timeZone, locale, locationName: locationLabel }),
+      mimeType: "text/csv;charset=utf-8",
+    });
+  }, [day, locale, locationId, locationOptions, rows, timeZone]);
+
   return (
     <div className="min-w-0 space-y-4" aria-busy={loading}>
       <AdminPageHeader
@@ -195,6 +235,13 @@ export function CierresClient() {
           Limpiar filtros
         </Button>
 
+        {/* Fase 1b: el export que vivía en la lista de Caja, con lo que se está viendo en pantalla. */}
+        {rows.length > 0 ? (
+          <Button variant="outline" className="min-h-11" onClick={downloadCsv}>
+            Exportar CSV
+          </Button>
+        ) : null}
+
         <Button
           variant="outline"
           className="ml-auto min-h-11 gap-2"
@@ -235,6 +282,21 @@ export function CierresClient() {
                 <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-st-caption text-ink-secondary">
                   <span className="font-semibold text-ink">{row.locationName ?? "Sucursal"}</span>
                   <span>{row.cashierName ?? "Sin cajero"}</span>
+                </p>
+                {/* Fase 1b: el turno completo y su fondo, como los mostraba la lista de Caja. */}
+                <p className="text-st-caption text-ink-secondary">
+                  Turno{" "}
+                  <span className="font-mono tabular-nums">
+                    {formatShiftDateTime(row.openedAt, { timezone: timeZone, locale })}
+                  </span>
+                  {" → "}
+                  <span className="font-mono tabular-nums">
+                    {formatShiftDateTime(row.closedAt, { timezone: timeZone, locale })}
+                  </span>
+                  {" · fondo "}
+                  <span className="font-mono tabular-nums">
+                    {formatCurrency(row.openingAmount, currency)}
+                  </span>
                 </p>
               </div>
 

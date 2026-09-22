@@ -2,6 +2,7 @@ import {
   Bell,
   Calculator,
   ClipboardList,
+  Coins,
   History,
   LayoutDashboard,
   MapPin,
@@ -13,7 +14,12 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-import { canManageCash, canUsePOS, canViewHistory } from "@/modules/auth/domain/admin-permissions";
+import {
+  canManageCash,
+  canManageCashConfig,
+  canUsePOS,
+  canViewHistory,
+} from "@/modules/auth/domain/admin-permissions";
 import type { AdminRole } from "@/modules/auth/domain/admin-role";
 
 export type AdminNavItem = {
@@ -21,6 +27,14 @@ export type AdminNavItem = {
   label: string;
   description: string;
   icon: LucideIcon;
+  /**
+   * Fase 1a del rediseño de Caja (2026-09-19) — prefijo con el que el ítem se considera **activo**.
+   *
+   * Existe por el ítem *Cierres*, que apunta a una tab (`/admin/history/cierres`) de una sección con dos
+   * tabs: con solo el `href`, entrar a Facturas dejaba el sidebar sin nada marcado. Cuando no está, el
+   * activo se resuelve con el `href` (lo que hacía antes).
+   */
+  matchPath?: string;
 };
 
 export type AdminNavGroup = {
@@ -95,29 +109,42 @@ export const ADMIN_POS_NAV_ITEM: AdminNavItem = {
 /**
  * Bloque 8.3 + tarea 1 del brief (2026-09-17) — las rutas del control.
  *
- * «Caja del día» la ve **quien cobra** (el cajero incluido) desde que la caja se administra ahí: es donde
- * abre y cierra su turno. Lo que el cajero no ve es la mitad de auditoría de esa pantalla —historial,
- * día consolidado y comparación—, que se resuelve adentro con `canViewCashHistory` (el cajero no audita su
- * propio turno). «Aprobaciones» sigue siendo de quien administra el dinero.
+ * «Caja» la ve **quien cobra** (el cajero incluido) desde que la caja se administra ahí: es donde abre y
+ * cierra su turno. Lo que el cajero no ve es la mitad de auditoría de esa pantalla —cierres—, que se
+ * resuelve adentro con `canViewCashHistory`. «Aprobaciones» sigue siendo de quien administra el dinero.
  */
 export const ADMIN_CONTROL_NAV_ITEMS: AdminNavItem[] = [
-  { href: "/admin/cash", label: "Caja del día", description: "Cierres y movimientos", icon: ReceiptText },
+  { href: "/admin/cash", label: "Caja", description: "Turno, apertura y cierre", icon: ReceiptText },
   { href: "/admin/approvals", label: "Aprobaciones", description: "Devoluciones y ajustes", icon: ShieldCheck },
 ];
 
 /**
- * Punto 2 del roadmap (2026-09-18) — **Historial**: una sola entrada para las dos consultas.
+ * Fase 1a del rediseño de Caja (2026-09-19) — **Config de Caja**, la pantalla de las reglas del arqueo
+ * (monedas que se cuentan, denominaciones y si el cajero ve el esperado).
  *
- * El owner pidió un ítem único en Control que quede activo en las dos tabs, y por eso el `href` es la
- * sección (`/admin/history`, que redirige a los cierres) y no una de las tabs: así
- * `isAdminNavItemActive` lo marca en `/admin/history/cierres` y en `/admin/history/facturas` sin reglas
- * especiales. Es de consulta: lo ven owner y manager, no el cajero (se auditaría a sí mismo) ni cocina.
+ * Es del **dueño** (`canManageCashConfig`) y no depende del POS: las reglas existen aunque ningún local
+ * tenga el mostrador prendido. Va al final del grupo porque se entra pocas veces.
+ */
+export const ADMIN_CASH_CONFIG_NAV_ITEM: AdminNavItem = {
+  href: "/admin/cash/config",
+  label: "Config de Caja",
+  description: "Monedas, denominaciones y arqueo",
+  icon: Coins,
+};
+
+/**
+ * Fase 1a del rediseño de Caja (2026-09-19) — **Cierres**: el ítem del Historial, renombrado.
+ *
+ * La sección junta las dos consultas (cierres de caja y facturas) en dos tabs con URL propia. El `href`
+ * es la tab de cierres —la que el brief pide— y `matchPath` mantiene el ítem activo también en Facturas:
+ * sin eso, entrar a la otra tab dejaría el sidebar sin nada marcado.
  */
 export const ADMIN_HISTORY_NAV_ITEM: AdminNavItem = {
-  href: "/admin/history",
-  label: "Historial",
+  href: "/admin/history/cierres",
+  label: "Cierres",
   description: "Cierres y facturas",
   icon: History,
+  matchPath: "/admin/history",
 };
 
 const CONTROL_GROUP_LABEL = "Control";
@@ -131,19 +158,20 @@ function withControlGroup(
    * A-32 (2026-09-18) — **cada ítem con su propio permiso**.
    *
    * Antes el grupo entero se dibujaba solo si el POS estaba disponible (`if (!posAvailable) return
-   * groups`), así que sin mostrador un manager perdía también el **Historial**, que no depende del POS:
-   * los cierres y las facturas existen igual. Lo que decide es si queda **al menos un ítem**.
+   * groups`), así que sin mostrador un manager perdía también la sección **Cierres**, que no depende del
+   * POS: los cierres y las facturas existen igual. Lo que decide es si queda **al menos un ítem**.
    *
-   * «Caja del día» se pide con `canUsePOS` **y** con el mostrador prendido en algún local: esa pantalla
+   * «Caja» se pide con `canUsePOS` **y** con el mostrador prendido en algún local: esa pantalla
    * es donde el cajero abre y cierra **su** turno, así que sin POS no tiene nada que hacer ahí —el
-   * cajero no audita— y ofrecerla sería un enlace a una pantalla sin uso. El **Historial** no lleva
-   * `posAvailable` porque no lee la caja del turno: lee los cierres cerrados y las facturas emitidas.
+   * cajero no audita— y ofrecerla sería un enlace a una pantalla sin uso. **Cierres** y **Config de Caja**
+   * no llevan `posAvailable`: la lectura de los cierres y las reglas del arqueo existen igual.
    */
   const items = [
     ...(posAvailable ? [ADMIN_POS_NAV_ITEM] : []),
     ...(posAvailable && role && canUsePOS(role) ? [ADMIN_CONTROL_NAV_ITEMS[0]] : []),
-    ...(role && canManageCash(role) ? [ADMIN_CONTROL_NAV_ITEMS[1]] : []),
     ...(role && canViewHistory(role) ? [ADMIN_HISTORY_NAV_ITEM] : []),
+    ...(role && canManageCash(role) ? [ADMIN_CONTROL_NAV_ITEMS[1]] : []),
+    ...(role && canManageCashConfig(role) ? [ADMIN_CASH_CONFIG_NAV_ITEM] : []),
   ];
 
   // Un grupo sin ítems no se dibuja: un encabezado «Control» vacío no dice nada.
@@ -197,6 +225,16 @@ export function isAdminNavItemActive(pathname: string, href: string) {
   }
 
   return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+/**
+ * Fase 1a del rediseño de Caja (2026-09-19) — con qué ruta se mide si un ítem está activo.
+ *
+ * Lo usan los dos call sites del panel (el shell de escritorio y la navegación móvil) para no repetir el
+ * `matchPath ?? href` en cada uno. `isAdminNavItemActive` no cambia: sigue midiendo contra una ruta.
+ */
+export function getAdminNavItemActivePath(item: Pick<AdminNavItem, "href" | "matchPath">): string {
+  return item.matchPath ?? item.href;
 }
 
 export function getFocusTrapTargetIndex({

@@ -25,6 +25,15 @@ export type ShiftCsvRow = {
   cashMovementsAmount?: number | null;
   refundsAmount?: number | null;
   notes: string | null;
+  /**
+   * Fase 1b del rediseño de Caja (2026-09-19) — el local **de esta fila**.
+   *
+   * El export nació en la pantalla de Caja, que mira **una** sucursal, así que el nombre del local venía
+   * una sola vez para todo el archivo. Desde que vive en el Historial —que puede listar todas las
+   * sucursales del alcance— cada fila dice la suya; `options.locationName` queda como respaldo para las
+   * pantallas de una sola sucursal.
+   */
+  locationName?: string | null;
 };
 
 const HEADERS = [
@@ -54,7 +63,7 @@ export function buildShiftCsv(
       const counted = shift.closingAmount === null;
 
       return [
-        options.locationName,
+        shift.locationName?.trim() || options.locationName,
         formatShiftDateTime(shift.openedAt, format),
         formatShiftDateTime(shift.closedAt, format),
         csvAmount(shift.openingAmount),

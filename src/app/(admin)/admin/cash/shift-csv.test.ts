@@ -101,4 +101,24 @@ describe("CSV de cierres", () => {
 
     expect(nombre).toBe("cierres-camino-de-oriente-2026-09-17.csv");
   });
+
+  /**
+   * Fase 1b del rediseño de Caja (2026-09-19) — el export se muda al **Historial**, que cruza sucursales
+   * (`/admin/history/cierres`). El CSV se armaba con **un** local para todas las filas porque su única
+   * pantalla miraba una sucursal; con la lista de todas, cada fila tiene que decir la suya o el archivo
+   * mentiría sobre de dónde salió cada cierre.
+   */
+  it("el local de cada fila manda sobre el del archivo (la lista puede cruzar sucursales)", () => {
+    const deOtraSucursal = { ...shift, locationName: "Casa Antigua" };
+
+    const [, row] = buildShiftCsv([deOtraSucursal], options).split("\r\n");
+
+    expect(row.startsWith("Casa Antigua" + CSV_SEPARATOR)).toBe(true);
+  });
+
+  it("sin local en la fila, el archivo usa el que se le pasa (una sola sucursal)", () => {
+    const [, row] = buildShiftCsv([shift], options).split("\r\n");
+
+    expect(row.startsWith("Camino de Oriente" + CSV_SEPARATOR)).toBe(true);
+  });
 });

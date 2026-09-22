@@ -65,7 +65,7 @@ import { usePosHolds } from "./use-pos-holds";
  */
 
 const CLOSE_SHIFT_FIRST_MESSAGE =
-  "Este local exige cerrar la caja todos los días y la caja quedó abierta de otro día: cerrala en «Caja del día» y volvé a cobrar.";
+  "Este local exige cerrar la caja todos los días y la caja quedó abierta de otro día: cerrala en «Caja» y volvé a cobrar.";
 
 /**
  * TASK-306 — cada cuánto se refresca el mostrador solo.
@@ -175,7 +175,7 @@ export default function PosClient({
    * TASK-305b + tarea 1 del brief (2026-09-17) — la caja del local.
    *
    * El POS **lee** si hay caja abierta (es lo que habilita cobrar, Bloque 9.2) y muestra el estado, pero
-   * no la administra: abrir y cerrar se hace en «Caja del día».
+   * no la administra: abrir y cerrar se hace en «Caja».
    */
   const [shift, setShift] = React.useState<PosShift | null>(null);
   const [shiftLoading, setShiftLoading] = React.useState(true);
@@ -216,7 +216,7 @@ export default function PosClient({
         setShift(body.data ?? null);
       } catch {
         // Un error de lectura deja el POS en «sin caja abierta» (no se puede cobrar) sin romper la
-        // pantalla: el cajero ve el aviso y el enlace a Caja del día, que es donde se arregla.
+        // pantalla: el cajero ve el aviso y el enlace a Caja, que es donde se arregla.
         if (options.silent) return;
 
         setShift(null);
@@ -663,7 +663,7 @@ export default function PosClient({
               )}
             </p>
 
-            {/* Tarea 1 del brief (2026-09-17): la caja se abre y se cierra en «Caja del día», no acá. */}
+            {/* Tarea 1 del brief (2026-09-17): la caja se abre y se cierra en «Caja», no acá. */}
             <Link
               href="/admin/cash"
               className="inline-flex min-h-11 items-center text-st-body font-semibold text-brand-primary underline"

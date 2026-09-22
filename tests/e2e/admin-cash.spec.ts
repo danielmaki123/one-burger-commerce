@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 import { loginAsOwner, mutationsAllowed } from "./helpers";
 
 /**
- * Bloque 1 del roadmap del POS (Fase 2) — Caja del día y el detalle de un cierre.
+ * Bloque 1 del roadmap del POS (Fase 2) — Caja y el detalle de un cierre.
  *
  * Estos dos casos existen por un motivo concreto: la pantalla de detalle es un **server component**
  * que muestra datos guardados, y esa clase de página puede compilar sin errores y fallar en runtime
@@ -11,6 +11,13 @@ import { loginAsOwner, mutationsAllowed } from "./helpers";
  * `next build` ni `build:webpack` lo detectan). Un navegador real abriendo la URL es la única
  * verificación que lo cubre.
  */
+
+/** El desborde horizontal del documento, que la regla del sistema exige ≤1 px entre 320 y 1280. */
+async function horizontalOverflow(page: import("@playwright/test").Page): Promise<number> {
+  return page.evaluate(
+    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+  );
+}
 
 /** Un id de turno del primer local con caja, por API (no se asume cuántos turnos hay). */
 async function firstShiftId(page: import("@playwright/test").Page): Promise<string | null> {
@@ -58,46 +65,72 @@ async function closedShiftId(page: import("@playwright/test").Page): Promise<str
 }
 
 test.describe("caja del día", () => {
-  test("el historial lista los turnos y no tiene scroll horizontal a 375 px", async ({ page }) => {
+  /**
+   * Fase 1b del rediseño de Caja (2026-09-19) — **la pantalla queda con un solo sujeto**.
+   *
+   * El historial de cierres, el día consolidado y la conciliación salieron de Caja: el historial vive en
+   * Cierres (`/admin/history/cierres`, con el export CSV que trajo de acá) y el día en el reporte. Este
+   * caso fija las dos mitades: que Caja ya no los dibuje y que el historial siga donde tiene que estar,
+   * sin scroll horizontal a 375 px (regla del sistema).
+   */
+  test("la Caja queda con el ciclo del turno y el historial vive en Cierres", async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 812 });
     await loginAsOwner(page);
+
     await page.goto("/admin/cash");
+    await expect(page.getByRole("heading", { name: "Caja", exact: true })).toBeVisible();
+    await expect(page.getByRole("region", { name: "Caja del local" })).toBeVisible();
 
-    await expect(page.getByRole("heading", { name: "Caja del día" })).toBeVisible();
-    await expect(page.getByText(/Leyendo el historial de caja…/)).toBeHidden({ timeout: 20_000 });
+    await expect(page.getByRole("region", { name: "Cierre del día" })).toHaveCount(0);
+    await expect(
+      page.getByRole("region", { name: "Conciliación de tarjeta y transferencia" }),
+    ).toHaveCount(0);
+    await expect(page.getByRole("list", { name: "Cierres de caja" })).toHaveCount(0);
 
-    const overflow = await page.evaluate(
-      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
-    );
-    expect(overflow).toBeLessThanOrEqual(1);
+    expect(await horizontalOverflow(page)).toBeLessThanOrEqual(1);
+
+    await page.goto("/admin/history/cierres");
+    await expect(page.getByRole("heading", { name: "Historial" })).toBeVisible();
+
+    // El export CSV vino con la lista desde Caja: sin filtro de día (la base local acumula cierres de
+    // otras fechas) el archivo se ofrece con lo que hay en pantalla.
+    await page.getByRole("button", { name: "Limpiar filtros" }).click();
+    await expect(page.getByRole("button", { name: "Exportar CSV" })).toBeVisible();
+
+    expect(await horizontalOverflow(page)).toBeLessThanOrEqual(1);
+
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await expect(page.getByRole("button", { name: "Exportar CSV" })).toBeVisible();
+    await expect(page.getByText("A server error occurred")).toHaveCount(0);
   });
 
-  test("el cierre del día consolida las sucursales (11.5/11.6)", async ({ page }) => {
+  /**
+   * 11.5/11.6 (2026-09-17) — **el día consolidado y la comparación por sucursal**.
+   *
+   * Vivía dentro de Caja; desde la Fase 1b del rediseño (2026-09-19) se mira en el reporte del día, que
+   * ya existía y además acepta cualquier fecha.
+   */
+  test("el reporte del día consolida las sucursales (11.5/11.6)", async ({ page }) => {
     await loginAsOwner(page);
 
     // El panel es un server component que lee **todas** las sucursales del alcance: si fallara al
     // resolver el día del negocio o el repositorio, la pantalla no se dibujaría.
     await page.setViewportSize({ width: 375, height: 812 });
-    await page.goto("/admin/cash");
+    await page.goto("/admin/cash/report");
 
-    const cierreDelDia = page.getByRole("region", { name: "Cierre del día" });
-    await expect(cierreDelDia).toBeVisible();
-    await expect(cierreDelDia.getByRole("heading", { name: "Cierre del día" })).toBeVisible();
+    const panel = page.getByRole("region", { name: "Reporte de caja del día" });
+    await expect(panel).toBeVisible();
 
     // 11.6: la comparación, una fila por sucursal. Se muestra siempre (una sucursal sin turnos va con
     // ceros), así que la comparación no desaparece justo el día que nadie vendió.
-    const comparacion = cierreDelDia.getByRole("list", { name: "Comparación por sucursal" });
-    await expect(comparacion).toBeVisible();
-    await expect(comparacion.getByRole("listitem").first()).toContainText("Efectivo");
+    const porSucursal = panel.getByRole("list", { name: "Caja por sucursal" });
+    await expect(porSucursal).toBeVisible();
+    await expect(porSucursal.getByRole("listitem").first()).toContainText("Cobrado");
 
-    expect(
-      await page.evaluate(
-        () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
-      ),
-    ).toBeLessThanOrEqual(1);
+    expect(await horizontalOverflow(page)).toBeLessThanOrEqual(1);
 
     await page.setViewportSize({ width: 1280, height: 900 });
-    await expect(cierreDelDia).toBeVisible();
+    await expect(panel).toBeVisible();
     await expect(page.getByText("A server error occurred")).toHaveCount(0);
   });
 
@@ -272,14 +305,14 @@ test.describe("caja del día", () => {
   });
 
   /**
-   * Tarea 7 del brief (2026-09-17) — el **corte X** y el **traspaso de caja** (1.12 y 1.13).
+   * Tarea 7 del brief (2026-09-17) — la **lectura parcial** y el **traspaso de caja** (1.12 y 1.13).
    *
-   * Dos cosas que solo se pueden verificar en un navegador real: que el corte se **imprima** sin cerrar
-   * la caja (con su aclaración, para que nadie lo confunda con un cierre) y que el traspaso se firme con
+   * Dos cosas que solo se pueden verificar en un navegador real: que la lectura se **imprima** sin cerrar
+   * la caja (con su aclaración, para que nadie la confunda con un cierre) y que el traspaso se firme con
    * el nombre de quien recibe y quede en el historial del turno. El esperado del papel lo calcula el
    * servidor; acá se comprueba que llegue al papel y a la lista.
    */
-  test("el corte X se imprime sin cerrar la caja y el traspaso queda firmado", async ({ page }) => {
+  test("la lectura parcial se imprime sin cerrar la caja y el traspaso queda firmado", async ({ page }) => {
     test.skip(!mutationsAllowed, "Order creation is disabled unless E2E_ALLOW_MUTATIONS=true.");
 
     await loginAsOwner(page);
@@ -317,7 +350,7 @@ test.describe("caja del día", () => {
     expect(shift, "hay una caja abierta (o se abrió una)").toBeTruthy();
 
     await page.goto("/admin/cash");
-    const panel = page.getByRole("region", { name: "Corte y traspaso de caja" });
+    const panel = page.getByRole("region", { name: "Lectura parcial y traspaso" });
     await expect(panel).toBeVisible();
 
     // 375 px: el panel nuevo no puede meter scroll horizontal (regla del sistema).
@@ -331,12 +364,12 @@ test.describe("caja del día", () => {
 
     const [corte] = await Promise.all([
       page.waitForEvent("popup"),
-      panel.getByRole("button", { name: "Imprimir corte X" }).click(),
+      panel.getByRole("button", { name: "Imprimir lectura parcial" }).click(),
     ]);
     await corte.waitForLoadState("domcontentloaded");
 
     const papelCorte = (await corte.locator("pre").textContent()) ?? "";
-    expect(papelCorte).toContain("CORTE X");
+    expect(papelCorte).toContain("LECTURA PARCIAL");
     expect(papelCorte).toContain("Esperado: C$");
     // El papel aclara que el turno sigue abierto: un corte confundido con un cierre deja la caja abierta.
     expect(papelCorte).toContain("NO cierra la caja");
@@ -352,7 +385,7 @@ test.describe("caja del día", () => {
     await traspaso.waitForLoadState("domcontentloaded");
 
     const papelTraspaso = (await traspaso.locator("pre").textContent()) ?? "";
-    expect(papelTraspaso).toContain("TRASPASO DE CAJA (CORTE X)");
+    expect(papelTraspaso).toContain("TRASPASO DE CAJA (LECTURA PARCIAL)");
     expect(papelTraspaso).toContain(`Recibe: ${recibe}`);
     // Las dos firmas: el que entrega y el que recibe (si no, no hay traspaso que valga).
     expect(papelTraspaso.match(/Firma: ___/g) ?? []).toHaveLength(2);
