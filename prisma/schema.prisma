@@ -221,6 +221,8 @@ model Location {
   shiftHandovers     ShiftHandover[]
   /// Fase 2 del rediseño de Caja (2026-09-22) — la configuración de caja de este local.
   cashConfig         LocationCashConfig?
+  /// Fase 3 del rediseño de Caja (2026-09-23) — los bancos con los que liquida esta sucursal.
+  banks              LocationBank[]
 
   @@index([isActive, sortOrder])
 }
@@ -863,62 +865,72 @@ model Payment {
 /// que la regla se escribe a mano en el SQL; hay un test de contrato que exige que el índice exista,
 /// porque sin él dos cajas podrían abrir el mismo turno y el arqueo quedaría partido en dos.
 model Shift {
-  id                  String           @id @default(cuid())
-  locationId          String
-  userId              String
-  status              ShiftStatus      @default(open)
-  openedAt            DateTime         @default(now())
-  closedAt            DateTime?
+  id                   String           @id @default(cuid())
+  locationId           String
+  userId               String
+  status               ShiftStatus      @default(open)
+  openedAt             DateTime         @default(now())
+  closedAt             DateTime?
   /// Fondo con el que arranca la caja.
-  openingAmount       Decimal          @default(0) @db.Decimal(10, 2)
+  openingAmount        Decimal          @default(0) @db.Decimal(10, 2)
   /// Lo que se contó al cerrar. `null` mientras el turno está abierto.
-  closingAmount       Decimal?         @db.Decimal(10, 2)
+  closingAmount        Decimal?         @db.Decimal(10, 2)
   /// Lo que el sistema esperaba según los cobros. Se guarda congelado al cerrar: el arqueo de un
   /// turno cerrado no puede cambiar porque después se editó un pedido.
-  expectedAmount      Decimal?         @db.Decimal(10, 2)
+  expectedAmount       Decimal?         @db.Decimal(10, 2)
   /// Bloque 1.1 del POS (Fase 2) — el esperado **por moneda**, tal como se calculó al cerrar
   /// (`{"NIO": 1200, "USD": 40}`). Antes viajaba solo en la respuesta: recomputar un cierre viejo
   /// usaba la tasa de cambio de hoy y mostraba un número que nunca existió.
-  expectedByCurrency  Json?
+  expectedByCurrency   Json?
   /// Bloque 1.2 del POS (Fase 2) — lo que entró **en efectivo** en el turno, en la moneda del
   /// negocio (monto + propina − vuelto). La tarjeta no entra: no pasó por el cajón.
-  cashSalesAmount     Decimal?         @db.Decimal(10, 2)
+  cashSalesAmount      Decimal?         @db.Decimal(10, 2)
   /// Tarea 1.2 del roadmap + decisión del owner (2026-09-17) — el **desglose por medio de pago** del turno,
   /// congelado al cerrar junto con el arqueo. Antes solo se guardaba el efectivo: la plata de la tarjeta y
   /// de la transferencia no quedaba en ningún lado del turno (había que recomputarla de los cobros).
-  cardSalesAmount     Decimal?         @db.Decimal(10, 2)
-  transferSalesAmount Decimal?         @db.Decimal(10, 2)
+  cardSalesAmount      Decimal?         @db.Decimal(10, 2)
+  transferSalesAmount  Decimal?         @db.Decimal(10, 2)
   /// Mixto y otro: entró, pero no es efectivo ni una tarjeta de la terminal.
-  otherSalesAmount    Decimal?         @db.Decimal(10, 2)
+  otherSalesAmount     Decimal?         @db.Decimal(10, 2)
   /// Propinas del turno. Van **dentro** de cada medio (es plata que el cliente pagó); acá quedan como
   /// detalle, para no tener que sumarlas de los cobros.
-  tipsAmount          Decimal?         @db.Decimal(10, 2)
+  tipsAmount           Decimal?         @db.Decimal(10, 2)
   /// Bloque 2 del POS (Fase 2) — el neto de los movimientos del turno (retiros restan, ingresos
   /// suman), en la moneda del negocio. Congelado al cerrar, igual que el resto del arqueo.
-  cashMovementsAmount Decimal?         @db.Decimal(10, 2)
+  cashMovementsAmount  Decimal?         @db.Decimal(10, 2)
   /// Bloque 3 del POS (Fase 2) — el neto de las devoluciones en efectivo aprobadas del turno, en la
   /// moneda del negocio (negativo o 0). Congelado al cerrar, igual que el resto del arqueo.
-  refundsAmount       Decimal?         @db.Decimal(10, 2)
+  refundsAmount        Decimal?         @db.Decimal(10, 2)
   /// `closingAmount - expectedAmount`. Negativo = faltó plata.
-  difference          Decimal?         @db.Decimal(10, 2)
+  difference           Decimal?         @db.Decimal(10, 2)
+  /// Fase 3 del rediseño de Caja (2026-09-23) — la diferencia **del cuadre por banco** (lo declarado
+  /// menos lo que el sistema cobró con tarjeta y transferencia), en la moneda del negocio. Se congela al
+  /// cerrar por la misma razón que `difference`: el lote de una terminal no se recalcula después.
+  bankDifferenceAmount Decimal?         @db.Decimal(10, 2)
+  /// Fase 3 del rediseño de Caja (2026-09-23) — cuándo salió el aviso del cierre al grupo del dueño, que
+  /// es el mensaje donde viaja la diferencia. Sirve para saber si el número ya se avisó o quedó solo en
+  /// la base (el aviso es best-effort: si Telegram falla, el cierre igual queda firmado).
+  differenceNotifiedAt DateTime?
   /// Bloque 1.10 del POS (Fase 2) — reapertura de un turno cerrado. Queda firmado quién, cuándo y
   /// por qué: reabrir una caja ya cerrada es la operación más sensible del arqueo, y una reapertura
   /// sin motivo escrito no se puede auditar.
-  reopenedAt          DateTime?
-  reopenedByUserId    String?
-  reopenReason        String?
-  notes               String?
-  createdAt           DateTime         @default(now())
-  updatedAt           DateTime         @updatedAt
-  location            Location         @relation(fields: [locationId], references: [id], onDelete: Restrict)
-  user                AdminUser        @relation(fields: [userId], references: [id], onDelete: Restrict)
-  cashCounts          ShiftCashCount[]
-  movements           CashMovement[]
+  reopenedAt           DateTime?
+  reopenedByUserId     String?
+  reopenReason         String?
+  notes                String?
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+  location             Location         @relation(fields: [locationId], references: [id], onDelete: Restrict)
+  user                 AdminUser        @relation(fields: [userId], references: [id], onDelete: Restrict)
+  cashCounts           ShiftCashCount[]
+  movements            CashMovement[]
   /// Bloque 3 del POS — las devoluciones registradas en este turno. Solo las **aprobadas** y **en
   /// efectivo** restan del esperado: son las que sacaron plata del cajón.
-  refunds             Refund[]
+  refunds              Refund[]
   /// Tarea 7 del brief (2026-09-17) — los traspasos de esta caja (Bloque 1.13).
-  handovers           ShiftHandover[]
+  handovers            ShiftHandover[]
+  /// Fase 3 del rediseño de Caja (2026-09-23) — el cuadre por banco de este turno.
+  bankCloses           ShiftBankClose[]
 
   @@index([locationId, status])
   @@index([userId])
@@ -979,6 +991,81 @@ model ShiftHandover {
 
   @@index([shiftId, createdAt])
   @@index([locationId, createdAt])
+}
+
+/// Fase 3 del rediseño de Caja (2026-09-23) — el **banco** con el que el local liquida la tarjeta y la
+/// transferencia (el adquirente del POS: lo que el owner ve en el voucher y en el lote de la terminal).
+///
+/// El catálogo es **del negocio**, no del código: las entidades con las que opera el local no se pueden
+/// inventar —el contrato anti-hardcode prohíbe nombres de negocio fuera de la configuración—, así que
+/// nacen vacías y las carga el owner desde Config de Caja. `code` es el nombre corto del papel
+/// (`BAC`, `BANPRO`): sin él, el cierre imprime el nombre largo.
+model Bank {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  code      String?  @unique
+  /// Apagado deja de ofrecerse en el cierre; las filas viejas lo siguen mostrando (es un documento).
+  isActive  Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  locations  LocationBank[]
+  bankCloses ShiftBankClose[]
+
+  @@index([isActive, sortOrder])
+}
+
+/// Fase 3 del rediseño de Caja (2026-09-23) — **qué bancos liquida una sucursal**.
+///
+/// Es lo que decide qué bloques dibuja el cierre: la sucursal del centro puede liquidar con dos bancos y
+/// la de carretera con uno. Sin esta fila el banco no se ofrece, y no se borra: se apaga, para que los
+/// cierres viejos sigan explicando con quién se liquidó.
+model LocationBank {
+  id         String   @id @default(cuid())
+  locationId String
+  bankId     String
+  isActive   Boolean  @default(true)
+  sortOrder  Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  location Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  bank     Bank     @relation(fields: [bankId], references: [id], onDelete: Restrict)
+
+  @@unique([locationId, bankId])
+  @@index([locationId, isActive])
+}
+
+/// Fase 3 del rediseño de Caja (2026-09-23) — lo que **el banco reportó por este turno**: el monto
+/// declarado con el lote de la terminal, por moneda.
+///
+/// Es el otro lado del cuadre de tarjeta (11.1 del roadmap, que hasta acá se hacía a mano con el CSV):
+/// el sistema ya sabe cuánto cobró con tarjeta y transferencia en la ventana del turno, y esta fila dice
+/// cuánto dice el banco. La diferencia entre los dos es el número que el cierre destaca.
+///
+/// Una fila por banco y moneda: el mismo banco puede liquidar córdobas y dólares en el mismo turno, y
+/// dos filas de la misma moneda para el mismo banco serían dos veces el mismo lote sin poder distinguirlo.
+model ShiftBankClose {
+  id             String   @id @default(cuid())
+  shiftId        String
+  bankId         String
+  /// Lo que reportó el banco (o la terminal) para este turno. Nunca se recalcula.
+  declaredAmount Decimal  @db.Decimal(12, 2)
+  currency       String
+  /// El número de lote del voucher de la terminal. Texto: hay terminales que lo imprimen con ceros.
+  lote           String?
+  /// Qué terminal lo produjo («Terminal 1», «POS mostrador»). Texto libre: el local lo escribe.
+  terminalLabel  String?
+  notes          String?
+  createdAt      DateTime @default(now())
+
+  shift Shift @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+  bank  Bank  @relation(fields: [bankId], references: [id], onDelete: Restrict)
+
+  @@unique([shiftId, bankId, currency])
+  @@index([shiftId])
+  @@index([bankId])
 }
 
 /// Bloque 2 del roadmap del POS (Fase 2) — plata que entra o sale del cajón **sin ser un cobro**.

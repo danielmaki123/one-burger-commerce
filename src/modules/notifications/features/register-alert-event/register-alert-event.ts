@@ -70,6 +70,15 @@ export async function registerShiftClosedAlert(
     /** `null` = cierre ciego (nadie contó la caja): el mensaje lo dice con palabras. */
     difference: number | null;
     reason: string | null;
+    /**
+     * Fase 3 del rediseño de Caja (2026-09-23) — el **cuadre por banco**: lo que declaró cada banco por
+     * moneda (el lote de la terminal), lo que el sistema cobró sin pasar por el cajón y la diferencia,
+     * en la moneda del negocio. Vacío = el turno se cerró sin declarar lotes y el mensaje no lo menciona.
+     */
+    bankDeclaredByCurrency?: Record<string, number>;
+    bankChargedByCurrency?: Record<string, number>;
+    bankDifferenceByCurrency?: Record<string, number>;
+    bankDifference?: number | null;
   },
   { outboxRepository }: { outboxRepository: OutboxRepository },
 ): Promise<{ registered: boolean }> {

@@ -3,8 +3,8 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const { redirectMock, requireAdminSessionMock, listLocationsMock, getCashConfigMock } = vi.hoisted(
-  () => ({
+const { redirectMock, requireAdminSessionMock, listLocationsMock, getCashConfigMock, getBankCatalogMock } =
+  vi.hoisted(() => ({
     // Igual que Next de verdad: `redirect()` corta la ejecución de la página.
     redirectMock: vi.fn(() => {
       throw new Error("NEXT_REDIRECT");
@@ -12,8 +12,8 @@ const { redirectMock, requireAdminSessionMock, listLocationsMock, getCashConfigM
     requireAdminSessionMock: vi.fn(),
     listLocationsMock: vi.fn(),
     getCashConfigMock: vi.fn(),
-  }),
-);
+    getBankCatalogMock: vi.fn(),
+  }));
 
 vi.mock("next/navigation", () => ({
   redirect: redirectMock,
@@ -31,6 +31,11 @@ vi.mock("@/modules/pos/adapters/production-pos-location", () => ({
 
 vi.mock("@/modules/cash-config/features/get-cash-config/get-cash-config", () => ({
   getCashConfig: (input: unknown, deps: unknown) => getCashConfigMock(input, deps),
+}));
+
+// Fase 3 del rediseño de Caja: la sección Bancos baja con la config.
+vi.mock("@/modules/banks/features/get-bank-catalog/get-bank-catalog", () => ({
+  getBankCatalog: (input: unknown, deps: unknown) => getBankCatalogMock(input, deps),
 }));
 
 import AdminCashConfigPage from "./page";
@@ -73,6 +78,18 @@ describe("AdminCashConfigPage", () => {
     requireAdminSessionMock.mockResolvedValue(sessionFor("owner"));
     listLocationsMock.mockResolvedValue(LOCATIONS);
     getCashConfigMock.mockResolvedValue(CONFIG);
+    getBankCatalogMock.mockResolvedValue({
+      banks: [
+        {
+          id: "bank_bac",
+          name: "BAC Credomatic",
+          code: "BAC",
+          isActive: true,
+          sortOrder: 0,
+          locationIds: ["loc_principal"],
+        },
+      ],
+    });
 
     render(await AdminCashConfigPage());
 
@@ -80,6 +97,9 @@ describe("AdminCashConfigPage", () => {
     expect(screen.getByLabelText("Esta sucursal cuenta dólares")).toBeTruthy();
     expect(screen.getByLabelText(/Arqueo ciego/)).toBeTruthy();
     expect(screen.getByRole("button", { name: "Guardar configuración" })).toBeTruthy();
+    // Fase 3 del rediseño de Caja: los bancos del cuadre bajan con la config y se editan acá.
+    expect(screen.getByRole("region", { name: "Bancos" })).toBeTruthy();
+    expect(screen.getByDisplayValue("BAC Credomatic")).toBeTruthy();
     expect(redirectMock).not.toHaveBeenCalled();
   });
 

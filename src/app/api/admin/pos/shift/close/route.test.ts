@@ -14,6 +14,9 @@ const requireAdminSessionMock = vi.fn();
 const requirePosLocationMock = vi.fn();
 const closePosShiftMock = vi.fn();
 const shiftCloseAuditMock = vi.fn();
+const markDifferenceNotifiedMock = vi.fn();
+const shiftRepositoryMock = { markDifferenceNotified: (...args: unknown[]) => markDifferenceNotifiedMock(...args) };
+const parseShiftCashPayloadMock = vi.fn();
 
 vi.mock("@/modules/auth/features/require-admin-session/require-admin-session", () => ({
   requireAdminSession: () => requireAdminSessionMock(),
@@ -31,16 +34,12 @@ vi.mock("@/app/api/admin/pos/pos-route-helpers", async () => {
 });
 
 vi.mock("@/app/api/admin/pos/shift/shift-payload", () => ({
-  parseShiftCashPayload: () => ({
-    locationId: "loc_principal",
-    counts: [{ currency: "NIO", denomination: 500, quantity: 3 }],
-    notes: null,
-  }),
+  parseShiftCashPayload: (body: unknown) => parseShiftCashPayloadMock(body),
 }));
 
 vi.mock("@/modules/pos/adapters/production-pos-shift", () => ({
   createProductionPosShiftDependencies: () => ({
-    shiftRepository: {},
+    shiftRepository: shiftRepositoryMock,
     paymentRepository: {},
     businessCurrencyCode: "NIO",
     usdExchangeRate: 36,
@@ -108,6 +107,11 @@ describe("POST /api/admin/pos/shift/close", () => {
       },
     });
     requirePosLocationMock.mockResolvedValue("loc_principal");
+    parseShiftCashPayloadMock.mockReturnValue({
+      locationId: "loc_principal",
+      counts: [{ currency: "NIO", denomination: 500, quantity: 3 }],
+      notes: null,
+    });
     closePosShiftMock.mockResolvedValue({
       data: {
         ...closedShift,
@@ -137,6 +141,9 @@ describe("POST /api/admin/pos/shift/close", () => {
       counted: 1400,
       expected: 1500,
       difference: -100,
+      // Fase 3 del rediseño de Caja: el cuadre por banco también se firma. `null` = este turno no declaró
+      // ningún lote.
+      bankDifference: null,
     });
   });
 
@@ -165,6 +172,12 @@ describe("POST /api/admin/pos/shift/close", () => {
         tips: 0,
         difference: -100,
         reason: null,
+        // Fase 3 del rediseño de Caja: el cuadre por banco viaja en el mismo mensaje (vacío si no se
+        // declaró ningún lote, que es este caso).
+        bankDeclaredByCurrency: {},
+        bankChargedByCurrency: {},
+        bankDifferenceByCurrency: {},
+        bankDifference: null,
       },
       expect.anything(),
     );
@@ -224,5 +237,90 @@ describe("POST /api/admin/pos/shift/close", () => {
 
     expect(response.status).toBe(403);
     expect(closePosShiftMock).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Fase 3 del rediseño de Caja (2026-09-23) — el cuadre por banco en el cierre.
+   */
+  it("el cuadre por banco viaja al cierre, al asiento y al aviso", async () => {
+    parseShiftCashPayloadMock.mockReturnValue({
+      locationId: "loc_principal",
+      counts: [{ currency: "NIO", denomination: 500, quantity: 3 }],
+      bankCloses: [
+        {
+          bankId: "bank_bac",
+          declaredAmount: 550,
+          currency: "NIO",
+          lote: "0012",
+          terminalLabel: "Terminal 1",
+          notes: null,
+        },
+      ],
+      notes: null,
+    });
+    closePosShiftMock.mockResolvedValue({
+      data: {
+        ...closedShift,
+        openedAt: "2026-09-18T14:00:00.000Z",
+        closedAt: "2026-09-19T02:30:00.000Z",
+        bankDifferenceAmount: 50,
+        bankCloses: [{ bankId: "bank_bac", declaredAmount: 550, currency: "NIO" }],
+        notes: null,
+      },
+      meta: {
+        expectedByCurrency: { NIO: 1500 },
+        paymentMix: { cash: 1400, card: 500, transfer: 0, other: 0, total: 1900, tips: 0, orders: 4 },
+        bankDeclaredByCurrency: { NIO: 550 },
+        bankChargedByCurrency: { NIO: 500 },
+        bankDifferenceByCurrency: { NIO: 50 },
+        bankDifferenceAmount: 50,
+      },
+    });
+
+    const { POST } = await import("./route");
+    const response = await POST(post());
+
+    expect(response.status).toBe(200);
+    // El caso de uso recibe el lote declarado, no un total ya sumado: el servidor es el que suma.
+    expect(closePosShiftMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        bankCloses: [expect.objectContaining({ bankId: "bank_bac", declaredAmount: 550 })],
+      }),
+      expect.anything(),
+    );
+    // La diferencia del cuadre queda en el log: el estado dice cuánto, el log dice quién.
+    expect(shiftCloseAuditMock).toHaveBeenCalledWith(
+      expect.objectContaining({ bankDifference: 50 }),
+    );
+    // Y el aviso del cierre la lleva: es un mensaje por cierre, no dos.
+    expect(registerShiftClosedAlertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        bankDeclaredByCurrency: { NIO: 550 },
+        bankChargedByCurrency: { NIO: 500 },
+        bankDifferenceByCurrency: { NIO: 50 },
+        bankDifference: 50,
+      }),
+      expect.anything(),
+    );
+  });
+
+  it("firma cuándo salió el aviso del cierre", async () => {
+    const { POST } = await import("./route");
+    await POST(post());
+
+    // La firma va con el **id del turno** y una fecha: es lo que permite saber si el número se avisó o
+    // quedó solo en la base.
+    expect(markDifferenceNotifiedMock).toHaveBeenCalledWith("shift_01", expect.any(String));
+  });
+
+  it("sin cuadre por banco el aviso lo dice con `null`, no con cero", async () => {
+    // Un turno sin lotes declarados no tiene cuadre por banco: `null` (no cero), y sin filas de bancos.
+    const { POST } = await import("./route");
+    await POST(post());
+
+    expect(registerShiftClosedAlertMock).toHaveBeenCalledWith(
+      expect.objectContaining({ bankDifference: null, bankDeclaredByCurrency: {} }),
+      expect.anything(),
+    );
   });
 });

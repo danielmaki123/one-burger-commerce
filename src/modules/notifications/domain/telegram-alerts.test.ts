@@ -18,7 +18,13 @@ import {
  * cierre, sin hora fija): eso reemplaza al «resumen diario a las 22:00», que nunca se disparó solo.
  */
 
-const options = { businessName: "One Burger", currencySymbol: "C$", timezone: "America/Managua", locale: "es-NI" };
+const options = {
+  businessName: "One Burger",
+  currencySymbol: "C$",
+  currencyCode: "NIO",
+  timezone: "America/Managua",
+  locale: "es-NI",
+};
 
 describe("buildRefundOverThresholdText", () => {
   it("dice el monto, el pedido y el umbral con el símbolo del negocio", () => {
@@ -116,6 +122,68 @@ describe("buildShiftClosedText", () => {
 
     expect(text).toContain("👤 Cerrado por: —");
     expect(text).not.toContain("📝 Motivo:");
+  });
+
+  /**
+   * Fase 3 del rediseño de Caja (2026-09-23) — el cuadre por banco viaja en el **mismo** mensaje: el
+   * lote de la terminal contra lo que el sistema cobró sin pasar por el cajón. Un cierre con el cuadre
+   * torcido no manda dos avisos.
+   */
+  it("el cuadre por banco va en el mismo mensaje, con su diferencia", () => {
+    const text = buildShiftClosedText(
+      {
+        ...cierre,
+        bankDeclaredByCurrency: { NIO: 550 },
+        bankChargedByCurrency: { NIO: 500 },
+        bankDifferenceByCurrency: { NIO: 50 },
+        bankDifference: 50,
+      },
+      options,
+    );
+
+    expect(text).toContain("🏦 Cuadre por banco");
+    expect(text).toContain("Declarado: C$550.00");
+    expect(text).toContain("Tarjeta + transferencia: C$500.00");
+    expect(text).toContain("⚠️ Diferencia de bancos: +C$50.00");
+  });
+
+  it("un cuadre por banco que cuadra se dice «cuadra», sin la marca de problema", () => {
+    const text = buildShiftClosedText(
+      {
+        ...cierre,
+        bankDeclaredByCurrency: { NIO: 500 },
+        bankChargedByCurrency: { NIO: 500 },
+        bankDifferenceByCurrency: { NIO: 0 },
+        bankDifference: 0,
+      },
+      options,
+    );
+
+    expect(text).toContain("✅ Diferencia de bancos: C$0.00 (cuadra)");
+    expect(text).not.toContain("⚠️");
+  });
+
+  it("una moneda distinta se muestra con su código, no con el símbolo del negocio", () => {
+    // `C$20.00` por un lote de US$20 sería un número falso (la misma regla que la hoja de cierre).
+    const text = buildShiftClosedText(
+      {
+        ...cierre,
+        bankDeclaredByCurrency: { USD: 20 },
+        bankChargedByCurrency: { USD: 20 },
+        bankDifferenceByCurrency: { USD: 0 },
+        bankDifference: 0,
+      },
+      options,
+    );
+
+    expect(text).toContain("Declarado: USD 20.00");
+    expect(text).not.toContain("C$20.00");
+  });
+
+  it("sin cuadre por banco el mensaje no agrega el bloque", () => {
+    const text = buildShiftClosedText(cierre, options);
+
+    expect(text).not.toContain("Cuadre por banco");
   });
 
   it("un solo pedido se dice en singular, y un turno corto en minutos", () => {

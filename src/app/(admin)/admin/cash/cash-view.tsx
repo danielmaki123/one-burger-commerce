@@ -33,6 +33,7 @@ import { useCashShift } from "./use-cash-shift";
 export default function CashView({
   locations,
   cashCountConfigs,
+  banksByLocation,
   canSeeShiftDetail,
   canSeeCloseDetail,
   canPrintDocuments,
@@ -45,6 +46,12 @@ export default function CashView({
    * dueño: el cajero no tiene por qué poder leerla). Incluye el **arqueo ciego** (Fase 4).
    */
   cashCountConfigs: Record<string, CashViewConfig>;
+  /**
+   * Fase 3 del rediseño de Caja (2026-09-23) — los bancos que liquida **cada sucursal**, resueltos en el
+   * servidor. El cierre dibuja un bloque por banco: sin esto la pantalla no sabría contra quién se cuadra
+   * el lote (la API del catálogo es del dueño).
+   */
+  banksByLocation: Record<string, { id: string; name: string; code: string | null }[]>;
   /** `true` = puede abrir el detalle de un turno (`canViewCashHistory`). */
   canSeeShiftDetail: boolean;
   /** `true` = ve el arqueo completo del cierre recién hecho. */
@@ -105,12 +112,15 @@ export default function CashView({
           locationName={locationName}
           actorName={actorName}
           countConfig={countConfig}
+          banks={banksByLocation[locationId] ?? []}
           busy={busy}
           shift={shift}
           actionError={actionError}
           canSeeShiftDetail={canSeeShiftDetail}
+          canSeeCloseDetail={canSeeCloseDetail}
+          blindCount={countConfig.blindCount ?? true}
           canPrint={canPrintDocuments}
-          onClose={(counts) => void closeShift(counts)}
+          onClose={(counts, bankCloses) => void closeShift(counts, bankCloses)}
         />
       ) : null}
 

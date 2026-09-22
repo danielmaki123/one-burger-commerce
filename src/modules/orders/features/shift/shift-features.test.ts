@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { InMemoryBankRepository } from "@/modules/banks/adapters/in-memory-bank-repository";
 import {
   createInMemoryLocation,
   InMemoryLocationRepository,
@@ -109,6 +110,16 @@ function buildDeps() {
   const locationRepository = new InMemoryLocationRepository([
     createInMemoryLocation({ id: "loc_principal", name: "Principal" }),
   ]);
+  // Fase 3 del rediseño de Caja: el cuadre por banco necesita saber qué bancos liquida la sucursal.
+  const bankRepository = new InMemoryBankRepository({
+    banks: [
+      { id: "bank_bac", name: "BAC Credomatic", code: "BAC", isActive: true, sortOrder: 0 },
+      { id: "bank_banpro", name: "Banpro", code: null, isActive: true, sortOrder: 1 },
+    ],
+    assignments: [
+      { locationId: "loc_principal", bankId: "bank_bac", isActive: true, sortOrder: 0 },
+    ],
+  });
 
   return {
     shiftRepository,
@@ -116,6 +127,7 @@ function buildDeps() {
     cashMovementRepository,
     refundRepository,
     locationRepository,
+    bankRepository,
     // TASK-305: el arqueo convierte los cobros en dólares con la tasa configurada.
     businessCurrencyCode: "NIO",
     usdExchangeRate: 36.5,
@@ -285,6 +297,154 @@ describe("closeShift", () => {
     await expect(
       closeShift({ shiftId: opened.data.id, closingAmount: -5 }, deps),
     ).rejects.toMatchObject({ code: "VALIDATION_ERROR", status: 422 });
+  });
+
+  /*
+   * Fase 3 del rediseño de Caja (2026-09-23) — el cuadre por banco.
+   *
+   * Hasta acá la tarjeta y la transferencia no se cuadraban: el cierre las guardaba como desglose y el
+   * 11.1 se resolvía a mano con un CSV. Estas pruebas fijan el otro lado: lo que declara el banco.
+   */
+  it("guarda el cuadre por banco y congela la diferencia contra lo cobrado sin pasar por el cajón", async () => {
+    const deps = buildDeps();
+    const opened = await openShift({ locationId: "loc_principal", userId: "user_01" }, deps);
+    const openedAtMs = backdateOpen(opened.data.id, 60, deps.shiftRepository);
+
+    // 500 con tarjeta + 250 por transferencia: lo que el sistema dice que entró sin pasar por el cajón.
+    seedPayment(deps.paymentRepository, 500, 0, new Date(openedAtMs + 10_000).toISOString(), {
+      method: "card",
+    });
+    seedPayment(deps.paymentRepository, 250, 0, new Date(openedAtMs + 20_000).toISOString(), {
+      method: "transfer",
+    });
+
+    const result = await closeShift(
+      {
+        shiftId: opened.data.id,
+        closingAmount: 0,
+        bankCloses: [
+          {
+            bankId: "bank_bac",
+            declaredAmount: 800,
+            currency: "NIO",
+            lote: "0012",
+            terminalLabel: "Terminal 1",
+            notes: null,
+          },
+        ],
+      },
+      deps,
+    );
+
+    // El banco reporta 800 y el sistema cobró 750: sobran C$50 en el lote.
+    expect(result.data?.bankCloses).toHaveLength(1);
+    expect(result.data?.bankCloses?.[0]).toMatchObject({
+      bankId: "bank_bac",
+      declaredAmount: 800,
+      currency: "NIO",
+      lote: "0012",
+      terminalLabel: "Terminal 1",
+    });
+    expect(result.data?.bankDifferenceAmount).toBe(50);
+    expect(result.meta.bankDifferenceAmount).toBe(50);
+    expect(result.meta.bankDeclaredByCurrency).toEqual({ NIO: 800 });
+    expect(result.meta.bankChargedByCurrency).toEqual({ NIO: 750 });
+  });
+
+  it("sin cuadre por banco la diferencia queda en null (no en cero)", async () => {
+    // `null` = nadie declaró el lote. Un 0 diría que se cuadró y que el banco reportó lo mismo que el
+    // sistema, que es una afirmación que no se hizo.
+    const deps = buildDeps();
+    const opened = await openShift({ locationId: "loc_principal", userId: "user_01" }, deps);
+
+    const result = await closeShift({ shiftId: opened.data.id, closingAmount: 0 }, deps);
+
+    expect(result.data?.bankCloses).toEqual([]);
+    expect(result.data?.bankDifferenceAmount).toBeNull();
+    expect(result.meta.bankDifferenceAmount).toBeNull();
+  });
+
+  it("rechaza un banco que no liquida en este local", async () => {
+    // Los dientes de la asignación por sucursal: la pantalla solo ofrece los bancos de la sucursal y el
+    // servidor rechaza el que llegue armado a mano (Banpro no está asignado a `loc_principal`).
+    const deps = buildDeps();
+    const opened = await openShift({ locationId: "loc_principal", userId: "user_01" }, deps);
+
+    await expect(
+      closeShift(
+        {
+          shiftId: opened.data.id,
+          closingAmount: 0,
+          bankCloses: [{ bankId: "bank_banpro", declaredAmount: 100, currency: "NIO" }],
+        },
+        deps,
+      ),
+    ).rejects.toMatchObject({
+      code: "VALIDATION_ERROR",
+      status: 422,
+      fields: { "bankCloses.0.bankId": "Ese banco no liquida en este local." },
+    });
+  });
+
+  it("rechaza un cuadre en dólares si el local no los trabaja", async () => {
+    const deps = {
+      ...buildDeps(),
+      // La config del conteo del local: solo córdobas.
+      cashCountConfig: { currencies: ["NIO"], denominations: { NIO: [100, 50, 20] } },
+    };
+    const opened = await openShift({ locationId: "loc_principal", userId: "user_01" }, deps);
+
+    await expect(
+      closeShift(
+        {
+          shiftId: opened.data.id,
+          closingAmount: 0,
+          bankCloses: [{ bankId: "bank_bac", declaredAmount: 20, currency: "USD" }],
+        },
+        deps,
+      ),
+    ).rejects.toMatchObject({ fields: { "bankCloses.0.currency": "Este local no liquida en USD." } });
+  });
+
+  it("el cuadre en dólares entra al total con la tasa del negocio", async () => {
+    const deps = buildDeps();
+    const opened = await openShift({ locationId: "loc_principal", userId: "user_01" }, deps);
+    const openedAtMs = backdateOpen(opened.data.id, 60, deps.shiftRepository);
+    seedPayment(deps.paymentRepository, 20, 0, new Date(openedAtMs + 10_000).toISOString(), {
+      method: "card",
+      currency: "USD",
+    });
+
+    const result = await closeShift(
+      {
+        shiftId: opened.data.id,
+        closingAmount: 0,
+        bankCloses: [{ bankId: "bank_bac", declaredAmount: 20, currency: "USD" }],
+      },
+      deps,
+    );
+
+    // 20 declarados contra 20 cobrados: cuadra, y el detalle por moneda lo dice sin convertir.
+    expect(result.meta.bankDeclaredByCurrency).toEqual({ USD: 20 });
+    expect(result.data?.bankDifferenceAmount).toBe(0);
+  });
+
+  it("sin tasa cargada rechaza un cuadre en dólares en vez de inventar el número", async () => {
+    // Un cuadre con un número inventado es peor que un cuadre que no se puede firmar: la diferencia se
+    // convertiría con una tasa que el negocio nunca fijó.
+    const deps = { ...buildDeps(), usdExchangeRate: null };
+    const opened = await openShift({ locationId: "loc_principal", userId: "user_01" }, deps);
+
+    await expect(
+      closeShift(
+        {
+          shiftId: opened.data.id,
+          closingAmount: 0,
+          bankCloses: [{ bankId: "bank_bac", declaredAmount: 20, currency: "USD" }],
+        },
+        deps,
+      ),
+    ).rejects.toMatchObject({ status: 422, code: "VALIDATION_ERROR" });
   });
 
   it("la tarjeta no entra al cajón (TASK-305)", async () => {

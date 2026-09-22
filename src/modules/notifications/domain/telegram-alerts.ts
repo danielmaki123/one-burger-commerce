@@ -1,4 +1,5 @@
 import { formatCurrency } from "@/shared/lib/format-currency";
+import { formatSheetAmount, type SheetMoneyOptions } from "@/shared/lib/shift-sheet-format";
 import { formatShiftDateTime } from "@/shared/lib/shift-datetime";
 
 import type { TelegramEvent } from "./telegram-events";
@@ -17,6 +18,12 @@ import type { TelegramEvent } from "./telegram-events";
 export type TelegramAlertFormat = {
   businessName: string;
   currencySymbol: string;
+  /**
+   * Fase 3 del rediseño de Caja (2026-09-23) — el código de la moneda del negocio. Hace falta para
+   * escribir un monto de **otra** moneda con su código (`USD 20.00`) en vez de con el símbolo local, que
+   * sería un número falso.
+   */
+  currencyCode: string;
   timezone: string;
   locale: string;
 };
@@ -79,6 +86,15 @@ export function buildShiftClosedText(
     difference: number | null;
     /** Motivo que escribió el cajero al cerrar (opcional). */
     reason: string | null;
+    /**
+     * Fase 3 del rediseño de Caja (2026-09-23) — el **cuadre por banco**: lo que declaró cada banco (por
+     * moneda, el lote de la terminal), lo que el sistema cobró sin pasar por el cajón y la diferencia.
+     * Vacío = el turno se cerró sin declarar lotes, y entonces el bloque no se agrega.
+     */
+    bankDeclaredByCurrency?: Record<string, number>;
+    bankChargedByCurrency?: Record<string, number>;
+    bankDifferenceByCurrency?: Record<string, number>;
+    bankDifference?: number | null;
   },
   options: TelegramAlertFormat,
 ): string {
@@ -95,11 +111,11 @@ export function buildShiftClosedText(
     `🏦 Transferencia: ${money(input.transfer, options)}`,
     SEPARATOR,
     `📈 Total: ${money(input.total, options)}`,
-    SEPARATOR,
-    "",
-    `💰 Propinas: ${money(input.tips, options)}`,
-    SEPARATOR,
   ];
+
+  lines.push(...bankBlock(input, options));
+
+  lines.push(SEPARATOR, "", `💰 Propinas: ${money(input.tips, options)}`, SEPARATOR);
 
   // Un cierre **ciego** (nadie contó la caja) no tiene diferencia: ni «cuadra» ni una cifra inventada.
   if (input.difference === null) {
@@ -116,6 +132,57 @@ export function buildShiftClosedText(
   if (input.reason?.trim()) lines.push(`📝 Motivo: "${input.reason.trim()}"`);
 
   return lines.join("\n");
+}
+
+/**
+ * Fase 3 del rediseño de Caja (2026-09-23) — el bloque del **cuadre por banco**, si el turno declaró
+ * lotes. Son tres líneas: lo que dice el banco, lo que el sistema cobró sin pasar por el cajón, y la
+ * diferencia (con la marca de problema cuando no cuadra, y con `cuadra` cuando sí).
+ *
+ * Cada monto se escribe **en su moneda**: un lote de dólares con el símbolo local sería un número falso.
+ */
+function bankBlock(
+  input: {
+    bankDeclaredByCurrency?: Record<string, number>;
+    bankChargedByCurrency?: Record<string, number>;
+    bankDifference?: number | null;
+  },
+  options: TelegramAlertFormat,
+): string[] {
+  const declared = input.bankDeclaredByCurrency ?? {};
+  const charged = input.bankChargedByCurrency ?? {};
+  const currencies = [...new Set([...Object.keys(declared), ...Object.keys(charged)])];
+
+  if (currencies.length === 0) return [];
+
+  const moneyOptions: SheetMoneyOptions = {
+    currencyCode: options.currencyCode,
+    currencySymbol: options.currencySymbol,
+    locale: options.locale,
+  };
+  const list = (totals: Record<string, number>) =>
+    currencies
+      .map((currency) => formatSheetAmount(totals[currency] ?? 0, currency, moneyOptions))
+      .join(" + ");
+
+  const lines = [
+    "",
+    "🏦 Cuadre por banco",
+    `Declarado: ${list(declared)}`,
+    `Tarjeta + transferencia: ${list(charged)}`,
+  ];
+
+  const difference = input.bankDifference ?? null;
+
+  if (difference === null) {
+    lines.push("📝 Diferencia de bancos: sin contar");
+  } else if (difference === 0) {
+    lines.push(`✅ Diferencia de bancos: ${money(0, options)} (cuadra)`);
+  } else {
+    lines.push(`⚠️ Diferencia de bancos: ${signed(difference, options)}`);
+  }
+
+  return lines;
 }
 
 /** La hora del negocio, sin la fecha: en un turno del día alcanza y el mensaje entra en el teléfono. */

@@ -50,7 +50,10 @@ export function shiftOpenAudit(input: {
   });
 }
 
-/** Cerrar la caja: lo que quedó asentado (contado, esperado y diferencia). */
+/**
+ * Cerrar la caja: lo que quedó asentado (contado, esperado y diferencia) y, desde la Fase 3 del rediseño
+ * de Caja, la diferencia del **cuadre por banco** (lo declarado contra lo cobrado sin pasar por el cajón).
+ */
 export function shiftCloseAudit(input: {
   actorUserId: string;
   locationId: string;
@@ -58,6 +61,7 @@ export function shiftCloseAudit(input: {
   counted: number | null;
   expected: number | null;
   difference: number | null;
+  bankDifference?: number | null;
 }) {
   return recordAdminAudit({
     action: "shift.close",
@@ -69,6 +73,7 @@ export function shiftCloseAudit(input: {
       counted: input.counted,
       expected: input.expected,
       difference: input.difference,
+      ...(input.bankDifference !== undefined ? { bankDifference: input.bankDifference } : {}),
     },
   });
 }
@@ -218,6 +223,28 @@ export function cashConfigUpdateAudit(input: {
     targetType: "LocationCashConfig",
     targetId: input.locationId,
     detail: { usdEnabled: input.usdEnabled, blindCount: input.blindCount },
+  });
+}
+
+/**
+ * Fase 3 del rediseño de Caja (2026-09-23) — **el catálogo de bancos del negocio**.
+ *
+ * Comparte la acción de la config de caja (`cash_config.update`) porque es la misma familia: son las
+ * reglas con las que se firma un arqueo, y con qué bancos liquida la sucursal se decide contra qué se
+ * cuadra el lote de la terminal. El detalle dice cuántos bancos quedaron activos y en cuántas sucursales
+ * —no los nombres—: lo que hay que poder leer seis meses después es el alcance del cambio.
+ */
+export function cashBanksUpdateAudit(input: {
+  actorUserId: string;
+  banks: number;
+  locations: number;
+}) {
+  return recordAdminAudit({
+    action: "cash_config.update",
+    actorUserId: input.actorUserId,
+    targetType: "Bank",
+    targetId: "catalog",
+    detail: { banks: input.banks, locations: input.locations },
   });
 }
 

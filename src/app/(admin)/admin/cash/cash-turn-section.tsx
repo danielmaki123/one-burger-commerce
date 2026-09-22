@@ -3,21 +3,27 @@
 import * as React from "react";
 import Link from "next/link";
 
-import { useBusinessSettings, useCurrencyFormat } from "@/shared/lib/business-settings";
 import { formatCurrency } from "@/shared/lib/format-currency";
+import { useBusinessSettings, useCurrencyFormat } from "@/shared/lib/business-settings";
 import { Button } from "@/shared/ui/button";
 
 import type { CashCountConfig } from "@/modules/cash-config/domain/cash-config.types";
 
-import { CashCountGrid, toCashCountRows, type CashCountValues } from "../pos/cash-count-grid";
+import CashCloseModal from "./cash-close-modal";
 import CashShiftHandoverPanel from "./cash-shift-handover-panel";
-import type { CashCountRow, CashShift } from "./use-cash-shift";
+import type { BankCloseDraft, CashCountRow, CashShift } from "./use-cash-shift";
 
 /**
  * Fase 1a del rediseño de Caja (2026-09-19) — el estado **turno abierto**.
  *
- * Es el trabajo del mostrador: cómo va la caja, el conteo para cerrarla y las acciones del turno. El
- * esperado y la diferencia **no** se calculan acá: los deriva el servidor del conteo, igual que el cierre.
+ * Es el trabajo del mostrador: cómo va la caja y las acciones del turno. El esperado y la diferencia **no**
+ * se calculan acá: los deriva el servidor del conteo, igual que el cierre.
+ *
+ * Fase 3 del rediseño de Caja (2026-09-23) — el conteo y el **cuadre por banco** se hacen en el
+ * `CashCloseModal`: acá queda el estado del turno y el botón que lo abre. El modal muestra el consolidado y
+ * la diferencia antes de firmar, y **no bloquea** el cierre por una diferencia (el aviso al dueño es lo que
+ * la hace visible). Con arqueo ciego (`blindCount`) y sin permiso de auditoría, el cajero declara su lote
+ * pero no ve lo cobrado ni la diferencia.
  *
  * La lectura parcial y el traspaso siguen viviendo en su panel (Fase 5 los lleva a un modal y decide el
  * destino de la firma de custodia), y el enlace al detalle del turno se muestra **solo** a quien puede
@@ -29,10 +35,13 @@ export default function CashTurnSection({
   locationName,
   actorName,
   countConfig,
+  banks,
   busy,
   shift,
   actionError,
   canSeeShiftDetail,
+  canSeeCloseDetail,
+  blindCount,
   canPrint = false,
   onClose,
 }: {
@@ -42,19 +51,27 @@ export default function CashTurnSection({
   /** Quién entrega la caja: el nombre de la sesión que firma el traspaso. */
   actorName: string | null;
   countConfig: CashCountConfig;
+  /** Fase 3 — los bancos que liquida esta sucursal (los `LocationBank` activos). */
+  banks: { id: string; name: string; code: string | null }[];
   busy: boolean;
   shift: CashShift;
   /** Error de la última acción (cerrar), no de la lectura. */
   actionError: string | null;
   /** `true` = puede ver el detalle del turno (`/admin/cash/history/[id]`). */
   canSeeShiftDetail: boolean;
+  /** `true` = ve el arqueo completo del cierre (permiso de auditoría). */
+  canSeeCloseDetail: boolean;
+  /** Fase 4 — arqueo ciego: el cajero no ve el esperado ni la diferencia. */
+  blindCount: boolean;
   /** Fase 4 — imprimir (§8.e): el papel lo saca el dueño. Por defecto no. */
   canPrint?: boolean;
-  onClose: (counts: CashCountRow[]) => void;
+  onClose: (counts: CashCountRow[], bankCloses: BankCloseDraft[]) => void;
 }) {
   const currency = useCurrencyFormat();
   const settings = useBusinessSettings();
-  const [countValues, setCountValues] = React.useState<CashCountValues>({});
+  const [closing, setClosing] = React.useState(false);
+  // Fase 4 — el ciego manda: quien no audita el dinero no ve lo cobrado ni la diferencia del cuadre.
+  const canSeeDifference = canSeeCloseDetail || !blindCount;
 
   return (
     <section
@@ -84,26 +101,13 @@ export default function CashTurnSection({
       </p>
 
       <p className="text-st-body text-ink-secondary">
-        Contá lo que hay en la caja para cerrarla.
+        Cuando termines el turno, contá lo que hay en la caja: el cierre te pide el conteo y —si el local
+        liquida con banco— el monto y el lote que reportó cada terminal.
       </p>
 
-      <CashCountGrid
-        currencies={countConfig.currencies}
-        denominations={countConfig.denominations}
-        values={countValues}
-        onChange={(key, quantity) => setCountValues((current) => ({ ...current, [key]: quantity }))}
-        disabled={busy}
-        formatAmount={(value) => formatCurrency(value, currency)}
-      />
-
       <div className="flex flex-wrap items-center gap-2">
-        <Button
-          type="button"
-          className="min-h-11"
-          disabled={busy}
-          onClick={() => onClose(toCashCountRows(countValues, countConfig.currencies, countConfig.denominations))}
-        >
-          {busy ? "Guardando…" : "Cerrar caja"}
+        <Button type="button" className="min-h-11" disabled={busy} onClick={() => setClosing(true)}>
+          Cerrar caja
         </Button>
 
         {/*
@@ -133,6 +137,20 @@ export default function CashTurnSection({
           {actionError}
         </p>
       ) : null}
+
+      <CashCloseModal
+        open={closing}
+        locationId={locationId}
+        countConfig={countConfig}
+        banks={banks}
+        canSeeDifference={canSeeDifference}
+        busy={busy}
+        onCancel={() => setClosing(false)}
+        onClose={(counts, bankCloses) => {
+          setClosing(false);
+          onClose(counts, bankCloses);
+        }}
+      />
     </section>
   );
 }

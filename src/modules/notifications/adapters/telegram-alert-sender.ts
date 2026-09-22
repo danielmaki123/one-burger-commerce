@@ -54,6 +54,9 @@ export class TelegramAlertSender implements NotificationSender {
     this.cachedFormat = {
       businessName: settings.name,
       currencySymbol: settings.currencySymbol,
+      // Fase 3 del rediseño de Caja: el cuadre por banco puede traer una moneda distinta y hay que
+      // escribirla con su código (el símbolo local en un lote de dólares sería un número falso).
+      currencyCode: settings.currencyCode,
       timezone: settings.timezone,
       locale: settings.locale,
     };

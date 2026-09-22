@@ -1,4 +1,13 @@
 import { ShiftError } from "@/modules/orders/domain/shift-errors";
+import { DEFAULT_CASH_DENOMINATIONS } from "@/modules/cash-config/domain/cash-config-defaults";
+import {
+  bankClosesTotalByCurrency,
+  bankDifferenceByCurrency,
+  nonCashTotalsByCurrency,
+  validateShiftBankCloses,
+  type ShiftBankCloseConfig,
+  type ShiftBankCloseInput,
+} from "@/modules/orders/domain/shift-bank-close";
 import {
   cashCountsTotalInBusinessCurrency,
   cashMovementsTotalInBusinessCurrency,
@@ -10,10 +19,12 @@ import {
 } from "@/modules/orders/domain/shift-cash";
 import { refundsTotalByCurrency, refundsTotalInBusinessCurrency } from "@/modules/orders/domain/shift-refund";
 import { emptyShiftPaymentMix, summarizeShiftPayments, type ShiftPaymentMix } from "@/modules/orders/domain/shift-payment-mix";
+import type { BankRepository } from "@/modules/banks/ports/bank-repository";
 import type { CashMovementRepository } from "@/modules/orders/ports/cash-movement-repository";
 import type { PaymentRepository } from "@/modules/orders/ports/payment-repository";
 import type { RefundRepository } from "@/modules/orders/ports/refund-repository";
 import type { ShiftRepository } from "@/modules/orders/ports/shift-repository";
+import { convertToBusinessCurrency } from "@/shared/lib/money-conversion";
 import { roundCurrency } from "@/shared/lib/order-totals";
 
 /**
@@ -40,6 +51,12 @@ export async function closeShift(
     closingAmount?: number | null;
     /** TASK-305 — con qué billetes se cerró, por moneda. Si viene, el total sale del conteo. */
     closingCounts?: ShiftCashCountInput[];
+    /**
+     * Fase 3 del rediseño de Caja (2026-09-23) — el **cuadre por banco**: lo que declaró cada banco con
+     * el lote de su terminal. Si no viene, el turno se cierra sin cuadre por banco (la diferencia queda
+     * en `null`: no es lo mismo «no se declaró» que «cuadró»).
+     */
+    bankCloses?: ShiftBankCloseInput[];
     notes?: string | null;
   },
   {
@@ -47,6 +64,7 @@ export async function closeShift(
     paymentRepository,
     cashMovementRepository,
     refundRepository,
+    bankRepository,
     businessCurrencyCode,
     usdExchangeRate,
     cashCountConfig,
@@ -57,6 +75,11 @@ export async function closeShift(
     cashMovementRepository?: CashMovementRepository;
     /** Bloque 3 — las devoluciones aprobadas en efectivo. Sin ellas, devolver parece un faltante. */
     refundRepository?: Pick<RefundRepository, "listByShift">;
+    /**
+     * Fase 3 del rediseño de Caja (2026-09-23) — el catálogo de bancos de la sucursal. Sin él, un cierre
+     * no puede declarar lote: se rechaza en vez de guardar un banco que no se puede verificar.
+     */
+    bankRepository?: BankRepository;
     businessCurrencyCode: string;
     usdExchangeRate: number | null;
     /**
@@ -94,11 +117,24 @@ export async function closeShift(
 
   const shift = await shiftRepository.findShiftById(shiftId);
   if (!shift) {
-    return { data: null, meta: { expectedByCurrency: {}, paymentMix: emptyShiftPaymentMix() } };
+    return { data: null, meta: emptyCloseMeta() };
   }
   if (shift.status !== "open") {
     // Ya cerrado: no se pisa el arqueo del primero.
-    return { data: null, meta: { expectedByCurrency: {}, paymentMix: emptyShiftPaymentMix() } };
+    return { data: null, meta: emptyCloseMeta() };
+  }
+
+  const bankCloses = input.bankCloses ?? [];
+  const bankConfig: ShiftBankCloseConfig = {
+    currencies: cashCountConfig?.currencies ?? Object.keys(DEFAULT_CASH_DENOMINATIONS),
+    // Los bancos que la sucursal liquida y que siguen **activos**: la pantalla solo ofrece esos, y el
+    // servidor rechaza el que llegue armado a mano (el cuadre es contra un banco concreto).
+    bankIds: await listLocationBankIds(bankRepository, shift.locationId),
+  };
+
+  const bankProblems = validateShiftBankCloses(bankCloses, bankConfig);
+  if (Object.keys(bankProblems).length > 0) {
+    throw new ShiftError(422, "VALIDATION_ERROR", "Revisá el cuadre por banco.", bankProblems);
   }
 
   const closedAt = new Date();
@@ -124,6 +160,13 @@ export async function closeShift(
     refundRepository,
   );
 
+  const bank = calculateBankDifference({
+    closes: bankCloses,
+    chargedByCurrency: arqueo.nonCashByCurrency,
+    businessCurrencyCode,
+    usdExchangeRate,
+  });
+
   const closed = await shiftRepository.closeShift(shiftId, {
     closingAmount,
     expectedAmount: arqueo.expectedAmount,
@@ -137,12 +180,130 @@ export async function closeShift(
     cashMovementsAmount: arqueo.cashMovementsAmount,
     refundsAmount: arqueo.refundsAmount,
     closingCounts: input.closingCounts ?? [],
+    // Fase 3 del rediseño de Caja: el cuadre por banco queda congelado con el arqueo. La diferencia se
+    // calcula contra lo que el sistema cobró **fuera del cajón** en la ventana del turno.
+    bankCloses,
+    bankDifferenceAmount: bank.amount,
     notes: input.notes ?? shift.notes,
   });
 
   return {
     data: closed,
-    meta: { expectedByCurrency: arqueo.expectedByCurrency, paymentMix: arqueo.paymentMix },
+    meta: {
+      expectedByCurrency: arqueo.expectedByCurrency,
+      paymentMix: arqueo.paymentMix,
+      bankDeclaredByCurrency: bank.declaredByCurrency,
+      bankChargedByCurrency: arqueo.nonCashByCurrency,
+      bankDifferenceByCurrency: bank.differenceByCurrency,
+      bankDifferenceAmount: bank.amount,
+    },
+  };
+}
+
+/**
+ * La diferencia del cuadre por banco, en la moneda del negocio: **lo declarado menos lo cobrado con
+ * tarjeta y transferencia**. Se convierte la diferencia **por moneda** (no el total) para que un lote en
+ * dólares no se mezcle con los córdobas antes de tiempo.
+ *
+ * `null` cuando no se declaró ningún banco: no es lo mismo «no se cuadró» que «cuadró».
+ */
+function calculateBankDifference(input: {
+  closes: readonly ShiftBankCloseInput[];
+  chargedByCurrency: Record<string, number>;
+  businessCurrencyCode: string;
+  usdExchangeRate: number | null;
+}): {
+  declaredByCurrency: Record<string, number>;
+  differenceByCurrency: Record<string, number>;
+  amount: number | null;
+} {
+  const declaredByCurrency = bankClosesTotalByCurrency(input.closes);
+  const differenceByCurrency = bankDifferenceByCurrency({
+    declared: declaredByCurrency,
+    charged: input.chargedByCurrency,
+  });
+
+  if (input.closes.length === 0) {
+    return { declaredByCurrency: {}, differenceByCurrency: {}, amount: null };
+  }
+
+  return {
+    declaredByCurrency,
+    differenceByCurrency,
+    amount: roundCurrency(
+      Object.entries(differenceByCurrency).reduce(
+        (sum, [currency, amount]) =>
+          sum +
+          convertToBusinessCurrencyOrThrow({
+            amount,
+            currency,
+            businessCurrencyCode: input.businessCurrencyCode,
+            usdExchangeRate: input.usdExchangeRate,
+          }),
+        0,
+      ),
+    ),
+  };
+}
+
+/** La conversión del cuadre, con el fallo traducido al error del turno (igual que el resto del arqueo). */
+function convertToBusinessCurrencyOrThrow(input: {
+  amount: number;
+  currency: string;
+  businessCurrencyCode: string;
+  usdExchangeRate: number | null;
+}): number {
+  const converted = convertToBusinessCurrency(input);
+
+  if (!converted.ok) {
+    throw new ShiftError(
+      422,
+      "VALIDATION_ERROR",
+      converted.reason === "missing-rate"
+        ? "Cargá el tipo de cambio del dólar en Configuración para cerrar una caja con dólares."
+        : `Todavía no se cuenta en ${converted.currency}.`,
+      {
+        bankCloses:
+          converted.reason === "missing-rate"
+            ? "Cargá el tipo de cambio del dólar en Configuración."
+            : `Todavía no se cuenta en ${converted.currency}.`,
+      },
+    );
+  }
+
+  return converted.amount;
+}
+
+/** Los bancos activos que liquida la sucursal. Sin repositorio no hay bancos: el cuadre se rechaza. */
+async function listLocationBankIds(
+  bankRepository: BankRepository | undefined,
+  locationId: string,
+): Promise<string[]> {
+  if (!bankRepository) return [];
+
+  const [banks, assignments] = await Promise.all([
+    bankRepository.listBanks(),
+    bankRepository.listAssignments(),
+  ]);
+  const active = new Set(banks.filter((bank) => bank.isActive).map((bank) => bank.id));
+
+  return assignments
+    .filter(
+      (assignment) =>
+        assignment.locationId === locationId && assignment.isActive && active.has(assignment.bankId),
+    )
+    .map((assignment) => assignment.bankId);
+}
+
+/** El `meta` de un cierre que no se pudo hacer (turno inexistente o ya cerrado), con la misma forma. */
+function emptyCloseMeta() {
+  return {
+    expectedByCurrency: {},
+    paymentMix: emptyShiftPaymentMix(),
+    bankDeclaredByCurrency: {},
+    bankChargedByCurrency: {},
+    bankDifferenceByCurrency: {},
+    bankDifferenceAmount: null,
   };
 }
 
@@ -182,6 +343,12 @@ export async function calculateExpectedAmount(
   refundsAmount: number;
   /** Tarea 1.2 — el desglose por método del turno, de los **mismos** cobros que el arqueo. */
   paymentMix: ShiftPaymentMix;
+  /**
+   * Fase 3 del rediseño de Caja (2026-09-23) — lo que entró **sin pasar por el cajón** (tarjeta y
+   * transferencia) por moneda. Es el otro lado del cuadre por banco: lo que declara el lote se compara
+   * contra esto, no contra el total del día (el efectivo tiene su propio arqueo).
+   */
+  nonCashByCurrency: Record<string, number>;
 }> {
   const payments = await paymentRepository.listPaymentsInRange(window.locationId, {
     from: window.openedAt,
@@ -268,6 +435,11 @@ export async function calculateExpectedAmount(
       payments,
       businessCurrencyCode: window.businessCurrencyCode,
       usdExchangeRate: window.usdExchangeRate,
+    }),
+    // Fase 3: el cuadre por banco, por moneda y de la misma lista de cobros.
+    nonCashByCurrency: nonCashTotalsByCurrency({
+      payments,
+      businessCurrencyCode: window.businessCurrencyCode,
     }),
   };
 }

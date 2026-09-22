@@ -370,6 +370,32 @@ export type ShiftRecord = {
    */
   refundsAmount?: number | null;
   /**
+   * Fase 3 del rediseño de Caja (2026-09-23) — la diferencia del **cuadre por banco** (lo declarado
+   * menos lo cobrado con tarjeta y transferencia), en la moneda del negocio. Congelada al cerrar: el
+   * lote de una terminal no se recalcula después.
+   */
+  bankDifferenceAmount?: number | null;
+  /**
+   * Fase 3 — cuándo salió el aviso del cierre al grupo del dueño, que es el mensaje donde viaja la
+   * diferencia. `null` = todavía no se avisó (el aviso es best-effort).
+   */
+  differenceNotifiedAt?: string | null;
+  /**
+   * Fase 3 del rediseño de Caja (2026-09-23) — lo que cada banco reportó por este turno: el monto
+   * declarado con su lote y su terminal, por moneda.
+   */
+  bankCloses?: {
+    bankId: string;
+    /** Nombre del banco al momento de leer (el cierre lo imprime: un id no lo lee nadie). */
+    bankName?: string;
+    bankCode?: string | null;
+    declaredAmount: number;
+    currency: string;
+    lote: string | null;
+    terminalLabel: string | null;
+    notes: string | null;
+  }[];
+  /**
    * Bloque 1.10 del POS (Fase 2) — la firma de la última reapertura: cuándo, quién y por qué. `null`
    * si el turno nunca se reabrió.
    */

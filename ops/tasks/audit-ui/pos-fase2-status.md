@@ -128,6 +128,13 @@ tareas**: 1, 2, 3, 5, 6, 7, 9, 10 y 11.
 4. La comparación sigue siendo **manual**: el sistema exporta lo que cobró; el número del lote lo pone el
    owner. Automatizar el cuadre necesita decidir el proveedor de pagos (dependencia nueva).
 
+> **Actualización — Fase 3 del rediseño de Caja (2026-09-23, PR #19)**: el **número del lote entra al
+> sistema**. Al cerrar la caja, cada banco con el que liquida la sucursal declara lo que reportó (monto,
+> moneda, lote de la terminal, terminal y notas) y el cierre lo compara contra lo cobrado con tarjeta y
+> transferencia: la diferencia queda congelada en el turno, asentada en el log y avisada al dueño en el
+> mensaje del cierre. Sigue sin haber proveedor de pagos (el número lo escribe una persona), así que el
+> punto 4 se cumple a medias: la **comparación** ya no es manual, la **captura** sí.
+
 **Tarea 11 — las decisiones que tomé** (el owner las confirma o las cambia):
 
 1. **La clave se renueva solo cuando la operación se resuelve**: se cobró (o el servidor reconoció el

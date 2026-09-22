@@ -38,6 +38,24 @@ export type ShiftCloseSheetCurrencyRow = {
   difference: number | null;
 };
 
+/**
+ * Fase 3 del rediseño de Caja (2026-09-23) — una fila del **cuadre por banco**: lo que declaró el banco
+ * para este turno, con el lote y la terminal que reportó.
+ */
+export type ShiftCloseSheetBankRow = {
+  bankName: string;
+  currency: string;
+  declaredAmount: number;
+  lote: string | null;
+  terminalLabel: string | null;
+};
+
+/** Lo cobrado sin pasar por el cajón y la diferencia del cuadre, ya congelados al cerrar. */
+export type ShiftCloseSheetBankConsolidated = {
+  charged: number | null;
+  difference: number | null;
+};
+
 export type ShiftCloseSheetInput = {
   status: string;
   openedAt: string;
@@ -58,7 +76,58 @@ export type ShiftCloseSheetInput = {
   };
   /** Nombre de quien cierra. `null` = no se pudo resolver: se imprime «—». */
   closedByName: string | null;
+  /**
+   * Fase 3 del rediseño de Caja (2026-09-23) — el **cuadre por banco**: lo declarado por cada banco.
+   * Vacío = el turno se cerró sin declarar lotes y la sección no se imprime.
+   */
+  bankRows?: ShiftCloseSheetBankRow[];
+  /** Lo cobrado sin pasar por el cajón y la diferencia del cuadre, congelados al cerrar. */
+  bankConsolidated?: ShiftCloseSheetBankConsolidated;
 };
+
+/**
+ * Fase 3 — el cuadre por banco: una línea por lote declarado, con su terminal, y el consolidado contra lo
+ * que el sistema cobró con tarjeta y transferencia. Los números llegan congelados del turno (no se
+ * recalculan acá): el papel de un cierre firmado no puede cambiar porque después se editó un cobro.
+ */
+export function buildShiftCloseBankLines(
+  input: ShiftCloseSheetInput,
+  options: ShiftSheetOptions,
+): string[] {
+  const rows = input.bankRows ?? [];
+
+  if (rows.length === 0) return [];
+
+  const lines = rows.map((row) => {
+    const reference = [row.terminalLabel?.trim(), row.lote?.trim() ? `lote ${row.lote.trim()}` : null]
+      .filter(Boolean)
+      .join(" · ");
+
+    return `${row.bankName}  ${row.currency.toUpperCase()}  declarado ${formatSheetAmount(
+      row.declaredAmount,
+      row.currency,
+      options,
+    )}${reference ? `  (${reference})` : ""}`;
+  });
+
+  const charged = input.bankConsolidated?.charged ?? null;
+  const difference = input.bankConsolidated?.difference ?? null;
+
+  lines.push(
+    `Tarjeta + transferencia: ${
+      charged === null ? "—" : formatSheetAmount(charged, options.currencyCode, options)
+    }`,
+  );
+  lines.push(
+    `Diferencia de bancos: ${
+      difference === null
+        ? "Sin cuadre"
+        : formatSheetDelta(difference, options.currencyCode, options)
+    }`,
+  );
+
+  return lines;
+}
 
 /** Los billetes contados al cerrar, en el orden en que llegan (ya vienen del depósito). */
 export function buildShiftCloseCountLines(
@@ -104,6 +173,7 @@ export function buildShiftCloseSheet(
   options: ShiftSheetOptions,
 ): string[] {
   const { totals } = input;
+  const bankLines = buildShiftCloseBankLines(input, options);
   const lines: string[] = [
     options.businessName.toUpperCase(),
     "CIERRE DE CAJA",
@@ -132,6 +202,11 @@ export function buildShiftCloseSheet(
     }`,
     `Devoluciones aprobadas en efectivo: ${formatSheetTotal(totals.refunds, options)}`,
   ];
+
+  // Fase 3 del rediseño de Caja: el cuadre por banco va entre los totales y la nota (es parte del arqueo).
+  if (bankLines.length > 0) {
+    lines.push("", "CUADRE POR BANCO", ...bankLines);
+  }
 
   if (input.notes?.trim()) {
     lines.push("", `NOTA: ${input.notes.trim()}`);
