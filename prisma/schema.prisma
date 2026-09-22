@@ -219,8 +219,63 @@ model Location {
   shifts             Shift[]
   /// Tarea 7 del brief (2026-09-17) — los traspasos de caja firmados en este local.
   shiftHandovers     ShiftHandover[]
+  /// Fase 2 del rediseño de Caja (2026-09-22) — la configuración de caja de este local.
+  cashConfig         LocationCashConfig?
 
   @@index([isActive, sortOrder])
+}
+
+/// Fase 2 del rediseño de Caja (2026-09-22) — la **configuración de caja por sucursal**.
+///
+/// Dos reglas que antes no existían en ningún lado y que ahora son configurables por local:
+///
+/// - `usdEnabled`: si el local cuenta **dólares**. La moneda del negocio se cuenta siempre; el dólar es
+///   decisión de cada sucursal (brief §12, locales independientes). Prendido, la grilla lo ofrece y el
+///   servidor acepta el conteo en dólares; apagado, un conteo en dólares se **rechaza**.
+/// - `blindCount`: **arqueo ciego** — el cajero no ve el esperado ni la diferencia. El flag se guarda y se
+///   edita acá; su aplicación en la pantalla del turno llega en la Fase 4 del rediseño (está declarado así
+///   en el roadmap del brief, no es una bandera muerta: el API la expone y la pantalla de config la edita).
+///
+/// La fila es opcional a propósito: un local sin fila tiene los valores de fábrica (sin dólares, arqueo
+/// ciego prendido) y no necesita una migración de datos por cada local nuevo.
+model LocationCashConfig {
+  id              String   @id @default(cuid())
+  locationId      String   @unique
+  usdEnabled      Boolean  @default(false)
+  blindCount      Boolean  @default(true)
+  updatedAt       DateTime @updatedAt
+  /// Auditoría de la config (decisión del owner, 2026-09-22).
+  updatedByUserId String?
+  location        Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+
+  @@index([usdEnabled])
+}
+
+/// Fase 2 del rediseño de Caja (2026-09-22) — los **billetes y monedas** que se cuentan.
+///
+/// Son del negocio, no de la sucursal: los billetes de córdoba son los mismos en los tres locales.
+///
+/// `isActive: false` **no borra** la fila: un cierre viejo sigue diciendo con qué billetes se contó
+/// (`ShiftCashCount` guarda el valor contado). Por eso la pantalla desactiva en vez de eliminar, y por eso
+/// el adaptador desactiva lo que sale de la lista.
+///
+/// La lista nace sembrada por la migración `add_cash_config` con los valores que antes vivían hardcodeados
+/// en el dominio del turno; hay un test de contrato que falla si la migración y
+/// `cash-config-defaults.ts` se desincronizan.
+model CashDenomination {
+  id        String   @id @default(cuid())
+  /// Código ISO de la moneda (`NIO`, `USD`).
+  currency  String
+  value     Decimal  @db.Decimal(10, 2)
+  isActive  Boolean  @default(true)
+  /// Orden de presentación (el mayor primero): el cajero cuenta de arriba hacia abajo.
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// Un billete, una vez por moneda: dos filas del mismo valor son un error de carga, no un dato.
+  @@unique([currency, value])
+  @@index([currency, isActive])
 }
 
 /// Las **excepciones** de un local para un producto (T8). La ausencia de fila significa que el local
