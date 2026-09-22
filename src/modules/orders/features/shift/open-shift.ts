@@ -3,6 +3,7 @@ import { ShiftError } from "@/modules/orders/domain/shift-errors";
 import {
   cashCountsTotalInBusinessCurrency,
   validateShiftCashCounts,
+  type ShiftCashCountConfig,
   type ShiftCashCountInput,
 } from "@/modules/orders/domain/shift-cash";
 import type { LocationRepository } from "@/modules/locations/ports/location-repository";
@@ -34,11 +35,17 @@ export async function openShift(
     locationRepository,
     businessCurrencyCode,
     usdExchangeRate,
+    cashCountConfig,
   }: {
     shiftRepository: ShiftRepository;
     locationRepository: LocationRepository;
     businessCurrencyCode: string;
     usdExchangeRate: number | null;
+    /**
+     * Fase 2 del rediseño de Caja (2026-09-22) — la config del conteo de este local (monedas y billetes).
+     * Sin ella se validan los defaults del módulo: una base recién creada tiene que poder abrir la caja.
+     */
+    cashCountConfig?: ShiftCashCountConfig;
   },
 ) {
   const locationId = input.locationId?.trim();
@@ -48,7 +55,7 @@ export async function openShift(
     });
   }
 
-  const countProblems = validateShiftCashCounts(input.openingCounts ?? []);
+  const countProblems = validateShiftCashCounts(input.openingCounts ?? [], cashCountConfig);
   if (Object.keys(countProblems).length > 0) {
     throw new ShiftError(422, "VALIDATION_ERROR", "Revisá el conteo de la caja.", countProblems);
   }

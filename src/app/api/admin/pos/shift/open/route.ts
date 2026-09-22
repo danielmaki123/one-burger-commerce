@@ -25,7 +25,9 @@ export async function POST(request: Request) {
 
     const result = await openShift(
       { locationId, userId: session.user.id, openingCounts: counts, notes },
-      await createProductionPosShiftDependencies(),
+      // La config del local entra en las dependencias: la validación del conteo es la misma que dibuja la
+      // pantalla (Fase 2 del rediseño de Caja).
+      await createProductionPosShiftDependencies({ locationId }),
     );
 
     // Bloque 13.1: abrir la caja queda firmado con quién la abrió y con qué fondo.

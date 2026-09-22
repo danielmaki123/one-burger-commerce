@@ -5,6 +5,7 @@ import {
   cashPaymentsTotalInBusinessCurrency,
   expectedCashByCurrency,
   validateShiftCashCounts,
+  type ShiftCashCountConfig,
   type ShiftCashCountInput,
 } from "@/modules/orders/domain/shift-cash";
 import { refundsTotalByCurrency, refundsTotalInBusinessCurrency } from "@/modules/orders/domain/shift-refund";
@@ -48,6 +49,7 @@ export async function closeShift(
     refundRepository,
     businessCurrencyCode,
     usdExchangeRate,
+    cashCountConfig,
   }: {
     shiftRepository: ShiftRepository;
     paymentRepository: PaymentRepository;
@@ -57,6 +59,11 @@ export async function closeShift(
     refundRepository?: Pick<RefundRepository, "listByShift">;
     businessCurrencyCode: string;
     usdExchangeRate: number | null;
+    /**
+     * Fase 2 del rediseño de Caja (2026-09-22) — la config del conteo de este local (monedas y billetes).
+     * Sin ella se validan los defaults del módulo.
+     */
+    cashCountConfig?: ShiftCashCountConfig;
   },
 ) {
   const shiftId = input.shiftId?.trim();
@@ -64,7 +71,7 @@ export async function closeShift(
     throw new ShiftError(422, "VALIDATION_ERROR", "Invalid payload", { shiftId: "Requerido" });
   }
 
-  const countProblems = validateShiftCashCounts(input.closingCounts ?? []);
+  const countProblems = validateShiftCashCounts(input.closingCounts ?? [], cashCountConfig);
   if (Object.keys(countProblems).length > 0) {
     throw new ShiftError(422, "VALIDATION_ERROR", "Revisá el conteo de la caja.", countProblems);
   }

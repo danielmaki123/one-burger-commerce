@@ -2,6 +2,8 @@
 
 import * as React from "react";
 
+import { toCashCountConfig } from "@/modules/cash-config/domain/cash-count-config";
+import type { CashCountConfig } from "@/modules/cash-config/domain/cash-config.types";
 import { useBusinessSettings } from "@/shared/lib/business-settings";
 import { Select } from "@/shared/ui/select";
 
@@ -30,11 +32,18 @@ import { useCashShift } from "./use-cash-shift";
  */
 export default function CashView({
   locations,
+  cashCountConfigs,
   canSeeShiftDetail,
   canSeeCloseDetail,
   actorName,
 }: {
   locations: { id: string; name: string }[];
+  /**
+   * Fase 2 del rediseño de Caja (2026-09-22) — la config del conteo **de cada sucursal del alcance**,
+   * resuelta en el servidor. Cambiar de local cambia la grilla sin pedir nada a la API (que además es del
+   * dueño: el cajero no tiene por qué poder leerla).
+   */
+  cashCountConfigs: Record<string, CashCountConfig>;
   /** `true` = puede abrir el detalle de un turno (`canViewCashHistory`). */
   canSeeShiftDetail: boolean;
   /** `true` = ve el arqueo completo del cierre recién hecho. */
@@ -47,9 +56,19 @@ export default function CashView({
   const { status, shift, closedShift, error, actionError, busy, refresh, openShift, closeShift } =
     useCashShift(locationId);
 
-  const cashCurrencies = React.useMemo(
-    () => [settings.currencyCode, ...(settings.usdExchangeRate !== null ? ["USD"] : [])],
-    [settings.currencyCode, settings.usdExchangeRate],
+  /**
+   * La config del local elegido. Si por lo que fuera no viniera (una sucursal sin fila), se arma con los
+   * defaults de la moneda del negocio: la Caja **nunca** se queda sin grilla para contar.
+   */
+  const countConfig = React.useMemo(
+    () =>
+      cashCountConfigs[locationId] ??
+      toCashCountConfig({
+        businessCurrencyCode: settings.currencyCode,
+        usdEnabled: false,
+        denominations: [],
+      }),
+    [cashCountConfigs, locationId, settings.currencyCode],
   );
 
   const locationName = locations.find((location) => location.id === locationId)?.name ?? "";
@@ -79,7 +98,7 @@ export default function CashView({
           locationId={locationId}
           locationName={locationName}
           actorName={actorName}
-          cashCurrencies={cashCurrencies}
+          countConfig={countConfig}
           busy={busy}
           shift={shift}
           actionError={actionError}
@@ -90,7 +109,7 @@ export default function CashView({
 
       {status === "ready" && !shift ? (
         <CashOpenSection
-          cashCurrencies={cashCurrencies}
+          countConfig={countConfig}
           busy={busy}
           closedShift={closedShift}
           actionError={actionError}

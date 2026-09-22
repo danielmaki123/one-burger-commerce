@@ -171,3 +171,41 @@ describe("movimientos de caja en el esperado", () => {
     expect(movements).toEqual({ USD: 10 });
   });
 });
+
+/**
+ * Fase 2 del rediseño de Caja (2026-09-22) — el conteo validado contra la **configuración del local**.
+ *
+ * Antes esta validación miraba una constante hardcodeada: cualquier local aceptaba dólares y todos los
+ * billetes del sistema. Ahora el servidor valida con lo mismo que la pantalla dibuja, así que la config
+ * tiene consecuencias reales: apagar los dólares en una sucursal **rechaza** un conteo en dólares.
+ */
+describe("conteo validado contra la config del local", () => {
+  it("una moneda que el local no maneja se rechaza", () => {
+    const problemas = validateShiftCashCounts([NIO(100, 1), USD(20, 1)], {
+      currencies: ["NIO"],
+      denominations: { NIO: [1000, 500, 200, 100, 50, 20, 10, 5, 1] },
+    });
+
+    expect(problemas).toEqual({
+      "counts.1.currency": expect.stringContaining("USD"),
+    });
+  });
+
+  it("una denominación que no está en la config se rechaza", () => {
+    const problemas = validateShiftCashCounts([NIO(200, 1)], {
+      currencies: ["NIO"],
+      denominations: { NIO: [1000, 500, 100] },
+    });
+
+    expect(problemas).toEqual({
+      "counts.0.denomination": expect.stringContaining("no existe"),
+    });
+  });
+
+  it("sin config se validan los billetes de fábrica (una base nueva sigue contando)", () => {
+    expect(validateShiftCashCounts([NIO(100, 1), USD(20, 1)])).toEqual({});
+    expect(validateShiftCashCounts([NIO(25, 1)])).toEqual({
+      "counts.0.denomination": expect.stringContaining("no existe"),
+    });
+  });
+});

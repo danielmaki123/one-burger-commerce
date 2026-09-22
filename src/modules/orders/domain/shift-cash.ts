@@ -1,5 +1,9 @@
 import { convertToBusinessCurrency } from "@/shared/lib/money-conversion";
 import { roundCurrency } from "@/shared/lib/order-totals";
+import {
+  BASE_CASH_CURRENCY,
+  DEFAULT_CASH_DENOMINATIONS,
+} from "@/modules/cash-config/domain/cash-config-defaults";
 
 import { ShiftError } from "./shift-errors";
 
@@ -19,11 +23,15 @@ import { ShiftError } from "./shift-errors";
 /**
  * Denominaciones que el local cuenta hoy. Es la lista del mostrador, no una regla universal: si el
  * negocio empieza a contar otra moneda, se agrega acá y el conteo la acepta.
+ *
+ * Fase 2 del rediseño de Caja (2026-09-22) — la lista **ya no vive acá**: la fuente es
+ * `cash-config-defaults.ts` (el módulo de configuración, que es el que la siembra por migración y el que
+ * la pantalla edita). Este alias se mantiene para los consumidores que usan los defaults como respaldo
+ * —la grilla del conteo—, y desaparece cuando la grilla reciba siempre la config del local.
+ *
+ * @deprecated Usá `toCashCountConfig` (módulo `cash-config`) para contar con la config del local.
  */
-export const CASH_DENOMINATIONS: Record<string, number[]> = {
-  NIO: [1000, 500, 200, 100, 50, 20, 10, 5, 1],
-  USD: [100, 50, 20, 10, 5, 2, 1],
-};
+export const CASH_DENOMINATIONS: Record<string, number[]> = DEFAULT_CASH_DENOMINATIONS;
 
 export type ShiftCashCountKind = "opening" | "closing";
 
@@ -33,18 +41,38 @@ export type ShiftCashCountInput = {
   quantity: number;
 };
 
-function denominationsFor(currency: string): number[] | null {
-  return CASH_DENOMINATIONS[currency.trim().toUpperCase()] ?? null;
-}
+/** La config del conteo de un local: qué monedas maneja y con qué billetes. */
+export type ShiftCashCountConfig = {
+  currencies: string[];
+  denominations: Record<string, number[]>;
+};
 
-/** Valida el conteo completo y devuelve los errores por fila, para poder señalarlos en el formulario. */
-export function validateShiftCashCounts(counts: ShiftCashCountInput[]): Record<string, string> {
+/**
+ * Valida el conteo completo y devuelve los errores por fila, para poder señalarlos en el formulario.
+ *
+ * Fase 2 del rediseño de Caja (2026-09-22) — con `config` valida contra **la config del local**: la moneda
+ * apagada se rechaza (un local sin dólares no puede abrir la caja con dólares, aunque el payload venga
+ * armado a mano) y solo pasan los billetes que la config ofrece. Sin `config` cae a los defaults del
+ * módulo, que es el caso de una base recién creada.
+ */
+export function validateShiftCashCounts(
+  counts: ShiftCashCountInput[],
+  config?: ShiftCashCountConfig,
+): Record<string, string> {
   const fields: Record<string, string> = {};
   const seen = new Set<string>();
+  const enabledCurrencies = config
+    ? new Set(config.currencies.map((currency) => currency.trim().toUpperCase()))
+    : null;
 
   counts.forEach((count, index) => {
     const currency = count.currency.trim().toUpperCase();
-    const allowed = denominationsFor(currency);
+    const allowed = denominationsFor(currency, config);
+
+    if (enabledCurrencies && !enabledCurrencies.has(currency)) {
+      fields[`counts.${index}.currency`] = `Este local no cuenta en ${currency || "esa moneda"}.`;
+      return;
+    }
 
     if (!allowed) {
       fields[`counts.${index}.currency`] = `Todavía no se cuenta en ${currency || "esa moneda"}.`;
@@ -70,6 +98,29 @@ export function validateShiftCashCounts(counts: ShiftCashCountInput[]): Record<s
   });
 
   return fields;
+}
+
+/**
+ * Los billetes de una moneda: los de la config del local si los tiene, y los defaults del módulo si no.
+ *
+ * `null` = la moneda no se cuenta en este negocio (ni en la config ni en los defaults).
+ */
+function denominationsFor(
+  currency: string,
+  config?: ShiftCashCountConfig,
+): number[] | undefined {
+  const target = currency.trim().toUpperCase();
+  const configured = config?.denominations[target];
+
+  if (configured) return configured;
+  if (config) {
+    // Con config, una moneda sin filas propias solo existe si es la del negocio o el dólar conocido.
+    return target === BASE_CASH_CURRENCY || target === "USD"
+      ? DEFAULT_CASH_DENOMINATIONS[target]
+      : undefined;
+  }
+
+  return DEFAULT_CASH_DENOMINATIONS[target];
 }
 
 /** Total contado de una moneda, sin convertir. */

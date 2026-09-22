@@ -557,4 +557,54 @@ describe("closeShift", () => {
       ),
     ).rejects.toMatchObject({ code: "VALIDATION_ERROR", status: 422 });
   });
+
+  /**
+   * Fase 2 del rediseño de Caja (2026-09-22) — el conteo del local se valida contra **su** config.
+   *
+   * Es lo que hace que apagar los dólares en una sucursal signifique algo: la pantalla no los ofrece y el
+   * servidor los **rechaza**, así un payload armado a mano tampoco los cuela en el arqueo.
+   */
+  it("rechaza un conteo en dólares si el local no los maneja (config de caja)", async () => {
+    const deps = {
+      ...buildDeps(),
+      cashCountConfig: { currencies: ["NIO"], denominations: { NIO: [1000, 500, 100] } },
+    };
+
+    await expect(
+      openShift(
+        {
+          locationId: "loc_principal",
+          userId: "user_01",
+          openingCounts: [{ currency: "USD", denomination: 20, quantity: 1 }],
+        },
+        deps,
+      ),
+    ).rejects.toMatchObject({
+      code: "VALIDATION_ERROR",
+      status: 422,
+      fields: { "counts.0.currency": expect.stringContaining("USD") },
+    });
+  });
+
+  it("acepta el conteo que la config del local sí ofrece (config de caja)", async () => {
+    const deps = {
+      ...buildDeps(),
+      cashCountConfig: { currencies: ["NIO", "USD"], denominations: { NIO: [1000], USD: [20] } },
+    };
+
+    const result = await openShift(
+      {
+        locationId: "loc_principal",
+        userId: "user_01",
+        openingCounts: [
+          { currency: "NIO", denomination: 1000, quantity: 1 },
+          { currency: "USD", denomination: 20, quantity: 1 },
+        ],
+      },
+      deps,
+    );
+
+    // El fondo se convierte con la tasa del negocio: 1000 + 20 × 36.5 = 1730.
+    expect(result.data.openingAmount).toBe(1730);
+  });
 });

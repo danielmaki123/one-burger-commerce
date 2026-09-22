@@ -18,7 +18,16 @@ import CashOpenSection from "./cash-open-section";
  *   el operario).
  */
 
-const cashCurrencies = ["NIO"];
+/**
+ * Fase 2 del rediseño de Caja (2026-09-22) — la config del conteo, que ahora llega por props.
+ *
+ * Desde que la config es del local, el componente no decide monedas ni billetes: los recibe. Acá se pasa la
+ * moneda del negocio con los nueve billetes de fábrica, que es el caso más común.
+ */
+const countConfig = {
+  currencies: ["NIO"],
+  denominations: { NIO: [1000, 500, 200, 100, 50, 20, 10, 5, 1] },
+};
 
 describe("CashOpenSection", () => {
   afterEach(() => {
@@ -31,7 +40,7 @@ describe("CashOpenSection", () => {
 
     render(
       <CashOpenSection
-        cashCurrencies={cashCurrencies}
+        countConfig={countConfig}
         busy={false}
         closedShift={null}
         actionError={null}
@@ -52,7 +61,7 @@ describe("CashOpenSection", () => {
   it("muestra el cierre registrado con la diferencia y sin el arqueo para quien no audita", () => {
     render(
       <CashOpenSection
-        cashCurrencies={cashCurrencies}
+        countConfig={countConfig}
         busy={false}
         closedShift={{
           id: "shift_1",
@@ -78,7 +87,7 @@ describe("CashOpenSection", () => {
   it("quien audita ve el arqueo completo con el detalle por moneda", () => {
     render(
       <CashOpenSection
-        cashCurrencies={cashCurrencies}
+        countConfig={countConfig}
         busy={false}
         closedShift={{
           id: "shift_1",
@@ -104,7 +113,7 @@ describe("CashOpenSection", () => {
   it("si el servidor rechaza la apertura, lo dice sin inventar un turno", () => {
     render(
       <CashOpenSection
-        cashCurrencies={cashCurrencies}
+        countConfig={countConfig}
         busy={false}
         closedShift={null}
         actionError="No se pudo abrir la caja."
@@ -115,5 +124,43 @@ describe("CashOpenSection", () => {
 
     expect(screen.getByRole("alert").textContent).toContain("No se pudo abrir la caja.");
     expect(screen.getByText(/Sin caja abierta en este local/)).toBeTruthy();
+  });
+
+  /**
+   * Fase 2 del rediseño de Caja (2026-09-22) — la grilla sale de la **config del local**, no de una lista
+   * fija: un billete desactivado no se ofrece y el dólar aparece solo si la sucursal lo maneja.
+   */
+  it("dibuja solo los billetes que la config del local ofrece", () => {
+    render(
+      <CashOpenSection
+        countConfig={{ currencies: ["NIO"], denominations: { NIO: [1000, 500] } }}
+        busy={false}
+        closedShift={null}
+        actionError={null}
+        canSeeCloseDetail={false}
+        onOpen={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByLabelText("Cantidad de billetes de NIO 1000")).toBeTruthy();
+    expect(screen.getByLabelText("Cantidad de billetes de NIO 500")).toBeTruthy();
+    expect(screen.queryByLabelText("Cantidad de billetes de NIO 200")).toBeNull();
+    expect(screen.queryByLabelText("Cantidad de billetes de USD 20")).toBeNull();
+  });
+
+  it("una sucursal con dólares habilitados los muestra en la grilla", () => {
+    render(
+      <CashOpenSection
+        countConfig={{ currencies: ["NIO", "USD"], denominations: { NIO: [1000], USD: [20] } }}
+        busy={false}
+        closedShift={null}
+        actionError={null}
+        canSeeCloseDetail={false}
+        onOpen={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByLabelText("Cantidad de billetes de NIO 1000")).toBeTruthy();
+    expect(screen.getByLabelText("Cantidad de billetes de USD 20")).toBeTruthy();
   });
 });

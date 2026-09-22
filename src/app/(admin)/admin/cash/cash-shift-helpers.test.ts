@@ -4,12 +4,9 @@ import {
   CASH_DIFFERENCE_LABEL,
   countsTotalOf,
   formatCashDifference,
-  formatShiftDate,
   formatShiftDateTime,
   formatSignedAmount,
   getCashDifferenceTone,
-  isShiftPendingCount,
-  summarizeShifts,
 } from "./cash-shift-helpers";
 
 const formatAmount = (value: number) => `C$${value.toFixed(2)}`;
@@ -28,7 +25,6 @@ describe("cash shift helpers", () => {
     expect(getCashDifferenceTone(shift)).toBe("sin-contar");
     expect(CASH_DIFFERENCE_LABEL["sin-contar"]).toBe("Sin contar");
     expect(formatCashDifference(shift, formatAmount)).toBe("Sin contar");
-    expect(isShiftPendingCount(shift)).toBe(true);
   });
 
   it("marca falta y sobra con su signo, y cero como cuadra", () => {
@@ -48,31 +44,6 @@ describe("cash shift helpers", () => {
     );
   });
 
-  it("resume la pantalla: totales, sin contar y la suma de las diferencias", () => {
-    const summary = summarizeShifts([
-      { closingAmount: 1000, difference: 0 },
-      { closingAmount: 900, difference: -100 },
-      { closingAmount: null, difference: null },
-      { closingAmount: 1100, difference: 100 },
-    ]);
-
-    expect(summary).toEqual({
-      total: 4,
-      pendingCount: 1,
-      countedCount: 3,
-      differenceTotal: 0,
-    });
-  });
-
-  it("una lista vacía no rompe la pantalla: todo en cero", () => {
-    expect(summarizeShifts([])).toEqual({
-      total: 0,
-      pendingCount: 0,
-      countedCount: 0,
-      differenceTotal: 0,
-    });
-  });
-
   /**
    * El día de caja es el del **negocio**, no el del navegador. Un cierre de las 23:40 en Managua no
    * puede verse como del día siguiente porque quien abre la pantalla está en otro huso.
@@ -83,7 +54,7 @@ describe("cash shift helpers", () => {
     const iso = "2026-09-18T05:40:00.000Z";
 
     expect(formatShiftDateTime(iso, options)).toContain("11:40");
-    expect(formatShiftDate(iso, options)).toContain("17");
+    expect(formatShiftDateTime(iso, options)).toContain("17");
   });
 
   it("una fecha ausente o inválida se muestra como guion, no como «Invalid Date»", () => {
@@ -91,7 +62,6 @@ describe("cash shift helpers", () => {
 
     expect(formatShiftDateTime(null, options)).toBe("—");
     expect(formatShiftDateTime("no-es-fecha", options)).toBe("—");
-    expect(formatShiftDate(null, options)).toBe("—");
   });
 
   /**

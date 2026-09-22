@@ -31,7 +31,9 @@ export async function closePosShiftForRoute(input: {
 }) {
   const result = await closePosShift(
     { locationId: input.locationId, counts: input.counts, notes: input.notes },
-    await createProductionPosShiftDependencies(),
+    // La config del conteo del local viaja a la validación (Fase 2 del rediseño de Caja): es la misma que
+    // la pantalla usa para dibujar la grilla.
+    await createProductionPosShiftDependencies({ locationId: input.locationId }),
   );
 
   await shiftCloseAudit({
