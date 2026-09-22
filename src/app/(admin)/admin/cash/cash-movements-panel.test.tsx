@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import { cleanup, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import CashMovementsPanel from "./cash-movements-panel";
@@ -70,5 +71,39 @@ describe("CashMovementsPanel — límite de retiro", () => {
     renderPanel([movement({ kind: "deposit", amount: 9000, withdrawalLimitAmount: 1000 })]);
 
     expect(screen.queryByText(/Sobre el límite de/)).toBeNull();
+  });
+
+  /**
+   * Fase 5 del rediseño de Caja (2026-09-23) — el alta se hace en una **hoja** (con una fila por moneda) y el
+   * botón que la abre solo existe con la caja abierta: un movimiento sobre un turno cerrado cambiaría un
+   * arqueo ya firmado.
+   */
+  it("con la caja abierta ofrece registrar el movimiento en la hoja", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <CashMovementsPanel
+        shiftId="shift_01"
+        initialMovements={[]}
+        currencies={["NIO", "USD"]}
+        shiftIsOpen
+        currency={{ symbol: "C$", locale: "es-NI" }}
+        timezone="America/Managua"
+        locale="es-NI"
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Registrar movimiento" }));
+
+    expect(screen.getByRole("dialog", { name: "Movimiento de caja" })).toBeTruthy();
+    expect(screen.getByLabelText("Monto en NIO")).toBeTruthy();
+    expect(screen.getByLabelText("Monto en USD")).toBeTruthy();
+  });
+
+  it("con la caja cerrada no ofrece el alta", () => {
+    renderPanel([]);
+
+    expect(screen.queryByRole("button", { name: "Registrar movimiento" })).toBeNull();
+    expect(screen.getByText(/La caja está cerrada/)).toBeTruthy();
   });
 });

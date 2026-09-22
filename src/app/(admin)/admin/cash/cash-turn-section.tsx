@@ -10,6 +10,7 @@ import { Button } from "@/shared/ui/button";
 import type { CashCountConfig } from "@/modules/cash-config/domain/cash-config.types";
 
 import CashCloseModal from "./cash-close-modal";
+import CashPartialReadingModal from "./cash-partial-reading-modal";
 import CashShiftHandoverPanel from "./cash-shift-handover-panel";
 import type { BankCloseDraft, CashCountRow, CashShift } from "./use-cash-shift";
 
@@ -70,6 +71,7 @@ export default function CashTurnSection({
   const currency = useCurrencyFormat();
   const settings = useBusinessSettings();
   const [closing, setClosing] = React.useState(false);
+  const [reading, setReading] = React.useState(false);
   // Fase 4 — el ciego manda: quien no audita el dinero no ve lo cobrado ni la diferencia del cuadre.
   const canSeeDifference = canSeeCloseDetail || !blindCount;
 
@@ -108,6 +110,19 @@ export default function CashTurnSection({
       <div className="flex flex-wrap items-center gap-2">
         <Button type="button" className="min-h-11" disabled={busy} onClick={() => setClosing(true)}>
           Cerrar caja
+        </Button>
+
+        {/*
+          Fase 5 del rediseño de Caja (2026-09-23) — la lectura parcial dejó de ser un botón que imprimía:
+          ahora abre un modal donde el número se ve en pantalla (el papel es la salida y lo saca el dueño).
+        */}
+        <Button
+          type="button"
+          variant="outline"
+          className="min-h-11"
+          onClick={() => setReading(true)}
+        >
+          Lectura parcial
         </Button>
 
         {/*
@@ -150,6 +165,16 @@ export default function CashTurnSection({
           setClosing(false);
           onClose(counts, bankCloses);
         }}
+      />
+
+      <CashPartialReadingModal
+        open={reading}
+        locationId={locationId}
+        locationName={locationName}
+        actorName={actorName}
+        canPrint={canPrint}
+        canSeeArqueo={canSeeDifference}
+        onClose={() => setReading(false)}
       />
     </section>
   );

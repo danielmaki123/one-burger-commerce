@@ -26,7 +26,6 @@ import {
   getCashDifferenceTone,
   type StoredCashCount,
 } from "../../cash-shift-helpers";
-import ShiftReopenForm from "../../shift-reopen-form";
 import ShiftHandoversList from "../../shift-handovers-list";
 
 /**
@@ -190,8 +189,6 @@ export default async function AdminCashShiftDetailPage({
             </Link>
             {/* Bloque 13.3: la hoja de cierre, con el nombre de quien cierra y su línea de firma. */}
             <ShiftCloseSheetButton lines={closeSheet} />
-            {/* Bloque 1.10: solo un turno cerrado se puede reabrir (y no siempre: ver el detalle). */}
-            {shift.status === "closed" ? <ShiftReopenForm shiftId={shift.id} /> : null}
           </div>
         }
       />

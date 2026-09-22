@@ -9,7 +9,7 @@ import type { CurrencyFormat } from "@/shared/lib/format-currency";
 
 import { isOverWithdrawalLimit } from "@/modules/orders/domain/cash-movement-limit";
 import { formatShiftDateTime } from "./cash-shift-helpers";
-import CashMovementForm from "./cash-movement-form";
+import CashMovementSheet from "./cash-movement-sheet";
 
 /**
  * Bloque 2.3 del roadmap del POS (Fase 2) — el historial de movimientos del turno, con su alta.
@@ -72,6 +72,7 @@ export default function CashMovementsPanel({
 }) {
   const [movements, setMovements] = React.useState(initialMovements);
   const [error, setError] = React.useState<string | null>(null);
+  const [sheetOpen, setSheetOpen] = React.useState(false);
 
   const reload = React.useCallback(async () => {
     setError(null);
@@ -156,17 +157,29 @@ export default function CashMovementsPanel({
         </ul>
       )}
 
+      {/*
+        Fase 5 del rediseño de Caja (2026-09-23) — el alta se hace en una **hoja**, con una fila por moneda:
+        el motivo se escribe una vez y cada moneda con monto es su propio movimiento.
+      */}
       {shiftIsOpen ? (
-        <CashMovementForm
-          shiftId={shiftId}
-          currencies={currencies}
-          onRegistered={() => void reload()}
-        />
+        <div className="flex flex-wrap items-center gap-2">
+          <Button type="button" className="min-h-11" onClick={() => setSheetOpen(true)}>
+            Registrar movimiento
+          </Button>
+        </div>
       ) : (
         <p className="text-st-body text-ink-secondary">
           La caja está cerrada: para mover plata hay que reabrirla.
         </p>
       )}
+
+      <CashMovementSheet
+        open={sheetOpen}
+        shiftId={shiftId}
+        currencies={currencies}
+        onRegistered={() => void reload()}
+        onClose={() => setSheetOpen(false)}
+      />
     </section>
   );
 }
