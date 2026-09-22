@@ -3,8 +3,9 @@ import { describe, expect, it } from "vitest";
 import { buildShiftXSheet, type ShiftXSheetInput } from "./shift-x-sheet";
 
 /**
- * Tarea 7 del brief (2026-09-17) — el papel del **corte X** (1.12), que también es el del **traspaso**
- * (1.13).
+ * Tarea 7 del brief (2026-09-17) — el papel de la **lectura parcial** (1.12), que también es el del
+ * **traspaso** (1.13). «Corte X» es el nombre viejo: la UI y el papel dicen lectura parcial desde la
+ * Fase 1a del rediseño de Caja (2026-09-19).
  *
  * Tres cosas que el papel no puede hacer: parecer un cierre (el turno sigue abierto), firmar sin decir
  * quién entrega y quién recibe, y mezclar dólares con el símbolo de córdobas. Y una que sí tiene que
@@ -44,7 +45,7 @@ describe("buildShiftXSheet", () => {
     const body = lines.join("\n");
 
     expect(lines[0]).toBe("ONE BURGER");
-    expect(lines[1]).toContain("CORTE X");
+    expect(lines[1]).toContain("LECTURA PARCIAL");
     expect(body).toContain("Camino de Oriente");
     expect(body).toContain("shift_01");
     // 14:00 UTC son las 08:00 en Managua (UTC−6) y el corte 16:30: la hora del papel es la del local.

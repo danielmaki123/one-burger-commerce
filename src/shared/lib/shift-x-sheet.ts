@@ -7,7 +7,11 @@ import {
 } from "@/shared/lib/shift-sheet-format";
 
 /**
- * Tarea 7 del brief (2026-09-17) — el papel del **corte X** (1.12) y del **traspaso de caja** (1.13).
+ * Tarea 7 del brief (2026-09-17) — el papel de la **lectura parcial** (1.12) y del **traspaso de caja** (1.13).
+ *
+ * Nombres de Fase 1a del rediseño de Caja (2026-09-19): lo que el brief viejo llamaba «corte X» se llama
+ * **lectura parcial** en la UI y en el papel. Los identificadores (`ShiftXSheetInput`, `buildShiftXSheet`)
+ * y la ruta de la API no se renombran en esta fase: son superficie de contrato y cambiarlos no aporta.
  *
  * Es el mismo documento en dos usos: el cajero lo saca a mitad del turno para ver cómo va la caja, y lo
  * firma cuando le pasa la caja a otro. Por eso el título cambia según haya alguien que reciba, pero el
@@ -67,7 +71,7 @@ export function buildShiftXSheet(input: ShiftXSheetInput, options: ShiftSheetOpt
 
   return [
     options.businessName.toUpperCase(),
-    isHandover ? "TRASPASO DE CAJA (CORTE X)" : "CORTE X (SIN CERRAR)",
+    isHandover ? "TRASPASO DE CAJA (LECTURA PARCIAL)" : "LECTURA PARCIAL (SIN CERRAR)",
     `Sucursal: ${input.locationName}`,
     `Turno: ${input.shiftId}`,
     `Abierto: ${formatSheetMoment(input.openedAt, options)}`,

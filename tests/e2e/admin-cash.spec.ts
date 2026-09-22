@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 import { loginAsOwner, mutationsAllowed } from "./helpers";
 
 /**
- * Bloque 1 del roadmap del POS (Fase 2) — Caja del día y el detalle de un cierre.
+ * Bloque 1 del roadmap del POS (Fase 2) — Caja y el detalle de un cierre.
  *
  * Estos dos casos existen por un motivo concreto: la pantalla de detalle es un **server component**
  * que muestra datos guardados, y esa clase de página puede compilar sin errores y fallar en runtime
@@ -63,7 +63,9 @@ test.describe("caja del día", () => {
     await loginAsOwner(page);
     await page.goto("/admin/cash");
 
-    await expect(page.getByRole("heading", { name: "Caja del día" })).toBeVisible();
+    // `exact` a propósito: el nombre accesible matchea por substring y «Caja» también está dentro de
+    // «Abrir o cerrar la caja» (el `h2` del bloque del turno).
+    await expect(page.getByRole("heading", { name: "Caja", exact: true })).toBeVisible();
     await expect(page.getByText(/Leyendo el historial de caja…/)).toBeHidden({ timeout: 20_000 });
 
     const overflow = await page.evaluate(
@@ -272,14 +274,14 @@ test.describe("caja del día", () => {
   });
 
   /**
-   * Tarea 7 del brief (2026-09-17) — el **corte X** y el **traspaso de caja** (1.12 y 1.13).
+   * Tarea 7 del brief (2026-09-17) — la **lectura parcial** y el **traspaso de caja** (1.12 y 1.13).
    *
-   * Dos cosas que solo se pueden verificar en un navegador real: que el corte se **imprima** sin cerrar
-   * la caja (con su aclaración, para que nadie lo confunda con un cierre) y que el traspaso se firme con
+   * Dos cosas que solo se pueden verificar en un navegador real: que la lectura se **imprima** sin cerrar
+   * la caja (con su aclaración, para que nadie la confunda con un cierre) y que el traspaso se firme con
    * el nombre de quien recibe y quede en el historial del turno. El esperado del papel lo calcula el
    * servidor; acá se comprueba que llegue al papel y a la lista.
    */
-  test("el corte X se imprime sin cerrar la caja y el traspaso queda firmado", async ({ page }) => {
+  test("la lectura parcial se imprime sin cerrar la caja y el traspaso queda firmado", async ({ page }) => {
     test.skip(!mutationsAllowed, "Order creation is disabled unless E2E_ALLOW_MUTATIONS=true.");
 
     await loginAsOwner(page);
@@ -317,7 +319,7 @@ test.describe("caja del día", () => {
     expect(shift, "hay una caja abierta (o se abrió una)").toBeTruthy();
 
     await page.goto("/admin/cash");
-    const panel = page.getByRole("region", { name: "Corte y traspaso de caja" });
+    const panel = page.getByRole("region", { name: "Lectura parcial y traspaso" });
     await expect(panel).toBeVisible();
 
     // 375 px: el panel nuevo no puede meter scroll horizontal (regla del sistema).
@@ -331,12 +333,12 @@ test.describe("caja del día", () => {
 
     const [corte] = await Promise.all([
       page.waitForEvent("popup"),
-      panel.getByRole("button", { name: "Imprimir corte X" }).click(),
+      panel.getByRole("button", { name: "Imprimir lectura parcial" }).click(),
     ]);
     await corte.waitForLoadState("domcontentloaded");
 
     const papelCorte = (await corte.locator("pre").textContent()) ?? "";
-    expect(papelCorte).toContain("CORTE X");
+    expect(papelCorte).toContain("LECTURA PARCIAL");
     expect(papelCorte).toContain("Esperado: C$");
     // El papel aclara que el turno sigue abierto: un corte confundido con un cierre deja la caja abierta.
     expect(papelCorte).toContain("NO cierra la caja");
@@ -352,7 +354,7 @@ test.describe("caja del día", () => {
     await traspaso.waitForLoadState("domcontentloaded");
 
     const papelTraspaso = (await traspaso.locator("pre").textContent()) ?? "";
-    expect(papelTraspaso).toContain("TRASPASO DE CAJA (CORTE X)");
+    expect(papelTraspaso).toContain("TRASPASO DE CAJA (LECTURA PARCIAL)");
     expect(papelTraspaso).toContain(`Recibe: ${recibe}`);
     // Las dos firmas: el que entrega y el que recibe (si no, no hay traspaso que valga).
     expect(papelTraspaso.match(/Firma: ___/g) ?? []).toHaveLength(2);

@@ -7,9 +7,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import CashShiftHandoverPanel, { type ShiftHandoverRow } from "./cash-shift-handover-panel";
 
 /**
- * Tarea 7 del brief (2026-09-17) — **corte X y traspaso de caja** en la pantalla de caja (1.12 y 1.13).
+ * Tarea 7 del brief (2026-09-17) — **lectura parcial y traspaso de caja** en la pantalla de caja (1.12 y 1.13).
  *
- * Lo que fijan estos casos: el corte se imprime con el monto que devolvió el **servidor** (la pantalla no
+ * Lo que fijan estos casos: la lectura se imprime con el monto que devolvió el **servidor** (la pantalla no
  * suma nada), el traspaso se firma con el nombre escrito y se imprime con el esperado **guardado**, y un
  * fallo del servidor se dice en pantalla en vez de imprimir un papel inventado.
  */
@@ -88,11 +88,11 @@ describe("CashShiftHandoverPanel", () => {
     expect(await screen.findByText(/todavía no cambió de manos/)).toBeTruthy();
   });
 
-  it("el corte X se imprime con el monto del servidor", async () => {
+  it("la lectura parcial se imprime con el monto del servidor", async () => {
     const user = userEvent.setup();
     renderPanel();
 
-    await user.click(await screen.findByRole("button", { name: "Imprimir corte X" }));
+    await user.click(await screen.findByRole("button", { name: "Imprimir lectura parcial" }));
 
     const xCall = fetchMock.mock.calls.find(([input]) =>
       String(input).startsWith("/api/admin/pos/shift/x?"),
@@ -100,7 +100,7 @@ describe("CashShiftHandoverPanel", () => {
     expect(xCall).toBeTruthy();
 
     const body = (printLinesMock.mock.calls[0]?.[0] ?? []).join("\n");
-    expect(body).toContain("CORTE X");
+    expect(body).toContain("LECTURA PARCIAL");
     expect(body).toContain("Camino de Oriente");
     expect(body).toContain("Esperado: C$1,500.00");
     expect(body).toContain("Entrega: María Pérez");
@@ -116,7 +116,7 @@ describe("CashShiftHandoverPanel", () => {
     const user = userEvent.setup();
     renderPanel();
 
-    await user.click(await screen.findByRole("button", { name: "Imprimir corte X" }));
+    await user.click(await screen.findByRole("button", { name: "Imprimir lectura parcial" }));
 
     expect(await screen.findByText(/No hay una caja abierta/)).toBeTruthy();
     expect(printLinesMock).not.toHaveBeenCalled();
@@ -147,6 +147,7 @@ describe("CashShiftHandoverPanel", () => {
 
     const body = (printLinesMock.mock.calls[0]?.[0] ?? []).join("\n");
     expect(body).toContain("TRASPASO DE CAJA");
+    expect(body).toContain("LECTURA PARCIAL");
     expect(body).toContain("Recibe: Carlos Ruiz");
   });
 

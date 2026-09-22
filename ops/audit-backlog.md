@@ -80,6 +80,9 @@ Estados: `reportado` · `a reproducir` · `en curso` · `cerrado` · `no-repro` 
 | A-21 | **Documentación desactualizada en cuatro puntos verificados**: `DESIGN_SYSTEM.md §3.4:273` decía "2 literales de carga" (había **18** distintos), `§2.1:164` decía 15 tokens huérfanos (había **16**: también `--ring`, `globals.css:40`), `AGENTS.md:109` mandaba a `DESIGN_SYSTEM.md §5` por la lista de copy decorativo y **§5 no la tenía**, y `plna.md:546` afirma un `Payment.shiftId` que no existe. **Cerrado el 2026-09-15** (Capa 0 del plan de UI): los tres puntos del repo se corrigieron reescribiendo `DESIGN_SYSTEM.md` (los números viejos ya no existen: §2.1 y §3.4 se reescribieron) y `AGENTS.md` (el puntero a `§5` ahora es verdadero), y un contrato falla si `AGENTS.md` cita una sección que no existe. El cuarto punto es de `plna.md`, un documento **no versionado**: queda anotado en A-18 | documentación | P3 | `cerrado` | commit de la Capa 0 |
 | A-22 | **Lo que no tiene guardrail se degrada**: la paleta cruda de Tailwind (**70** usos, igual que en TASK-201), `style={{ fontFamily }}` (**30**), `rounded-[Npx]` (**37** con 9 valores), ~20 sombras `rgba()` a mano y **46** valores arbitrarios de espaciado no tienen test; `DESIGN_SYSTEM.md §6:370` lo admite. En cambio lo que sí tiene contrato (`#hex`, controles crudos, registro de componentes) se mantiene estable | deuda | P3 | `reportado` (agente) | — |
 | A-23 | **Cuenta de prueba con rol `owner` en producción** (`tester@oneburgernic.com`, 3 locales): es un acceso total más. Decidir si se mantiene, se degrada (p. ej. a `cashier`) o se borra | dato / infra | P3 | `decisión-pendiente` (owner) | — |
+| A-39 | **Scroll horizontal a 375 px en producción por el selector de sucursal del historial de Caja**: el grupo `[role=group][aria-label="Sucursal de la caja"]` mide **426 px** en un viewport de 375 (`scrollWidth` 438 contra 375) con 3 sucursales; con menos de dos el control no se dibuja (`locations.length > 1`), y por eso el E2E local no lo veía. Rompe la regla «sin scroll horizontal entre 320 y 1280» de `AGENTS.md` | bug (UI) | **P1** | `reportado` (agente, 2026-09-19) — cierra en la **Fase 1b** | — |
+| A-40 | **El cajero ve «Ver el turno abierto» y el detalle lo rebota**: el enlace vive en el bloque del turno (que ve `canUsePOS`) y `/admin/cash/history/[id]` redirige a Órdenes a quien no tiene `canViewCashHistory`. **Cerrado el 2026-09-19 (Fase 1a del rediseño de Caja)**: el enlace se dibuja solo con `canSeeShiftDetail` | bug | P2 | `cerrado` (2026-09-19, Fase 1a) | rama `feat/cash-redesign` |
+| A-44 | **Una lectura fallida se dibujaba como «sin caja abierta»**: el `fetch` del estado de la caja no miraba `response.ok` (un 401/500 quedaba como caja cerrada) y tampoco limpiaba el error anterior. **Cerrado el 2026-09-19 (Fase 1a)**: `use-cash-shift` chequea el estado, propaga el mensaje del servidor y separa el error de lectura del error de acción | bug | P3 | `cerrado` (2026-09-19, Fase 1a) | rama `feat/cash-redesign` |
 
 > Las **limitaciones conocidas y aceptadas** de `ops/production-readiness.md` §7 **no** son ítems de
 > este backlog (rate limiting en memoria, `replicas: 1`, `X-Powered-By` cosmético, `style-src` con
@@ -608,6 +611,40 @@ si los documentos pasan su tope de líneas o si el catálogo deja de tener la li
   `isActive: false` = ese local no lo vende), y nombra este ítem para dejar la traza.
 - **Verificación**: `prisma validate` válido y `prisma migrate diff` **sin drift** (es un comentario).
 
+### A-39 · Scroll horizontal a 375 px en producción por el selector de sucursal del historial de Caja — `reportado` (agente, 2026-09-19; cierra en la Fase 1b)
+
+- **Qué es**: en `admin.oneburgernic.com/admin/cash` a 375 px, `documentElement.scrollWidth` mide **438**
+  contra un viewport de **375** (63 px de desborde). El responsable es el grupo de sucursales del bloque de
+  historial (`cash-client.tsx:142-155` con el primitivo `TabsList`/`TabsTrigger` de `src/shared/ui/tabs.tsx`):
+  con las **3** sucursales reales el grupo mide **426 px** y el botón «Casa Antigua» llega a `right: 434`.
+- **Por qué el E2E no lo veía**: `admin-cash.spec.ts` ya mide el desborde a 375 px, pero la base local tiene
+  **una** sucursal y el control está detrás de `locations.length > 1`: la aserción pasaba por ausencia.
+- **Qué falta**: el bloque de historial deja Caja en la **Fase 1b** (se unifica con `/admin/history/cierres`,
+  donde el filtro de sucursal es un `Select` y no un segmentado de botones). Verificar entonces que no
+  desborde **con dos sucursales** en las dos pantallas, y si el segmentado desborda en otro lugar, arreglar
+  el primitivo o su contenedor.
+
+### A-40 · El cajero ve «Ver el turno abierto» y el detalle lo rebota — `cerrado` (2026-09-19, Fase 1a del rediseño de Caja)
+
+- **Qué era**: `cash-drawer-panel.tsx:240-247` dibujaba el enlace **para todo el que veía el panel** (o sea
+  también el cajero, `canUsePOS`), y `/admin/cash/history/[id]` redirige a `/admin/orders` a quien no tiene
+  `canViewCashHistory` (`history/[id]/page.tsx:60-62`). El cajero tenía un enlace que lo sacaba de la
+  pantalla sin explicar nada.
+- **El arreglo**: el bloque del turno (`cash-turn-section.tsx`) recibe `canSeeShiftDetail` —que la página
+  llena con `canAudit`— y dibuja el enlace **solo** a quien puede verlo.
+- **Verificación**: TDD con **rojo observado** (`expected <a …></a> to be null` con el enlace sin condicionar)
+  y verde después; el E2E del cajero suma la aserción de ausencia (`admin-cashier.spec.ts`).
+
+### A-44 · Una lectura fallida se dibujaba como «sin caja abierta» — `cerrado` (2026-09-19, Fase 1a del rediseño de Caja)
+
+- **Qué era**: `cash-drawer-panel.tsx:78-93` no miraba `response.ok` —un **401** (sesión vencida), un 403 o un
+  500 se veían igual que una caja cerrada— y no limpiaba el `error` anterior al reintentar.
+- **El arreglo**: `use-cash-shift.ts` chequea el estado, propaga el mensaje del servidor, limpia el error al
+  leer bien y separa el **error de lectura** (que manda la pantalla al estado *error*, con «Reintentar») del
+  **error de acción** (abrir/cerrar), que se muestra al lado de lo que se estaba haciendo.
+- **Verificación**: TDD con **rojo observado** en el hook (`expected 'ready' to be 'error'`) y en la vista
+  (el estado *error* no existía); verde después, incluido el reintento que devuelve la pantalla al estado real.
+
 ## 2b. Deuda de TDD medida por el gate (2026-09-17)
 
 > **Qué es**: el gate `src/shared/contracts/tdd-contract.test.ts` (pedido del owner) mide qué código
@@ -655,4 +692,5 @@ contrato falla). **Ninguna fila nueva se agrega**: eso es lo que el gate impide.
 |---|---|---|---|
 | A-01 · A-07 | La home y el footer muestran la información de **cada sucursal activa** (nombre, dirección, horario y "Cómo llegar", de `GET /api/locations`) y el footer deja de imprimir el horario y la ciudad de la configuración del negocio | `83d7433` | 1560 unitarios en 245 archivos (el test del footer se confirmó **rojo** primero), lint, typecheck, `build:webpack` y `security:secrets` en verde; **CI verde** (`verify` + `migrations` + `container` + `publish`, run `34767909489`). **E2E de navegador corrido el 2026-09-13**: 88 pasaron / 6 salteados / 0 fallos (375 px home y 1280 px footer); dejó un hallazgo de arnés, arreglado en `cef9a1c`. **En producción desde el 2026-09-13** (`ea6be95`): los dos casos nuevos verdes contra `menu.oneburgernic.com` y las tres sucursales reales en pantalla |
 | A-08 | La marca (isotipo + nombre) se ve **en todos los anchos**, incluido celular, en el header de las secciones principales | `f0366c8` | TDD en navegador real: el caso nuevo se confirmó **rojo** contra el build viejo (`element(s) not found` a 375 px) y verde después; 1560 unitarios en 245 archivos, lint, typecheck, `build:webpack`, `security:secrets`, **E2E 88/6/0** y **CI verde** (`verify` + `migrations` + `container` + `publish`, run `34770351646`). **En producción desde el 2026-09-13** (`ea6be95`): 2/2 contra `menu.oneburgernic.com` |
+| A-40 · A-44 | **A-40**: el enlace «Ver el turno abierto» se ofrece solo a quien puede ver el detalle (el detalle rebotaba al cajero). **A-44**: una lectura fallida del turno ya no se dibuja como «sin caja abierta» — se chequea `response.ok`, se muestra el mensaje del servidor y hay estado de error con «Reintentar». Va con la Fase 1a del rediseño de Caja (cuatro estados, nombres de §14 y Control nuevo del sidebar) | rama `feat/cash-redesign` | TDD con **rojo observado** en los dos casos (A-40: `expected <a …></a> to be null`; A-44: `expected 'ready' to be 'error'`) y verde después; suite de `src/app/(admin)` + `src/modules/auth` en verde; la verificación completa de la fase (test, lint, typecheck, build, build:webpack, E2E y capturas 375/1280) queda en el PR |
 | Carrito (bug de checkout, hallado en el Bloque 13.3 del POS) | **El carrito guardado se pisaba antes de leerlo**: entrar a `/checkout` con el carrito lleno mostraba «Tu carrito está vacío» (el efecto que guarda corría en el primer render y escribía `[]` encima de lo guardado; con el doble montaje de StrictMode el pedido se perdía) | `42c5d98` | Test primero en `src/shared/lib/cart.test.tsx` (5 casos, rojo por la razón correcta con el provider bajo `StrictMode`); suite completa 2318/2318; **E2E de comandas 5/5** (antes 3/5) contra el server de desarrollo, y medido en el navegador (`localStorage` `[]` en `/checkout` antes, carrito intacto después) |

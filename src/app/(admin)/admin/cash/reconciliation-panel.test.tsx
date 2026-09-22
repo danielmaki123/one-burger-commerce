@@ -7,8 +7,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import ReconciliationPanel from "./reconciliation-panel";
 
 /**
- * Tarea 10 del brief (2026-09-17) — la **conciliación de tarjeta y transferencia** en Caja del día
- * (11.1/11.2).
+ * Tarea 10 del brief (2026-09-17) — la **conciliación de tarjeta y transferencia** en Caja
+ * (11.1/11.2). En la Fase 1b del rediseño de Caja (2026-09-19) este bloque se muda al Reporte del día y
+ * en la Fase 3 se integra al cierre por banco.
  *
  * Lo que fijan estos casos: los totales que se muestran son los que devolvió el **servidor** (la pantalla
  * no suma), el CSV que se baja tiene las filas del día y el nombre de la sucursal, lo que no es tarjeta ni

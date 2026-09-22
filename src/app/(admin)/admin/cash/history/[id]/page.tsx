@@ -169,7 +169,7 @@ export default async function AdminCashShiftDetailPage({
               href="/admin/cash"
               className="inline-flex min-h-11 items-center text-st-body font-semibold text-brand-primary underline"
             >
-              Volver a Caja del día
+              Volver a Caja
             </Link>
             {/* Bloque 13.3: la hoja de cierre, con el nombre de quien cierra y su línea de firma. */}
             <ShiftCloseSheetButton lines={closeSheet} />
@@ -364,7 +364,7 @@ export default async function AdminCashShiftDetailPage({
 
       {/* Tarea 7 del brief (2026-09-17): los **traspasos** del turno (1.13). Un turno largo pasa por
           varias manos; quién recibió la caja y con cuánto queda asentado acá, también después de
-          cerrarlo (mientras está abierto se ve en Caja del día). */}
+          cerrarlo (mientras está abierto se ve en Caja). */}
       <section
         aria-label="Traspasos de caja"
         className="space-y-3 rounded-stitch-lg border border-line-subtle bg-surface-card p-4"

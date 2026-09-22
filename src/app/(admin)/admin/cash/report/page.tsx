@@ -70,7 +70,7 @@ export default async function AdminCashDayReportPage({
             href="/admin/cash"
             className="inline-flex min-h-11 items-center text-st-body font-semibold text-brand-primary underline"
           >
-            Volver a Caja del día
+            Volver a Caja
           </Link>
         }
       />

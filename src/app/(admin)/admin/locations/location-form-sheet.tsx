@@ -336,7 +336,7 @@ export function LocationFormSheet({
 
         <p className="text-st-caption text-ink-secondary">
           Con el cierre obligatorio, si la caja quedó abierta de otro día el POS no deja cobrar hasta
-          cerrarla (se cierra desde «Caja del día»).
+          cerrarla (se cierra desde «Caja»).
         </p>
 
         <Input

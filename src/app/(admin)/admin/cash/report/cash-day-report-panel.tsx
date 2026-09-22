@@ -44,7 +44,7 @@ export default function CashDayReportPanel({
     >
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="space-y-1">
-          <h2 className="text-st-h2 text-ink">Caja del día</h2>
+          <h2 className="text-st-h2 text-ink">Caja</h2>
           <p className="text-st-body text-ink-secondary">
             {totals.shifts === 0
               ? "No hubo turnos de caja ese día en las sucursales a tu cargo."
@@ -158,7 +158,7 @@ export default function CashDayReportPanel({
         Un turno con la caja abierta no tiene desglose por medio hasta que se cierre. El detalle de cada
         cierre está en{" "}
         <Link href="/admin/cash" className="font-semibold text-brand-primary underline">
-          Caja del día
+          Caja
         </Link>
         .
       </p>

@@ -60,7 +60,7 @@ async function ensureOpenShift(page: Page) {
 
   if (abierta) return;
 
-  // Tarea 1 del brief (2026-09-17): el POS ya no abre la caja —eso pasó a «Caja del día»—, así que el
+  // Tarea 1 del brief (2026-09-17): el POS ya no abre la caja —eso pasó a «Caja»—, así que el
   // arnés la abre por la API (es lo que hace el cajero en la otra pantalla).
   await page.evaluate(async () => {
     const locationsResponse = await fetch("/api/admin/locations", { cache: "no-store" });
