@@ -1,5 +1,36 @@
 # Estado del proyecto — One Burger Commerce
 
+> **Actualizado: 2026-09-22 (Fase 2 del rediseño de Caja: Config de Caja — rama `feat/cash-config`)**
+>
+> **Lo que está en curso**: la **Fase 2** del rediseño de Caja —la **Config de Caja** por sucursal— en la
+> rama **`feat/cash-config`**, con PR hacia `main` y CI en curso. **Producción sigue en
+> `build-20260922-142614`** (la Fase 1): el deploy de esta fase es el paso siguiente.
+>
+> **Qué trae (módulo nuevo `src/modules/cash-config/`)**: saca del hardcodeo las tres reglas que no se
+> podían cambiar sin tocar código — **`usdEnabled` por sucursal** (con dientes: la grilla deja de ofrecer
+> dólares y el **servidor rechaza** un conteo en dólares, porque pantalla y validación leen la misma
+> config), **denominaciones por moneda** (los billetes ya no viven en `orders/domain/shift-cash.ts`; se
+> apagan en vez de borrarse y la moneda del negocio no se puede apagar) y **`blindCount`** (arqueo ciego,
+> que se persiste y se edita ahora y **se aplica en la Fase 4**, como dice el roadmap; la pantalla lo
+> aclara para no ser un control mudo). Incluye migración aditiva **`20260922154442_add_cash_config`** que
+> **siembra los 16 billetes** que estaban hardcodeados, API `GET/PUT /api/admin/cash/config` **solo dueño**
+> con alcance por sucursal, asiento **`cash_config.update`** en el log de acciones sensibles y la pantalla
+> real de `/admin/cash/config`.
+>
+> **Verificación**: **3078 unitarios** en 443 archivos (eran 3039), contratos 50/50, `lint`, `typecheck`,
+> `build`, `build:webpack` y `security:secrets` verdes; **E2E completo local con mutaciones 124/6/0** en
+> contexto limpio (incluye el spec nuevo `admin-cash-config.spec.ts`); navegador real a 375 y 1280 de la
+> pantalla de config (cero desborde, cabecera 106 px = 13,3% a 375, capturas `cash-config-fase2-*.png`).
+> Los **dos gates del repo** cazaron dos cosas mías y se arreglaron en un commit aparte (la ruta pasaba las
+> 50 líneas y la acción de auditoría nueva no tenía su caso en el gate).
+>
+> **Lo que sigue**: **Fase 3** (cierre por banco), **Fase 4** (arqueo ciego efectivo, impresión por rol y
+> la diferencia al owner por el outbox), **Fase 5** (lectura parcial en modal, sheet de movimientos
+> NIO+USD, traspasos y reapertura) y **Fase 6** (terminal por turno). Sigue abierta **A-43** (la cabecera
+> compartida, 23,3% a 375 px).
+>
+> ---
+>
 > **Actualizado: 2026-09-22 (Fase 1 del rediseño de Caja — mergeada y DESPLEGADA)**
 >
 > **Último deploy a producción: 2026-09-22, `build-20260922-142614`** (commit **`46282a7`**, el squash del
