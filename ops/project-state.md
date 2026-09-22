@@ -1,5 +1,61 @@
 # Estado del proyecto — One Burger Commerce
 
+> **Actualizado: 2026-09-23 (Fase 3 del rediseño de Caja: cierre por banco — implementada, PR abierto)**
+>
+> **Rama `feat/cash-cierre-por-banco`, PR [#19](https://github.com/danielmaki123/one-burger-commerce/pull/19)**.
+> El último deploy sigue siendo **`build-20260922-164927`** (Fase 4): la Fase 3 **todavía no está en
+> producción**; el deploy va después del merge, con el OK del owner en el momento.
+>
+> **Fase 3 — qué cambia**: el cuadre de tarjeta y transferencia (11.1 del roadmap, que se hacía a mano con
+> el CSV del día contra el lote de la terminal) entra al sistema. Al cerrar la caja, cada banco con el que
+> liquida la sucursal declara **cuánto reportó** (monto, moneda, lote de la terminal, terminal y notas); el
+> cierre compara eso contra lo que el sistema cobró **sin pasar por el cajón** (tarjeta + transferencia de
+> la misma ventana del turno), muestra el consolidado y la diferencia **antes** de firmar y la deja
+> congelada en el turno. La diferencia **no bloquea** el cierre: viaja en el mensaje de cierre al dueño (el
+> mismo mensaje de siempre, no dos) y `Shift.differenceNotifiedAt` firma cuándo salió ese aviso (reabrir el
+> turno borra la firma).
+>
+> **Qué trae**:
+>
+> - Migración aditiva **`20260923120000_add_bank_close`**: `Bank`, `LocationBank` y `ShiftBankClose`
+>   (declarado, moneda, lote, terminal, notas), más `Shift.bankDifferenceAmount` y
+>   `Shift.differenceNotifiedAt`. **`Bank` nace vacía**: los bancos del local son datos del negocio y el
+>   contrato anti-hardcode prohíbe inventarlos o sembrarlos por migración.
+> - Módulo nuevo **`src/modules/banks/`**: catálogo del negocio con asignación por sucursal, puerto,
+>   adaptadores de Prisma y en memoria, y los dos casos de uso de la pantalla. El catálogo **no borra**:
+>   apaga (un cierre viejo lo referencia y el `onDelete: Restrict` lo exige).
+> - **Config de Caja → Bancos** (sección nueva, dueño): alta, apagado y asignación por sucursal;
+>   `GET`/`PUT /api/admin/cash/banks` firmado con `cash_config.update` (cuántos bancos activos y en
+>   cuántas sucursales).
+> - **`CashCloseModal`**: el conteo del cajón, un bloque por banco, el consolidado y la diferencia con lo
+>   cobrado. El modal es el único lugar donde se cierra la caja ahora.
+> - **Documentos**: la hoja de cierre impresa y el detalle del cierre muestran el cuadre con los números
+>   **congelados** al cerrar.
+> - El servidor **valida el cuadre contra el catálogo de la sucursal**: un banco que no liquida ahí se
+>   rechaza aunque el payload venga armado a mano, igual que una moneda que el local no trabaja.
+>
+> **Decisiones del agente sobre el plan** (el owner las confirma o las cambia, como en la Tarea 10):
+> (1) la diferencia del cuadre es **del consolidado**, no por banco —el cobro no guarda banco, atribuirla
+> sería inventar—; (2) se compara contra **tarjeta + transferencia**; `mixto`, `otro` y el efectivo quedan
+> afuera (el efectivo tiene su propio arqueo); (3) sin lote declarado `bankDifferenceAmount` queda en
+> **`null`**, no en cero.
+>
+> **Verificación**: **3132 unitarios en 450 archivos** (eran 3081 en 446), contratos **50/50**, `lint`,
+> `typecheck`, `build`, `build:webpack` y `security:secrets` verdes; CI del PR con los **4 checks** verdes;
+> **E2E local completo 124/6/0** con el build de producción (el spec nuevo del cuadre por banco pasa; la
+> única falla de la corrida fue un intermitente del checkout programado que pasa solo al reintentar).
+> Migración aplicada en la base local y `migrate diff` **sin drift**.
+>
+> **Hallazgo nuevo**: **A-45** — el arqueo ciego se aplica **solo en la pantalla**: el corte X
+> (`GET /api/admin/pos/shift/x`) devuelve el esperado a quien opera el POS, cajero incluido. Cerrarlo es
+> decisión de producto (ver `ops/audit-backlog.md`).
+>
+> **Lo que sigue**: merge + deploy de la Fase 3 con el OK del owner, **Fase 5** (lectura parcial en modal,
+> sheet de movimientos NIO+USD, destino de los traspasos y reapertura) y **Fase 6** (terminal por turno).
+> Sigue abierta **A-43** (la cabecera compartida, 23,3% a 375 px).
+>
+> ---
+>
 > **Actualizado: 2026-09-22 (Fase 4 del rediseño de Caja: arqueo ciego e impresión — DESPLEGADA)**
 >
 > **Último deploy: 2026-09-22, `build-20260922-164927`** (commit `5a93bd6`, squash del PR #17). Antes:

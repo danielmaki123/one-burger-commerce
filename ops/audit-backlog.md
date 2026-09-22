@@ -84,6 +84,7 @@ Estados: `reportado` · `a reproducir` · `en curso` · `cerrado` · `no-repro` 
 | A-40 | **El cajero ve «Ver el turno abierto» y el detalle lo rebota**: el enlace vive en el bloque del turno (que ve `canUsePOS`) y `/admin/cash/history/[id]` redirige a Órdenes a quien no tiene `canViewCashHistory`. **Cerrado el 2026-09-19 (Fase 1a del rediseño de Caja)**: el enlace se dibuja solo con `canSeeShiftDetail` | bug | P2 | `cerrado` (2026-09-19, Fase 1a) | rama `feat/cash-redesign` |
 | A-44 | **Una lectura fallida se dibujaba como «sin caja abierta»**: el `fetch` del estado de la caja no miraba `response.ok` (un 401/500 quedaba como caja cerrada) y tampoco limpiaba el error anterior. **Cerrado el 2026-09-19 (Fase 1a)**: `use-cash-shift` chequea el estado, propaga el mensaje del servidor y separa el error de lectura del error de acción | bug | P3 | `cerrado` (2026-09-19, Fase 1a) | rama `feat/cash-redesign` |
 | A-43 | **La cabecera del panel mide 186 px = 23,3% del viewport a 375 px** (la regla del sistema es ≤20%; a 1280 son 114 px = 14,2%). Es el `AdminPageHeader` compartido (todas las pantallas del panel) y el chrome del shell, **igual antes y después** del rediseño de Caja: no es de Caja. Deuda declarada por decisión del owner (2026-09-19): va en otro PR | UI / deuda | P2 | `reportado` (agente, 2026-09-19) | — |
+| A-45 | **El arqueo ciego se aplica solo en la pantalla**: `GET /api/admin/pos/shift/x` (el corte X) devuelve `expectedAmount` y `expectedByCurrency` a cualquiera que pueda operar el POS —el cajero incluido— y su puerta es la del mostrador (`requirePosLocation`), no la de auditoría. Con `blindCount` prendido, la pantalla de Caja esconde el esperado y la diferencia (Fase 4), pero por API el cajero puede leerlos igual: el sello es de interfaz, no de servidor. **No es una regresión de la Fase 3** (el cuadre por banco respeta el mismo criterio en pantalla); lo encontró el agente al revisar qué datos necesita el modal del cierre. Cerrarlo es una **decisión de producto**: o el corte X deja de devolver el esperado a quien no audita (y el cajero pierde el corte X para contar su caja), o el ciego se define como regla de pantalla y se documenta como límite | bug (API / fuga de dato) | **P2** | `reportado` (agente, 2026-09-23) | — |
 
 > Las **limitaciones conocidas y aceptadas** de `ops/production-readiness.md` §7 **no** son ítems de
 > este backlog (rate limiting en memoria, `replicas: 1`, `X-Powered-By` cosmético, `style-src` con
@@ -651,6 +652,24 @@ si los documentos pasan su tope de líneas o si el catálogo deja de tener la li
   `cash-prod-history-cierres-375.png`, `cash-prod-cierres-rango-csv-375.png`,
   `cash-prod-cash-report-375.png`, `cash-prod-cash-config-1280.png`.
 - **Smokes del deploy**: menú **7/7** y hosts **6/6**.
+
+### A-45 · El arqueo ciego se aplica solo en la pantalla — `reportado` (agente, 2026-09-23)
+
+- **Qué es**: `GET /api/admin/pos/shift/x` (el corte X de la caja) devuelve `expectedAmount` y
+  `expectedByCurrency` a quien pueda operar el POS, y su puerta es la del mostrador
+  (`requirePosLocation`), **no** la de auditoría (`canViewCashHistory`). El cajero tiene `canUsePOS`, así
+  que puede leer por API el esperado que la pantalla le esconde.
+- **Cómo se encontró**: revisando qué datos necesita el modal del cierre de la Fase 3 —el consolidado
+  compara lo declarado contra lo cobrado sin pasar por el cajón, y ese número sale del mismo corte X—.
+  El modal respeta el ciego en pantalla (`canSeeDifference = canSeeCloseDetail || !blindCount`); el
+  endpoint no.
+- **Por qué no se arregla de una**: el corte X **es** del mostrador (1.12: saber cómo va la caja a mitad
+  del turno y firmar el traspaso con un número). Sacarle el esperado al cajero deja el corte X sin su
+  número; dejarlo es declarar que el ciego es una regla de pantalla. Las dos son defendibles y la elección
+  es del owner, no del agente.
+- **Qué falta**: decidir entre (a) el corte X deja de devolver el esperado a quien no audita (y el cajero
+  ve un corte sin arqueo), o (b) el ciego queda como regla de interfaz y se escribe como límite conocido
+  en `ops/production-readiness.md` §7.
 
 ### A-43 · La cabecera del panel mide 23,3% del viewport a 375 px — `reportado` (agente, 2026-09-19)
 
