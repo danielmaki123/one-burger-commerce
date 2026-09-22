@@ -1,11 +1,16 @@
 # Estado del proyecto — One Burger Commerce
 
-> **Actualizado: 2026-09-23 (Fase 5 del rediseño de Caja: lectura parcial, movimientos y reapertura — mergeada, pendiente de deploy)**
+> **Actualizado: 2026-09-23 (Fases 1–5 del rediseño de Caja DESPLEGADAS; Fase 6 en curso en su rama)**
 >
-> **`main` = `bbc485a`** (squash del PR [#20](https://github.com/danielmaki123/one-burger-commerce/pull/20)).
-> El último deploy sigue siendo **`build-20260922-164927`** (Fase 4). **Hay dos fases mergeadas y sin
-> desplegar: la Fase 3 (cierre por banco, PR [#19](https://github.com/danielmaki123/one-burger-commerce/pull/19)) y la Fase 5**; el
-> deploy lo corre el owner (el token del panel no está en el entorno del agente).
+> **Último deploy: `build-20260922-232049`**, servido por los tres dominios (`menu`, `admin` y el apex, los
+> tres con `health: ok` al 2026-09-23). **Producción tiene las Fases 1 a 5 del rediseño de Caja.** El deploy
+> lo corrió el owner (el token del panel no está en el entorno del agente); la versión de `health` es
+> posterior a los dos merges (Fase 3 `7225582` y Fase 5 `bbc485a`), que es la evidencia que se puede leer sin
+> el panel.
+>
+> **Corrección de un reporte anterior**: entre el merge y el deploy este documento dijo que las Fases 3 y 5
+> estaban «mergeadas y pendientes de deploy». **Ya no lo están**: el owner las desplegó y el `build` que
+> sirve producción es posterior a las dos. Se corrige acá y en los bloques de cada fase.
 >
 > **Fase 5 — qué cambia**: tres cosas del brief.
 >
@@ -34,8 +39,9 @@
 > build de producción (incluye el recorrido nuevo: abrir la lectura parcial, ver el esperado en pantalla,
 > imprimirla y firmar el traspaso).
 >
-> **Pendiente de deploy acumulado**: Fase 3 (cierre por banco) y Fase 5. **Después**: **Fase 6** (terminal por
-> turno). Siguen abiertas **A-43** (la cabecera compartida, 23,3% a 375 px) y **A-45** (el arqueo ciego es
+> **Estado de deploy**: la Fase 5 **está desplegada** (ver el bloque de arriba: `build-20260922-232049`,
+> posterior a este merge). Lo que sigue es la **Fase 6** (terminal por turno), que no se deploya sin el OK
+> del owner. Siguen abiertas **A-43** (la cabecera compartida, 23,3% a 375 px) y **A-45** (el arqueo ciego es
 > regla de pantalla: el corte X devuelve el esperado por API).
 >
 > **Fase 6 (terminal por turno) — lo que hay que decidir ANTES de codear** (el brief la nombra, pero el detalle
@@ -52,11 +58,10 @@
 >
 > ---
 >
-> **Actualizado: 2026-09-23 (Fase 3 del rediseño de Caja: cierre por banco — mergeada, pendiente de deploy)**
+> **Actualizado: 2026-09-23 (Fase 3 del rediseño de Caja: cierre por banco — mergeada y DESPLEGADA)**
 >
-> **Rama `feat/cash-cierre-por-banco`, PR [#19](https://github.com/danielmaki123/one-burger-commerce/pull/19)**.
-> El último deploy sigue siendo **`build-20260922-164927`** (Fase 4): la Fase 3 **todavía no está en
-> producción**; el deploy va después del merge, con el OK del owner en el momento.
+> **PR [#19](https://github.com/danielmaki123/one-burger-commerce/pull/19)**, mergeado como `7225582`. El
+> owner la desplegó: producción sirve **`build-20260922-232049`**, posterior a este merge (Fase 5 incluida).
 >
 > **Fase 3 — qué cambia**: el cuadre de tarjeta y transferencia (11.1 del roadmap, que se hacía a mano con
 > el CSV del día contra el lote de la terminal) entra al sistema. Al cerrar la caja, cada banco con el que
