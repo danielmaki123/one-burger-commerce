@@ -1,12 +1,12 @@
 # Estado del proyecto — One Burger Commerce
 
-> **Actualizado: 2026-09-19 (Fase 1 del rediseño de Caja — rama `feat/cash-redesign`, PR abierto)**
+> **Actualizado: 2026-09-19 (Fase 1 del rediseño de Caja — rama `feat/cash-redesign`, PR #13 abierto)**
 >
 > **Lo que está en curso**: la **Fase 1 del rediseño de la sección Caja** (brief del 2026-09-19). Va en la
-> rama **`feat/cash-redesign`** con **6 commits**, PR **hacia `main` abierto** (el número queda en el
-> historial de `main` cuando se mergee) y **CI pendiente** al momento de escribir esto. **Producción NO
-> tiene este cambio todavía**: `admin.oneburgernic.com` sigue sirviendo `build-20260919-030008` (commit
-> `904683d`), que es el estado del PR #10.
+> rama **`feat/cash-redesign`** con **7 commits** y el **PR [#13](https://github.com/danielmaki123/one-burger-commerce/pull/13)**
+> hacia `main`, con **CI pendiente** al momento de escribir esto. **Producción NO tiene este cambio
+> todavía**: `admin.oneburgernic.com` sigue sirviendo `build-20260919-030008` (commit `904683d`), que es el
+> estado del PR #10.
 >
 > ### Fase 1 cerrada (1a + 1b) — qué cambió en Caja
 >
