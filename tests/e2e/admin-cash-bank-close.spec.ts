@@ -31,12 +31,25 @@ test.describe("cierre por banco", () => {
     await page.goto("/admin/cash/config");
     await expect(page.getByRole("region", { name: "Bancos" })).toBeVisible();
 
-    await page.getByRole("button", { name: "Agregar banco" }).click();
-
     const names = page.getByLabel(/^Nombre del banco \d+$/);
-    const index = (await names.count()) - 1;
-    await names.nth(index).fill(BANK_NAME);
-    await page.getByLabel(`Código ${index + 1} (opcional)`).fill("E2E");
+    let index = -1;
+
+    // Idempotente: si el banco del E2E quedó de una corrida anterior (apagado, no borrado), se reusa.
+    for (let position = 0; position < (await names.count()); position += 1) {
+      if ((await names.nth(position).inputValue()) === BANK_NAME) {
+        index = position;
+        break;
+      }
+    }
+
+    if (index === -1) {
+      await page.getByRole("button", { name: "Agregar banco" }).click();
+      index = (await names.count()) - 1;
+      await names.nth(index).fill(BANK_NAME);
+      await page.getByLabel(`Código ${index + 1} (opcional)`).fill("E2E");
+    }
+
+    await page.getByLabel(`${BANK_NAME} activo`).check();
     await page.getByLabel(new RegExp(`^${BANK_NAME} en `)).first().check();
     await page.getByRole("button", { name: "Guardar bancos" }).click();
     await expect(page.getByText("Bancos guardados.")).toBeVisible();
@@ -44,9 +57,16 @@ test.describe("cierre por banco", () => {
     // 2. La Caja: se abre el turno si hace falta y se lee su id para volver al detalle después.
     await page.goto("/admin/cash");
     const openButton = page.getByRole("button", { name: "Abrir caja" });
-    if (await openButton.isVisible().catch(() => false)) await openButton.click();
+    const closeButton = page.getByRole("button", { name: "Cerrar caja" });
 
-    await expect(page.getByRole("region", { name: "Caja del local" })).toBeVisible();
+    // La pantalla resuelve primero el estado del turno (esqueleto): hay que esperar a que aparezca uno de
+    // los dos botones antes de decidir, o el «abrir» se saltea y el cierre queda sobre una caja cerrada.
+    await expect(openButton.or(closeButton).first()).toBeVisible();
+
+    if (await openButton.isVisible()) {
+      await openButton.click();
+      await expect(closeButton).toBeVisible();
+    }
 
     const shiftId = await page.evaluate(async () => {
       const locations = (await (await fetch("/api/admin/locations", { cache: "no-store" })).json())
@@ -67,7 +87,7 @@ test.describe("cierre por banco", () => {
     expect(shiftId, "hay una caja abierta (o se abrió una)").toBeTruthy();
 
     // 3. El cierre: el modal trae el conteo y el bloque del banco, con el cuadre a la vista antes de firmar.
-    await page.getByRole("button", { name: "Cerrar caja" }).click();
+    await closeButton.click();
     const dialog = page.getByRole("dialog");
 
     await expect(dialog.getByText("Cuadre por banco")).toBeVisible();
@@ -80,6 +100,10 @@ test.describe("cierre por banco", () => {
     await expect(dialog.getByText(/El cierre no se bloquea por la diferencia/)).toBeVisible();
 
     await dialog.getByRole("button", { name: "Cerrar caja" }).click();
+
+    // El cierre se firma por API: hay que esperarlo antes de ir al documento (si no, el detalle se lee
+    // con el turno todavía abierto y el cuadre aparece vacío).
+    await expect(page.getByText("Cierre registrado")).toBeVisible();
 
     // 4. El documento: el detalle del cierre guarda el cuadre y lo sigue diciendo.
     await page.goto(`/admin/cash/history/${shiftId}`);

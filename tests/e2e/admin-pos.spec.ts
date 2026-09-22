@@ -528,9 +528,11 @@ test.describe("punto de venta", () => {
     await expect(accionCaja).toBeVisible();
 
     // Estado de partida: si una corrida anterior dejó la caja abierta, se cierra contando cero (deja
-    // una diferencia, que es un dato del test, no del producto).
+    // una diferencia, que es un dato del test, no del producto). Desde la Fase 3 del rediseño de Caja el
+    // cierre pasa por un modal: el botón de la sección lo abre y el cierre se firma adentro.
     if ((await accionCaja.textContent())?.includes("Cerrar")) {
       await accionCaja.click();
+      await page.getByRole("dialog").getByRole("button", { name: "Cerrar caja" }).click();
       await expect(caja.getByRole("status")).toContainText("Cierre registrado");
       await expect(caja.getByRole("button", { name: "Abrir caja" })).toBeVisible();
     }
@@ -540,9 +542,14 @@ test.describe("punto de venta", () => {
     await caja.getByRole("button", { name: "Abrir caja" }).click();
     await expect(caja.getByText(/Caja abierta desde/)).toBeVisible();
 
-    // Cerrar contando lo mismo: sin ventas en el turno, no hay diferencia.
-    await billetes.fill("10");
+    // Cerrar contando lo mismo: sin ventas en el turno, no hay diferencia. El conteo del cierre vive en
+    // el modal (con el cuadre por banco al lado), no en la página.
     await caja.getByRole("button", { name: "Cerrar caja" }).click();
+    const cierre = page.getByRole("dialog");
+    await cierre
+      .getByRole("spinbutton", { name: "Cantidad de billetes de NIO 100", exact: true })
+      .fill("10");
+    await cierre.getByRole("button", { name: "Cerrar caja" }).click();
 
     const resumen = caja.getByRole("status");
     // Tareas 5 y 6 del brief: el operario ve «Cierre registrado» + el id y la diferencia; el dueño
