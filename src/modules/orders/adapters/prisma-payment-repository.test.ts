@@ -77,6 +77,8 @@ describe("PrismaPaymentRepository", () => {
         changeAmount: 20,
         tip: 15.05,
         reference: "voucher-77",
+        // Fase 6 del rediseño de Caja: el cobro se firma con su turno; sin dato, `null` (sitio público).
+        shiftId: null,
       },
     });
   });
@@ -108,6 +110,7 @@ describe("PrismaPaymentRepository", () => {
         changeAmount: 0,
         tip: 0,
         reference: null,
+        shiftId: null,
       },
     });
   });

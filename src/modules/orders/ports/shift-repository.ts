@@ -6,6 +6,12 @@ export type OpenShiftInput = {
   locationId: string;
   /** Quién abre la caja. */
   userId: string;
+  /**
+   * Fase 6 del rediseño de Caja (2026-09-23) — la **terminal** del local donde se abre esta caja. `null` =
+   * la sucursal de una sola caja (y los turnos de antes de la fase): el índice único los agrupa en el mismo
+   * cubo, así que ahí sigue habiendo una sola caja abierta por local.
+   */
+  terminalId?: string | null;
   /** Fondo con el que arranca. Sin dato es 0. */
   openingAmount?: number;
   /**
@@ -89,8 +95,14 @@ export interface ShiftRepository {
    * índice único, que la capa de arriba traduce a conflicto.
    */
   openShift(input: OpenShiftInput): Promise<ShiftRecord>;
-  /** El turno abierto del local, o `null` si la caja está cerrada. */
-  findOpenShiftByLocation(locationId: string): Promise<ShiftRecord | null>;
+  /**
+   * El turno abierto del local, o `null` si la caja está cerrada.
+   *
+   * Fase 6 del rediseño de Caja (2026-09-23) — con `terminalId` es el turno abierto **de esa terminal**;
+   * sin él, el turno **sin** terminal (una sola caja por local, que es como se comporta una sucursal sin
+   * terminales cargadas).
+   */
+  findOpenShiftByLocation(locationId: string, terminalId?: string | null): Promise<ShiftRecord | null>;
   findShiftById(id: string): Promise<ShiftRecord | null>;
   /**
    * Cierra un turno y devuelve el turno cerrado. `null` si no existe o si **ya estaba cerrado**

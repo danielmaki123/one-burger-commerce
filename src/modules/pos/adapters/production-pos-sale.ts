@@ -51,8 +51,12 @@ export async function createProductionPosSaleDependencies(): Promise<RegisterPos
     businessCurrencyCode: settings.currencyCode,
     usdExchangeRate: settings.usdExchangeRate,
     // Bloque 9.2: sin caja abierta no se cobra (`registerPosSale` corta con 409).
-    findOpenShift: async (locationId) =>
-      (await getCurrentShift({ locationId }, { shiftRepository })).data,
+    //
+    // Fase 6 del rediseño de Caja (2026-09-23) — la terminal viaja desde el POS: el turno que se resuelve
+    // (y que se le firma a cada cobro, `Payment.shiftId`) es el de **esa** terminal. Sin terminal es la caja
+    // sin terminal, que es la de una sucursal con una sola caja.
+    findOpenShift: async (locationId, terminalId) =>
+      (await getCurrentShift({ locationId, terminalId }, { shiftRepository })).data,
     /**
      * Tarea 9.6 del roadmap del POS (Fase 2) — el cupón se cotiza con el **mismo** caso de uso que usa la
      * pantalla antes de comparar el cobro contra el total: sin esto, una venta con descuento «no alcanzaba»

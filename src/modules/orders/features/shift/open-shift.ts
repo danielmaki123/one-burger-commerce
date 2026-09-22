@@ -25,6 +25,12 @@ export async function openShift(
   input: {
     locationId: string;
     userId: string;
+    /**
+     * Fase 6 del rediseño de Caja (2026-09-23) — la **terminal** donde se abre esta caja. Obligatoria cuando
+     * la sucursal tiene terminales activas (el cajero elige en qué POS está) y `null` cuando no tiene
+     * ninguna: ahí la caja sigue siendo una sola por local.
+     */
+    terminalId?: string | null;
     openingAmount?: number;
     /** TASK-305 — con qué billetes se abre, por moneda. */
     openingCounts?: ShiftCashCountInput[];
@@ -36,6 +42,7 @@ export async function openShift(
     businessCurrencyCode,
     usdExchangeRate,
     cashCountConfig,
+    cashTerminalIds,
   }: {
     shiftRepository: ShiftRepository;
     locationRepository: LocationRepository;
@@ -46,6 +53,11 @@ export async function openShift(
      * Sin ella se validan los defaults del módulo: una base recién creada tiene que poder abrir la caja.
      */
     cashCountConfig?: ShiftCashCountConfig;
+    /**
+     * Fase 6 del rediseño de Caja (2026-09-23) — las terminales **activas** de la sucursal. Sin la lista
+     * (una base recién creada o un llamador viejo) no se exige terminal: la caja se abre como siempre.
+     */
+    cashTerminalIds?: string[];
   },
 ) {
   const locationId = input.locationId?.trim();
@@ -79,9 +91,39 @@ export async function openShift(
     throw new ShiftError(404, "NOT_FOUND", "Location not found");
   }
 
+  /**
+   * Fase 6 del rediseño de Caja (2026-09-23) — la terminal se valida contra el catálogo **activo** de la
+   * sucursal: una terminal de otro local (o una apagada) no puede abrir una caja acá, aunque el payload venga
+   * armado a mano. Con terminales cargadas, elegir una es obligatorio: sin eso dos cajeros abrirían la misma
+   * caja creyendo que es la suya.
+   */
+  const terminalId = input.terminalId?.trim() ? input.terminalId.trim() : null;
+  const availableTerminals = cashTerminalIds ?? null;
+
+  if (availableTerminals && availableTerminals.length > 0) {
+    if (!terminalId) {
+      throw new ShiftError(422, "VALIDATION_ERROR", "Elegí la terminal de esta caja.", {
+        terminalId: "Elegí en qué terminal del local estás.",
+      });
+    }
+
+    if (!availableTerminals.includes(terminalId)) {
+      throw new ShiftError(422, "VALIDATION_ERROR", "Esa terminal no está en este local.", {
+        terminalId: "Esa terminal no está activa en este local.",
+      });
+    }
+  } else if (terminalId) {
+    // Una terminal que no está en el catálogo (o un local sin terminales cargadas) no se acepta: el turno
+    // quedaría etiquetado con algo que el local no puede ver.
+    throw new ShiftError(422, "VALIDATION_ERROR", "Esa terminal no está en este local.", {
+      terminalId: "Esa terminal no está activa en este local.",
+    });
+  }
+
   const shift = await shiftRepository.openShift({
     locationId,
     userId: input.userId,
+    terminalId,
     openingAmount,
     openingCounts: input.openingCounts ?? [],
     notes: input.notes ?? null,

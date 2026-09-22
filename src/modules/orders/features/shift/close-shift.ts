@@ -274,6 +274,29 @@ function convertToBusinessCurrencyOrThrow(input: {
   return converted.amount;
 }
 
+/**
+ * Los cobros que le tocan a este turno.
+ *
+ * Fase 6 del rediseño de Caja (2026-09-23) — desde que un local puede tener **dos cajas abiertas** (una por
+ * terminal), leer por ventana de tiempo haría que las dos se contaran la misma plata: primero se leen los
+ * cobros **del turno** (`Payment.shiftId`). Si el turno no tiene ninguno atribuido —los turnos de antes de
+ * esta fase y los cobros del sitio público—, se cae a la ventana de siempre: así un turno viejo sigue
+ * cuadrando igual que antes y no hay que migrar cobros históricos.
+ */
+async function listShiftPayments(
+  window: { shiftId: string; locationId: string; openedAt: string; closedAt: string },
+  paymentRepository: PaymentRepository,
+): Promise<Awaited<ReturnType<PaymentRepository["listPaymentsInRange"]>>> {
+  const attributed = await paymentRepository.listPaymentsByShift(window.shiftId);
+
+  if (attributed.length > 0) return attributed;
+
+  return paymentRepository.listPaymentsInRange(window.locationId, {
+    from: window.openedAt,
+    to: window.closedAt,
+  });
+}
+
 /** Los bancos activos que liquida la sucursal. Sin repositorio no hay bancos: el cuadre se rechaza. */
 async function listLocationBankIds(
   bankRepository: BankRepository | undefined,
@@ -350,10 +373,7 @@ export async function calculateExpectedAmount(
    */
   nonCashByCurrency: Record<string, number>;
 }> {
-  const payments = await paymentRepository.listPaymentsInRange(window.locationId, {
-    from: window.openedAt,
-    to: window.closedAt,
-  });
+  const payments = await listShiftPayments(window, paymentRepository);
 
   const cashPayments = payments
     .filter((payment) => payment.method === "cash")

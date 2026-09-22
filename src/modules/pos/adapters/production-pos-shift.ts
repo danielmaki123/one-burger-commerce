@@ -32,6 +32,16 @@ export async function createProductionPosShiftDependencies(input: { locationId?:
       )[input.locationId]
     : undefined;
 
+  /**
+   * Fase 6 del rediseño de Caja (2026-09-23) — las terminales **activas** de la sucursal: es contra esta
+   * lista que `openShift` valida (y exige) la terminal cuando el local tiene alguna cargada.
+   */
+  const cashTerminalIds = input.locationId
+    ? (await new PrismaCashConfigRepository().listPosTerminals([input.locationId]))
+        .filter((terminal) => terminal.isActive)
+        .map((terminal) => terminal.id)
+    : undefined;
+
   return {
     shiftRepository: new PrismaShiftRepository(),
     locationRepository: new PrismaLocationRepository(),
@@ -42,5 +52,6 @@ export async function createProductionPosShiftDependencies(input: { locationId?:
     businessCurrencyCode: settings.currencyCode,
     usdExchangeRate: settings.usdExchangeRate,
     cashCountConfig,
+    cashTerminalIds,
   };
 }

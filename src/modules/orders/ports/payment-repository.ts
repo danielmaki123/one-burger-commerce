@@ -19,6 +19,12 @@ export type CreatePaymentInput = {
   tip?: number;
   /** Referencia externa (voucher, id de transferencia). Sin dato queda vacía. */
   reference?: string | null;
+  /**
+   * Fase 6 del rediseño de Caja (2026-09-23) — el **turno** al que entra este cobro (la caja de la terminal
+   * donde se cobró). Sin dato queda `null`: los cobros del sitio público y los de antes de esta fase no
+   * tienen turno, y el arqueo los lee por ventana de tiempo.
+   */
+  shiftId?: string | null;
 };
 
 export type PaymentSummary = {
@@ -58,6 +64,14 @@ export interface PaymentRepository {
     locationId: string,
     range: { from?: string; to?: string },
   ): Promise<PaymentRecord[]>;
+  /**
+   * Fase 6 del rediseño de Caja (2026-09-23) — los cobros **de un turno**, por su `shiftId`.
+   *
+   * Es la consulta del arqueo cuando el local tiene más de una caja abierta (dos terminales): leer por
+   * ventana de tiempo haría que las dos cajas se contaran la misma plata. Los cobros de antes de esta fase
+   * (sin `shiftId`) no aparecen acá y el arqueo los busca por ventana — ver `calculateExpectedAmount`.
+   */
+  listPaymentsByShift(shiftId: string): Promise<PaymentRecord[]>;
   /**
    * Totales del pedido sin traer las filas. Es lo que necesita el arqueo de caja (§TASK-104/305)
    * para no sumar en memoria lo que la base puede sumar.

@@ -24,6 +24,7 @@ function mapShift(shift: {
   locationId: string;
   userId: string;
   status: string;
+  terminalId?: string | null;
   openedAt: Date;
   closedAt: Date | null;
   openingAmount: Decimal;
@@ -64,6 +65,7 @@ function mapShift(shift: {
     status: shift.status as ShiftStatus,
     openedAt: shift.openedAt.toISOString(),
     closedAt: shift.closedAt ? shift.closedAt.toISOString() : null,
+    terminalId: shift.terminalId ?? null,
     openingAmount: decimalToNumber(shift.openingAmount),
     closingAmount: decimalOrNull(shift.closingAmount),
     expectedAmount: decimalOrNull(shift.expectedAmount),
@@ -145,6 +147,8 @@ export class PrismaShiftRepository implements ShiftRepository {
         data: {
           locationId: input.locationId,
           userId: input.userId,
+          // Fase 6 del rediseño de Caja: la terminal donde se abre esta caja (`null` = una sola por local).
+          terminalId: input.terminalId ?? null,
           openingAmount: input.openingAmount ?? 0,
           notes: input.notes ?? null,
           cashCounts: input.openingCounts?.length
@@ -163,11 +167,11 @@ export class PrismaShiftRepository implements ShiftRepository {
 
       return mapShift(shift);
     } catch (error) {
-      // La regla la aplica el índice único parcial de la migración (un solo `open` por local). Dos
-      // cajas que abren a la vez: una gana y la otra cae acá. Se traduce a conflicto de dominio para
-      // que la capa de arriba no tenga que conocer el error de Prisma.
+      // La regla la aplica el índice único parcial de la migración (un solo `open` por terminal dentro del
+      // local, y por local cuando el turno no tiene terminal). Dos terminales que abren a la vez: una gana
+      // y la otra cae acá. Se traduce a conflicto de dominio para que la capa de arriba no conozca Prisma.
       if (isUniqueConstraintError(error)) {
-        const open = await this.findOpenShiftByLocation(input.locationId);
+        const open = await this.findOpenShiftByLocation(input.locationId, input.terminalId ?? null);
         if (open) {
           throw new ShiftError(
             409,
@@ -182,10 +186,14 @@ export class PrismaShiftRepository implements ShiftRepository {
     }
   }
 
-  async findOpenShiftByLocation(locationId: string): Promise<ShiftRecord | null> {
+  async findOpenShiftByLocation(
+    locationId: string,
+    terminalId?: string | null,
+  ): Promise<ShiftRecord | null> {
     const prisma = getPrismaClient();
     const shift = await prisma.shift.findFirst({
-      where: { locationId, status: "open" },
+      // Fase 6: con terminal, el turno de esa terminal; sin ella, el turno sin terminal (una caja por local).
+      where: { locationId, status: "open", terminalId: terminalId ?? null },
       include: { cashCounts: true, bankCloses: { include: { bank: true } } },
     });
 
