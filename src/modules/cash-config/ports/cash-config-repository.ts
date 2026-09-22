@@ -2,6 +2,7 @@ import type {
   CashConfigPatch,
   CashDenominationRecord,
   LocationCashConfigRecord,
+  PosTerminalRecord,
 } from "@/modules/cash-config/domain/cash-config.types";
 
 export type UpdateCashConfigMeta = {
@@ -37,4 +38,18 @@ export interface CashConfigRepository {
     rows: CashDenominationRecord[],
     meta?: UpdateCashConfigMeta,
   ): Promise<CashDenominationRecord[]>;
+  /**
+   * Fase 6 del rediseño de Caja (2026-09-23) — las **terminales del POS** de las sucursales pedidas
+   * (activas e inactivas: la pantalla muestra las apagadas para poder volver a prenderlas).
+   */
+  listPosTerminals(locationIds: readonly string[]): Promise<PosTerminalRecord[]>;
+  /**
+   * Guarda las terminales **de una sucursal** tal como vienen: sube lo que está, apaga lo que falta y
+   * devuelve lo que quedó. No borra: un turno viejo referencia su terminal y el `onDelete: Restrict` de la
+   * base lo exige.
+   */
+  replacePosTerminals(
+    locationId: string,
+    rows: readonly PosTerminalRecord[],
+  ): Promise<PosTerminalRecord[]>;
 }

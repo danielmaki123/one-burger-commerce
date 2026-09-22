@@ -3,6 +3,7 @@ import type {
   CashConfigPatch,
   CashDenominationRecord,
   LocationCashConfigRecord,
+  PosTerminalRecord,
 } from "@/modules/cash-config/domain/cash-config.types";
 import type {
   CashConfigRepository,
@@ -20,6 +21,7 @@ import type {
 export class InMemoryCashConfigRepository implements CashConfigRepository {
   locationConfigs = new Map<string, LocationCashConfigRecord>();
   denominations: CashDenominationRecord[] = [];
+  posTerminals: PosTerminalRecord[] = [];
 
   async getLocationConfig(locationId: string): Promise<LocationCashConfigRecord | null> {
     return this.locationConfigs.get(locationId) ?? null;
@@ -75,5 +77,44 @@ export class InMemoryCashConfigRepository implements CashConfigRepository {
     }
 
     return this.listDenominations();
+  }
+
+  async listPosTerminals(locationIds: readonly string[]): Promise<PosTerminalRecord[]> {
+    const wanted = new Set(locationIds);
+
+    return this.posTerminals
+      .filter((terminal) => wanted.has(terminal.locationId))
+      .sort((a, b) => a.locationId.localeCompare(b.locationId) || a.sortOrder - b.sortOrder)
+      .map((terminal) => ({ ...terminal }));
+  }
+
+  async replacePosTerminals(
+    locationId: string,
+    rows: readonly PosTerminalRecord[],
+  ): Promise<PosTerminalRecord[]> {
+    const incoming = new Map(rows.map((row) => [row.id, row]));
+
+    // Lo que estaba en esa sucursal y no vino queda **apagado** (no se borra): un turno viejo sigue
+    // diciendo en qué terminal se abrió.
+    for (const existing of this.posTerminals) {
+      if (existing.locationId !== locationId) continue;
+      if (!incoming.has(existing.id)) existing.isActive = false;
+    }
+
+    rows.forEach((row, index) => {
+      const existing = this.posTerminals.find((terminal) => terminal.id === row.id);
+      const next: PosTerminalRecord = {
+        id: row.id,
+        locationId,
+        label: row.label,
+        isActive: row.isActive,
+        sortOrder: Number.isInteger(row.sortOrder) ? row.sortOrder : index,
+      };
+
+      if (existing) Object.assign(existing, next);
+      else this.posTerminals.push(next);
+    });
+
+    return this.listPosTerminals([locationId]);
   }
 }
