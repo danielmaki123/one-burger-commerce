@@ -34,6 +34,12 @@ test.describe("el cajero", () => {
     await expect(page.getByRole("region", { name: "Cierre del día" })).toHaveCount(0);
     await expect(page.getByRole("link", { name: "Reporte del día" })).toHaveCount(0);
 
+    // 2b. A-40 (Fase 1a del rediseño de Caja): tampoco el enlace al detalle del turno — el detalle lo
+    //     redirige a Órdenes, así que ofrecerlo era un enlace que rebota. La aserción solo tiene dientes
+    //     con una caja abierta (el arnés local la deja abierta): con la caja cerrada el bloque del turno
+    //     no se dibuja y pasa por ausencia.
+    await expect(page.getByRole("link", { name: "Ver el turno abierto" })).toHaveCount(0);
+
     // 3. Y tampoco el reporte del día ni las aprobaciones: la pantalla lo manda a sus órdenes.
     await page.goto("/admin/cash/report");
     await expect(page).toHaveURL(/\/admin\/orders$/);

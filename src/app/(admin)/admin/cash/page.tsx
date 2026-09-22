@@ -13,19 +13,23 @@ import { businessDate } from "@/shared/lib/business-days";
 
 import { AdminPageHeader } from "../_components/admin-operational-ui";
 import CashClient from "./cash-client";
-import CashDrawerPanel from "./cash-drawer-panel";
+import CashView from "./cash-view";
 import DayClosePanel from "./day-close-panel";
 import ReconciliationPanel from "./reconciliation-panel";
 
 /**
- * Bloque 1.3 + tarea 1 del brief (2026-09-17) — la **caja**, separada del POS.
+ * Fase 1a del rediseño de Caja (2026-09-19) — la **Caja**.
  *
- * La pantalla tiene dos mitades y cada una tiene su permiso:
+ * La mitad del mostrador es un solo sujeto —el ciclo del turno: apertura → operación → cierre— y sus cuatro
+ * estados viven en `CashView` (*cargando*, *error*, *sin turno*, *turno abierto*); acá se resuelve quién
+ * entra, con qué sucursales y con qué permisos. La mitad de auditoría (día consolidado, conciliación e
+ * historial de cierres) sigue montándose para quien audita: **se muda a sus pantallas en la Fase 1b**.
  *
- * - **Abrir o cerrar la caja** (el trabajo del mostrador): quien cobra, o sea `canUsePOS` — el cajero
- *   incluido. Antes esto vivía plegado dentro del POS y el pedido fue sacarlo: «POS limpio, Caja aparte».
- * - **Auditar** (historial de cierres, día consolidado, comparación por sucursal): `canViewCashHistory`.
- *   El cajero no audita su propio turno, así que esa mitad no la ve.
+ * Los dos permisos siguen siendo dos:
+ *
+ * - **Operar el turno**: quien cobra (`canUsePOS`), el cajero incluido.
+ * - **Auditar**: `canViewCashHistory`. De ahí salen el detalle del turno (`canSeeShiftDetail`, A-40) y el
+ *   arqueo completo del cierre (`canSeeCloseDetail`).
  *
  * El alcance por sucursal se resuelve con la puerta que corresponde a cada mitad: la de control pide
  * `canManageCash` (dueño o manager) y la del mostrador respeta las sucursales asignadas del cajero.
@@ -70,7 +74,7 @@ export default async function AdminCashPage() {
     <div className="space-y-4">
       <AdminPageHeader
         label="Control"
-        title="Caja del día"
+        title="Caja"
         description={
           canAudit
             ? "Abrí y cerrá la caja del local, y auditá lo que quedó: cierres, arqueo y movimientos."
@@ -89,8 +93,9 @@ export default async function AdminCashPage() {
       />
 
       {canOperate ? (
-        <CashDrawerPanel
+        <CashView
           locations={options}
+          canSeeShiftDetail={canAudit}
           canSeeCloseDetail={canAudit}
           actorName={session.user.name}
         />
