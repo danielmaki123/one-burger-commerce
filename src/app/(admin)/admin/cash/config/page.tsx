@@ -2,22 +2,27 @@ import { redirect } from "next/navigation";
 
 import { canManageCashConfig } from "@/modules/auth/domain/admin-permissions";
 import { requireAdminSession } from "@/modules/auth/features/require-admin-session/require-admin-session";
+import { PrismaCashConfigRepository } from "@/modules/cash-config/adapters/prisma-cash-config-repository";
+import { getCashConfig } from "@/modules/cash-config/features/get-cash-config/get-cash-config";
+import { resolveOrderLocationScope } from "@/modules/orders/domain/order-visibility";
+import { createProductionPosLocationDependencies } from "@/modules/pos/adapters/production-pos-location";
+import { listCashLocations } from "@/modules/pos/domain/cash-locations";
 
-import { AdminEmptyState, AdminPageHeader } from "../../_components/admin-operational-ui";
+import { AdminPageHeader } from "../../_components/admin-operational-ui";
+import CashConfigClient from "./cash-config-client";
 
 /**
- * Fase 1a del rediseño de Caja (2026-09-19) — **Config de Caja** (`/admin/cash/config`).
+ * Fase 2 del rediseño de Caja (2026-09-22) — **Config de Caja** (`/admin/cash/config`), la pantalla real.
  *
- * Decisión del owner: el ítem entra al sidebar **desde la Fase 1a** con la pantalla mínima, para no tocar la
- * navegación dos veces. Lo que configura vive en la Fase 2 (monedas activas, denominaciones y arqueo ciego
- * por sucursal) y los bancos en la Fase 3.
+ * Reemplaza la pantalla mínima de la Fase 1a (que decía «En construcción» y no tenía controles, a
+ * propósito). Ahora configura, por sucursal: si el local cuenta dólares, si el cajero ve el esperado
+ * (arqueo ciego) y los billetes de cada moneda.
  *
  * La puerta es del **dueño** (`canManageCashConfig`): esta pantalla cambia las reglas con las que se firma
- * un arqueo —qué monedas se cuentan, con qué billetes y si el cajero ve el esperado—, y un manager que
- * entra por URL directa va a Órdenes, igual que en Usuarios y Personalización.
+ * un arqueo, y un manager que entra por URL directa va a Órdenes, igual que en Usuarios y Personalización.
  *
- * A propósito **no** dibuja controles: un interruptor decorativo que todavía no guarda nada es exactamente
- * lo que el repo prohíbe. Dice qué va a vivir acá y en qué fase.
+ * Baja como dato la config de la **primera** sucursal del alcance; la pantalla tiene su selector y pide las
+ * demás por API (el dueño ve las tres).
  */
 export default async function AdminCashConfigPage() {
   const session = await requireAdminSession();
@@ -25,6 +30,24 @@ export default async function AdminCashConfigPage() {
   if (!canManageCashConfig(session.user.role)) {
     redirect("/admin/orders");
   }
+
+  const locations = listCashLocations(
+    await createProductionPosLocationDependencies().repository.listLocations(),
+    resolveOrderLocationScope({
+      role: session.user.role,
+      assignedLocationIds: session.user.locationIds,
+    }),
+  );
+
+  if (locations.length === 0) {
+    redirect("/admin/orders");
+  }
+
+  const options = locations.map(({ id, name }) => ({ id, name }));
+  const initialConfig = await getCashConfig(
+    { locationId: options[0].id },
+    { repository: new PrismaCashConfigRepository() },
+  );
 
   return (
     <div className="space-y-4">
@@ -34,10 +57,7 @@ export default async function AdminCashConfigPage() {
         description="Las reglas del arqueo, por sucursal"
       />
 
-      <AdminEmptyState
-        title="En construcción"
-        description="Acá van a vivir, por sucursal: las monedas que se cuentan (córdobas siempre, dólares si el local los maneja), las denominaciones de billetes y monedas de cada una, y el arqueo ciego del cajero. En la Fase 2; los bancos del cierre, en la Fase 3."
-      />
+      <CashConfigClient locations={options} initialConfig={initialConfig} />
     </div>
   );
 }

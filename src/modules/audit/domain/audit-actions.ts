@@ -26,6 +26,12 @@ export const AUDIT_ACTIONS = [
    */
   "invoice.void",
   "settings.update",
+  /**
+   * Fase 2 del rediseño de Caja (2026-09-22) — **configuración de caja** de una sucursal: qué monedas se
+   * cuentan, con qué billetes y si el cajero ve el esperado. Cambia las reglas con las que se firma un
+   * arqueo, así que se firma quién la cambió (misma familia que `settings.update`).
+   */
+  "cash_config.update",
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
@@ -43,6 +49,7 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   "order.manual_discount": "Descuento manual en el mostrador",
   "invoice.void": "Factura anulada",
   "settings.update": "Configuración actualizada",
+  "cash_config.update": "Configuración de caja actualizada",
 };
 
 export function describeAction(action: AuditAction): string {

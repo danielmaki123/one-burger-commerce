@@ -186,13 +186,38 @@ export function paidOrderCancelledAudit(input: {
   });
 }
 
-/** Cambiar la personalización del negocio: el detalle está en el propio registro del cambio. */
+/**
+ * Cambiar la personalización del negocio: el detalle está en el propio registro del cambio.
+ */
 export function settingsUpdateAudit(input: { actorUserId: string }) {
   return recordAdminAudit({
     action: "settings.update",
     actorUserId: input.actorUserId,
     targetType: "BusinessSettings",
     targetId: "business-settings",
+  });
+}
+
+/**
+ * Fase 2 del rediseño de Caja (2026-09-22) — **cambiar la configuración de caja de una sucursal**.
+ *
+ * Se firma la sucursal y **qué** quedó configurado (monedas y arqueo ciego): es la regla con la que se
+ * calcula el esperado de los turnos siguientes, así que seis meses después esto explica por qué esa caja
+ * contaba en dólares o por qué el cajero veía la diferencia. Los billetes no van en el detalle porque son
+ * del negocio y no de la sucursal (cambian para las tres a la vez).
+ */
+export function cashConfigUpdateAudit(input: {
+  actorUserId: string;
+  locationId: string;
+  usdEnabled: boolean;
+  blindCount: boolean;
+}) {
+  return recordAdminAudit({
+    action: "cash_config.update",
+    actorUserId: input.actorUserId,
+    targetType: "LocationCashConfig",
+    targetId: input.locationId,
+    detail: { usdEnabled: input.usdEnabled, blindCount: input.blindCount },
   });
 }
 
