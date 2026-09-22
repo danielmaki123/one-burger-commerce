@@ -57,50 +57,16 @@ export function formatSignedAmount(
 }
 
 /**
- * Un turno cerrado sin conteo cargado no se puede auditar: se dice, no se inventa un 0. El arqueo
- * ciego guarda el esperado y deja la diferencia sin calcular hasta que alguien cuente.
- */
-export function isShiftPendingCount(shift: Pick<ShiftRecord, "closingAmount">): boolean {
-  return shift.closingAmount === null;
-}
-
-/** Resumen de una pantalla de historial: cuántos turnos y cuántos quedaron sin contar. */
-export function summarizeShifts(shifts: Pick<ShiftRecord, "closingAmount" | "difference">[]) {
-  const pendingCount = shifts.filter(isShiftPendingCount).length;
-
-  return {
-    total: shifts.length,
-    pendingCount,
-    countedCount: shifts.length - pendingCount,
-    differenceTotal: shifts.reduce((sum, shift) => sum + (shift.difference ?? 0), 0),
-  };
-}
-
-/**
  * Fecha y hora del turno **en la zona del negocio**, no en la del navegador.
  *
  * La implementación vive en `src/shared/lib/shift-datetime.ts` desde el Bloque 13.3: la hoja de cierre
  * la imprime en el papel y el export CSV la usa, así que pantalla, papel y export dicen la misma hora.
+ *
+ * Fase 2 del rediseño de Caja (2026-09-22) — acá vivían también `summarizeShifts`, `isShiftPendingCount` y
+ * `formatShiftDate`: los usaban la lista embebida de Caja y el día consolidado, que salieron de la pantalla
+ * en la Fase 1b. Se eliminaron con su test (código muerto), como se acordó al cerrar esa fase.
  */
 export { formatShiftDateTime } from "@/shared/lib/shift-datetime";
-
-/** La fecha de caja (sin hora) para agrupar y titular el historial. */
-export function formatShiftDate(
-  iso: string | null,
-  options: { timezone: string; locale: string },
-): string {
-  if (!iso) return "—";
-
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return "—";
-
-  return new Intl.DateTimeFormat(options.locale, {
-    timeZone: options.timezone,
-    day: "2-digit",
-    month: "long",
-    year: "numeric",
-  }).format(date);
-}
 
 /** Un conteo guardado del turno, tal como sale del adaptador. */
 export type StoredCashCount = {
