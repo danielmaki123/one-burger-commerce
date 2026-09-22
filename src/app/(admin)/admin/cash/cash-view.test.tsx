@@ -49,6 +49,7 @@ describe("CashView", () => {
     render(
       <CashView
         locations={locations}
+        cashCountConfigs={{ loc_norte: { currencies: ["NIO"], denominations: { NIO: [1000, 500, 200, 100, 50, 20, 10, 5, 1] } } }}
         canSeeShiftDetail={false}
         canSeeCloseDetail={false}
         actorName={null}
@@ -72,6 +73,7 @@ describe("CashView", () => {
     render(
       <CashView
         locations={locations}
+        cashCountConfigs={{ loc_norte: { currencies: ["NIO"], denominations: { NIO: [1000, 500, 200, 100, 50, 20, 10, 5, 1] } } }}
         canSeeShiftDetail
         canSeeCloseDetail
         actorName={null}
@@ -94,6 +96,7 @@ describe("CashView", () => {
     render(
       <CashView
         locations={locations}
+        cashCountConfigs={{ loc_norte: { currencies: ["NIO"], denominations: { NIO: [1000, 500, 200, 100, 50, 20, 10, 5, 1] } } }}
         canSeeShiftDetail={false}
         canSeeCloseDetail={false}
         actorName={null}
@@ -109,6 +112,7 @@ describe("CashView", () => {
     render(
       <CashView
         locations={locations}
+        cashCountConfigs={{ loc_norte: { currencies: ["NIO"], denominations: { NIO: [1000, 500, 200, 100, 50, 20, 10, 5, 1] } } }}
         canSeeShiftDetail={false}
         canSeeCloseDetail={false}
         actorName={null}
@@ -118,7 +122,7 @@ describe("CashView", () => {
     expect(await screen.findByRole("button", { name: "Abrir caja" })).toBeTruthy();
   });
 
-  it("con más de una sucursal, cambiar de local vuelve a pedir el estado del turno", async () => {
+  it("con más de una sucursal, cambiar de local vuelve a pedir el estado del turno y cambia la grilla", async () => {
     const user = userEvent.setup();
     fetchMock.mockImplementation(() => jsonResponse({ data: null }));
 
@@ -128,6 +132,10 @@ describe("CashView", () => {
           { id: "loc_norte", name: "Camino de Oriente" },
           { id: "loc_sur", name: "Carretera Masaya" },
         ]}
+        cashCountConfigs={{
+          loc_norte: { currencies: ["NIO"], denominations: { NIO: [1000, 500] } },
+          loc_sur: { currencies: ["NIO", "USD"], denominations: { NIO: [1000], USD: [20] } },
+        }}
         canSeeShiftDetail={false}
         canSeeCloseDetail={false}
         actorName={null}
@@ -141,6 +149,10 @@ describe("CashView", () => {
       ),
     );
 
+    // La sucursal sin dólares no ofrece el conteo en dólares (Fase 2).
+    await screen.findByLabelText("Cantidad de billetes de NIO 1000");
+    expect(screen.queryByLabelText("Cantidad de billetes de USD 20")).toBeNull();
+
     await user.selectOptions(screen.getByLabelText("Local"), "loc_sur");
 
     await waitFor(() =>
@@ -149,5 +161,8 @@ describe("CashView", () => {
         expect.objectContaining({ cache: "no-store" }),
       ),
     );
+
+    // Y la que sí los maneja, los muestra: la grilla sigue a la config del local elegido.
+    expect(await screen.findByLabelText("Cantidad de billetes de USD 20")).toBeTruthy();
   });
 });

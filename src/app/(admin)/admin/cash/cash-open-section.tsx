@@ -2,6 +2,7 @@
 
 import * as React from "react";
 
+import type { CashCountConfig } from "@/modules/cash-config/domain/cash-config.types";
 import { useBusinessSettings, useCurrencyFormat } from "@/shared/lib/business-settings";
 import { formatCurrency } from "@/shared/lib/format-currency";
 import { Button } from "@/shared/ui/button";
@@ -22,15 +23,15 @@ import type { CashCountRow, ClosedCashShift } from "./use-cash-shift";
  * moneda— es de quien audita.
  */
 export default function CashOpenSection({
-  cashCurrencies,
+  countConfig,
   busy,
   closedShift,
   actionError,
   canSeeCloseDetail,
   onOpen,
 }: {
-  /** Monedas que se cuentan en este local (la del negocio siempre; el dólar solo si hay tasa). */
-  cashCurrencies: string[];
+  /** Fase 2 — la config del conteo del local: monedas y billetes, tal como la lee la pantalla. */
+  countConfig: CashCountConfig;
   busy: boolean;
   /** El cierre recién registrado, si la pantalla viene de cerrar la caja. */
   closedShift: ClosedCashShift | null;
@@ -62,7 +63,8 @@ export default function CashOpenSection({
       </p>
 
       <CashCountGrid
-        currencies={cashCurrencies}
+        currencies={countConfig.currencies}
+        denominations={countConfig.denominations}
         values={countValues}
         onChange={(key, quantity) => setCountValues((current) => ({ ...current, [key]: quantity }))}
         disabled={busy}
@@ -74,7 +76,7 @@ export default function CashOpenSection({
           type="button"
           className="min-h-11"
           disabled={busy}
-          onClick={() => onOpen(toCashCountRows(countValues, cashCurrencies))}
+          onClick={() => onOpen(toCashCountRows(countValues, countConfig.currencies, countConfig.denominations))}
         >
           {busy ? "Guardando…" : "Abrir caja"}
         </Button>

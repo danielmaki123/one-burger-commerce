@@ -7,6 +7,8 @@ import { useBusinessSettings, useCurrencyFormat } from "@/shared/lib/business-se
 import { formatCurrency } from "@/shared/lib/format-currency";
 import { Button } from "@/shared/ui/button";
 
+import type { CashCountConfig } from "@/modules/cash-config/domain/cash-config.types";
+
 import { CashCountGrid, toCashCountRows, type CashCountValues } from "../pos/cash-count-grid";
 import CashShiftHandoverPanel from "./cash-shift-handover-panel";
 import type { CashCountRow, CashShift } from "./use-cash-shift";
@@ -26,7 +28,7 @@ export default function CashTurnSection({
   locationId,
   locationName,
   actorName,
-  cashCurrencies,
+  countConfig,
   busy,
   shift,
   actionError,
@@ -38,7 +40,7 @@ export default function CashTurnSection({
   locationName: string;
   /** Quién entrega la caja: el nombre de la sesión que firma el traspaso. */
   actorName: string | null;
-  cashCurrencies: string[];
+  countConfig: CashCountConfig;
   busy: boolean;
   shift: CashShift;
   /** Error de la última acción (cerrar), no de la lectura. */
@@ -83,7 +85,8 @@ export default function CashTurnSection({
       </p>
 
       <CashCountGrid
-        currencies={cashCurrencies}
+        currencies={countConfig.currencies}
+        denominations={countConfig.denominations}
         values={countValues}
         onChange={(key, quantity) => setCountValues((current) => ({ ...current, [key]: quantity }))}
         disabled={busy}
@@ -95,7 +98,7 @@ export default function CashTurnSection({
           type="button"
           className="min-h-11"
           disabled={busy}
-          onClick={() => onClose(toCashCountRows(countValues, cashCurrencies))}
+          onClick={() => onClose(toCashCountRows(countValues, countConfig.currencies, countConfig.denominations))}
         >
           {busy ? "Guardando…" : "Cerrar caja"}
         </Button>

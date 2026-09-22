@@ -36,9 +36,10 @@ export function cashCountTotalFor(
 export function toCashCountRows(
   values: CashCountValues,
   currencies: string[],
+  denominations: Record<string, number[]> = CASH_DENOMINATIONS,
 ): { currency: string; denomination: number; quantity: number }[] {
   return currencies.flatMap((currency) =>
-    (CASH_DENOMINATIONS[currency] ?? [])
+    (denominations[currency] ?? [])
       .map((denomination) => ({
         currency,
         denomination,
@@ -50,12 +51,19 @@ export function toCashCountRows(
 
 export function CashCountGrid({
   currencies,
+  denominations = CASH_DENOMINATIONS,
   values,
   onChange,
   disabled = false,
   formatAmount,
 }: {
   currencies: string[];
+  /**
+   * Fase 2 del rediseño de Caja (2026-09-22) — **los billetes de cada moneda**, tal como los ofrece la
+   * config del local. Sin esto se usan los defaults del módulo (`CASH_DENOMINATIONS`), que es lo que
+   * necesita el POS y cualquier pantalla que todavía no reciba la config.
+   */
+  denominations?: Record<string, number[]>;
   values: CashCountValues;
   onChange: (key: string, quantity: number) => void;
   disabled?: boolean;
@@ -68,7 +76,7 @@ export function CashCountGrid({
           <legend className="text-st-body font-semibold text-ink">{currency}</legend>
 
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            {(CASH_DENOMINATIONS[currency] ?? []).map((denomination) => {
+            {(denominations[currency] ?? []).map((denomination) => {
               const key = cashCountKey(currency, denomination);
               const quantity = values[key] ?? 0;
 
@@ -93,7 +101,7 @@ export function CashCountGrid({
           <p className="text-st-body text-ink-secondary">
             Total {currency}:{" "}
             <span className="font-semibold tabular-nums text-ink">
-              {formatAmount(cashCountTotalFor(values, currency))}
+              {formatAmount(cashCountTotalFor(values, currency, denominations[currency] ?? []))}
             </span>
           </p>
         </fieldset>

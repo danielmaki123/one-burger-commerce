@@ -4,6 +4,10 @@ import { redirect } from "next/navigation";
 import { requireCashScope } from "@/app/api/admin/cash/cash-route-helpers";
 import { canUsePOS, canViewCashHistory } from "@/modules/auth/domain/admin-permissions";
 import { requireAdminSession } from "@/modules/auth/features/require-admin-session/require-admin-session";
+import { PrismaBusinessSettingsRepository } from "@/modules/business-settings/adapters/prisma-business-settings-repository";
+import { loadBusinessSettings } from "@/modules/business-settings/features/get-public-business-settings/get-public-business-settings";
+import { PrismaCashConfigRepository } from "@/modules/cash-config/adapters/prisma-cash-config-repository";
+import { getCashCountConfigs } from "@/modules/cash-config/features/get-cash-count-configs/get-cash-count-configs";
 import { resolveOrderLocationScope } from "@/modules/orders/domain/order-visibility";
 import { createProductionPosLocationDependencies } from "@/modules/pos/adapters/production-pos-location";
 import { listCashLocations } from "@/modules/pos/domain/cash-locations";
@@ -60,6 +64,20 @@ export default async function AdminCashPage() {
 
   const options = locations.map(({ id, name }) => ({ id, name }));
 
+  /**
+   * Fase 2 del rediseño de Caja (2026-09-22) — la **config del conteo** de cada sucursal del alcance, que
+   * la pantalla necesita para dibujar la grilla: qué monedas cuenta cada local y con qué billetes. Se
+   * resuelve acá (server) y baja como dato: la API de configuración es del dueño y el cajero no tiene por
+   * qué poder leerla.
+   */
+  const settings = await loadBusinessSettings({
+    repository: new PrismaBusinessSettingsRepository(),
+  });
+  const cashCountConfigs = await getCashCountConfigs(
+    { locationIds: options.map((location) => location.id), businessCurrencyCode: settings.currencyCode },
+    { repository: new PrismaCashConfigRepository() },
+  );
+
   return (
     <div className="space-y-4">
       <AdminPageHeader
@@ -85,6 +103,7 @@ export default async function AdminCashPage() {
       {canOperate ? (
         <CashView
           locations={options}
+          cashCountConfigs={cashCountConfigs}
           canSeeShiftDetail={canAudit}
           canSeeCloseDetail={canAudit}
           actorName={session.user.name}
