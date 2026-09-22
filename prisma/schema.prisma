@@ -223,6 +223,8 @@ model Location {
   cashConfig         LocationCashConfig?
   /// Fase 3 del rediseño de Caja (2026-09-23) — los bancos con los que liquida esta sucursal.
   banks              LocationBank[]
+  /// Fase 6 del rediseño de Caja (2026-09-23) — las terminales del POS de esta sucursal.
+  posTerminals       PosTerminal[]
 
   @@index([isActive, sortOrder])
 }
@@ -847,27 +849,63 @@ model Payment {
   changeAmount Decimal           @default(0) @db.Decimal(10, 2)
   /// Referencia externa del cobro (número de voucher, id de transferencia). Vacío si no aplica.
   reference    String?
+  /// Fase 6 del rediseño de Caja (2026-09-23) — el **turno** al que entró este cobro (la caja de la
+  /// terminal donde se cobró). `null` en los cobros de antes de la Fase 6 y en los del sitio público (que
+  /// no pasan por una caja): el arqueo de un turno sin cobros atribuidos sigue leyendo por ventana.
+  shiftId      String?
   createdAt    DateTime          @default(now())
   order        Order             @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  shift        Shift?            @relation(fields: [shiftId], references: [id], onDelete: SetNull)
   /// Bloque 3 del POS — las devoluciones de este cobro. Se guardan para no devolver dos veces la
   /// misma plata: el cupo disponible es `amount` menos las devoluciones no rechazadas.
   refunds      Refund[]
 
   @@index([orderId])
+  @@index([shiftId])
   @@index([createdAt])
+}
+
+/// Fase 6 del rediseño de Caja (2026-09-23) — la **terminal del POS** de una sucursal: la estación física
+/// donde hay una caja («Caja 1», «Barra»).
+///
+/// Es una tabla **propia** y no una etiqueta del banco (decisión del owner, 2026-09-23): una estación puede
+/// tener dos posnets (BAC + Banpro) y un banco puede tener posnets en dos estaciones; son dos dimensiones y
+/// mezclarlas obligaría a duplicar registros. `ShiftBankClose.terminalLabel` sigue siendo la referencia al
+/// posnet del banco; esta tabla es la estación que abre y cierra el turno.
+model PosTerminal {
+  id         String   @id @default(cuid())
+  locationId String
+  /// Cómo se llama en el local: «Caja 1», «Barra». Única por sucursal (dos «Caja 1» no se distinguen).
+  label      String
+  /// Apagada deja de ofrecerse al abrir la caja; los turnos viejos la siguen mostrando.
+  isActive   Boolean  @default(true)
+  sortOrder  Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  location Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  shifts   Shift[]
+
+  @@unique([locationId, label])
+  @@index([locationId, isActive])
 }
 
 /// TASK-104 — un turno de caja: se abre con un fondo, se cierra con el conteo y deja la diferencia.
 ///
 /// Lo que el schema **no** puede declarar, y por eso vive en la migración: un índice único
-/// **parcial** que impide dos turnos abiertos en el mismo local a la vez
-/// (`UNIQUE ("locationId") WHERE status = 'open'`). El DSL de Prisma no tiene índices parciales, así
-/// que la regla se escribe a mano en el SQL; hay un test de contrato que exige que el índice exista,
-/// porque sin él dos cajas podrían abrir el mismo turno y el arqueo quedaría partido en dos.
+/// **parcial** que impide dos turnos abiertos en la **misma terminal** a la vez
+/// (`UNIQUE ("locationId", COALESCE("terminalId", '')) WHERE status = 'open'`; Fase 6 del rediseño de Caja).
+/// El DSL de Prisma no tiene índices parciales, así que la regla se escribe a mano en el SQL; hay un test de
+/// contrato que exige que el índice exista, porque sin él dos cajas podrían abrir el mismo turno y el arqueo
+/// quedaría partido en dos. Un turno **sin** terminal (los de antes de la Fase 6 y una sucursal sin
+/// terminales cargadas) cae en el mismo cubo y sigue habiendo uno solo por local.
 model Shift {
   id                   String           @id @default(cuid())
   locationId           String
   userId               String
+  /// Fase 6 del rediseño de Caja (2026-09-23) — la **terminal** del local donde está esta caja. `null` en
+  /// los turnos de antes (y en una sucursal sin terminales cargadas): ese cubo sigue siendo uno por local.
+  terminalId           String?
   status               ShiftStatus      @default(open)
   openedAt             DateTime         @default(now())
   closedAt             DateTime?
@@ -931,8 +969,14 @@ model Shift {
   handovers            ShiftHandover[]
   /// Fase 3 del rediseño de Caja (2026-09-23) — el cuadre por banco de este turno.
   bankCloses           ShiftBankClose[]
+  /// Fase 6 del rediseño de Caja (2026-09-23) — los cobros que este turno se llevó. Es lo que permite que
+  /// dos cajas abiertas en el mismo local **no** se cuenten la plata de la otra: el arqueo lee por turno.
+  payments             Payment[]
+  /// Fase 6 — la terminal del local donde está esta caja.
+  terminal             PosTerminal?     @relation(fields: [terminalId], references: [id], onDelete: Restrict)
 
   @@index([locationId, status])
+  @@index([terminalId])
   @@index([userId])
   @@index([openedAt])
 }
