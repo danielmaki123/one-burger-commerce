@@ -164,4 +164,53 @@ describe("buildShiftCloseSheet", () => {
 
     expect(body).toContain("Sin detalle por moneda");
   });
+
+  /**
+   * Fase 3 del rediseño de Caja (2026-09-23) — el **cuadre por banco** en la hoja que se firma.
+   *
+   * El papel dice lo que declaró cada banco (con su lote y su terminal) y la diferencia contra lo cobrado
+   * sin pasar por el cajón. Un cierre sin lotes declarados no inventa la sección.
+   */
+  it("imprime el cuadre por banco con su lote y su diferencia", () => {
+    const body = text({
+      ...closedShift,
+      bankRows: [
+        {
+          bankName: "BAC Credomatic",
+          currency: "NIO",
+          declaredAmount: 800,
+          lote: "0012",
+          terminalLabel: "Terminal 1",
+        },
+        { bankName: "Banpro", currency: "USD", declaredAmount: 20, lote: null, terminalLabel: null },
+      ],
+      bankConsolidated: { charged: 750, difference: 50 },
+    });
+
+    expect(body).toContain("CUADRE POR BANCO");
+    expect(body).toContain("BAC Credomatic");
+    expect(body).toContain("C$800.00");
+    expect(body).toContain("lote 0012");
+    expect(body).toContain("Terminal 1");
+    // Una moneda distinta se imprime con su código: `C$20` por un lote de dólares sería falso.
+    expect(body).toContain("USD 20.00");
+    expect(body).toContain("Tarjeta + transferencia: C$750.00");
+    expect(body).toContain("+C$50.00");
+  });
+
+  it("sin cuadre por banco la hoja no agrega la sección", () => {
+    expect(text()).not.toContain("CUADRE POR BANCO");
+  });
+
+  it("un cuadre por banco que cuadra se imprime «sin diferencia»", () => {
+    const body = text({
+      ...closedShift,
+      bankRows: [
+        { bankName: "BAC", currency: "NIO", declaredAmount: 500, lote: null, terminalLabel: null },
+      ],
+      bankConsolidated: { charged: 500, difference: 0 },
+    });
+
+    expect(body).toContain("sin diferencia");
+  });
 });

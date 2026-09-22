@@ -110,6 +110,20 @@ export default async function AdminCashShiftDetailPage({
     };
   });
   const closedBy = await new PrismaAdminAuthRepository().findUserById(shift.userId);
+  const bankRows = (shift.bankCloses ?? []).map((close) => ({
+    bankName: close.bankName ?? close.bankId,
+    currency: close.currency,
+    declaredAmount: close.declaredAmount,
+    lote: close.lote,
+    terminalLabel: close.terminalLabel,
+  }));
+  const bankConsolidated = {
+    charged:
+      shift.cardSalesAmount === null || shift.cardSalesAmount === undefined
+        ? null
+        : roundCurrency((shift.cardSalesAmount ?? 0) + (shift.transferSalesAmount ?? 0)),
+    difference: shift.bankDifferenceAmount ?? null,
+  };
   const closeSheet = buildShiftCloseSheet(
     {
       status: shift.status,
@@ -134,6 +148,9 @@ export default async function AdminCashShiftDetailPage({
         refunds: shift.refundsAmount ?? null,
       },
       closedByName: closedBy?.name ?? null,
+      // Fase 3 del rediseño de Caja: el cuadre por banco sale del turno (congelado), no se recalcula.
+      bankRows,
+      bankConsolidated,
     },
     {
       businessName: settings.name,
@@ -234,6 +251,61 @@ export default async function AdminCashShiftDetailPage({
           <p className="mt-2 text-st-body text-ink-secondary">Nota: {shift.notes}</p>
         ) : null}
       </section>
+
+      {/*
+        Fase 3 del rediseño de Caja (2026-09-23) — el **cuadre por banco**: lo que reportó cada banco con su
+        lote, contra lo que el sistema cobró sin pasar por el cajón. Es el otro lado del arqueo: el cajón se
+        cuenta (arriba) y la tarjeta se cuadra contra el lote.
+      */}
+      {bankRows.length > 0 ? (
+        <section
+          aria-label="Cuadre por banco"
+          className="space-y-3 rounded-stitch-lg border border-line-subtle bg-surface-card p-4"
+        >
+          <h2 className="text-st-h2 text-ink">Cuadre por banco</h2>
+
+          <ul className="space-y-1">
+            {bankRows.map((row) => (
+              <li
+                key={`${row.bankName}-${row.currency}`}
+                className="flex flex-wrap items-baseline justify-between gap-2 border-b border-line-subtle py-1 last:border-b-0"
+              >
+                <span className="text-st-body text-ink-secondary">
+                  {row.bankName} · {row.currency}
+                  {row.terminalLabel ? ` · ${row.terminalLabel}` : ""}
+                  {row.lote ? ` · lote ${row.lote}` : ""}
+                </span>
+                <span className="font-mono text-st-body tabular-nums text-ink">
+                  {formatCurrency(row.declaredAmount, currencyFormatFor(row.currency))}
+                </span>
+              </li>
+            ))}
+          </ul>
+
+          <dl className="grid grid-cols-2 gap-3">
+            <div>
+              <dt className="text-st-overline font-bold uppercase tracking-wider text-ink-muted">
+                Tarjeta + transferencia
+              </dt>
+              <dd className="font-mono text-st-body tabular-nums text-ink">
+                {bankConsolidated.charged === null
+                  ? "—"
+                  : formatAmount(bankConsolidated.charged)}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-st-overline font-bold uppercase tracking-wider text-ink-muted">
+                Diferencia de bancos
+              </dt>
+              <dd className="font-mono text-st-body tabular-nums font-semibold text-ink">
+                {bankConsolidated.difference === null
+                  ? "Sin cuadre"
+                  : formatAmount(bankConsolidated.difference)}
+              </dd>
+            </div>
+          </dl>
+        </section>
+      ) : null}
 
       <section
         aria-label="Conteo por moneda"
