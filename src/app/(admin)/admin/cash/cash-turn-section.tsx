@@ -33,6 +33,7 @@ export default function CashTurnSection({
   shift,
   actionError,
   canSeeShiftDetail,
+  canPrint = false,
   onClose,
 }: {
   locationId: string;
@@ -47,6 +48,8 @@ export default function CashTurnSection({
   actionError: string | null;
   /** `true` = puede ver el detalle del turno (`/admin/cash/history/[id]`). */
   canSeeShiftDetail: boolean;
+  /** Fase 4 — imprimir (§8.e): el papel lo saca el dueño. Por defecto no. */
+  canPrint?: boolean;
   onClose: (counts: CashCountRow[]) => void;
 }) {
   const currency = useCurrencyFormat();
@@ -122,6 +125,7 @@ export default function CashTurnSection({
         locationId={locationId}
         locationName={locationName}
         actorName={actorName}
+        canPrint={canPrint}
       />
 
       {actionError ? (

@@ -28,6 +28,7 @@ export default function CashOpenSection({
   closedShift,
   actionError,
   canSeeCloseDetail,
+  blindCount = true,
   onOpen,
 }: {
   /** Fase 2 — la config del conteo del local: monedas y billetes, tal como la lee la pantalla. */
@@ -39,6 +40,14 @@ export default function CashOpenSection({
   actionError: string | null;
   /** `true` = además del resumen, el arqueo completo con el detalle por moneda. */
   canSeeCloseDetail: boolean;
+  /**
+   * Fase 4 del rediseño de Caja (2026-09-22) — **arqueo ciego** de la sucursal (config `blindCount`).
+   *
+   * Con el ciego prendido, quien **no** audita (el cajero) no ve la diferencia: el conteo se sella y el
+   * arqueo lo lee el dueño. Quien audita la sigue viendo aunque el ciego esté prendido (es su trabajo).
+   * Por defecto `true`: si un llamador se olvida del flag, el error cae del lado de no mostrar plata.
+   */
+  blindCount?: boolean;
   onOpen: (counts: CashCountRow[]) => void;
 }) {
   const currency = useCurrencyFormat();
@@ -98,11 +107,22 @@ export default function CashOpenSection({
                 {" · turno "}
                 <span className="font-mono tabular-nums">{closedShift.id}</span>
               </>
-            ) : null}{" "}
-            ·{" "}
-            {closedShift.difference === 0
-              ? "sin diferencia"
-              : `diferencia ${formatCurrency(closedShift.difference ?? 0, currency)}`}
+            ) : null}
+            {/*
+              Fase 4 del rediseño de Caja (2026-09-22) — arqueo ciego: con `blindCount` prendido, quien no
+              audita ve que el cierre quedó registrado y **sellado**, sin el número de la diferencia. Quien
+              audita la sigue viendo aunque el ciego esté prendido (es su trabajo).
+            */}
+            {blindCount && !canSeeCloseDetail ? (
+              <> · conteo sellado</>
+            ) : (
+              <>
+                {" · "}
+                {closedShift.difference === 0
+                  ? "sin diferencia"
+                  : `diferencia ${formatCurrency(closedShift.difference ?? 0, currency)}`}
+              </>
+            )}
           </p>
 
           {canSeeCloseDetail ? (

@@ -5,6 +5,7 @@ import {
   canManageBusinessSettings,
   canManageCash,
   canManageCashConfig,
+  canPrintCashDocuments,
   canManageCriticalConfig,
   canManageInventoryOperations,
   canManageMenu,
@@ -189,5 +190,19 @@ describe("admin permissions", () => {
     expect(canManageCashConfig(ADMIN_ROLES.manager)).toBe(false);
     expect(canManageCashConfig(ADMIN_ROLES.cashier)).toBe(false);
     expect(canManageCashConfig(ADMIN_ROLES.kitchen)).toBe(false);
+  });
+
+  /**
+   * Fase 4 del rediseño de Caja (2026-09-22) — **imprimir el papel del arqueo** (§8.e del brief).
+   *
+   * «Cajero y Manager: no imprimen desde la app. Owner: sí.» El papel del cierre es el documento que queda
+   * firmado, así que la puerta es del dueño y es propia: auditar la caja no tiene por qué venir con la
+   * imprenta.
+   */
+  it("canPrintCashDocuments: el papel del arqueo lo imprime el dueño", () => {
+    expect(canPrintCashDocuments(ADMIN_ROLES.owner)).toBe(true);
+    expect(canPrintCashDocuments(ADMIN_ROLES.manager)).toBe(false);
+    expect(canPrintCashDocuments(ADMIN_ROLES.cashier)).toBe(false);
+    expect(canPrintCashDocuments(ADMIN_ROLES.kitchen)).toBe(false);
   });
 });

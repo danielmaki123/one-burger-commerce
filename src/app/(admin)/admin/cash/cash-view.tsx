@@ -3,7 +3,7 @@
 import * as React from "react";
 
 import { toCashCountConfig } from "@/modules/cash-config/domain/cash-count-config";
-import type { CashCountConfig } from "@/modules/cash-config/domain/cash-config.types";
+import type { CashViewConfig } from "@/modules/cash-config/domain/cash-config.types";
 import { useBusinessSettings } from "@/shared/lib/business-settings";
 import { Select } from "@/shared/ui/select";
 
@@ -35,19 +35,22 @@ export default function CashView({
   cashCountConfigs,
   canSeeShiftDetail,
   canSeeCloseDetail,
+  canPrintDocuments,
   actorName,
 }: {
   locations: { id: string; name: string }[];
   /**
    * Fase 2 del rediseño de Caja (2026-09-22) — la config del conteo **de cada sucursal del alcance**,
    * resuelta en el servidor. Cambiar de local cambia la grilla sin pedir nada a la API (que además es del
-   * dueño: el cajero no tiene por qué poder leerla).
+   * dueño: el cajero no tiene por qué poder leerla). Incluye el **arqueo ciego** (Fase 4).
    */
-  cashCountConfigs: Record<string, CashCountConfig>;
+  cashCountConfigs: Record<string, CashViewConfig>;
   /** `true` = puede abrir el detalle de un turno (`canViewCashHistory`). */
   canSeeShiftDetail: boolean;
   /** `true` = ve el arqueo completo del cierre recién hecho. */
   canSeeCloseDetail: boolean;
+  /** Fase 4 — `canPrintCashDocuments`: el papel del arqueo lo saca el dueño (§8.e). */
+  canPrintDocuments: boolean;
   /** Nombre de la sesión, para el papel del traspaso. */
   actorName: string | null;
 }) {
@@ -62,12 +65,15 @@ export default function CashView({
    */
   const countConfig = React.useMemo(
     () =>
-      cashCountConfigs[locationId] ??
-      toCashCountConfig({
-        businessCurrencyCode: settings.currencyCode,
-        usdEnabled: false,
-        denominations: [],
-      }),
+      cashCountConfigs[locationId] ?? {
+        ...toCashCountConfig({
+          businessCurrencyCode: settings.currencyCode,
+          usdEnabled: false,
+          denominations: [],
+        }),
+        // Sin fila de config, el ciego queda prendido: el error cae del lado de no mostrar plata.
+        blindCount: true,
+      },
     [cashCountConfigs, locationId, settings.currencyCode],
   );
 
@@ -103,6 +109,7 @@ export default function CashView({
           shift={shift}
           actionError={actionError}
           canSeeShiftDetail={canSeeShiftDetail}
+          canPrint={canPrintDocuments}
           onClose={(counts) => void closeShift(counts)}
         />
       ) : null}
@@ -114,6 +121,7 @@ export default function CashView({
           closedShift={closedShift}
           actionError={actionError}
           canSeeCloseDetail={canSeeCloseDetail}
+          blindCount={countConfig.blindCount ?? true}
           onOpen={(counts) => void openShift(counts)}
         />
       ) : null}

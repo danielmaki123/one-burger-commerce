@@ -78,6 +78,7 @@ describe("CashShiftHandoverPanel", () => {
         locationId="loc_norte"
         locationName="Camino de Oriente"
         actorName="María Pérez"
+        canPrint
       />,
     );
   }
