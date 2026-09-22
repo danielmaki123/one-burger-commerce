@@ -133,6 +133,20 @@ export function canManageCashConfig(role: AdminRole) {
 }
 
 /**
+ * Fase 4 del rediseño de Caja (2026-09-22) — **imprimir documentos de caja** (§8.e del brief).
+ *
+ * El brief es explícito: «Cajero y Manager: no imprimen desde la app. Owner: puede imprimir cierres,
+ * estados y reportes». No existía ninguna puerta de impresión —la hoja la imprimía cualquiera que viera la
+ * pantalla—, así que es propia y del dueño: el papel del arqueo es el documento que queda firmado.
+ *
+ * La hoja de cierre que se abre desde el **detalle en el Historial** se mantiene como estaba: es lectura de
+ * auditoría, no la operación del mostrador.
+ */
+export function canPrintCashDocuments(role: AdminRole) {
+  return role === ADMIN_ROLES.owner;
+}
+
+/**
  * Tarea 9.7 del roadmap del POS (Fase 2) — **descontar plata a mano** en una venta de mostrador.
  *
  * Un **cupón** es una promo cargada, con su lista de códigos y sus usos: el cajero solo escribe el código

@@ -49,9 +49,10 @@ describe("CashView", () => {
     render(
       <CashView
         locations={locations}
-        cashCountConfigs={{ loc_norte: { currencies: ["NIO"], denominations: { NIO: [1000, 500, 200, 100, 50, 20, 10, 5, 1] } } }}
+        cashCountConfigs={{ loc_norte: { currencies: ["NIO"], denominations: { NIO: [1000, 500, 200, 100, 50, 20, 10, 5, 1] }, blindCount: true } }}
         canSeeShiftDetail={false}
         canSeeCloseDetail={false}
+        canPrintDocuments={false}
         actorName={null}
       />,
     );
@@ -73,9 +74,10 @@ describe("CashView", () => {
     render(
       <CashView
         locations={locations}
-        cashCountConfigs={{ loc_norte: { currencies: ["NIO"], denominations: { NIO: [1000, 500, 200, 100, 50, 20, 10, 5, 1] } } }}
+        cashCountConfigs={{ loc_norte: { currencies: ["NIO"], denominations: { NIO: [1000, 500, 200, 100, 50, 20, 10, 5, 1] }, blindCount: true } }}
         canSeeShiftDetail
         canSeeCloseDetail
+        canPrintDocuments={false}
         actorName={null}
       />,
     );
@@ -108,9 +110,10 @@ describe("CashView", () => {
     render(
       <CashView
         locations={locations}
-        cashCountConfigs={{ loc_norte: { currencies: ["NIO"], denominations: { NIO: [1000, 500, 200, 100, 50, 20, 10, 5, 1] } } }}
+        cashCountConfigs={{ loc_norte: { currencies: ["NIO"], denominations: { NIO: [1000, 500, 200, 100, 50, 20, 10, 5, 1] }, blindCount: true } }}
         canSeeShiftDetail={false}
         canSeeCloseDetail={false}
+        canPrintDocuments={false}
         actorName={null}
       />,
     );
@@ -124,9 +127,10 @@ describe("CashView", () => {
     render(
       <CashView
         locations={locations}
-        cashCountConfigs={{ loc_norte: { currencies: ["NIO"], denominations: { NIO: [1000, 500, 200, 100, 50, 20, 10, 5, 1] } } }}
+        cashCountConfigs={{ loc_norte: { currencies: ["NIO"], denominations: { NIO: [1000, 500, 200, 100, 50, 20, 10, 5, 1] }, blindCount: true } }}
         canSeeShiftDetail={false}
         canSeeCloseDetail={false}
+        canPrintDocuments={false}
         actorName={null}
       />,
     );
@@ -145,11 +149,12 @@ describe("CashView", () => {
           { id: "loc_sur", name: "Carretera Masaya" },
         ]}
         cashCountConfigs={{
-          loc_norte: { currencies: ["NIO"], denominations: { NIO: [1000, 500] } },
-          loc_sur: { currencies: ["NIO", "USD"], denominations: { NIO: [1000], USD: [20] } },
+          loc_norte: { currencies: ["NIO"], denominations: { NIO: [1000, 500] }, blindCount: true },
+          loc_sur: { currencies: ["NIO", "USD"], denominations: { NIO: [1000], USD: [20] }, blindCount: true },
         }}
         canSeeShiftDetail={false}
         canSeeCloseDetail={false}
+        canPrintDocuments={false}
         actorName={null}
       />,
     );

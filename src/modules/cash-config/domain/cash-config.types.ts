@@ -46,6 +46,14 @@ export type CashConfigPatch = {
  * `currencies` está ordenado con la moneda del negocio primero, y `denominations` trae **solo las
  * activas**, de mayor a menor. Es el contrato entre la config y el conteo: los dos lados leen lo mismo.
  */
+/**
+ * Fase 4 del rediseño de Caja (2026-09-22) — la config del conteo **más el arqueo ciego**, que es lo que
+ * necesita la pantalla del turno: la grilla (monedas y billetes) y si el cajero puede ver la diferencia.
+ *
+ * El servidor valida con CashCountConfig (no le importa el ciego); la pantalla recibe esta.
+ */
+export type CashViewConfig = CashCountConfig & { blindCount: boolean };
+
 export type CashCountConfig = {
   currencies: string[];
   denominations: Record<string, number[]>;

@@ -47,12 +47,21 @@ export default function CashShiftHandoverPanel({
   locationId,
   locationName,
   actorName,
+  canPrint = false,
 }: {
   locationId: string;
   /** Nombre del local, para el papel (el dueño lee el papel, no el id). */
   locationName: string;
   /** Quién entrega: el nombre del cajero de la sesión. `null` = no se pudo resolver. */
   actorName: string | null;
+  /**
+   * Fase 4 del rediseño de Caja (2026-09-22) — **imprimir** (§8.e del brief): el papel del arqueo lo saca
+   * el dueño (`canPrintCashDocuments`). Sin permiso la pantalla no ofrece la imprenta; el traspaso se firma
+   * igual y queda asentado en la base — lo que no hay es papel.
+   *
+   * Por defecto `false`: si un llamador se olvida del permiso, el error cae del lado de no imprimir.
+   */
+  canPrint?: boolean;
 }) {
   const settings = useBusinessSettings();
   const currency = useCurrencyFormat();
@@ -176,7 +185,10 @@ export default function CashShiftHandoverPanel({
       await loadHandovers();
 
       // El papel se arma con lo que quedó guardado: el esperado firmado es el del servidor, no el que la
-      // pantalla leyó un instante antes.
+      // pantalla leyó un instante antes. Fase 4 — el papel lo saca el dueño (§8.e): sin permiso, el
+      // traspaso queda firmado en la base y no se imprime nada.
+      if (!canPrint) return;
+
       const arqueo = await readArqueo();
 
       if (arqueo) {
@@ -214,17 +226,20 @@ export default function CashShiftHandoverPanel({
         del turno.
       </p>
 
-      <div className="flex flex-wrap items-end gap-2">
-        <Button
-          type="button"
-          variant="outline"
-          className="min-h-11"
-          disabled={busy}
-          onClick={() => void printCorte()}
-        >
-          {busy ? "Guardando…" : "Imprimir lectura parcial"}
-        </Button>
-      </div>
+      {/* Fase 4 — el papel lo saca el dueño (§8.e): sin permiso no se ofrece la imprenta. */}
+      {canPrint ? (
+        <div className="flex flex-wrap items-end gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            className="min-h-11"
+            disabled={busy}
+            onClick={() => void printCorte()}
+          >
+            {busy ? "Guardando…" : "Imprimir lectura parcial"}
+          </Button>
+        </div>
+      ) : null}
 
       <div className="flex flex-wrap items-end gap-2">
         <Input

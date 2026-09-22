@@ -72,6 +72,7 @@ describe("CashOpenSection", () => {
         }}
         actionError={null}
         canSeeCloseDetail={false}
+        blindCount={false}
         onOpen={vi.fn()}
       />,
     );
@@ -162,5 +163,62 @@ describe("CashOpenSection", () => {
 
     expect(screen.getByLabelText("Cantidad de billetes de NIO 1000")).toBeTruthy();
     expect(screen.getByLabelText("Cantidad de billetes de USD 20")).toBeTruthy();
+  });
+
+  /**
+   * Fase 4 del rediseño de Caja (2026-09-22) — **arqueo ciego** (`blindCount`, el default de la config).
+   *
+   * El cajero ve que el cierre quedó registrado y **sellado**, sin la diferencia ni el arqueo: es la
+   * decisión del brief (§7/§11) y ahora la manda la config. Quien **audita** la sigue viendo aunque el ciego
+   * esté prendido — es su trabajo—, así que el flag no le esconde el número al dueño.
+   */
+  it("con arqueo ciego el operario no ve la diferencia", () => {
+    render(
+      <CashOpenSection
+        countConfig={countConfig}
+        busy={false}
+        closedShift={{
+          id: "shift_1",
+          closingAmount: 900,
+          expectedAmount: 1000,
+          difference: -100,
+          expectedByCurrency: { NIO: 1000 },
+        }}
+        actionError={null}
+        canSeeCloseDetail={false}
+        onOpen={vi.fn()}
+      />,
+    );
+
+    const resumen = screen.getByRole("status");
+
+    expect(resumen.textContent).toContain("Cierre registrado");
+    expect(resumen.textContent).toContain("sellado");
+    expect(resumen.textContent).not.toContain("diferencia");
+    expect(resumen.textContent).not.toContain("100.00");
+  });
+
+  it("quien audita ve la diferencia aunque el arqueo sea ciego", () => {
+    render(
+      <CashOpenSection
+        countConfig={countConfig}
+        busy={false}
+        closedShift={{
+          id: "shift_1",
+          closingAmount: 900,
+          expectedAmount: 1000,
+          difference: -100,
+          expectedByCurrency: { NIO: 1000 },
+        }}
+        actionError={null}
+        canSeeCloseDetail
+        onOpen={vi.fn()}
+      />,
+    );
+
+    const resumen = screen.getByRole("status");
+
+    expect(resumen.textContent).toContain("diferencia");
+    expect(resumen.textContent).not.toContain("sellado");
   });
 });

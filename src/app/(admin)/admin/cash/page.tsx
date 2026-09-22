@@ -2,7 +2,11 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { requireCashScope } from "@/app/api/admin/cash/cash-route-helpers";
-import { canUsePOS, canViewCashHistory } from "@/modules/auth/domain/admin-permissions";
+import {
+  canPrintCashDocuments,
+  canUsePOS,
+  canViewCashHistory,
+} from "@/modules/auth/domain/admin-permissions";
 import { requireAdminSession } from "@/modules/auth/features/require-admin-session/require-admin-session";
 import { PrismaBusinessSettingsRepository } from "@/modules/business-settings/adapters/prisma-business-settings-repository";
 import { loadBusinessSettings } from "@/modules/business-settings/features/get-public-business-settings/get-public-business-settings";
@@ -106,6 +110,7 @@ export default async function AdminCashPage() {
           cashCountConfigs={cashCountConfigs}
           canSeeShiftDetail={canAudit}
           canSeeCloseDetail={canAudit}
+          canPrintDocuments={canPrintCashDocuments(session.user.role)}
           actorName={session.user.name}
         />
       ) : null}

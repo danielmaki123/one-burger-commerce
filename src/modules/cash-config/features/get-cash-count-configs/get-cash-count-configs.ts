@@ -1,5 +1,5 @@
 import { defaultLocationCashConfig, toCashCountConfig } from "@/modules/cash-config/domain/cash-count-config";
-import type { CashCountConfig } from "@/modules/cash-config/domain/cash-config.types";
+import type { CashViewConfig } from "@/modules/cash-config/domain/cash-config.types";
 import type { CashConfigRepository } from "@/modules/cash-config/ports/cash-config-repository";
 
 /**
@@ -18,22 +18,27 @@ import type { CashConfigRepository } from "@/modules/cash-config/ports/cash-conf
 export async function getCashCountConfigs(
   input: { locationIds: readonly string[]; businessCurrencyCode: string },
   { repository }: { repository: CashConfigRepository },
-): Promise<Record<string, CashCountConfig>> {
+): Promise<Record<string, CashViewConfig>> {
   const [denominations, configs] = await Promise.all([
     repository.listDenominations(),
     Promise.all(input.locationIds.map((locationId) => repository.getLocationConfig(locationId))),
   ]);
 
-  const byLocation: Record<string, CashCountConfig> = {};
+  const byLocation: Record<string, CashViewConfig> = {};
 
   input.locationIds.forEach((locationId, index) => {
     const config = configs[index] ?? defaultLocationCashConfig(locationId);
 
-    byLocation[locationId] = toCashCountConfig({
-      businessCurrencyCode: input.businessCurrencyCode,
-      usdEnabled: config.usdEnabled,
-      denominations,
-    });
+    byLocation[locationId] = {
+      ...toCashCountConfig({
+        businessCurrencyCode: input.businessCurrencyCode,
+        usdEnabled: config.usdEnabled,
+        denominations,
+      }),
+      // Fase 4 — el arqueo ciego viaja con la config porque la pantalla lo necesita para no mostrarle la
+      // diferencia al cajero.
+      blindCount: config.blindCount,
+    };
   });
 
   return byLocation;
