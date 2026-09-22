@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { AUDIT_ACTIONS } from "@/modules/audit/domain/audit-actions";
 
 import {
+  cashConfigUpdateAudit,
   cashMovementAudit,
   invoiceVoidAudit,
   manualDiscountAudit,
@@ -309,6 +310,26 @@ const shortcuts: Array<[string, () => Promise<void>, Record<string, unknown>]> =
       targetType: "Invoice",
       targetId: "inv_01",
       detail: { reason: "otro", note: "Se emitió con el RUC viejo" },
+    },
+  ],
+  /**
+   * Fase 2 del rediseño de Caja (2026-09-22) — cambiar la config de caja de una sucursal: qué monedas se
+   * cuentan y si el cajero ve el esperado. Se firma la sucursal y lo que quedó configurado.
+   */
+  [
+    "cashConfigUpdateAudit",
+    () =>
+      cashConfigUpdateAudit({
+        actorUserId: "user_owner",
+        locationId: "loc_principal",
+        usdEnabled: true,
+        blindCount: false,
+      }),
+    {
+      action: "cash_config.update",
+      targetType: "LocationCashConfig",
+      targetId: "loc_principal",
+      detail: { usdEnabled: true, blindCount: false },
     },
   ],
 ];
