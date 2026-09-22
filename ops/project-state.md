@@ -1,5 +1,63 @@
 # Estado del proyecto — One Burger Commerce
 
+> **Actualizado: 2026-09-19 (Fase 1 del rediseño de Caja — rama `feat/cash-redesign`, PR abierto)**
+>
+> **Lo que está en curso**: la **Fase 1 del rediseño de la sección Caja** (brief del 2026-09-19). Va en la
+> rama **`feat/cash-redesign`** con **6 commits**, PR **hacia `main` abierto** (el número queda en el
+> historial de `main` cuando se mergee) y **CI pendiente** al momento de escribir esto. **Producción NO
+> tiene este cambio todavía**: `admin.oneburgernic.com` sigue sirviendo `build-20260919-030008` (commit
+> `904683d`), que es el estado del PR #10.
+>
+> ### Fase 1 cerrada (1a + 1b) — qué cambió en Caja
+>
+> **Fase 1a** (commits `31ded06`, `7d4f5a0`, `6c4e7bc`):
+>
+> - **`canManageCashConfig(role) => owner`**: puerta nueva para configurar la caja (monedas,
+>   denominaciones, arqueo ciego), que es cambiar las reglas del arqueo y no operarlo.
+> - **Sidebar de CONTROL**: `POS · Caja · Cierres · Aprobaciones · Config de Caja`. «Caja del día» es
+>   rename a **«Caja»** (mismo `href`), **«Cierres»** apunta a la ruta existente `/admin/history/cierres`
+>   (con `matchPath` para seguir activo en la tab Facturas) y el ítem «Historial» se elimina.
+> - **`/admin/cash` con cuatro estados**: `CashView` orquesta *cargando* (`CashSkeleton`), *error*
+>   (`CashError` + «Reintentar»), *sin turno* (`CashOpenSection`) y *turno abierto* (`CashTurnSection`),
+>   con el estado de servidor en `use-cash-shift` (los dos errores separados: lectura vs acción).
+> - **A-40 y A-44 cerrados** con rojo observado; **A-39** cerrado en 1b.
+> - **`/admin/cash/config`** entra al sidebar con pantalla mínima (owner-only); la real es la Fase 2.
+> - **Nombres de §14**: «Caja», «Lectura parcial», «Imprimir lectura parcial» y el papel impreso
+>   (`LECTURA PARCIAL (SIN CERRAR)` / `TRASPASO DE CAJA (LECTURA PARCIAL)`). No se renombraron
+>   identificadores ni rutas de API.
+>
+> **Fase 1b** (commits `0831f66`, `26a788f`, `20ddced`): la mitad de auditoría salió de Caja —la
+> **conciliación** se mudó tal cual a `/admin/cash/report`, el **historial** se unificó en
+> `/admin/history/cierres` llevándose el **rango abierto→cerrado** y el **export CSV**, y el **día
+> consolidado** se fue (ya estaba en el reporte). `/admin/cash` quedó con un solo sujeto y la densidad
+> medida bajó de **10 607 px a 1084 px** a 1280 y de **18 133 px a 1612 px** a 375.
+>
+> ### Verificación de la Fase 1
+>
+> - **TDD con rojo observado** en cada arreglo (A-40 por aserción, A-44 en el hook y en la vista, el CSV
+>   por fila y el rango/export del Historial).
+> - **Unitarios: 3039 en 439 archivos** (antes de la Fase 1: **3010 en 434**), más `lint`, `typecheck`,
+>   `build`, `build:webpack` y `security:secrets`.
+> - **E2E completo local con mutaciones: 123 pasaron / 6 salteados / 0 fallos** (3 min) contra el build de
+>   producción en `127.0.0.1:3210`, en **contexto limpio** (receta de §5 antes y después; la base quedó con
+>   1 sucursal, 1 usuario y 0 pedidos abiertos).
+> - **A-39 con evidencia**: se creó una segunda sucursal con la API real del panel, se midió a 375 px
+>   (`/admin/cash`, `/admin/history/cierres` y `/admin/cash/report`: **cero desborde**) y se borró sin
+>   residuo. Capturas en `ops/tasks/audit-ui/cash-fase1b-*.png`.
+> - **Auditoría medida versionada**: `ops/tasks/audit-ui/cash-audit.md` (estructura, duplicación,
+>   permisos, split y mediciones reales en local y producción).
+>
+> ### Deuda declarada que deja la Fase 1
+>
+> - **A-43** (abierto, otro PR): la cabecera del panel mide **186 px = 23,3%** del viewport a 375 px; es el
+>   `AdminPageHeader` compartido, igual antes y después del rediseño.
+> - **`shift-cash-helpers.ts`**: `summarizeShifts`/`formatShiftDate` quedaron sin consumidor al salir la
+>   lista embebida y el día consolidado; se limpian en la **Fase 2** (commit separado).
+> - **Fase 2** (a confirmar): `cash-config` (usdEnabled, denominaciones por moneda, blindCount), pantalla
+>   real en `/admin/cash/config`, API `GET/PUT` owner-only y migración aditiva.
+>
+> ---
+>
 > **Actualizado: 2026-09-19 (deploy de las mejoras del POS, PR #10)** ·
 > **Último deploy a producción: 2026-09-19, commit `904683d`, build `build-20260919-030008`** (una sola
 > llamada a `deployService` por API sobre el servicio `oneburguerweb`, con `forceRebuild: true`).
