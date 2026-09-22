@@ -350,10 +350,13 @@ test.describe("caja del día", () => {
     expect(shift, "hay una caja abierta (o se abrió una)").toBeTruthy();
 
     await page.goto("/admin/cash");
-    const panel = page.getByRole("region", { name: "Lectura parcial y traspaso" });
+    // Fase 5 del rediseño de Caja: la lectura parcial es su propio botón (abre un modal con el número en
+    // pantalla) y el traspaso quedó en su sección.
+    const panel = page.getByRole("region", { name: "Traspaso de caja" });
     await expect(panel).toBeVisible();
+    await expect(page.getByRole("button", { name: "Lectura parcial" })).toBeVisible();
 
-    // 375 px: el panel nuevo no puede meter scroll horizontal (regla del sistema).
+    // 375 px: la pantalla no puede meter scroll horizontal (regla del sistema).
     await page.setViewportSize({ width: 375, height: 812 });
     expect(
       await page.evaluate(
@@ -362,9 +365,16 @@ test.describe("caja del día", () => {
     ).toBeLessThanOrEqual(1);
     await page.setViewportSize({ width: 1280, height: 900 });
 
+    await page.getByRole("button", { name: "Lectura parcial" }).click();
+    const lectura = page.getByRole("dialog", { name: "Lectura parcial" });
+
+    // El número se ve en pantalla (antes había que imprimir para verlo) y es el del servidor.
+    await expect(lectura.getByText(/Esperado en la caja/)).toBeVisible();
+    await expect(lectura.getByText(/C\$/).first()).toBeVisible();
+
     const [corte] = await Promise.all([
       page.waitForEvent("popup"),
-      panel.getByRole("button", { name: "Imprimir lectura parcial" }).click(),
+      lectura.getByRole("button", { name: "Imprimir lectura parcial" }).click(),
     ]);
     await corte.waitForLoadState("domcontentloaded");
 
@@ -374,6 +384,7 @@ test.describe("caja del día", () => {
     // El papel aclara que el turno sigue abierto: un corte confundido con un cierre deja la caja abierta.
     expect(papelCorte).toContain("NO cierra la caja");
     await corte.close();
+    await lectura.getByRole("button", { name: "Volver a la caja" }).click();
 
     const recibe = `Carlos Ruiz ${Date.now()}`;
     await panel.getByLabel("Recibe la caja").fill(recibe);

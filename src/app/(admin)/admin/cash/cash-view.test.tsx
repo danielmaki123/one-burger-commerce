@@ -123,7 +123,10 @@ describe("CashView", () => {
 
     expect(await screen.findByText(/Caja abierta desde/)).toBeTruthy();
     expect(screen.getByRole("button", { name: "Cerrar caja" })).toBeTruthy();
-    expect(screen.getByRole("region", { name: "Lectura parcial y traspaso" })).toBeTruthy();
+    // Fase 5 del rediseño de Caja: la lectura parcial es su propio botón (abre un modal) y el traspaso
+    // quedó como su sección.
+    expect(screen.getByRole("button", { name: "Lectura parcial" })).toBeTruthy();
+    expect(screen.getByRole("region", { name: "Traspaso de caja" })).toBeTruthy();
   });
 
   it("sin turno abierto ofrece la apertura", async () => {

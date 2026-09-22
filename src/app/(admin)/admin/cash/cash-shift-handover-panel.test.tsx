@@ -89,40 +89,6 @@ describe("CashShiftHandoverPanel", () => {
     expect(await screen.findByText(/todavía no cambió de manos/)).toBeTruthy();
   });
 
-  it("la lectura parcial se imprime con el monto del servidor", async () => {
-    const user = userEvent.setup();
-    renderPanel();
-
-    await user.click(await screen.findByRole("button", { name: "Imprimir lectura parcial" }));
-
-    const xCall = fetchMock.mock.calls.find(([input]) =>
-      String(input).startsWith("/api/admin/pos/shift/x?"),
-    );
-    expect(xCall).toBeTruthy();
-
-    const body = (printLinesMock.mock.calls[0]?.[0] ?? []).join("\n");
-    expect(body).toContain("LECTURA PARCIAL");
-    expect(body).toContain("Camino de Oriente");
-    expect(body).toContain("Esperado: C$1,500.00");
-    expect(body).toContain("Entrega: María Pérez");
-    expect(body).not.toContain("Recibe:");
-  });
-
-  it("sin caja abierta avisa y no imprime nada", async () => {
-    fetchMock.mockImplementation((input: RequestInfo | URL) => {
-      const url = String(input);
-      if (url.startsWith("/api/admin/pos/shift/handover?")) return jsonResponse({ data: [] });
-      return jsonResponse({ data: null });
-    });
-    const user = userEvent.setup();
-    renderPanel();
-
-    await user.click(await screen.findByRole("button", { name: "Imprimir lectura parcial" }));
-
-    expect(await screen.findByText(/No hay una caja abierta/)).toBeTruthy();
-    expect(printLinesMock).not.toHaveBeenCalled();
-  });
-
   it("firma el traspaso con el nombre escrito y lo imprime como traspaso", async () => {
     const user = userEvent.setup();
     renderPanel();
