@@ -2,6 +2,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { requireCashScope } from "@/app/api/admin/cash/cash-route-helpers";
+import { PrismaBankRepository } from "@/modules/banks/adapters/prisma-bank-repository";
+import { getBankCatalog } from "@/modules/banks/features/get-bank-catalog/get-bank-catalog";
 import {
   canPrintCashDocuments,
   canUsePOS,
@@ -82,6 +84,19 @@ export default async function AdminCashPage() {
     { repository: new PrismaCashConfigRepository() },
   );
 
+  /**
+   * Fase 3 del rediseño de Caja (2026-09-23) — los **bancos que liquida cada sucursal**, del catálogo del
+   * negocio con su asignación. Se resuelve acá (server) y baja como dato por la misma razón que la config
+   * del conteo: la API del catálogo es del dueño y el cajero no tiene por qué poder leerla.
+   */
+  const bankCatalog = await getBankCatalog({ repository: new PrismaBankRepository() });
+  const banksByLocation: Record<string, { id: string; name: string; code: string | null }[]> = {};
+  for (const location of options) {
+    banksByLocation[location.id] = bankCatalog.banks
+      .filter((bank) => bank.isActive && bank.locationIds.includes(location.id))
+      .map(({ id, name, code }) => ({ id, name, code }));
+  }
+
   return (
     <div className="space-y-4">
       <AdminPageHeader
@@ -108,6 +123,7 @@ export default async function AdminCashPage() {
         <CashView
           locations={options}
           cashCountConfigs={cashCountConfigs}
+          banksByLocation={banksByLocation}
           canSeeShiftDetail={canAudit}
           canSeeCloseDetail={canAudit}
           canPrintDocuments={canPrintCashDocuments(session.user.role)}

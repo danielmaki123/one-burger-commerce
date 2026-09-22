@@ -44,6 +44,21 @@ export type ClosedCashShift = {
 /** Una fila del conteo: la pantalla manda lo contado, el servidor deriva el fondo y el esperado. */
 export type CashCountRow = { currency: string; denomination: number; quantity: number };
 
+/**
+ * Fase 3 del rediseño de Caja (2026-09-23) — una fila del **cuadre por banco** tal como se escribe en el
+ * modal. Los montos viajan como texto hasta que se mandan (es lo que el input tiene) y se convierten a
+ * número en el cierre; `key` es de la pantalla (una fila por banco y moneda puede repetirse al agregar).
+ */
+export type BankCloseDraft = {
+  key: string;
+  bankId: string;
+  currency: string;
+  declaredAmount: string;
+  lote: string;
+  terminalLabel: string;
+  notes: string;
+};
+
 export type CashShiftStatus = "loading" | "ready" | "error";
 
 const REFRESH_MS = 15000;
@@ -120,7 +135,11 @@ export function useCashShift(locationId: string) {
   }, [load, locationId]);
 
   const move = React.useCallback(
-    async (action: "open" | "close", counts: CashCountRow[]) => {
+    async (
+      action: "open" | "close",
+      counts: CashCountRow[],
+      bankCloses?: readonly BankCloseDraft[],
+    ) => {
       setBusy(true);
       setActionError(null);
 
@@ -128,7 +147,24 @@ export function useCashShift(locationId: string) {
         const response = await fetch(`/api/admin/pos/shift/${action}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ locationId, counts }),
+          body: JSON.stringify({
+            locationId,
+            counts,
+            // Fase 3 del rediseño de Caja: el cuadre por banco viaja con el conteo. El monto se
+            // convierte acá (el input lo tiene como texto) y el servidor valida y suma.
+            ...(bankCloses
+              ? {
+                  bankCloses: bankCloses.map((row) => ({
+                    bankId: row.bankId,
+                    currency: row.currency,
+                    declaredAmount: Number(row.declaredAmount) || 0,
+                    lote: row.lote.trim() || null,
+                    terminalLabel: row.terminalLabel.trim() || null,
+                    notes: row.notes.trim() || null,
+                  })),
+                }
+              : {}),
+          }),
         });
         const body = (await response.json().catch(() => ({}))) as {
           data?: (CashShift & ClosedCashShift) | null;
@@ -179,7 +215,8 @@ export function useCashShift(locationId: string) {
     [move],
   );
   const closeShift = React.useCallback(
-    (counts: CashCountRow[]) => move("close", counts),
+    (counts: CashCountRow[], bankCloses?: readonly BankCloseDraft[]) =>
+      move("close", counts, bankCloses),
     [move],
   );
 

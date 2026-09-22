@@ -119,6 +119,82 @@ describe("useCashShift", () => {
     });
   });
 
+  /**
+   * Fase 3 del rediseño de Caja (2026-09-23) — el **cuadre por banco** en el payload del cierre.
+   *
+   * El modal entrega las filas del formulario (el monto es el texto del input): acá se convierte a número
+   * y lo vacío a `null`, que es lo que valida el servidor.
+   */
+  it("manda el cuadre por banco con el monto como número y lo vacío como null", async () => {
+    fetchMock.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input) === "/api/admin/pos/shift/close" && init?.method === "POST") {
+        return jsonResponse({
+          data: { id: "shift_1", closingAmount: 900, expectedAmount: 1000, difference: -100 },
+          meta: { expectedByCurrency: { NIO: 1000 } },
+        });
+      }
+      return jsonResponse({ data: OPEN_SHIFT });
+    });
+
+    const { result } = renderHook(() => useCashShift("loc_norte"));
+    await waitFor(() => expect(result.current.shift).toEqual(OPEN_SHIFT));
+
+    await act(async () => {
+      await result.current.closeShift(
+        [{ currency: "NIO", denomination: 100, quantity: 9 }],
+        [
+          {
+            key: "bank_bac",
+            bankId: "bank_bac",
+            currency: "NIO",
+            declaredAmount: "550",
+            lote: " 0012 ",
+            terminalLabel: "",
+            notes: "Sin novedad",
+          },
+          {
+            key: "bank_banpro",
+            bankId: "bank_banpro",
+            currency: "NIO",
+            declaredAmount: "",
+            lote: "",
+            terminalLabel: "",
+            notes: "",
+          },
+        ],
+      );
+    });
+
+    const closeCall = fetchMock.mock.calls.find(
+      ([input, init]) =>
+        String(input) === "/api/admin/pos/shift/close" && (init as RequestInit)?.method === "POST",
+    );
+
+    expect(JSON.parse(String((closeCall![1] as RequestInit).body))).toEqual({
+      locationId: "loc_norte",
+      counts: [{ currency: "NIO", denomination: 100, quantity: 9 }],
+      bankCloses: [
+        {
+          bankId: "bank_bac",
+          currency: "NIO",
+          declaredAmount: 550,
+          lote: "0012",
+          terminalLabel: null,
+          notes: "Sin novedad",
+        },
+        {
+          // Una fila vacía igual viaja: el **servidor** la descarta (la regla vive en un solo lado).
+          bankId: "bank_banpro",
+          currency: "NIO",
+          declaredAmount: 0,
+          lote: null,
+          terminalLabel: null,
+          notes: null,
+        },
+      ],
+    });
+  });
+
   it("cierra el turno y guarda el cierre con su detalle por moneda", async () => {
     fetchMock.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
       if (String(input) === "/api/admin/pos/shift/close" && init?.method === "POST") {

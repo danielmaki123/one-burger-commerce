@@ -50,6 +50,7 @@ describe("CashView", () => {
       <CashView
         locations={locations}
         cashCountConfigs={{ loc_norte: { currencies: ["NIO"], denominations: { NIO: [1000, 500, 200, 100, 50, 20, 10, 5, 1] }, blindCount: true } }}
+        banksByLocation={{ loc_norte: [] }}
         canSeeShiftDetail={false}
         canSeeCloseDetail={false}
         canPrintDocuments={false}
@@ -75,6 +76,7 @@ describe("CashView", () => {
       <CashView
         locations={locations}
         cashCountConfigs={{ loc_norte: { currencies: ["NIO"], denominations: { NIO: [1000, 500, 200, 100, 50, 20, 10, 5, 1] }, blindCount: true } }}
+        banksByLocation={{ loc_norte: [] }}
         canSeeShiftDetail
         canSeeCloseDetail
         canPrintDocuments={false}
@@ -111,6 +113,7 @@ describe("CashView", () => {
       <CashView
         locations={locations}
         cashCountConfigs={{ loc_norte: { currencies: ["NIO"], denominations: { NIO: [1000, 500, 200, 100, 50, 20, 10, 5, 1] }, blindCount: true } }}
+        banksByLocation={{ loc_norte: [] }}
         canSeeShiftDetail={false}
         canSeeCloseDetail={false}
         canPrintDocuments={false}
@@ -128,6 +131,7 @@ describe("CashView", () => {
       <CashView
         locations={locations}
         cashCountConfigs={{ loc_norte: { currencies: ["NIO"], denominations: { NIO: [1000, 500, 200, 100, 50, 20, 10, 5, 1] }, blindCount: true } }}
+        banksByLocation={{ loc_norte: [] }}
         canSeeShiftDetail={false}
         canSeeCloseDetail={false}
         canPrintDocuments={false}
@@ -152,6 +156,7 @@ describe("CashView", () => {
           loc_norte: { currencies: ["NIO"], denominations: { NIO: [1000, 500] }, blindCount: true },
           loc_sur: { currencies: ["NIO", "USD"], denominations: { NIO: [1000], USD: [20] }, blindCount: true },
         }}
+        banksByLocation={{ loc_norte: [], loc_sur: [] }}
         canSeeShiftDetail={false}
         canSeeCloseDetail={false}
         canPrintDocuments={false}
