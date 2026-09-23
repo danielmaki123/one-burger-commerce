@@ -66,11 +66,15 @@
 > viejos, y el POS firmando cada cobro con el turno de su terminal); el **selector de terminal en Caja**; y
 > la sección **Terminales** en Config de Caja para cargarlas.
 >
-> **Falta (parte 3d — el cierre de la fase)**: el **E2E** (cargar dos terminales, abrir las dos cajas a la
-> vez, cobrar en una, cerrar cada una con su conteo y ver que el arqueo de cada terminal cuenta **solo** sus
-> cobros), el PR con sus 4 checks verdes, el merge y —recién ahí, y con el OK del owner— el deploy y la QA.
-> El código de la fase está completo: la parte 3c (el POS manda su terminal) cerró el bloqueo que impedía
-> desplegarla, así que **ya no hay una sucursal que se rompa por cargar dos terminales**.
+> **Fase 6 cerrada (código, tests y E2E) — mergeada y SIN DESPLEGAR**: el deploy espera el OK del owner.
+>
+> El E2E de la fase (`admin-cash-terminals.spec.ts`) abrió **dos cajas a la vez**, cobró en una y comprobó que
+> cada cierre arquea **solo su plata**: **126 passed / 6 skipped / 0 failed** en la suite local completa. Y
+> cazó **dos bugs reales** que las unidades no veían, los dos por seguir pensando «en el local»: el POS leía su
+> caja sin la terminal (con dos terminales cargadas se quedaba en «sin caja abierta» y el botón de cobrar
+> salía apagado) y el arqueo caía a la ventana de tiempo para un turno con terminal sin ventas propias (la caja
+> del mostrador «esperaba» la venta de la barra: `Expected: 0, Received: 35`). Los dos arreglados en el mismo
+> PR, con test para el del arqueo.
 >
 > ---
 >
