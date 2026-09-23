@@ -1,12 +1,17 @@
 # Estado del proyecto — One Burger Commerce
 
-> **Actualizado: 2026-09-23 (Fases 1–5 del rediseño de Caja DESPLEGADAS; Fase 6 en curso en su rama)**
+> **Actualizado: 2026-09-23 (Fases 1–5 de Caja DESPLEGADAS y QA de producción hecha; Fase 6 mergeada, sin desplegar)**
 >
 > **Último deploy: `build-20260922-232049`**, servido por los tres dominios (`menu`, `admin` y el apex, los
-> tres con `health: ok` al 2026-09-23). **Producción tiene las Fases 1 a 5 del rediseño de Caja.** El deploy
-> lo corrió el owner (el token del panel no está en el entorno del agente); la versión de `health` es
-> posterior a los dos merges (Fase 3 `7225582` y Fase 5 `bbc485a`), que es la evidencia que se puede leer sin
-> el panel.
+> tres con `health: ok` al 2026-09-23). **Producción tiene las Fases 1 a 5 del rediseño de Caja y NO la Fase 6**
+> (mergeada en `main` desde `d7f26d4`, esperando el OK del owner). El deploy lo corrió el owner: el token del
+> panel no está en el entorno del agente.
+>
+> **QA de producción (solo lectura, 2026-09-23)**: smokes **7/7** (menú) y **6/6** (hosts); y contra
+> `admin.oneburgernic.com` con la cuenta del owner, sin mutar nada: `/admin/cash` resuelve su estado y **no
+> ofrece el selector de Terminal** (la Fase 6 no está viva), `/admin/cash/config` trae la config del conteo
+> **y los Bancos** (Fase 3) y **no** las Terminales, y `/admin/history/cierres` carga; las tres a 375 px sin
+> scroll horizontal. Ese «no está» es la prueba desde afuera de qué es lo que hay desplegado.
 >
 > **Corrección de un reporte anterior**: entre el merge y el deploy este documento dijo que las Fases 3 y 5
 > estaban «mergeadas y pendientes de deploy». **Ya no lo están**: el owner las desplegó y el `build` que
