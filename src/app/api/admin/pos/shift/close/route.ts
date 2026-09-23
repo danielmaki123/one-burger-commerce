@@ -20,7 +20,7 @@ export async function POST(request: Request) {
     const session = await requireAdminSession();
     assertCanUsePos(session.user.role);
 
-    const { locationId, counts, bankCloses, notes } = parseShiftCashPayload(await request.json());
+    const { locationId, terminalId, counts, bankCloses, notes } = parseShiftCashPayload(await request.json());
     await requirePosLocation({
       role: session.user.role,
       assignedLocationIds: session.user.locationIds,
@@ -29,6 +29,8 @@ export async function POST(request: Request) {
 
     const result = await closePosShiftForRoute({
       locationId,
+      // Fase 6 del rediseno de Caja: el cierre va sobre la caja de esa terminal.
+      terminalId,
       counts,
       bankCloses,
       notes,

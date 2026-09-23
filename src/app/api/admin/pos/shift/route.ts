@@ -20,7 +20,15 @@ export async function GET(request: Request) {
     });
 
     const { shiftRepository } = await createProductionPosShiftDependencies();
-    const result = await getCurrentShift({ locationId }, { shiftRepository });
+    /**
+     * Fase 6 del rediseño de Caja (2026-09-23) — con `terminalId` devuelve la caja **de esa terminal**; sin
+     * él, la caja sin terminal (una sola por local). Es lo que permite que dos cajas del mismo local se
+     * consulten por separado.
+     */
+    const result = await getCurrentShift(
+      { locationId, terminalId: searchParams.get("terminalId") },
+      { shiftRepository },
+    );
 
     return NextResponse.json(result, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {

@@ -33,6 +33,12 @@ const bankCloseSchema = z.object({
 
 const shiftPayloadSchema = z.object({
   locationId: z.string().trim().min(1, "Elegí el local"),
+  /**
+   * Fase 6 del rediseño de Caja (2026-09-23) — la **terminal** del local donde está esta caja. Obligatoria
+   * cuando la sucursal tiene terminales cargadas (lo valida el caso de uso, que es el que conoce el
+   * catálogo); sin ella, la caja sin terminal (una sola por local).
+   */
+  terminalId: z.string().trim().min(1).nullable().optional(),
   counts: z.array(countSchema).default([]),
   bankCloses: z.array(bankCloseSchema).default([]),
   notes: z.string().trim().max(300).nullable().optional(),
@@ -42,6 +48,7 @@ export type ShiftCashPayload = z.infer<typeof shiftPayloadSchema>;
 
 export function parseShiftCashPayload(body: unknown): {
   locationId: string;
+  terminalId: string | null;
   counts: ShiftCashCountInput[];
   bankCloses: ShiftBankCloseInput[];
   notes: string | null;
@@ -57,6 +64,7 @@ export function parseShiftCashPayload(body: unknown): {
 
   return {
     locationId: parsed.data.locationId,
+    terminalId: parsed.data.terminalId ?? null,
     // Un billete con cantidad 0 no se guarda: no es un conteo, es una fila vacía del formulario.
     counts: parsed.data.counts
       .filter((count) => count.quantity > 0)

@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 
 import { PrismaBankRepository } from "@/modules/banks/adapters/prisma-bank-repository";
 import { getBankCatalog } from "@/modules/banks/features/get-bank-catalog/get-bank-catalog";
+import { getCashTerminals } from "@/modules/cash-config/features/get-cash-terminals/get-cash-terminals";
 import { canManageCashConfig } from "@/modules/auth/domain/admin-permissions";
 import { requireAdminSession } from "@/modules/auth/features/require-admin-session/require-admin-session";
 import { PrismaCashConfigRepository } from "@/modules/cash-config/adapters/prisma-cash-config-repository";
@@ -12,6 +13,7 @@ import { listCashLocations } from "@/modules/pos/domain/cash-locations";
 
 import { AdminPageHeader } from "../../_components/admin-operational-ui";
 import CashBanksSection from "./cash-banks-section";
+import CashTerminalsSection from "./cash-terminals-section";
 import CashConfigClient from "./cash-config-client";
 
 /**
@@ -51,9 +53,14 @@ export default async function AdminCashConfigPage() {
   }
 
   const options = locations.map(({ id, name }) => ({ id, name }));
-  const [initialConfig, bankCatalog] = await Promise.all([
+  const [initialConfig, bankCatalog, terminals] = await Promise.all([
     getCashConfig({ locationId: options[0].id }, { repository: new PrismaCashConfigRepository() }),
     getBankCatalog({ repository: new PrismaBankRepository() }),
+    /* Fase 6 del rediseno de Caja: las terminales del alcance, para editarlas por sucursal. */
+    getCashTerminals(
+      { locationIds: options.map((location) => location.id) },
+      { repository: new PrismaCashConfigRepository() },
+    ),
   ]);
 
   return (
@@ -67,6 +74,7 @@ export default async function AdminCashConfigPage() {
       <CashConfigClient locations={options} initialConfig={initialConfig} />
 
       <CashBanksSection locations={options} initialBanks={bankCatalog.banks} />
+      <CashTerminalsSection locations={options} initialTerminals={terminals.terminals} />
     </div>
   );
 }

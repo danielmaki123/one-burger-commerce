@@ -51,6 +51,7 @@ describe("CashView", () => {
         locations={locations}
         cashCountConfigs={{ loc_norte: { currencies: ["NIO"], denominations: { NIO: [1000, 500, 200, 100, 50, 20, 10, 5, 1] }, blindCount: true } }}
         banksByLocation={{ loc_norte: [] }}
+        cashTerminalsByLocation={{ loc_norte: [] }}
         canSeeShiftDetail={false}
         canSeeCloseDetail={false}
         canPrintDocuments={false}
@@ -77,6 +78,7 @@ describe("CashView", () => {
         locations={locations}
         cashCountConfigs={{ loc_norte: { currencies: ["NIO"], denominations: { NIO: [1000, 500, 200, 100, 50, 20, 10, 5, 1] }, blindCount: true } }}
         banksByLocation={{ loc_norte: [] }}
+        cashTerminalsByLocation={{ loc_norte: [] }}
         canSeeShiftDetail
         canSeeCloseDetail
         canPrintDocuments={false}
@@ -114,6 +116,7 @@ describe("CashView", () => {
         locations={locations}
         cashCountConfigs={{ loc_norte: { currencies: ["NIO"], denominations: { NIO: [1000, 500, 200, 100, 50, 20, 10, 5, 1] }, blindCount: true } }}
         banksByLocation={{ loc_norte: [] }}
+        cashTerminalsByLocation={{ loc_norte: [] }}
         canSeeShiftDetail={false}
         canSeeCloseDetail={false}
         canPrintDocuments={false}
@@ -135,6 +138,7 @@ describe("CashView", () => {
         locations={locations}
         cashCountConfigs={{ loc_norte: { currencies: ["NIO"], denominations: { NIO: [1000, 500, 200, 100, 50, 20, 10, 5, 1] }, blindCount: true } }}
         banksByLocation={{ loc_norte: [] }}
+        cashTerminalsByLocation={{ loc_norte: [] }}
         canSeeShiftDetail={false}
         canSeeCloseDetail={false}
         canPrintDocuments={false}
@@ -160,6 +164,7 @@ describe("CashView", () => {
           loc_sur: { currencies: ["NIO", "USD"], denominations: { NIO: [1000], USD: [20] }, blindCount: true },
         }}
         banksByLocation={{ loc_norte: [], loc_sur: [] }}
+        cashTerminalsByLocation={{ loc_norte: [] }}
         canSeeShiftDetail={false}
         canSeeCloseDetail={false}
         canPrintDocuments={false}
@@ -189,5 +194,98 @@ describe("CashView", () => {
 
     // Y la que sí los maneja, los muestra: la grilla sigue a la config del local elegido.
     expect(await screen.findByLabelText("Cantidad de billetes de USD 20")).toBeTruthy();
+  });
+
+  /**
+   * Fase 6 del rediseño de Caja (2026-09-23) — **la caja es de la terminal**.
+   *
+   * Con dos POS en el local, el cajero elige en cuál está y la pantalla lee la caja **de esa terminal**; al
+   * cambiar de terminal vuelve a leer. Con una sola terminal no hay selector (no hay nada que elegir).
+   */
+  it("con dos terminales deja elegir en cuál está y lee la caja de esa terminal", async () => {
+    const user = userEvent.setup();
+    fetchMock.mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.startsWith("/api/admin/pos/shift/handover")) return jsonResponse({ data: [] });
+      if (url.includes("terminalId=term_barra")) return jsonResponse({ data: null });
+
+      return jsonResponse({ data: OPEN_SHIFT });
+    });
+
+    render(
+      <CashView
+        locations={locations}
+        cashCountConfigs={{
+          loc_norte: {
+            currencies: ["NIO"],
+            denominations: { NIO: [1000, 500] },
+            blindCount: true,
+          },
+        }}
+        banksByLocation={{ loc_norte: [] }}
+        cashTerminalsByLocation={{
+          loc_norte: [
+            { id: "term_caja_1", label: "Caja 1" },
+            { id: "term_barra", label: "Barra" },
+          ],
+        }}
+        canSeeShiftDetail={false}
+        canSeeCloseDetail={false}
+        canPrintDocuments={false}
+        actorName={null}
+      />,
+    );
+
+    // Arranca en la primera terminal del local.
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/admin/pos/shift?locationId=loc_norte&terminalId=term_caja_1",
+        expect.objectContaining({ cache: "no-store" }),
+      ),
+    );
+    expect(await screen.findByText(/Caja abierta desde/)).toBeTruthy();
+
+    await user.selectOptions(screen.getByLabelText("Terminal"), "term_barra");
+
+    // La barra no tiene caja abierta en este caso: la pantalla lo dice en vez de mostrar la de la Caja 1.
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/admin/pos/shift?locationId=loc_norte&terminalId=term_barra",
+        expect.objectContaining({ cache: "no-store" }),
+      ),
+    );
+    expect(await screen.findByText(/Sin caja abierta en este local/)).toBeTruthy();
+  });
+
+  it("con una sola terminal no dibuja el selector", async () => {
+    fetchMock.mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.startsWith("/api/admin/pos/shift/handover")) return jsonResponse({ data: [] });
+      if (url.startsWith("/api/admin/pos/shift?")) return jsonResponse({ data: null });
+
+      return jsonResponse({ data: null });
+    });
+
+    render(
+      <CashView
+        locations={locations}
+        cashCountConfigs={{
+          loc_norte: {
+            currencies: ["NIO"],
+            denominations: { NIO: [1000] },
+            blindCount: true,
+          },
+        }}
+        banksByLocation={{ loc_norte: [] }}
+        cashTerminalsByLocation={{ loc_norte: [{ id: "term_caja_1", label: "Caja 1" }] }}
+        canSeeShiftDetail={false}
+        canSeeCloseDetail={false}
+        canPrintDocuments={false}
+        actorName={null}
+      />,
+    );
+
+    await screen.findByText(/Sin caja abierta en este local/);
+    expect(screen.queryByLabelText("Terminal")).toBeNull();
   });
 });

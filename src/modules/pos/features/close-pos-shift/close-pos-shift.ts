@@ -20,6 +20,12 @@ import { PosError } from "../../domain/pos-errors";
 export async function closePosShift(
   input: {
     locationId: string;
+    /**
+     * Fase 6 del rediseño de Caja (2026-09-23) — la **terminal** cuya caja se cierra. Con dos cajas abiertas
+     * en el mismo local, cerrar «la del local» sería cerrar la que no es; sin terminal se cierra la caja
+     * sin terminal (una sola por local).
+     */
+    terminalId?: string | null;
     counts: ShiftCashCountInput[];
     bankCloses?: ShiftBankCloseInput[];
     notes?: string | null;
@@ -34,7 +40,7 @@ export async function closePosShift(
   },
 ) {
   const { data: current } = await getCurrentShift(
-    { locationId: input.locationId },
+    { locationId: input.locationId, terminalId: input.terminalId },
     { shiftRepository: deps.shiftRepository },
   );
 

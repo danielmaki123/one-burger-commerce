@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { requireCashScope } from "@/app/api/admin/cash/cash-route-helpers";
 import { PrismaBankRepository } from "@/modules/banks/adapters/prisma-bank-repository";
 import { getBankCatalog } from "@/modules/banks/features/get-bank-catalog/get-bank-catalog";
+import { getCashTerminals } from "@/modules/cash-config/features/get-cash-terminals/get-cash-terminals";
 import {
   canPrintCashDocuments,
   canUsePOS,
@@ -90,6 +91,21 @@ export default async function AdminCashPage() {
    * del conteo: la API del catálogo es del dueño y el cajero no tiene por qué poder leerla.
    */
   const bankCatalog = await getBankCatalog({ repository: new PrismaBankRepository() });
+  /**
+   * Fase 6 del rediseño de Caja (2026-09-23) — las **terminales activas** de cada sucursal del alcance: sin
+   * terminales el local abre una sola caja; con dos o más, el cajero elige en qué POS está y cada una tiene
+   * su turno.
+   */
+  const { terminals } = await getCashTerminals(
+    { locationIds: options.map((location) => location.id) },
+    { repository: new PrismaCashConfigRepository() },
+  );
+  const cashTerminalsByLocation: Record<string, { id: string; label: string }[]> = {};
+  for (const location of options) {
+    cashTerminalsByLocation[location.id] = terminals
+      .filter((terminal) => terminal.locationId === location.id && terminal.isActive)
+      .map(({ id, label }) => ({ id, label }));
+  }
   const banksByLocation: Record<string, { id: string; name: string; code: string | null }[]> = {};
   for (const location of options) {
     banksByLocation[location.id] = bankCatalog.banks
@@ -124,6 +140,7 @@ export default async function AdminCashPage() {
           locations={options}
           cashCountConfigs={cashCountConfigs}
           banksByLocation={banksByLocation}
+          cashTerminalsByLocation={cashTerminalsByLocation}
           canSeeShiftDetail={canAudit}
           canSeeCloseDetail={canAudit}
           canPrintDocuments={canPrintCashDocuments(session.user.role)}
