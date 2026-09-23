@@ -82,28 +82,22 @@ producción.
 Sin el token del panel, la QA posible es la de **solo lectura** contra los dominios reales. Lo que se corrió y
 lo que dio:
 
-- **Smokes**: `test:e2e:prod` **7/7** (`health` y `readiness` con la base en milisegundos, las rutas públicas
+- **Antes del deploy de la Fase 6** (`build-20260922-232049`): smokes **7/7** y **6/6**; y Caja/Config/Cierres contra el panel real, con **Bancos** y **sin Terminales** (así se confirmó desde afuera qué había vivo).
+- **Después del deploy de la Fase 6** (`build-20260923-010038`): smokes **7/7** y **6/6** otra vez; `/admin/cash/config` con la sección **Terminales** (la marca de la Fase 6) y `GET /api/admin/cash/terminals` **200** —la migración `20260923180000` corrió en la base de producción—; `/admin/cash` y `/admin/pos` resolviendo su estado con **cero terminales cargadas**, sin selector y sin error de servidor, a 375 px sin scroll horizontal.
+- **Original (solo lectura)**: `test:e2e:prod` **7/7** (`health` y `readiness` con la base en milisegundos, las rutas públicas
   del MVP, el login del panel, las tres sucursales, el menú cotizado por local y el checkout con día de
   retiro) y `test:e2e:prod:hosts` **6/6** (apex sirviendo el landing y redirigiendo la app y el admin, la app
   de pedidos en su subdominio y el host del panel sirviendo solo el panel).
-- **Caja contra `admin.oneburgernic.com`** (sesión del owner, sin mutar nada: no se abrió ni cerró ninguna
-  caja): `/admin/cash` resuelve su estado, **no ofrece el selector de Terminal** y no hay error de servidor;
-  `/admin/cash/config` trae la config del conteo **y la sección Bancos** (Fase 3) y **no** la de Terminales
-  (Fase 6); `/admin/history/cierres` carga. Las tres a **375 px sin scroll horizontal** (la regla que cerró
-  A-39).
-- **Conclusión**: producción es **Fases 1–5** y **no** la Fase 6 — se puede confirmar desde afuera, que es lo
-  que hace falta para no duplicar un deploy ni revertir nada.
 
 **Límite declarado**: la QA es de solo lectura (no se muta la base productiva), así que las reglas que solo se
-ven al abrir o cerrar un turno (arqueo ciego, impresión por rol, cuadre por banco, dos cajas por terminal)
-quedan verificadas por unitarios con rojo observado y por el **E2E local** (126/6/0), no por un cierre real en
-producción. La Fase 6, además, no está desplegada: su QA en producción va después del deploy con el OK del
-owner.
+ven al abrir o cerrar un turno (arqueo ciego, impresión por rol, cuadre por banco y **dos cajas abiertas a la
+vez**) quedan verificadas por unitarios con rojo observado y por el **E2E local** (126/6/0), no por un cierre
+real en producción. El primer uso real de las terminales lo hace el owner cargándolas en Config de Caja.
 
 ## 7. Fase 6 — estado real (2026-09-23)
 
-**Mergeada en `main` (`d7f26d4`, PR [#24](https://github.com/danielmaki123/one-burger-commerce/pull/24)) y SIN
-DESPLEGAR.** El E2E de la fase (`admin-cash-terminals.spec.ts`) abrió **dos cajas a la vez**, cobró en una y
-comprobó que cada cierre arquea **solo su plata**; en el camino cazó dos bugs que las unidades no veían (el POS
-leía su caja sin la terminal y el arqueo caía a la ventana de tiempo para un turno con terminal sin ventas
-propias). Suite local: **126 passed / 6 skipped / 0 failed**.
+**Mergeada en `main` (`d7f26d4`, PR [#24](https://github.com/danielmaki123/one-burger-commerce/pull/24)) y
+DESPLEGADA** (`build-20260923-010038`). El E2E de la fase (`admin-cash-terminals.spec.ts`) abrió **dos cajas a
+la vez**, cobró en una y comprobó que cada cierre arquea **solo su plata**; en el camino cazó dos bugs que las
+unidades no veían (el POS leía su caja sin la terminal y el arqueo caía a la ventana de tiempo para un turno
+con terminal sin ventas propias). Suite local: **126 passed / 6 skipped / 0 failed**.
