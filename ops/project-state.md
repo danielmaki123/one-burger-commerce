@@ -61,11 +61,17 @@
 > uno por local) y su contrato de migración; y el **catálogo de terminales del servidor** (puerto, adaptadores,
 > `getCashTerminals` / `saveCashTerminals` y `GET`/`PUT /api/admin/cash/terminals` con firma).
 >
-> **Falta (parte 3)**: la sección de la pantalla en Config de Caja; abrir y cerrar **por terminal**
-> (`openShift` con `terminalId` validado contra el catálogo de la sucursal, `getCurrentShift` por terminal,
-> selector en Caja); que el **POS herede** la terminal y que `Payment.shiftId` se escriba al cobrar; y que el
-> **arqueo lea por turno** (con la ventana de tiempo como respaldo de los cobros viejos) para que dos cajas
-> abiertas en el mismo local no se cuenten la plata de la otra. Después, E2E y QA.
+> **Hecho en la parte 3**: el turno por terminal (validación contra el catálogo activo de la sucursal, cada
+> terminal con su caja, el **arqueo leyendo sus propios cobros** con la ventana como respaldo de los turnos
+> viejos, y el POS firmando cada cobro con el turno de su terminal); el **selector de terminal en Caja**; y
+> la sección **Terminales** en Config de Caja para cargarlas.
+>
+> **Falta (parte 3c — y es lo que bloquea el deploy de la Fase 6)**: **el POS tiene que mandar su terminal**.
+> Hoy no la manda, así que en una sucursal **con dos terminales cargadas** el cobro resolvería el turno «sin
+> terminal» (que ya no existe) y cortaría con 409 «Abrí la caja antes de cobrar»: el POS dejaría de vender.
+> **Mientras eso no esté, la Fase 6 no se puede desplegar** (y no se despliega sin el OK del owner). Va con:
+> selector de terminal en el POS (recordado por dispositivo, como el borrador), el `terminalId` en el payload
+> del cobro, el E2E de dos terminales abiertas a la vez y la QA.
 >
 > ---
 >
