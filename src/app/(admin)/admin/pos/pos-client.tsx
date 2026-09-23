@@ -82,6 +82,7 @@ function catalogUrl(locationId: string) {
 export default function PosClient({
   locations,
   canDiscount = false,
+  cashTerminalsByLocation = {},
 }: {
   locations: PosLocationOption[];
   /**
@@ -90,10 +91,33 @@ export default function PosClient({
    * el control se muestra.
    */
   canDiscount?: boolean;
+  /**
+   * Fase 6 del rediseño de Caja (2026-09-23) — las **terminales activas** de cada sucursal, resueltas en el
+   * servidor. El POS hereda la terminal del turno abierto para firmar cada venta con su caja: con dos POS en
+   * el mismo local, el turno de **esta** estación es el que recibe la plata.
+   */
+  cashTerminalsByLocation?: Record<string, { id: string; label: string }[]>;
 }) {  const currency = useCurrencyFormat();
   const settings = useBusinessSettings();
 
   const [locationId, setLocationId] = React.useState(locations[0]?.id ?? "");
+  /**
+   * Fase 6 del rediseño de Caja (2026-09-23) — la **terminal** del POS elegida en este local. Nace en la
+   * primera activa y se recuerda **en el dispositivo** (como el borrador): el equipo del mostrador es siempre
+   * el mismo POS, y volver a elegirlo en cada venta sería un paso de más. Sin terminales cargadas queda
+   * `null`: la venta entra al turno «sin terminal» del local, que es la sucursal de una sola caja.
+   */
+  const terminals = React.useMemo(
+    () => cashTerminalsByLocation[locationId] ?? [],
+    [cashTerminalsByLocation, locationId],
+  );
+  const [terminalId, setTerminalId] = React.useState<string | null>(
+    () => cashTerminalsByLocation[locations[0]?.id ?? ""]?.[0]?.id ?? null,
+  );
+
+  React.useEffect(() => {
+    setTerminalId(terminals[0]?.id ?? null);
+  }, [terminals]);
   const [products, setProducts] = React.useState<PosCatalogProduct[]>([]);
   /**
    * Los chips de categoría, con su contador, tal como los devuelve el catálogo (el servidor los arma en
@@ -566,6 +590,9 @@ export default function PosClient({
             ...(payment.reference ? { reference: payment.reference } : {}),
           })),
           idempotencyKey: attemptKey,
+          // Fase 6 del rediseño de Caja: la terminal con la que se cobra. El servidor resuelve el turno de
+          // **esa** terminal y le firma el cobro (`Payment.shiftId`).
+          terminalId,
           // Tarea 9.6: el código viaja al servidor, que es el que valida, calcula y consume el uso.
           couponCode: appliedCoupon?.code ?? null,
           // Tarea 9.7: el descuento manual viaja como forma y motivo; el monto lo calcula el servidor.
@@ -692,6 +719,24 @@ export default function PosClient({
               onChange={(event) => setLocationId(event.target.value)}
               options={locations.map((location) => ({ value: location.id, label: location.name }))}
             />
+
+            {/*
+              Fase 6 del rediseño de Caja (2026-09-23) — con más de una terminal en el local, el cajero
+              confirma en qué POS está: cada venta se firma con el turno de esa estación (y con dos cajas
+              abiertas, cobrar «en la del local» no existiría). Con una sola no se dibuja: no hay nada que
+              elegir y el POS la hereda.
+            */}
+            {terminals.length > 1 ? (
+              <Select
+                label="Terminal"
+                value={terminalId ?? ""}
+                onChange={(event) => setTerminalId(event.target.value)}
+                options={terminals.map((terminal) => ({
+                  value: terminal.id,
+                  label: terminal.label,
+                }))}
+              />
+            ) : null}
 
             <PosCatalogGrid
               products={products}

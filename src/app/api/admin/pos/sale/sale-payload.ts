@@ -74,6 +74,12 @@ const saleSchema = z
     payments: z.array(paymentSchema).min(1, "Registrá al menos un cobro"),
     idempotencyKey: z.string().trim().min(1).max(80).nullable().optional(),
     /**
+     * Fase 6 del rediseño de Caja (2026-09-23) — la **terminal** desde la que se cobra. El POS la manda
+     * cuando el local tiene más de una: el caso de uso resuelve el turno de esa estación y le firma el cobro
+     * (`Payment.shiftId`). Sin terminal es el turno «sin terminal», que es la sucursal de una sola caja.
+     */
+    terminalId: z.string().trim().min(1).nullable().optional(),
+    /**
      * Tarea 9.6 del roadmap del POS (Fase 2) — el código de la promo que el cliente trajo.
      *
      * Llega como lo escribió el cajero y se **normaliza** acá (mayúsculas y sin espacios, la misma regla del
@@ -194,6 +200,8 @@ export function parsePosSalePayload(body: unknown): {
         ...(payment.reference ? { reference: payment.reference } : {}),
       })),
       idempotencyKey: parsed.data.idempotencyKey ?? null,
+      // Fase 6 del rediseño de Caja: la terminal con la que se cobra (el turno lo resuelve el caso de uso).
+      terminalId: parsed.data.terminalId ?? null,
       couponCode: parsed.data.couponCode ? normalizeCouponCode(parsed.data.couponCode) : null,
       manualDiscount: parsed.data.manualDiscount
         ? {

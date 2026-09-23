@@ -22,6 +22,19 @@ function body(overrides: Record<string, unknown> = {}) {
 }
 
 describe("parsePosSalePayload", () => {
+  /**
+   * Fase 6 del rediseño de Caja (2026-09-23) — la **terminal** con la que se cobra.
+   *
+   * Sin esto la ruta descartaría el dato y el cobro entraría al turno «sin terminal»: en una sucursal con dos
+   * POS, la venta no caería en la caja de la estación donde se cobró.
+   */
+  it("lleva la terminal del POS que cobra (y sin ella, null)", () => {
+    expect(parsePosSalePayload(body({ terminalId: "term_barra" })).input.terminalId).toBe(
+      "term_barra",
+    );
+    expect(parsePosSalePayload(body()).input.terminalId).toBeNull();
+  });
+
   it.each(["cash", "card", "transfer", "other"] as const)(
     "acepta el medio %s",
     (method) => {

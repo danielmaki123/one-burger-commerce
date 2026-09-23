@@ -4,6 +4,8 @@ import { canDiscountPosSale, canUsePOS } from "@/modules/auth/domain/admin-permi
 import { requireAdminSession } from "@/modules/auth/features/require-admin-session/require-admin-session";
 import { resolveOrderLocationScope } from "@/modules/orders/domain/order-visibility";
 import { createProductionPosLocationDependencies } from "@/modules/pos/adapters/production-pos-location";
+import { PrismaCashConfigRepository } from "@/modules/cash-config/adapters/prisma-cash-config-repository";
+import { getCashTerminals } from "@/modules/cash-config/features/get-cash-terminals/get-cash-terminals";
 import { pickPosLocations } from "@/modules/pos/domain/pos-locations";
 
 import PosClient from "./pos-client";
@@ -45,5 +47,27 @@ export default async function AdminPosPage() {
     redirect("/admin/orders");
   }
 
-  return <PosClient locations={locations} canDiscount={canDiscountPosSale(session.user.role)} />;
+  /**
+   * Fase 6 del rediseno de Caja (2026-09-23) — las **terminales activas** de cada sucursal. El POS hereda la
+   * terminal del turno abierto para firmar cada venta con su caja: con dos POS en el local, sin esto la venta
+   * no tendria a que turno entrar.
+   */
+  const { terminals } = await getCashTerminals(
+    { locationIds: locations.map((location) => location.id) },
+    { repository: new PrismaCashConfigRepository() },
+  );
+  const cashTerminalsByLocation: Record<string, { id: string; label: string }[]> = {};
+  for (const location of locations) {
+    cashTerminalsByLocation[location.id] = terminals
+      .filter((terminal) => terminal.locationId === location.id && terminal.isActive)
+      .map(({ id, label }) => ({ id, label }));
+  }
+
+  return (
+    <PosClient
+      locations={locations}
+      canDiscount={canDiscountPosSale(session.user.role)}
+      cashTerminalsByLocation={cashTerminalsByLocation}
+    />
+  );
 }
