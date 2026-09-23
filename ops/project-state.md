@@ -66,12 +66,11 @@
 > viejos, y el POS firmando cada cobro con el turno de su terminal); el **selector de terminal en Caja**; y
 > la sección **Terminales** en Config de Caja para cargarlas.
 >
-> **Falta (parte 3c — y es lo que bloquea el deploy de la Fase 6)**: **el POS tiene que mandar su terminal**.
-> Hoy no la manda, así que en una sucursal **con dos terminales cargadas** el cobro resolvería el turno «sin
-> terminal» (que ya no existe) y cortaría con 409 «Abrí la caja antes de cobrar»: el POS dejaría de vender.
-> **Mientras eso no esté, la Fase 6 no se puede desplegar** (y no se despliega sin el OK del owner). Va con:
-> selector de terminal en el POS (recordado por dispositivo, como el borrador), el `terminalId` en el payload
-> del cobro, el E2E de dos terminales abiertas a la vez y la QA.
+> **Falta (parte 3d — el cierre de la fase)**: el **E2E** (cargar dos terminales, abrir las dos cajas a la
+> vez, cobrar en una, cerrar cada una con su conteo y ver que el arqueo de cada terminal cuenta **solo** sus
+> cobros), el PR con sus 4 checks verdes, el merge y —recién ahí, y con el OK del owner— el deploy y la QA.
+> El código de la fase está completo: la parte 3c (el POS manda su terminal) cerró el bloqueo que impedía
+> desplegarla, así que **ya no hay una sucursal que se rompa por cargar dos terminales**.
 >
 > ---
 >
