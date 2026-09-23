@@ -1,17 +1,22 @@
 # Estado del proyecto — One Burger Commerce
 
-> **Actualizado: 2026-09-23 (Fases 1–5 de Caja DESPLEGADAS y QA de producción hecha; Fase 6 mergeada, sin desplegar)**
+> **Actualizado: 2026-09-23 (Fases 1–6 de Caja DESPLEGADAS y QA de producción hecha)**
 >
-> **Último deploy: `build-20260922-232049`**, servido por los tres dominios (`menu`, `admin` y el apex, los
-> tres con `health: ok` al 2026-09-23). **Producción tiene las Fases 1 a 5 del rediseño de Caja y NO la Fase 6**
-> (mergeada en `main` desde `d7f26d4`, esperando el OK del owner). El deploy lo corrió el owner: el token del
-> panel no está en el entorno del agente.
+> **Último deploy: `build-20260923-010038`** (lo corrió el owner), servido por los tres dominios con
+> `health: ok` y `readiness: ready` (base en 2 ms). **Producción tiene las seis fases del rediseño de Caja.**
 >
-> **QA de producción (solo lectura, 2026-09-23)**: smokes **7/7** (menú) y **6/6** (hosts); y contra
-> `admin.oneburgernic.com` con la cuenta del owner, sin mutar nada: `/admin/cash` resuelve su estado y **no
-> ofrece el selector de Terminal** (la Fase 6 no está viva), `/admin/cash/config` trae la config del conteo
-> **y los Bancos** (Fase 3) y **no** las Terminales, y `/admin/history/cierres` carga; las tres a 375 px sin
-> scroll horizontal. Ese «no está» es la prueba desde afuera de qué es lo que hay desplegado.
+> **QA post-deploy (solo lectura, cuenta owner, sin mutar nada)**: `/admin/cash/config` trae la sección
+> **Terminales** (la marca de la Fase 6) además de la config del conteo y los **Bancos** (Fase 3), y
+> `GET /api/admin/cash/terminals` responde **200** —la migración `20260923180000` corrió en la base de
+> producción—; `/admin/cash` y `/admin/pos` resuelven su estado con **cero terminales cargadas** (que es el
+> estado real del negocio) sin selector y sin error de servidor; las tres pantallas a **375 px sin scroll
+> horizontal**. Smokes **7/7** (menú) y **6/6** (hosts).
+>
+> **Límite declarado**: la QA es de solo lectura (no se muta la base productiva), así que el flujo de **dos
+> terminales abiertas a la vez** —cargarlas, abrir las dos cajas, cobrar en una y cerrar cada una con su
+> arqueo— queda verificado por el **E2E local (126/6/0)** y por los unitarios con rojo observado, no por un
+> cierre real en producción. El primer uso real lo puede hacer el owner cargando sus terminales en Config de
+> Caja.
 >
 > **Corrección de un reporte anterior**: entre el merge y el deploy este documento dijo que las Fases 3 y 5
 > estaban «mergeadas y pendientes de deploy». **Ya no lo están**: el owner las desplegó y el `build` que
@@ -71,7 +76,8 @@
 > viejos, y el POS firmando cada cobro con el turno de su terminal); el **selector de terminal en Caja**; y
 > la sección **Terminales** en Config de Caja para cargarlas.
 >
-> **Fase 6 cerrada (código, tests y E2E) — mergeada y SIN DESPLEGAR**: el deploy espera el OK del owner.
+> **Fase 6 cerrada (código, tests, E2E y deploy)**: mergeada en `main` (`d7f26d4`) y **desplegada** en
+> `build-20260923-010038` (QA de arriba).
 >
 > El E2E de la fase (`admin-cash-terminals.spec.ts`) abrió **dos cajas a la vez**, cobró en una y comprobó que
 > cada cierre arquea **solo su plata**: **126 passed / 6 skipped / 0 failed** en la suite local completa. Y
