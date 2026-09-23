@@ -57,6 +57,9 @@ function deps(shift: ShiftRecord | null = openShift) {
   const handoverRepository = new InMemoryShiftHandoverRepository();
   const paymentRepository = {
     listPaymentsInRange: vi.fn(async () => [cashPayment("pay_01", 500)]),
+    // Fase 6 del rediseño de Caja: este doble representa un turno **sin** cobros atribuidos, así que el
+    // arqueo lee por ventana de tiempo (que es el camino de los turnos de antes de la fase).
+    listPaymentsByShift: vi.fn(async () => []),
   } as unknown as PaymentRepository;
   const cashMovementRepository = {
     listByShift: vi.fn(async () => []),

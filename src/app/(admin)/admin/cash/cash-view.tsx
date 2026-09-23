@@ -34,6 +34,7 @@ export default function CashView({
   locations,
   cashCountConfigs,
   banksByLocation,
+  cashTerminalsByLocation,
   canSeeShiftDetail,
   canSeeCloseDetail,
   canPrintDocuments,
@@ -52,6 +53,11 @@ export default function CashView({
    * el lote (la API del catálogo es del dueño).
    */
   banksByLocation: Record<string, { id: string; name: string; code: string | null }[]>;
+  /**
+   * Fase 6 del rediseño de Caja (2026-09-23) — las **terminales activas** de cada sucursal, resueltas en el
+   * servidor. Con una sola no se dibuja selector; con dos o más, el cajero elige en qué POS está.
+   */
+  cashTerminalsByLocation: Record<string, { id: string; label: string }[]>;
   /** `true` = puede abrir el detalle de un turno (`canViewCashHistory`). */
   canSeeShiftDetail: boolean;
   /** `true` = ve el arqueo completo del cierre recién hecho. */
@@ -63,8 +69,28 @@ export default function CashView({
 }) {
   const settings = useBusinessSettings();
   const [locationId, setLocationId] = React.useState(() => locations[0]?.id ?? "");
+  /**
+   * Fase 6 del rediseño de Caja (2026-09-23) — la **terminal** elegida en este local. Nace en la primera
+   * terminal activa (una sucursal con una sola caja no muestra selector) y se reincia al cambiar de
+   * sucursal: la terminal de un local no existe en otro.
+   */
+  const terminals = React.useMemo(
+    () => cashTerminalsByLocation[locationId] ?? [],
+    [cashTerminalsByLocation, locationId],
+  );
+  const [terminalId, setTerminalId] = React.useState<string | null>(
+    // Nace en la primera terminal del local inicial: así la **primera** lectura ya es la caja correcta (si
+    // arrancara en `null`, pediría la caja sin terminal y el cajero vería un estado que no es el suyo).
+    () => cashTerminalsByLocation[locations[0]?.id ?? ""]?.[0]?.id ?? null,
+  );
+
+  React.useEffect(() => {
+    setTerminalId(terminals[0]?.id ?? null);
+  }, [terminals]);
+
+  const terminalLabel = terminals.find((terminal) => terminal.id === terminalId)?.label ?? null;
   const { status, shift, closedShift, error, actionError, busy, refresh, openShift, closeShift } =
-    useCashShift(locationId);
+    useCashShift(locationId, terminalId);
 
   /**
    * La config del local elegido. Si por lo que fuera no viniera (una sucursal sin fila), se arma con los
@@ -97,6 +123,20 @@ export default function CashView({
         />
       ) : null}
 
+      {/*
+        Fase 6 del rediseño de Caja (2026-09-23) — con más de una terminal en el local, el cajero elige en
+        qué POS está: cada una tiene su caja, su conteo y su cierre. Con una sola no se dibuja el selector (no
+        hay nada que elegir) y sin terminales cargadas tampoco: ahí la caja es una sola por local.
+      */}
+      {terminals.length > 1 ? (
+        <Select
+          label="Terminal"
+          value={terminalId ?? ""}
+          onChange={(event) => setTerminalId(event.target.value)}
+          options={terminals.map((terminal) => ({ value: terminal.id, label: terminal.label }))}
+        />
+      ) : null}
+
       {status === "loading" ? <CashSkeleton /> : null}
 
       {status === "error" ? (
@@ -112,6 +152,7 @@ export default function CashView({
           locationName={locationName}
           actorName={actorName}
           countConfig={countConfig}
+          terminalLabel={terminalLabel}
           banks={banksByLocation[locationId] ?? []}
           busy={busy}
           shift={shift}

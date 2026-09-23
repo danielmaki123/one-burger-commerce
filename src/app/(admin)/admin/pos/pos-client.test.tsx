@@ -831,6 +831,75 @@ describe("PosClient", () => {
     expect(claves[1]).toBe(claves[0]);
   });
 
+  /**
+   * Fase 6 del rediseño de Caja (2026-09-23) — **la venta se firma con la terminal del POS**.
+   *
+   * Con más de una terminal en el local, el cajero confirma en cuál está (el selector solo aparece entonces)
+   * y el cobro viaja con ese `terminalId`: el servidor resuelve el turno de **esa** estación y le firma el
+   * cobro, que es lo que evita que dos cajas abiertas en el mismo local se cuenten la misma plata.
+   */
+  it("con dos terminales, el cobro viaja con la terminal elegida", async () => {
+    const user = userEvent.setup();
+    render(
+      <PosClient
+        locations={locations}
+        cashTerminalsByLocation={{
+          [locations[0]!.id]: [
+            { id: "term_caja_1", label: "Caja 1" },
+            { id: "term_barra", label: "Barra" },
+          ],
+        }}
+      />,
+    );
+
+    await esperarCajaAbierta();
+    await screen.findByText("Taco de birria");
+
+    // Arranca en la primera terminal del local y el cajero puede cambiarla.
+    expect((screen.getByLabelText("Terminal") as HTMLSelectElement).value).toBe("term_caja_1");
+    await user.selectOptions(screen.getByLabelText("Terminal"), "term_barra");
+
+    await user.click(screen.getByRole("button", { name: "Agregar Taco de birria a la venta" }));
+    await fillCustomer(user);
+    await user.type(screen.getByLabelText("Con cuánto paga"), "100");
+    await user.click(screen.getByRole("button", { name: /^Cobrar / }));
+    await screen.findByRole("status");
+
+    const saleCall = fetchMock.mock.calls.find(
+      ([input]) => String(input) === "/api/admin/pos/sale",
+    );
+    const body = JSON.parse(String((saleCall![1] as RequestInit).body)) as {
+      terminalId: string | null;
+    };
+
+    expect(body.terminalId).toBe("term_barra");
+  });
+
+  it("sin terminales cargadas no dibuja el selector y el cobro va sin terminal", async () => {
+    const user = userEvent.setup();
+    render(<PosClient locations={locations} />);
+
+    await esperarCajaAbierta();
+    await screen.findByText("Taco de birria");
+
+    expect(screen.queryByLabelText("Terminal")).toBeNull();
+
+    await user.click(screen.getByRole("button", { name: "Agregar Taco de birria a la venta" }));
+    await fillCustomer(user);
+    await user.type(screen.getByLabelText("Con cuánto paga"), "100");
+    await user.click(screen.getByRole("button", { name: /^Cobrar / }));
+    await screen.findByRole("status");
+
+    const saleCall = fetchMock.mock.calls.find(
+      ([input]) => String(input) === "/api/admin/pos/sale",
+    );
+    const body = JSON.parse(String((saleCall![1] as RequestInit).body)) as {
+      terminalId: string | null;
+    };
+
+    expect(body.terminalId).toBeNull();
+  });
+
   it("después de cobrar, la venta siguiente usa otra clave", async () => {
     const user = userEvent.setup();
     render(<PosClient locations={locations} />);

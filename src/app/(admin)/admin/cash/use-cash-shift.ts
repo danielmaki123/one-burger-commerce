@@ -64,7 +64,12 @@ export type CashShiftStatus = "loading" | "ready" | "error";
 const REFRESH_MS = 15000;
 const READ_ERROR = "No se pudo leer el estado de la caja: revisá la conexión.";
 
-export function useCashShift(locationId: string) {
+/**
+ * Fase 6 del rediseno de Caja (2026-09-23) — el estado de la caja es **por terminal**: dos cajas del mismo
+ * local se leen, se abren y se cierran por separado. Sin terminal (`null`) es la caja sin terminal: la
+ * sucursal de una sola caja, que es como se comporta un local sin terminales cargadas.
+ */
+export function useCashShift(locationId: string, terminalId: string | null = null) {
   const [status, setStatus] = React.useState<CashShiftStatus>("loading");
   const [shift, setShift] = React.useState<CashShift | null>(null);
   const [closedShift, setClosedShift] = React.useState<ClosedCashShift | null>(null);
@@ -87,7 +92,7 @@ export function useCashShift(locationId: string) {
 
       try {
         const response = await fetch(
-          `/api/admin/pos/shift?locationId=${encodeURIComponent(target)}`,
+          `/api/admin/pos/shift?locationId=${encodeURIComponent(target)}${terminalId ? `&terminalId=${encodeURIComponent(terminalId)}` : ""}`,
           { cache: "no-store" },
         );
         const body = (await response.json().catch(() => ({}))) as {
@@ -112,14 +117,18 @@ export function useCashShift(locationId: string) {
         setStatus("error");
       }
     },
-    [],
+    // Fase 6 del rediseño de Caja: la terminal entra en las dependencias porque la lectura la usa en la URL.
+    // Sin esto, `load` se queda con la terminal del primer render y cambiar de POS seguiría leyendo la caja
+    // de la terminal anterior (el bug que este test cazó).
+    [terminalId],
   );
 
   React.useEffect(() => {
     setClosedShift(null);
     setActionError(null);
     void load(locationId);
-  }, [locationId, load]);
+    // Fase 6: cambiar de terminal (o de local) vuelve a leer la caja que corresponde.
+  }, [locationId, terminalId, load]);
 
   // El estado puede cambiar en otra terminal: se relee sin mover la pantalla de estado.
   React.useEffect(() => {
@@ -127,7 +136,7 @@ export function useCashShift(locationId: string) {
 
     const timer = setInterval(() => void load(locationId, { silent: true }), REFRESH_MS);
     return () => clearInterval(timer);
-  }, [locationId, load]);
+  }, [locationId, terminalId, load]);
 
   /** Reintento explícito de la lectura: sí vuelve al estado *cargando* y sí limpia el error. */
   const refresh = React.useCallback(() => {
@@ -149,6 +158,8 @@ export function useCashShift(locationId: string) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             locationId,
+            // Fase 6: la terminal con la que se abre o se cierra **esta** caja.
+            terminalId,
             counts,
             // Fase 3 del rediseño de Caja: el cuadre por banco viaja con el conteo. El monto se
             // convierte acá (el input lo tiene como texto) y el servidor valida y suma.
@@ -207,7 +218,7 @@ export function useCashShift(locationId: string) {
         setBusy(false);
       }
     },
-    [locationId],
+    [locationId, terminalId],
   );
 
   const openShift = React.useCallback(

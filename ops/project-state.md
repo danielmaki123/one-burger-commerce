@@ -44,17 +44,37 @@
 > del owner. Siguen abiertas **A-43** (la cabecera compartida, 23,3% a 375 px) y **A-45** (el arqueo ciego es
 > regla de pantalla: el corte X devuelve el esperado por API).
 >
-> **Fase 6 (terminal por turno) — lo que hay que decidir ANTES de codear** (el brief la nombra, pero el detalle
-> de producto no está en el repo y no se inventa): (1) **qué identifica a una terminal** — una etiqueta libre
-> por turno, `BankTerminal` como catálogo por sucursal (banco + etiqueta) o la terminal del dispositivo en el
-> navegador (localStorage, como la clave de idempotencia del cobro); (2) **qué reemplaza el índice único
-> actual** `Shift(locationId) WHERE status = 'open'` (hoy una sola caja abierta por sucursal): el brief pide
-> uno por terminal, lo que **permite dos turnos abiertos en el mismo local** y con eso cambia el arqueo por
-> sucursal, el reporte del día y la conciliación, que hoy suman por local; (3) **qué pasa con los turnos ya
-> existentes** (`terminalId` nulo) y si la terminal es obligatoria para abrir; (4) **dónde se elige** (POS y
-> Caja) y si el cajero puede cambiarla con la caja abierta. La base técnica ya está: `Bank` y `LocationBank`
-> de la Fase 3 son el catálogo de bancos por sucursal, y el cierre por banco ya declara `terminalLabel` por
-> turno.
+> **Fase 6 (terminal por turno) — EN CURSO en la rama `feat/cash-terminal-por-turno`** (no mergeada, no
+> desplegada). El owner respondió el 2026-09-23 lo que la fase no tenía decidido en el repo:
+>
+> 1. **Terminal propia** (`PosTerminal`, por sucursal: etiqueta, activa, orden) y **no** etiqueta del banco:
+>    una estación puede tener dos posnets (BAC + Banpro) y un banco puede tener posnets en dos estaciones; son
+>    dos dimensiones. `ShiftBankClose.terminalLabel` se queda como está (la referencia al posnet del banco).
+>    Las terminales se administran desde `/admin/cash/config` (módulo `cash-config`, sin pantalla nueva).
+> 2. **El índice pasa a una caja abierta por (sucursal + terminal)**: el negocio tiene dos POS por sucursal
+>    (mostrador y barra) y los dos tienen que poder estar abiertos a la vez.
+> 3. **La terminal se elige al abrir la caja, en Caja**; el POS **hereda** la terminal del turno abierto para
+>    asociar cada venta, y **el POS no cierra cajas** (el cierre sigue siendo solo en Caja).
+>
+> **Hecho (2 commits, con la suite verde)**: `PosTerminal` + `Shift.terminalId` + `Payment.shiftId` + el
+> índice parcial por terminal (con `COALESCE("terminalId", '')` para que los turnos sin terminal sigan siendo
+> uno por local) y su contrato de migración; y el **catálogo de terminales del servidor** (puerto, adaptadores,
+> `getCashTerminals` / `saveCashTerminals` y `GET`/`PUT /api/admin/cash/terminals` con firma).
+>
+> **Hecho en la parte 3**: el turno por terminal (validación contra el catálogo activo de la sucursal, cada
+> terminal con su caja, el **arqueo leyendo sus propios cobros** con la ventana como respaldo de los turnos
+> viejos, y el POS firmando cada cobro con el turno de su terminal); el **selector de terminal en Caja**; y
+> la sección **Terminales** en Config de Caja para cargarlas.
+>
+> **Fase 6 cerrada (código, tests y E2E) — mergeada y SIN DESPLEGAR**: el deploy espera el OK del owner.
+>
+> El E2E de la fase (`admin-cash-terminals.spec.ts`) abrió **dos cajas a la vez**, cobró en una y comprobó que
+> cada cierre arquea **solo su plata**: **126 passed / 6 skipped / 0 failed** en la suite local completa. Y
+> cazó **dos bugs reales** que las unidades no veían, los dos por seguir pensando «en el local»: el POS leía su
+> caja sin la terminal (con dos terminales cargadas se quedaba en «sin caja abierta» y el botón de cobrar
+> salía apagado) y el arqueo caía a la ventana de tiempo para un turno con terminal sin ventas propias (la caja
+> del mostrador «esperaba» la venta de la barra: `Expected: 0, Received: 35`). Los dos arreglados en el mismo
+> PR, con test para el del arqueo.
 >
 > ---
 >

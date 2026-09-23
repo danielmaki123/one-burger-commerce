@@ -28,6 +28,12 @@ export class InMemoryPaymentRepository implements PaymentRepository {
    */
   orderLocations: Record<string, string> = {};
 
+  /**
+   * Fase 6 — el turno de cada cobro. En la base es una columna (`Payment.shiftId`); acá hace falta aparte
+   * porque `PaymentRecord` es el tipo del dominio y no carga el turno (el arqueo lo lee por esta consulta).
+   */
+  paymentShifts: Record<string, string> = {};
+
   seedOrderLocation(orderId: string, locationId: string) {
     this.orderLocations[orderId] = locationId;
   }
@@ -57,6 +63,8 @@ export class InMemoryPaymentRepository implements PaymentRepository {
     };
 
     this.payments.push(payment);
+    if (input.shiftId) this.paymentShifts[payment.id] = input.shiftId;
+
     return payment;
   }
 
@@ -86,6 +94,16 @@ export class InMemoryPaymentRepository implements PaymentRepository {
     return this.payments
       .filter((payment) => orderIdsAtLocation.has(payment.orderId))
       .filter((payment) => inRange(payment.createdAt, range))
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  }
+
+  /**
+   * Fase 6 — los cobros que entraron **a este turno**. Los de antes de la fase (sin turno) no aparecen: el
+   * arqueo los busca por ventana de tiempo.
+   */
+  async listPaymentsByShift(shiftId: string): Promise<PaymentRecord[]> {
+    return this.payments
+      .filter((payment) => this.paymentShifts[payment.id] === shiftId)
       .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
   }
 

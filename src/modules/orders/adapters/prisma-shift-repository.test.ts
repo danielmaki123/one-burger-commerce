@@ -74,6 +74,8 @@ describe("PrismaShiftRepository", () => {
       data: {
         locationId: "loc_principal",
         userId: "user_01",
+        // Fase 6 del rediseño de Caja: sin terminal, la caja sigue siendo una sola por local.
+        terminalId: null,
         openingAmount: 500,
         notes: null,
         cashCounts: undefined,

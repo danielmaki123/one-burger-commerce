@@ -1,10 +1,11 @@
-import type { CashDenomination, LocationCashConfig } from "@prisma/client";
+import type { CashDenomination, LocationCashConfig, PosTerminal } from "@prisma/client";
 
 import { getPrismaClient } from "@/infrastructure/database/prisma";
 import type {
   CashDenominationRecord,
   CashConfigPatch,
   LocationCashConfigRecord,
+  PosTerminalRecord,
 } from "@/modules/cash-config/domain/cash-config.types";
 import type {
   CashConfigRepository,
@@ -99,4 +100,64 @@ export class PrismaCashConfigRepository implements CashConfigRepository {
 
     return this.listDenominations();
   }
+
+  async listPosTerminals(locationIds: readonly string[]): Promise<PosTerminalRecord[]> {
+    const rows = await getPrismaClient().posTerminal.findMany({
+      where: { locationId: { in: [...locationIds] } },
+      orderBy: [{ locationId: "asc" }, { sortOrder: "asc" }, { label: "asc" }],
+    });
+
+    return rows.map(mapPosTerminal);
+  }
+
+  /**
+   * Reemplaza las terminales de **una** sucursal.
+   *
+   * Dos cosas que no son obvias: el `id` de una terminal nueva lo pone la pantalla (`terminal_<uuid>` desde
+   * el formulario) porque el `upsert` necesita la clave, y lo que no viene en la lista queda **apagado** —no
+   * borrado—: un turno viejo la referencia y el `onDelete: Restrict` de la base lo exige.
+   */
+  async replacePosTerminals(
+    locationId: string,
+    rows: readonly PosTerminalRecord[],
+  ): Promise<PosTerminalRecord[]> {
+    const prisma = getPrismaClient();
+    const keptIds = rows.map((row) => row.id);
+
+    await prisma.$transaction([
+      prisma.posTerminal.updateMany({
+        where: { locationId, id: { notIn: keptIds.length > 0 ? [...keptIds] : ["__ninguna__"] } },
+        data: { isActive: false },
+      }),
+      ...rows.map((row, index) =>
+        prisma.posTerminal.upsert({
+          where: { id: row.id },
+          create: {
+            id: row.id,
+            locationId,
+            label: row.label,
+            isActive: row.isActive,
+            sortOrder: Number.isInteger(row.sortOrder) ? row.sortOrder : index,
+          },
+          update: {
+            label: row.label,
+            isActive: row.isActive,
+            sortOrder: Number.isInteger(row.sortOrder) ? row.sortOrder : index,
+          },
+        }),
+      ),
+    ]);
+
+    return this.listPosTerminals([locationId]);
+  }
+}
+
+function mapPosTerminal(row: PosTerminal): PosTerminalRecord {
+  return {
+    id: row.id,
+    locationId: row.locationId,
+    label: row.label,
+    isActive: row.isActive,
+    sortOrder: row.sortOrder,
+  };
 }

@@ -16,17 +16,17 @@ export async function POST(request: Request) {
     const session = await requireAdminSession();
     assertCanUsePos(session.user.role);
 
-    const { locationId, counts, notes } = parseShiftCashPayload(await request.json());
+    const { locationId, terminalId, counts, notes } = parseShiftCashPayload(await request.json());
     await requirePosLocation({
       role: session.user.role,
       assignedLocationIds: session.user.locationIds,
       requested: locationId,
     });
 
+    // La terminal (Fase 6) la valida el caso de uso contra el catálogo activo del local;
+    // la config del conteo entra por las dependencias y es la misma que dibuja la pantalla (Fase 2).
     const result = await openShift(
-      { locationId, userId: session.user.id, openingCounts: counts, notes },
-      // La config del local entra en las dependencias: la validación del conteo es la misma que dibuja la
-      // pantalla (Fase 2 del rediseño de Caja).
+      { locationId, terminalId, userId: session.user.id, openingCounts: counts, notes },
       await createProductionPosShiftDependencies({ locationId }),
     );
 

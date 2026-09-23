@@ -144,6 +144,8 @@ export async function closeShift(
       locationId: shift.locationId,
       openedAt: shift.openedAt,
       closedAt: closedAt.toISOString(),
+      // Fase 6: con terminal, el arqueo lee solo los cobros de esta caja.
+      terminalId: shift.terminalId ?? null,
       openingAmount: shift.openingAmount,
       openingCounts: (shift.cashCounts ?? [])
         .filter((count) => count.kind === "opening")
@@ -274,6 +276,43 @@ function convertToBusinessCurrencyOrThrow(input: {
   return converted.amount;
 }
 
+/**
+ * Los cobros que le tocan a este turno.
+ *
+ * Fase 6 del rediseño de Caja (2026-09-23) — desde que un local puede tener **dos cajas abiertas** (una por
+ * terminal), leer por ventana de tiempo haría que las dos se contaran la misma plata: primero se leen los
+ * cobros **del turno** (`Payment.shiftId`). Si el turno no tiene ninguno atribuido —los turnos de antes de
+ * esta fase y los cobros del sitio público—, se cae a la ventana de siempre: así un turno viejo sigue
+ * cuadrando igual que antes y no hay que migrar cobros históricos.
+ */
+async function listShiftPayments(
+  window: {
+    shiftId: string;
+    locationId: string;
+    openedAt: string;
+    closedAt: string;
+    /** Fase 6: la terminal del turno. `null` = turno sin terminal (el mundo de una caja por local). */
+    terminalId?: string | null;
+  },
+  paymentRepository: PaymentRepository,
+): Promise<Awaited<ReturnType<PaymentRepository["listPaymentsInRange"]>>> {
+  const attributed = await paymentRepository.listPaymentsByShift(window.shiftId);
+
+  /**
+   * Un turno **con terminal** lee solo lo suyo: en un local con dos cajas abiertas, la ventana de tiempo
+   * del local incluye la plata de la otra caja (el E2E de la fase lo cazo: el mostrador «esperaba» la venta
+   * de la barra). Que no tenga cobros atribuidos es un dato legitimo (no vendio), no un turno viejo.
+   */
+  if (window.terminalId) return attributed;
+
+  if (attributed.length > 0) return attributed;
+
+  return paymentRepository.listPaymentsInRange(window.locationId, {
+    from: window.openedAt,
+    to: window.closedAt,
+  });
+}
+
 /** Los bancos activos que liquida la sucursal. Sin repositorio no hay bancos: el cuadre se rechaza. */
 async function listLocationBankIds(
   bankRepository: BankRepository | undefined,
@@ -327,6 +366,8 @@ export async function calculateExpectedAmount(
     locationId: string;
     openedAt: string;
     closedAt: string;
+    /** Fase 6 del rediseno de Caja: la terminal del turno (`null` = una sola caja por local). */
+    terminalId?: string | null;
     openingAmount: number;
     openingCounts: ShiftCashCountInput[];
     businessCurrencyCode: string;
@@ -350,10 +391,7 @@ export async function calculateExpectedAmount(
    */
   nonCashByCurrency: Record<string, number>;
 }> {
-  const payments = await paymentRepository.listPaymentsInRange(window.locationId, {
-    from: window.openedAt,
-    to: window.closedAt,
-  });
+  const payments = await listShiftPayments(window, paymentRepository);
 
   const cashPayments = payments
     .filter((payment) => payment.method === "cash")

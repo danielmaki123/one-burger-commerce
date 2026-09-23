@@ -23,7 +23,10 @@ export class InMemoryShiftRepository implements ShiftRepository {
   }
 
   async openShift(input: OpenShiftInput): Promise<ShiftRecord> {
-    const alreadyOpen = await this.findOpenShiftByLocation(input.locationId);
+    const alreadyOpen = await this.findOpenShiftByLocation(
+      input.locationId,
+      input.terminalId ?? null,
+    );
     if (alreadyOpen) {
       throw new ShiftError(
         409,
@@ -38,6 +41,8 @@ export class InMemoryShiftRepository implements ShiftRepository {
       id: this.nextId(),
       locationId: input.locationId,
       userId: input.userId,
+      // Fase 6 del rediseño de Caja: la terminal donde se abre esta caja (`null` = una sola por local).
+      terminalId: input.terminalId ?? null,
       status: "open",
       openedAt: now,
       closedAt: null,
@@ -72,10 +77,19 @@ export class InMemoryShiftRepository implements ShiftRepository {
     return shift;
   }
 
-  async findOpenShiftByLocation(locationId: string): Promise<ShiftRecord | null> {
+  async findOpenShiftByLocation(
+    locationId: string,
+    terminalId?: string | null,
+  ): Promise<ShiftRecord | null> {
     return (
-      this.shifts.find((shift) => shift.locationId === locationId && shift.status === "open") ??
-      null
+      this.shifts.find(
+        (shift) =>
+          shift.locationId === locationId &&
+          shift.status === "open" &&
+          // Fase 6: con terminal, el turno de esa terminal; sin ella, el turno **sin** terminal (una sola
+          // caja por local, que es como se comporta una sucursal sin terminales cargadas).
+          (shift.terminalId ?? null) === (terminalId ?? null),
+      ) ?? null
     );
   }
 

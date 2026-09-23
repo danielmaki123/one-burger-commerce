@@ -332,6 +332,11 @@ export type ShiftRecord = {
   status: ShiftStatus;
   openedAt: string;
   closedAt: string | null;
+  /**
+   * Fase 6 del rediseño de Caja (2026-09-23) — la **terminal** del local donde está esta caja. `null` en
+   * los turnos de antes de la fase y en las sucursales sin terminales cargadas (ahí hay una sola caja).
+   */
+  terminalId?: string | null;
   /** Fondo con el que arrancó la caja. */
   openingAmount: number;
   /** Lo que se contó al cerrar. */

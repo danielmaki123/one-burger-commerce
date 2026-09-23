@@ -249,6 +249,27 @@ export function cashBanksUpdateAudit(input: {
 }
 
 /**
+ * Fase 6 del rediseño de Caja (2026-09-23) — **las terminales del POS de una sucursal**.
+ *
+ * Comparte la acción de la config de caja (`cash_config.update`), como el catálogo de bancos: con qué
+ * estaciones cuenta el local decide cómo se abren y se cierran las cajas. El detalle dice en qué sucursal y
+ * cuántas quedaron activas —lo que hay que poder leer después es el alcance del cambio, no las etiquetas—.
+ */
+export function cashTerminalsUpdateAudit(input: {
+  actorUserId: string;
+  locationId: string;
+  terminals: number;
+}) {
+  return recordAdminAudit({
+    action: "cash_config.update",
+    actorUserId: input.actorUserId,
+    targetType: "LocationCashTerminals",
+    targetId: input.locationId,
+    detail: { terminals: input.terminals },
+  });
+}
+
+/**
  * Tarea 9.7 del roadmap del POS (Fase 2) — un descuento manual en el mostrador.
  *
  * Se firma con la **forma** (porcentaje o monto), el valor que se pidió y el **motivo** que escribió quien

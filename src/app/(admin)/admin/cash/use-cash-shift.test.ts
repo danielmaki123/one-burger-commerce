@@ -115,6 +115,8 @@ describe("useCashShift", () => {
     const openCall = fetchMock.mock.calls.find(([input]) => String(input) === "/api/admin/pos/shift/open");
     expect(JSON.parse(String((openCall![1] as RequestInit).body))).toEqual({
       locationId: "loc_norte",
+      // Fase 6 del rediseno de Caja: sin terminal cargada, la caja del local (una sola).
+      terminalId: null,
       counts: [{ currency: "NIO", denomination: 100, quantity: 10 }],
     });
   });
@@ -172,6 +174,7 @@ describe("useCashShift", () => {
 
     expect(JSON.parse(String((closeCall![1] as RequestInit).body))).toEqual({
       locationId: "loc_norte",
+      terminalId: null,
       counts: [{ currency: "NIO", denomination: 100, quantity: 9 }],
       bankCloses: [
         {

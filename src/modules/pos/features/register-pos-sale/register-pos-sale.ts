@@ -50,6 +50,12 @@ export type RegisterPosSaleInput = {
   /** Clave de la operación: un reintento del mismo cobro no crea dos ventas (TASK-101). */
   idempotencyKey?: string | null;
   /**
+   * Fase 6 del rediseño de Caja (2026-09-23) — la **terminal** desde la que se cobra: el POS hereda la del
+   * turno abierto del local. Sirve para dos cosas: resolver la caja que corresponde (una por terminal) y
+   * firmarle el turno a cada cobro (`Payment.shiftId`). Sin dato, la caja sin terminal (una sola por local).
+   */
+  terminalId?: string | null;
+  /**
    * Tarea 9.6 del roadmap del POS (Fase 2) — el código de promo que el cliente trajo, tal como lo escribió
    * el cajero. El alta (`createOrder`) es la que lo valida, calcula el descuento y consume el uso.
    */
@@ -79,7 +85,10 @@ export type RegisterPosSaleDependencies = {
    * que lo explica no existe. Antes se permitía (con un aviso en pantalla) y la plata quedaba fuera
    * del control; ahora es un 409 con el motivo, y el mostrador lo dice antes de cobrar.
    */
-  findOpenShift?: (locationId: string) => Promise<{ id: string } | null>;
+  findOpenShift?: (
+    locationId: string,
+    terminalId?: string | null,
+  ) => Promise<{ id: string } | null>;
   /**
    * Tarea 9.6 del roadmap del POS (Fase 2) — la **misma** cotización que vio el cajero, para comparar el
    * cobro contra el total con descuento.
@@ -126,13 +135,19 @@ export async function registerPosSale(
   assertPosDraftReady(input.draft);
 
   // Bloque 9.2 — sin caja abierta no se cobra: el cobro no tendría arqueo que lo explique.
-  if (deps.findOpenShift) {
-    const openShift = await deps.findOpenShift(input.draft.locationId);
-    if (!openShift) {
-      throw new PosError(409, "CONFLICT", "Abrí la caja antes de cobrar.", {
-        shift: "No hay una caja abierta en este local.",
-      });
-    }
+  //
+  // Fase 6 del rediseño de Caja (2026-09-23) — el turno que se resuelve acá es además el que se le **firma
+  // a cada cobro** (`Payment.shiftId`): es lo que permite que dos cajas abiertas en el mismo local (una por
+  // terminal) no se cuenten la plata de la otra. `input.terminalId` es la estación desde la que se cobra; sin
+  // él se resuelve el turno sin terminal, que es la sucursal de una sola caja.
+  const openShift = deps.findOpenShift
+    ? await deps.findOpenShift(input.draft.locationId, input.terminalId ?? null)
+    : null;
+
+  if (deps.findOpenShift && !openShift) {
+    throw new PosError(409, "CONFLICT", "Abrí la caja antes de cobrar.", {
+      shift: "No hay una caja abierta en este local.",
+    });
   }
 
   const paidInBusinessCurrency = paymentsTotalInBusinessCurrency({
@@ -300,6 +315,8 @@ export async function registerPosSale(
         changeAmount: changeBelongsToCash ? (change ?? 0) : 0,
         // Bloque 4: la referencia externa (voucher o id de transferencia) viaja con el cobro.
         ...(payment.reference ? { reference: payment.reference } : {}),
+        // Fase 6: el cobro queda firmado con el turno donde entró (si hay caja abierta).
+        shiftId: openShift?.id ?? null,
       }),
     );
   }

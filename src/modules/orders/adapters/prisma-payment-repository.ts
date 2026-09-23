@@ -71,10 +71,25 @@ export class PrismaPaymentRepository implements PaymentRepository {
         changeAmount: input.changeAmount ?? 0,
         tip: input.tip ?? 0,
         reference: input.reference ?? null,
+        // Fase 6 del rediseño de Caja: el turno al que entra el cobro (la caja de la terminal).
+        shiftId: input.shiftId ?? null,
       },
     });
 
     return mapPayment(payment);
+  }
+
+  /**
+   * Fase 6 del rediseño de Caja (2026-09-23) — los cobros de un turno. Es la consulta del arqueo cuando el
+   * local tiene más de una caja abierta: leer por ventana haría que las dos se contaran la misma plata.
+   */
+  async listPaymentsByShift(shiftId: string): Promise<PaymentRecord[]> {
+    const payments = await getPrismaClient().payment.findMany({
+      where: { shiftId },
+      orderBy: { createdAt: "asc" },
+    });
+
+    return payments.map(mapPayment);
   }
 
   async listPaymentsByOrder(

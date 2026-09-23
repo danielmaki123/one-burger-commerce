@@ -58,3 +58,21 @@ export type CashCountConfig = {
   currencies: string[];
   denominations: Record<string, number[]>;
 };
+
+/**
+ * Fase 6 del rediseño de Caja (2026-09-23) — la **terminal del POS** de una sucursal: la estación física
+ * donde hay una caja («Caja 1», «Barra»).
+ *
+ * Es una tabla propia y **no** una etiqueta del banco (decisión del owner, 2026-09-23): una estación puede
+ * tener dos posnets (BAC + Banpro) y un banco puede tener posnets en dos estaciones; son dos dimensiones.
+ * `ShiftBankClose.terminalLabel` sigue siendo la referencia al posnet del banco.
+ */
+export type PosTerminalRecord = {
+  id: string;
+  locationId: string;
+  /** Cómo se llama en el local. Única por sucursal: dos «Caja 1» no se distinguen. */
+  label: string;
+  /** Apagada deja de ofrecerse al abrir la caja; los turnos viejos la siguen mostrando. */
+  isActive: boolean;
+  sortOrder: number;
+};

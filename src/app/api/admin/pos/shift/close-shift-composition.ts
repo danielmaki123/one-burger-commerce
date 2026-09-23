@@ -29,6 +29,8 @@ import { closePosShift } from "@/modules/pos/features/close-pos-shift/close-pos-
  */
 export async function closePosShiftForRoute(input: {
   locationId: string;
+  /** Fase 6 del rediseno de Caja: la terminal cuya caja se cierra. */
+  terminalId?: string | null;
   counts: ShiftCashCountInput[];
   /** Fase 3 — el cuadre por banco declarado en el mostrador. */
   bankCloses?: ShiftBankCloseInput[];
@@ -41,6 +43,7 @@ export async function closePosShiftForRoute(input: {
   const result = await closePosShift(
     {
       locationId: input.locationId,
+      terminalId: input.terminalId,
       counts: input.counts,
       bankCloses: input.bankCloses,
       notes: input.notes,

@@ -3,17 +3,24 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const { redirectMock, requireAdminSessionMock, listLocationsMock, getCashConfigMock, getBankCatalogMock } =
-  vi.hoisted(() => ({
-    // Igual que Next de verdad: `redirect()` corta la ejecución de la página.
-    redirectMock: vi.fn(() => {
-      throw new Error("NEXT_REDIRECT");
-    }),
-    requireAdminSessionMock: vi.fn(),
-    listLocationsMock: vi.fn(),
-    getCashConfigMock: vi.fn(),
-    getBankCatalogMock: vi.fn(),
-  }));
+const {
+  redirectMock,
+  requireAdminSessionMock,
+  listLocationsMock,
+  getCashConfigMock,
+  getBankCatalogMock,
+  getCashTerminalsMock,
+} = vi.hoisted(() => ({
+  // Igual que Next de verdad: `redirect()` corta la ejecución de la página.
+  redirectMock: vi.fn(() => {
+    throw new Error("NEXT_REDIRECT");
+  }),
+  requireAdminSessionMock: vi.fn(),
+  listLocationsMock: vi.fn(),
+  getCashConfigMock: vi.fn(),
+  getBankCatalogMock: vi.fn(),
+  getCashTerminalsMock: vi.fn(),
+}));
 
 vi.mock("next/navigation", () => ({
   redirect: redirectMock,
@@ -36,6 +43,11 @@ vi.mock("@/modules/cash-config/features/get-cash-config/get-cash-config", () => 
 // Fase 3 del rediseño de Caja: la sección Bancos baja con la config.
 vi.mock("@/modules/banks/features/get-bank-catalog/get-bank-catalog", () => ({
   getBankCatalog: (input: unknown, deps: unknown) => getBankCatalogMock(input, deps),
+}));
+
+// Fase 6 del rediseño de Caja: la sección Terminales baja con la config.
+vi.mock("@/modules/cash-config/features/get-cash-terminals/get-cash-terminals", () => ({
+  getCashTerminals: (input: unknown, deps: unknown) => getCashTerminalsMock(input, deps),
 }));
 
 import AdminCashConfigPage from "./page";
@@ -90,6 +102,17 @@ describe("AdminCashConfigPage", () => {
         },
       ],
     });
+    getCashTerminalsMock.mockResolvedValue({
+      terminals: [
+        {
+          id: "term_caja_1",
+          locationId: "loc_principal",
+          label: "Caja 1",
+          isActive: true,
+          sortOrder: 0,
+        },
+      ],
+    });
 
     render(await AdminCashConfigPage());
 
@@ -100,6 +123,9 @@ describe("AdminCashConfigPage", () => {
     // Fase 3 del rediseño de Caja: los bancos del cuadre bajan con la config y se editan acá.
     expect(screen.getByRole("region", { name: "Bancos" })).toBeTruthy();
     expect(screen.getByDisplayValue("BAC Credomatic")).toBeTruthy();
+    // Fase 6: las terminales del POS también bajan con la config (es donde se administran).
+    expect(screen.getByRole("region", { name: "Terminales" })).toBeTruthy();
+    expect(screen.getByDisplayValue("Caja 1")).toBeTruthy();
     expect(redirectMock).not.toHaveBeenCalled();
   });
 

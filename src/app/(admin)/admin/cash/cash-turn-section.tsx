@@ -36,6 +36,7 @@ export default function CashTurnSection({
   locationName,
   actorName,
   countConfig,
+  terminalLabel = null,
   banks,
   busy,
   shift,
@@ -52,6 +53,8 @@ export default function CashTurnSection({
   /** Quién entrega la caja: el nombre de la sesión que firma el traspaso. */
   actorName: string | null;
   countConfig: CashCountConfig;
+  /** Fase 6 del rediseño de Caja: la terminal de esta caja, para que el cajero sepa cuál está cerrando. */
+  terminalLabel?: string | null;
   /** Fase 3 — los bancos que liquida esta sucursal (los `LocationBank` activos). */
   banks: { id: string; name: string; code: string | null }[];
   busy: boolean;
@@ -83,7 +86,7 @@ export default function CashTurnSection({
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2 className="text-st-h2 text-ink">Abrir o cerrar la caja</h2>
         <p className="text-st-overline font-bold uppercase tracking-wider text-ink-muted">
-          Efectivo en córdobas
+          {terminalLabel ? `Terminal ${terminalLabel}` : "Efectivo en córdobas"}
         </p>
       </div>
 

@@ -56,7 +56,10 @@ function setup(
     order: order(),
     reused: false,
   })),
-  findOpenShift: () => Promise<{ id: string } | null> = async () => ({ id: "shift_01" }),
+  findOpenShift: (
+    locationId: string,
+    terminalId?: string | null,
+  ) => Promise<{ id: string } | null> = async () => ({ id: "shift_01" }),
 ) {
   const paymentRepository = new InMemoryPaymentRepository();
 
@@ -95,6 +98,34 @@ describe("venta de mostrador", () => {
 
     expect(createPosOrder).not.toHaveBeenCalled();
     expect(await paymentRepository.listPaymentsByOrder("ord_01")).toHaveLength(0);
+  });
+
+  /**
+   * Fase 6 del rediseño de Caja (2026-09-23) — el cobro queda **firmado con su turno**.
+   *
+   * Es lo que permite que dos cajas abiertas en el mismo local (una por terminal) no se cuenten la misma
+   * plata: el arqueo de cada turno lee sus cobros por `Payment.shiftId`. Y la terminal del POS manda: si el
+   * local tiene dos, el turno que se firma es el de **esa** terminal.
+   */
+  it("firma cada cobro con el turno de su terminal", async () => {
+    const { paymentRepository, deps } = setup(undefined, async (_locationId, terminalId) => ({
+      id: terminalId === "term_barra" ? "shift_barra" : "shift_caja_1",
+    }));
+
+    await registerPosSale(
+      {
+        draft: draftWithTaco(),
+        customer,
+        payments: [{ method: "cash", currency: "NIO", amount: 80 }],
+        terminalId: "term_barra",
+      },
+      deps,
+    );
+
+    const [payment] = await paymentRepository.listPaymentsByOrder("ord_01");
+
+    expect(paymentRepository.paymentShifts[payment.id]).toBe("shift_barra");
+    expect(await paymentRepository.listPaymentsByShift("shift_caja_1")).toHaveLength(0);
   });
 
   it("crea el pedido con el cliente y el correo, y registra el cobro en córdobas", async () => {
