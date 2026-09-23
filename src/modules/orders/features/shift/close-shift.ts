@@ -144,6 +144,8 @@ export async function closeShift(
       locationId: shift.locationId,
       openedAt: shift.openedAt,
       closedAt: closedAt.toISOString(),
+      // Fase 6: con terminal, el arqueo lee solo los cobros de esta caja.
+      terminalId: shift.terminalId ?? null,
       openingAmount: shift.openingAmount,
       openingCounts: (shift.cashCounts ?? [])
         .filter((count) => count.kind === "opening")
@@ -284,10 +286,24 @@ function convertToBusinessCurrencyOrThrow(input: {
  * cuadrando igual que antes y no hay que migrar cobros históricos.
  */
 async function listShiftPayments(
-  window: { shiftId: string; locationId: string; openedAt: string; closedAt: string },
+  window: {
+    shiftId: string;
+    locationId: string;
+    openedAt: string;
+    closedAt: string;
+    /** Fase 6: la terminal del turno. `null` = turno sin terminal (el mundo de una caja por local). */
+    terminalId?: string | null;
+  },
   paymentRepository: PaymentRepository,
 ): Promise<Awaited<ReturnType<PaymentRepository["listPaymentsInRange"]>>> {
   const attributed = await paymentRepository.listPaymentsByShift(window.shiftId);
+
+  /**
+   * Un turno **con terminal** lee solo lo suyo: en un local con dos cajas abiertas, la ventana de tiempo
+   * del local incluye la plata de la otra caja (el E2E de la fase lo cazo: el mostrador «esperaba» la venta
+   * de la barra). Que no tenga cobros atribuidos es un dato legitimo (no vendio), no un turno viejo.
+   */
+  if (window.terminalId) return attributed;
 
   if (attributed.length > 0) return attributed;
 
@@ -350,6 +366,8 @@ export async function calculateExpectedAmount(
     locationId: string;
     openedAt: string;
     closedAt: string;
+    /** Fase 6 del rediseno de Caja: la terminal del turno (`null` = una sola caja por local). */
+    terminalId?: string | null;
     openingAmount: number;
     openingCounts: ShiftCashCountInput[];
     businessCurrencyCode: string;

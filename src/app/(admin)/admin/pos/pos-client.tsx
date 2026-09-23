@@ -229,7 +229,10 @@ export default function PosClient({
 
       try {
         const response = await fetch(
-          `/api/admin/pos/shift?locationId=${encodeURIComponent(targetLocationId)}`,
+          // Fase 6 del rediseno de Caja: la caja que el POS mira es la de **su** terminal. Sin el
+          // `terminalId`, con dos terminales cargadas esta lectura devolvia la caja «sin terminal» (que no
+          // existe) y el POS se quedaba en «sin caja abierta» con el boton de cobrar apagado.
+          `/api/admin/pos/shift?locationId=${encodeURIComponent(targetLocationId)}${terminalId ? `&terminalId=${encodeURIComponent(terminalId)}` : ""}`,
         );
         const body = (await response.json()) as {
           data?: PosShift | null;
@@ -248,7 +251,8 @@ export default function PosClient({
         if (!options.silent) setShiftLoading(false);
       }
     },
-    [],
+    // La caja que se mira es la de la terminal elegida (Fase 6): cambiar de POS cambia la lectura.
+    [terminalId],
   );
 
   React.useEffect(() => {

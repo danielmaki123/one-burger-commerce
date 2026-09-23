@@ -187,6 +187,27 @@ describe("closeShift · arqueo por turno", () => {
     expect(cierreBarra.data?.difference).toBe(0);
   });
 
+  it("un turno **con** terminal no cae a la ventana aunque no tenga cobros suyos", async () => {
+    // El caso que cazó el E2E de la fase: si la caja del mostrador (sin ventas) cayera a la ventana del
+    // local, «esperaría» la venta cobrada en la barra — la plata contada dos veces.
+    const deps = buildDeps({ terminals: ["term_caja_1", "term_barra"] });
+    const caja1 = await openShift(
+      { locationId: LOCATION, userId: "user_01", openingAmount: 0, terminalId: "term_caja_1" },
+      deps,
+    );
+    const barra = await openShift(
+      { locationId: LOCATION, userId: "user_02", openingAmount: 0, terminalId: "term_barra" },
+      deps,
+    );
+
+    seedPayment(deps.paymentRepository, 300, barra.data.id);
+
+    const cierreCaja1 = await closeShift({ shiftId: caja1.data.id, closingAmount: 0 }, deps);
+
+    expect(cierreCaja1.data?.expectedAmount).toBe(0);
+    expect(cierreCaja1.data?.difference).toBe(0);
+  });
+
   it("un turno sin cobros atribuidos sigue leyendo por ventana (los turnos de antes de la fase)", async () => {
     const deps = buildDeps();
     const opened = await openShift(
