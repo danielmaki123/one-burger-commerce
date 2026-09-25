@@ -64,6 +64,18 @@ export async function requestRefund(
     throw new OrderError(404, "NOT_FOUND", "No encontramos ese cobro.");
   }
 
+  /**
+   * TASK-AUD-059 — un cobro **anulado** no existe para la plata: no se le pide una devolución.
+   *
+   * Anular ya sacó el cobro del arqueo; devolverlo además restaría dos veces. Para corregir un cobro mal
+   * cargado con una devolución encima, primero se rechaza la devolución y después se anula el cobro.
+   */
+  if (payment.voidedAt !== null) {
+    throw new OrderError(409, "CONFLICT", "Ese cobro está anulado: no hay nada que devolver.", {
+      payment: "Ese cobro está anulado.",
+    });
+  }
+
   const existing = await refundRepository.listByPayment(payment.id);
   const alreadyRefunded = roundCurrency(
     existing

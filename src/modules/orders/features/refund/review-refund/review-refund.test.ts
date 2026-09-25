@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { RefundRecord } from "@/modules/orders/domain/order.types";
+import type { PaymentRecord, RefundRecord } from "@/modules/orders/domain/order.types";
 
 import { reviewRefund } from "./review-refund";
 
@@ -31,7 +31,7 @@ const pending: RefundRecord = {
   createdAt: "2026-09-17T18:55:00.000Z",
 };
 
-function buildDeps(refund: RefundRecord | null = pending) {
+function buildDeps(refund: RefundRecord | null = pending, paymentVoidedAt: string | null = null) {
   const resolved: { id: string; input: Record<string, unknown> }[] = [];
 
   return {
@@ -44,6 +44,28 @@ function buildDeps(refund: RefundRecord | null = pending) {
         },
         async findById() {
           return refund;
+        },
+      },
+      /**
+       * TASK-AUD-059 — la devolución se resuelve mirando el cobro: si el cobro se anuló, aprobarla
+       * descontaría dos veces del arqueo (el cobro ya no cuenta y la devolución resta).
+       */
+      paymentRepository: {
+        async findPaymentById(): Promise<PaymentRecord | null> {
+          return {
+            id: "pay_01",
+            orderId: "ord_01",
+            method: "cash" as const,
+            amount: 500,
+            currency: "NIO",
+            changeAmount: 0,
+            tip: 0,
+            reference: null,
+            createdAt: "2026-09-17T18:50:00.000Z",
+            voidedAt: paymentVoidedAt,
+            voidedByUserId: paymentVoidedAt ? "user_owner" : null,
+            voidReason: paymentVoidedAt ? "cobro duplicado" : null,
+          };
         },
       },
     },
@@ -106,5 +128,40 @@ describe("reviewRefund", () => {
     const { deps } = buildDeps(null);
 
     await expect(reviewRefund(baseInput, deps)).rejects.toMatchObject({ status: 404 });
+  });
+
+  /**
+   * TASK-AUD-059 — **no se firma la devolución de un cobro anulado**.
+   *
+   * Es el otro lado de la regla que impide anular un cobro con devoluciones vivas: entre las dos, la
+   * plata no puede descontarse dos veces del arqueo. Rechazarla sí se puede (deja el registro limpio).
+   */
+  it("no aprueba la devolución de un cobro anulado", async () => {
+    const { resolved, deps } = buildDeps(pending, "2026-09-25T15:00:00.000Z");
+
+    await expect(reviewRefund(baseInput, deps)).rejects.toMatchObject({
+      status: 409,
+      code: "CONFLICT",
+    });
+    expect(resolved).toEqual([]);
+  });
+
+  it("rechazarla sí se puede: la devolución de un cobro anulado queda sin efecto", async () => {
+    const { resolved, deps } = buildDeps(pending, "2026-09-25T15:00:00.000Z");
+
+    await reviewRefund(
+      { ...baseInput, decision: "rejected", note: "El cobro se anuló: no había nada que devolver." },
+      deps,
+    );
+
+    expect(resolved[0].input).toMatchObject({ status: "rejected" });
+  });
+
+  it("sin el cobro de la devolución no se aprueba nada: fail-closed", async () => {
+    const { resolved, deps } = buildDeps(pending);
+    deps.paymentRepository.findPaymentById = async () => null;
+
+    await expect(reviewRefund(baseInput, deps)).rejects.toMatchObject({ status: 409 });
+    expect(resolved).toEqual([]);
   });
 });

@@ -30,6 +30,9 @@ function payment(overrides: Partial<PaymentRecord> = {}): PaymentRecord {
     tip: 0,
     reference: null,
     createdAt: "2026-09-17T15:00:00.000Z",
+    voidedAt: null,
+    voidedByUserId: null,
+    voidReason: null,
     ...overrides,
   };
 }

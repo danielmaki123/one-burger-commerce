@@ -4,6 +4,7 @@ import { refundReviewAudit } from "@/app/api/admin/audit-action-helpers";
 import { canApproveRefund } from "@/modules/auth/domain/admin-permissions";
 import { AuthError } from "@/modules/auth/domain/auth-errors";
 import { requireAdminSession } from "@/modules/auth/features/require-admin-session/require-admin-session";
+import { PrismaPaymentRepository } from "@/modules/orders/adapters/prisma-payment-repository";
 import { PrismaRefundRepository } from "@/modules/orders/adapters/prisma-refund-repository";
 import { reviewRefund } from "@/modules/orders/features/refund/review-refund/review-refund";
 import { createErrorResponse } from "@/shared/lib/http/error-response";
@@ -33,7 +34,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         reviewedByUserId: session.user.id,
         note: payload.note,
       },
-      { refundRepository: new PrismaRefundRepository() },
+      // TASK-AUD-059: el cobro viaja al caso de uso — no se aprueba la devolución de un cobro anulado.
+      { refundRepository: new PrismaRefundRepository(), paymentRepository: new PrismaPaymentRepository() },
     );
 
     // Bloque 13.1: aprobar y rechazar son acciones distintas, cada una con su asiento.

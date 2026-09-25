@@ -1,5 +1,6 @@
 import { OrderError } from "@/modules/orders/domain/order-errors";
 import type { RefundRecord } from "@/modules/orders/domain/order.types";
+import type { PaymentRepository } from "@/modules/orders/ports/payment-repository";
 import type { RefundRepository } from "@/modules/orders/ports/refund-repository";
 
 /**
@@ -22,10 +23,17 @@ export async function reviewRefund(
   },
   {
     refundRepository,
+    paymentRepository,
   }: {
     refundRepository: Pick<RefundRepository, "resolve"> & {
       findById(id: string): Promise<RefundRecord | null>;
     };
+    /**
+     * TASK-AUD-059 — el cobro de la devolución. Aprobar una devolución cuyo cobro se **anuló** descontaría
+     * dos veces del arqueo: el cobro ya no cuenta y la devolución resta. Rechazarla sí se puede: es la
+     * forma de dejar limpio el registro antes de corregir el cobro.
+     */
+    paymentRepository: Pick<PaymentRepository, "findPaymentById">;
   },
 ) {
   const refundId = input.refundId?.trim();
@@ -49,6 +57,27 @@ export async function reviewRefund(
 
   if (refund.status !== "pending") {
     throw new OrderError(409, "CONFLICT", "Esa devolución ya está resuelta.");
+  }
+
+  if (input.decision === "approved") {
+    const payment = await paymentRepository.findPaymentById(refund.paymentId);
+
+    // Fail-closed: sin cobro no se puede saber si la devolución sigue teniendo respaldo. Con `Refund` en
+    // cascada sobre `Payment` esto no debería pasar, y justamente por eso no se aprueba a ciegas.
+    if (!payment) {
+      throw new OrderError(409, "CONFLICT", "No encontramos el cobro de esa devolución.", {
+        payment: "No encontramos el cobro de esa devolución.",
+      });
+    }
+
+    if (payment.voidedAt !== null) {
+      throw new OrderError(
+        409,
+        "CONFLICT",
+        "El cobro de esa devolución está anulado: no hay plata que devolver.",
+        { payment: "Ese cobro está anulado." },
+      );
+    }
   }
 
   const resolved = await refundRepository.resolve(refundId, {

@@ -3,6 +3,7 @@ import type {
   CreatePaymentInput,
   PaymentRepository,
   PaymentSummary,
+  VoidPaymentInput,
 } from "@/modules/orders/ports/payment-repository";
 import { roundCurrency } from "@/shared/lib/order-totals";
 
@@ -42,6 +43,14 @@ export class InMemoryPaymentRepository implements PaymentRepository {
     return `pay_${this.payments.length + 1}`;
   }
 
+  /**
+   * TASK-AUD-059 — un cobro anulado no cuenta para nada que sume plata. Es la misma regla que el
+   * `voidedAt: null` del adaptador de Prisma, para que el doble y la base no mientan distinto.
+   */
+  private activePayments(payments: PaymentRecord[]): PaymentRecord[] {
+    return payments.filter((payment) => payment.voidedAt === null);
+  }
+
   /** Bloque 3 del POS — el cobro por su id, para devolverlo con su medio y su moneda originales. */
   async findPaymentById(id: string): Promise<PaymentRecord | null> {
     return this.payments.find((payment) => payment.id === id) ?? null;
@@ -60,6 +69,9 @@ export class InMemoryPaymentRepository implements PaymentRepository {
       tip: roundCurrency(input.tip ?? 0),
       reference: input.reference ?? null,
       createdAt: new Date().toISOString(),
+      voidedAt: null,
+      voidedByUserId: null,
+      voidReason: null,
     };
 
     this.payments.push(payment);
@@ -72,7 +84,7 @@ export class InMemoryPaymentRepository implements PaymentRepository {
     orderId: string,
     range?: { from?: string; to?: string },
   ): Promise<PaymentRecord[]> {
-    return this.payments
+    return this.activePayments(this.payments)
       .filter((payment) => payment.orderId === orderId)
       .filter((payment) => inRange(payment.createdAt, range))
       .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
@@ -91,7 +103,7 @@ export class InMemoryPaymentRepository implements PaymentRepository {
         .map(([orderId]) => orderId),
     );
 
-    return this.payments
+    return this.activePayments(this.payments)
       .filter((payment) => orderIdsAtLocation.has(payment.orderId))
       .filter((payment) => inRange(payment.createdAt, range))
       .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
@@ -115,13 +127,15 @@ export class InMemoryPaymentRepository implements PaymentRepository {
    * arqueo los busca por ventana de tiempo.
    */
   async listPaymentsByShift(shiftId: string): Promise<PaymentRecord[]> {
-    return this.payments
+    return this.activePayments(this.payments)
       .filter((payment) => this.paymentShifts[payment.id] === shiftId)
       .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
   }
 
   async getPaymentSummary(orderId: string): Promise<PaymentSummary> {
-    const payments = this.payments.filter((payment) => payment.orderId === orderId);
+    const payments = this.activePayments(this.payments).filter(
+      (payment) => payment.orderId === orderId,
+    );
 
     return {
       count: payments.length,
@@ -130,5 +144,23 @@ export class InMemoryPaymentRepository implements PaymentRepository {
       ),
       totalTip: roundCurrency(payments.reduce((sum, payment) => sum + payment.tip, 0)),
     };
+  }
+
+  /**
+   * TASK-AUD-059 — anular un cobro: se marca y se deja de contar. `null` si no existe o si ya estaba
+   * anulado, igual que el `updateMany` con `voidedAt: null` en el `WHERE` del adaptador de Prisma.
+   */
+  async voidPayment(id: string, input: VoidPaymentInput): Promise<PaymentRecord | null> {
+    const payment = this.payments.find(
+      (candidate) => candidate.id === id && candidate.voidedAt === null,
+    );
+
+    if (!payment) return null;
+
+    payment.voidedAt = input.voidedAt;
+    payment.voidedByUserId = input.actorUserId;
+    payment.voidReason = input.reason;
+
+    return payment;
   }
 }

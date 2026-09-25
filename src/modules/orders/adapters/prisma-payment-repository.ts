@@ -6,6 +6,7 @@ import type {
   CreatePaymentInput,
   PaymentRepository,
   PaymentSummary,
+  VoidPaymentInput,
 } from "@/modules/orders/ports/payment-repository";
 
 function decimalToNumber(d: Decimal): number {
@@ -22,6 +23,9 @@ function mapPayment(payment: {
   tip: Decimal;
   reference: string | null;
   createdAt: Date;
+  voidedAt: Date | null;
+  voidedByUserId: string | null;
+  voidReason: string | null;
 }): PaymentRecord {
   return {
     id: payment.id,
@@ -33,8 +37,18 @@ function mapPayment(payment: {
     tip: decimalToNumber(payment.tip),
     reference: payment.reference,
     createdAt: payment.createdAt.toISOString(),
+    voidedAt: payment.voidedAt ? payment.voidedAt.toISOString() : null,
+    voidedByUserId: payment.voidedByUserId,
+    voidReason: payment.voidReason,
   };
 }
+
+/**
+ * TASK-AUD-059 — el filtro que hace que un cobro anulado **no cuente**: ni en el arqueo (por turno o por
+ * ventana), ni en el saldo del pedido, ni en la conciliación. Vive una sola vez porque la regla es una
+ * sola: un cobro anulado no existió nunca para la plata.
+ */
+const NOT_VOIDED = { voidedAt: null } as const;
 
 /**
  * Ventana de tiempo traducida al `where` de Prisma. Sin extremos no filtra por fecha, así que una
@@ -93,7 +107,7 @@ export class PrismaPaymentRepository implements PaymentRepository {
    */
   async listPaymentsByShift(shiftId: string): Promise<PaymentRecord[]> {
     const payments = await this.client.payment.findMany({
-      where: { shiftId },
+      where: { shiftId, ...NOT_VOIDED },
       orderBy: { createdAt: "asc" },
     });
 
@@ -106,7 +120,7 @@ export class PrismaPaymentRepository implements PaymentRepository {
   ): Promise<PaymentRecord[]> {
     const prisma = this.client;
     const payments = await prisma.payment.findMany({
-      where: { orderId, ...rangeFilter(range) },
+      where: { orderId, ...rangeFilter(range), ...NOT_VOIDED },
       orderBy: { createdAt: "asc" },
     });
 
@@ -120,7 +134,7 @@ export class PrismaPaymentRepository implements PaymentRepository {
     const prisma = this.client;
     // El local sale del pedido: `Payment` no lo guarda (sería dato duplicado que puede quedar viejo).
     const payments = await prisma.payment.findMany({
-      where: { order: { locationId }, ...rangeFilter(range) },
+      where: { order: { locationId }, ...rangeFilter(range), ...NOT_VOIDED },
       orderBy: { createdAt: "asc" },
     });
 
@@ -137,7 +151,7 @@ export class PrismaPaymentRepository implements PaymentRepository {
   ): Promise<PaymentRecord[]> {
     const prisma = this.client;
     const payments = await prisma.payment.findMany({
-      where: { shiftId: null, order: { locationId }, ...rangeFilter(range) },
+      where: { shiftId: null, order: { locationId }, ...rangeFilter(range), ...NOT_VOIDED },
       orderBy: { createdAt: "asc" },
     });
 
@@ -147,8 +161,9 @@ export class PrismaPaymentRepository implements PaymentRepository {
   async getPaymentSummary(orderId: string): Promise<PaymentSummary> {
     const prisma = this.client;
     // La suma la hace la base: es lo que usa el arqueo de caja y no tiene por qué traer las filas.
+    // TASK-AUD-059: los anulados no suman ni cuentan — el pedido vuelve a tener ese saldo pendiente.
     const summary = await prisma.payment.aggregate({
-      where: { orderId },
+      where: { orderId, ...NOT_VOIDED },
       _count: { _all: true },
       _sum: { amount: true, tip: true },
     });
@@ -158,5 +173,29 @@ export class PrismaPaymentRepository implements PaymentRepository {
       totalAmount: summary._sum.amount ? decimalToNumber(summary._sum.amount) : 0,
       totalTip: summary._sum.tip ? decimalToNumber(summary._sum.tip) : 0,
     };
+  }
+
+  /**
+   * TASK-AUD-059 — la anulación, con la guarda en el propio `WHERE`: `voidedAt: null` hace que dos
+   * anulaciones simultáneas del mismo cobro no puedan pisarse la firma (la segunda afecta 0 filas y
+   * devuelve `null`, que el caso de uso traduce a 409). No hay borrado ni edición del cobro original.
+   */
+  async voidPayment(id: string, input: VoidPaymentInput): Promise<PaymentRecord | null> {
+    const prisma = this.client;
+
+    const result = await prisma.payment.updateMany({
+      where: { id, ...NOT_VOIDED },
+      data: {
+        voidedAt: new Date(input.voidedAt),
+        voidedByUserId: input.actorUserId,
+        voidReason: input.reason,
+      },
+    });
+
+    if (result.count === 0) return null;
+
+    const voided = await prisma.payment.findUnique({ where: { id } });
+
+    return voided ? mapPayment(voided) : null;
   }
 }

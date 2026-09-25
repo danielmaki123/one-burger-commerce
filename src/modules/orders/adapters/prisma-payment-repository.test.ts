@@ -42,6 +42,9 @@ describe("PrismaPaymentRepository", () => {
       tip: decimal("15.05"),
       reference: "voucher-77",
       createdAt: new Date("2026-09-14T12:00:00.000Z"),
+      voidedAt: null,
+      voidedByUserId: null,
+      voidReason: null,
     });
 
     const { PrismaPaymentRepository } = await import("./prisma-payment-repository");
@@ -67,6 +70,9 @@ describe("PrismaPaymentRepository", () => {
       tip: 15.05,
       reference: "voucher-77",
       createdAt: "2026-09-14T12:00:00.000Z",
+      voidedAt: null,
+      voidedByUserId: null,
+      voidReason: null,
     });
     expect(createMock).toHaveBeenCalledWith({
       data: {
@@ -127,6 +133,9 @@ describe("PrismaPaymentRepository", () => {
         tip: decimal("0"),
         reference: null,
         createdAt: new Date("2026-09-14T12:00:00.000Z"),
+        voidedAt: null,
+        voidedByUserId: null,
+        voidReason: null,
       },
     ]);
 
@@ -137,9 +146,60 @@ describe("PrismaPaymentRepository", () => {
 
     expect(payments).toHaveLength(1);
     expect(findManyMock).toHaveBeenCalledWith({
-      where: { orderId: "ord_01" },
+      // TASK-AUD-059: un cobro anulado no cuenta, así que las listas no lo devuelven.
+      where: { orderId: "ord_01", voidedAt: null },
       orderBy: { createdAt: "asc" },
     });
+  });
+
+  /**
+   * TASK-AUD-059 — la marca de anulación **se mapea**: quien tiene que decidir sobre el cobro (anularlo o
+   * devolverlo) la necesita. Si el mapeo la perdiera, todas las guardas de arriba verían un cobro válido.
+   */
+  it("mapea la marca de anulación de un cobro anulado", async () => {
+    findManyMock.mockResolvedValueOnce([
+      {
+        id: "pay_01",
+        orderId: "ord_01",
+        method: "cash",
+        amount: decimal("500"),
+        currency: "NIO",
+        changeAmount: decimal("0"),
+        tip: decimal("0"),
+        reference: null,
+        createdAt: new Date("2026-09-14T12:00:00.000Z"),
+        voidedAt: new Date("2026-09-25T15:00:00.000Z"),
+        voidedByUserId: "user_owner",
+        voidReason: "cobro duplicado",
+      },
+    ]);
+
+    const { PrismaPaymentRepository } = await import("./prisma-payment-repository");
+    const repository = new PrismaPaymentRepository();
+
+    const [payment] = await repository.listPaymentsByOrder("ord_01");
+
+    expect(payment).toMatchObject({
+      voidedAt: "2026-09-25T15:00:00.000Z",
+      voidedByUserId: "user_owner",
+      voidReason: "cobro duplicado",
+    });
+  });
+
+  it("las consultas del arqueo tampoco devuelven cobros anulados", async () => {
+    findManyMock.mockResolvedValue([]);
+
+    const { PrismaPaymentRepository } = await import("./prisma-payment-repository");
+    const repository = new PrismaPaymentRepository();
+
+    await repository.listPaymentsByShift("shift_01");
+    await repository.listPaymentsInRange("loc_principal", {});
+    await repository.listUnattributedPaymentsInRange("loc_principal", {});
+
+    for (const [call] of findManyMock.mock.calls) {
+      expect(call.where).toMatchObject({ voidedAt: null });
+    }
+    expect(findManyMock).toHaveBeenCalledTimes(3);
   });
 
   it("resume con la agregación de la base, no sumando en memoria", async () => {
@@ -155,7 +215,8 @@ describe("PrismaPaymentRepository", () => {
 
     expect(summary).toEqual({ count: 2, totalAmount: 100, totalTip: 10 });
     expect(aggregateMock).toHaveBeenCalledWith({
-      where: { orderId: "ord_01" },
+      // TASK-AUD-059: el saldo del pedido no cuenta cobros anulados (la guarda va en la base).
+      where: { orderId: "ord_01", voidedAt: null },
       _count: { _all: true },
       _sum: { amount: true, tip: true },
     });

@@ -167,6 +167,9 @@ describe("commitSale", () => {
       tip: 0,
       reference: null,
       createdAt: "2026-09-14T12:00:00.000Z",
+      voidedAt: null,
+      voidedByUserId: null,
+      voidReason: null,
     });
 
     const result = await commitSale({

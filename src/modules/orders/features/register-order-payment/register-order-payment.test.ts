@@ -43,6 +43,9 @@ function setup(input: { order?: OrderRecord | null; payments?: number } = {}) {
       tip: 0,
       reference: null,
       createdAt: new Date().toISOString(),
+      voidedAt: null,
+      voidedByUserId: null,
+      voidReason: null,
     });
   }
 

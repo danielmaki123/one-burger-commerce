@@ -166,6 +166,9 @@ function seedPayment(
     tip,
     reference: null,
     createdAt,
+    voidedAt: null,
+    voidedByUserId: null,
+    voidReason: null,
   });
 }
 
