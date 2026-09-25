@@ -1,5 +1,47 @@
 # Estado del proyecto — One Burger Commerce
 
+> **Actualizado: 2026-09-25 (corrección post-deploy + CIERRE de Caja)**
+>
+> **Último deploy: `build-20260925-011110`** (lo corrió el agente con el OK y el token del owner en el
+> momento), con `health: ok`. Corresponde al PR [#27](https://github.com/danielmaki123/one-burger-commerce/pull/27),
+> mergeado como `40e288f`.
+>
+> **Qué entró** (brief «Corrección post-deploy + cierre de Caja», 2026-09-23):
+>
+> 1. **N3 (P2)** — el POS **cobra un pedido del menú**: búsqueda por número, total precargado y el cobro
+>    firmado con la terminal del turno. Era el hueco real detrás del «no sale la factura»: sin cobro,
+>    `emit-invoice` corta con 409 y el pedido del menú no se podía facturar.
+> 2. **H3b (P3)** — «Seguí tu pedido» en la confirmación, al seguimiento (`/orders/track`).
+> 3. **N2 (P3)** — el 429 del alta pública dice que espere; el error real mantiene su mensaje.
+> 4. **H1** — la Caja avisa que los bancos aparecen al abrir el cierre (solo si el local tiene bancos).
+> 5. **A-45 (P2, backlog)** — el arqueo ciego pasa a ser **regla de servidor**: el corte X y el cierre no le
+>    devuelven el esperado ni la diferencia al rol `cashier`; Manager y Owner siguen viendo el arqueo completo.
+>
+> **QA post-deploy (solo lectura, cuenta owner, sin mutar nada)**: 5 casos verdes y 1 salteado. El panel
+> «Cobrar un pedido del menú» **está en producción** y la ruta del cobro valida (un cuerpo vacío responde
+> **422**, no 404); el checkout de producción muestra **«Esperá un momento e intentá de nuevo en unos
+> segundos.»** ante un 429; el aviso de los bancos y el botón «Seguí tu pedido» **están desplegados** (sus
+> textos viajan en el bundle que sirve el sitio) y `/orders/track` sigue vivo con su número + WhatsApp.
+> Smokes **7/7** (menú) y **6/6** (hosts).
+>
+> **Dos límites de esa QA, dichos con todas las letras**: al momento de verificar **no había ninguna caja
+> abierta en producción**, así que el aviso de los bancos (que vive en la sección del turno abierto, «antes
+> de abrir el cierre») y la lectura del corte X del dueño **no se pudieron ver en pantalla** — se verificó que
+> están desplegados y que la ruta responde 200—; y la confirmación del cliente exige el token del enlace que
+> se genera al hacer el pedido, así que el botón nuevo **no se pudo clickear en producción sin crear un
+> pedido real** (una mutación que esta QA no hace). Los dos flujos quedan cubiertos por el **E2E local con
+> navegador real** (131 pasaron / 6 salteados / 0 fallas) y por los unitarios con rojo observado.
+>
+> **Verificación local**: **3237 unitarios en 464 archivos**, contratos **50/50**, `lint`, `typecheck`,
+> `build`, `build:webpack` y `security:secrets` verdes; CI del PR con los **4 checks** en verde. Capturas
+> 375/1280 en `ops/tasks/audit-ui/qa-cierre-*.png` (producción) y `cierre-*.png` (local).
+>
+> **🏁 La sección Caja queda CERRADA**: con este PR mergeado y desplegado no hay más trabajo de Caja. Deuda
+> que sigue abierta y **no** es de Caja: **A-43** (la cabecera compartida del panel mide 23,3% del alto a
+> 375 px) — va en otro PR, como pidió el owner.
+>
+> ---
+>
 > **Actualizado: 2026-09-23 (Fases 1–6 de Caja DESPLEGADAS y QA de producción hecha)**
 >
 > **Último deploy: `build-20260923-010038`** (lo corrió el owner), servido por los tres dominios con
@@ -53,6 +95,8 @@
 > posterior a este merge). Lo que sigue es la **Fase 6** (terminal por turno), que no se deploya sin el OK
 > del owner. Siguen abiertas **A-43** (la cabecera compartida, 23,3% a 375 px) y **A-45** (el arqueo ciego es
 > regla de pantalla: el corte X devuelve el esperado por API).
+> *(**Corrección del 2026-09-25**: **A-45 quedó cerrado** con la corrección post-deploy —el cajero ya no lee
+> el esperado por API—; **A-43 sigue abierto** y va en otro PR.)*
 >
 > **Fase 6 (terminal por turno) — EN CURSO en la rama `feat/cash-terminal-por-turno`** (no mergeada, no
 > desplegada). El owner respondió el 2026-09-23 lo que la fase no tenía decidido en el repo:
