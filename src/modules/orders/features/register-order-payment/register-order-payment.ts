@@ -58,9 +58,14 @@ export type RegisterOrderPaymentDependencies = {
   usdExchangeRate: number | null;
 };
 
-/** El alcance del cobro: el repositorio de cobros y el lock del turno, con el mismo cliente de base. */
+/** El alcance del cobro: el repositorio de cobros y los locks, con el mismo cliente de base. */
 export type OrderPaymentScope = {
-  paymentRepository: Pick<PaymentRepository, "createPayment">;
+  paymentRepository: Pick<PaymentRepository, "createPayment" | "getPaymentSummary">;
+  /**
+   * TASK-AUD-055 — bloquea la fila del pedido. Es la garantía real de que dos cobros simultáneos no superen
+   * el saldo pendiente: el segundo espera a que el primero commitee y lee la suma ya actualizada.
+   */
+  lockOrder: (orderId: string) => Promise<{ id: string } | null>;
   lockShift: (shiftId: string) => Promise<{ id: string; status: string } | null>;
 };
 
@@ -92,31 +97,48 @@ export async function registerOrderPayment(
     });
   }
 
-  const summary = await deps.paymentRepository.getPaymentSummary(order.id);
-  const alreadyPaid = roundCurrency(summary.totalAmount);
-
-  if (alreadyPaid >= order.total) {
-    throw new OrderError(409, "CONFLICT", "Ese pedido ya está cobrado.", {
-      order: "Ese pedido ya está cobrado.",
-    });
-  }
-
   const amount = roundCurrency(input.amount);
-
-  if (roundCurrency(alreadyPaid + amount) > order.total) {
-    throw new OrderError(
-      409,
-      "CONFLICT",
-      `El cobro pasa el total del pedido (${(order.total - alreadyPaid).toFixed(2)} pendiente).`,
-      { amount: "El cobro pasa el total del pedido: revisá el monto." },
-    );
-  }
 
   const openShift = deps.findOpenShift
     ? await deps.findOpenShift(order.locationId, input.terminalId ?? null)
     : null;
 
   const payment = await deps.runInOrderPaymentTransaction(async (scope) => {
+    /**
+     * TASK-AUD-055 — **primero el lock del pedido**, y recién después el saldo pendiente.
+     *
+     * Leer la suma de los cobros y después escribir no es una garantía: dos cobros simultáneos leían los dos
+     * el mismo saldo, los dos pasaban la comprobación y el pedido terminaba cobrado por encima de su total.
+     * Con la fila del pedido bloqueada, el segundo espera a que el primero commitee y lee la suma ya
+     * actualizada. El orden (pedido y después turno) es el mismo que respeta el cierre, que bloquea el turno:
+     * no hay inversión de locks.
+     */
+    const lockedOrder = await scope.lockOrder(order.id);
+
+    if (!lockedOrder) {
+      throw new OrderError(404, "NOT_FOUND", "Ese pedido no existe.", {
+        order: "Ese pedido no existe.",
+      });
+    }
+
+    const summary = await scope.paymentRepository.getPaymentSummary(order.id);
+    const alreadyPaid = roundCurrency(summary.totalAmount);
+
+    if (alreadyPaid >= order.total) {
+      throw new OrderError(409, "CONFLICT", "Ese pedido ya está cobrado.", {
+        order: "Ese pedido ya está cobrado.",
+      });
+    }
+
+    if (roundCurrency(alreadyPaid + amount) > order.total) {
+      throw new OrderError(
+        409,
+        "CONFLICT",
+        `El cobro pasa el total del pedido (${(order.total - alreadyPaid).toFixed(2)} pendiente).`,
+        { amount: "El cobro pasa el total del pedido: revisá el monto." },
+      );
+    }
+
     /**
      * TASK-AUD-005 — con el turno bloqueado se comprueba que **siga** abierto. El cobro de un pedido que ya
      * existe no es la venta del mostrador: si no hay caja abierta se registra igual y sin turno (perder la
