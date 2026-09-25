@@ -46,7 +46,10 @@ BASE_URL=https://oneburgernic.com npm run test:e2e:prod:hosts
   editables en `/admin/locations` y promedio de preparación del día), menú, usuarios y **personalización
   del negocio** (`/admin/settings`). El detalle del diseño y las decisiones está en
   [`ops/tasks/TASK-orders-console.md`](ops/tasks/TASK-orders-console.md).
-- Roles: `owner`, `manager`, `kitchen`.
+- Roles: `owner` (todo) · `manager` (órdenes, menú, promociones, inventario, caja y devoluciones) ·
+  `kitchen` (solo órdenes, no maneja plata) · `cashier` (cobra y cierra el turno; no administra caja, no
+  devuelve y no ve el esperado del arqueo). El detalle de los permisos está en
+  `src/modules/auth/domain/admin-permissions.ts` y en [`.agents/CONTEXT.md`](.agents/CONTEXT.md).
 - Pago: se cobra **en el local al retirar**. No hay pasarela de pago.
 - Propina: opcional, desmarcada por defecto, **porcentaje configurable** desde el admin
   (el servidor es la fuente de verdad y no acepta un monto del cliente).

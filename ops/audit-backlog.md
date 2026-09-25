@@ -7,8 +7,12 @@
 >
 > **Reglas del ciclo** (no reemplazan a `AGENTS.md`, lo ordenan):
 > 1. Una task por vez. Cada task se cierra completa: **test que falla primero** (con el rojo
->    confirmado por la razón correcta) → implementación mínima → validación completa → commit + push
->    a `main` → CI verde → `ops/project-state.md` actualizado.
+>    confirmado por la razón correcta) → implementación mínima → **mutation check** → validación
+>    completa → **rama + PR hacia `main`** (nunca push directo: es política del repo; el ruleset no exige
+>    PR todavía — gap de TASK-AUD-002)
+>    → CI verde → merge con `--squash` → **`ops/CURRENT.md` actualizado**.
+>    El procedimiento está en [`.agents/skills/bugfix/SKILL.md`](../.agents/skills/bugfix/SKILL.md) y
+>    el protocolo de integridad de tests en `AGENTS.md` § *Testing*.
 > 2. **Un commit por task**; si la task toca temas distintos, un commit por tema. Nunca dos tasks en
 >    un mismo commit.
 > 3. **Nada se arregla sin reproducirlo antes.** Si no se reproduce, se cierra como *no-repro* con
@@ -20,20 +24,28 @@
 > 6. La UI se verifica a **375 px y 1280 px en navegador real** (Playwright), no en HTML estático.
 > 7. **Producción no se toca ni se despliega sin confirmación explícita del owner.**
 >
-> **Fecha de apertura**: 2026-09-12 · **Rama**: `main` · **Estado (2026-09-17)**: **A-01/A-07**
-> (commit `83d7433`) y **A-08** (commit `f0366c8`) cerrados, y **A-06** cerrado el 2026-09-17 (el owner
-> rotó el `EASYPANEL_TOKEN`). **A-02 a A-05** están **bloqueados**: son datos, infraestructura o
-> decisiones del owner, así que no hay task técnica para atacar sin que él diga
+> **Fecha de apertura**: 2026-09-12 · **Rama**: `main` · **Estado**: el de la tabla del índice (§1), que
+> es el que manda: este encabezado **no** lleva estado, porque quedaba viejo mientras el índice avanzaba.
+> El estado operativo vigente está en [`CURRENT.md`](CURRENT.md).
+>
+> **De dónde salieron los ítems**: **A-01/A-07** (`83d7433`), **A-08** (`f0366c8`) y **A-06** (el owner
+> rotó el `EASYPANEL_TOKEN` el 2026-09-17) están **cerrados**. **A-02 a A-05** están **bloqueados**: son
+> datos, infraestructura o decisiones del owner, así que no hay task técnica para atacar sin que él diga
 > cuál. **A-09 a A-14** los registró el **agente** al cerrar la consola de comandas (B0–B6). **A-15 a
 > A-23** los registró el agente el **2026-09-15**, al responder **tres consultas del owner** (caja/POS,
 > fiscal/recibo y design system) que se pidieron **sin plan y sin código**: son el inventario medido de
 > esos tres frentes, con su evidencia, para que el próximo plan salga de ahí y no de una re-lectura.
 > **A-15, A-17, A-19, A-20 y A-23 son decisiones de producto o de operación: no se implementan sin
-> respuesta del owner.** **A-16, A-18 y A-22 son trabajo técnico** ya acotado (historial de cajas,
-> persistencia del arqueo por moneda y guardrails de UI). **A-21 se cerró el 2026-09-15** con la Capa 0
-> del plan de UI: los documentos del repo que mentían se reescribieron y hay un contrato que lo verifica
-> (el cuarto punto era de `plna.md`, que no está versionado).
+> respuesta del owner.** **A-16, A-18 y A-22 son trabajo técnico** ya acotado. **A-21 se cerró el
+> 2026-09-15** con la Capa 0 del plan de UI: los documentos del repo que mentían se reescribieron y hay un
+> contrato que lo verifica (el cuarto punto era de `plna.md`, que no está versionado).
 > **El plan `plna.md` (FASE 1-3) está completo y desplegado**: no queda trabajo pendiente de ese plan.
+>
+> ⚠️ **Dos entradas de la cola hay que revisarlas antes de agarrarlas** (anotado por TASK-AUD-000, no
+> corregido acá): **A-16** («no hay historial de cajas») y la segunda mitad de **A-18** («`Payment` no
+> tiene `shiftId`») **parecen obsoletas** — el historial existe en `/admin/history/cierres` y la Fase 6 del
+> rediseño de Caja agregó `shiftId`. Se confirman al abrir su TASK. El detalle, en
+> [`CURRENT.md`](CURRENT.md) §5.
 
 ## 1. Índice
 
@@ -58,7 +70,7 @@ Estados: `reportado` · `a reproducir` · `en curso` · `cerrado` · `no-repro` 
 | A-14 | **El mapeo de errores repite el mismo bloque 12 veces**: `src/shared/lib/http/error-response.ts` tiene un `if (error instanceof XError)` idéntico por módulo (11 antes de TASK-301). Se puede resolver con una tabla de constructores sin cambiar el comportamiento | deuda | P3 | `reportado` (agente) | — |
 | A-15 | **Un cobro de un pedido cancelado sigue contando en el arqueo**: `listPaymentsInRange` filtra por local y ventana **sin mirar el estado del pedido** (`src/modules/orders/adapters/prisma-payment-repository.ts:92`) y `update-order-status.ts` no toca pagos; **no existe `Refund`** ni movimiento que compense. Si el cajero devuelve la plata, el cierre marca faltante sin forma de registrarlo | decisión + bug de plata | **P1** | `decisión-pendiente` (owner) | — |
 | A-16 | **No hay historial de cajas**: `get-current-shift.ts:21` devuelve solo la caja **abierta** y `listShifts` (`ports/shift-repository.ts:49`; el adaptador ya trae `include: {cashCounts:true}`) **no lo usa ninguna API ni pantalla**. Al cerrar y recargar, el arqueo desaparece de la UI aunque los datos están en `Shift` + `ShiftCashCount` | feat / deuda | P2 | `reportado` (agente) | — |
-| A-17 | **La tarjeta no se reporta y la transferencia no se puede cobrar**: el cierre filtra `method === "cash"` (`close-shift.ts:139`) y no hay vista que sume tarjeta del día; el enum `PaymentMethodType` ya tiene `transfer`/`mixed`/`other` (`schema.prisma:347-353`) pero el POS solo acepta `cash\|card` (`sale-payload.ts:30`) | decisión | P2 | `decisión-pendiente` (owner) | — |
+| A-17 | **La tarjeta no se reporta y la transferencia no se puede cobrar**: el cierre filtra `method === "cash"` (`close-shift.ts:139`) y no hay vista que sume tarjeta del día; el enum `PaymentMethodType` ya tiene `transfer`/`mixed`/`other` (`schema.prisma:347-353`) pero el POS solo acepta `cash\|card` (`sale-payload.ts:30`). ⚠️ **Corregido el 2026-09-24 (TASK-AUD-000): parece OBSOLETA** — verificado que el POS cobra `cash`/`card`/`transfer`/`other` (`pos-sale.ts:17`) y que el cierre congela `cardSalesAmount`/`transferSalesAmount`/`otherSalesAmount` (`schema.prisma:929-932`). **Reproducir antes de tomarla** | decisión | P2 | `a reproducir` (probablemente obsoleta) | — |
 | A-18 | **El detalle por moneda del cierre no se persiste**: `expectedByCurrency` viaja solo en `meta` (`close-shift.ts:113`) y `Shift` no tiene columnas por moneda; recomputar un cierre viejo usa la **tasa de hoy**. Tampoco hay `Payment.shiftId` (`schema.prisma:732-753`): la atribución es por ventana de tiempo | deuda / dato | P3 | `reportado` (agente) | — |
 | A-24 | **57 controles crudos** siguen en 21 archivos del admin (los `<select>`/`<textarea>` de Menú e Inventario, el `type=color` de Categorías, varios `<button>`): los tokens ya son los del sistema, pero el control no es el primitivo. Hay techo declarado por archivo en `design-tokens.allow.json` | deuda | P2 | `reportado` (agente) | — |
 | A-25 | **Tres `window.confirm`** (Usuarios, Locales, Promos) en vez del primitivo `Modal`: el guardrail pide el modal y el diálogo nativo no se puede estilar ni testear igual | deuda | P3 | `reportado` (agente) | — |
@@ -121,8 +133,8 @@ Estados: `reportado` · `a reproducir` · `en curso` · `cerrado` · `no-repro` 
 - **Estado**: cerrado con A-07. Lo que la implementación dejó afuera, con motivo escrito, está en la
   ficha de A-07 (el footer no existe a 375 px y el contacto del negocio sigue siendo el de la
   configuración).
-- **Referencias**: `ops/project-state.md` §2 ("T8 · Fase 7, cierre" y "A-07 · la información de cada
-  sucursal").
+- **Referencias**: `ops/history/project-state-legacy-2026-09.md` §2 ("T8 · Fase 7, cierre" y "A-07 · la
+  información de cada sucursal") — el `project-state.md` de esa época se archivó entero ahí (TASK-AUD-000).
 
 ### A-07 · La información de cada sucursal en el footer y la home — `cerrado` (commit `83d7433`)
 
@@ -152,7 +164,7 @@ Estados: `reportado` · `a reproducir` · `en curso` · `cerrado` · `no-repro` 
   `/api/locations` (nada del negocio donde corresponde el local), sin datos hardcodeados; a **375 px**
   sin scroll horizontal y con enlaces táctiles de **≥ 44 px**; a **1280 px** en columnas. Test de
   componente (jsdom) + E2E de navegador real en los dos anchos.
-- **Referencias**: A-01; `ops/project-state.md` §2 ("T8 · Fase 7, cierre").
+- **Referencias**: A-01; `ops/history/project-state-legacy-2026-09.md` §2 ("T8 · Fase 7, cierre").
 - **Cierre (2026-09-12, commit `83d7433`)**:
   - `locationDirectionsHref` (dominio de locales) resuelve el "Cómo llegar" de **un** local: el mapa
     cargado, o una búsqueda armada con **su** dirección; sin ninguno de los dos devuelve `null`.
@@ -229,8 +241,8 @@ Estados: `reportado` · `a reproducir` · `en curso` · `cerrado` · `no-repro` 
   título de la página y el header es la marca de navegación. Si el owner prefiere una sola aparición
   del nombre en la primera pantalla, es un cambio de diseño aparte (el mock de T2 ordena esa fila
   como encabezado de la home).
-- **Referencias**: `ops/project-state.md` §2 ("Arreglo de branding: el logo y los colores no llegaban
-  a toda la app" y "A-08 · la marca en el header"); `src/shared/ui/brand-mark.tsx`.
+- **Referencias**: `ops/history/project-state-legacy-2026-09.md` §2 ("Arreglo de branding: el logo y los
+  colores no llegaban a toda la app" y "A-08 · la marca en el header"); `src/shared/ui/brand-mark.tsx`.
 
 ### A-02 · Datos de los locales de producción — `bloqueado` (sesión de owner)
 
@@ -384,14 +396,33 @@ Estados: `reportado` · `a reproducir` · `en curso` · `cerrado` · `no-repro` 
 
 ### A-17 · La tarjeta no se reporta y la transferencia no se puede cobrar — `decisión-pendiente` (owner)
 
-- **Qué es**: el cierre calcula el esperado **solo con efectivo** (`close-shift.ts:138-139`) —correcto,
-  la tarjeta no está en el cajón— pero **nada** suma la tarjeta del día: ni la respuesta del cierre ni el
-  reporte diario (`src/modules/dashboard/features/get-daily-report/get-daily-report.ts` solo agrega
-  `Order`: totales, cantidad y estados de pedidos/reservas). Y el enum del cobro real
-  (`PaymentMethodType`, `schema.prisma:347-353`) ya tiene `transfer`, `mixed` y `other`, pero el payload
-  del POS solo acepta `cash|card` (`src/app/api/admin/pos/sale/sale-payload.ts:30`).
+- **Qué es** *(al 2026-09-15, cuando se reportó; las líneas citadas son del informe original y hoy pueden
+  estar corridas: el esquema y el payload crecieron desde entonces)*: el cierre calculaba el esperado
+  **solo con efectivo** (`close-shift.ts`) —correcto, la tarjeta no está en el cajón— pero **nada** sumaba
+  la tarjeta del día: ni la respuesta del cierre ni el reporte diario
+  (`src/modules/dashboard/features/get-daily-report/get-daily-report.ts` solo agrega `Order`: totales,
+  cantidad y estados de pedidos/reservas). Y el enum del cobro real (`PaymentMethodType`) ya tenía
+  `transfer`, `mixed` y `other`, pero el payload del POS **entonces** solo aceptaba `cash|card`
+  (`src/app/api/admin/pos/sale/sale-payload.ts`).
 - **Qué falta decidir**: si el mostrador cobra transferencia y pago mixto, y qué se espera ver al cerrar
   de lo que **no** pasó por el cajón (¿informativo? ¿cuadre contra el banco/POS?).
+
+> ⚠️ **Corrección del 2026-09-24 (TASK-AUD-000), verificada contra el código — pendiente de reproducción:
+> la ficha parece OBSOLETA.** El hallazgo se escribió el 2026-09-15 y desde entonces cerró el trabajo del
+> POS. Verificado hoy:
+>
+> - el POS **sí** cobra transferencia y otros: `POS_PAYMENT_METHODS` = `cash`, `card`, `transfer`, `other`
+>   (`src/modules/pos/domain/pos-sale.ts:17`, con test que fija la lista), y `mixed` se **deriva** de que
+>   el cobro se partió en más de un medio — no es una opción del cajero;
+> - el cierre **sí** conserva el desglose por medio: `Shift.cardSalesAmount`, `transferSalesAmount` y
+>   `otherSalesAmount` se congelan al cerrar (`prisma/schema.prisma:929-932`,
+>   migración `20260918130000_add_shift_payment_mix`; los escribe `close-shift.ts:178-180` desde
+>   `arqueo.paymentMix`), y el panel `payment-mix-panel.tsx` los dibuja.
+>
+> Lo que queda por reproducir es si **sobrevive algún resto** del hallazgo (p. ej. la suma de tarjeta del
+> día en el reporte diario, que vive en `dashboard`, **fuera del MVP**). Antes de tomar A-17 hay que
+> reproducirlo; si no se reproduce, se cierra como *no-repro* con este intento escrito — **no** se
+> implementa nada.
 
 ### A-18 · El detalle por moneda del cierre no se persiste y no hay `Payment.shiftId` — `reportado` (agente)
 

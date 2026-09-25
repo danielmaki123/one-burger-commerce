@@ -1,21 +1,26 @@
 # CLAUDE.md
 
-**Este repo usa [`AGENTS.md`](AGENTS.md) como única fuente de verdad** para las reglas de trabajo
-(alcance, arquitectura, TDD, validación, git/CI, deploy, idioma y prohibiciones). Un agente basado en
-Claude debe leer `AGENTS.md` y, para el estado real, `ops/project-state.md`; el punto de entrada para
-un chat nuevo es [`ops/tasks/START-HERE.md`](ops/tasks/START-HERE.md).
+**Este repo usa [`AGENTS.md`](AGENTS.md) como autoridad.** Este archivo es un **adapter**, no un
+manual: no repite reglas (si una regla hiciera falta acá, hay que arreglar `AGENTS.md`).
+
+Orden de lectura para un agente basado en Claude:
+
+1. [`AGENTS.md`](AGENTS.md) — reglas y límites.
+2. [`.agents/CONTEXT.md`](.agents/CONTEXT.md) — cómo está construido el sistema.
+3. [`ops/CURRENT.md`](ops/CURRENT.md) — qué está vivo hoy.
+4. La TASK ([`ops/tasks/`](ops/tasks/), incluida su [plantilla](ops/tasks/TEMPLATE.md)).
+5. La skill que corresponda: [`.agents/skills/`](.agents/skills/).
+6. [`.agents/MEMORY.md`](.agents/MEMORY.md) — solo si la TASK toca un área donde sus lecciones aplican.
+
+Punto de entrada de una sesión nueva: [`ops/tasks/START-HERE.md`](ops/tasks/START-HERE.md).
 
 > **Nota histórica:** este archivo tuvo antes instrucciones heredadas de **otro proyecto** (sincronizar
-> con `origin/staging`, trabajar en ramas `claude/*`, leer `docs/current-task.md` y
-> `handoffs/PROJECT_STATE.md`). Nada de eso aplica acá: en este repo la rama de trabajo y deploy es
-> **`main`**, que **no recibe push directo** (un ruleset la protege): se trabaja en una rama, se abre PR
-> hacia `main`, se espera el CI verde (los 4 checks) y se mergea con `--squash`. `docs/` y `handoffs/`
-> están en `.gitignore` justamente porque son material heredado. Se dejó la nota para que nadie las siga
-> por error.
+> con `origin/staging`, ramas `claude/*`, `docs/current-task.md`, `handoffs/PROJECT_STATE.md`). Nada de
+> eso aplica: se trabaja en una rama, se abre PR hacia `main` (que no recibe push directo) y se mergea
+> con `--squash` tras el CI verde. `docs/` y `handoffs/` están en `.gitignore` por ser material
+> heredado.
 
 ## Estado operativo (decisión del owner, no técnica)
 
-Claude Code CLI está **pausado** por decisión del owner y no se usa para tareas nuevas mientras siga
-así. Si se reactiva, es un worker de implementación más (no un orchestrator) y trabaja con las mismas
-reglas de `AGENTS.md`: de a una tarea por vez, TDD, validación completa y sin desplegar a producción
-sin confirmación.
+Claude Code CLI está **pausado** por decisión del owner. Si se reactiva, es un worker de
+implementación más (no un orchestrator) y trabaja con las reglas de `AGENTS.md`.

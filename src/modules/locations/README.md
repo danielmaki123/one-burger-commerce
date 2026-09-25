@@ -5,7 +5,8 @@ dirección y su mapa, su contacto, su horario, sus minutos de preparación, si e
 **qué productos ofrece y a qué precio**. La marca, los colores, la moneda, la propina y las promos
 siguen siendo del negocio entero (`business-settings`).
 
-Ver `ops/tasks/TASK-multi-location.md` (diseño y fases) y `ops/project-state.md` §2 (qué se cerró).
+Ver `ops/tasks/TASK-multi-location.md` (diseño y fases) y `ops/CURRENT.md` (qué está vivo hoy). Lo que
+se cerró en su momento quedó archivado en `ops/history/project-state-legacy-2026-09.md`.
 
 ## Estructura
 

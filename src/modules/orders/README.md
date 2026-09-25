@@ -4,8 +4,8 @@ El pedido y su ciclo de vida: alta desde el checkout, estados y su historial, se
 promos con código, forma de pago y vuelto, PIN de retiro y las zonas de delivery/mesas que quedaron
 **fuera del MVP** (siguen en el código, no se ofrecen en la UI ni en las APIs públicas).
 
-Ver `AGENTS.md` (reglas), `ops/project-state.md` (estado) y `src/modules/locations/README.md` (el local
-del pedido, T8).
+Ver `AGENTS.md` (reglas), `.agents/CONTEXT.md` (cómo está construido el sistema), `ops/CURRENT.md`
+(el estado real de hoy) y `src/modules/locations/README.md` (el local del pedido, T8).
 
 ## Estructura
 

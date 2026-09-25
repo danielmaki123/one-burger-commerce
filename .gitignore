@@ -13,7 +13,25 @@ prisma/dev.db
 .vercel
 
 # Local agent/tooling metadata copied from the source project.
-.agents
+#
+# OJO con `.agents/`: desde TASK-AUD-000 **sí** se versionan `CONTEXT.md`, `MEMORY.md`, `README.md` y
+# las skills propias (`.agents/README.md` explica el sistema). Lo que sigue sin versionarse es el
+# volcado de skills de **terceros** que copia la herramienta local: se listan una por una, así el repo
+# versiona solo lo que es suyo y una skill de terceros nueva queda ignorada sola.
+.agents/*
+!.agents/CONTEXT.md
+!.agents/MEMORY.md
+!.agents/README.md
+!.agents/skills/
+.agents/skills/*
+!.agents/skills/new-task/
+!.agents/skills/bugfix/
+!.agents/skills/money-change/
+!.agents/skills/database-migration/
+!.agents/skills/security-change/
+!.agents/skills/ui-change/
+!.agents/skills/audit/
+!.agents/skills/production-release/
 .claude
 .codex
 .gemini
@@ -28,20 +46,24 @@ prisma/dev.db
 # Ojo: `CLAUDE.md` **sí** se versiona en este repo, pero como un puntero a `AGENTS.md`
 # (la versión heredada de Casa Antigua traía reglas de otro proyecto: rama `staging`,
 # ramas `claude/*` y rutas que acá están ignoradas). No volver a agregarlo a esta lista.
-ANTIGRAVITY.md
-ARCHITECTURE.md
-CODEX.md
-CONTEXT.md
-DEPLOYMENT.md
-GEMINI.md
-KIMI.md
-LINEAR.md
-N8N.md
-PRODUCT.md
-PROJECT_AUDIT_FOR_CODEX.md
-STACK.md
-STITCH.md
-SUPABASE.md
+#
+# Van ancladas a la raíz (`/`) porque son documentos heredados **de la raíz**, y un patrón sin barra
+# matchea a cualquier profundidad: sin el ancla, `CONTEXT.md` ignoraba también
+# `.agents/CONTEXT.md` —el contexto estable del proyecto— y TASK-AUD-000 no se podía versionar.
+/ANTIGRAVITY.md
+/ARCHITECTURE.md
+/CODEX.md
+/CONTEXT.md
+/DEPLOYMENT.md
+/GEMINI.md
+/KIMI.md
+/LINEAR.md
+/N8N.md
+/PRODUCT.md
+/PROJECT_AUDIT_FOR_CODEX.md
+/STACK.md
+/STITCH.md
+/SUPABASE.md
 /contracts/
 /decisions/
 /design/
