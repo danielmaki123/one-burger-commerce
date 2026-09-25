@@ -19,8 +19,9 @@ export type ShiftHandoverRow = {
   id: string;
   handedByName: string | null;
   receivedByName: string;
-  expectedAmount: number;
-  expectedByCurrency: Record<string, number> | null;
+  /** Opcional: con arqueo ciego el servidor no le manda el monto al cajero (TASK-AUD-003). */
+  expectedAmount?: number | null;
+  expectedByCurrency?: Record<string, number> | null;
   createdAt: string;
 };
 
@@ -50,11 +51,23 @@ export default function ShiftHandoversList({
           className="border-b border-line-subtle pb-2 text-st-body text-ink-secondary last:border-b-0"
         >
           Recibió <span className="font-semibold text-ink">{handover.receivedByName}</span>
-          {handover.handedByName ? <> de {handover.handedByName}</> : null} · entregado{" "}
-          <span className="font-mono tabular-nums text-ink">
-            {formatCurrency(handover.expectedAmount, currency)}
-          </span>{" "}
-          ·{" "}
+          {handover.handedByName ? <> de {handover.handedByName}</> : null}
+          {/*
+            TASK-AUD-003 — al cajero el servidor no le manda el monto del traspaso (es el esperado del
+            arqueo ciego): sin dato no se dibuja una fila vacía ni un `NaN`, se dice que quedó firmado.
+          */}
+          {handover.expectedAmount === undefined || handover.expectedAmount === null ? (
+            <> · firmado · </>
+          ) : (
+            <>
+              {" "}
+              · entregado{" "}
+              <span className="font-mono tabular-nums text-ink">
+                {formatCurrency(handover.expectedAmount, currency)}
+              </span>{" "}
+              ·{" "}
+            </>
+          )}
           <span className="font-mono tabular-nums">
             {formatShiftDateTime(handover.createdAt, { timezone, locale })}
           </span>

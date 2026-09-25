@@ -90,30 +90,28 @@ sin guardrail) · `A-23` (cuenta de prueba con rol `owner` en producción) · `A
 
 ## 4. Trabajo actual
 
-**TASK-AUD-002 — Git / CI Governance** (en curso): el ruleset `Protect main` **exige Pull Request** con 0
-aprobaciones (el PR deja de ser solo política) y el job `verify` corre **`build:webpack`** cuando la PR toca
-un `page.tsx`. **Sin cambio funcional del producto.**
+**TASK-AUD-003 — Blind Cash Authorization** (en curso): auditoría del arqueo ciego. **Encontró dos fugas
+reales** —el corte X y el cierre mandaban los **sumandos** del esperado, y el **traspaso** devolvía el
+esperado sin filtrar por una puerta del mostrador— y las cerró, con las pantallas acompañando. Sin cambio de
+producto ni de la fórmula del dinero.
 
-**TASK-AUD-001 — Test Integrity & Quality Gates**: **cerrada**. PR #32 mergeado como `1b12dfd`, con el gate
-`Test integrity gate` corriendo en CI (verificado que el ratchet compara contra la base, no se saltea).
+**TASK-AUD-002 — Git / CI Governance**: **cerrada**. PR #33 → `f441c48`. El ruleset `Protect main` **exige
+Pull Request** (0 aprobaciones) y `verify` corre `build:webpack` cuando la PR toca un `page.tsx`.
 
-**TASK-AUD-000 — Agent Operating System**: **cerrada**. PR #31 mergeado como `eeaa810`, con `publish` en
-verde. **No hubo deploy.**
+**TASK-AUD-001 / AUD-000**: **cerradas** (`1b12dfd` / `eeaa810`), las dos con `publish` en verde.
 
 ## 5. Siguiente trabajo
 
 El programa completo, con objetivo, prioridad, riesgo, dependencia y orden, está en
 [`tasks/AUDIT-REMEDIATION-ROADMAP.md`](tasks/AUDIT-REMEDIATION-ROADMAP.md).
 
-Orden inmediato:
+Orden inmediato (bloque financiero):
 
-1. **TASK-AUD-003 — Blind Cash Authorization / A-45**: **verificar y endurecer**, no construir desde
-   cero (ver la nota de abajo). Acá empieza el bloque funcional de dinero.
-2. `TASK-AUD-004` a `TASK-AUD-017` en el orden del roadmap.
-
-> **Cierre del bloque de gobierno**: AUD-000/001/002 quedan cerradas. Con AUD-002 el PR es obligatorio a
-> nivel de plataforma (no solo por convención) y el error de una página ya no puede llegar a `main` con el CI
-> verde. El orden de las TASK de dinero no cambia.
+1. **TASK-AUD-004 — POS Sale Atomicity**: reproducir con PostgreSQL real una venta con varios `Payment` y un
+   fallo entre pagos; diseñar el límite atómico después de medir.
+2. **TASK-AUD-005 — Shift Close Atomicity**: qué persiste el cierre y con qué límite; carreras del cierre.
+3. **TASK-AUD-006 — Invoice Sequence Concurrency**: la carrera de numeración (factura **simple, no fiscal**).
+4. `TASK-AUD-015` **no** se inicia en este bloque: tiene la decisión de producto pendiente de `A-15`.
 
 > ⚠️ **Dos correcciones al brief de la auditoría, verificadas en el repo:**
 >

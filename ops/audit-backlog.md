@@ -705,6 +705,24 @@ si los documentos pasan su tope de líneas o si el catálogo deja de tener la li
   el corte X y en el cierre, dueño y manager completos) y E2E por rol con la sesión real del cajero
   (`tests/e2e/cash-post-deploy.spec.ts`).
 
+> ⚠️ **El cierre estaba INCOMPLETO — completado por TASK-AUD-003 (2026-09-25).** A-45 escondió el **total**
+> pero dejó a la vista **lo que lo determina**, así que el arqueo ciego seguía a una resta de distancia:
+>
+> - el esperado es `fondo + efectivo del turno + movimientos + devoluciones` (`close-shift.ts:444-482`), y
+>   esos cuatro campos —más `paymentMix`, que trae el efectivo adentro— viajaban al cajero en el corte X y en
+>   el cierre; con la respuesta en la mano la suma daba el esperado exacto (1300 en el fixture del test);
+> - el **traspaso de caja** (`GET`/`POST /api/admin/pos/shift/handover`) devolvía `expectedAmount` y
+>   `expectedByCurrency` **sin filtrar**, y su puerta es la del mostrador: el cajero leía el esperado sin
+>   pasar por el corte X;
+> - la pantalla dibujaba las cuatro filas de los sumandos sin la guarda del ciego, así que el número estaba a
+>   la vista aunque el bloque del total estuviera sellado.
+>
+> Cerrado en **TASK-AUD-003** (`ops/tasks/TASK-AUD-003-blind-cash-authorization.md`): la frontera del filtro
+> pasó a ser «nada que permita leer **o reconstruir** el esperado», el traspaso se filtra por rol y las dos
+> pantallas dejaron de dibujar lo que el servidor no manda. El asiento de auditoría del traspaso sigue
+> guardando el arqueo completo (es del servidor y solo lo lee el dueño). Barrido de la invariante y mutation
+> check en `src/app/api/admin/pos/shift/shift-blind-count.test.ts`.
+
 ### A-43 · La cabecera del panel mide 23,3% del viewport a 375 px — `cerrado` (2026-09-25, PR #29)
 
 - **Qué era**: la cabecera de pantalla (`AdminPageHeader`, `admin-operational-ui.tsx`) medía **186 px** a

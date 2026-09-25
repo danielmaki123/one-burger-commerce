@@ -27,17 +27,21 @@ import { formatShiftDateTime } from "./cash-shift-helpers";
  * 3. **La imprenta es del dueño** (§8.e, Fase 4): sin `canPrint` no se ofrece el botón.
  */
 
+/**
+ * Lo que llega del corte X. Con arqueo ciego el servidor **no manda** el esperado ni sus sumandos
+ * (TASK-AUD-003): por eso son opcionales y la pantalla no los dibuja para el cajero.
+ */
 type ShiftXArqueo = {
   shiftId: string;
   locationId: string;
   openedAt: string;
   generatedAt: string;
   openingAmount: number;
-  expectedAmount: number;
-  expectedByCurrency: Record<string, number>;
-  cashSalesAmount: number;
-  cashMovementsAmount: number;
-  refundsAmount: number;
+  expectedAmount?: number;
+  expectedByCurrency?: Record<string, number>;
+  cashSalesAmount?: number;
+  cashMovementsAmount?: number;
+  refundsAmount?: number;
 };
 
 export default function CashPartialReadingModal({
@@ -128,7 +132,19 @@ export default function CashPartialReadingModal({
 
     const ok = printLines(
       buildShiftXSheet(
-        { ...arqueo, locationName, handedByName: actorName, receivedByName: null },
+        {
+          ...arqueo,
+          // El papel lo saca el dueño (`canPrint`): a él el servidor sí le manda el arqueo completo. Los
+          // `?? 0` son para el tipo, que ahora los declara opcionales porque al cajero no le llegan.
+          expectedAmount: arqueo.expectedAmount ?? 0,
+          expectedByCurrency: arqueo.expectedByCurrency ?? {},
+          cashSalesAmount: arqueo.cashSalesAmount ?? 0,
+          cashMovementsAmount: arqueo.cashMovementsAmount ?? 0,
+          refundsAmount: arqueo.refundsAmount ?? 0,
+          locationName,
+          handedByName: actorName,
+          receivedByName: null,
+        },
         sheetOptions,
       ),
     );
@@ -164,16 +180,25 @@ export default function CashPartialReadingModal({
             <Reading label="Abierta" value={formatShiftDateTime(arqueo.openedAt, { timezone: settings.timezone, locale: settings.locale })} />
             <Reading label="Leída" value={formatShiftDateTime(arqueo.generatedAt, { timezone: settings.timezone, locale: settings.locale })} />
             <Reading label="Fondo" value={formatCurrency(arqueo.openingAmount, currency)} />
-            <Reading label="Efectivo del turno" value={formatCurrency(arqueo.cashSalesAmount, currency)} />
-            <Reading
-              label="Movimientos"
-              value={
-                arqueo.cashMovementsAmount === 0
-                  ? "sin movimientos"
-                  : `${arqueo.cashMovementsAmount > 0 ? "+" : "−"}${formatCurrency(Math.abs(arqueo.cashMovementsAmount), currency)}`
-              }
-            />
-            <Reading label="Devoluciones" value={formatCurrency(arqueo.refundsAmount, currency)} />
+            {/*
+              TASK-AUD-003 — con arqueo ciego estos tres **no** se dibujan: son los sumandos del esperado
+              (`fondo + efectivo del turno + movimientos + devoluciones`), así que mostrarlos dejaría el
+              ciego a una suma de distancia. El servidor tampoco los manda.
+            */}
+            {canSeeArqueo ? (
+              <>
+                <Reading label="Efectivo del turno" value={formatCurrency(arqueo.cashSalesAmount ?? 0, currency)} />
+                <Reading
+                  label="Movimientos"
+                  value={
+                    arqueo.cashMovementsAmount === 0
+                      ? "sin movimientos"
+                      : `${(arqueo.cashMovementsAmount ?? 0) > 0 ? "+" : "−"}${formatCurrency(Math.abs(arqueo.cashMovementsAmount ?? 0), currency)}`
+                  }
+                />
+                <Reading label="Devoluciones" value={formatCurrency(arqueo.refundsAmount ?? 0, currency)} />
+              </>
+            ) : null}
           </dl>
         ) : null}
 
@@ -182,13 +207,13 @@ export default function CashPartialReadingModal({
             <p className="text-st-body font-semibold text-ink">
               Esperado en la caja:{" "}
               <span className="font-mono tabular-nums">
-                {formatCurrency(arqueo.expectedAmount, currency)}
+                {formatCurrency(arqueo.expectedAmount ?? 0, currency)}
               </span>
             </p>
 
-            {Object.entries(arqueo.expectedByCurrency).length > 0 ? (
+            {Object.entries(arqueo.expectedByCurrency ?? {}).length > 0 ? (
               <ul className="space-y-1 text-st-body text-ink-secondary">
-                {Object.entries(arqueo.expectedByCurrency).map(([code, expected]) => (
+                {Object.entries(arqueo.expectedByCurrency ?? {}).map(([code, expected]) => (
                   <li key={code}>
                     {code}: esperado{" "}
                     <span className="font-mono tabular-nums">

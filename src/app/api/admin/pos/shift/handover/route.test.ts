@@ -74,8 +74,25 @@ describe("/api/admin/pos/shift/handover", () => {
 
     expect(response.status).toBe(200);
     expect(body.data[0].receivedByName).toBe("Carlos Ruiz");
-    expect(listPosShiftHandoversMock).toHaveBeenCalledWith({ locationId: location, shiftId: null });
+    expect(listPosShiftHandoversMock).toHaveBeenCalledWith({
+      locationId: location,
+      shiftId: null,
+      role: "cashier",
+    });
     expect(response.headers.get("Cache-Control")).toBe("no-store");
+  });
+
+  /**
+   * TASK-AUD-003 — el traspaso firmaba con el arqueo completo y lo devolvía por una puerta que es la del
+   * mostrador: el cajero leía el esperado sin pasar por el corte X. La ruta tiene que mandarle el **rol** a
+   * la composición, que es quien filtra; si esto se rompe, el filtro deja de aplicarse y nadie se entera.
+   */
+  it("GET le pasa el rol a la composición: es lo que aplica el filtro del arqueo ciego", async () => {
+    const { GET } = await import("./route");
+
+    await GET(get());
+
+    expect(listPosShiftHandoversMock.mock.calls[0][0]).toHaveProperty("role", "cashier");
   });
 
   it("POST firma el traspaso a nombre de quien entrega (la sesión)", async () => {
@@ -95,6 +112,8 @@ describe("/api/admin/pos/shift/handover", () => {
       notes: null,
       actorUserId: "user_cashier",
       actorName: "María López",
+      // AUD-003: el rol viaja a la composición, que es quien filtra el arqueo del cajero.
+      role: "cashier",
     });
   });
 

@@ -11,18 +11,17 @@ export const dynamic = "force-dynamic";
 const NO_STORE = { "Cache-Control": "no-store" } as const;
 
 /**
- * Tarea 7 del brief (2026-09-17) — el **traspaso de caja entre cajeros** (1.13): la caja no se cierra
- * cuando cambia el cajero, se traspasa. `GET` lista los del turno, `POST` firma uno con el corte X del
- * momento. La puerta es la del mostrador y el esperado lo calcula el servidor: si lo mandara la pantalla,
- * se estaría firmando un número escrito a mano.
+ * Tarea 7 del brief (2026-09-17) — el **traspaso de caja** (1.13): `GET` lista y `POST` firma con el corte
+ * X del momento (lo calcula el servidor); la respuesta se filtra por rol (AUD-003).
  */
 export async function GET(request: Request) {
   try {
-    const { locationId, searchParams } = await requirePosScope(request);
+    const { session, locationId, searchParams } = await requirePosScope(request);
 
     const result = await listPosShiftHandovers({
       locationId,
       shiftId: searchParams.get("shiftId"),
+      role: session.user.role,
     });
 
     return NextResponse.json(result, { headers: NO_STORE });
@@ -41,6 +40,7 @@ export async function POST(request: Request) {
       locationId,
       actorUserId: session.user.id,
       actorName: session.user.name,
+      role: session.user.role,
     });
 
     return NextResponse.json(result, { headers: NO_STORE });

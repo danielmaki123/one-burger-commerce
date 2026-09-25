@@ -7,8 +7,15 @@ import { canSeeArqueo, filterArqueoForRole } from "./shift-arqueo-role-filter";
  *
  * La Fase 4 escondió el esperado y la diferencia en la pantalla de Caja, pero el corte X y el cierre
  * seguían devolviéndolos por API a cualquiera que pueda operar el POS: el cajero podía leer con un `curl`
- * el número que la pantalla le ocultaba. Desde este brief, el cajero recibe **solo su conteo** y quien
+ * el número que la pantalla le ocultaba. Desde ese brief, el cajero recibe **solo su conteo** y quien
  * audita (Manager, Owner) sigue recibiendo el arqueo completo.
+ *
+ * **Cambió el contrato (TASK-AUD-003).** Hasta AUD-003 este archivo afirmaba que al cajero **sí** le
+ * llegaban `cashSalesAmount` y `paymentMix`. Se invirtió a propósito, y no para conseguir verde: el
+ * esperado es `fondo + efectivo del turno + movimientos + devoluciones`, así que mandar los sumandos dejaba
+ * el arqueo ciego a una resta de distancia. La decisión del owner («quien cobra no ve el esperado») ya
+ * existía; lo que faltaba era aplicarla a **todo lo que lo determina**. La frontera completa y su test de
+ * barrido viven en `shift-blind-count.test.ts`.
  */
 
 const corteX = {
@@ -51,18 +58,19 @@ describe("canSeeArqueo", () => {
 });
 
 describe("filterArqueoForRole", () => {
-  it("al cajero le deja su conteo y le saca el esperado del corte X", () => {
+  it("al cajero le deja su conteo y le saca todo lo que determina el esperado del corte X", () => {
     const filtrado = filterArqueoForRole(corteX, "cashier");
 
     expect(filtrado.data.shiftId).toBe("shift_01");
     expect(filtrado.data.openingAmount).toBe(500);
-    expect(filtrado.data.cashSalesAmount).toBe(800);
-    expect(filtrado.data.paymentMix).toEqual(corteX.data.paymentMix);
     expect("expectedAmount" in filtrado.data).toBe(false);
     expect("expectedByCurrency" in filtrado.data).toBe(false);
+    // AUD-003: los sumandos y el desglose por medio también se van — con ellos, el esperado es una resta.
+    expect("cashSalesAmount" in filtrado.data).toBe(false);
+    expect("paymentMix" in filtrado.data).toBe(false);
   });
 
-  it("al cajero le saca el esperado y la diferencia del cierre, incluido el cuadre por banco", () => {
+  it("al cajero le saca el esperado, la diferencia y los sumandos del cierre, incluido el cuadre por banco", () => {
     const filtrado = filterArqueoForRole(cierre, "cashier");
 
     expect(filtrado.data.closingAmount).toBe(1200);
@@ -70,8 +78,8 @@ describe("filterArqueoForRole", () => {
     expect("expectedAmount" in filtrado.data).toBe(false);
     expect("expectedByCurrency" in filtrado.data).toBe(false);
     // El `meta` se filtra igual: por ahí viajaba el esperado del cuadre por banco.
-    expect(filtrado.meta.paymentMix).toEqual(cierre.meta.paymentMix);
     expect(filtrado.meta.bankDeclaredByCurrency).toEqual({ BAC: 500 });
+    expect("paymentMix" in filtrado.meta).toBe(false);
     expect("bankChargedByCurrency" in filtrado.meta).toBe(false);
     expect("bankDifferenceByCurrency" in filtrado.meta).toBe(false);
     expect("bankDifferenceAmount" in filtrado.meta).toBe(false);
