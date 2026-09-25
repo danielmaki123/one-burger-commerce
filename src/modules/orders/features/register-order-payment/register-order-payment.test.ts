@@ -61,9 +61,16 @@ function setup(input: { order?: OrderRecord | null; payments?: number } = {}) {
       runInOrderPaymentTransaction: <T,>(
         work: (scope: {
           paymentRepository: typeof paymentRepository;
+          lockOrder: (orderId: string) => Promise<{ id: string } | null>;
           lockShift: (shiftId: string) => Promise<{ id: string; status: string } | null>;
         }) => Promise<T>,
-      ) => work({ paymentRepository, lockShift: async (shiftId) => ({ id: shiftId, status: "open" }) }),
+      ) =>
+        work({
+          paymentRepository,
+          // TASK-AUD-055: el doble del lock del pedido (la concurrencia real va contra PostgreSQL).
+          lockOrder: async (orderId: string) => ({ id: orderId }),
+          lockShift: async (shiftId: string) => ({ id: shiftId, status: "open" }),
+        }),
       businessCurrencyCode: "NIO",
       usdExchangeRate: 36.5,
     },
@@ -85,9 +92,15 @@ describe("registerOrderPayment", () => {
     deps.runInOrderPaymentTransaction = <T,>(
       work: (scope: {
         paymentRepository: typeof paymentRepository;
+        lockOrder: (orderId: string) => Promise<{ id: string } | null>;
         lockShift: (shiftId: string) => Promise<{ id: string; status: string } | null>;
       }) => Promise<T>,
-    ) => work({ paymentRepository, lockShift: async (shiftId) => ({ id: shiftId, status: "closed" }) });
+    ) =>
+      work({
+        paymentRepository,
+        lockOrder: async (orderId: string) => ({ id: orderId }),
+        lockShift: async (shiftId: string) => ({ id: shiftId, status: "closed" }),
+      });
 
     await expect(
       registerOrderPayment(

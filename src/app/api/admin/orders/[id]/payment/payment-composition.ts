@@ -6,7 +6,7 @@ import { canUsePOS } from "@/modules/auth/domain/admin-permissions";
 import { AuthError } from "@/modules/auth/domain/auth-errors";
 import { PrismaBusinessSettingsRepository } from "@/modules/business-settings/adapters/prisma-business-settings-repository";
 import { loadBusinessSettings } from "@/modules/business-settings/features/get-public-business-settings/get-public-business-settings";
-import { PrismaOrderRepository } from "@/modules/orders/adapters/prisma-order-repository";
+import { lockOrderRow, PrismaOrderRepository } from "@/modules/orders/adapters/prisma-order-repository";
 import { PrismaPaymentRepository } from "@/modules/orders/adapters/prisma-payment-repository";
 import { lockShiftRow, PrismaShiftRepository } from "@/modules/orders/adapters/prisma-shift-repository";
 import { OrderError } from "@/modules/orders/domain/order-errors";
@@ -127,6 +127,8 @@ export function runInOrderPaymentTransaction<T>(
     async (tx) =>
       work({
         paymentRepository: new PrismaPaymentRepository(tx),
+        // TASK-AUD-055: el lock del pedido serializa dos cobros simultáneos (el del turno, dos cierres).
+        lockOrder: (orderId) => lockOrderRow(tx, orderId),
         lockShift: (shiftId) => lockShiftRow(tx, shiftId),
       }),
     { timeout: 15_000, maxWait: 10_000 },

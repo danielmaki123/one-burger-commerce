@@ -189,6 +189,24 @@ function isUniqueConstraintError(error: unknown): boolean {
   return (error as { code?: unknown }).code === "P2002";
 }
 
+/**
+ * TASK-AUD-055 — bloquea la fila del pedido hasta que la transacción termine y devuelve su total.
+ *
+ * Es lo que serializa dos **cobros simultáneos del mismo pedido**: el segundo espera a que el primero
+ * commitee y recién ahí lee la suma de los cobros, así que la comprobación del saldo pendiente deja de ser un
+ * `if` sobre una lectura que puede quedar vieja (dos requests leían el mismo saldo y los dos cobraban).
+ */
+export async function lockOrderRow(
+  client: DatabaseClient,
+  orderId: string,
+): Promise<{ id: string; total: string } | null> {
+  const rows = await client.$queryRaw<Array<{ id: string; total: string }>>`
+    SELECT "id", "total"::text AS "total" FROM "Order" WHERE "id" = ${orderId} FOR UPDATE
+  `;
+
+  return rows[0] ?? null;
+}
+
 export class PrismaOrderRepository implements OrderRepository {
   /**
    * TASK-AUD-004 — el repositorio puede correr dentro de una transacción.
