@@ -6,14 +6,14 @@ import { requireAdminSession } from "@/modules/auth/features/require-admin-sessi
 import { createErrorResponse } from "@/shared/lib/http/error-response";
 
 import { closePosShiftForRoute } from "../close-shift-composition";
+import { filterArqueoForRole } from "../shift-arqueo-role-filter";
 
 export const dynamic = "force-dynamic";
 
 /**
  * TASK-305b + decisión del owner (2026-09-17) — cerrar la caja contando lo que hay: el esperado lo calcula
- * el servidor (solo efectivo, dólares convertidos, vuelto descontado), la respuesta lo trae **por moneda** y
- * cada cierre avisa al grupo del dueño. El cierre, su firma en el log y el mensaje viven en
- * `close-shift-composition.ts` (el handler tiene un tope de 50 líneas).
+ * el servidor (solo efectivo, dólares convertidos, vuelto descontado) y cada cierre avisa al grupo del
+ * dueño. El cierre, su firma y el mensaje viven en `close-shift-composition.ts` (tope de 50 líneas).
  */
 export async function POST(request: Request) {
   try {
@@ -38,7 +38,10 @@ export async function POST(request: Request) {
       actorName: session.user.name,
     });
 
-    return NextResponse.json(result, { headers: { "Cache-Control": "no-store" } });
+    // A-45: quien cobra no ve el esperado ni la diferencia (el aviso al dueño usa el arqueo completo).
+    return NextResponse.json(filterArqueoForRole(result, session.user.role), {
+      headers: { "Cache-Control": "no-store" },
+    });
   } catch (error) {
     const response = createErrorResponse(error);
     response.headers.set("Cache-Control", "no-store");

@@ -166,6 +166,31 @@ describe("CashTurnSection", () => {
     expect(link.getAttribute("href")).toBe("/admin/cash/history/shift_1");
   });
 
+  /**
+   * Hallazgo H1 de la auditoría post-deploy (2026-09-23) — **dónde aparecen los bancos**.
+   *
+   * El cuadre por banco vive dentro del modal del cierre y el modal se dibuja al abrirlo: el owner configuró
+   * dos bancos y no los encontró en Caja. La nota lo dice **antes** de abrir, y solo cuando hay bancos
+   * configurados (en una sucursal sin bancos sería ruido sobre algo que no existe).
+   */
+  it("avisa dónde aparecen los bancos, solo cuando hay bancos configurados", async () => {
+    const { unmount } = renderTurn({
+      banks: [
+        { id: "bank_bac", name: "BAC", code: "BAC" },
+        { id: "bank_banpro", name: "BANPRO", code: null },
+      ],
+    });
+
+    expect(
+      await screen.findByText(/Los bancos configurados aparecen al abrir el cierre/),
+    ).toBeTruthy();
+
+    unmount();
+    renderTurn({ banks: [] });
+
+    expect(screen.queryByText(/Los bancos configurados aparecen al abrir el cierre/)).toBeNull();
+  });
+
   it("deshabilita la apertura del cierre mientras se está guardando", async () => {
     renderTurn({ busy: true });
 

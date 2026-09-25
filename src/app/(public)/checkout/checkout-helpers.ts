@@ -9,6 +9,16 @@
 
 const GENERIC_ERROR = "No pudimos confirmar el pedido. Intentá de nuevo.";
 
+/**
+ * Hallazgo N2 de la auditoría post-deploy (2026-09-23) — el **429** (límite de altas por IP) tiene su
+ * propio mensaje.
+ *
+ * El alta pública corta a las 10 por minuto por IP (`/api/orders`). Con el mensaje genérico el cliente
+ * reintenta enseguida y **empeora** el límite; el código de estado es el único dato que distingue ese caso,
+ * así que el helper lo recibe.
+ */
+const RATE_LIMIT_ERROR = "Esperá un momento e intentá de nuevo en unos segundos.";
+
 /** Estados que ve el cliente en la confirmación y en el seguimiento. */
 export function formatPublicOrderStatus(status: string): string {
   const normalized = status.toLowerCase();
@@ -47,7 +57,10 @@ export function readAcceptanceReason(payload: unknown): string | null {
  * así que una respuesta con esos campos cae al mensaje genérico en vez de hablarle al
  * cliente de una dirección que nunca le pedimos.
  */
-export function extractCheckoutErrorMessage(payload: unknown): string {
+export function extractCheckoutErrorMessage(payload: unknown, status?: number): string {
+  // El límite por IP es lo primero: su mensaje es el único que le dice al cliente qué hacer.
+  if (status === 429) return RATE_LIMIT_ERROR;
+
   if (!payload || typeof payload !== "object") return GENERIC_ERROR;
 
   const asRecord = payload as Record<string, unknown>;

@@ -227,6 +227,38 @@ describe("useCashShift", () => {
   });
 
   /**
+   * A-45 del backlog (2026-09-23) — el servidor ya no le manda el esperado ni la diferencia al cajero (el
+   * arqueo ciego es una regla de servidor). La pantalla tiene que leer esa ausencia como **«sin contar»** y
+   * no como un cero: con `undefined`, la diferencia se dibujaba como «sobra C$ 0.00».
+   */
+  it("un cierre sin esperado (cajero) queda en null, no en undefined", async () => {
+    fetchMock.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input) === "/api/admin/pos/shift/close" && init?.method === "POST") {
+        return jsonResponse({
+          data: { id: "shift_1", closingAmount: 900 },
+          meta: {},
+        });
+      }
+      return jsonResponse({ data: OPEN_SHIFT });
+    });
+
+    const { result } = renderHook(() => useCashShift("loc_norte"));
+    await waitFor(() => expect(result.current.shift).toEqual(OPEN_SHIFT));
+
+    await act(async () => {
+      await result.current.closeShift([{ currency: "NIO", denomination: 100, quantity: 9 }]);
+    });
+
+    expect(result.current.closedShift).toEqual({
+      id: "shift_1",
+      closingAmount: 900,
+      expectedAmount: null,
+      difference: null,
+      expectedByCurrency: {},
+    });
+  });
+
+  /**
    * El error de una acción no tira la pantalla al estado de error: se muestra al lado de lo que se estaba
    * haciendo (es lo que hoy hace el aviso del cierre rechazado) y el turno sigue en pantalla.
    */

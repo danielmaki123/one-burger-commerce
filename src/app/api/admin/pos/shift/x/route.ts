@@ -5,6 +5,7 @@ import { requireAdminSession } from "@/modules/auth/features/require-admin-sessi
 import { createErrorResponse } from "@/shared/lib/http/error-response";
 
 import { previewOpenShiftArqueo } from "./shift-x-composition";
+import { filterArqueoForRole } from "../shift-arqueo-role-filter";
 
 export const dynamic = "force-dynamic";
 
@@ -24,7 +25,11 @@ export async function GET(request: Request) {
 
     const result = await previewOpenShiftArqueo({ locationId, now: new Date() });
 
-    return NextResponse.json(result, { headers: { "Cache-Control": "no-store" } });
+    // A-45 del backlog: el cajero cuenta a ciegas también por API (el filtro se aplica acá y no en el caso
+    // de uso porque el traspaso de caja firma con el arqueo completo).
+    return NextResponse.json(filterArqueoForRole(result, session.user.role), {
+      headers: { "Cache-Control": "no-store" },
+    });
   } catch (error) {
     const response = createErrorResponse(error);
     response.headers.set("Cache-Control", "no-store");

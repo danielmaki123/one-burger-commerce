@@ -5,6 +5,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
  *
  * Fija dos cosas: la puerta es la del **mostrador** (quien cobra puede pedir su corte, y cocina no), y
  * sin caja abierta no inventa un arqueo: devuelve `null` con 200, que es «no hay nada que leer».
+ *
+ * Hallazgo A-45 (2026-09-23): además, el corte X **no le dice el esperado al cajero**. El arqueo ciego era
+ * un sello de pantalla y por API el cajero leía el número que la pantalla le escondía; ahora lo filtra el
+ * servidor y quien audita (Manager, Owner) sigue viendo el corte completo.
  */
 
 const requireAdminSessionMock = vi.fn();
@@ -67,7 +71,7 @@ describe("GET /api/admin/pos/shift/x", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     requireAdminSessionMock.mockResolvedValue({
-      user: { id: "user_cashier", role: "cashier", locationIds: ["loc_principal"] },
+      user: { id: "user_manager", role: "manager", locationIds: ["loc_principal"] },
     });
     requirePosLocationMock.mockResolvedValue("loc_principal");
     getCurrentShiftMock.mockResolvedValue({
@@ -114,5 +118,40 @@ describe("GET /api/admin/pos/shift/x", () => {
 
     expect((await GET(get())).status).toBe(403);
     expect(previewShiftArqueoMock).not.toHaveBeenCalled();
+  });
+
+  // A-45: el cajero es el único que no ve el esperado; su conteo (lo que él declaró) sigue viajando.
+  it("al cajero le devuelve el corte sin el esperado", async () => {
+    requireAdminSessionMock.mockResolvedValue({
+      user: { id: "user_cashier", role: "cashier", locationIds: ["loc_principal"] },
+    });
+    previewShiftArqueoMock.mockResolvedValue({
+      data: {
+        shiftId: "shift_01",
+        openingAmount: 500,
+        expectedAmount: 1300,
+        expectedByCurrency: { NIO: 1300 },
+      },
+    });
+
+    const { GET } = await import("./route");
+    const body = await (await GET(get())).json();
+
+    expect(body.data.shiftId).toBe("shift_01");
+    expect(body.data.openingAmount).toBe(500);
+    expect("expectedAmount" in body.data).toBe(false);
+    expect("expectedByCurrency" in body.data).toBe(false);
+  });
+
+  it("el dueño sí lo ve: el ciego no le esconde la caja a quien la audita", async () => {
+    requireAdminSessionMock.mockResolvedValue({
+      user: { id: "user_owner", role: "owner", locationIds: ["loc_principal"] },
+    });
+
+    const { GET } = await import("./route");
+    const body = await (await GET(get())).json();
+
+    expect(body.data.expectedAmount).toBe(1300);
+    expect(body.data.expectedByCurrency).toEqual({ NIO: 1300 });
   });
 });

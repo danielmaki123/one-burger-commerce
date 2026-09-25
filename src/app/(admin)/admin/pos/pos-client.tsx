@@ -39,6 +39,7 @@ import { buildPosFiscalPayload, EMPTY_POS_FISCAL_DRAFT } from "./pos-fiscal-payl
 import PosDiscountPanel, { type AppliedManualDiscount } from "./pos-discount-panel";
 import PosHoldsPanel from "./pos-holds-panel";
 import PosModifierDialog, { type PosModifierSelection } from "./pos-modifier-dialog";
+import PosOrderChargePanel from "./pos-order-charge-panel";
 import PosPaymentRows from "./pos-payment-rows";
 import PosSaleLines from "./pos-sale-lines";
 import PosTicketButtons from "./pos-ticket-buttons";
@@ -754,6 +755,17 @@ export default function PosClient({
               onRetry={() => setReloadKey((key) => key + 1)}
               currency={currency}
               onAdd={addProduct}
+            />
+
+            {/*
+              Hallazgo N3 de la auditoría post-deploy (2026-09-23) — el pedido del menú que se paga al
+              retirar no tenía forma de cobrarse desde el panel, y sin cobro la factura era imposible
+              (`emit-invoice` corta con 409). Las monedas son las mismas de las filas de cobro.
+            */}
+            <PosOrderChargePanel
+              currencies={[settings.currencyCode, "USD"]}
+              currency={currency}
+              terminalId={terminalId}
             />
           </div>
 
