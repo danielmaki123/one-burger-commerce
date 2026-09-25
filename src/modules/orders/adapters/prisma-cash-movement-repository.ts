@@ -1,6 +1,6 @@
 import type { Decimal } from "@prisma/client/runtime/library";
 
-import { getPrismaClient } from "@/infrastructure/database/prisma";
+import { getPrismaClient, type DatabaseClient } from "@/infrastructure/database/prisma";
 import type {
   CashMovementCategory,
   CashMovementKind,
@@ -53,8 +53,15 @@ function mapMovement(row: {
 }
 
 export class PrismaCashMovementRepository implements CashMovementRepository {
+  /**
+   * TASK-AUD-005 — el repositorio puede correr dentro de una transacción: el **arqueo** del cierre lee los
+   * movimientos del turno con el mismo `tx` con el que bloqueó la fila, así no queda una ventana entre la
+   * lectura y lo que se firma.
+   */
+  constructor(private readonly client: DatabaseClient = getPrismaClient()) {}
+
   async create(input: CreateCashMovementInput): Promise<CashMovementRecord> {
-    const prisma = getPrismaClient();
+    const prisma = this.client;
 
     const created = await prisma.cashMovement.create({
       data: {
@@ -73,7 +80,7 @@ export class PrismaCashMovementRepository implements CashMovementRepository {
   }
 
   async listByShift(shiftId: string): Promise<CashMovementRecord[]> {
-    const prisma = getPrismaClient();
+    const prisma = this.client;
 
     const rows = await prisma.cashMovement.findMany({
       where: { shiftId },

@@ -45,8 +45,23 @@ export type RegisterOrderPaymentDependencies = {
     locationId: string,
     terminalId?: string | null,
   ) => Promise<{ id: string } | null>;
+  /**
+   * TASK-AUD-005 — el **límite atómico** de este cobro: el mismo lock de la fila del turno que piden la
+   * venta del mostrador y el cierre. Es el **segundo** camino que le firma el turno a un `Payment`; sin
+   * esto, un cobro que entra justo cuando la caja se cierra quedaba firmado por un turno cerrado y su plata
+   * fuera de todo arqueo (el corte X del turno siguiente tampoco lo lee: solo ve los cobros atribuidos).
+   */
+  runInOrderPaymentTransaction: <T>(
+    work: (scope: OrderPaymentScope) => Promise<T>,
+  ) => Promise<T>;
   businessCurrencyCode: string;
   usdExchangeRate: number | null;
+};
+
+/** El alcance del cobro: el repositorio de cobros y el lock del turno, con el mismo cliente de base. */
+export type OrderPaymentScope = {
+  paymentRepository: Pick<PaymentRepository, "createPayment">;
+  lockShift: (shiftId: string) => Promise<{ id: string; status: string } | null>;
 };
 
 export async function registerOrderPayment(
@@ -101,16 +116,38 @@ export async function registerOrderPayment(
     ? await deps.findOpenShift(order.locationId, input.terminalId ?? null)
     : null;
 
-  const payment = await deps.paymentRepository.createPayment({
-    orderId: order.id,
-    method: input.method,
-    amount,
-    currency: input.currency.trim().toUpperCase(),
-    // El vuelto no se registra acá: el mostrador carga lo que **cobró**, no lo que el cliente puso sobre
-    // el mostrador (esa cuenta es de la venta del POS, que sí pide «con cuánto paga»).
-    changeAmount: 0,
-    ...(input.reference ? { reference: input.reference } : {}),
-    shiftId: openShift?.id ?? null,
+  const payment = await deps.runInOrderPaymentTransaction(async (scope) => {
+    /**
+     * TASK-AUD-005 — con el turno bloqueado se comprueba que **siga** abierto. El cobro de un pedido que ya
+     * existe no es la venta del mostrador: si no hay caja abierta se registra igual y sin turno (perder la
+     * venta sería peor). Pero si **había** una caja y se cerró en el medio, el cobro se rechaza en vez de
+     * firmarse con un turno cerrado: esa plata no entraría a ningún arqueo y el documento firmado no la
+     * explicaría. El cajero abre la caja de nuevo y cobra.
+     */
+    if (openShift) {
+      const locked = await scope.lockShift(openShift.id);
+
+      if (!locked || locked.status !== "open") {
+        throw new OrderError(
+          409,
+          "CONFLICT",
+          "La caja se cerró mientras cobrabas: abrí la caja y volvé a cobrar.",
+          { shift: "La caja de este local se cerró." },
+        );
+      }
+    }
+
+    return scope.paymentRepository.createPayment({
+      orderId: order.id,
+      method: input.method,
+      amount,
+      currency: input.currency.trim().toUpperCase(),
+      // El vuelto no se registra acá: el mostrador carga lo que **cobró**, no lo que el cliente puso sobre
+      // el mostrador (esa cuenta es de la venta del POS, que sí pide «con cuánto paga»).
+      changeAmount: 0,
+      ...(input.reference ? { reference: input.reference } : {}),
+      shiftId: openShift?.id ?? null,
+    });
   });
 
   return { data: payment, order };

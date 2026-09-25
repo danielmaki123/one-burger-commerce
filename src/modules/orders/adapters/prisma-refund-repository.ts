@@ -1,6 +1,6 @@
 import type { Decimal } from "@prisma/client/runtime/library";
 
-import { getPrismaClient } from "@/infrastructure/database/prisma";
+import { getPrismaClient, type DatabaseClient } from "@/infrastructure/database/prisma";
 import type {
   PaymentMethodType,
   RefundKind,
@@ -59,8 +59,15 @@ function mapRefund(row: {
  * bandeja de aprobaciones es una **cola de trabajo**: la más vieja se atiende primero.
  */
 export class PrismaRefundRepository implements RefundRepository {
+  /**
+   * TASK-AUD-005 — el repositorio puede correr dentro de una transacción: el **arqueo** del cierre lee las
+   * devoluciones del turno con el mismo `tx` con el que bloqueó la fila, así no queda una ventana entre la
+   * lectura y lo que se firma.
+   */
+  constructor(private readonly client: DatabaseClient = getPrismaClient()) {}
+
   async create(input: CreateRefundInput): Promise<RefundRecord> {
-    const prisma = getPrismaClient();
+    const prisma = this.client;
 
     const created = await prisma.refund.create({
       data: {
@@ -84,7 +91,7 @@ export class PrismaRefundRepository implements RefundRepository {
 
   /** Una devolución por su id, para resolverla. */
   async findById(id: string): Promise<RefundRecord | null> {
-    const prisma = getPrismaClient();
+    const prisma = this.client;
 
     const row = await prisma.refund.findUnique({ where: { id } });
 
@@ -92,7 +99,7 @@ export class PrismaRefundRepository implements RefundRepository {
   }
 
   async listByPayment(paymentId: string): Promise<RefundRecord[]> {
-    const prisma = getPrismaClient();
+    const prisma = this.client;
 
     const rows = await prisma.refund.findMany({
       where: { paymentId },
@@ -103,7 +110,7 @@ export class PrismaRefundRepository implements RefundRepository {
   }
 
   async listByShift(shiftId: string): Promise<RefundRecord[]> {
-    const prisma = getPrismaClient();
+    const prisma = this.client;
 
     const rows = await prisma.refund.findMany({
       where: { shiftId },
@@ -114,7 +121,7 @@ export class PrismaRefundRepository implements RefundRepository {
   }
 
   async listPending(): Promise<RefundRecord[]> {
-    const prisma = getPrismaClient();
+    const prisma = this.client;
 
     const rows = await prisma.refund.findMany({
       where: { status: "pending" },
@@ -141,7 +148,7 @@ export class PrismaRefundRepository implements RefundRepository {
       reason?: string;
     },
   ): Promise<RefundRecord | null> {
-    const prisma = getPrismaClient();
+    const prisma = this.client;
 
     const result = await prisma.refund.updateMany({
       where: { id, status: "pending" },

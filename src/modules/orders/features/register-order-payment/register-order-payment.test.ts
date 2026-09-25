@@ -54,6 +54,16 @@ function setup(input: { order?: OrderRecord | null; payments?: number } = {}) {
       orderRepository,
       paymentRepository,
       findOpenShift,
+      /**
+       * TASK-AUD-005 — el doble del límite atómico: corre el trabajo con los mismos dobles y con el turno
+       * abierto. La carrera real contra el cierre se prueba contra PostgreSQL.
+       */
+      runInOrderPaymentTransaction: <T,>(
+        work: (scope: {
+          paymentRepository: typeof paymentRepository;
+          lockShift: (shiftId: string) => Promise<{ id: string; status: string } | null>;
+        }) => Promise<T>,
+      ) => work({ paymentRepository, lockShift: async (shiftId) => ({ id: shiftId, status: "open" }) }),
       businessCurrencyCode: "NIO",
       usdExchangeRate: 36.5,
     },
@@ -61,6 +71,34 @@ function setup(input: { order?: OrderRecord | null; payments?: number } = {}) {
 }
 
 describe("registerOrderPayment", () => {
+  /**
+   * TASK-AUD-005 — el turno se cierra mientras se cobra.
+   *
+   * Es el **segundo** camino que le firma el turno a un `Payment` (el primero es la venta del mostrador). Con
+   * la caja cerrada en el medio, el cobro se rechaza: si se firmara con el turno cerrado, esa plata no
+   * entraría a ningún arqueo (el corte X del turno siguiente solo lee los cobros **atribuidos**) y el
+   * documento firmado no la explicaría.
+   */
+  it("si el turno se cerró mientras se cobraba, rechaza el cobro sin registrarlo", async () => {
+    const { deps, paymentRepository } = setup();
+
+    deps.runInOrderPaymentTransaction = <T,>(
+      work: (scope: {
+        paymentRepository: typeof paymentRepository;
+        lockShift: (shiftId: string) => Promise<{ id: string; status: string } | null>;
+      }) => Promise<T>,
+    ) => work({ paymentRepository, lockShift: async (shiftId) => ({ id: shiftId, status: "closed" }) });
+
+    await expect(
+      registerOrderPayment(
+        { orderId: "ord_01", method: "cash", amount: 280, currency: "NIO" },
+        deps,
+      ),
+    ).rejects.toMatchObject({ status: 409, code: "CONFLICT" });
+
+    expect(paymentRepository.payments).toHaveLength(0);
+  });
+
   it("registra el cobro del pedido con su moneda y lo atribuye al turno abierto", async () => {
     const { deps, findOpenShift } = setup();
 

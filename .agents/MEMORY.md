@@ -86,6 +86,11 @@ va al historial o al PR. Si cambia semana a semana, va a `CURRENT.md`.
   N-ésima llamada.
 - **`lineTotal` no debe incluir el packaging**: el «+» rápido lo contaba dos veces y el total mostrado
   superaba el cobrado. Fue un bug de plata real.
+- **Una invariante se cierra sobre TODOS los que escriben el campo, no sobre el camino que estabas mirando**:
+  `Payment.shiftId` lo escriben la venta del mostrador **y** el cobro de un pedido que ya existe
+  (`POST /api/admin/orders/[id]/payment`). Cerrar el lock en uno solo dejaba el otro camino firmando un turno
+  cerrado. Antes de declarar una invariante, `grep` de **todos** los `create`/`update` del campo
+  (`TASK-AUD-005`, review adversarial).
 - **Dos operaciones que escriben sobre el mismo agregado se guardan con un lock de fila, no con un `if`**: el
   cierre de turno lee los cobros que va a firmar y el cobro le firma el turno a un `Payment`. Sin
   `SELECT … FOR UPDATE` sobre la fila del `Shift`, la ventana entre «leer» y «escribir» deja plata fuera del

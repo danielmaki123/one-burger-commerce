@@ -5,7 +5,9 @@ import { PrismaCashConfigRepository } from "@/modules/cash-config/adapters/prism
 import { getCashCountConfigs } from "@/modules/cash-config/features/get-cash-count-configs/get-cash-count-configs";
 import { getPrismaClient } from "@/infrastructure/database/prisma";
 import { PrismaLocationRepository } from "@/modules/locations/adapters/prisma-location-repository";
+import { PrismaCashMovementRepository } from "@/modules/orders/adapters/prisma-cash-movement-repository";
 import { PrismaPaymentRepository } from "@/modules/orders/adapters/prisma-payment-repository";
+import { PrismaRefundRepository } from "@/modules/orders/adapters/prisma-refund-repository";
 import {
   lockShiftRow,
   PrismaShiftRepository,
@@ -67,6 +69,8 @@ export async function createProductionPosShiftDependencies(input: { locationId?:
       lockShift: (shiftId: string) => Promise<{ id: string; status: string } | null>;
       shiftRepository: PrismaShiftRepository;
       paymentRepository: PrismaPaymentRepository;
+      cashMovementRepository: PrismaCashMovementRepository;
+      refundRepository: PrismaRefundRepository;
     }) => Promise<T>) =>
       getPrismaClient().$transaction(
         async (tx) =>
@@ -74,6 +78,14 @@ export async function createProductionPosShiftDependencies(input: { locationId?:
             lockShift: (shiftId) => lockShiftRow(tx, shiftId),
             shiftRepository: new PrismaShiftRepository(tx),
             paymentRepository: new PrismaPaymentRepository(tx),
+            /**
+             * Los movimientos y las devoluciones también se leen **dentro** de la transacción: son parte del
+             * esperado (restan) y el corte X ya los cableaba. Faltaban acá, así que el cierre de producción
+             * firmaba un esperado sin retiros ni devoluciones: la diferencia del mismo turno no coincidía
+             * con la del corte X.
+             */
+            cashMovementRepository: new PrismaCashMovementRepository(tx),
+            refundRepository: new PrismaRefundRepository(tx),
           }),
         { timeout: 15_000, maxWait: 10_000 },
       ),

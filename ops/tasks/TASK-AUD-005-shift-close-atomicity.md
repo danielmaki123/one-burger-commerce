@@ -143,7 +143,7 @@ PostgreSQL real, disponible en local y en el job `migrations` del CI. Sin depend
 
 ## TEST ROJO
 
-`src/modules/orders/features/shift/close-shift.postgres.test.ts`, 5 casos. El rojo de cada invariante se
+`src/modules/orders/features/shift/close-shift.postgres.test.ts`, 9 casos. El rojo de cada invariante se
 observó con la mutación que restaura el comportamiento previo (ver *MUTATION CHECK*), con el mensaje de la
 invariante y no de un import roto.
 
@@ -242,7 +242,9 @@ operaciones se cruzan, que el E2E no puede provocar de forma determinista.
 |---|---|---|
 | El cierre vuelve a escribir sin transacción (`inTransaction` devuelve el cliente tal cual) | El caso de la falla a mitad | **1 rojo**: `el turno quedó cerrado sin su detalle: arqueo incompleto para siempre` |
 | El cierre lee el turno **sin** `FOR UPDATE` (un `findUnique` común) | El caso del cierre con la venta en curso | **1 rojo**: `el arqueo firmó 0 con la plata de la venta en el cajón` |
-| El cobro **no** comprueba el turno (se saca el bloqueo del lado de la venta) | El caso de la venta después del cierre | **1 rojo**: `promise resolved … instead of rejecting` |
+| El cobro **no** comprueba el turno (se saca el bloqueo del lado de la venta) | El caso de la venta después del cierre | **1 rojo**: `promise resolved … instead of rejecting`
+| El cobro de un **pedido existente** no comprueba el turno (segundo escritor) | El caso del cobro con el turno cerrado | **1 rojo**: `promise resolved "{ data: … }" instead of rejecting`
+| El cierre de producción vuelve a **no** cablear movimientos ni devoluciones | El caso del esperado con retiro y devolución | **1 rojo**: `expected 100 to be 50` |
 
 Las tres se restauraron y **no se commitean**.
 
@@ -296,7 +298,46 @@ bloqueo, no un `if` sobre una lectura previa; (3) un repositorio puede abrir su 
 participar de la que le inyectaron (`inTransaction`), y la lectura de adentro tiene que usar **el mismo**
 cliente.
 
-## DEFINITION OF DONE
+## REVIEW ADVERSARIAL
+
+Pasada con el objetivo de **refutar**, sobre el diff y con PostgreSQL real. **Veredicto: no mergear tal cual**:
+encontró un **segundo escritor** de `Payment.shiftId` sin cubrir y un test nuevo que fallaba ~30% de las
+veces. Los dos se resolvieron en esta TASK:
+
+**Bloqueante 1 — el otro camino que firma el turno.** `register-order-payment` (el cobro de un pedido que ya
+existe, `POST /api/admin/orders/[id]/payment`) resolvía la caja abierta y escribía el `Payment` **sin
+transacción y sin lock**: con el cierre en curso, su `INSERT` esperaba el lock y entraba apenas el cierre
+commiteaba, quedando firmado por un turno **cerrado** y fuera de todo arqueo (el corte X solo lee los cobros
+**atribuidos**). Reproducido por la review contra PostgreSQL real y **cerrado acá**: ese cobro ahora corre en
+su propia unidad de trabajo con el **mismo lock** (`runInOrderPaymentTransaction`, exportado por la
+composición para que el test use el de producción y no una copia) y **rechaza con 409** si el turno dejó de
+estar abierto, en vez de firmar plata que ningún arqueo va a leer.
+
+**Bloqueante 2 — un test que dependía del orden.** El caso de los dos cierres simultáneos afirmaba que gana
+el cierre **emitido primero**; medido: gana el primero ~70% de las veces. Ahora afirma la invariante (un solo
+ganador y que lo persistido sea lo **del ganador**).
+
+**Hallazgos de la review que se cerraron de paso, en el mismo límite atómico:**
+
+- **El cierre de producción no cableaba `cashMovementRepository` ni `refundRepository`**: firmaba un esperado
+  **sin** retiros ni devoluciones mientras el corte X del mismo turno sí los restaba — dos números distintos
+  para el mismo turno, y el que se firma era el que no los miraba. Ahora los dos se leen **dentro** de la
+  transacción (repositorios con cliente inyectable) y hay un test que lo fija (cobro 100, retiro 40,
+  devolución 10 → esperado 50).
+- **Los conteos de cierre no se reemplazaban** (los bancos sí): un turno reabierto y vuelto a cerrar con otro
+  conteo quedaba con el detalle viejo de las denominaciones repetidas y contradecía el total firmado.
+
+**Lo que queda abierto, en el backlog** (no se arregla acá): el guardrail de que el repositorio del alcance
+esté atado al `tx` (`A-52`), el cierre «no-op» que contesta 200 sin datos (`A-53`), el cobro sin caja abierta
+en un turno con terminal que ningún arqueo lee (`A-54`) y la carrera de dos cobros simultáneos sobre el mismo
+pedido (`A-55`).
+
+## DATOS PREVIOS — lo que este fix NO arregla
+
+Los cierres firmados **antes** de este cambio pueden tener un detalle incompleto (conteos o bancos que no se
+escribieron) y, en producción, un esperado **sin** retiros ni devoluciones. Este cambio **no** los recalcula
+ni los repara: un arqueo firmado es un documento y reescribirlo es una decisión del owner. Queda registrado
+en `A-51`.
 
 - [x] Rojo observado por invariante (con las mutaciones, documentado).
 - [x] `security:secrets`, `lint`, `typecheck`, `test`, `test:contracts`, `build` verdes.
@@ -309,3 +350,15 @@ cliente.
 - [x] **Test flaky de AUD-004 corregido**: el caso del cupón de un solo uso afirmaba por **texto** del error
       y el mensaje depende de qué validación gana la carrera; ahora afirma la **forma** (un `status` de
       negocio). Se detectó corriendo la suite de PostgreSQL varias veces.
+
+## DEFINITION OF DONE
+
+- [x] Rojo observado por invariante (con las mutaciones, documentado).
+- [x] security:secrets, lint, 	ypecheck, 	est, 	est:contracts, uild verdes.
+- [x] 	est:postgres verde (9 del cierre + 8 de la venta + 3 del arnés = 20), y corre en CI.
+- [x] Mutation check hecho y restaurado (5 mutaciones).
+- [x] Ningún techo de deuda subió.
+- [x] Documentación actualizada.
+- [x] PR abierto, CI verde, merge --squash.
+- [x] **Sin deploy**: esta TASK no toca producción.
+- [x] **Dos bloqueantes de la review adversarial resueltos** (el segundo escritor de Payment.shiftId y el test dependiente del orden) y **test flaky de AUD-004 corregido**.

@@ -323,17 +323,25 @@ export class PrismaShiftRepository implements ShiftRepository {
 
       // TASK-305: el conteo del cierre se guarda tal como se contó (billete por billete), no solo el
       // total: así el arqueo se puede reconstruir y volver a revisar.
-      if (input.closingCounts?.length) {
-        await prisma.shiftCashCount.createMany({
-          data: input.closingCounts.map((count) => ({
-            shiftId: id,
-            kind: "closing" as const,
-            currency: count.currency.trim().toUpperCase(),
-            denomination: count.denomination,
-            quantity: count.quantity,
-          })),
-          skipDuplicates: true,
-        });
+      //
+      // TASK-AUD-005 — se **reemplaza** el conteo anterior, igual que los bancos: un turno reabierto y
+      // vuelto a cerrar con otro conteo no puede quedar con el detalle viejo de las denominaciones
+      // repetidas (con `skipDuplicates` el detalle contradecía el total firmado).
+      if (input.closingCounts !== undefined) {
+        await prisma.shiftCashCount.deleteMany({ where: { shiftId: id, kind: "closing" } });
+
+        if (input.closingCounts.length > 0) {
+          await prisma.shiftCashCount.createMany({
+            data: input.closingCounts.map((count) => ({
+              shiftId: id,
+              kind: "closing" as const,
+              currency: count.currency.trim().toUpperCase(),
+              denomination: count.denomination,
+              quantity: count.quantity,
+            })),
+            skipDuplicates: true,
+          });
+        }
       }
 
       return this.readShift(prisma, id);

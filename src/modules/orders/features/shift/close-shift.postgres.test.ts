@@ -1,8 +1,12 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 
+import { runInOrderPaymentTransaction } from "@/app/api/admin/orders/[id]/payment/payment-composition";
 import { getPrismaClient } from "@/infrastructure/database/prisma";
+import { PrismaOrderRepository } from "@/modules/orders/adapters/prisma-order-repository";
+import { PrismaPaymentRepository } from "@/modules/orders/adapters/prisma-payment-repository";
 import { PrismaShiftRepository } from "@/modules/orders/adapters/prisma-shift-repository";
 import { closeShift } from "@/modules/orders/features/shift/close-shift";
+import { registerOrderPayment } from "@/modules/orders/features/register-order-payment/register-order-payment";
 import { createProductionPosSaleDependencies } from "@/modules/pos/adapters/production-pos-sale";
 import { createProductionPosShiftDependencies } from "@/modules/pos/adapters/production-pos-shift";
 import { registerPosSale } from "@/modules/pos/features/register-pos-sale/register-pos-sale";
@@ -156,17 +160,199 @@ describe("TASK-AUD-005 · atomicidad del cierre de turno (PostgreSQL real)", () 
     const ganadores = [primero, segundo].filter((result) => result.data !== null);
 
     expect(ganadores, "los dos cierres se creyeron el primero").toHaveLength(1);
-    expect(ganadores[0].data?.closingAmount).toBe(100);
+
+    // Cuál de los dos gana depende del orden en que el pool los atienda (medido: gana el primero ~70% de las
+    // veces), así que se afirma la **invariante**: lo persistido es lo del ganador, no la del primero que se
+    // emitió (afirmar eso era un test que fallaba ~30% de las veces con la invariante intacta).
+    const ganador = ganadores[0].data;
+
+    expect(ganador?.id).toBe(SHIFT_ID);
 
     const shift = await prisma.shift.findUnique({ where: { id: SHIFT_ID } });
 
     expect(shift?.status).toBe("closed");
-    expect(Number(shift?.closingAmount)).toBe(100);
-    // El detalle del ganador, una sola vez (el perdedor no agregó su conteo).
+    expect(Number(shift?.closingAmount)).toBe(ganador?.closingAmount);
+    expect(Number(shift?.expectedAmount)).toBe(ganador?.expectedAmount);
+
+    // El detalle del ganador, una sola vez: el perdedor no agregó su conteo.
     const counts = await prisma.shiftCashCount.findMany({ where: { kind: "closing" } });
 
     expect(counts).toHaveLength(1);
-    expect(counts[0].quantity).toBe(1);
+    // El conteo del ganador: cada billete de C$100 vale por 1 en el conteo (100 → 1, 999 → 9).
+    expect(counts[0].quantity).toBe((ganador?.closingAmount ?? 0) / 100);
+  });
+
+  it("el arqueo incluye los movimientos y las devoluciones del turno (como el corte X)", async () => {
+    const prisma = getPrismaClient();
+
+    // TASK-AUD-005 — el cierre de producción no cableaba estos dos repositorios, así que firmaba un esperado
+    // **sin** retiros ni devoluciones: el mismo turno daba un número distinto en el corte X y en el papel que
+    // se firma. Acá se cobra 100 en efectivo, se retiran 40 del cajón y se devuelven 10: el esperado es 50.
+    await sellOneHundred();
+    await prisma.cashMovement.create({
+      data: {
+        shiftId: SHIFT_ID,
+        kind: "withdrawal",
+        category: "supplier",
+        amount: 40,
+        currency: "NIO",
+        reason: "Pago al proveedor",
+        userId: "user_cashier_test",
+      },
+    });
+    // La devolución va contra el cobro de la venta (su `paymentId` es obligatorio) y **aprobada**: solo las
+    // aprobadas salen del cajón.
+    const payment = await prisma.payment.findFirstOrThrow();
+
+    await prisma.refund.create({
+      data: {
+        paymentId: payment.id,
+        orderId: payment.orderId,
+        shiftId: SHIFT_ID,
+        kind: "full",
+        method: "cash",
+        amount: 10,
+        currency: "NIO",
+        status: "approved",
+        reason: "Cliente devolvió el producto",
+        requestedByUserId: "user_cashier_test",
+        approvedByUserId: "user_cashier_test",
+        approvedAt: new Date(),
+      },
+    });
+
+    const cierre = await closeShift({ shiftId: SHIFT_ID, closingAmount: 50 }, await closeDeps());
+
+    expect(cierre.data?.expectedAmount).toBe(50);
+    // Las dos cosas que salieron del cajón van con signo negativo (el neto que el arqueo ya sabía calcular
+    // cuando los repositorios llegaban cableados): es lo que se le resta al esperado.
+    expect(cierre.data?.cashMovementsAmount).toBe(-40);
+    expect(cierre.data?.refundsAmount).toBe(-10);
+    expect(cierre.data?.difference).toBe(0);
+  });
+
+  it("un turno reabierto y vuelto a cerrar reemplaza el conteo, no lo acumula", async () => {
+    const prisma = getPrismaClient();
+
+    // El conteo es el detalle que justifica el total firmado: si se acumulara, el papel diría 9 billetes
+    // contados sobre un total que declara 1. Los cierres de banco ya se reemplazaban; los conteos no.
+    await closeShift(
+      {
+        shiftId: SHIFT_ID,
+        closingAmount: 100,
+        closingCounts: [{ currency: "NIO", denomination: 100, quantity: 1 }],
+      },
+      await closeDeps(),
+    );
+    await prisma.shift.updateMany({ where: { id: SHIFT_ID }, data: { status: "open" } });
+
+    await closeShift(
+      {
+        shiftId: SHIFT_ID,
+        closingAmount: 500,
+        closingCounts: [{ currency: "NIO", denomination: 100, quantity: 5 }],
+      },
+      await closeDeps(),
+    );
+
+    const counts = await prisma.shiftCashCount.findMany({ where: { kind: "closing" } });
+
+    expect(counts).toHaveLength(1);
+    expect(counts[0].quantity).toBe(5);
+    expect(Number((await prisma.shift.findUnique({ where: { id: SHIFT_ID } }))?.closingAmount)).toBe(500);
+  });
+
+  it("un cobro de un pedido que ya existe también se rechaza si el turno se cerró", async () => {
+    const prisma = getPrismaClient();
+
+    // El **segundo** camino que le firma el turno a un `Payment` (`POST /api/admin/orders/[id]/payment`).
+    // Se usa la composición **real** del runner (`runInOrderPaymentTransaction`), no una copia del test.
+    const order = await prisma.order.create({
+      data: {
+        orderNumber: "P-COBRO1",
+        type: "pickup",
+        status: "ready",
+        customerName: "Cliente de prueba",
+        customerWhatsapp: "+50588887777",
+        locationId: "loc_test",
+        subtotal: 100,
+        total: 100,
+      },
+    });
+
+    await closeShift({ shiftId: SHIFT_ID, closingAmount: 0 }, await closeDeps());
+
+    await expect(
+      registerOrderPayment(
+        { orderId: order.id, method: "cash", amount: 100, currency: "NIO" },
+        {
+          orderRepository: new PrismaOrderRepository(),
+          paymentRepository: new PrismaPaymentRepository(),
+          findOpenShift: async () => ({ id: SHIFT_ID }),
+          runInOrderPaymentTransaction,
+          businessCurrencyCode: "NIO",
+          usdExchangeRate: null,
+        },
+      ),
+    ).rejects.toThrow(/se cerró/i);
+
+    expect(await prisma.payment.count()).toBe(0);
+  });
+
+  it("un cobro de un pedido que ya existe, con la caja abierta, entra al arqueo del cierre", async () => {
+    const prisma = getPrismaClient();
+
+    const order = await prisma.order.create({
+      data: {
+        orderNumber: "P-COBRO2",
+        type: "pickup",
+        status: "ready",
+        customerName: "Cliente de prueba",
+        customerWhatsapp: "+50588887778",
+        locationId: "loc_test",
+        subtotal: 100,
+        total: 100,
+      },
+    });
+    const shiftDeps = await closeDeps();
+
+    /**
+     * El cierre que arranca **adentro** de la transacción del cobro, con el turno ya bloqueado: tiene que
+     * esperar a que el cobro commitee y recién ahí leer su arqueo.
+     */
+    let cierre: ReturnType<typeof closeShift> | null = null;
+
+    await registerOrderPayment(
+      { orderId: order.id, method: "cash", amount: 100, currency: "NIO" },
+      {
+        orderRepository: new PrismaOrderRepository(),
+        paymentRepository: new PrismaPaymentRepository(),
+        findOpenShift: async () => ({ id: SHIFT_ID }),
+        runInOrderPaymentTransaction: <T,>(
+          work: Parameters<typeof runInOrderPaymentTransaction<T>>[0],
+        ) =>
+          runInOrderPaymentTransaction(async (scope) => {
+            const result = await work(scope);
+
+            cierre = closeShift({ shiftId: SHIFT_ID, closingAmount: 100 }, shiftDeps);
+            await new Promise((resolve) => setTimeout(resolve, 150));
+
+            return result;
+          }),
+        businessCurrencyCode: "NIO",
+        usdExchangeRate: null,
+      },
+    );
+
+    const cierreCerrado = await (cierre as unknown as ReturnType<typeof closeShift>);
+
+    expect((await prisma.payment.findFirst())?.shiftId).toBe(SHIFT_ID);
+    expect(
+      cierreCerrado.data?.expectedAmount,
+      "el arqueo firmó 0 con el cobro de este camino ya en el cajón",
+    ).toBe(100);
+    expect(cierreCerrado.data?.cashSalesAmount).toBe(100);
+    expect(cierreCerrado.data?.difference).toBe(0);
   });
 
   it("un cierre que arranca DESPUÉS del cobro cuenta esa plata en el arqueo", async () => {
