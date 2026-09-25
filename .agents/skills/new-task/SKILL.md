@@ -33,8 +33,13 @@ git checkout -b <tipo>/<nombre-descriptivo>
 2. [`../../CONTEXT.md`](../../CONTEXT.md) — cómo está construido el sistema.
 3. [`../../../ops/CURRENT.md`](../../../ops/CURRENT.md) — qué está vivo hoy y qué riesgos hay abiertos.
 4. La TASK (el brief, el roadmap o el pedido explícito del owner).
-5. [`../../MEMORY.md`](../../MEMORY.md) — **si** la TASK toca un área donde sus lecciones aplican.
-6. La skill específica: `bugfix` · `money-change` · `database-migration` · `security-change` ·
+5. **La arquitectura de producto**:
+   [`../../../ops/product/MODULE_ARCHITECTURE.md`](../../../ops/product/MODULE_ARCHITECTURE.md) — dónde vive
+   cada capacidad y quién es dueño de sus reglas. **Una feature nueva va a un módulo existente**; crear un
+   módulo, una sección o una entrada de navegación principal es la **excepción** y se justifica con su gate.
+   Un bugfix dentro de un módulo conocido no pasa por ahí.
+6. [`../../MEMORY.md`](../../MEMORY.md) — **si** la TASK toca un área donde sus lecciones aplican.
+7. La skill específica: `bugfix` · `money-change` · `database-migration` · `security-change` ·
    `ui-change` · `audit` · `production-release`.
 
 **No** se carga el historial por defecto: [`../../../ops/history/`](../../../ops/history/) se consulta

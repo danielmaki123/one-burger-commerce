@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { countLines, fileExists, readRepoFile } from "./contract-files";
+import { countLines, fileExists, listFiles, readRepoFile } from "./contract-files";
 
 /**
  * TASK-AUD-000 — contrato del sistema operativo de ingeniería del agente.
@@ -48,6 +48,26 @@ const REQUIRED_TASK_DOCUMENTS = [
   "ops/tasks/TEMPLATE.md",
   "ops/tasks/AUDIT-REMEDIATION-ROADMAP.md",
 ] as const;
+
+/**
+ * ARCH-001 (2026-09-25) — la **arquitectura de producto**: dónde vive cada capacidad y quién es dueño de
+ * sus reglas.
+ *
+ * Decidir si una feature «pertenece» a Caja o a Órdenes necesita criterio, así que ese gate **no** se
+ * automatiza (vive en el documento). Lo que sí es objetivo: que la fuente canónica exista una sola vez,
+ * que el camino de entrada la cite y que las skills que crean capacidades nuevas la consulten en lugar de
+ * improvisar una arquitectura paralela.
+ */
+const MODULE_ARCHITECTURE_DOC = "ops/product/MODULE_ARCHITECTURE.md";
+
+/** Las skills que crean capacidades o pantallas nuevas: son las que tienen que consultarla antes. */
+const SKILLS_THAT_CONSULT_ARCHITECTURE = ["new-task", "ui-change"] as const;
+
+/**
+ * Un techo para la constitución de producto: el mismo principio que el resto de los documentos del
+ * sistema —si crece como un manual, dejó de ser la fuente corta que un agente lee antes de decidir—.
+ */
+const MAX_MODULE_ARCHITECTURE_LINES = 400;
 
 /** El archivo del que salió esta reorganización. No se borra: se archiva. */
 const LEGACY_STATE_DOCUMENT = "ops/history/project-state-legacy-2026-09.md";
@@ -241,6 +261,75 @@ describe("contrato · sistema operativo de ingeniería del agente", () => {
       tooLong,
       "el techo de un documento solo baja: lo que sobra se mueve a history, a una skill o al backlog",
     ).toEqual([]);
+  });
+
+  it("la arquitectura de producto es una sola fuente y el camino de entrada la cita", () => {
+    expect(
+      fileExists(MODULE_ARCHITECTURE_DOC),
+      `falta ${MODULE_ARCHITECTURE_DOC}: sin la fuente canónica cada agente decide de nuevo dónde vive cada capacidad`,
+    ).toBe(true);
+
+    const mustCite = [
+      "AGENTS.md",
+      "ops/CURRENT.md",
+      "ops/tasks/START-HERE.md",
+      ...SKILLS_THAT_CONSULT_ARCHITECTURE.map((skill) => `.agents/skills/${skill}/SKILL.md`),
+    ];
+
+    const missing = mustCite.filter(
+      (doc) => !readRepoFile(doc).includes(MODULE_ARCHITECTURE_DOC),
+    );
+
+    expect(
+      missing,
+      "un documento que crea capacidades nuevas tiene que consultar la arquitectura de producto, no repetirla ni improvisarla",
+    ).toEqual([]);
+  });
+
+  it("la arquitectura de producto enlaza la autoridad del repo en vez de duplicarla", () => {
+    const doc = readRepoFile(MODULE_ARCHITECTURE_DOC);
+
+    expect(
+      doc,
+      "la arquitectura de producto no reemplaza a AGENTS.md: lo enlaza",
+    ).toContain("AGENTS.md");
+
+    expect(
+      doc,
+      "el contexto técnico estable vive en CONTEXT.md y se enlaza, no se copia",
+    ).toContain(".agents/CONTEXT.md");
+
+    expect(
+      countLines(MODULE_ARCHITECTURE_DOC),
+      "es una constitución mínima: si crece como un manual, el detalle va a una skill o al backlog",
+    ).toBeLessThanOrEqual(MAX_MODULE_ARCHITECTURE_LINES);
+  });
+
+  it("ninguna otra constitución activa se proclama dueña de la arquitectura de producto", () => {
+    /**
+     * Propiedad objetiva: **una sola** declaración de autoridad. Un documento que se proclame fuente de la
+     * arquitectura de producto tiene que ser el canónico; si aparece un segundo, este contrato lo delata
+     * antes de que dos documentos se contradigan en silencio. La historia archivada queda afuera a
+     * propósito: `ops/history/` no es fuente de verdad.
+     */
+    const AUTHORITY_CLAIM = "fuente de la arquitectura de producto";
+
+    const normativeDocs = [
+      ...listFiles(
+        "ops",
+        (repoPath) => repoPath.endsWith(".md") && !repoPath.startsWith("ops/history/"),
+      ),
+      ...listFiles(".agents", (repoPath) => repoPath.endsWith(".md")),
+    ];
+
+    const claimants = normativeDocs
+      .filter((repoPath) => readRepoFile(repoPath).includes(AUTHORITY_CLAIM))
+      .sort();
+
+    expect(
+      claimants,
+      "dos documentos no pueden proclamarse dueños de la arquitectura de producto: se escribe una vez y se enlaza",
+    ).toEqual([MODULE_ARCHITECTURE_DOC]);
   });
 
   it("`.agents/` está versionado: el sistema no puede quedar fuera de git", () => {

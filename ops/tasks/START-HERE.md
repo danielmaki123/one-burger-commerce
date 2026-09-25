@@ -11,6 +11,7 @@ falta nada de conversaciones anteriores. Si algo acá contradice a [`../../AGENT
 | 1 | [`../../AGENTS.md`](../../AGENTS.md) | **Reglas y límites**: autonomía, jerarquía de fuentes, arquitectura, DDD, TDD, integridad de tests, ratcheting, seguridad, git, PR, CI, Definition of Done y prohibiciones |
 | 2 | [`../../.agents/CONTEXT.md`](../../.agents/CONTEXT.md) | **Cómo está construido el sistema**: superficies, hosts, stack, DDD, bounded contexts, persistencia, outbox, auth, CI y deploy |
 | 3 | [`../CURRENT.md`](../CURRENT.md) | **El estado real de hoy**: qué está en producción, capacidades activas, riesgos abiertos, trabajo en curso, qué sigue y bloqueos |
+| 3b | [`ops/product/MODULE_ARCHITECTURE.md`](../product/MODULE_ARCHITECTURE.md) | **Dónde vive cada capacidad del producto y quién es dueño de sus reglas**. Se consulta **antes** de crear una pantalla, una sección o un módulo |
 | 4 | **La TASK** | El brief (`ops/tasks/*.md`), el roadmap o el pedido del owner |
 | 5 | **La skill que corresponda** | [`../../.agents/skills/`](../../.agents/skills/): `new-task`, `bugfix`, `money-change`, `database-migration`, `security-change`, `ui-change`, `audit`, `production-release` |
 | 6 | [`../../.agents/MEMORY.md`](../../.agents/MEMORY.md) | **Solo si** la TASK toca un área donde sus lecciones aplican |

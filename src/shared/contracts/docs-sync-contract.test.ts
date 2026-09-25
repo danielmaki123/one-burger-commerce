@@ -57,6 +57,9 @@ const AGENT_DOCS: string[] = [
   "ops/tasks/TEMPLATE.md",
   "ops/tasks/AUDIT-REMEDIATION-ROADMAP.md",
   "ops/decisions/ADR-000-agent-operating-system.md",
+  // ARCH-001: la arquitectura de producto se consulta **antes** de crear una capacidad nueva, así que
+  // sus propias referencias también tienen que poder seguirse.
+  "ops/product/MODULE_ARCHITECTURE.md",
   ...SKILL_NAMES.map((skill) => `.agents/skills/${skill}/SKILL.md`),
 ];
 

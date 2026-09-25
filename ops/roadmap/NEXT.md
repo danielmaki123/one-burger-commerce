@@ -2,15 +2,16 @@
 
 ## Ahora
 
-`ARCH-001 — Product & Module Architecture` (en curso). A-15 y la fase de estabilización técnica quedaron
-**cerradas** el 2026-09-25: el estado real está en [`../CURRENT.md`](../CURRENT.md).
+`ARCH-001 — Product & Module Architecture` **cerrada** (2026-09-25): la constitución de producto vive en
+[`../product/MODULE_ARCHITECTURE.md`](../product/MODULE_ARCHITECTURE.md). A-15 y la fase de estabilización
+técnica quedaron cerradas el 2026-09-25; el estado real está en [`../CURRENT.md`](../CURRENT.md).
 
 ## Después
-1. `ARCH-001 — Product & Module Architecture`
-2. Revisión del owner
-3. `DS-001 — One Burger Design System v4`
-4. Revisión del owner
-5. `SCREEN-001 — /admin Resumen`
+1. **Revisión del owner de `ARCH-001`** — la constitución es el punto de partida, no un techo: las
+   divergencias registradas (Resumen/POS en la navegación, el dominio de Caja repartido) son decisiones suyas.
+2. `DS-001 — One Burger Design System v4` (brief separado del owner; **no iniciada**)
+3. Revisión del owner
+4. `SCREEN-001 — /admin Resumen`
 
 ## SCREEN-001 no empieza con código
 
