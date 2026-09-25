@@ -258,6 +258,15 @@ export type PaymentRecord = {
   tip: number;
   reference: string | null;
   createdAt: string;
+  /**
+   * TASK-AUD-059 — **anulación del cobro**: cuándo, quién y por qué. `null` = el cobro vale.
+   *
+   * El cobro anulado no se borra ni se edita: la fila queda entera con su marca y deja de contar para
+   * todo lo que sume plata (el detalle de qué consultas lo devuelven está en `PaymentRepository`).
+   */
+  voidedAt: string | null;
+  voidedByUserId: string | null;
+  voidReason: string | null;
 };
 
 /** TASK-104 — estado de un turno de caja. */

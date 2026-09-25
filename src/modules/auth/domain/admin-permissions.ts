@@ -96,6 +96,20 @@ export function canApproveRefund(role: AdminRole) {
 }
 
 /**
+ * TASK-AUD-059 — **anular un cobro** (alcance remanente de A-15): decidir que un cobro registrado **nunca
+ * contó**.
+ *
+ * Es una puerta propia y del **dueño**, y no una reutilización de `canRefund` ni de `canApproveRefund`,
+ * porque la operación es de otra naturaleza: no hay plata que devolver ni cupo que respetar —el cobro
+ * estaba mal cargado— y lo que cambia es el arqueo, el saldo del pedido y la conciliación. El manager
+ * puede pedir y el cajero cobrar; corregir el registro que ya entró a la caja lo firma el dueño, que es
+ * quien responde por el arqueo.
+ */
+export function canVoidPayment(role: AdminRole) {
+  return role === ADMIN_ROLES.owner;
+}
+
+/**
  * Bloque 7.1 del roadmap del POS (Fase 2) — **ver el historial de cierres**.
  *
  * Auditar el arqueo de los turnos cerrados. También coincide hoy con `canManageCash`, y también es

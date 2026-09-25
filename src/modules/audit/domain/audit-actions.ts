@@ -25,6 +25,13 @@ export const AUDIT_ACTIONS = [
    * una lista cerrada) y, cuando es «Otro», el texto que escribió quien anuló.
    */
   "invoice.void",
+  /**
+   * TASK-AUD-059 — **anular un cobro** (alcance remanente de A-15): el cobro se registró mal —duplicado,
+   * con el monto o el medio equivocados— y se invalida. No se borra: queda con cuándo, quién y por qué, y
+   * sale del arqueo, del saldo del pedido y de la conciliación. El asiento guarda el monto, la moneda y el
+   * medio del cobro anulado **y** el motivo, que es lo único que explica la corrección seis meses después.
+   */
+  "payment.void",
   "settings.update",
   /**
    * Fase 2 del rediseño de Caja (2026-09-22) — **configuración de caja** de una sucursal: qué monedas se
@@ -48,6 +55,7 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   "order.cancel_paid": "Pedido cobrado cancelado",
   "order.manual_discount": "Descuento manual en el mostrador",
   "invoice.void": "Factura anulada",
+  "payment.void": "Cobro anulado",
   "settings.update": "Configuración actualizada",
   "cash_config.update": "Configuración de caja actualizada",
 };

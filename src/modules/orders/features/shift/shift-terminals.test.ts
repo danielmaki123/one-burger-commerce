@@ -244,6 +244,9 @@ function seedPayment(
     tip: 0,
     reference: null,
     createdAt: new Date().toISOString(),
+    voidedAt: null,
+    voidedByUserId: null,
+    voidReason: null,
   });
 
   if (shiftId) {

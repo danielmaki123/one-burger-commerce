@@ -27,6 +27,9 @@ const payment: PaymentRecord = {
   changeAmount: 0,
   reference: null,
   createdAt: "2026-09-17T18:00:00.000Z",
+  voidedAt: null,
+  voidedByUserId: null,
+  voidReason: null,
 };
 
 function refund(over: Partial<RefundRecord> & { id: string }): RefundRecord {
@@ -48,7 +51,9 @@ function refund(over: Partial<RefundRecord> & { id: string }): RefundRecord {
   };
 }
 
-function buildDeps(options: { refunds?: RefundRecord[]; shiftId?: string | null } = {}) {
+function buildDeps(
+  options: { refunds?: RefundRecord[]; shiftId?: string | null; payment?: PaymentRecord | null } = {},
+) {
   const created: CreateRefundInput[] = [];
   const existing = options.refunds ?? [];
 
@@ -57,7 +62,7 @@ function buildDeps(options: { refunds?: RefundRecord[]; shiftId?: string | null 
     deps: {
       paymentRepository: {
         async findPaymentById() {
-          return payment;
+          return options.payment === undefined ? payment : options.payment;
         },
       },
       refundRepository: {
@@ -145,6 +150,29 @@ describe("requestRefund", () => {
       approvedAt: null,
       requestedByUserId: "user_owner",
     });
+  });
+
+  /**
+   * TASK-AUD-059 — un cobro **anulado** no existe para la plata: no se le puede pedir una devolución.
+   *
+   * Devolver algo que se anuló sería descontar dos veces del arqueo (el cobro ya no cuenta y encima la
+   * devolución resta). La salida correcta es rechazar la devolución y recién ahí anular el cobro.
+   */
+  it("no se pide devolución de un cobro anulado: 409", async () => {
+    const { created, deps } = buildDeps({
+      payment: {
+        ...payment,
+        voidedAt: "2026-09-25T15:00:00.000Z",
+        voidedByUserId: "user_owner",
+        voidReason: "cobro duplicado",
+      },
+    });
+
+    await expect(requestRefund(baseInput, deps)).rejects.toMatchObject({
+      status: 409,
+      code: "CONFLICT",
+    });
+    expect(created).toHaveLength(0);
   });
 
   it("una devolución sin cobro no existe: 404", async () => {

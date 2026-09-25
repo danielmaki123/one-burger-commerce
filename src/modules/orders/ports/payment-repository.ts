@@ -34,6 +34,22 @@ export type PaymentSummary = {
   totalTip: number;
 };
 
+/** TASK-AUD-059 — lo que se guarda al **anular** un cobro: el motivo y quién lo firma. */
+export type VoidPaymentInput = {
+  /** Por qué se anula. Obligatorio y ya validado por el dominio (`validatePaymentVoidReason`). */
+  reason: string;
+  actorUserId: string;
+  voidedAt: string;
+};
+
+/**
+ * Los cobros (`Payment`) de un pedido y del local.
+ *
+ * TASK-AUD-059 — **las consultas de lista no devuelven cobros anulados**: un cobro anulado no cuenta para
+ * el arqueo del turno, ni para el saldo del pedido, ni para la conciliación, ni para los documentos que se
+ * imprimen. La única lectura que sí lo devuelve —con su marca— es `findPaymentById`, que es la de quien
+ * tiene que **decidir** sobre él (anularlo o devolverlo).
+ */
 export interface PaymentRepository {
   createPayment(input: CreatePaymentInput): Promise<PaymentRecord>;
   /**
@@ -90,4 +106,12 @@ export interface PaymentRepository {
    * para no sumar en memoria lo que la base puede sumar.
    */
   getPaymentSummary(orderId: string): Promise<PaymentSummary>;
+  /**
+   * TASK-AUD-059 — **anula** un cobro: lo marca con cuándo, quién y por qué y lo saca de todo lo que sume
+   * plata. No lo borra ni lo edita: la fila queda con su monto y su medio.
+   *
+   * `null` si el cobro no existe **o si ya estaba anulado**. La guarda es el `voidedAt: null` en el
+   * `WHERE`: dos anulaciones simultáneas no pueden pisarse la firma (la segunda afecta 0 filas).
+   */
+  voidPayment(id: string, input: VoidPaymentInput): Promise<PaymentRecord | null>;
 }

@@ -8,6 +8,7 @@ import {
   invoiceVoidAudit,
   manualDiscountAudit,
   paidOrderCancelledAudit,
+  paymentVoidAudit,
   recordAdminAudit,
   refundRequestAudit,
   refundReviewAudit,
@@ -310,6 +311,36 @@ const shortcuts: Array<[string, () => Promise<void>, Record<string, unknown>]> =
       targetType: "Invoice",
       targetId: "inv_01",
       detail: { reason: "otro", note: "Se emitió con el RUC viejo" },
+    },
+  ],
+  /**
+   * TASK-AUD-059 — anular un cobro: el monto, la moneda y el medio del cobro que se invalida, más el
+   * motivo. Sin el monto el asiento no dice **qué** se sacó del arqueo, y sin el motivo no se puede
+   * distinguir una corrección de un descuadre.
+   */
+  [
+    "payment.void",
+    () =>
+      paymentVoidAudit({
+        actorUserId: "user_owner",
+        paymentId: "pay_01",
+        orderId: "order_01",
+        amount: 500,
+        currency: "NIO",
+        method: "cash",
+        reason: "Cobro duplicado del pedido P-000123",
+      }),
+    {
+      action: "payment.void",
+      targetType: "Payment",
+      targetId: "pay_01",
+      detail: {
+        orderId: "order_01",
+        amount: 500,
+        currency: "NIO",
+        method: "cash",
+        reason: "Cobro duplicado del pedido P-000123",
+      },
     },
   ],
   /**

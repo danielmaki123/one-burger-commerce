@@ -82,6 +82,9 @@ describe("InMemoryPaymentRepository", () => {
         tip: 0,
         reference: null,
         createdAt: "2026-09-14T12:01:00.000Z",
+        voidedAt: null,
+        voidedByUserId: null,
+        voidReason: null,
       },
       {
         id: "pay_1",
@@ -93,6 +96,9 @@ describe("InMemoryPaymentRepository", () => {
         tip: 0,
         reference: null,
         createdAt: "2026-09-14T12:00:00.000Z",
+        voidedAt: null,
+        voidedByUserId: null,
+        voidReason: null,
       },
     );
 

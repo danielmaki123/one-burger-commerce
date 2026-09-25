@@ -314,3 +314,35 @@ export function invoiceVoidAudit(input: {
     detail: { reason: input.reason, ...(note ? { note } : {}) },
   });
 }
+
+/**
+ * TASK-AUD-059 — **anular un cobro** (alcance remanente de A-15).
+ *
+ * El asiento guarda **qué** se sacó del arqueo —monto, moneda y medio del cobro anulado— y **por qué**.
+ * La fila del `Payment` ya dice cuándo y quién (`voidedAt` / `voidedByUserId` / `voidReason`); esto agrega
+ * la lectura agrupada del log de acciones sensibles, que es lo que seis meses después responde «¿por qué
+ * este turno cerró con menos plata de la que entró?».
+ */
+export function paymentVoidAudit(input: {
+  actorUserId: string;
+  paymentId: string;
+  orderId: string;
+  amount: number;
+  currency: string;
+  method: string;
+  reason: string;
+}) {
+  return recordAdminAudit({
+    action: "payment.void",
+    actorUserId: input.actorUserId,
+    targetType: "Payment",
+    targetId: input.paymentId,
+    detail: {
+      orderId: input.orderId,
+      amount: input.amount,
+      currency: input.currency,
+      method: input.method,
+      reason: input.reason,
+    },
+  });
+}

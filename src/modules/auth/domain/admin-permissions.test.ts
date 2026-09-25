@@ -19,6 +19,7 @@ import {
   canViewDashboardSummary,
   canViewHistory,
   canViewOutboxEvents,
+  canVoidPayment,
 } from "@/modules/auth/domain/admin-permissions";
 import { ADMIN_ROLES } from "@/modules/auth/domain/admin-role";
 
@@ -204,5 +205,21 @@ describe("admin permissions", () => {
     expect(canPrintCashDocuments(ADMIN_ROLES.manager)).toBe(false);
     expect(canPrintCashDocuments(ADMIN_ROLES.cashier)).toBe(false);
     expect(canPrintCashDocuments(ADMIN_ROLES.kitchen)).toBe(false);
+  });
+
+  /**
+   * TASK-AUD-059 — **anular un cobro** (alcance remanente de A-15).
+   *
+   * Devolver plata (`canRefund`) y aprobarlo (`canApproveRefund`) son actos sobre plata que **sale** del
+   * cajón. Anular un cobro es distinto: decide que ese cobro **nunca contó** —sale del arqueo, del saldo
+   * del pedido y de la conciliación— y es lo que corrige un cobro mal cargado. Por eso es una puerta
+   * propia y del **dueño**: no es una devolución (no hay plata que devolver, no hay cupo que respetar) ni
+   * un movimiento de caja.
+   */
+  it("canVoidPayment: anular un cobro es del dueño", () => {
+    expect(canVoidPayment(ADMIN_ROLES.owner)).toBe(true);
+    expect(canVoidPayment(ADMIN_ROLES.manager)).toBe(false);
+    expect(canVoidPayment(ADMIN_ROLES.cashier)).toBe(false);
+    expect(canVoidPayment(ADMIN_ROLES.kitchen)).toBe(false);
   });
 });

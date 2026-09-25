@@ -834,31 +834,39 @@ model BusinessSettings {
 /// devolución, ni un pago repartido entre efectivo y tarjeta. Por eso una tabla aparte, y por eso
 /// `Order.paymentMethod` se mantiene: la declaración del cliente y el cobro real son dos cosas.
 model Payment {
-  id           String            @id @default(cuid())
-  orderId      String
-  method       PaymentMethodType
-  amount       Decimal           @db.Decimal(10, 2)
+  id             String            @id @default(cuid())
+  orderId        String
+  method         PaymentMethodType
+  amount         Decimal           @db.Decimal(10, 2)
   /// TASK-303b — moneda en la que entró **este** cobro (el cliente puede pagar en dólares).
   /// `null` = la moneda del negocio: un cobro viejo no declara moneda y se cuenta como tal.
-  currency     String?
+  currency       String?
   /// Propina cobrada en este pago. Va aparte del monto porque en un pago mixto puede pagarse sola.
-  tip          Decimal           @default(0) @db.Decimal(10, 2)
+  tip            Decimal           @default(0) @db.Decimal(10, 2)
   /// TASK-305 — vuelto que salió del cajón con este cobro, en la **moneda del negocio**. Es un hecho
   /// del momento (lo que se le devolvió al cliente), y el arqueo lo necesita: sin él, un día con
   /// vueltos parecería que falta plata. El detalle del pedido sigue **derivando** el cambio (T12).
-  changeAmount Decimal           @default(0) @db.Decimal(10, 2)
+  changeAmount   Decimal           @default(0) @db.Decimal(10, 2)
   /// Referencia externa del cobro (número de voucher, id de transferencia). Vacío si no aplica.
-  reference    String?
+  reference      String?
   /// Fase 6 del rediseño de Caja (2026-09-23) — el **turno** al que entró este cobro (la caja de la
   /// terminal donde se cobró). `null` en los cobros de antes de la Fase 6 y en los del sitio público (que
   /// no pasan por una caja): el arqueo de un turno sin cobros atribuidos sigue leyendo por ventana.
-  shiftId      String?
-  createdAt    DateTime          @default(now())
-  order        Order             @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  shift        Shift?            @relation(fields: [shiftId], references: [id], onDelete: SetNull)
+  shiftId        String?
+  createdAt      DateTime          @default(now())
+  /// TASK-AUD-059 — **cobro anulado** (soft delete; alcance remanente de A-15): el cobro se registró mal y
+  /// se invalida. La fila **no** se borra ni se edita —queda con cuándo, quién y por qué— y deja de contar
+  /// para todo lo que sume plata: arqueo, saldo del pedido, conciliación y documentos impresos. `null` = el
+  /// cobro vale. Es distinto de una devolución (`Refund`): eso es plata que **salió** del cajón, con medio,
+  /// moneda y turno; acá no hay plata que mover, hay un registro que no debía existir.
+  voidedAt       DateTime?
+  voidedByUserId String?
+  voidReason     String?
+  order          Order             @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  shift          Shift?            @relation(fields: [shiftId], references: [id], onDelete: SetNull)
   /// Bloque 3 del POS — las devoluciones de este cobro. Se guardan para no devolver dos veces la
   /// misma plata: el cupo disponible es `amount` menos las devoluciones no rechazadas.
-  refunds      Refund[]
+  refunds        Refund[]
 
   @@index([orderId])
   @@index([shiftId])
