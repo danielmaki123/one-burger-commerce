@@ -8,9 +8,10 @@ en qué estado está el sistema en pocos minutos.
 [`.agents/CONTEXT.md`](../.agents/CONTEXT.md)). Este archivo se **actualiza seguido** y se mantiene
 corto: si crece como un diario, dejó de servir.
 
-> **Última actualización**: 2026-09-24, por TASK-AUD-000 (reorganización del sistema de ingeniería).
-> No se tocó producción, la base, el ruleset ni el deploy: el estado de producción de abajo es el
-> **registro del repo**, no una verificación nueva de esta TASK.
+> **Última actualización**: 2026-09-25, por TASK-AUD-001 (gate de integridad de tests).
+> TASK-AUD-000 quedó **cerrada** (PR #31 → `eeaa810`, con `publish` en verde). No se tocó producción, la
+> base, el ruleset ni el deploy: el estado de producción de abajo es el **registro del repo**, no una
+> verificación nueva.
 
 ---
 
@@ -89,9 +90,14 @@ sin guardrail) · `A-23` (cuenta de prueba con rol `owner` en producción) · `A
 
 ## 4. Trabajo actual
 
-**TASK-AUD-000 — Agent Operating System** (esta TASK): reorganizar el sistema operativo de ingeniería.
-Docs, estructura y contratos. **Sin cambio funcional del producto.** PR abierto, **sin mergear** por
-pedido explícito del owner.
+**TASK-AUD-001 — Test Integrity & Quality Gates** (en curso): convertir el protocolo de integridad de tests
+en guardrails mecánicos. Agrega el gate `Test integrity gate` (expectativas tautológicas, tests enfocados
+`.only` y ratchet de la deuda congelada contra `main`), su inventario
+(`src/shared/contracts/test-integrity-baseline.json`) y la plantilla de PR con el checklist adversarial.
+**Sin cambio funcional del producto.**
+
+**TASK-AUD-000 — Agent Operating System**: **cerrada**. PR #31 mergeado en `main` como `eeaa810`, con los
+cuatro checks y `publish` (imagen a GHCR) en verde. **No hubo deploy.**
 
 ## 5. Siguiente trabajo
 
@@ -100,13 +106,12 @@ El programa completo, con objetivo, prioridad, riesgo, dependencia y orden, est�
 
 Orden inmediato:
 
-1. **TASK-AUD-001 — Test Integrity & Quality Gates** (P0 de proceso): los gates que impiden los falsos
-   verdes. Va primero porque **todas** las demás dependen de poder confiar en sus tests.
-2. **TASK-AUD-002 — Git / CI Governance**: cerrar el gap de PR obligatorio en el ruleset y alinear los
-   checks.
-3. **TASK-AUD-003 — Blind Cash Authorization / A-45**: **verificar y endurecer**, no construir desde
+1. **TASK-AUD-002 — Git / CI Governance** (P0 de proceso): cerrar el gap de PR obligatorio en el ruleset
+   (hoy el PR es política, no enforcement) y agregar el gate de `build:webpack` cuando una PR toca una
+   página.
+2. **TASK-AUD-003 — Blind Cash Authorization / A-45**: **verificar y endurecer**, no construir desde
    cero (ver la nota de abajo).
-4. `TASK-AUD-004` a `TASK-AUD-017` en el orden del roadmap.
+3. `TASK-AUD-004` a `TASK-AUD-017` en el orden del roadmap.
 
 > ⚠️ **Dos correcciones al brief de la auditoría, verificadas en el repo:**
 >
