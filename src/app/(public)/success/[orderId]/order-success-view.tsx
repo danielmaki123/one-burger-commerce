@@ -128,6 +128,8 @@ function formatPublicOrderStatus(status: string): string {
 type OrderSuccessViewProps = {
   order: OrderSuccessData;
   onViewActivity?: () => void;
+  /** Hallazgo H3b — seguir este pedido (`/orders/track`, con número + WhatsApp). */
+  onTrackOrder?: () => void;
   /** Volver a la carta: la segunda salida que muestra el mock (T6). */
   onOrderAgain?: () => void;
 };
@@ -135,6 +137,7 @@ type OrderSuccessViewProps = {
 export default function OrderSuccessView({
   order,
   onViewActivity,
+  onTrackOrder,
   onOrderAgain,
 }: OrderSuccessViewProps) {
   const [hideMascot, setHideMascot] = useState(false);
@@ -271,6 +274,20 @@ export default function OrderSuccessView({
           >
             Ver mis pedidos
           </Button>
+          {/*
+            Hallazgo H3b de la auditoría post-deploy (2026-09-23) — el cliente termina el pedido y no tenía
+            camino al **seguimiento** (`/orders/track`, número + WhatsApp). «Ver mis pedidos» lleva a la
+            lista; esto lleva al estado del pedido que acaba de hacer.
+          */}
+          {onTrackOrder ? (
+            <Button
+              variant="outline"
+              className="h-14 w-full rounded-2xl text-base font-semibold"
+              onClick={onTrackOrder}
+            >
+              Seguí tu pedido
+            </Button>
+          ) : null}
           {onOrderAgain ? (
             <Button
               variant="outline"

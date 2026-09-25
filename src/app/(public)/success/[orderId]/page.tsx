@@ -222,6 +222,8 @@ export default function OrderSuccessPage() {
     <OrderSuccessView
       order={order}
       onViewActivity={() => router.push("/activity?tab=orders")}
+      // Hallazgo H3b: el seguimiento del pedido que se acaba de hacer (número + WhatsApp).
+      onTrackOrder={() => router.push("/orders/track")}
       onOrderAgain={() => router.push("/menu")}
     />
   );

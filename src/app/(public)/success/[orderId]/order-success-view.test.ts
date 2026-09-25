@@ -81,6 +81,23 @@ describe("order success view", () => {
     expect(html).not.toContain('href="#"');
   });
 
+  /**
+   * Hallazgo H3b de la auditoría post-deploy (2026-09-23) — **«Seguí tu pedido» en la confirmación**.
+   *
+   * La pantalla de seguimiento existe (`/orders/track`, con número + WhatsApp) pero la confirmación no
+   * llevaba ahí: el cliente terminaba el pedido y no tenía camino al seguimiento.
+   */
+  it("ofrece seguir el pedido desde la confirmación (H3b)", () => {
+    const html = renderToStaticMarkup(
+      createElement(OrderSuccessView, {
+        order: pickupOrder({}) as never,
+        onTrackOrder: () => {},
+      }),
+    );
+
+    expect(html).toContain("Seguí tu pedido");
+  });
+
   it("dice cómo va a pagar el cliente (T11)", () => {
     // El servidor guarda la forma de pago; el cliente la ve en su resumen.
     expect(renderWith(pickupOrder({ paymentMethod: "cash" }))).toContain("Efectivo");
