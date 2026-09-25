@@ -1,4 +1,4 @@
-import { canEmitInvoiceFor, nextInvoiceNumber, type InvoiceRecord } from "../../domain/invoice";
+import { canEmitInvoiceFor, type InvoiceRecord } from "../../domain/invoice";
 import { InvoiceError } from "../../domain/invoice-errors";
 import type { InvoiceRepository } from "../../ports/invoice-repository";
 
@@ -176,8 +176,13 @@ export async function emitInvoice(
     order.customerId && deps.findCustomer ? await deps.findCustomer(order.customerId) : null;
   const fiscal = fiscalDataFor({ emitted: input.customer, stored: storedCustomer });
 
-  const invoice = await deps.invoiceRepository.create({
-    number: nextInvoiceNumber(await deps.invoiceRepository.findLatestNumber()),
+  /**
+   * TASK-AUD-006 — el correlativo y el alta son **una** operación del repositorio: leer el último número y
+   * después insertar no es atómico, y la emisión que perdía la carrera le fallaba al cajero. El repositorio
+   * reintenta con el número siguiente y, si la carrera es por la factura de este mismo pedido, devuelve la
+   * que ya existe (`reused`), igual que el camino secuencial de arriba.
+   */
+  const created = await deps.invoiceRepository.createNextForOrder({
     orderId: order.id,
     customerName: order.customerName,
     customerLegalName: fiscal.legalName,
@@ -204,5 +209,5 @@ export async function emitInvoice(
     issuedByUserId: input.actorUserId,
   });
 
-  return { invoice, reused: false };
+  return created;
 }

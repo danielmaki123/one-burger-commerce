@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { InvoiceError } from "../../domain/invoice-errors";
 import type { InvoiceRecord } from "../../domain/invoice";
 import type { CreateInvoiceInput, InvoiceRepository } from "../../ports/invoice-repository";
+import { nextInvoiceNumber } from "../../domain/invoice";
 import { emitInvoice } from "./emit-invoice";
 
 /**
@@ -51,6 +52,13 @@ function repository(overrides: Partial<InvoiceRepository> = {}): {
   create: ReturnType<typeof vi.fn>;
 } {
   const create = vi.fn(async (input: CreateInvoiceInput) => ({ ...emitted, ...input }));
+  // TASK-AUD-006: el puerto asigna el correlativo y crea en una sola operación (el doble la resuelve con el
+  // mismo `create` y el número que le toque).
+  const createNextForOrder = vi.fn(async (input: Omit<CreateInvoiceInput, "number">) => {
+    const latest = await (overrides.findLatestNumber?.() ?? Promise.resolve(null));
+
+    return { invoice: await create({ ...input, number: nextInvoiceNumber(latest) }), reused: false };
+  });
 
   return {
     create,
@@ -58,6 +66,7 @@ function repository(overrides: Partial<InvoiceRepository> = {}): {
       findByOrderId: async () => null,
       findLatestNumber: async () => null,
       create,
+      createNextForOrder,
       // El puerto se implementa completo: emitir no lista ni anula (eso es del Historial).
       findById: async () => null,
       list: async () => [],

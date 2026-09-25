@@ -64,6 +64,18 @@ export interface InvoiceRepository {
   /** El número de la factura más nueva (el correlativo se arma con él). */
   findLatestNumber(): Promise<string | null>;
   create(input: CreateInvoiceInput): Promise<InvoiceRecord>;
+  /**
+   * TASK-AUD-006 — **asignar el correlativo y crear el documento**, como una sola operación que sabe perder
+   * una carrera.
+   *
+   * Leer el último número y después insertar no es atómico: dos emisiones simultáneas calculan el mismo
+   * correlativo y la que llega segunda choca con el índice único. Esta operación reintenta con el número
+   * siguiente (y, si el choque es del `orderId`, devuelve la factura que ya existe como `reused`): una
+   * emisión no puede fallarle al cajero por una carrera.
+   */
+  createNextForOrder(
+    input: Omit<CreateInvoiceInput, "number">,
+  ): Promise<{ invoice: InvoiceRecord; reused: boolean }>;
   findById(id: string): Promise<InvoiceRecord | null>;
   /** Las facturas del Historial, de la más nueva a la más vieja. */
   list(filters: ListInvoicesFilters): Promise<InvoiceRecord[]>;

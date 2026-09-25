@@ -66,6 +66,10 @@ function repository(record: InvoiceRecord | null): InvoiceRepository & {
     voidMock,
     findByOrderId: vi.fn(async () => record),
     findLatestNumber: vi.fn(async () => record?.number ?? null),
+    // TASK-AUD-006: el puerto asigna el correlativo y crea en una sola operación; anular no emite.
+    createNextForOrder: vi.fn(async () => {
+      throw new Error("anular no emite");
+    }),
     create: vi.fn(async (input: CreateInvoiceInput) => invoice({ ...input, orderId: input.orderId })),
     findById: vi.fn(async () => record),
     list: vi.fn(async () => (record ? [record] : [])),

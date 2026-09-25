@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AuthError } from "@/modules/auth/domain/auth-errors";
-import type { InvoiceRecord } from "@/modules/invoices/domain/invoice";
+import { nextInvoiceNumber, type InvoiceRecord } from "@/modules/invoices/domain/invoice";
 import type { CreateInvoiceInput, InvoiceRepository } from "@/modules/invoices/ports/invoice-repository";
 
 /**
@@ -42,6 +42,17 @@ const inMemoryRepository: InvoiceRepository = {
 
     return invoice;
   },
+  /**
+   * TASK-AUD-006 — el puerto asigna el correlativo y crea en **una** operación: el doble la resuelve con el
+   * mismo `create` y el último número (el tope de reintentos y el conflicto real van contra PostgreSQL).
+   */
+  createNextForOrder: async (input) => ({
+    invoice: await inMemoryRepository.create({
+      ...input,
+      number: nextInvoiceNumber(await inMemoryRepository.findLatestNumber()),
+    }),
+    reused: false,
+  }),
   // Lo que agregó el Historial no lo usa esta ruta: el puerto se implementa completo igual.
   findById: async (id) => invoices.find((invoice) => invoice.id === id) ?? null,
   list: async () => invoices,
