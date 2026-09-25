@@ -107,6 +107,17 @@ va al historial o al PR. Si cambia semana a semana, va a `CURRENT.md`.
   integración, mutación, concurrencia, autorización y persistencia antes que un porcentaje.
 - **Los dobles implementan el puerto completo**; lo de infraestructura se cubre con contratos que leen
   archivos o con el job que construye la imagen; los flujos de usuario van en `tests/e2e/`.
+- **Un guardrail mecánico solo puede vigilar propiedades objetivas**: `expect(X).toBe(X)` con la misma
+  expresión, un `.only` o una fila nueva en una allowlist se detectan por AST; si el `expected` es el valor
+  de negocio correcto, si el mock es permisivo o si el test se escribió después **no** se detectan sin
+  adivinar intenciones. Conviene decirlo **en el propio gate**, para que nadie le pida lo que no puede dar
+  (`src/shared/contracts/test-integrity-contract.test.ts`).
+- **Una allowlist de deuda solo vale si su crecimiento duele**: los contratos del repo detectaban filas
+  *muertas* pero no filas *nuevas*, así que agregar una excepción era apagar un guardrail en silencio. El
+  ratchet compara las claves contra la rama base y contra un inventario congelado.
+- **Un gate que se saltea en silencio no existe**: si necesita historia de git, el CI tiene que traerla
+  (`fetch-depth: 0`) **y** un contrato tiene que exigir esa línea; si no, alguien la saca y el gate queda
+  mirando el vacío sin que nadie lo note.
 - **Nunca se cambia un acceptance test para conseguir verde.** Primero se decide si la implementación
   introdujo una regresión (arreglar el código) o si el contrato cambió a propósito (justificarlo con
   la TASK o con una decisión del owner).

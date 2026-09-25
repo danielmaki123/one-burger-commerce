@@ -55,9 +55,10 @@ jobs:
   contracts:
     runs-on: ubuntu-latest
     steps:
-      # `fetch-depth: 0` no es decorativo: `docs-sync-contract.test.ts` compara la fecha del último
-      # commit que tocó `prisma/schema.prisma` y `src/shared/ui/` contra la del catálogo de UI, y
-      # con el clon superficial por defecto (depth 1) esa historia no existe y la guarda se saltea.
+      # `fetch-depth: 0` no es decorativo: el gate de integridad de tests compara las allowlists de los
+      # contratos contra la rama base para que una PR no pueda agregar una excepción nueva (la deuda
+      # congelada no crece). Con el clon superficial por defecto (depth 1) esa comparación no tiene con
+      # qué comparar y el ratchet se saltearía. Hay un contrato que exige esta línea.
       - name: Checkout
         uses: actions/checkout@v4
         with:
@@ -83,6 +84,13 @@ jobs:
       # por nombre en el check run y no queda escondido detrás de los otros contratos.
       - name: TDD gate (todo código nuevo con su test)
         run: npx vitest run src/shared/contracts/tdd-contract.test.ts
+
+      # TASK-AUD-001 — integridad de tests: expectativas tautológicas, tests enfocados (`.only`) y el
+      # ratchet de la deuda congelada (skips inventariados y allowlists de los contratos) contra `main`.
+      # Las suites de este archivo corren igual dentro del glob de arriba; el paso propio es para que el
+      # resultado se lea por nombre y para que el ratchet tenga la historia del `fetch-depth: 0`.
+      - name: Test integrity gate
+        run: npx vitest run src/shared/contracts/test-integrity-contract.test.ts src/shared/contracts/test-integrity-policy.test.ts src/shared/contracts/test-integrity-allowances.test.ts
 
   migrations:
     runs-on: ubuntu-latest

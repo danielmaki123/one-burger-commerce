@@ -132,7 +132,7 @@ cambiar el expected → verde* sin demostrar que cambió el contrato.
 
 **Coverage ≠ correctness.** Se prefieren invariantes, ramas críticas, escenarios **negativos**, tests de
 integración, **mutación**, **concurrencia**, **autorización** y **persistencia**. Un test con **dientes**: si
-volvés a introducir el bug, falla.
+volvés a introducir el bug, falla. El gate `test-integrity-contract.test.ts` vigila lo mecánico y dice qué no puede.
 
 ## Ratcheting de calidad
 
