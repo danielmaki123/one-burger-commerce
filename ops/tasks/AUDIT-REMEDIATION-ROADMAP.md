@@ -113,6 +113,12 @@ implementada.**
   turno tiene terminal, y con la ventana de tiempo del local como respaldo cuando no la tiene
   (`src/modules/orders/features/shift/close-shift.ts:299-313`) — a verificar en el estudio.
 - **Riesgo**: un cierre a medias deja el arqueo mintiendo, que es justo el documento que se firma.
+- **Nota de la review de AUD-004 (`A-47`, P1)**: la invariante «un turno cerrado no recibe pagos nuevos» **no
+  se puede cumplir solo desde `closeShift`**. `registerPosSale` resuelve la caja abierta **fuera** de su
+  transacción y le firma el `turno` a cada `Payment`; un cierre en el medio deja un cobro con el `shiftId` de
+  un turno ya cerrado. Esta TASK tiene que decidir **dónde vive** esa comprobación (transición condicional en
+  el cobro, lock, o cerrar la ventana desde los dos lados) y probarla con una conexión que cierra mientras la
+  venta está abierta.
 - **Depende de**: TASK-AUD-004.
 - **Por qué acá**: cierra el ciclo del turno después de la venta.
 

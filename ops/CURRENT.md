@@ -8,10 +8,10 @@ en qué estado está el sistema en pocos minutos.
 [`.agents/CONTEXT.md`](../.agents/CONTEXT.md)). Este archivo se **actualiza seguido** y se mantiene
 corto: si crece como un diario, dejó de servir.
 
-> **Última actualización**: 2026-09-25, por TASK-AUD-001 (gate de integridad de tests).
-> TASK-AUD-000 quedó **cerrada** (PR #31 → `eeaa810`, con `publish` en verde). No se tocó producción, la
-> base, el ruleset ni el deploy: el estado de producción de abajo es el **registro del repo**, no una
-> verificación nueva.
+> **Última actualización**: 2026-09-25, por TASK-AUD-004 (atomicidad de la venta del mostrador).
+> TASK-AUD-000 (`eeaa810`), TASK-AUD-001 (`1b12dfd`), TASK-AUD-002 (`f441c48`) y TASK-AUD-003
+> (`4deb8e5`) quedaron **cerradas**. No se tocó producción, la base, el ruleset ni el deploy: el estado de
+> producción de abajo es el **registro del repo**, no una verificación nueva.
 
 ---
 
@@ -63,13 +63,14 @@ filtra datos) · **P2** (función rota, fuga o deuda estructural con impacto).
 | Riesgo | Detalle | Dónde |
 |---|---|---|
 | **Cobros de pedidos cancelados** | Un cobro de un pedido cancelado sigue contando en el arqueo y no hay devolución ni movimiento que lo compense: el cierre marca faltante sin forma de registrarlo | `A-15` en [`audit-backlog.md`](audit-backlog.md) · TASK-AUD-015 |
+| **Un turno cerrado puede recibir un cobro nuevo (ventana de carrera)** | `registerPosSale` resuelve la caja abierta **fuera** de su transacción y le firma el turno a cada `Payment`: un cierre en el medio deja el cobro firmado por un turno ya cerrado. No se puede cerrar solo desde `closeShift` — hay que decidir dónde vive la comprobación | `A-47` en [`audit-backlog.md`](audit-backlog.md) · **TASK-AUD-005** |
 
 **P2**
 
 | Riesgo | Detalle | Dónde |
 |---|---|---|
+| **Ventas anteriores al arreglo de atomicidad (AUD-004)** | El bug que se cerró pudo dejar, **antes del deploy del fix**, pedidos con menos `Payment` que los declarados (o con **cero**) y cupones consumidos por ventas que no se cobraron. El cambio garantiza la invariante **de acá en adelante** y **no** las detecta ni las repara (sin backfill ni migración, a propósito): una venta parcial vieja subcuenta la caja. Repararlas es **decisión del owner**; el conteo es de solo lectura | `A-50` en [`audit-backlog.md`](audit-backlog.md) · TASK-AUD-004 § *Datos previos* |
 | **`A-17` — pendiente de reproducir (probablemente obsoleta)** | El texto original decía que la tarjeta no se reportaba al cerrar y que transferencia no se podía cobrar. **Verificado en el código: ya no aplica** — el POS cobra `cash`/`card`/`transfer`/`other` (`POS_PAYMENT_METHODS`) y el cierre **congela** `cardSalesAmount`, `transferSalesAmount` y `otherSalesAmount`. Falta **reproducir** si sobrevive algún resto antes de tomarla | `A-17` en [`audit-backlog.md`](audit-backlog.md) |
-| **Atomicidad de la venta del POS** | Falta el límite atómico explícito. Riesgo **a reproducir** (con PostgreSQL real): un pedido —y el uso del cupón— persistido con **cero o parte** de sus `Payment` si falla un `createPayment` posterior (el alta va primero; los cobros se crean uno por uno). El reintento con la misma `idempotencyKey` devuelve los pagos que existan, **sin completar** los que falten. Sin decidir la solución | TASK-AUD-004 |
 | **Atomicidad del cierre de turno** | Estudio del límite real del cierre: estado/snapshot de `Shift`, conteos de cierre y cierres de banco. `Payment.shiftId` se asigna **al cobrar**, no al cerrar | TASK-AUD-005 |
 | **Numeración de facturas** | Carrera entre `findLatestNumber` y el alta: el `UNIQUE` ya impide duplicados **persistidos**, pero la emisión puede **fallar**. Solución sin predeterminar | TASK-AUD-006 |
 | **Entorno de producción fail-closed** | El arranque no debe degradarse en silencio si falta una variable crítica | TASK-AUD-007 |
@@ -90,10 +91,20 @@ sin guardrail) · `A-23` (cuenta de prueba con rol `owner` en producción) · `A
 
 ## 4. Trabajo actual
 
-**TASK-AUD-003 — Blind Cash Authorization** (en curso): auditoría del arqueo ciego. **Encontró dos fugas
-reales** —el corte X y el cierre mandaban los **sumandos** del esperado, y el **traspaso** devolvía el
-esperado sin filtrar por una puerta del mostrador— y las cerró, con las pantallas acompañando. Sin cambio de
-producto ni de la fórmula del dinero.
+**TASK-AUD-004 — POS Sale Atomicity** (en curso): el riesgo se **reprodujo** contra PostgreSQL real (pedido
+persistido con 1 de 2 cobros, y con **cero** cobros por la otra vía; el cupón consumido y el reintento
+devolviendo la venta incompleta) y se cerró con un **límite atómico explícito**: el pedido, su cupón y todos
+sus cobros en un solo `$transaction`. Dos hallazgos nuevos en el camino: dentro de una transacción un `P2002`
+**aborta** la transacción (hay que rehacerla, no re-leer adentro) y el aviso de pedido creado tenía que salir
+**después del commit** para no sobrevivir a un rollback. Se montó el **arnés de PostgreSQL real** para
+Vitest y corre en CI (job `migrations`). Sin cambio de producto ni de la fórmula del dinero, sin migración.
+La **review adversarial** no encontró forma de que una venta quede parcial ni un cobro duplicado y dejó
+cuatro hallazgos fuera de alcance (`A-46` a `A-49`) más el pendiente del owner sobre los datos anteriores
+(`A-50`).
+
+**TASK-AUD-003 — Blind Cash Authorization**: **cerrada**. PR #35 → `4deb8e5`. Encontró y cerró dos fugas
+reales: el corte X y el cierre mandaban los **sumandos** del esperado, y el **traspaso** devolvía el esperado
+sin filtrar por una puerta del mostrador. Las pantallas acompañan.
 
 **TASK-AUD-002 — Git / CI Governance**: **cerrada**. PR #33 → `f441c48`. El ruleset `Protect main` **exige
 Pull Request** (0 aprobaciones) y `verify` corre `build:webpack` cuando la PR toca un `page.tsx`.
@@ -107,11 +118,9 @@ El programa completo, con objetivo, prioridad, riesgo, dependencia y orden, est�
 
 Orden inmediato (bloque financiero):
 
-1. **TASK-AUD-004 — POS Sale Atomicity**: reproducir con PostgreSQL real una venta con varios `Payment` y un
-   fallo entre pagos; diseñar el límite atómico después de medir.
-2. **TASK-AUD-005 — Shift Close Atomicity**: qué persiste el cierre y con qué límite; carreras del cierre.
-3. **TASK-AUD-006 — Invoice Sequence Concurrency**: la carrera de numeración (factura **simple, no fiscal**).
-4. `TASK-AUD-015` **no** se inicia en este bloque: tiene la decisión de producto pendiente de `A-15`.
+1. **TASK-AUD-005 — Shift Close Atomicity**: qué persiste el cierre y con qué límite; carreras del cierre.
+2. **TASK-AUD-006 — Invoice Sequence Concurrency**: la carrera de numeración (factura **simple, no fiscal**).
+3. `TASK-AUD-015` **no** se inicia en este bloque: tiene la decisión de producto pendiente de `A-15`.
 
 > ⚠️ **Dos correcciones al brief de la auditoría, verificadas en el repo:**
 >

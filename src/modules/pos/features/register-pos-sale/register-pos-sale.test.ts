@@ -67,8 +67,15 @@ function setup(
     createPosOrder,
     paymentRepository,
     deps: {
-      createPosOrder,
-      paymentRepository,
+      /**
+       * TASK-AUD-004 — el doble de la unidad de trabajo: corre el trabajo con los mismos dobles y sin
+       * transacción (el rollback real se prueba contra PostgreSQL). Lo que fija acá es que el caso de uso
+       * **escriba todo adentro**, no cómo se abre la transacción.
+       */
+      runInSaleTransaction: <T,>(work: (scope: {
+        createPosOrder: typeof createPosOrder;
+        paymentRepository: InMemoryPaymentRepository;
+      }) => Promise<T>) => work({ createPosOrder, paymentRepository }),
       businessCurrencyCode: "NIO",
       usdExchangeRate: 36.5,
       findOpenShift,

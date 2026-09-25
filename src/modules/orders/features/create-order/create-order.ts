@@ -19,6 +19,7 @@ import {
   type DeliveryFeeStatus,
   type DeliveryZoneRecord,
   type OrderPaymentMethod,
+  type OrderRecord,
 } from "@/modules/orders/domain/order.types";
 import { getInitialStatus } from "@/modules/orders/domain/order-workflows";
 import { resolveLocation } from "@/modules/locations/domain/location-rules";
@@ -123,6 +124,7 @@ export async function createOrder(
       enabled: DEFAULT_BUSINESS_SETTINGS.tipEnabled,
       rate: DEFAULT_BUSINESS_SETTINGS.tipRate,
     },
+    publishOrderCreated = (order: OrderRecord) => publish("OrderCreated", { order }),
   }: {
     repository: OrderRepository;
     /** Locales del negocio (T8): sin esto no hay a dónde mandar el pedido. */
@@ -145,6 +147,15 @@ export async function createOrder(
      * apagada no se aplica aunque el checkout la pida.
      */
     tipPolicy?: { enabled: boolean; rate: number };
+    /**
+     * TASK-AUD-004 — cómo se avisa que el pedido se creó. Por defecto va al bus de eventos, que anota el
+     * aviso en el outbox.
+     *
+     * Se inyecta porque el aviso es un efecto **posterior** a la persistencia: la venta del mostrador corre
+     * el alta dentro de su transacción y publica recién **después del commit**. Adentro, el aviso —que
+     * escribe con el cliente raíz— podría sobrevivir a un rollback y avisar de un pedido que no existe.
+     */
+    publishOrderCreated?: (order: OrderRecord) => Promise<void> | void;
   },
 ) {
   // Idempotencia (TASK-101). Va **antes** de todo lo demás: un reintento del mismo request no tiene
@@ -601,7 +612,7 @@ export async function createOrder(
     throw error;
   }
 
-  await publish("OrderCreated", { order });
+  await publishOrderCreated(order);
 
   return {
     data: {

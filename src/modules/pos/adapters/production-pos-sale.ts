@@ -1,3 +1,5 @@
+import { publish } from "@/infrastructure/events/event-bus";
+import { getPrismaClient } from "@/infrastructure/database/prisma";
 import { PrismaBusinessSettingsRepository } from "@/modules/business-settings/adapters/prisma-business-settings-repository";
 import { loadBusinessSettings } from "@/modules/business-settings/features/get-public-business-settings/get-public-business-settings";
 import { PrismaLocationRepository } from "@/modules/locations/adapters/prisma-location-repository";
@@ -23,31 +25,106 @@ import { createProductionPosCouponDependencies } from "./production-pos-coupon";
  *
  * El **gate operativo** (`isAcceptingOrders`, horario) no se aplica: ese interruptor es del canal
  * público y el mostrador es la caja del local, que vende cuando está abierta de verdad.
+ *
+ * TASK-AUD-004 — la venta entera (el pedido con su cupón y **todos** sus cobros) corre en **una sola
+ * transacción** de PostgreSQL. Antes el alta se guardaba y después cada cobro se escribía por su cuenta:
+ * una falla en el segundo dejaba el pedido cobrado a medias, y el reintento con la misma clave devolvía
+ * esa venta incompleta como si estuviera paga.
+ *
+ * Dos cosas quedan **afuera** a propósito y por eso están escritas acá:
+ *
+ * - el **aviso** de pedido creado (`publish` → outbox): se junta durante la transacción y se publica
+ *   **después del commit**. Adentro, un rollback dejaría el aviso vivo y cocina recibiría un pedido que no
+ *   existe. Es el efecto posterior a la persistencia que pide la skill de dinero;
+ * - el **cliente** (`findOrCreateCustomer`): por diseño no hace fallar la venta y usa el cliente normal de
+ *   la base, así que no participa de la transacción.
  */
+/**
+ * `true` cuando la base rechazó la escritura por un índice único (`P2002`).
+ *
+ * En esta operación el único `P2002` posible es el de la clave de intento del pedido: dos cobros de la
+ * misma venta entrando juntos. El conflicto **aborta la transacción entera**, así que la recuperación del
+ * alta (leer el pedido que ya existe) no puede correr adentro: hay que rehacer la transacción.
+ */
+function isUniqueConflict(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    (error as { code?: unknown }).code === "P2002"
+  );
+}
+
 export async function createProductionPosSaleDependencies(): Promise<RegisterPosSaleDependencies> {
   const settings = await loadBusinessSettings({
     repository: new PrismaBusinessSettingsRepository(),
   });
-  const repository = new PrismaOrderRepository();
   const locationRepository = new PrismaLocationRepository();
   const shiftRepository = new PrismaShiftRepository();
 
   return {
     /**
-     * `createOrder` devuelve `{ data, meta }`: acá se traduce a lo que el POS necesita —el pedido y si el
-     * alta **reusó** uno ya creado con la misma clave de intento (tarea 11)—. En un reintento los cobros
-     * no se registran otra vez, así que la pantalla tiene que poder decirlo.
+     * El **límite atómico**: el `$transaction` de Prisma con el pedido y sus cobros adentro. Si algo falla
+     * —el segundo cobro, el total que cambió— no queda ni el pedido ni el primer cobro.
+     *
+     * `timeout`/`maxWait` explícitos: el trabajo de adentro son unas pocas consultas al mismo Postgres (sin
+     * red, sin impresión, sin notificaciones), pero el `maxWait` por defecto (2 s) es corto para un local
+     * con la caja ocupada y una espera de pool haría fallar una venta que estaba bien.
      */
-    createPosOrder: async (input: CreateOrderRequest) => {
-      const result = await createOrder(input, {
-        repository,
-        locationRepository,
-        tipPolicy: { enabled: settings.tipEnabled, rate: settings.tipRate },
-      });
+    runInSaleTransaction: (work) => {
+      /** Un intento completo: transacción nueva y avisos nuevos (un intento abortado no publica nada). */
+      const attempt = async () => {
+        const deferredPublishes: Array<() => Promise<void>> = [];
 
-      return { order: result.data, reused: result.meta.reused === true };
+        const result = await getPrismaClient().$transaction(
+          async (tx) => {
+            const orderRepository = new PrismaOrderRepository(tx);
+            const paymentRepository = new PrismaPaymentRepository(tx);
+
+            return work({
+              /**
+               * `createOrder` devuelve `{ data, meta }`: acá se traduce a lo que el POS necesita —el pedido
+               * y si el alta **reusó** uno ya creado con la misma clave de intento (tarea 11)—. En un
+               * reintento los cobros no se registran otra vez, así que la pantalla tiene que poder decirlo.
+               */
+              createPosOrder: async (input: CreateOrderRequest) => {
+                const result = await createOrder(input, {
+                  repository: orderRepository,
+                  locationRepository,
+                  tipPolicy: { enabled: settings.tipEnabled, rate: settings.tipRate },
+                  // El aviso de pedido creado no sale acá adentro: se junta y se publica después del commit.
+                  publishOrderCreated: (order) => {
+                    deferredPublishes.push(() => publish("OrderCreated", { order }));
+                  },
+                });
+
+                return { order: result.data, reused: result.meta.reused === true };
+              },
+              paymentRepository,
+            });
+          },
+          { timeout: 15_000, maxWait: 10_000 },
+        );
+
+        // Recién acá el pedido está confirmado en la base: el aviso ya no puede quedar huérfano.
+        for (const deferred of deferredPublishes) {
+          await deferred();
+        }
+
+        return result;
+      };
+
+      return attempt().catch((error: unknown) => {
+        /**
+         * Dos cobros de la misma venta entrando juntos: uno gana y el otro choca con el índice único de la
+         * clave de intento. Ese choque deja la transacción abortada, así que **se rehace una vez**: en el
+         * intento nuevo el alta encuentra el pedido ya guardado **antes** de escribir nada, lo devuelve
+         * reusado y no cobra dos veces. Si el segundo intento también choca, el error sale tal cual.
+         */
+        if (!isUniqueConflict(error)) throw error;
+
+        return attempt();
+      });
     },
-    paymentRepository: new PrismaPaymentRepository(),
     businessCurrencyCode: settings.currencyCode,
     usdExchangeRate: settings.usdExchangeRate,
     // Bloque 9.2: sin caja abierta no se cobra (`registerPosSale` corta con 409).
