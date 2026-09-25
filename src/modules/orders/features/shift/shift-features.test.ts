@@ -9,6 +9,7 @@ import { InMemoryPaymentRepository } from "@/modules/orders/adapters/in-memory-p
 import { InMemoryShiftRepository } from "@/modules/orders/adapters/in-memory-shift-repository";
 import type { CashMovementRecord } from "@/modules/orders/domain/order.types";
 import type { RefundRecord } from "@/modules/orders/domain/order.types";
+import { runInMemoryShiftTransaction } from "@/shared/testing/in-memory-shift-transaction";
 
 import { closeShift } from "./close-shift";
 import { getCurrentShift } from "./get-current-shift";
@@ -131,6 +132,17 @@ function buildDeps() {
     // TASK-305: el arqueo convierte los cobros en dólares con la tasa configurada.
     businessCurrencyCode: "NIO",
     usdExchangeRate: 36.5,
+    /**
+     * TASK-AUD-005 — el cierre corre adentro de una unidad de trabajo: el doble entrega los mismos
+     * repositorios y resuelve el bloqueo del turno contra el repositorio en memoria. La atomicidad real
+     * (y la carrera con un cobro) se prueba contra PostgreSQL, en `close-shift.postgres.test.ts`.
+     */
+    runInShiftTransaction: runInMemoryShiftTransaction({
+      shiftRepository,
+      paymentRepository,
+      cashMovementRepository,
+      refundRepository,
+    }),
   };
 }
 

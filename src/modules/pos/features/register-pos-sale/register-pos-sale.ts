@@ -70,6 +70,8 @@ export type RegisterPosSaleInput = {
  * Se entregan juntas porque el pedido y sus cobros son una sola operación: escribirlos por separado dejaba
  * un pedido con la mitad de sus cobros si algo fallaba entre medio. El alcance lo arma el adaptador (acá no
  * hay Prisma): en producción las dos piezas van dentro de la misma transacción.
+ *
+ * TASK-AUD-005 — además el alcance bloquea la fila del turno: el cobro y el cierre de caja no se cruzan.
  */
 export type PosSaleTransactionScope = {
   /**
@@ -80,6 +82,16 @@ export type PosSaleTransactionScope = {
    */
   createPosOrder: (input: CreateOrderRequest) => Promise<{ order: OrderRecord; reused: boolean }>;
   paymentRepository: PaymentRepository;
+  /**
+   * TASK-AUD-005 — bloquea la fila del turno y devuelve su estado **después** de esperar a quien la
+   * tuviera tomada.
+   *
+   * Es el otro lado del cierre: el cierre bloquea el turno antes de leer los cobros que va a firmar, y el
+   * cobro lo bloquea antes de escribir. Sin esto, una venta que entró justo cuando la caja se cerraba
+   * quedaba firmada con un turno cerrado: su plata no entraba a ningún arqueo y el documento no la
+   * explicaba. `null` si el turno ya no existe.
+   */
+  lockShift: (shiftId: string) => Promise<{ id: string; status: string } | null>;
 };
 
 export type RegisterPosSaleDependencies = {

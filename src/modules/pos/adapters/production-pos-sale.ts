@@ -5,6 +5,7 @@ import { loadBusinessSettings } from "@/modules/business-settings/features/get-p
 import { PrismaLocationRepository } from "@/modules/locations/adapters/prisma-location-repository";
 import { PrismaOrderRepository } from "@/modules/orders/adapters/prisma-order-repository";
 import { PrismaPaymentRepository } from "@/modules/orders/adapters/prisma-payment-repository";
+import { lockShiftRow } from "@/modules/orders/adapters/prisma-shift-repository";
 import { PrismaShiftRepository } from "@/modules/orders/adapters/prisma-shift-repository";
 import { getCurrentShift } from "@/modules/orders/features/shift/get-current-shift";
 import {
@@ -100,6 +101,9 @@ export async function createProductionPosSaleDependencies(): Promise<RegisterPos
                 return { order: result.data, reused: result.meta.reused === true };
               },
               paymentRepository,
+              // TASK-AUD-005: el **mismo** lock que pide el cierre del turno, para que un cobro y un cierre
+              // no se crucen: la plata cobrada en esa ventana quedaba fuera de todo arqueo.
+              lockShift: (shiftId) => lockShiftRow(tx, shiftId),
             });
           },
           { timeout: 15_000, maxWait: 10_000 },

@@ -1,16 +1,20 @@
 import { z } from "zod";
 
 import { requirePosLocation } from "@/app/api/admin/pos/pos-route-helpers";
+import { getPrismaClient } from "@/infrastructure/database/prisma";
 import { canUsePOS } from "@/modules/auth/domain/admin-permissions";
 import { AuthError } from "@/modules/auth/domain/auth-errors";
 import { PrismaBusinessSettingsRepository } from "@/modules/business-settings/adapters/prisma-business-settings-repository";
 import { loadBusinessSettings } from "@/modules/business-settings/features/get-public-business-settings/get-public-business-settings";
 import { PrismaOrderRepository } from "@/modules/orders/adapters/prisma-order-repository";
 import { PrismaPaymentRepository } from "@/modules/orders/adapters/prisma-payment-repository";
-import { PrismaShiftRepository } from "@/modules/orders/adapters/prisma-shift-repository";
+import { lockShiftRow, PrismaShiftRepository } from "@/modules/orders/adapters/prisma-shift-repository";
 import { OrderError } from "@/modules/orders/domain/order-errors";
 import { getCurrentShift } from "@/modules/orders/features/shift/get-current-shift";
-import { registerOrderPayment } from "@/modules/orders/features/register-order-payment/register-order-payment";
+import {
+  registerOrderPayment,
+  type OrderPaymentScope,
+} from "@/modules/orders/features/register-order-payment/register-order-payment";
 
 /**
  * Hallazgo N3 de la auditoría post-deploy (2026-09-23) — la puerta y el payload de **cobrar un pedido que
@@ -101,8 +105,30 @@ export async function registerOrderPaymentForRoute(input: {
       paymentRepository: new PrismaPaymentRepository(),
       findOpenShift: async (locationId, terminalId) =>
         (await getCurrentShift({ locationId, terminalId }, { shiftRepository })).data,
+      runInOrderPaymentTransaction,
       businessCurrencyCode: settings.currencyCode,
       usdExchangeRate: settings.usdExchangeRate,
     },
+  );
+}
+
+/**
+ * TASK-AUD-005 — el **límite atómico** del cobro de un pedido que ya existe: el mismo lock de la fila del
+ * turno que piden la venta del mostrador y el cierre del turno, así un cobro no puede quedar firmado por un
+ * turno cerrado (su plata no entraría a ningún arqueo).
+ *
+ * Se exporta para que el test de PostgreSQL use **esta** composición y no una copia: un test que se arma su
+ * propio runner no prueba el que corre en producción.
+ */
+export function runInOrderPaymentTransaction<T>(
+  work: (scope: OrderPaymentScope) => Promise<T>,
+): Promise<T> {
+  return getPrismaClient().$transaction(
+    async (tx) =>
+      work({
+        paymentRepository: new PrismaPaymentRepository(tx),
+        lockShift: (shiftId) => lockShiftRow(tx, shiftId),
+      }),
+    { timeout: 15_000, maxWait: 10_000 },
   );
 }
