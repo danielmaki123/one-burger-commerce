@@ -8,18 +8,16 @@ en qué estado está el sistema en pocos minutos.
 [`.agents/CONTEXT.md`](../.agents/CONTEXT.md)). Este archivo se **actualiza seguido** y se mantiene
 corto: si crece como un diario, dejó de servir.
 
-> **Última actualización**: 2026-09-25, por el **cierre de la fase de estabilización técnica** (última
-> TASK: `AUD-059`, `A-59`). `main` = `974fa74`, CI **verde** (`verify`, `contracts`, `migrations`,
-> `container` y `publish`). **Producción quedó en `17ecb27`** (`build-20260925-123054`): **no** se
-> desplegó lo de después — A-54 (`d4ee07e`), A-55 (`0126511`), AUD-007 (`d951898`), AUD-008 (`e2ae50b`),
-> A-58 (`1c41a3a`) y A-59 (`974fa74`) están en `main` y **no** en producción, porque desplegar necesita
-> el OK explícito del owner.
->
-> **La fase de estabilización técnica queda CERRADA**: A-15 completo, tests verdes (unitarios,
-> contratos, PostgreSQL real y CI), **ningún P0 abierto conocido** y **ningún P1 de dinero abierto**.
-> Lo que sigue abierto es **operativo** (`A-57`, backup) o de **decisión del owner** (`A-50`/`A-51`,
-> datos históricos), y la próxima TASK planificada es **ARCH-001** (arquitectura de producto y módulos),
-> que **no se inició**.
+> **Última actualización**: 2026-09-25, por el **release consolidado de `main` a producción** (Easypanel).
+> `main` = `0b840e73b1a0899910f13d980faa005cd2c08c4f` y **es lo que está sirviendo producción**:
+> `build-20260925-174535`, desplegado el 2026-09-25 17:44–17:48 UTC, `/api/health` ok,
+> `/api/readiness` `ready` (base 4 ms), smokes **7/7** y **6/6**, QA pública de solo lectura
+> **33 pasaron / 2 salteados / 0 fallas**. El release lleva **A-54, A-55, AUD-007, AUD-008, A-58 y A-59**
+> (con la migración aditiva `20260925120000_add_payment_void`) sobre la base que ya tenía AUD-003..006.
+> **La fase de estabilización técnica queda cerrada y desplegada**: A-15 completo, tests verdes,
+> **ningún P0 conocido** y **ningún P1 de dinero abierto**. Lo que sigue abierto es **operativo**
+> (`A-57`, backup) o de **decisión del owner** (`A-50`/`A-51`, datos históricos), y la próxima TASK
+> planificada es **ARCH-001**, que **no se inició**.
 
 ---
 
@@ -27,27 +25,42 @@ corto: si crece como un diario, dejó de servir.
 
 | Qué | Estado |
 |---|---|
-| **Último deploy** | `build-20260925-123054`, sobre `17ecb27` (**AUD-003..006**), 2026-09-25 12:29 UTC. `commit.sha` del panel = `17ecb27`, `/api/health` = `build-20260925-123054`, `/api/readiness` `ready` (DB 11 ms), smokes **menú 7/7** y **hosts 6/6** |
-| **`main` (sin desplegar)** | `974fa74` — A-54, A-55, AUD-007, AUD-008, A-58 y A-59 están mergeados y **no** desplegados. El deploy es del owner (runbook) |
-| **Migración pendiente de aplicar en producción** | `20260925120000_add_payment_void` (aditiva: tres columnas nullable en `Payment`, sin backfill). La aplica el arranque del contenedor (`prisma migrate deploy`) en el próximo deploy |
-| **Rollback target** | `build-20260925-022009`, commit configurado `0f4cb214765f2737e40aa6572acf980643ae0099` (código `33c435d`) |
-| **Modelo de deploy** | Easypanel, proyecto `brunobot`, servicio `oneburguerweb`; build **desde GitHub `main`** con `forceRebuild`. Una sola llamada a `deployService` (la llamada cortó a los 72 s y el build siguió en segundo plano: comportamiento conocido) |
-| **Migraciones** | AUD-003..006 **no** agregaron migraciones: el arranque aplicó `prisma migrate deploy` sin nada nuevo. Lo mergeado después **sí** trae una: `20260925120000_add_payment_void` (A-59), aditiva y sin backfill |
+| **Último deploy** | `build-20260925-174535`, sobre `0b840e73b1a0899910f13d980faa005cd2c08c4f` (**A-54, A-55, AUD-007, AUD-008, A-58, A-59**), 2026-09-25 17:44–17:48 UTC. `commit.sha` del panel = `0b840e7`, `/api/health` = `build-20260925-174535`, `/api/readiness` `ready` (DB 4 ms), smokes **menú 7/7** y **hosts 6/6**, QA pública **33/2/0** |
+| **`main`** | `0b840e73b1a0899910f13d980faa005cd2c08c4f` — **idéntico a lo desplegado**. CI verde en el PR #49 y en el push a `main` (los cuatro checks + `publish`) |
+| **Migración aplicada en este deploy** | `20260925120000_add_payment_void` (aditiva: `voidedAt`, `voidedByUserId`, `voidReason` en `Payment`, nullable y sin backfill). La aplicó el arranque del contenedor (`prisma migrate deploy`) **antes** de servir: prueba de que corrió es que el build nuevo está sirviendo y `readiness` responde; si hubiera fallado, Easypanel no promueve y seguiría `build-20260925-123054` |
+| **Rollback target** | `build-20260925-123054` (commit `17ecb27`, el release anterior de hoy) — la aplicación se revierte revirtiendo el commit en `main` y volviendo a disparar `deployService`; la base se resuelve *fix-forward* con el backup de `oneburguer/2026-09-25T12:27:16.589Z.sql.gz` |
+| **Modelo de deploy** | Easypanel, proyecto `brunobot`, servicio `oneburguerweb`; build **desde GitHub `main`** con `forceRebuild`. Una sola llamada a `deployService` (la llamada cortó por timeout y el build siguió en segundo plano: comportamiento conocido, la action quedó `done`) |
+| **Migraciones** | El release de AUD-003..006 no trajo ninguna. Este **sí**: `20260925120000_add_payment_void` (A-59), aditiva y sin backfill, aplicada por el arranque |
 | **Réplicas** | `1` |
-| **Backup pre-deploy** | `oneburguer/2026-09-25T12:27:16.589Z.sql.gz`, action `done` a las 12:27:16 (generado a mano por el owner) |
+| **Backup pre-deploy** | **Confirmado por el owner** («ya está el backup hecho») antes de disparar el deploy. El respaldo **más reciente que la API del panel muestra como `done`** es `oneburguer/2026-09-25T12:27:16.589Z.sql.gz` (12:27 UTC, el del release anterior de hoy): a las 17:44 UTC `actions/listActions` seguía devolviendo **3** acciones de backup en total y ninguna nueva. Es la copia que se anota como ancla de rollback |
 | **Hosts activos** | `oneburgernic.com` y `www` (landing + redirects 307) · `menu.oneburgernic.com` (app de pedidos) · `admin.oneburgernic.com` (panel) |
 | **Health / readiness** | `GET /api/health` (versión del build) · `GET /api/readiness` (`SELECT 1`, 503 si la base no responde) |
 | **Base de datos** | PostgreSQL 17 en `oneburguer-postgres` (sin puerto expuesto: `exposedPort=0`) |
 | **Datos de negocio** | 3 sucursales reales (Camino de Oriente, Carretera Masaya, Casa Antigua). La carta la sigue cargando el owner |
 | **Caja en producción** | Sin terminales de caja cargadas al momento del último QA: es el estado real del negocio, no un defecto |
 
-⚠️ **Hallazgo operativo de este release (nuevo): el backup programado no genera archivos.** La config está
-`enabled: true` con cron `0 9 * * *` y carpeta `oneburguer`, pero las **únicas** acciones de backup del
-servicio son del **2026-09-12** (las dos del drill): no hay ningún archivo entre el 13 y el 25 de septiembre,
-ni el del día del release a las 09:00. **No hay retención declarada.** El backup pre-deploy se generó a mano →
+⚠️ **Hallazgo operativo (sigue abierto): el backup programado no genera archivos.** La config está
+`enabled: true` (cron `0 0 * * *`) y carpeta `oneburguer`, pero las **únicas** acciones de backup del
+servicio son **tres** desde siempre: las dos del drill (2026-09-12) y la manual del release anterior
+(2026-09-25 12:27). El respaldo programado **no produjo ningún archivo**, tampoco el del día de este
+release. **No hay retención declarada.** El backup de este release lo confirmó el owner a mano →
 `A-57` en el backlog.
 
-✅ **Verificación post-deploy con sesión (2026-09-25, después del deploy)**: con una cuenta de QA de administración (owner/manager, se revoca al terminar el QA) y **solo con `GET`** —sin crear, cerrar ni emitir nada— se verificó: **no hay ningún turno de caja abierto** (`GET /api/admin/pos/shift` → `{"data":null}`, y el corte X también null por eso mismo), las pantallas **Caja, POS, Historial de cierres y Órdenes cargan con sesión (200)**, y el **lado auditor del arqueo funciona**: el historial devuelve los cierres con `expectedAmount` y su diferencia. La verificación del lado `cashier` (que el esperado **no** llegue a esa sesión) **no se ejecutó**: no hay cuenta de ese rol y el brief prohíbe crear usuarios o cambiar roles en el release; la cubren los tests de CI.
+✅ **Verificación post-deploy de este release (2026-09-25, solo lectura y sin sesión de admin)**:
+`commit.sha` del panel idéntico a `main` (`0b840e7`) y `/api/health` con la versión nueva; `/api/readiness`
+`ready` con la base en 4 ms; los dos smokes **7/7** y **6/6** (los mismos números que la corrida de base
+hecha **antes** del deploy, así que no hay regresión atribuible al release); la QA pública de solo lectura
+**33 pasaron / 2 salteados / 0 fallas** (los dos salteados son los que necesitan credenciales de admin y
+lo dicen con su motivo); y la **QA de dinero**: la ruta nueva del release responde **405** a un `GET`
+(existe y solo acepta `POST`) y **401** a un `POST` sin sesión —la puerta de autorización corre en el
+servidor antes de tocar la base, así que no se escribió nada—, con las rutas de caja y cobro existentes
+respondiendo igual que antes.
+⚠️ **Lo que esta verificación NO pudo hacer desde el entorno del agente**: no había credenciales de admin
+disponibles, así que **no** se abrió ninguna pantalla con sesión (Caja, POS, Historial, Órdenes) ni se
+leyó el detalle de un pedido: el estado de las cajas lo **confirmó el owner** («no hay nada abierto») y no
+es una verificación del agente. La presencia de la columna `voidedAt` en la base tampoco se ejercitó con
+una lectura autenticada (sí la aplica el contenedor al arrancar, y el esquema se probó contra PostgreSQL 17
+real en local y en el CI del release).
 
 📋 **Pasada read-only de A-50/A-51 (acotada, sin reparar nada)**:
 
@@ -97,7 +110,7 @@ filtra datos) · **P2** (función rota, fuga o deuda estructural con impacto).
 
 | Riesgo | Detalle | Dónde |
 |---|---|---|
-| **El backup programado no genera archivos** | La config del servicio `oneburguer-postgres` está `enabled: true` (cron `0 9 * * *`) pero las únicas acciones son las dos del drill (2026-09-12) y **no hay retención declarada**: lo posterior al 12/09 no está respaldado (el del release se hizo a mano). Es **materia de infraestructura/operación**: requiere revisar la sección Backups del panel y decidir retención — no es código y **no bloquea** el trabajo de producto. Mientras tanto: **backup manual antes de cada deploy** | `A-57` en [`audit-backlog.md`](audit-backlog.md) |
+| **El backup programado no genera archivos** | La config del servicio `oneburguer-postgres` está `enabled: true` (cron `0 0 * * *`) pero el respaldo programado **nunca** produjo un archivo: las únicas acciones de backup son las dos del drill (2026-09-12) y la manual del release anterior (2026-09-25 12:27), y **no hay retención declarada**. Es **materia de infraestructura/operación**: requiere revisar la sección Backups del panel y decidir retención — no es código y **no bloquea** el trabajo de producto. Mientras tanto: **backup manual antes de cada deploy** | `A-57` en [`audit-backlog.md`](audit-backlog.md) |
 
 **P2**
 
@@ -129,8 +142,6 @@ sin guardrail) · `A-23` (cuenta de prueba con rol `owner` en producción) · `A
 
 **A-55 — doble cobro concurrente (cerrada)**: `registerOrderPayment` validaba el tope leyendo la suma de los cobros y despues escribia: dos cobros simultaneos del mismo pedido leian el mismo saldo, los dos pasaban la comprobacion y el pedido quedaba cobrado por encima de su total (RED real: `los dos cobros pasaron la comprobacion previa ... to have a length of 1 but got 2`). Ahora la validacion corre **dentro** de la transaccion con la fila del pedido bloqueada (`lockOrder`, `SELECT ... FOR UPDATE`), asi que el segundo espera y lee la suma actualizada. Orden de locks: pedido y despues turno (el cierre bloquea el turno: sin inversion). Probado contra PostgreSQL real con dos requests simultaneos forzados por barrera y mutation check.
 
-**A-15 — cancelacion de pedido cobrado (REPRODUCIDA, sin implementar)**: se reprodujo el comportamiento actual. Lo que ya existe y cumple la decision del owner: cancelar un pedido **no** toca `Payment`; la devolucion del dinero tiene su flujo (`Refund`, con `canRefund`/`canApproveRefund` —aprobar es del dueno—, motivo/actor/timestamp y su resta en el arqueo); la factura se anula sin borrarse (`void-invoice`). Lo que **falta** y queda registrado como `A-58` (P1): el **KPI comercial no descuenta los reembolsos** (un pedido reembolsado sigue contando su total completo en ventas, ingresos, ticket promedio y ranking por producto/sucursal/cajero), y no existe un **Void/Reversal de cobro** conservando el registro original. La implementacion no se comenzo: se agoto el contexto de la sesion del agente, no hay ninguna decision humana pendiente.
-
 **A-15 / A-58 — semantica economica neta (cerrada)**: las metricas comerciales del panel nunca cuentan como ingreso plata devuelta o invalidada. La regla vive en **un solo lugar** (el dominio): `netOrderValue` = `total - importe devuelto/invalidado`, nunca negativo, y `countsAsSale` (con devoluciones, el pedido cuenta solo si le quedo algo; sin devoluciones, una venta de C$0 sigue siendo una venta) — la usan ventas, ticket promedio, series, comparaciones y cualquier agregado futuro. La consulta del KPI trae los `Refund` **aprobados** del pedido y el agregado calcula el neto. **Limitacion declarada**: el modelo no guarda que items se devolvieron, asi que un pedido con devoluciones **no entra en el desglose por producto** (omitir antes que inventar). RED observado (`una venta reembolsada seguia contando como ingreso: expected 100 to be +0`), 6 casos nuevos, mutation check (4 de 6 en rojo) y el contrato previo del agregado intacto.
 
 **A-15 / A-59 — anular un cobro (cerrada, cierra A-15)**: el remanente de A-15 se implemento y A-15 quedo **cerrado**. Un `Payment` mal registrado —duplicado, con el monto o el medio equivocados— se **anula** conservando el registro original: migracion aditiva `20260925120000_add_payment_void` (`voidedAt`, `voidedByUserId`, `voidReason`), puerta `canVoidPayment` (**solo owner**), `POST /api/admin/payments/[id]/void` con su composicion y asiento `payment.void`. La regla «un cobro anulado no cuenta» vive **una sola vez** por adaptador (`NOT_VOIDED` / `activePayments`): las cinco consultas de lista y la agregacion del saldo excluyen los anulados, asi que el arqueo (cierre y corte X), el saldo del pedido, la conciliacion y los documentos quedan afuera sin tocar cada consumidor. Las dos puntas de la misma invariante se rechazan entre si: **no se anula un cobro con devolucion viva** (pendiente o aprobada) y **no se aprueba la devolucion de un cobro anulado** (rechazarla si: es como se limpia antes de anular). La anulacion es **idempotente y segura ante carreras** porque la guarda va en el `WHERE` (`voidedAt: null`), no en el `if` de la lectura. Las **metricas no se tocaron**: no leen `Payment` (verificado) y el neto de `A-58` ya contemplaba el «importe invalidado». RED observado (`The column Payment.voidedAt does not exist in the current database`), 4 casos contra PostgreSQL real (el arqueo pasa de 800 a 300 al anular el cobro de 500 con la fila original intacta; el saldo del pedido vuelve a 0; dos anulaciones simultaneas firman una sola; una devolucion viva bloquea la anulacion) y **tres mutation checks** (filtro de exclusion, guarda del `WHERE` y devoluciones vivas), los tres restaurados. **Fuera de alcance a proposito**: la superficie de UI para anular (la ruta es la API) y mostrar el cobro anulado en el detalle del pedido.
@@ -139,11 +150,13 @@ sin guardrail) · `A-23` (cuenta de prueba con rol `owner` en producción) · `A
 
 ## 4. Trabajo actual
 
-**Fase de estabilización técnica cerrada (2026-09-25)**: `main` = `974fa74`, CI verde (los cuatro checks + `publish`). Última TASK: **AUD-059** (`A-59`), que cierra `A-15`. **Nada de lo mergeado después de `17ecb27` está desplegado**: el deploy de `main` a producción es del owner (runbook, preflight, backup manual y smokes). **No hay ninguna TASK en curso**; la próxima planificada es ARCH-001 y no se inició.
+**Release consolidado a producción (2026-09-25, cerrado)**: `main` = `0b840e73b1a0899910f13d980faa005cd2c08c4f` **desplegado** y sirviendo `build-20260925-174535`. El release lleva A-54, A-55, AUD-007, AUD-008, A-58 y A-59 con su migración aditiva. Preflight, backup confirmado por el owner, deploy, migraciones, health/readiness, smokes (7/7 y 6/6) y la QA de dinero están en §1. **Sin reparación de datos históricos**: `A-50`/`A-51` siguen sin tocar.
 
-**TASK-AUD-059 — Void/Reversal de cobro (cerrada, `974fa74`)**: un cobro mal registrado se **anula** conservando la fila (migración aditiva `20260925120000_add_payment_void`), con `canVoidPayment` (solo owner), motivo obligatorio y asiento `payment.void`. La exclusión vive una sola vez por adaptador, así que el arqueo, el saldo del pedido, la conciliación y los documentos dejan de verlo; y las dos puntas de la invariante se rechazan entre sí (no se anula un cobro con devolución viva, no se aprueba la devolución de un cobro anulado). Detalle y evidencia en §3.
+**Fase de estabilización técnica cerrada y desplegada (2026-09-25)**: **no hay ninguna TASK en curso**. La próxima planificada es **ARCH-001** (arquitectura de producto y módulos) y **no se inició**.
 
-**Release AUD-003..006 a producción (2026-09-25)**: `main` (`17ecb27`) desplegado con Easypanel y sirviendo `build-20260925-123054`. Preflight, backup pre-deploy, health/readiness, smokes (7/7 y 6/6) y las comprobaciones HTTP de solo lectura están en §1. **Sin reparación de datos históricos**: `A-50`/`A-51` siguen sin tocar y no se pudieron leer desde el entorno del agente (sin acceso read-only a la base). **AUD-015 no se inició como TASK**: su alcance se cerró con `A-58` y `A-59`.
+**TASK-AUD-059 — Void/Reversal de cobro (cerrada, `974fa74`, desplegada)**: un cobro mal registrado se **anula** conservando la fila (migración aditiva `20260925120000_add_payment_void`), con `canVoidPayment` (solo owner), motivo obligatorio y asiento `payment.void`. La exclusión vive una sola vez por adaptador, así que el arqueo, el saldo del pedido, la conciliación y los documentos dejan de verlo; y las dos puntas de la invariante se rechazan entre sí (no se anula un cobro con devolución viva, no se aprueba la devolución de un cobro anulado). Detalle y evidencia en §3.
+
+**Release anterior del mismo día (reemplazado)**: `17ecb27` (**AUD-003..006**) sirvió como `build-20260925-123054` hasta este release; es el **rollback target** de §1. **Sin reparación de datos históricos**: `A-50`/`A-51` siguen sin tocar y no se pudieron leer desde el entorno del agente (sin acceso read-only a la base).
 
 **TASK-AUD-006 — Invoice Sequence Concurrency** (cerrada, `17ecb27`): el correlativo de la factura se calculaba leyendo la última y sumando uno, y la emisión que perdía la carrera contra el índice único **le fallaba al cajero** (el pedido quedaba sin factura; en el mismo pedido, dos toques simultáneos reventaban). Ahora el repositorio **asigna el correlativo y crea como una sola operación**, con reintento acotado (choque de número) y devolviendo la factura existente cuando el choque es del pedido. Factura **simple, no fiscal**; sin migración.
 
@@ -174,15 +187,15 @@ Pull Request** (0 aprobaciones) y `verify` corre `build:webpack` cuando la PR to
 El programa completo, con objetivo, prioridad, riesgo, dependencia y orden, está en
 [`tasks/AUDIT-REMEDIATION-ROADMAP.md`](tasks/AUDIT-REMEDIATION-ROADMAP.md).
 
-**El bloque financiero de la remediación quedó cerrado** (`AUD-003..006`, `A-54`, `A-55`, `A-58`, `A-59`) y
-con él la **fase de estabilización técnica**. Lo que sigue, en orden:
+**El bloque financiero de la remediación quedó cerrado y desplegado** (`AUD-003..006`, `A-54`, `A-55`,
+`A-58`, `A-59`) y con él la **fase de estabilización técnica**. Lo que sigue, en orden:
 
-1. **Deploy de `main` a producción** — decisión del owner: hay seis cambios mergeados sin desplegar
-   (§1) y una migración aditiva pendiente de aplicar. El runbook manda la secuencia.
-2. **`ARCH-001` — Product & Module Architecture**: es la próxima TASK planificada y **no se inició**.
-3. `AUD-009`/`AUD-010` (outbox: lease y semántica de entrega) y `AUD-012`/`AUD-013`/`AUD-014` siguen en el
+1. **`ARCH-001` — Product & Module Architecture**: es la próxima TASK planificada y **no se inició**.
+2. `AUD-009`/`AUD-010` (outbox: lease y semántica de entrega) y `AUD-012`/`AUD-013`/`AUD-014` siguen en el
    roadmap, **sin iniciar**.
-4. `A-57` (backup programado) es **infraestructura**: el owner decide y no bloquea el producto.
+3. `A-57` (backup programado) es **infraestructura**: el owner decide y no bloquea el producto.
+4. **Higiene pendiente del owner**: revocar la cuenta de QA del release anterior y **rotar el
+   `EASYPANEL_TOKEN`** (se pasó por chat y da acceso total al servidor).
 
 > ⚠️ **Dos correcciones al brief de la auditoría, verificadas en el repo:**
 >
