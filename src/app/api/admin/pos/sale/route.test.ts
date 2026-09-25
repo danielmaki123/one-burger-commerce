@@ -43,7 +43,12 @@ vi.mock("@/modules/pos/adapters/production-pos-sale", () => ({
     // TASK-AUD-004: el doble de la unidad de trabajo corre el trabajo con los mismos dobles (la
     // transacción real se prueba contra PostgreSQL, en `register-pos-sale.postgres.test.ts`).
     runInSaleTransaction: (work: (scope: unknown) => Promise<unknown>) =>
-      work({ createPosOrder: createPosOrderMock, paymentRepository }),
+      work({
+        createPosOrder: createPosOrderMock,
+        paymentRepository,
+        // TASK-AUD-005: el turno sigue abierto (la carrera con el cierre va contra PostgreSQL).
+        lockShift: async (shiftId: string) => ({ id: shiftId, status: "open" }),
+      }),
     businessCurrencyCode: "NIO",
     usdExchangeRate: 36.5,
     quoteCoupon: quoteCouponMock,

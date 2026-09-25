@@ -67,12 +67,42 @@ function setup(reusedOrder: OrderRecord = order(), reused = false) {
   const paymentRepository = new InMemoryPaymentRepository();
   const createPosOrder = vi.fn(async () => ({ order: reusedOrder, reused }));
   const createPayment = vi.spyOn(paymentRepository, "createPayment");
-  const scope: PosSaleTransactionScope = { createPosOrder, paymentRepository };
+  // TASK-AUD-005: el turno se bloquea y sigue abierto (la carrera real va contra PostgreSQL).
+  const lockShift = vi.fn(async (shiftId: string) => ({ id: shiftId, status: "open" }));
+  const scope: PosSaleTransactionScope = { createPosOrder, paymentRepository, lockShift };
 
-  return { scope, createPosOrder, createPayment, paymentRepository };
+  return { scope, createPosOrder, createPayment, paymentRepository, lockShift };
 }
 
 describe("commitSale", () => {
+  /**
+   * TASK-AUD-005 — el turno se cierra mientras se cobra.
+   *
+   * Es el otro lado de la carrera: la caja se cerró entre que el mostrador resolvió el turno abierto y la
+   * venta entró a su transacción. Antes el cobro se escribía igual, firmado con un turno **cerrado**: esa
+   * plata no entraba a ningún arqueo (el cierre ya había leído los cobros) y el documento firmado no la
+   * explicaba. Ahora la venta se rechaza y no se escribe nada.
+   */
+  it("si el turno se cerró mientras se cobraba, rechaza la venta sin escribir", async () => {
+    const { scope, createPosOrder, createPayment } = setup();
+    scope.lockShift = async (shiftId) => ({ id: shiftId, status: "closed" });
+
+    await expect(
+      commitSale({
+        input: saleInput([{ method: "cash", amount: 80, currency: "NIO" }]),
+        couponCode: null,
+        paidInBusinessCurrency: 80,
+        openShift: { id: "shift_01" },
+        scope,
+        businessCurrencyCode: "NIO",
+        usdExchangeRate: 36.5,
+      }),
+    ).rejects.toMatchObject({ status: 409, code: "CONFLICT" });
+
+    expect(createPosOrder).not.toHaveBeenCalled();
+    expect(createPayment).not.toHaveBeenCalled();
+  });
+
   it("escribe todos los cobros con su moneda normalizada, su vuelto y el turno que los firma", async () => {
     const { scope, createPayment } = setup();
 

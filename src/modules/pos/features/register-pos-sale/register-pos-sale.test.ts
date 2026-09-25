@@ -75,7 +75,18 @@ function setup(
       runInSaleTransaction: <T,>(work: (scope: {
         createPosOrder: typeof createPosOrder;
         paymentRepository: InMemoryPaymentRepository;
-      }) => Promise<T>) => work({ createPosOrder, paymentRepository }),
+        lockShift: (shiftId: string) => Promise<{ id: string; status: string } | null>;
+      }) => Promise<T>) =>
+        work({
+          createPosOrder,
+          paymentRepository,
+          /**
+           * TASK-AUD-005 — el doble del bloqueo del turno: abierto. Lo que fija este archivo es que el caso
+           * de uso **consulte** el bloqueo antes de escribir; la carrera real (un cierre en el medio) se
+           * prueba contra PostgreSQL, en `close-shift.postgres.test.ts` y en los tests de la venta.
+           */
+          lockShift: async (shiftId) => ({ id: shiftId, status: "open" }),
+        }),
       businessCurrencyCode: "NIO",
       usdExchangeRate: 36.5,
       findOpenShift,

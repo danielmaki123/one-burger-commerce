@@ -1,6 +1,6 @@
 import type { Decimal } from "@prisma/client/runtime/library";
 
-import { getPrismaClient } from "@/infrastructure/database/prisma";
+import { getPrismaClient, type DatabaseClient } from "@/infrastructure/database/prisma";
 import type { ShiftRecord, ShiftStatus } from "@/modules/orders/domain/order.types";
 import { ShiftError } from "@/modules/orders/domain/shift-errors";
 import type {
@@ -10,6 +10,28 @@ import type {
   ShiftRepository,
 } from "@/modules/orders/ports/shift-repository";
 import { roundCurrency } from "@/shared/lib/order-totals";
+
+/**
+ * TASK-AUD-005 — bloquea la fila del turno hasta que la transacción termine.
+ *
+ * Es lo que hace que un cobro y un cierre **no se crucen**: el cierre lo toma antes de leer los cobros que
+ * va a firmar, y el cobro lo toma antes de escribirse. Sin el lock quedaba una ventana en la que la venta
+ * firmaba su `Payment` con un turno que se estaba cerrando (o ya cerrado): esa plata no entraba a ningún
+ * arqueo y el documento firmado no la explicaba.
+ *
+ * `FOR UPDATE` sobre la fila: el segundo que llega **espera** a que el primero commitee y recién ahí lee el
+ * estado, así que siempre ve la verdad (abierto o cerrado), nunca una foto vieja.
+ */
+export async function lockShiftRow(
+  client: DatabaseClient,
+  shiftId: string,
+): Promise<{ id: string; status: string } | null> {
+  const rows = await client.$queryRaw<Array<{ id: string; status: string }>>`
+    SELECT "id", "status" FROM "Shift" WHERE "id" = ${shiftId} FOR UPDATE
+  `;
+
+  return rows[0] ?? null;
+}
 
 function decimalToNumber(d: Decimal): number {
   return Number(d.toString());
@@ -139,6 +161,38 @@ function toExpectedByCurrency(value: unknown): Record<string, number> | null {
 }
 
 export class PrismaShiftRepository implements ShiftRepository {
+  /**
+   * TASK-AUD-005 — el repositorio puede correr dentro de una transacción.
+   *
+   * Sin cliente usa el raíz; con un `tx` inyectado, el cierre del turno (su snapshot, sus conteos y sus
+   * cierres de banco) entra en la transacción que abrió el caso de uso, que es la que también bloquea la
+   * fila del turno y lee los cobros que va a firmar.
+   */
+  constructor(private readonly client: DatabaseClient = getPrismaClient()) {}
+
+  /**
+   * Corre el trabajo en una transacción **propia** si el repositorio tiene el cliente raíz; si ya le
+   * inyectaron una transacción, participa de esa. Así el cierre es todo-o-nada se llame desde donde se
+   * llame, y no se anidan transacciones (un `tx` no puede abrir otra).
+   */
+  private async inTransaction<T>(work: (client: DatabaseClient) => Promise<T>): Promise<T> {
+    const root = getPrismaClient();
+
+    if (this.client !== root) return work(this.client);
+
+    return root.$transaction((tx) => work(tx), { timeout: 15_000, maxWait: 10_000 });
+  }
+
+  /** El turno con sus conteos y sus bancos, con **el cliente que se le pase** (raíz o transacción). */
+  private async readShift(client: DatabaseClient, id: string): Promise<ShiftRecord | null> {
+    const shift = await client.shift.findUnique({
+      where: { id },
+      include: { cashCounts: true, bankCloses: { include: { bank: true } } },
+    });
+
+    return shift ? mapShift(shift) : null;
+  }
+
   async openShift(input: OpenShiftInput): Promise<ShiftRecord> {
     const prisma = getPrismaClient();
 
@@ -201,87 +255,89 @@ export class PrismaShiftRepository implements ShiftRepository {
   }
 
   async findShiftById(id: string): Promise<ShiftRecord | null> {
-    const prisma = getPrismaClient();
-    const shift = await prisma.shift.findUnique({
-      where: { id },
-      include: { cashCounts: true, bankCloses: { include: { bank: true } } },
-    });
-
-    return shift ? mapShift(shift) : null;
+    return this.readShift(this.client, id);
   }
 
+  /**
+   * TASK-AUD-005 — el cierre es **todo o nada**: el snapshot del turno (con su diferencia firmada), los
+   * conteos de cierre y los cierres de banco se escriben juntos o no se escribe nada.
+   *
+   * Antes eran tres escrituras sueltas: una falla (o un corte) entre la primera y las otras dejaba el
+   * turno **cerrado y firmado** sin el detalle que lo justifica —los billetes contados, el cuadre por
+   * banco— y como un turno cerrado no se vuelve a cerrar, el arqueo quedaba incompleto para siempre.
+   */
   async closeShift(id: string, input: CloseShiftInput): Promise<ShiftRecord | null> {
-    const prisma = getPrismaClient();
+    return this.inTransaction(async (prisma) => {
+      // El `status: "open"` en el WHERE es la guarda contra cerrar dos veces: si otra terminal ya
+      // cerró el turno, `updateMany` afecta 0 filas y no se pisa el arqueo del primero.
+      const result = await prisma.shift.updateMany({
+        where: { id, status: "open" },
+        data: {
+          status: "closed",
+          closedAt: new Date(),
+          closingAmount: input.closingAmount,
+          expectedAmount: input.expectedAmount,
+          // Bloque 1.1/1.2: el arqueo por moneda y el efectivo del turno quedan congelados acá. El
+          // detalle por moneda antes vivía solo en la respuesta y se perdía al recargar.
+          expectedByCurrency: input.expectedByCurrency,
+          cashSalesAmount: input.cashSalesAmount,
+          cardSalesAmount: input.cardSalesAmount ?? 0,
+          transferSalesAmount: input.transferSalesAmount ?? 0,
+          otherSalesAmount: input.otherSalesAmount ?? 0,
+          tipsAmount: input.tipsAmount ?? 0,
+          cashMovementsAmount: input.cashMovementsAmount ?? 0,
+          refundsAmount: input.refundsAmount ?? 0,
+          difference:
+            input.closingAmount === null
+              ? null
+              : roundCurrency(input.closingAmount - input.expectedAmount),
+          // Fase 3 del rediseño de Caja: la diferencia del cuadre por banco queda congelada con el arqueo.
+          bankDifferenceAmount: input.bankDifferenceAmount ?? null,
+          ...(input.notes !== undefined ? { notes: input.notes } : {}),
+        },
+      });
 
-    // El `status: "open"` en el WHERE es la guarda contra cerrar dos veces: si otra terminal ya
-    // cerró el turno, `updateMany` afecta 0 filas y no se pisa el arqueo del primero.
-    const result = await prisma.shift.updateMany({
-      where: { id, status: "open" },
-      data: {
-        status: "closed",
-        closedAt: new Date(),
-        closingAmount: input.closingAmount,
-        expectedAmount: input.expectedAmount,
-        // Bloque 1.1/1.2: el arqueo por moneda y el efectivo del turno quedan congelados acá. El
-        // detalle por moneda antes vivía solo en la respuesta y se perdía al recargar.
-        expectedByCurrency: input.expectedByCurrency,
-        cashSalesAmount: input.cashSalesAmount,
-    cardSalesAmount: input.cardSalesAmount ?? 0,
-    transferSalesAmount: input.transferSalesAmount ?? 0,
-    otherSalesAmount: input.otherSalesAmount ?? 0,
-    tipsAmount: input.tipsAmount ?? 0,
-        cashMovementsAmount: input.cashMovementsAmount ?? 0,
-        refundsAmount: input.refundsAmount ?? 0,
-        difference:
-          input.closingAmount === null
-            ? null
-            : roundCurrency(input.closingAmount - input.expectedAmount),
-        // Fase 3 del rediseño de Caja: la diferencia del cuadre por banco queda congelada con el arqueo.
-        bankDifferenceAmount: input.bankDifferenceAmount ?? null,
-        ...(input.notes !== undefined ? { notes: input.notes } : {}),
-      },
-    });
+      if (result.count === 0) return null;
 
-    if (result.count === 0) return null;
+      // Fase 3: el cuadre por banco se guarda tal como se declaró (lote y terminal incluidos). Se borra
+      // primero porque un turno **reabierto** puede volver a cerrarse con otro cuadre y no se puede
+      // duplicar la fila de un banco y una moneda (el índice único lo rechazaría).
+      if (input.bankCloses !== undefined) {
+        await prisma.shiftBankClose.deleteMany({ where: { shiftId: id } });
 
-    // Fase 3: el cuadre por banco se guarda tal como se declaró (lote y terminal incluidos). Se borra
-    // primero porque un turno **reabierto** puede volver a cerrarse con otro cuadre y no se puede
-    // duplicar la fila de un banco y una moneda (el índice único lo rechazaría).
-    if (input.bankCloses !== undefined) {
-      await prisma.shiftBankClose.deleteMany({ where: { shiftId: id } });
+        if (input.bankCloses.length > 0) {
+          await prisma.shiftBankClose.createMany({
+            data: input.bankCloses.map((close) => ({
+              shiftId: id,
+              bankId: close.bankId.trim(),
+              declaredAmount: close.declaredAmount,
+              currency: close.currency.trim().toUpperCase(),
+              lote: close.lote?.trim() || null,
+              terminalLabel: close.terminalLabel?.trim() || null,
+              notes: close.notes?.trim() || null,
+            })),
+            skipDuplicates: true,
+          });
+        }
+      }
 
-      if (input.bankCloses.length > 0) {
-        await prisma.shiftBankClose.createMany({
-          data: input.bankCloses.map((close) => ({
+      // TASK-305: el conteo del cierre se guarda tal como se contó (billete por billete), no solo el
+      // total: así el arqueo se puede reconstruir y volver a revisar.
+      if (input.closingCounts?.length) {
+        await prisma.shiftCashCount.createMany({
+          data: input.closingCounts.map((count) => ({
             shiftId: id,
-            bankId: close.bankId.trim(),
-            declaredAmount: close.declaredAmount,
-            currency: close.currency.trim().toUpperCase(),
-            lote: close.lote?.trim() || null,
-            terminalLabel: close.terminalLabel?.trim() || null,
-            notes: close.notes?.trim() || null,
+            kind: "closing" as const,
+            currency: count.currency.trim().toUpperCase(),
+            denomination: count.denomination,
+            quantity: count.quantity,
           })),
           skipDuplicates: true,
         });
       }
-    }
 
-    // TASK-305: el conteo del cierre se guarda tal como se contó (billete por billete), no solo el
-    // total: así el arqueo se puede reconstruir y volver a revisar.
-    if (input.closingCounts?.length) {
-      await prisma.shiftCashCount.createMany({
-        data: input.closingCounts.map((count) => ({
-          shiftId: id,
-          kind: "closing" as const,
-          currency: count.currency.trim().toUpperCase(),
-          denomination: count.denomination,
-          quantity: count.quantity,
-        })),
-        skipDuplicates: true,
-      });
-    }
-
-    return this.findShiftById(id);
+      return this.readShift(prisma, id);
+    });
   }
 
   async listShifts(locationId: string): Promise<ShiftRecord[]> {

@@ -42,6 +42,13 @@ Cada invariante necesita un test que la fije **y** que se ponga rojo si se rompe
 - Ojo con los vecinos que **no** son parte de la operación: `CashMovement` es plata que entra o sale del
   cajón **sin ser un cobro**, y la `Invoice` (factura **simple, no fiscal**) se emite por su **propio**
   caso de uso/API, no dentro del cobro. No los metas en el límite atómico por parecido de nombre.
+- **Un cierre es un documento: se firma completo o no se firma.** El snapshot del `Shift`, los conteos de
+  cierre y los cierres de banco van en **una** transacción. Y si la operación **lee** algo para decidir qué
+  firma, la lectura va **después** de bloquear la fila que el otro lado también toca
+  (`SELECT … FOR UPDATE`): un cierre que ya pasó a `closed` no se vuelve a cerrar, así que lo que quedó a
+  medias no se repara después. El ejemplo completo está en el cierre de turno
+  (`src/modules/orders/features/shift/close-shift.ts`) y su gemelo del cobro
+  (`src/modules/pos/features/register-pos-sale/commit-sale.ts`), con los tests de `close-shift.postgres.test.ts`.
 - Los efectos **posteriores** a la persistencia no están en la transacción y hay que declararlos: p. ej.
   el audit del descuento manual corre **después** de que la venta quedó guardada.
 - ¿La transacción abarca llamadas externas (red, impresión, Telegram)? **No debería**: lo externo va

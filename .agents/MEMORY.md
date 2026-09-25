@@ -52,6 +52,10 @@ va al historial o al PR. Si cambia semana a semana, va a `CURRENT.md`.
   caso de uso por un puerto (`runInSaleTransaction`) y lo implementa el adaptador con `prisma.$transaction`.
   Los efectos **posteriores** a la persistencia —el aviso `OrderCreated` al outbox— se publican **después del
   commit** y por eso la dependencia del alta es inyectable (`publishOrderCreated`).
+- **El cierre de turno es un documento: se firma completo o no se firma**: el snapshot del `Shift` (esperado,
+  desglose, diferencia, diferencia de banco), los `ShiftCashCount` de cierre y los `ShiftBankClose` van en
+  **una** transacción, con la fila del turno **bloqueada** antes de leer los cobros. Cerrar dos veces no pisa
+  el arqueo del primero (`WHERE status = 'open'`), y por eso un cierre a medias no se puede reparar después.
 
 ## Errores ya comprendidos
 
@@ -82,6 +86,12 @@ va al historial o al PR. Si cambia semana a semana, va a `CURRENT.md`.
   N-ésima llamada.
 - **`lineTotal` no debe incluir el packaging**: el «+» rápido lo contaba dos veces y el total mostrado
   superaba el cobrado. Fue un bug de plata real.
+- **Dos operaciones que escriben sobre el mismo agregado se guardan con un lock de fila, no con un `if`**: el
+  cierre de turno lee los cobros que va a firmar y el cobro le firma el turno a un `Payment`. Sin
+  `SELECT … FOR UPDATE` sobre la fila del `Shift`, la ventana entre «leer» y «escribir» deja plata fuera del
+  arqueo (o un cobro firmado por un turno cerrado). El orden que funciona es **bloquear primero, leer
+  después**: el que llega segundo **espera** a que el primero commitee y recién ahí ve el estado de verdad
+  (`TASK-AUD-005`, `src/modules/orders/adapters/prisma-shift-repository.ts`).
 - **`inspectService` de Easypanel devuelve los secretos del servicio en claro** (`DATABASE_URL`,
   `NEXTAUTH_SECRET`, el token): se usa un `grep` acotado, **nunca** se vuelca la respuesta entera.
   En la misma clase: `services/postgres/destroyService` **no** valida el nombre del servicio.

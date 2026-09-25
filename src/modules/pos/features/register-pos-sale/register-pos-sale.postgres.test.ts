@@ -350,12 +350,17 @@ describe("TASK-AUD-004 · atomicidad de la venta del mostrador (PostgreSQL real)
 
     expect(coupon?.usedCount, "el cupón de un solo uso se consumió más de una vez").toBe(1);
 
-    // Y la que pierde no se cae por un error técnico: la rechaza una regla de negocio.
-    const perdedora = results.find((result) => result.status === "rejected");
+    // Y la que pierde no se cae por un error técnico: la rechaza una regla de negocio. Se mira la
+    // **forma** del error (un status de negocio) y no su texto: según quién llegue primero la rechaza la
+    // cotización previa o el consumo del cupón del alta, y cada una tiene su propio mensaje (aserción por
+    // texto = test que pasa o falla según el orden de llegada).
+    const perdedora = results.find((result) => result.status === "rejected") as PromiseRejectedResult;
 
-    expect(String((perdedora as PromiseRejectedResult).reason)).toMatch(
-      /limit|alcanza|reach|cupón|Coupon/i,
-    );
+    expect(perdedora.reason).toBeInstanceOf(Error);
+    expect(
+      [400, 409, 422],
+      `la venta que pierde tiene que ser rechazada por una regla: ${String(perdedora.reason)}`,
+    ).toContain((perdedora.reason as { status?: number }).status);
   });
 
   it("una venta que sí completa deja el pedido con sus dos cobros y el turno firmado", async () => {

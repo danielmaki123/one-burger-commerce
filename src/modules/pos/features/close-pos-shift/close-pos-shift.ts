@@ -2,8 +2,6 @@ import { closeShift } from "@/modules/orders/features/shift/close-shift";
 import { getCurrentShift } from "@/modules/orders/features/shift/get-current-shift";
 import type { ShiftBankCloseInput } from "@/modules/orders/domain/shift-bank-close";
 import type { ShiftCashCountInput } from "@/modules/orders/domain/shift-cash";
-import type { BankRepository } from "@/modules/banks/ports/bank-repository";
-import type { PaymentRepository } from "@/modules/orders/ports/payment-repository";
 import type { ShiftRepository } from "@/modules/orders/ports/shift-repository";
 import { PosError } from "../../domain/pos-errors";
 
@@ -16,6 +14,9 @@ import { PosError } from "../../domain/pos-errors";
  *
  * Fase 3 del rediseño de Caja (2026-09-23): además del conteo viaja el **cuadre por banco** (el lote de
  * cada terminal). Es opcional: una caja se puede cerrar sin declarar lotes.
+ *
+ * TASK-AUD-005 — las dependencias del cierre son las del caso de uso (`CloseShiftDependencies`): el límite
+ * atómico lo pone la composición, no esta capa. Acá solo se resuelve **de qué turno** se habla.
  */
 export async function closePosShift(
   input: {
@@ -30,13 +31,9 @@ export async function closePosShift(
     bankCloses?: ShiftBankCloseInput[];
     notes?: string | null;
   },
-  deps: {
+  deps: Parameters<typeof closeShift>[1] & {
+    /** Para resolver el turno abierto del local antes de cerrarlo. */
     shiftRepository: ShiftRepository;
-    paymentRepository: PaymentRepository;
-    /** Fase 3 — el catálogo de bancos de la sucursal, para validar el cuadre. */
-    bankRepository?: BankRepository;
-    businessCurrencyCode: string;
-    usdExchangeRate: number | null;
   },
 ) {
   const { data: current } = await getCurrentShift(

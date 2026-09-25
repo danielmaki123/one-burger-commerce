@@ -7,6 +7,7 @@ import {
 import { InMemoryPaymentRepository } from "@/modules/orders/adapters/in-memory-payment-repository";
 import { InMemoryShiftRepository } from "@/modules/orders/adapters/in-memory-shift-repository";
 import type { ShiftBankCloseInput } from "@/modules/orders/domain/shift-bank-close";
+import { runInMemoryShiftTransaction } from "@/shared/testing/in-memory-shift-transaction";
 
 import { closeShift } from "./close-shift";
 import { getCurrentShift } from "./get-current-shift";
@@ -41,6 +42,8 @@ function buildDeps(input: { terminals?: string[] } = {}) {
     locationRepository,
     businessCurrencyCode: "NIO",
     usdExchangeRate: 36.5,
+    // TASK-AUD-005: el cierre corre adentro de su unidad de trabajo (el doble la resuelve en memoria).
+    runInShiftTransaction: runInMemoryShiftTransaction({ shiftRepository, paymentRepository }),
     ...(input.terminals ? { cashTerminalIds: input.terminals } : {}),
   };
 }

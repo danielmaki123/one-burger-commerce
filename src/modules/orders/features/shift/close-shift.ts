@@ -28,6 +28,26 @@ import { convertToBusinessCurrency } from "@/shared/lib/money-conversion";
 import { roundCurrency } from "@/shared/lib/order-totals";
 
 /**
+ * TASK-AUD-005 — el **límite atómico** del cierre: el turno bloqueado, su arqueo (leído después del
+ * bloqueo) y el documento firmado, todo junto.
+ *
+ * El cierre no puede ser «leer los cobros y después cerrar»: en el medio entra una venta. Con el turno
+ * bloqueado desde el principio, o la venta commiteó antes (y su cobro entra al arqueo) o llega después (y
+ * la rechaza el propio cobro, que también pide el lock). El alcance lo arma el adaptador: acá no hay Prisma.
+ */
+export type CloseShiftScope = {
+  /**
+   * Bloquea la fila del turno y devuelve su estado **después** de esperar a quien la tuviera tomada.
+   * `null` si el turno no existe.
+   */
+  lockShift: (shiftId: string) => Promise<{ id: string; status: string } | null>;
+  shiftRepository: ShiftRepository;
+  paymentRepository: PaymentRepository;
+  cashMovementRepository?: CashMovementRepository;
+  refundRepository?: Pick<RefundRepository, "listByShift">;
+};
+
+/**
  * Cierra la caja de un turno y deja el arqueo.
  *
  * El **esperado lo calcula el servidor**: fondo con el que se abrió + todo lo que entró en cobros
@@ -60,21 +80,14 @@ export async function closeShift(
     notes?: string | null;
   },
   {
-    shiftRepository,
-    paymentRepository,
-    cashMovementRepository,
-    refundRepository,
+    runInShiftTransaction,
     bankRepository,
     businessCurrencyCode,
     usdExchangeRate,
     cashCountConfig,
   }: {
-    shiftRepository: ShiftRepository;
-    paymentRepository: PaymentRepository;
-    /** Bloque 2 — los retiros e ingresos del turno. Sin ellos, un retiro parece un faltante. */
-    cashMovementRepository?: CashMovementRepository;
-    /** Bloque 3 — las devoluciones aprobadas en efectivo. Sin ellas, devolver parece un faltante. */
-    refundRepository?: Pick<RefundRepository, "listByShift">;
+    /** TASK-AUD-005 — el límite atómico del cierre (lo implementa el adaptador con `$transaction`). */
+    runInShiftTransaction: <T>(work: (scope: CloseShiftScope) => Promise<T>) => Promise<T>;
     /**
      * Fase 3 del rediseño de Caja (2026-09-23) — el catálogo de bancos de la sucursal. Sin él, un cierre
      * no puede declarar lote: se rechaza en vez de guardar un banco que no se puede verificar.
@@ -94,6 +107,8 @@ export async function closeShift(
     throw new ShiftError(422, "VALIDATION_ERROR", "Invalid payload", { shiftId: "Requerido" });
   }
 
+  // Las validaciones del payload son puras: se hacen **antes** de abrir la transacción para no tenerla
+  // tomando una conexión y el lock de la fila por un conteo mal armado.
   const countProblems = validateShiftCashCounts(input.closingCounts ?? [], cashCountConfig);
   if (Object.keys(countProblems).length > 0) {
     throw new ShiftError(422, "VALIDATION_ERROR", "Revisá el conteo de la caja.", countProblems);
@@ -115,16 +130,59 @@ export async function closeShift(
     }
   }
 
-  const shift = await shiftRepository.findShiftById(shiftId);
-  if (!shift) {
-    return { data: null, meta: emptyCloseMeta() };
-  }
-  if (shift.status !== "open") {
-    // Ya cerrado: no se pisa el arqueo del primero.
+  const bankCloses = input.bankCloses ?? [];
+
+  return runInShiftTransaction((scope) =>
+    closeLockedShift({
+      scope,
+      input,
+      closingAmount,
+      bankCloses,
+      bankRepository,
+      businessCurrencyCode,
+      usdExchangeRate,
+      cashCountConfig,
+    }),
+  );
+}
+
+/**
+ * El cierre, ya adentro del límite atómico y **con el turno bloqueado**: se lee el turno, se valida el
+ * cuadre contra los bancos de su sucursal, se arma el arqueo con los cobros que ya no pueden cambiar y se
+ * firma el documento. Nada de esto se puede separar del bloqueo (TASK-AUD-005).
+ */
+async function closeLockedShift({
+  scope,
+  input,
+  closingAmount,
+  bankCloses,
+  bankRepository,
+  businessCurrencyCode,
+  usdExchangeRate,
+  cashCountConfig,
+}: {
+  scope: CloseShiftScope;
+  input: { shiftId: string; closingCounts?: ShiftCashCountInput[]; notes?: string | null };
+  closingAmount: number | null;
+  bankCloses: ShiftBankCloseInput[];
+  bankRepository?: BankRepository;
+  businessCurrencyCode: string;
+  usdExchangeRate: number | null;
+  cashCountConfig?: ShiftCashCountConfig;
+}) {
+  const shiftId = input.shiftId.trim();
+  const locked = await scope.lockShift(shiftId);
+
+  if (!locked || locked.status !== "open") {
+    // Ya cerrado (o no existe): no se pisa el arqueo del primero.
     return { data: null, meta: emptyCloseMeta() };
   }
 
-  const bankCloses = input.bankCloses ?? [];
+  const shift = await scope.shiftRepository.findShiftById(shiftId);
+  if (!shift) {
+    return { data: null, meta: emptyCloseMeta() };
+  }
+
   const bankConfig: ShiftBankCloseConfig = {
     currencies: cashCountConfig?.currencies ?? Object.keys(DEFAULT_CASH_DENOMINATIONS),
     // Los bancos que la sucursal liquida y que siguen **activos**: la pantalla solo ofrece esos, y el
@@ -157,9 +215,9 @@ export async function closeShift(
       businessCurrencyCode,
       usdExchangeRate,
     },
-    paymentRepository,
-    cashMovementRepository,
-    refundRepository,
+    scope.paymentRepository,
+    scope.cashMovementRepository,
+    scope.refundRepository,
   );
 
   const bank = calculateBankDifference({
@@ -169,7 +227,7 @@ export async function closeShift(
     usdExchangeRate,
   });
 
-  const closed = await shiftRepository.closeShift(shiftId, {
+  const closed = await scope.shiftRepository.closeShift(shiftId, {
     closingAmount,
     expectedAmount: arqueo.expectedAmount,
     expectedByCurrency: arqueo.expectedByCurrency,

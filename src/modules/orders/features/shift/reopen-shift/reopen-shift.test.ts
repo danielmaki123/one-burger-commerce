@@ -6,6 +6,7 @@ import {
 } from "@/modules/locations/adapters/in-memory-location-repository";
 import { InMemoryPaymentRepository } from "@/modules/orders/adapters/in-memory-payment-repository";
 import { InMemoryShiftRepository } from "@/modules/orders/adapters/in-memory-shift-repository";
+import { runInMemoryShiftTransaction } from "@/shared/testing/in-memory-shift-transaction";
 
 import { closeShift } from "../close-shift";
 import { openShift } from "../open-shift";
@@ -20,14 +21,20 @@ import { reopenShift } from "./reopen-shift";
  * vuelve a calcular el esperado y reemplaza el conteo.
  */
 function buildDeps() {
+  const shiftRepository = new InMemoryShiftRepository();
+  const paymentRepository = new InMemoryPaymentRepository();
+
   return {
-    shiftRepository: new InMemoryShiftRepository(),
-    paymentRepository: new InMemoryPaymentRepository(),
+    shiftRepository,
+    paymentRepository,
     locationRepository: new InMemoryLocationRepository([
       createInMemoryLocation({ id: "loc_principal", name: "Principal" }),
     ]),
     businessCurrencyCode: "NIO",
     usdExchangeRate: 36.5,
+    // TASK-AUD-005: el cierre (que la reapertura usa para dejar un turno cerrado) corre en su unidad de
+    // trabajo; el doble la resuelve en memoria.
+    runInShiftTransaction: runInMemoryShiftTransaction({ shiftRepository, paymentRepository }),
   };
 }
 

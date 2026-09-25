@@ -7,6 +7,7 @@ import {
 } from "@/modules/locations/adapters/in-memory-location-repository";
 import { InMemoryPaymentRepository } from "@/modules/orders/adapters/in-memory-payment-repository";
 import { InMemoryShiftRepository } from "@/modules/orders/adapters/in-memory-shift-repository";
+import { runInMemoryShiftTransaction } from "@/shared/testing/in-memory-shift-transaction";
 
 /**
  * TASK-305b — las rutas de la caja del POS.
@@ -37,6 +38,9 @@ vi.mock("@/modules/pos/adapters/production-pos-shift", () => ({
     paymentRepository,
     businessCurrencyCode: "NIO",
     usdExchangeRate: 36.5,
+    // TASK-AUD-005: el doble de la unidad de trabajo del cierre corre el trabajo con los mismos dobles
+    // (la transacción y el bloqueo reales se prueban contra PostgreSQL, en `close-shift.postgres.test.ts`).
+    runInShiftTransaction: runInMemoryShiftTransaction({ shiftRepository, paymentRepository }),
   }),
 }));
 

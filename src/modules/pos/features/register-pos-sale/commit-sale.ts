@@ -38,6 +38,27 @@ export async function commitSale({
   businessCurrencyCode,
   usdExchangeRate,
 }: CommitSaleInput): Promise<RegisterPosSaleResult> {
+  /**
+   * TASK-AUD-005 — **primero el turno**, después todo lo demás.
+   *
+   * El bloqueo hace dos cosas: espera a un cierre que esté en curso y devuelve el estado **de verdad** (no
+   * la foto que se leyó antes de abrir la transacción). Si el turno ya se cerró, la venta se rechaza acá y
+   * no se escribe nada: antes, un cobro que entraba en esa ventana quedaba firmado con un turno cerrado,
+   * fuera de todo arqueo.
+   */
+  if (openShift) {
+    const locked = await scope.lockShift(openShift.id);
+
+    if (!locked || locked.status !== "open") {
+      throw new PosError(
+        409,
+        "CONFLICT",
+        "La caja se cerró mientras cobrabas: abrí la caja y volvé a cobrar la venta.",
+        { shift: "La caja de este local se cerró." },
+      );
+    }
+  }
+
   const { order, reused } = await scope.createPosOrder(
     saleOrderRequest(input, couponCode, paidInBusinessCurrency),
   );
