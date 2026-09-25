@@ -8,10 +8,11 @@ en qué estado está el sistema en pocos minutos.
 [`.agents/CONTEXT.md`](../.agents/CONTEXT.md)). Este archivo se **actualiza seguido** y se mantiene
 corto: si crece como un diario, dejó de servir.
 
-> **Última actualización**: 2026-09-25, por TASK-AUD-006 (numeración de facturas bajo concurrencia).
-> TASK-AUD-000 (`eeaa810`), TASK-AUD-001 (`1b12dfd`), TASK-AUD-002 (`f441c48`) y TASK-AUD-003
-> (`4deb8e5`) quedaron **cerradas**. No se tocó producción, la base, el ruleset ni el deploy: el estado de
-> producción de abajo es el **registro del repo**, no una verificación nueva.
+> **Última actualización**: 2026-09-25, por el **release de AUD-003..006 a producción** (Easypanel).
+> `main` = `17ecb27745d798f3c014d6b462e6725285ae4299`, desplegado el 2026-09-25 (~12:29–12:34 UTC) y
+> sirviendo `build-20260925-123054`. TASK-AUD-000 (`eeaa810`), AUD-001 (`1b12dfd`), AUD-002 (`f441c48`),
+> AUD-003 (`4deb8e5`), AUD-004 (`c0b427b`), AUD-005 (`1c452d9`) y AUD-006 (`17ecb27`) quedaron **cerradas y
+> desplegadas**.
 
 ---
 
@@ -19,14 +20,28 @@ corto: si crece como un diario, dejó de servir.
 
 | Qué | Estado |
 |---|---|
-| **Último deploy registrado** | `build-20260925-015642`, sobre el código de `33c435d` (PR #29). Después entró el PR #30 (`0f4cb21`), **solo documentación**: no cambia el artefacto servido |
-| **Modelo de deploy** | Easypanel, proyecto `brunobot`, servicio `oneburguerweb`; build **desde GitHub `main`** con `forceRebuild`. Una sola llamada a `deployService` |
-| **Hosts activos** | `oneburgernic.com` y `www` (landing + redirects 307) · `menu.oneburgernic.com` (app de pedidos) · `admin.oneburgernic.com` (panel). Los cuatro con certificado |
+| **Último deploy** | `build-20260925-123054`, sobre `17ecb27` (**AUD-003..006**), 2026-09-25 12:29 UTC. `commit.sha` del panel = `17ecb27`, `/api/health` = `build-20260925-123054`, `/api/readiness` `ready` (DB 11 ms), smokes **menú 7/7** y **hosts 6/6** |
+| **Rollback target** | `build-20260925-022009`, commit configurado `0f4cb214765f2737e40aa6572acf980643ae0099` (código `33c435d`) |
+| **Modelo de deploy** | Easypanel, proyecto `brunobot`, servicio `oneburguerweb`; build **desde GitHub `main`** con `forceRebuild`. Una sola llamada a `deployService` (la llamada cortó a los 72 s y el build siguió en segundo plano: comportamiento conocido) |
+| **Migraciones** | AUD-003..006 **no** agregaron migraciones: el arranque aplicó `prisma migrate deploy` sin nada nuevo |
+| **Réplicas** | `1` |
+| **Backup pre-deploy** | `oneburguer/2026-09-25T12:27:16.589Z.sql.gz`, action `done` a las 12:27:16 (generado a mano por el owner) |
+| **Hosts activos** | `oneburgernic.com` y `www` (landing + redirects 307) · `menu.oneburgernic.com` (app de pedidos) · `admin.oneburgernic.com` (panel) |
 | **Health / readiness** | `GET /api/health` (versión del build) · `GET /api/readiness` (`SELECT 1`, 503 si la base no responde) |
-| **Smokes** | Última corrida registrada: menú **7/7** y hosts **6/6** (solo lectura) |
-| **Base de datos** | PostgreSQL 17 en `oneburguer-postgres` (sin puerto expuesto). **Respaldo diario** `0 9 * * *` a disco local, **con drill de restore hecho y verificado** (2026-09-12) |
-| **Datos de negocio** | 3 sucursales reales (Camino de Oriente, Carretera Masaya, Casa Antigua). La carta la sigue cargando el owner: al último registro, 2 categorías y 6 productos |
+| **Base de datos** | PostgreSQL 17 en `oneburguer-postgres` (sin puerto expuesto: `exposedPort=0`) |
+| **Datos de negocio** | 3 sucursales reales (Camino de Oriente, Carretera Masaya, Casa Antigua). La carta la sigue cargando el owner |
 | **Caja en producción** | Sin terminales de caja cargadas al momento del último QA: es el estado real del negocio, no un defecto |
+
+⚠️ **Hallazgo operativo de este release (nuevo): el backup programado no genera archivos.** La config está
+`enabled: true` con cron `0 9 * * *` y carpeta `oneburguer`, pero las **únicas** acciones de backup del
+servicio son del **2026-09-12** (las dos del drill): no hay ningún archivo entre el 13 y el 25 de septiembre,
+ni el del día del release a las 09:00. **No hay retención declarada.** El backup pre-deploy se generó a mano →
+`A-57` en el backlog.
+
+⚠️ **Límite del entorno del agente en este release**: **los logs del contenedor no son accesibles por API**
+(`actions/inspectAction`, `actions/getActionLogs` y `services/app/inspectServiceLogs` responden 404), así que
+la búsqueda de `P2002`/`P2028`/`25P02`/deadlock/5xx en logs **no se pudo hacer desde acá**: la verificación se
+apoya en health, readiness, los dos smokes y comprobaciones HTTP de solo lectura.
 
 **Integraciones**
 
@@ -88,7 +103,9 @@ sin guardrail) · `A-23` (cuenta de prueba con rol `owner` en producción) · `A
 
 ## 4. Trabajo actual
 
-**TASK-AUD-006 — Invoice Sequence Concurrency** (en curso): el correlativo de la factura se calculaba leyendo la última y sumando uno, y la emisión que perdía la carrera contra el índice único **le fallaba al cajero** (el pedido quedaba sin factura; en el mismo pedido, dos toques simultáneos reventaban). Ahora el repositorio **asigna el correlativo y crea como una sola operación**, con reintento acotado (choque de número) y devolviendo la factura existente cuando el choque es del pedido. Factura **simple, no fiscal**; sin migración.
+**Release AUD-003..006 a producción (2026-09-25)**: `main` (`17ecb27`) desplegado con Easypanel y sirviendo `build-20260925-123054`. Preflight, backup pre-deploy, health/readiness, smokes (7/7 y 6/6) y las comprobaciones HTTP de solo lectura están en §1. **Sin reparación de datos históricos**: `A-50`/`A-51` siguen sin tocar y no se pudieron leer desde el entorno del agente (sin acceso read-only a la base). **AUD-015 no se inició.**
+
+**TASK-AUD-006 — Invoice Sequence Concurrency** (cerrada, `17ecb27`): el correlativo de la factura se calculaba leyendo la última y sumando uno, y la emisión que perdía la carrera contra el índice único **le fallaba al cajero** (el pedido quedaba sin factura; en el mismo pedido, dos toques simultáneos reventaban). Ahora el repositorio **asigna el correlativo y crea como una sola operación**, con reintento acotado (choque de número) y devolviendo la factura existente cuando el choque es del pedido. Factura **simple, no fiscal**; sin migración.
 
 **TASK-AUD-005 — Shift Close Atomicity** (cerrada, `1c452d9`): el cierre del turno escribía en **tres escrituras sueltas** (snapshot + conteos de cierre + cierres de banco) y leía los cobros **antes** de que nadie bloqueara la fila del turno. Ahora corre en **una sola transacción** con la fila del turno **bloqueada** (`SELECT … FOR UPDATE`) y el arqueo se lee **después** del bloqueo; el cobro pide el mismo lock antes de escribir. Cierra `A-47` (de la review de AUD-004) y los dos caminos que le firman el turno a un `Payment` (`registerPosSale` y el cobro de un pedido existente), los dos con el mismo lock. La review adversarial encontró además que el cierre de **producción no cableaba movimientos ni devoluciones**: firmaba un esperado distinto al del corte X del mismo turno. Eso **cambia el número del arqueo** en los turnos con retiros o devoluciones (ahora coincide con el corte X y con la fórmula documentada): es lo único de esta TASK que el owner tiene que mirar después del deploy. Sin cambio de esquema.
 
