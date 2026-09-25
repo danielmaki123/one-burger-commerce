@@ -76,14 +76,27 @@ implementada.**
   todavía la solución**. Punto de partida: qué escribe hoy la venta —el pedido (`Order`, con su cupón) y
   sus `Payment`, cada uno firmado con el `shiftId` de la terminal— y qué efectos quedan **fuera** de esa
   persistencia.
+- **Riesgo real a reproducir**: un pedido —**y el uso del cupón**— persistido con **cero o solo una parte
+  de sus `Payment`** si falla uno de los `createPayment` posteriores. **No** es «un `Payment` sin la venta
+  que lo respalda»: eso no puede pasar, `Payment.orderId` referencia `Order`
+  (`prisma/schema.prisma:857`). El flujo crea **primero** el pedido (`register-pos-sale.ts:215`) y
+  **después** los cobros, uno por uno en un `for` (`:308-322`), cada uno con su propio `create`
+  (`prisma-payment-repository.ts:65`) — escrituras independientes.
+- **Hipótesis/evidencia para el estudio — el retry de hoy**: cuando `createPosOrder` devuelve
+  `reused: true`, `registerPosSale` hace `listPaymentsByOrder(order.id)` y **devuelve esos pagos
+  existentes** (`:291-306`): **no** intenta completar los que falten. Con una venta a medias, el reintento
+  con la misma `idempotencyKey` responde con lo que haya. **AUD-004 debe demostrar con PostgreSQL real**
+  qué ocurre ante un fallo entre pagos y un reintento con la misma clave: qué queda en la base, qué ve el
+  cajero y qué queda fuera del arqueo.
 - **A investigar (registrado por el owner)**: `auditManualDiscount` corre **después** de que la venta se
   persiste (`src/app/api/admin/pos/sale/route.ts:29-35`): un descuento manual aplicado con éxito y un
   fallo posterior del audit dejan el registro de acciones sensibles incompleto. **No se resuelve acá.**
 - **Fuera del alcance (verificado)**: `CashMovement` **no** es parte de la venta —es plata que entra o
   sale del cajón **sin ser un cobro**— y `Invoice` **no** nace en el cobro: se emite por su propio caso
   de uso/API (`emit-invoice`).
-- **Riesgo**: *partial write* = un `Payment` sin la venta que lo respalda, o una venta sin sus cobros.
-  Es plata que no cuadra y no se puede reconstruir.
+- **Método**: primero la **reproducción RED** (un test que falle por la razón correcta) y la evidencia; el
+  **límite correcto y su forma se definen después**, con esa evidencia. Este roadmap **no** elige la
+  solución, ni siquiera la que parece obvia.
 - **Depende de**: TASK-AUD-001 y TASK-AUD-003. Requiere prueba contra **PostgreSQL real**.
 - **Por qué acá**: es la operación de dinero más frecuente del sistema.
 
