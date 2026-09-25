@@ -80,3 +80,6 @@ export default function CartPage() {
     </div>
   );
 }
+
+// sonda temporal del gate de build:webpack (TASK-AUD-002) — esta rama se descarta, no se mergea.
+
