@@ -150,6 +150,29 @@ Sí: **un correlativo (o cualquier «último + 1») es un recurso que se asigna,
 La forma que funciona es una sola operación con reintento acotado —y, si el conflicto es de la clave de
 negocio (el `orderId`), devolver lo que ya existe—.
 
+## REVIEW ADVERSARIAL
+
+A diferencia de AUD-004 y AUD-005 —que sí tuvieron una pasada independiente que encontró bloqueantes reales—
+acá la revisión fue **propia y acotada**, y se dice para que nadie la cuente de más. Las refutaciones que se
+probaron:
+
+- **¿Puede el CI estar verde y el requisito roto?** Los dos casos de concurrencia se fuerzan con barrera, así
+  que no dependen del planificador: quitar el reintento los pone rojos (probado).
+- **¿Hay error tragado?** `isUniqueConflict` solo captura el `P2002`; cualquier otro error sale tal cual, y si
+  se agotan los cinco intentos se relanza el último conflicto (nada silencioso).
+- **¿Hay partial write?** La operación es **un** `INSERT` de un documento: no hay segunda tabla que pueda
+  quedar a medias.
+- **¿Se duplicó la regla del número?** `nextInvoiceNumber` sigue siendo la única fuente y ahora la usa el
+  adaptador (el caso de uso dejó de armar el número).
+- **¿Se debilitó algún test?** Los cuatro dobles que implementan el puerto recibieron el método nuevo; las
+  aserciones existentes (los números `F-000001` / `F-000042`) siguen igual.
+- **¿La idempotencia la garantiza la base?** `Invoice.orderId @unique` sí; la comprobación previa es un atajo,
+  y ahora el choque también se resuelve devolviendo la factura existente.
+
+**Riesgo residual**: con más de cinco emisiones simultáneas sobre el mismo correlativo, la sexta falla con el
+error del índice único (bounded, visible y reintentable a mano). Queda en el backlog como `A-56` con la salida
+siguiente (secuencia de PostgreSQL o `pg_advisory_xact_lock`).
+
 ## DEFINITION OF DONE
 
 - [x] Rojo observado (con barrera para el caso no determinista).
