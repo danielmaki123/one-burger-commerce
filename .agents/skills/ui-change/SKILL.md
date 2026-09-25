@@ -7,6 +7,11 @@ visible. **No** se reescribe el design system: se **usa**.
 
 ## 1. Antes de escribir UI
 
+0. **Identificar el módulo y la sección de la pantalla**:
+   [`../../../ops/product/MODULE_ARCHITECTURE.md`](../../../ops/product/MODULE_ARCHITECTURE.md). Una pantalla
+   nueva **no** estrena módulo ni sección: pertenece a uno existente (Menú, Órdenes, Caja, Locales…). Si de
+   verdad hace falta algo nuevo, primero pasa el gate de esa TASK y lo aprueba el owner — no se decide
+   escribiendo la pantalla.
 1. **Leer el sistema de diseño oficial**: [`../../../ops/references/stitch/design-system.md`](../../../ops/references/stitch/design-system.md).
    Gana **siempre** en lo visual. Sus reglas vinculantes son §2, §6, §7 y §8.
 2. **Leer el registro de componentes**: `src/shared/ui/registry.json` (campos `file`, `variants`,

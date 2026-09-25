@@ -16,8 +16,9 @@ corto: si crece como un diario, dejó de servir.
 > (con la migración aditiva `20260925120000_add_payment_void`) sobre la base que ya tenía AUD-003..006.
 > **La fase de estabilización técnica queda cerrada y desplegada**: A-15 completo, tests verdes,
 > **ningún P0 conocido** y **ningún P1 de dinero abierto**. Lo que sigue abierto es **operativo**
-> (`A-57`, backup) o de **decisión del owner** (`A-50`/`A-51`, datos históricos), y la próxima TASK
-> planificada es **ARCH-001**, que **no se inició**.
+> (`A-57`, backup) o de **decisión del owner** (`A-50`/`A-51`, datos históricos). La TASK que siguió fue
+> **ARCH-001**, **cerrada** el 2026-09-25 (docs-only): la constitución de producto está en
+> [`ops/product/MODULE_ARCHITECTURE.md`](product/MODULE_ARCHITECTURE.md) y **`DS-001` no se inició**.
 
 ---
 
@@ -146,7 +147,7 @@ sin guardrail) · `A-23` (cuenta de prueba con rol `owner` en producción) · `A
 
 **A-15 / A-59 — anular un cobro (cerrada, cierra A-15)**: el remanente de A-15 se implemento y A-15 quedo **cerrado**. Un `Payment` mal registrado —duplicado, con el monto o el medio equivocados— se **anula** conservando el registro original: migracion aditiva `20260925120000_add_payment_void` (`voidedAt`, `voidedByUserId`, `voidReason`), puerta `canVoidPayment` (**solo owner**), `POST /api/admin/payments/[id]/void` con su composicion y asiento `payment.void`. La regla «un cobro anulado no cuenta» vive **una sola vez** por adaptador (`NOT_VOIDED` / `activePayments`): las cinco consultas de lista y la agregacion del saldo excluyen los anulados, asi que el arqueo (cierre y corte X), el saldo del pedido, la conciliacion y los documentos quedan afuera sin tocar cada consumidor. Las dos puntas de la misma invariante se rechazan entre si: **no se anula un cobro con devolucion viva** (pendiente o aprobada) y **no se aprueba la devolucion de un cobro anulado** (rechazarla si: es como se limpia antes de anular). La anulacion es **idempotente y segura ante carreras** porque la guarda va en el `WHERE` (`voidedAt: null`), no en el `if` de la lectura. Las **metricas no se tocaron**: no leen `Payment` (verificado) y el neto de `A-58` ya contemplaba el «importe invalidado». RED observado (`The column Payment.voidedAt does not exist in the current database`), 4 casos contra PostgreSQL real (el arqueo pasa de 800 a 300 al anular el cobro de 500 con la fila original intacta; el saldo del pedido vuelve a 0; dos anulaciones simultaneas firman una sola; una devolucion viva bloquea la anulacion) y **tres mutation checks** (filtro de exclusion, guarda del `WHERE` y devoluciones vivas), los tres restaurados. **Fuera de alcance a proposito**: la superficie de UI para anular (la ruta es la API) y mostrar el cobro anulado en el detalle del pedido.
 
-**Fase de estabilizacion tecnica — CERRADA (2026-09-25)**: se cumple el criterio que el owner fijo: **A-15 completo**, tests verdes (unitarios, contratos, PostgreSQL real y CI), **ningun P0 conocido** y **ningun P1 de dinero abierto ligado a A-15**. No se iniciaron `AUD-009/010/012/013/014` ni una auditoria nueva, y **no** se abrio ninguna TASK por hallazgos laterales: lo que aparecio quedo en el backlog como observacion. La proxima TASK planificada es **ARCH-001** (arquitectura de producto y modulos) y **no se empezo**.
+**Fase de estabilizacion tecnica — CERRADA (2026-09-25)**: se cumple el criterio que el owner fijo: **A-15 completo**, tests verdes (unitarios, contratos, PostgreSQL real y CI), **ningun P0 conocido** y **ningun P1 de dinero abierto ligado a A-15**. No se iniciaron `AUD-009/010/012/013/014` ni una auditoria nueva, y **no** se abrio ninguna TASK por hallazgos laterales: lo que aparecio quedo en el backlog como observacion. La TASK que siguio fue **ARCH-001** (arquitectura de producto y modulos), **cerrada** el 2026-09-25.
 
 ## 4. Trabajo actual
 
@@ -158,7 +159,7 @@ visual sigue siendo Stitch hasta que `DS-001` se apruebe.
 
 **Release consolidado a producción (2026-09-25, cerrado)**: `main` = `0b840e73b1a0899910f13d980faa005cd2c08c4f` **desplegado** y sirviendo `build-20260925-174535`. El release lleva A-54, A-55, AUD-007, AUD-008, A-58 y A-59 con su migración aditiva. Preflight, backup confirmado por el owner, deploy, migraciones, health/readiness, smokes (7/7 y 6/6) y la QA de dinero están en §1. **Sin reparación de datos históricos**: `A-50`/`A-51` siguen sin tocar.
 
-**Fase de estabilización técnica cerrada y desplegada (2026-09-25)**: **no hay ninguna TASK en curso**. La próxima planificada es **ARCH-001** (arquitectura de producto y módulos) y **no se inició**.
+**ARCH-001 — Product & Module Architecture (cerrada, 2026-09-25, docs-only)**: la constitución de producto vive en [`ops/product/MODULE_ARCHITECTURE.md`](product/MODULE_ARCHITECTURE.md): las secciones reales del panel, los módulos que existen, el **ownership** de cada agregado, la regla del Resumen como overview transversal, el gate para capacidades nuevas y la **deuda registrada** (el dominio de Caja repartido entre `orders` y `pos`, promociones en `orders`, `dashboard` sin puertos, los cascarones `coupons`/`table-ordering`, puertas sin call site y la entrada muerta «Mesas» del móvil). **No cambió producto, rutas, navegación, diseño ni DB**: lo que no coincide con la dirección conceptual del roadmap quedó **documentado**, no corregido por decreto. El enforcement objetivo vive en los contratos: la fuente existe una sola vez, el camino de entrada la cita y no crece como un manual.
 
 **TASK-AUD-059 — Void/Reversal de cobro (cerrada, `974fa74`, desplegada)**: un cobro mal registrado se **anula** conservando la fila (migración aditiva `20260925120000_add_payment_void`), con `canVoidPayment` (solo owner), motivo obligatorio y asiento `payment.void`. La exclusión vive una sola vez por adaptador, así que el arqueo, el saldo del pedido, la conciliación y los documentos dejan de verlo; y las dos puntas de la invariante se rechazan entre sí (no se anula un cobro con devolución viva, no se aprueba la devolución de un cobro anulado). Detalle y evidencia en §3.
 
@@ -197,8 +198,9 @@ aprobó el owner, en [`roadmap/`](roadmap/).
 **El bloque financiero de la remediación quedó cerrado y desplegado** (`AUD-003..006`, `A-54`, `A-55`,
 `A-58`, `A-59`) y con él la **fase de estabilización técnica**. Lo que sigue, en orden:
 
-1. **`ARCH-001` — Product & Module Architecture**: la próxima TASK planificada y **no iniciada**. No
-   rediseña nada: fija la constitución mínima de producto (módulos, secciones y ownership de reglas).
+1. **`ARCH-001` — Product & Module Architecture**: **cerrada** el 2026-09-25 (docs-only, sin cambios
+   funcionales). Lo que sigue es la **revisión del owner** de esa constitución y después `DS-001`, que
+   **no se inició** y tiene brief separado.
 2. `AUD-009`/`AUD-010` (outbox: lease y semántica de entrega) y `AUD-012`/`AUD-013`/`AUD-014` siguen en el
    roadmap, **sin iniciar**.
 3. `A-57` (backup programado) es **infraestructura**: el owner decide y no bloquea el producto.

@@ -46,7 +46,7 @@ vinculantes: `design-system.md` §2, §6, §7 y §8).
 | Documento | Responde |
 |---|---|
 | `AGENTS.md` (este archivo) | Comportamiento, reglas y límites |
-| [`.agents/CONTEXT.md`](.agents/CONTEXT.md) | Cómo está construido: superficies, hosts, stack, DDD, bounded contexts, persistencia, outbox, auth, CI, deploy |
+| [`.agents/CONTEXT.md`](.agents/CONTEXT.md) · [`ops/product/MODULE_ARCHITECTURE.md`](ops/product/MODULE_ARCHITECTURE.md) | **Cómo está construido** (superficies, hosts, stack, DDD, persistencia, outbox, auth, CI) · **arquitectura de producto**: dónde vive cada capacidad y quién es dueño de sus reglas |
 | [`.agents/MEMORY.md`](.agents/MEMORY.md) | Conocimiento estable aprendido: decisiones cerradas, errores comprendidos, restricciones, lecciones |
 | [`.agents/skills/`](.agents/skills/) | Procedimientos repetibles, uno por tipo de trabajo |
 | [`ops/CURRENT.md`](ops/CURRENT.md) | Estado operativo actual: producción, riesgos, trabajo en curso, qué sigue |
