@@ -50,7 +50,7 @@ vinculantes: `design-system.md` §2, §6, §7 y §8).
 | [`.agents/MEMORY.md`](.agents/MEMORY.md) | Conocimiento estable aprendido: decisiones cerradas, errores comprendidos, restricciones, lecciones |
 | [`.agents/skills/`](.agents/skills/) | Procedimientos repetibles, uno por tipo de trabajo |
 | [`ops/CURRENT.md`](ops/CURRENT.md) | Estado operativo actual: producción, riesgos, trabajo en curso, qué sigue |
-| [`ops/tasks/`](ops/tasks/) | Trabajo planificado: briefs, [plantilla obligatoria](ops/tasks/TEMPLATE.md) y [roadmap](ops/tasks/AUDIT-REMEDIATION-ROADMAP.md) |
+| [`ops/tasks/`](ops/tasks/) · [`ops/roadmap/`](ops/roadmap/) | Trabajo planificado: briefs, [plantilla obligatoria](ops/tasks/TEMPLATE.md), [programa de remediación](ops/tasks/AUDIT-REMEDIATION-ROADMAP.md) y [roadmap de producto/UX](ops/roadmap/PRODUCT-UX-ROADMAP.md) |
 | [`ops/audit-backlog.md`](ops/audit-backlog.md) · [`ops/decisions/`](ops/decisions/) | Cola de hallazgos con ID, tipo y severidad · decisiones de arquitectura (ADR) |
 | [`ops/history/`](ops/history/) | Historia archivada. **No es fuente de verdad** |
 

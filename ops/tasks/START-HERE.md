@@ -60,6 +60,11 @@ falta reconstruir por qué algo es como es. Es lo que evita leer 3.000 líneas p
 
 ## 4. Trabajo planificado y qué NO arrancar
 
+- **Roadmap oficial de producto y UX (proceso vigente)**: [`../roadmap/PRODUCT-UX-ROADMAP.md`](../roadmap/PRODUCT-UX-ROADMAP.md),
+  con las decisiones cerradas del owner en [`../roadmap/DECISIONS.md`](../roadmap/DECISIONS.md) y la secuencia
+  inmediata en [`../roadmap/NEXT.md`](../roadmap/NEXT.md). Rige **cómo** se hace el trabajo de producto
+  (arquitectura → design system → una sección por vez); el **qué** de la remediación sigue en
+  [`AUDIT-REMEDIATION-ROADMAP.md`](AUDIT-REMEDIATION-ROADMAP.md).
 - **Programa de remediación completo, en orden**: [`AUDIT-REMEDIATION-ROADMAP.md`](AUDIT-REMEDIATION-ROADMAP.md).
   Ese archivo dice qué sigue, con su objetivo, prioridad, riesgo y dependencia.
 - **Plantilla obligatoria de TASK**: [`TEMPLATE.md`](TEMPLATE.md).
@@ -78,6 +83,7 @@ Si no lo hay, se pregunta antes de codear.
 | Reglas, límites y prohibiciones | [`../../AGENTS.md`](../../AGENTS.md) |
 | Arquitectura, hosts, stack, auth, CI | [`../../.agents/CONTEXT.md`](../../.agents/CONTEXT.md) |
 | Estado actual y riesgos | [`../CURRENT.md`](../CURRENT.md) |
+| Trabajo planificado y proceso de producto | [`AUDIT-REMEDIATION-ROADMAP.md`](AUDIT-REMEDIATION-ROADMAP.md) · [`../roadmap/`](../roadmap/) |
 | Lecciones aprendidas (trampas del arnés, E2E, deploy) | [`../../.agents/MEMORY.md`](../../.agents/MEMORY.md) |
 | Procedimiento de cada tipo de trabajo | [`../../.agents/skills/`](../../.agents/skills/) |
 | Hallazgos con ID y severidad | [`../audit-backlog.md`](../audit-backlog.md) |
