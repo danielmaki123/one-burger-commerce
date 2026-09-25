@@ -67,7 +67,14 @@ export type RegisterPosSaleInput = {
   manualDiscount?: { kind: "percentage" | "amount"; value: number; reason: string } | null;
 };
 
-export type RegisterPosSaleDependencies = {
+/**
+ * TASK-AUD-004 — las dos cosas que escribe una venta, **con el mismo cliente de base**.
+ *
+ * Se entregan juntas porque el pedido y sus cobros son una sola operación: escribirlos por separado dejaba
+ * un pedido con la mitad de sus cobros si algo fallaba entre medio. El alcance lo arma el adaptador (acá no
+ * hay Prisma): en producción las dos piezas van dentro de la misma transacción.
+ */
+export type PosSaleTransactionScope = {
   /**
    * El alta real, ya cableada por la composición (el POS no conoce el grafo del módulo `orders`).
    *
@@ -76,6 +83,19 @@ export type RegisterPosSaleDependencies = {
    */
   createPosOrder: (input: CreateOrderRequest) => Promise<{ order: OrderRecord; reused: boolean }>;
   paymentRepository: PaymentRepository;
+};
+
+export type RegisterPosSaleDependencies = {
+  /**
+   * TASK-AUD-004 — el **límite atómico** de la venta del mostrador: el pedido (con su cupón y sus líneas)
+   * y **todos** sus cobros, o nada.
+   *
+   * Antes se escribía el pedido y después cada cobro por su cuenta, cada uno con su propio `create`: una
+   * falla en el segundo cobro dejaba un pedido cobrado a medias, y el reintento con la misma clave
+   * devolvía esa venta incompleta como si estuviera paga. El caso de uso no sabe **cómo** se abre la
+   * transacción (eso es del adaptador); sabe que todo lo que escriba adentro se guarda junto.
+   */
+  runInSaleTransaction: <T>(work: (scope: PosSaleTransactionScope) => Promise<T>) => Promise<T>;
   businessCurrencyCode: string;
   usdExchangeRate: number | null;
   /**
@@ -212,7 +232,46 @@ export async function registerPosSale(
     throw new PosError(422, "VALIDATION_ERROR", draftProblem, { payments: draftProblem });
   }
 
-  const { order, reused } = await deps.createPosOrder({
+  return deps.runInSaleTransaction((scope) =>
+    commitSale({
+      input,
+      couponCode,
+      paidInBusinessCurrency,
+      openShift,
+      scope,
+      businessCurrencyCode: deps.businessCurrencyCode,
+      usdExchangeRate: deps.usdExchangeRate,
+    }),
+  );
+}
+
+type CommitSaleInput = {
+  input: RegisterPosSaleInput;
+  /** El cupón, ya normalizado y cotizado: la cotización previa es la misma que vio el cajero. */
+  couponCode: string | null;
+  paidInBusinessCurrency: number;
+  openShift: { id: string } | null;
+  scope: PosSaleTransactionScope;
+  businessCurrencyCode: string;
+  usdExchangeRate: number | null;
+};
+
+/**
+ * Lo que la venta **escribe**: el alta del pedido y sus cobros, adentro del límite atómico.
+ *
+ * Está separado de `registerPosSale` —que decide, valida y cotiza— para que se vea de un vistazo qué
+ * entra en la transacción (TASK-AUD-004): lo de acá se guarda junto, o no se guarda nada.
+ */
+async function commitSale({
+  input,
+  couponCode,
+  paidInBusinessCurrency,
+  openShift,
+  scope,
+  businessCurrencyCode,
+  usdExchangeRate,
+}: CommitSaleInput): Promise<RegisterPosSaleResult> {
+  const { order, reused } = await scope.createPosOrder({
     type: "pickup",
     customerName: input.customer.name,
     customerWhatsapp: input.customer.whatsapp,
@@ -259,6 +318,11 @@ export async function registerPosSale(
     idempotencyKey: input.idempotencyKey ?? null,
   });
 
+  /**
+   * El total real del alta puede no ser el del borrador (el menú cambió entre que el cajero cargó el
+   * catálogo y cobró). Cortar acá **no deja el pedido**: la transacción se deshace entera (TASK-AUD-004).
+   * Antes esta salida dejaba el pedido guardado **sin ningún cobro** y el cajero volvía a cobrar.
+   */
   const orderProblem = validatePaidWithAmount({
     paidWithAmount: paidInBusinessCurrency,
     total: order.total,
@@ -287,27 +351,30 @@ export async function registerPosSale(
    * vez**. Registrar los cobros de nuevo dejaba el mismo pedido cobrado dos veces y el arqueo del turno
    * contaba esa plata de más. La respuesta se arma con lo que quedó guardado en el primer intento, que es
    * lo que el cajero ya tiene en la mano.
+   *
+   * TASK-AUD-004 — el reintento **no** puede devolver una venta a medio cobrar: si el intento anterior se
+   * cortó entre dos cobros, el pedido ya no existe (la transacción se deshizo), así que esta rama solo se
+   * alcanza con una venta que quedó completa.
    */
   if (reused) {
-    const recorded = await deps.paymentRepository.listPaymentsByOrder(order.id);
+    const recorded = await scope.paymentRepository.listPaymentsByOrder(order.id);
 
     return {
       order,
       payments: recorded,
       paidInBusinessCurrency: recordedPaymentsTotalInBusinessCurrency({
         payments: recorded,
-        businessCurrencyCode: deps.businessCurrencyCode,
-        usdExchangeRate: deps.usdExchangeRate,
+        businessCurrencyCode,
+        usdExchangeRate,
       }),
-      change:
-        recorded.length === 1 && recorded[0].method === "cash" ? recorded[0].changeAmount : 0,
+      change: recorded.length === 1 && recorded[0].method === "cash" ? recorded[0].changeAmount : 0,
       reused: true,
     };
   }
 
   for (const payment of input.payments) {
     payments.push(
-      await deps.paymentRepository.createPayment({
+      await scope.paymentRepository.createPayment({
         orderId: order.id,
         method: payment.method,
         amount: payment.amount,

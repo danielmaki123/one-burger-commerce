@@ -1,6 +1,7 @@
 import type { Decimal } from "@prisma/client/runtime/library";
+import type { PrismaClient } from "@prisma/client";
 
-import { getPrismaClient } from "@/infrastructure/database/prisma";
+import { getPrismaClient, type DatabaseClient } from "@/infrastructure/database/prisma";
 import type {
   CouponRecord,
   DeliveryFeeStatus,
@@ -189,6 +190,32 @@ function isUniqueConstraintError(error: unknown): boolean {
 }
 
 export class PrismaOrderRepository implements OrderRepository {
+  /**
+   * TASK-AUD-004 — el repositorio puede correr dentro de una transacción.
+   *
+   * Sin cliente usa el raíz; con un `tx` inyectado, el alta del pedido y el consumo del cupón entran en
+   * esa transacción, que es lo que permite que una venta del mostrador sea todo o nada.
+   */
+  constructor(private readonly client: DatabaseClient = getPrismaClient()) {}
+
+  /**
+   * Cliente **raíz**, para los dos métodos que abren su propia transacción por lote
+   * (`$transaction([...])`): un `tx` no puede anidar otra, y esos métodos (cambio de estado del pedido y
+   * recálculo de sus líneas) no son parte de la venta. Pedirlo por separado hace que el error salte acá
+   * y no en la base.
+   */
+  private rootClient(): PrismaClient {
+    const root = getPrismaClient();
+
+    if (this.client !== root) {
+      throw new Error(
+        "Este método abre su propia transacción: no se puede llamar sobre un repositorio transaccional.",
+      );
+    }
+
+    return root;
+  }
+
   async createOrder(
     input: CreateOrderInput & {
       orderNumber: string;
@@ -218,7 +245,7 @@ export class PrismaOrderRepository implements OrderRepository {
       }>;
     }>,
   ): Promise<OrderRecord> {
-    const prisma = getPrismaClient();
+    const prisma = this.client;
 
     try {
       return await this.insertOrder(prisma, input, itemDetails);
@@ -227,8 +254,15 @@ export class PrismaOrderRepository implements OrderRepository {
       // la otra cae acá y devuelve **el pedido que ya existe**, que es lo que la idempotencia
       // promete. Se re-lee en vez de reintentar la escritura: reintentar volvería a chocar.
       if (input.idempotencyKey && isUniqueConstraintError(error)) {
-        const existing = await this.findOrderByIdempotencyKey(input.idempotencyKey);
-        if (existing) return existing;
+        try {
+          const existing = await this.findOrderByIdempotencyKey(input.idempotencyKey);
+          if (existing) return existing;
+        } catch {
+          // TASK-AUD-004: adentro de una transacción, el `P2002` deja la transacción **abortada**
+          // (`25P02`) y la re-lectura no puede correr. Se devuelve el conflicto original —el `P2002`— para
+          // que quien abrió la transacción la vuelva a intentar: en el intento nuevo el alta encuentra el
+          // pedido antes de escribir nada. Tragarse el error acá dejaría un `25P02` sin significado.
+        }
       }
 
       throw error;
@@ -236,7 +270,7 @@ export class PrismaOrderRepository implements OrderRepository {
   }
 
   private async insertOrder(
-    prisma: ReturnType<typeof getPrismaClient>,
+    prisma: DatabaseClient,
     input: CreateOrderInput & {
       orderNumber: string;
       subtotal: number;
@@ -346,7 +380,7 @@ export class PrismaOrderRepository implements OrderRepository {
   }
 
   async findOrderById(id: string): Promise<OrderRecord | null> {
-    const prisma = getPrismaClient();
+    const prisma = this.client;
     const order = await prisma.order.findUnique({
       where: { id },
       include: {
@@ -362,7 +396,7 @@ export class PrismaOrderRepository implements OrderRepository {
   }
 
   async findOrderByOrderNumber(orderNumber: string): Promise<OrderRecord | null> {
-    const prisma = getPrismaClient();
+    const prisma = this.client;
     const order = await prisma.order.findUnique({
       where: { orderNumber },
       include: {
@@ -382,7 +416,7 @@ export class PrismaOrderRepository implements OrderRepository {
     // devolverlo explícito deja la regla en un solo lugar junto al adaptador de memoria.
     if (!idempotencyKey) return null;
 
-    const prisma = getPrismaClient();
+    const prisma = this.client;
     const order = await prisma.order.findUnique({
       where: { idempotencyKey },
       include: {
@@ -399,7 +433,7 @@ export class PrismaOrderRepository implements OrderRepository {
   }
 
   async listOrders(filter: ListOrdersFilter): Promise<OrderQueueRecord[]> {
-    const prisma = getPrismaClient();
+    const prisma = this.client;
 
     const where: {
       type?: OrderRecord["type"];
@@ -474,7 +508,7 @@ export class PrismaOrderRepository implements OrderRepository {
     note?: string | null,
     changedByUserId?: string | null,
   ): Promise<{ id: string; status: string; updatedAt: string }> {
-    const prisma = getPrismaClient();
+    const prisma = this.rootClient();
 
     const [updated] = await prisma.$transaction([
       prisma.order.update({
@@ -505,7 +539,7 @@ export class PrismaOrderRepository implements OrderRepository {
     deliveryFeeAmount: number,
     deliveryFeeStatus: DeliveryFeeStatus,
   ): Promise<OrderRecord> {
-    const prisma = getPrismaClient();
+    const prisma = this.client;
 
     const order = await prisma.order.findUnique({
       where: { id },
@@ -576,7 +610,7 @@ export class PrismaOrderRepository implements OrderRepository {
     newTipRate: number | null,
     newTotal: number,
   ): Promise<OrderRecord> {
-    const prisma = getPrismaClient();
+    const prisma = this.rootClient();
 
     const [, order] = await prisma.$transaction([
       prisma.orderItem.createMany({
@@ -649,7 +683,7 @@ export class PrismaOrderRepository implements OrderRepository {
   }
 
   async getOrderStatusHistory(orderId: string): Promise<OrderStatusHistoryRecord[]> {
-    const prisma = getPrismaClient();
+    const prisma = this.client;
     const history = await prisma.orderStatusHistory.findMany({
       where: { orderId },
       orderBy: { createdAt: "asc" },
@@ -671,7 +705,7 @@ export class PrismaOrderRepository implements OrderRepository {
   }
 
   async findCouponByCode(code: string): Promise<CouponRecord | null> {
-    const prisma = getPrismaClient();
+    const prisma = this.client;
     const coupon = await prisma.coupon.findUnique({
       where: { code: code.toUpperCase() },
     });
@@ -683,7 +717,7 @@ export class PrismaOrderRepository implements OrderRepository {
     id: string,
     usageLimit: number,
   ): Promise<boolean> {
-    const prisma = getPrismaClient();
+    const prisma = this.client;
     // Single conditional UPDATE: the WHERE clause is evaluated by the database,
     // so two concurrent orders can never both pass the limit check.
     // `usageLimit: 0` es "sin límite": se incrementa sin condición.
@@ -696,7 +730,7 @@ export class PrismaOrderRepository implements OrderRepository {
   }
 
   async releaseCouponUsage(id: string): Promise<void> {
-    const prisma = getPrismaClient();
+    const prisma = this.client;
     await prisma.coupon.updateMany({
       where: { id, usedCount: { gt: 0 } },
       data: { usedCount: { decrement: 1 } },
@@ -705,21 +739,21 @@ export class PrismaOrderRepository implements OrderRepository {
 
   // Administración de promos (T9c)
   async listCoupons(): Promise<CouponRecord[]> {
-    const prisma = getPrismaClient();
+    const prisma = this.client;
     const coupons = await prisma.coupon.findMany({ orderBy: { code: "asc" } });
 
     return coupons.map(mapCoupon);
   }
 
   async findCouponById(id: string): Promise<CouponRecord | null> {
-    const prisma = getPrismaClient();
+    const prisma = this.client;
     const coupon = await prisma.coupon.findUnique({ where: { id } });
 
     return coupon ? mapCoupon(coupon) : null;
   }
 
   async createCoupon(input: CouponInput): Promise<CouponRecord> {
-    const prisma = getPrismaClient();
+    const prisma = this.client;
     const coupon = await prisma.coupon.create({
       data: {
         code: input.code,
@@ -739,7 +773,7 @@ export class PrismaOrderRepository implements OrderRepository {
   }
 
   async updateCoupon(id: string, input: Partial<CouponInput>): Promise<CouponRecord> {
-    const prisma = getPrismaClient();
+    const prisma = this.client;
     const coupon = await prisma.coupon.update({
       where: { id },
       data: {
@@ -762,12 +796,12 @@ export class PrismaOrderRepository implements OrderRepository {
   }
 
   async deleteCoupon(id: string): Promise<void> {
-    const prisma = getPrismaClient();
+    const prisma = this.client;
     await prisma.coupon.delete({ where: { id } });
   }
 
   async findTableById(id: string): Promise<TableRecord | null> {
-    const prisma = getPrismaClient();
+    const prisma = this.client;
     const table = await prisma.table.findUnique({ where: { id } });
     if (!table) return null;
     return {
@@ -780,7 +814,7 @@ export class PrismaOrderRepository implements OrderRepository {
   }
 
   async findTableByQrToken(qrToken: string): Promise<TableRecord | null> {
-    const prisma = getPrismaClient();
+    const prisma = this.client;
     const table = await prisma.table.findUnique({ where: { qrToken } });
     if (!table) return null;
     return {
@@ -793,7 +827,7 @@ export class PrismaOrderRepository implements OrderRepository {
   }
 
   async findDeliveryZoneById(id: string): Promise<import("@/modules/orders/domain/order.types").DeliveryZoneRecord | null> {
-    const prisma = getPrismaClient();
+    const prisma = this.client;
     const zone = await prisma.deliveryZone.findUnique({ where: { id } });
     if (!zone) return null;
     return {
@@ -832,7 +866,7 @@ export class PrismaOrderRepository implements OrderRepository {
       }[];
     }[];
   } | null> {
-    const prisma = getPrismaClient();
+    const prisma = this.client;
     const product = await prisma.product.findUnique({
       where: { id: productId },
       include: {

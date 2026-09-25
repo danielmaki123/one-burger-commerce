@@ -40,8 +40,10 @@ vi.mock("@/app/api/admin/audit-action-helpers", () => ({
 
 vi.mock("@/modules/pos/adapters/production-pos-sale", () => ({
   createProductionPosSaleDependencies: async () => ({
-    createPosOrder: createPosOrderMock,
-    paymentRepository,
+    // TASK-AUD-004: el doble de la unidad de trabajo corre el trabajo con los mismos dobles (la
+    // transacción real se prueba contra PostgreSQL, en `register-pos-sale.postgres.test.ts`).
+    runInSaleTransaction: (work: (scope: unknown) => Promise<unknown>) =>
+      work({ createPosOrder: createPosOrderMock, paymentRepository }),
     businessCurrencyCode: "NIO",
     usdExchangeRate: 36.5,
     quoteCoupon: quoteCouponMock,

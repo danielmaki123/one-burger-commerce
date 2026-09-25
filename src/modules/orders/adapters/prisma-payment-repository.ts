@@ -1,6 +1,6 @@
 import type { Decimal } from "@prisma/client/runtime/library";
 
-import { getPrismaClient } from "@/infrastructure/database/prisma";
+import { getPrismaClient, type DatabaseClient } from "@/infrastructure/database/prisma";
 import type { PaymentMethodType, PaymentRecord } from "@/modules/orders/domain/order.types";
 import type {
   CreatePaymentInput,
@@ -52,16 +52,24 @@ function rangeFilter(range?: { from?: string; to?: string }) {
 }
 
 export class PrismaPaymentRepository implements PaymentRepository {
+  /**
+   * TASK-AUD-004 — el repositorio puede correr dentro de una transacción.
+   *
+   * Sin cliente se usa el raíz (una escritura independiente); con un `tx` inyectado, **todos** los cobros
+   * que se escriban por acá entran en esa transacción, que es lo que hace que una venta sea todo o nada.
+   */
+  constructor(private readonly client: DatabaseClient = getPrismaClient()) {}
+
   /** Bloque 3 del POS — el cobro por su id, para devolverlo con su medio y su moneda originales. */
   async findPaymentById(id: string): Promise<PaymentRecord | null> {
-    const prisma = getPrismaClient();
+    const prisma = this.client;
     const payment = await prisma.payment.findUnique({ where: { id } });
 
     return payment ? mapPayment(payment) : null;
   }
 
   async createPayment(input: CreatePaymentInput): Promise<PaymentRecord> {
-    const prisma = getPrismaClient();
+    const prisma = this.client;
     const payment = await prisma.payment.create({
       data: {
         orderId: input.orderId,
@@ -84,7 +92,7 @@ export class PrismaPaymentRepository implements PaymentRepository {
    * local tiene más de una caja abierta: leer por ventana haría que las dos se contaran la misma plata.
    */
   async listPaymentsByShift(shiftId: string): Promise<PaymentRecord[]> {
-    const payments = await getPrismaClient().payment.findMany({
+    const payments = await this.client.payment.findMany({
       where: { shiftId },
       orderBy: { createdAt: "asc" },
     });
@@ -96,7 +104,7 @@ export class PrismaPaymentRepository implements PaymentRepository {
     orderId: string,
     range?: { from?: string; to?: string },
   ): Promise<PaymentRecord[]> {
-    const prisma = getPrismaClient();
+    const prisma = this.client;
     const payments = await prisma.payment.findMany({
       where: { orderId, ...rangeFilter(range) },
       orderBy: { createdAt: "asc" },
@@ -109,7 +117,7 @@ export class PrismaPaymentRepository implements PaymentRepository {
     locationId: string,
     range: { from?: string; to?: string },
   ): Promise<PaymentRecord[]> {
-    const prisma = getPrismaClient();
+    const prisma = this.client;
     // El local sale del pedido: `Payment` no lo guarda (sería dato duplicado que puede quedar viejo).
     const payments = await prisma.payment.findMany({
       where: { order: { locationId }, ...rangeFilter(range) },
@@ -120,7 +128,7 @@ export class PrismaPaymentRepository implements PaymentRepository {
   }
 
   async getPaymentSummary(orderId: string): Promise<PaymentSummary> {
-    const prisma = getPrismaClient();
+    const prisma = this.client;
     // La suma la hace la base: es lo que usa el arqueo de caja y no tiene por qué traer las filas.
     const summary = await prisma.payment.aggregate({
       where: { orderId },
