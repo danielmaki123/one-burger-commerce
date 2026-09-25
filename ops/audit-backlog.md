@@ -132,8 +132,8 @@ Estados: `reportado` · `a reproducir` · `en curso` · `cerrado` · `no-repro` 
 - **Estado**: cerrado con A-07. Lo que la implementación dejó afuera, con motivo escrito, está en la
   ficha de A-07 (el footer no existe a 375 px y el contacto del negocio sigue siendo el de la
   configuración).
-- **Referencias**: `ops/project-state.md` §2 ("T8 · Fase 7, cierre" y "A-07 · la información de cada
-  sucursal").
+- **Referencias**: `ops/history/project-state-legacy-2026-09.md` §2 ("T8 · Fase 7, cierre" y "A-07 · la
+  información de cada sucursal") — el `project-state.md` de esa época se archivó entero ahí (TASK-AUD-000).
 
 ### A-07 · La información de cada sucursal en el footer y la home — `cerrado` (commit `83d7433`)
 
@@ -163,7 +163,7 @@ Estados: `reportado` · `a reproducir` · `en curso` · `cerrado` · `no-repro` 
   `/api/locations` (nada del negocio donde corresponde el local), sin datos hardcodeados; a **375 px**
   sin scroll horizontal y con enlaces táctiles de **≥ 44 px**; a **1280 px** en columnas. Test de
   componente (jsdom) + E2E de navegador real en los dos anchos.
-- **Referencias**: A-01; `ops/project-state.md` §2 ("T8 · Fase 7, cierre").
+- **Referencias**: A-01; `ops/history/project-state-legacy-2026-09.md` §2 ("T8 · Fase 7, cierre").
 - **Cierre (2026-09-12, commit `83d7433`)**:
   - `locationDirectionsHref` (dominio de locales) resuelve el "Cómo llegar" de **un** local: el mapa
     cargado, o una búsqueda armada con **su** dirección; sin ninguno de los dos devuelve `null`.
@@ -240,8 +240,8 @@ Estados: `reportado` · `a reproducir` · `en curso` · `cerrado` · `no-repro` 
   título de la página y el header es la marca de navegación. Si el owner prefiere una sola aparición
   del nombre en la primera pantalla, es un cambio de diseño aparte (el mock de T2 ordena esa fila
   como encabezado de la home).
-- **Referencias**: `ops/project-state.md` §2 ("Arreglo de branding: el logo y los colores no llegaban
-  a toda la app" y "A-08 · la marca en el header"); `src/shared/ui/brand-mark.tsx`.
+- **Referencias**: `ops/history/project-state-legacy-2026-09.md` §2 ("Arreglo de branding: el logo y los
+  colores no llegaban a toda la app" y "A-08 · la marca en el header"); `src/shared/ui/brand-mark.tsx`.
 
 ### A-02 · Datos de los locales de producción — `bloqueado` (sesión de owner)
 
