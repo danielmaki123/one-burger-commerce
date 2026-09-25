@@ -65,6 +65,19 @@ export interface PaymentRepository {
     range: { from?: string; to?: string },
   ): Promise<PaymentRecord[]>;
   /**
+   * TASK-AUD-054 — los cobros del local dentro de una ventana que **no tienen turno** (`shiftId IS NULL`).
+   *
+   * Son los que entraron sin caja abierta (el cobro de un pedido del menú se registra igual: perder la venta
+   * sería peor) y los de antes de la Fase 6. El arqueo de un turno los suma **además** de los suyos: sin
+   * esto, un cobro sin turno no entraba al arqueo de nadie y la plata quedaba en el cajón sin documento que
+   * la explicara. Filtrar por `shiftId IS NULL` es lo que permite que dos cajas abiertas del mismo local no
+   * se cuenten la plata de la otra: los cobros de la otra terminal **sí** están atribuidos.
+   */
+  listUnattributedPaymentsInRange(
+    locationId: string,
+    range: { from?: string; to?: string },
+  ): Promise<PaymentRecord[]>;
+  /**
    * Fase 6 del rediseño de Caja (2026-09-23) — los cobros **de un turno**, por su `shiftId`.
    *
    * Es la consulta del arqueo cuando el local tiene más de una caja abierta (dos terminales): leer por

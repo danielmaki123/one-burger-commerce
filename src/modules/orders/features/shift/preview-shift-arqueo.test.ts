@@ -52,6 +52,9 @@ function deps(shift: ShiftRecord | null = openShift) {
   } as unknown as ShiftRepository;
   const paymentRepository = {
     listPaymentsInRange: vi.fn(async () => [payment]),
+    // TASK-AUD-054: el arqueo lee los cobros **sin turno** de la ventana (el doble representa un turno sin
+    // cobros atribuidos, el camino de los turnos de antes de la Fase 6).
+    listUnattributedPaymentsInRange: vi.fn(async () => [payment]),
     // Fase 6 del rediseño de Caja: sin cobros atribuidos al turno, el arqueo lee por ventana de tiempo.
     listPaymentsByShift: vi.fn(async () => []),
   } as unknown as PaymentRepository;

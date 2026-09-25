@@ -98,6 +98,19 @@ export class InMemoryPaymentRepository implements PaymentRepository {
   }
 
   /**
+   * TASK-AUD-054 — los cobros del local en la ventana que **no** tienen turno. Mismo criterio que el
+   * adaptador de Prisma (`shiftId IS NULL`), para que el doble y la base no mientan distinto.
+   */
+  async listUnattributedPaymentsInRange(
+    locationId: string,
+    range?: { from?: string; to?: string },
+  ): Promise<PaymentRecord[]> {
+    const payments = await this.listPaymentsInRange(locationId, range ?? {});
+
+    return payments.filter((payment) => !this.paymentShifts[payment.id]);
+  }
+
+  /**
    * Fase 6 — los cobros que entraron **a este turno**. Los de antes de la fase (sin turno) no aparecen: el
    * arqueo los busca por ventana de tiempo.
    */

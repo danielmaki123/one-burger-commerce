@@ -112,6 +112,8 @@ sin guardrail) · `A-23` (cuenta de prueba con rol `owner` en producción) · `A
 
 **AUD-008 — Internal/Staging Endpoint Isolation (cerrada)**: se inventariaron las **6** rutas internas (`/api/internal/**`). Las **5** de staging cierran por entorno (`APP_ENV === "staging"` -> 403, y si la variable faltara tambien) y todas exigen un secreto comparado con `timingSafeEqual`; el procesador del outbox rechaza si el secreto falta. **Verificado en produccion con GET** (nunca POST: el de staging crea admins y el del outbox procesa la cola): las 6 responden **405** sin ejecutar nada. Guardrail nuevo: `internal-endpoint-isolation-contract.test.ts` recorre las rutas y falla si una nueva nace sin su puerta (con mutacion verificada).
 
+**A-54 — ningun cobro fuera de arqueo (cerrada)**: el arqueo (cierre y corte X) leia, para un turno con terminal, **solo** los cobros atribuidos a ese turno, asi que un cobro entrado **sin caja abierta** (`Payment.shiftId = null`, el caso del cobro de un pedido del menu) no entraba al arqueo de nadie. Ahora suma los cobros de su ventana **sin turno** (puerto nuevo `listUnattributedPaymentsInRange`, en los dos adaptadores): todo cobro entra al arqueo de exactamente un turno. Probado contra PostgreSQL real, con mutacion, y sin contarse la plata entre dos terminales.
+
 ## 4. Trabajo actual
 
 **Release AUD-003..006 a producción (2026-09-25)**: `main` (`17ecb27`) desplegado con Easypanel y sirviendo `build-20260925-123054`. Preflight, backup pre-deploy, health/readiness, smokes (7/7 y 6/6) y las comprobaciones HTTP de solo lectura están en §1. **Sin reparación de datos históricos**: `A-50`/`A-51` siguen sin tocar y no se pudieron leer desde el entorno del agente (sin acceso read-only a la base). **AUD-015 no se inició.**
