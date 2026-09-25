@@ -143,6 +143,18 @@ export default function CashTurnSection({
         ) : null}
       </div>
 
+      {/*
+        Hallazgo H1 de la auditoría post-deploy (2026-09-23) — los bancos del cuadre viven **dentro** del
+        modal del cierre, y el modal se dibuja al abrirlo: sin esta línea, un local con bancos cargados no los
+        ve por ningún lado en Caja. En una sucursal sin bancos no se muestra (sería ruido sobre algo que no
+        existe).
+      */}
+      {banks.length > 0 ? (
+        <p className="text-st-caption text-ink-muted">
+          Los bancos configurados aparecen al abrir el cierre.
+        </p>
+      ) : null}
+
       <CashShiftHandoverPanel
         locationId={locationId}
         locationName={locationName}
