@@ -159,6 +159,16 @@ jobs:
       - name: Fail on schema drift between migrations and schema.prisma
         run: npx prisma migrate diff --from-url "$DATABASE_URL" --to-schema-datamodel prisma/schema.prisma --exit-code
 
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      # TASK-AUD-004 — las propiedades que **dependen de PostgreSQL** (transacción, rollback, índice único,
+      # dos cobros simultáneos) no se pueden demostrar con un doble en memoria. Se prueban contra la base
+      # real (`*.postgres.test.ts`) y corren acá, que es el job que ya tiene el Postgres arriba y migrado:
+      # un test que no corre en CI no protege nada.
+      - name: Integration tests against real PostgreSQL (atomicity, rollback, concurrency)
+        run: npm run test:postgres
+
   container:
     runs-on: ubuntu-latest
     services:
