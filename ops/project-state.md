@@ -1,5 +1,46 @@
 # Estado del proyecto — One Burger Commerce
 
+> **Actualizado: 2026-09-25 (A-43 cerrado: la cabecera del panel, dentro del 20%)**
+>
+> **Último deploy: `build-20260925-015642`** (una sola llamada a `deployService`, con el OK del owner).
+> Corresponde al PR [#29](https://github.com/danielmaki123/one-burger-commerce/pull/29), mergeado como
+> `33c435d`. Antes de este, el mismo día, entró la corrección post-deploy de Caja (PR #27 →
+> `build-20260925-011110`).
+>
+> **A-43 — qué era**: la cabecera compartida del panel (`AdminPageHeader`) medía **186 px a 375×800 =
+> 23,3%** del alto, por encima del techo del sistema (≤20%, `design-system.md` §8.4). Estaba reportado como
+> deuda desde el 2026-09-19 y, **medido en producción antes de arreglarlo, eran seis pantallas** por encima
+> del techo: Caja, Locales, Menú, Categorías y Promociones (23,3%) y Productos (20,8%). A 768×1024 la peor
+> era Locales con **222 px = 21,7%**.
+>
+> **El arreglo** (solo el componente, sin tocar la estructura ni ninguna pantalla): padding vertical
+> `p-4` → `px-4 py-3` en celular (desde `md` sigue `p-5`), `gap-3` → `gap-2` y `space-y-1` → `space-y-0.5` en
+> celular, el título pasa a `text-st-h2` (20 px) en celular con **`md:text-st-h1`** (la escala del sistema
+> vuelve desde tablet), la descripción usa el interlineado de su propio token (20 px) en celular y sigue
+> recortada a dos líneas **hasta `lg`**. La acción conserva su mínimo táctil de 44 px. El menú público y todo
+> lo demás del diseño quedan **intactos**.
+>
+> **QA post-deploy (navegador real, solo lectura, cuenta owner)**: las **14 pantallas** del panel que usan el
+> componente, a 375×800, 768×1024 y 1280×900, todas **≤20%** y **sin scroll horizontal** (overflow 0). Peor
+> caso: **158 px = 19,8%** a 375, **150 px = 14,6%** a 768 y **138 px = 15,3%** a 1280. Antes: 186 / 222 /
+> 138. Smokes **7/7** (menú) y **6/6** (hosts); `readiness: ready` (base en 1 ms).
+>
+> **Verificación local**: E2E nuevo `tests/e2e/admin-page-header-height.spec.ts` con **rojo observado**
+> («Caja mide 186px: el techo es 160.0px») y después verde en las 14 pantallas a los tres anchos (6/6),
+> incluido que la acción de la cabecera siga con sus 44 px; unitario nuevo del componente (4/4); suite local
+> completa **137 pasaron / 6 salteados / 0 fallas**; **3241** unitarios; contratos **50/50**; `lint`,
+> `typecheck`, `build`, `build:webpack` y `security:secrets` verdes; CI del PR con los 4 checks. Capturas
+> antes/después en `ops/tasks/audit-ui/a43-*.png`.
+>
+> **Fuera de alcance, dicho**: `/admin/settings` (Personalización) tiene cabecera **propia** (no usa
+> `AdminPageHeader`) y no se tocó; el E2E solo comprueba que la pantalla sigue en pie. Si esa cabecera
+> también pasa el 20%, sería un hallazgo nuevo (hoy **no** está reportado).
+>
+> **🏁 Sin deudas abiertas del backlog de UI**: Caja cerrada (2026-09-25) y **A-43 cerrado** (2026-09-25).
+> Lo que queda —«el diseño en general»— es **proyecto aparte**, cuando el owner quiera.
+>
+> ---
+>
 > **Actualizado: 2026-09-25 (corrección post-deploy + CIERRE de Caja)**
 >
 > **Último deploy: `build-20260925-011110`** (lo corrió el agente con el OK y el token del owner en el

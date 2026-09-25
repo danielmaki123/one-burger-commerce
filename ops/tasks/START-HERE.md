@@ -3,6 +3,29 @@
 Este archivo es la **puerta de entrada**. Todo lo que hace falta saber está versionado en el repo: no
 hace falta nada de conversaciones anteriores. Si algo acá contradice a `AGENTS.md`, manda `AGENTS.md`.
 
+> ## Estado al cerrar la sesión del 2026-09-25 (segunda ronda — **A-43 cerrado**)
+>
+> **Repo**: `main` — el HEAD real es `git log -1 main`. Esta ronda cerró en **`33c435d`** (PR **#29**,
+> squash, rama `fix/admin-page-header-height` borrada) y **producción sirve `build-20260925-015642`**
+> (una sola llamada a `deployService`, con el OK del owner).
+>
+> **A-43 — la cabecera del panel**: medía **186 px a 375×800 = 23,3%** (techo del sistema: ≤20%). En
+> producción eran **seis** pantallas por encima (Caja, Locales, Menú, Categorías, Promociones y Productos) y
+> a 768×1024 Locales llegaba a **222 px = 21,7%**. Se arregló **solo** `AdminPageHeader`: padding y aire
+> interno más chicos en celular, título en `text-st-h2` con `md:text-st-h1`, descripción con el interlineado
+> del token y el recorte de dos líneas **hasta `lg`**; la acción conserva sus 44 px. Nada más del diseño se
+> tocó y el menú público queda intacto.
+>
+> **QA post-deploy (solo lectura)**: las 14 pantallas a 375/768/1280, todas ≤20% y sin scroll horizontal
+> (peor caso **158 px = 19,8%** a 375); smokes **7/7** (menú) y **6/6** (hosts). E2E nuevo con rojo
+> observado, unitario del componente, suite local **137/6/0**, 3241 unitarios y contratos 50/50.
+>
+> **🏁 Backlog de UI sin deudas abiertas**: Caja cerrada y **A-43 cerrado**. Lo que queda —«el diseño en
+> general»— es **proyecto aparte**, cuando el owner quiera. El detalle está en `ops/project-state.md`
+> (bloque del 2026-09-25) y en [`ops/audit-backlog.md`](../audit-backlog.md).
+>
+> ---
+>
 > ## Estado al cerrar la sesión del 2026-09-25 (corrección post-deploy — **la sección Caja queda cerrada**)
 >
 > **Repo**: `main` — el HEAD real es `git log -1 main`. El cierre de esta ronda quedó en **`40e288f`**
