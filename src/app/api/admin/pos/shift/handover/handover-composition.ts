@@ -6,12 +6,19 @@ import { listShiftHandovers } from "@/modules/orders/features/shift/list-shift-h
 import { registerShiftHandover } from "@/modules/orders/features/shift/register-shift-handover";
 import { createProductionPosShiftDependencies } from "@/modules/pos/adapters/production-pos-shift";
 
+import { filterArqueoForRole } from "../shift-arqueo-role-filter";
+
 /**
  * Tarea 7 del brief (2026-09-17) — el cableado del **traspaso de caja** (1.13).
  *
  * Firmar un traspaso son dos cosas: guardar el corte X con los dos nombres (el caso de uso) y dejar el
  * asiento en el log de auditoría. Las dependencias de la caja ya existen (`production-pos-shift`) y acá se
  * les suman el repositorio de traspasos y las devoluciones, que son parte del esperado.
+ *
+ * **TASK-AUD-003**: el traspaso devolvía el arqueo completo —con el esperado— por una puerta que es la del
+ * mostrador, así que el cajero lo leía sin pasar por el corte X. Ahora la respuesta se filtra por rol igual
+ * que el corte y el cierre; el **asiento de auditoría sigue guardando el esperado completo**, que es del
+ * lado del servidor y sólo lee el dueño.
  *
  * Vive acá y no en el `route.ts` porque el handler tiene un tope de 50 líneas.
  */
@@ -21,6 +28,7 @@ export async function registerPosShiftHandover(input: {
   notes?: string | null;
   actorUserId: string;
   actorName: string | null;
+  role: string;
   now?: Date;
 }) {
   const shiftDependencies = await createProductionPosShiftDependencies();
@@ -52,15 +60,22 @@ export async function registerPosShiftHandover(input: {
     expectedAmount: result.data.expectedAmount,
   });
 
-  return result;
+  return filterArqueoForRole(result, input.role);
 }
 
 /** Los traspasos del turno abierto (o de uno puntual, cuando el detalle de un cierre viejo los pide). */
-export async function listPosShiftHandovers(input: { locationId: string; shiftId?: string | null }) {
+export async function listPosShiftHandovers(input: {
+  locationId: string;
+  shiftId?: string | null;
+  role: string;
+}) {
   const { shiftRepository } = await createProductionPosShiftDependencies();
 
-  return listShiftHandovers(
+  const result = await listShiftHandovers(
     { locationId: input.locationId, shiftId: input.shiftId },
     { shiftRepository, handoverRepository: new PrismaShiftHandoverRepository() },
   );
+
+  // Cada traspaso lista el corte X con el que se firmó: para el cajero, sin el esperado.
+  return filterArqueoForRole(result, input.role);
 }

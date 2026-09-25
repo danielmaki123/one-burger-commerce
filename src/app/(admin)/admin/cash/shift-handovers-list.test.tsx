@@ -60,4 +60,32 @@ describe("ShiftHandoversList", () => {
 
     expect(screen.getByText("Este turno no cambió de manos.")).toBeTruthy();
   });
+
+  /**
+   * TASK-AUD-003 — al cajero el servidor no le manda el monto del traspaso: es el esperado del arqueo
+   * ciego. La fila no puede romperse ni mostrar un `NaN`; dice que quedó firmado y sigue diciendo cuándo.
+   */
+  it("un traspaso sin monto (arqueo ciego) se dibuja sin número, no como NaN", () => {
+    render(
+      <ShiftHandoversList
+        handovers={[
+          {
+            id: "handover_3",
+            handedByName: "María Pérez",
+            receivedByName: "Carlos Ruiz",
+            createdAt: "2026-09-18T22:31:00.000Z",
+          },
+        ]}
+        emptyLabel="Sin traspasos."
+        {...props}
+      />,
+    );
+
+    const row = screen.getAllByText(/Recibió/)[0]?.textContent ?? "";
+
+    expect(row).toContain("Carlos Ruiz");
+    expect(row).toContain("firmado");
+    expect(row).not.toContain("NaN");
+    expect(row).not.toContain("entregado");
+  });
 });

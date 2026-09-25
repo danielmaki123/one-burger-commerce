@@ -134,6 +134,35 @@ describe("CashPartialReadingModal", () => {
     expect(screen.getByText(/va sellada/i)).toBeTruthy();
   });
 
+  /**
+   * TASK-AUD-003 — esconder el total y dibujar los sumandos no esconde nada: el esperado es
+   * `fondo + efectivo del turno + movimientos + devoluciones`, así que la pantalla no puede poner las
+   * cuatro filas y ahorrarle al cajero la única operación que falta (sumarlas). Con el servidor filtrando,
+   * además, esas filas quedarían en `NaN`.
+   */
+  it("con arqueo ciego la pantalla no dibuja los sumandos del esperado", async () => {
+    setup({ canSeeArqueo: false });
+
+    await screen.findByText(/Lectura parcial/);
+
+    expect(screen.queryByText("Efectivo del turno")).toBeNull();
+    expect(screen.queryByText("Movimientos")).toBeNull();
+    expect(screen.queryByText("Devoluciones")).toBeNull();
+    // El fondo lo declaró el cajero al abrir y la identidad del turno no dicen nada del esperado.
+    expect(screen.getByText("Fondo")).toBeTruthy();
+    expect(screen.getByText("Abierta")).toBeTruthy();
+  });
+
+  it("quien audita sí ve los sumandos, para poder explicar la diferencia", async () => {
+    setup({ canSeeArqueo: true });
+
+    await screen.findByText(/Lectura parcial/);
+
+    expect(screen.getByText("Efectivo del turno")).toBeTruthy();
+    expect(screen.getByText("Movimientos")).toBeTruthy();
+    expect(screen.getByText("Devoluciones")).toBeTruthy();
+  });
+
   it("una lectura fallida se dice, no se dibuja como una caja vacía", async () => {
     fetchMock.mockImplementation(() => jsonResponse({ error: { message: "No hay caja abierta." } }, 409));
 

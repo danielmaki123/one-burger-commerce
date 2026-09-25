@@ -168,7 +168,9 @@ export default function CashShiftHandoverPanel({
         print(
           {
             ...arqueo,
-            expectedAmount: stored.expectedAmount,
+            // El papel lo saca el dueño: a él el servidor le manda el monto del traspaso. El `?? arqueo` es
+            // para el tipo, que ahora lo declara opcional porque al cajero no le llega.
+            expectedAmount: stored.expectedAmount ?? arqueo.expectedAmount,
             expectedByCurrency: stored.expectedByCurrency ?? arqueo.expectedByCurrency,
           },
           stored.receivedByName,
