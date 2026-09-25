@@ -2,13 +2,29 @@ import type { Decimal } from "@prisma/client/runtime/library";
 
 import { getPrismaClient } from "@/infrastructure/database/prisma";
 
-import type { InvoiceRecord } from "../domain/invoice";
+import { nextInvoiceNumber, type InvoiceRecord } from "../domain/invoice";
 import type {
   CreateInvoiceInput,
   InvoiceRepository,
   ListInvoicesFilters,
   VoidInvoiceInput,
 } from "../ports/invoice-repository";
+
+/** `true` cuando la base rechazó la escritura por un índice único (`P2002`). */
+function isUniqueConflict(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    (error as { code?: unknown }).code === "P2002"
+  );
+}
+
+/** Los campos del índice único que rechazó la escritura (`["number"]`, `["orderId"]`). */
+function uniqueFields(error: unknown): string[] {
+  const target = (error as { meta?: { target?: unknown } }).meta?.target;
+
+  return Array.isArray(target) ? target.map(String) : [];
+}
 
 /**
  * Factura simple (2026-09-18) — el adaptador Prisma del documento.
@@ -136,6 +152,50 @@ export class PrismaInvoiceRepository implements InvoiceRepository {
     });
 
     return mapInvoice(row);
+  }
+
+  /**
+   * TASK-AUD-006 — el correlativo y el alta, como una operación que **sabe perder una carrera**.
+   *
+   * El número sale de leer el último y sumar uno: dos emisiones simultáneas calculan el mismo, y el índice
+   * único `Invoice.number` deja pasar una sola. Antes, la que perdía devolvía un error al cajero y el pedido
+   * quedaba sin factura (aunque el reintento manual funcionaba). Acá se **vuelve a intentar** con el número
+   * siguiente —leyendo otra vez el último, que ya cambió— y el choque del `orderId` (la misma factura pedida
+   * dos veces) se resuelve devolviendo la que ya existe, que es lo que hace el camino secuencial.
+   *
+   * El tope de intentos es explícito: con más de cinco emisiones simultáneas sobre el mismo correlativo, el
+   * error sale tal cual en vez de reintentar para siempre (y queda anotado en el backlog que la salida
+   * siguiente es una secuencia o un lock de asesoría).
+   */
+  async createNextForOrder(
+    input: Omit<CreateInvoiceInput, "number">,
+  ): Promise<{ invoice: InvoiceRecord; reused: boolean }> {
+    const intentosMaximos = 5;
+    let ultimoError: unknown = null;
+
+    for (let intento = 0; intento < intentosMaximos; intento += 1) {
+      try {
+        const invoice = await this.create({
+          ...input,
+          number: nextInvoiceNumber(await this.findLatestNumber()),
+        });
+
+        return { invoice, reused: false };
+      } catch (error) {
+        if (!isUniqueConflict(error)) throw error;
+
+        ultimoError = error;
+
+        // El choque es de la **factura de este pedido** (dos emisiones del mismo documento): la que ya
+        // existe es la respuesta, igual que en el camino secuencial.
+        if (uniqueFields(error).includes("orderId")) {
+          const existing = await this.findByOrderId(input.orderId);
+          if (existing) return { invoice: existing, reused: true };
+        }
+      }
+    }
+
+    throw ultimoError;
   }
 
   async findById(id: string): Promise<InvoiceRecord | null> {

@@ -13,6 +13,10 @@ import type { InvoiceRepository } from "../../ports/invoice-repository";
 const invoiceRepository = (overrides: Partial<InvoiceRepository> = {}): InvoiceRepository => ({
   findByOrderId: async () => null,
   findLatestNumber: async () => null,
+  // TASK-AUD-006: el puerto asigna el correlativo y crea en una sola operación; acá no se emite.
+  createNextForOrder: async () => {
+    throw new Error("este test no emite facturas");
+  },
   create: vi.fn(),
   // El puerto se implementa completo: consultar una factura no lista ni anula.
   findById: async () => null,

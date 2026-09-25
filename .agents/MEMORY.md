@@ -86,6 +86,11 @@ va al historial o al PR. Si cambia semana a semana, va a `CURRENT.md`.
   N-ésima llamada.
 - **`lineTotal` no debe incluir el packaging**: el «+» rápido lo contaba dos veces y el total mostrado
   superaba el cobrado. Fue un bug de plata real.
+- **Un correlativo (o cualquier «último + 1») es un recurso que se ASIGNA, no un dato que se lee**: leer el
+  último e insertar después deja la carrera en manos del índice único, que evita el duplicado pero **le falla
+  al usuario** (el cajero ve un error y el documento no sale). La forma que funciona es **una** operación con
+  reintento acotado —releyendo el último número— y, si el conflicto es de la clave de negocio (el `orderId`),
+  devolver lo que ya existe (`TASK-AUD-006`, `src/modules/invoices/adapters/prisma-invoice-repository.ts`).
 - **Una invariante se cierra sobre TODOS los que escriben el campo, no sobre el camino que estabas mirando**:
   `Payment.shiftId` lo escriben la venta del mostrador **y** el cobro de un pedido que ya existe
   (`POST /api/admin/orders/[id]/payment`). Cerrar el lock en uno solo dejaba el otro camino firmando un turno
