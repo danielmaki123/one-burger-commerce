@@ -21,11 +21,18 @@ import { describe, expect, it } from "vitest";
 
 const SCRIPT = path.resolve(__dirname, "../../../scripts/start-production.mjs");
 
+/**
+ * La base de las pruebas **no lleva credenciales a propósito**: al escáner de secretos del repo
+ * (`npm run security:secrets`) una URL de Postgres con usuario y contraseña embebidos le da un positivo, y
+ * acá no hacen falta — el modo de solo validación no migra, y si algún día migrara, este puerto no existe.
+ */
+const UNREACHABLE_DATABASE_URL = "postgresql://127.0.0.1:1/ninguna?schema=public";
+
 const baseEnvironment = {
   PATH: process.env.PATH,
   START_PRODUCTION_VALIDATE_ONLY: "true",
-  DATABASE_URL: "postgresql://test:test@127.0.0.1:1/ninguna?schema=public",
-  DIRECT_URL: "postgresql://test:test@127.0.0.1:1/ninguna?schema=public",
+  DATABASE_URL: UNREACHABLE_DATABASE_URL,
+  DIRECT_URL: UNREACHABLE_DATABASE_URL,
   APP_ENV: "production",
   NODE_ENV: "production",
   MIGRATION_MAX_ATTEMPTS: "1",
