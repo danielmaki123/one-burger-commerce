@@ -674,7 +674,7 @@ export default function CheckoutPage() {
         router.push(`/success/${order.id}${tokenQuery}`);
       } else {
         const errorPayload = await res.json().catch(() => null);
-        setSubmitError(extractCheckoutErrorMessage(errorPayload));
+        setSubmitError(extractCheckoutErrorMessage(errorPayload, res.status));
 
         // Si la hora programada quedó vieja mientras el cliente llenaba el formulario,
         // se vuelve a "lo antes posible" en vez de dejarlo reintentando con una hora

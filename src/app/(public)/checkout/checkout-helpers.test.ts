@@ -65,6 +65,26 @@ describe("extractCheckoutErrorMessage", () => {
       "Revisá los datos del pedido.",
     );
   });
+
+  /**
+   * Hallazgo N2 de la auditoría post-deploy (2026-09-23) — **el 429 tiene su propio mensaje**.
+   *
+   * El alta pública corta a las 10 por minuto por IP; con el mensaje genérico («intentá de nuevo») el
+   * cliente reintenta enseguida y **empeora** el límite. El código de estado es el único dato que
+   * distingue ese caso, así que el helper lo recibe.
+   */
+  it("un 429 dice que espere, no que reintente", () => {
+    expect(extractCheckoutErrorMessage({ error: { message: "Too many requests" } }, 429)).toBe(
+      "Esperá un momento e intentá de nuevo en unos segundos.",
+    );
+    // Sin el estado (o con otro), sigue siendo el genérico: no se inventa una causa.
+    expect(extractCheckoutErrorMessage({ error: { message: "Too many requests" } })).toBe(
+      "No pudimos confirmar el pedido. Intentá de nuevo.",
+    );
+    expect(extractCheckoutErrorMessage({ error: { message: "boom" } }, 500)).toBe(
+      "No pudimos confirmar el pedido. Intentá de nuevo.",
+    );
+  });
 });
 
 describe("formatPublicOrderStatus", () => {
