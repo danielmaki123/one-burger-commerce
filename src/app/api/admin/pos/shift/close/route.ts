@@ -6,6 +6,7 @@ import { requireAdminSession } from "@/modules/auth/features/require-admin-sessi
 import { createErrorResponse } from "@/shared/lib/http/error-response";
 
 import { closePosShiftForRoute } from "../close-shift-composition";
+import { filterArqueoForRole } from "../shift-arqueo-role-filter";
 
 export const dynamic = "force-dynamic";
 
@@ -38,7 +39,11 @@ export async function POST(request: Request) {
       actorName: session.user.name,
     });
 
-    return NextResponse.json(result, { headers: { "Cache-Control": "no-store" } });
+    // A-45 del backlog: quien cobra no ve el esperado ni la diferencia (`filterArqueoForRole`); el aviso al
+    // dueño y la firma del cierre siguen usando el arqueo completo, que se armó arriba.
+    return NextResponse.json(filterArqueoForRole(result, session.user.role), {
+      headers: { "Cache-Control": "no-store" },
+    });
   } catch (error) {
     const response = createErrorResponse(error);
     response.headers.set("Cache-Control", "no-store");

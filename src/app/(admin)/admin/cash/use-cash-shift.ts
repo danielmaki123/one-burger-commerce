@@ -204,6 +204,11 @@ export function useCashShift(locationId: string, terminalId: string | null = nul
         setShift(null);
         setClosedShift({
           ...body.data,
+          // A-45: al cajero el servidor no le manda el esperado ni la diferencia (cuenta a ciegas). La
+          // pantalla los lee como «no hay número» (`null`), no como cero: `undefined` se dibujaba como
+          // «sobra C$ 0.00» sobre una caja que en realidad nunca se comparó.
+          expectedAmount: body.data.expectedAmount ?? null,
+          difference: body.data.difference ?? null,
           expectedByCurrency: body.meta?.expectedByCurrency ?? {},
         });
         return { ok: true };

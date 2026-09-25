@@ -84,7 +84,7 @@ describe("rutas de la caja del POS", () => {
     paymentRepository.payments.length = 0;
     vi.clearAllMocks();
     requireAdminSessionMock.mockResolvedValue({
-      user: { id: "admin_1", role: "cashier", locationIds: [] },
+      user: { id: "admin_1", role: "manager", locationIds: [] },
     });
   });
 
@@ -180,5 +180,53 @@ describe("rutas de la caja del POS", () => {
     requireAdminSessionMock.mockRejectedValue(new AuthError(401, "UNAUTHORIZED", "No session"));
 
     expect((await callGet("?locationId=loc_norte")).status).toBe(401);
+  });
+
+  /**
+   * A-45 del backlog (2026-09-23): el arqueo ciego es una regla de **servidor**. Abre y cierra un manager
+   * (dueño del flujo) y después lee lo mismo como cajero: queda su conteo, no el esperado.
+   */
+  it("al cajero el cierre le deja su conteo y le esconde el esperado y la diferencia", async () => {
+    await callOpen({ locationId: "loc_norte", counts: [{ currency: "NIO", denomination: 100, quantity: 5 }] });
+
+    requireAdminSessionMock.mockResolvedValue({
+      user: { id: "admin_2", role: "cashier", locationIds: [] },
+    });
+
+    const closed = await callClose({
+      locationId: "loc_norte",
+      counts: [{ currency: "NIO", denomination: 100, quantity: 4 }],
+      notes: "Faltó un billete",
+    });
+    const body = await closed.json();
+
+    expect(closed.status).toBe(200);
+    // Su conteo sí: es lo que declaró.
+    expect(body.data.closingAmount).toBe(400);
+    expect(body.data.notes).toBe("Faltó un billete");
+    // Y la comparación no: ni en `data` ni en `meta`.
+    expect("expectedAmount" in body.data).toBe(false);
+    expect("expectedByCurrency" in body.data).toBe(false);
+    expect("difference" in body.data).toBe(false);
+    expect("expectedByCurrency" in body.meta).toBe(false);
+    expect("bankDifferenceAmount" in body.meta).toBe(false);
+  });
+
+  it("el dueño cierra y ve el arqueo completo", async () => {
+    await callOpen({ locationId: "loc_norte", counts: [{ currency: "NIO", denomination: 100, quantity: 5 }] });
+
+    requireAdminSessionMock.mockResolvedValue({
+      user: { id: "admin_3", role: "owner", locationIds: [] },
+    });
+
+    const body = await (
+      await callClose({
+        locationId: "loc_norte",
+        counts: [{ currency: "NIO", denomination: 100, quantity: 4 }],
+      })
+    ).json();
+
+    expect(body.data.expectedAmount).toBe(500);
+    expect(body.data.difference).toBe(-100);
   });
 });
