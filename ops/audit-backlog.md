@@ -83,7 +83,7 @@ Estados: `reportado` · `a reproducir` · `en curso` · `cerrado` · `no-repro` 
 | A-39 | **Scroll horizontal a 375 px en producción por el selector de sucursal del historial de Caja**: el grupo `[role=group][aria-label="Sucursal de la caja"]` medía **426 px** en un viewport de 375 (`scrollWidth` 438 contra 375) con 3 sucursales; con menos de dos el control no se dibujaba (`locations.length > 1`), y por eso el E2E local no lo veía. **Cerrado el 2026-09-19 (Fase 1b del rediseño de Caja) y verificado en producción el 2026-09-22** (`build-20260922-142614`): el historial salió de Caja, en `/admin/history/cierres` el filtro de sucursal es un `Select` y `/admin/cash` mide **375/0** con las 3 sucursales reales | bug (UI) | **P1** | `cerrado` (Fase 1b; verificado en prod 2026-09-22) | PR #13 · `46282a7` |
 | A-40 | **El cajero ve «Ver el turno abierto» y el detalle lo rebota**: el enlace vive en el bloque del turno (que ve `canUsePOS`) y `/admin/cash/history/[id]` redirige a Órdenes a quien no tiene `canViewCashHistory`. **Cerrado el 2026-09-19 (Fase 1a del rediseño de Caja)**: el enlace se dibuja solo con `canSeeShiftDetail` | bug | P2 | `cerrado` (2026-09-19, Fase 1a) | rama `feat/cash-redesign` |
 | A-44 | **Una lectura fallida se dibujaba como «sin caja abierta»**: el `fetch` del estado de la caja no miraba `response.ok` (un 401/500 quedaba como caja cerrada) y tampoco limpiaba el error anterior. **Cerrado el 2026-09-19 (Fase 1a)**: `use-cash-shift` chequea el estado, propaga el mensaje del servidor y separa el error de lectura del error de acción | bug | P3 | `cerrado` (2026-09-19, Fase 1a) | rama `feat/cash-redesign` |
-| A-43 | **La cabecera del panel mide 186 px = 23,3% del viewport a 375 px** (la regla del sistema es ≤20%; a 1280 son 114 px = 14,2%). Es el `AdminPageHeader` compartido (todas las pantallas del panel) y el chrome del shell, **igual antes y después** del rediseño de Caja: no es de Caja. Deuda declarada por decisión del owner (2026-09-19): va en otro PR | UI / deuda | P2 | `reportado` (agente, 2026-09-19) | — |
+| A-43 | **La cabecera del panel medía 186 px = 23,3% del viewport a 375 px** (la regla del sistema es ≤20%; a 1280 eran 114 px = 14,2%). Es el `AdminPageHeader` compartido (todas las pantallas del panel) y el chrome del shell, **igual antes y después** del rediseño de Caja: no era de Caja. **Cerrado el 2026-09-25 (PR #29)**: en producción eran seis pantallas por encima del techo (y Locales 222 px = 21,7% a 768). El arreglo achica padding, aire interno y la escala del título en celular (con la escala del sistema desde `md`) y mantiene la descripción recortada a dos líneas hasta `lg`; la acción conserva sus 44 px. Peor caso tras el deploy: **158 px = 19,8%** a 375, 150 px = 14,6% a 768 y 138 px = 15,3% a 1280 | UI / deuda | P2 | `cerrado` (2026-09-25, PR #29) | — |
 | A-45 | **El arqueo ciego se aplica solo en la pantalla**: `GET /api/admin/pos/shift/x` (el corte X) devolvía `expectedAmount` y `expectedByCurrency` a cualquiera que pueda operar el POS —el cajero incluido— y su puerta era la del mostrador (`requirePosLocation`), no la de auditoría. Con `blindCount` prendido, la pantalla de Caja escondía el esperado y la diferencia (Fase 4), pero por API el cajero podía leerlos igual. **Cerrado el 2026-09-23 (brief de cierre de Caja)**: decisión del owner —quien cobra no ve el esperado— y `filterArqueoForRole` los filtra en el corte X y en el cierre para el rol `cashier`; Manager y Owner mantienen el arqueo completo | bug (API / fuga de dato) | **P2** | `cerrado` (2026-09-23, rama `fix/cash-post-deploy`) | — |
 
 > Las **limitaciones conocidas y aceptadas** de `ops/production-readiness.md` §7 **no** son ítems de
@@ -674,17 +674,30 @@ si los documentos pasan su tope de líneas o si el catálogo deja de tener la li
   el corte X y en el cierre, dueño y manager completos) y E2E por rol con la sesión real del cajero
   (`tests/e2e/cash-post-deploy.spec.ts`).
 
-### A-43 · La cabecera del panel mide 23,3% del viewport a 375 px — `reportado` (agente, 2026-09-19)
+### A-43 · La cabecera del panel mide 23,3% del viewport a 375 px — `cerrado` (2026-09-25, PR #29)
 
-- **Qué es**: la cabecera de pantalla (`AdminPageHeader`, `admin-operational-ui.tsx`) mide **186 px** a
-  375×800 = **23,3%** del alto, por encima del **≤20%** que pide `design-system.md` §8.4; a 1280×800 mide
-  **114 px** (14,2%, dentro de la regla). Se midió en la pantalla de Caja, pero el componente es de **todas**
-  las pantallas del panel (más el chrome del shell: 16 px a 375).
+- **Qué era**: la cabecera de pantalla (`AdminPageHeader`, `admin-operational-ui.tsx`) medía **186 px** a
+  375×800 = **23,3%** del alto, por encima del **≤20%** que pide `design-system.md` §8.4; a 1280×800 medía
+  **114 px** (14,2%, dentro de la regla). Se midió en Caja, pero el componente es de **todas** las pantallas
+  del panel (más el chrome del shell: 16 px a 375).
 - **Contexto**: medido en la auditoría de `/admin/cash` y **otra vez después** de la Fase 1a del rediseño:
-  **el número no cambió** (186 px antes y después), así que no lo introdujo el rediseño.
-- **Decisión del owner (2026-09-19)**: deuda declarada, **otro PR** — no se toca en la Fase 1b.
-- **Qué falta**: decidir si la descripción se colapsa a una línea, si la cabecera baja de tamaño en móvil o si
-  la regla del 20% se reinterpreta para el panel (el encabezado no es una barra de filtros).
+  el número no cambió (186 px antes y después), así que no lo introdujo el rediseño.
+- **Al medirlo en producción antes de arreglarlo** eran **seis** pantallas por encima del techo: Caja,
+  Locales, Menú, Categorías y Promociones (186 px = 23,3%) y Productos (166 px = 20,8%). A 768×1024 la peor
+  era Locales con **222 px = 21,7%**: la acción de la cabecera deja al texto una columna angosta y
+  `sm:line-clamp-none` soltaba el recorte de la descripción a los 640 px.
+- **El arreglo** (solo el componente, sin tocar la estructura ni las pantallas): padding vertical
+  `p-4` → `px-4 py-3` en celular (desde `md`, `p-5`), `gap-3` → `gap-2` y `space-y-1` → `space-y-0.5` en
+  celular, el título pasa a `text-st-h2` (20 px) en celular con **`md:text-st-h1`** (la escala del sistema
+  desde tablet), la descripción usa el interlineado de su propio token (20 px) en celular y sigue recortada a
+  dos líneas **hasta `lg`**. La acción conserva su mínimo táctil de 44 px.
+- **Verificación**: E2E nuevo (`admin-page-header-height.spec.ts`) con **rojo observado** («Caja mide 186px:
+  el techo es 160.0px») y después verde en las **14 pantallas** a 375×800, 768×1024 y 1280×900, sin scroll
+  horizontal; test unitario nuevo del componente (4/4). En producción tras el deploy
+  (`build-20260925-015642`): peor caso **158 px = 19,8%** a 375, **150 px = 14,6%** a 768 y **138 px = 15,3%**
+  a 1280; suite local completa 137/6/0; 3241 unitarios; contratos 50/50; smokes 7/7 y 6/6.
+- **Fuera de alcance**: `/admin/settings` (Personalización) tiene cabecera **propia** (no usa
+  `AdminPageHeader`) y no se toca; si esa también pasa el 20%, sería un hallazgo nuevo y no está reportado.
 
 ### A-40 · El cajero ve «Ver el turno abierto» y el detalle lo rebota — `cerrado` (2026-09-19, Fase 1a del rediseño de Caja)
 
