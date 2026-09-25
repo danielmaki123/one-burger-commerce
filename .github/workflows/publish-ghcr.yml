@@ -20,8 +20,13 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     steps:
+      # `fetch-depth: 0` para el gate de páginas: necesita el diff contra la base del PR (o contra el commit
+      # anterior, en un push a `main`) para saber si hay que correr `build:webpack`. Hay un contrato que
+      # exige esta línea: sin historia, el gate se saltearía.
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Node
         uses: actions/setup-node@v4
@@ -49,6 +54,30 @@ jobs:
 
       - name: Build
         run: npm run build
+        env:
+          APP_BUILD_VERSION: ${{ github.sha }}
+
+      # El build de Turbopack no valida los exports de una página: si la PR toca un `page.tsx` hay que
+      # correr además el build de webpack. Va acá, dentro de `verify` (ya requerido), para no crear un
+      # required check condicional que en una PR sin páginas quedaría en «Expected» para siempre.
+      - name: Detect page changes (webpack gate)
+        id: page-changes
+        run: |
+          set -euo pipefail
+          BASE="${{ github.event.pull_request.base.sha }}"
+          if [ -z "$BASE" ]; then BASE="HEAD^"; fi
+          if git rev-parse --verify --quiet "$BASE^{commit}" > /dev/null; then
+            git diff --name-only "$BASE"...HEAD > /tmp/changed.txt
+          else
+            # Sin base comparable se corre el build: un build de más es mejor que un gate que se saltea.
+            echo "sin base comparable: se asume que hay páginas que validar"
+            echo "src/app/desconocido/page.tsx" > /tmp/changed.txt
+          fi
+          node scripts/check-page-build-needed.mjs /tmp/changed.txt
+
+      - name: Webpack build (páginas)
+        if: steps.page-changes.outputs.needed == 'true'
+        run: npm run build:webpack
         env:
           APP_BUILD_VERSION: ${{ github.sha }}
 

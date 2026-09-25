@@ -90,14 +90,15 @@ sin guardrail) · `A-23` (cuenta de prueba con rol `owner` en producción) · `A
 
 ## 4. Trabajo actual
 
-**TASK-AUD-001 — Test Integrity & Quality Gates** (en curso): convertir el protocolo de integridad de tests
-en guardrails mecánicos. Agrega el gate `Test integrity gate` (expectativas tautológicas, tests enfocados
-`.only` y ratchet de la deuda congelada contra `main`), su inventario
-(`src/shared/contracts/test-integrity-baseline.json`) y la plantilla de PR con el checklist adversarial.
-**Sin cambio funcional del producto.**
+**TASK-AUD-002 — Git / CI Governance** (en curso): el ruleset `Protect main` **exige Pull Request** con 0
+aprobaciones (el PR deja de ser solo política) y el job `verify` corre **`build:webpack`** cuando la PR toca
+un `page.tsx`. **Sin cambio funcional del producto.**
 
-**TASK-AUD-000 — Agent Operating System**: **cerrada**. PR #31 mergeado en `main` como `eeaa810`, con los
-cuatro checks y `publish` (imagen a GHCR) en verde. **No hubo deploy.**
+**TASK-AUD-001 — Test Integrity & Quality Gates**: **cerrada**. PR #32 mergeado como `1b12dfd`, con el gate
+`Test integrity gate` corriendo en CI (verificado que el ratchet compara contra la base, no se saltea).
+
+**TASK-AUD-000 — Agent Operating System**: **cerrada**. PR #31 mergeado como `eeaa810`, con `publish` en
+verde. **No hubo deploy.**
 
 ## 5. Siguiente trabajo
 
@@ -106,12 +107,13 @@ El programa completo, con objetivo, prioridad, riesgo, dependencia y orden, est�
 
 Orden inmediato:
 
-1. **TASK-AUD-002 — Git / CI Governance** (P0 de proceso): cerrar el gap de PR obligatorio en el ruleset
-   (hoy el PR es política, no enforcement) y agregar el gate de `build:webpack` cuando una PR toca una
-   página.
-2. **TASK-AUD-003 — Blind Cash Authorization / A-45**: **verificar y endurecer**, no construir desde
-   cero (ver la nota de abajo).
-3. `TASK-AUD-004` a `TASK-AUD-017` en el orden del roadmap.
+1. **TASK-AUD-003 — Blind Cash Authorization / A-45**: **verificar y endurecer**, no construir desde
+   cero (ver la nota de abajo). Acá empieza el bloque funcional de dinero.
+2. `TASK-AUD-004` a `TASK-AUD-017` en el orden del roadmap.
+
+> **Cierre del bloque de gobierno**: AUD-000/001/002 quedan cerradas. Con AUD-002 el PR es obligatorio a
+> nivel de plataforma (no solo por convención) y el error de una página ya no puede llegar a `main` con el CI
+> verde. El orden de las TASK de dinero no cambia.
 
 > ⚠️ **Dos correcciones al brief de la auditoría, verificadas en el repo:**
 >

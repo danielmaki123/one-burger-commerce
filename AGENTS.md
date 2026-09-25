@@ -235,9 +235,9 @@ agentes de terceros (`.claude/`, los volcados de skills ajenas bajo `.agents/ski
 **Protección de `main`**: **ruleset** `Protect main` (enforcement `active`, sobre `refs/heads/main`), no
 branch protection clásica. Verificado contra la API real de GitHub: **`deletion`** · **`non_fast_forward`** ·
 **`required_status_checks`** con `strict` y los checks **`verify`, `contracts`, `migrations`, `container`**.
-⚠️ **El ruleset NO exige Pull Request**: el PR obligatorio es **política del equipo**, no enforcement (gap
-reservado a TASK-AUD-002). Se verifica con `gh api repos/danielmaki123/one-burger-commerce/rulesets`; **no** con
-`/branches/main/protection`, que devuelve **404** con ruleset (ese 404 **no** significa «sin protección»).
+**El ruleset exige Pull Request** (`required_approving_review_count: 0`: el PR es obligatorio a nivel de
+plataforma y el owner completa el flujo sin una segunda cuenta). Se verifica con `gh api
+repos/danielmaki123/one-burger-commerce/rulesets`; **no** con `/branches/main/protection`, que devuelve **404** con ruleset (404 **no** es «sin protección»).
 ⚠️ **Nunca marcar `publish` como *required check***: no corre en PRs y el PR quedaría en «Expected». La rama se
 toca **solo con pedido explícito del owner**; si algo falla por protección, **se reporta al humano**.
 
