@@ -12,9 +12,8 @@ export const dynamic = "force-dynamic";
 
 /**
  * TASK-305b + decisión del owner (2026-09-17) — cerrar la caja contando lo que hay: el esperado lo calcula
- * el servidor (solo efectivo, dólares convertidos, vuelto descontado), la respuesta lo trae **por moneda** y
- * cada cierre avisa al grupo del dueño. El cierre, su firma en el log y el mensaje viven en
- * `close-shift-composition.ts` (el handler tiene un tope de 50 líneas).
+ * el servidor (solo efectivo, dólares convertidos, vuelto descontado) y cada cierre avisa al grupo del
+ * dueño. El cierre, su firma y el mensaje viven en `close-shift-composition.ts` (tope de 50 líneas).
  */
 export async function POST(request: Request) {
   try {
@@ -39,8 +38,7 @@ export async function POST(request: Request) {
       actorName: session.user.name,
     });
 
-    // A-45 del backlog: quien cobra no ve el esperado ni la diferencia (`filterArqueoForRole`); el aviso al
-    // dueño y la firma del cierre siguen usando el arqueo completo, que se armó arriba.
+    // A-45: quien cobra no ve el esperado ni la diferencia (el aviso al dueño usa el arqueo completo).
     return NextResponse.json(filterArqueoForRole(result, session.user.role), {
       headers: { "Cache-Control": "no-store" },
     });

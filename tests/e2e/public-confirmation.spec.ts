@@ -65,18 +65,27 @@ test.describe("confirmación del pedido en escritorio", () => {
   test.use({ viewport: { width: 1280, height: 900 } });
   test.skip(!mutationsAllowed, "Order creation is disabled unless E2E_ALLOW_MUTATIONS=true.");
 
-  test("las dos salidas quedan en una fila y no hay scroll horizontal (1280 px)", async ({
+  test("las tres salidas quedan en una fila y no hay scroll horizontal (1280 px)", async ({
     page,
   }) => {
     await createOrder(page);
 
+    // Tres salidas desde el hallazgo H3b: el historial, el seguimiento del pedido recién hecho y volver a
+    // la carta. En escritorio van en una sola fila.
     const viewActivity = page.getByRole("button", { name: "Ver mis pedidos" });
+    const trackOrder = page.getByRole("button", { name: "Seguí tu pedido" });
     const orderAgain = page.getByRole("button", { name: "Volver a la carta" });
     await expect(viewActivity).toBeVisible();
+    await expect(trackOrder).toBeVisible();
     await expect(orderAgain).toBeVisible();
 
-    const boxes = await Promise.all([viewActivity.boundingBox(), orderAgain.boundingBox()]);
+    const boxes = await Promise.all([
+      viewActivity.boundingBox(),
+      trackOrder.boundingBox(),
+      orderAgain.boundingBox(),
+    ]);
     expect(boxes[0]!.y).toBe(boxes[1]!.y);
+    expect(boxes[1]!.y).toBe(boxes[2]!.y);
 
     const horizontalOverflow = await page.evaluate(
       () => document.documentElement.scrollWidth - window.innerWidth,

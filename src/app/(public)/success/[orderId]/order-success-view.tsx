@@ -267,7 +267,7 @@ export default function OrderSuccessView({
           </div>
         </section>
 
-        <div className="mt-7 grid gap-3 sm:grid-cols-2">
+        <div className="mt-7 grid gap-3 sm:grid-cols-3">
           <Button
             className="h-14 w-full rounded-2xl bg-brand text-base font-semibold text-brand-foreground brand-shadow-cta hover:bg-brand-strong"
             onClick={onViewActivity}
