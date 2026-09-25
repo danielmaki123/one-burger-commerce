@@ -3,6 +3,32 @@
 Este archivo es la **puerta de entrada**. Todo lo que hace falta saber está versionado en el repo: no
 hace falta nada de conversaciones anteriores. Si algo acá contradice a `AGENTS.md`, manda `AGENTS.md`.
 
+> ## Estado al cerrar la sesión del 2026-09-25 (corrección post-deploy — **la sección Caja queda cerrada**)
+>
+> **Repo**: `main` — el HEAD real es `git log -1 main`. El cierre de esta ronda quedó en **`40e288f`**
+> (PR **#27**, squash, rama `fix/cash-post-deploy` borrada) y **producción sirve `build-20260925-011110`**
+> (lo deployó el agente con el OK y el token del owner en el momento, una sola llamada a `deployService`).
+>
+> **Qué entró (brief «Corrección post-deploy + cierre de Caja»)**: el POS **cobra un pedido del menú**
+> (N3 — era el hueco real detrás del «no sale la factura»), **«Seguí tu pedido»** en la confirmación (H3b),
+> el **429 del alta pública con su propio mensaje** (N2), el **aviso de los bancos** en Caja (H1) y
+> **A-45**: el arqueo ciego pasó a ser **regla de servidor** (el cajero no lee el esperado por API; Manager
+> y Owner sí).
+>
+> **QA post-deploy (solo lectura)**: 5 verdes y 1 salteado —panel del POS desplegado, ruta del cobro
+> validando 422, mensaje del 429 en producción, aviso y botón desplegados en el bundle, `/orders/track` vivo—
+> y smokes **7/7** (menú) + **6/6** (hosts). Dos límites, dichos en `ops/project-state.md`: no había caja
+> abierta en producción (el aviso de los bancos y el corte X no se pudieron ver en pantalla) y la
+> confirmación del cliente pide el token del pedido, así que el botón nuevo no se clickeó sin crear un pedido
+> real. Los dos flujos quedan cubiertos por el **E2E local (131/6/0)** y los unitarios con rojo observado.
+>
+> **🏁 Caja cerrada**: no hay más trabajo de Caja. Lo que sigue es **la tarea que elija el owner**. Deuda
+> abierta que **no** es de Caja: **A-43** (la cabecera compartida del panel mide 23,3% del alto a 375 px),
+> que va en otro PR. El detalle está en `ops/project-state.md` (bloque del 2026-09-25) y en
+> [`ops/audit-backlog.md`](../audit-backlog.md).
+>
+> ---
+>
 > ## Estado al cerrar la sesión del 2026-09-19 (tercera ronda — mejoras visuales del POS, desplegadas)
 >
 > **Repo**: `main` — el HEAD real es `git log -1 main`; el cierre de esta ronda quedó en **`bce20da`**
