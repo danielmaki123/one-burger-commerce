@@ -34,8 +34,8 @@ Esos archivos serán creados por las TASKs correspondientes y, una vez aprobados
 - El roadmap **no** cambia reglas vigentes por sí solo: cada fase entra en vigor cuando su TASK se mergea y
   ese avance se anota acá.
 - **Estado de las fases**: A-15 y la fase de estabilización técnica **cerradas** (2026-09-25) · `ARCH-001`
-  **cerrada** el 2026-09-25 (la constitución vive en [`../product/MODULE_ARCHITECTURE.md`](../product/MODULE_ARCHITECTURE.md)) ·
-  `DS-001` y `SCREEN-001` **no iniciadas**, con brief separado del owner.
-- Mientras `DS-001` no esté aprobado, la autoridad visual sigue siendo la que declara
-  [`AGENTS.md`](../../AGENTS.md): [`ops/references/stitch/design-system.md`](../references/stitch/design-system.md).
-  `D-003` (Stitch no normativo) describe el resultado de `DS-001`, no una regla ya aplicada.
+  **cerrada** el 2026-09-25 ([`../product/MODULE_ARCHITECTURE.md`](../product/MODULE_ARCHITECTURE.md)) · `DS-001`
+  **en revisión del owner** ([`../design/DESIGN_SYSTEM.md`](../design/DESIGN_SYSTEM.md), PR abierto) ·
+  `SCREEN-001` **no iniciado**.
+- La ley visual vigente es [`../design/DESIGN_SYSTEM.md`](../design/DESIGN_SYSTEM.md), que declara a Stitch
+  **archivado y no normativo** (`D-003` ya aplicada por `DS-001`).

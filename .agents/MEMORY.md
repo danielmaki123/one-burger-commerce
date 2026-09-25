@@ -44,9 +44,11 @@ va al historial o al PR. Si cambia semana a semana, va a `CURRENT.md`.
   runtime del App Router. Decisión del owner.
 - **Reabrir un turno se quitó de la UI**, no del modelo: el esquema, el caso de uso y la API siguen.
   Restaurarlo es una decisión de pantalla.
-- **El design system oficial es `ops/references/stitch/design-system.md`** y el panel es **oscuro**.
-  Los documentos viejos (`DESIGN_REFERENCES.md`, `DESIGN_SYSTEM.md`, `design/*.md`) están borrados: no
-  se citan ni se recrean.
+- **La ley visual es `ops/design/DESIGN_SYSTEM.md`** (Design System v4, `DS-001`) y el panel es **oscuro**.
+  El material de Stitch quedó **archivado** (`ops/references/stitch/`, no normativo) y los documentos viejos
+  (`DESIGN_REFERENCES.md`, el `DESIGN_SYSTEM.md` de la raíz, `design/*.md`) están borrados: no se citan ni se
+  recrean. Lección: **adoptar como ley el documento de un tercero deja la ley fuera del repo**; cuando el
+  sistema cambia, la ley se escribe propia y la historia se marca como archivada.
 - **La venta del mostrador es una sola operación atómica**: el pedido (con su cupón y el consumo de su uso)
   y **todos** sus cobros, en una transacción; si falla cualquiera, no queda nada. El límite lo **declara** el
   caso de uso por un puerto (`runInSaleTransaction`) y lo implementa el adaptador con `prisma.$transaction`.

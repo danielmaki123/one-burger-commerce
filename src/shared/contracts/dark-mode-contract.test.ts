@@ -5,12 +5,15 @@ import { TEXT_CONTRAST_MIN, contrastRatio } from "@/modules/business-settings/do
 import { fileExists, readRepoFile } from "./contract-files";
 
 /**
- * El modo oscuro del panel y sus contrastes — sistema Stitch (`ops/references/stitch/design-system.md`).
+ * El modo oscuro del panel y sus contrastes — **medidos sobre la ley visual**
+ * (`ops/design/DESIGN_SYSTEM.md`, §13). La paleta y los valores son los mismos que fijó el archivo
+ * histórico de Stitch (`ops/references/stitch/design-system.md`, hoy **ARCHIVED / NON-NORMATIVE**): este
+ * contrato mide, no cita.
  *
  * **Cambió el contrato (2026-09-16).** Antes este archivo medía los pares del ADN viejo
  * (`--success-strong`, `--brand-strong`, …) con los valores de `DESIGN_REFERENCES.md`. El owner
- * reemplazó ese sistema por el de Stitch y pidió el panel en oscuro, así que ahora mide **la paleta
- * del sistema nuevo**, con dos arreglos que salieron de medirla:
+ * reemplazó ese sistema y pidió el panel en oscuro, así que ahora mide **la paleta del sistema**, con dos
+ * arreglos que salieron de medirla:
  *
  * - `--text-muted`: el `#64748B` del documento da **3.30:1** sobre la tarjeta (no llega a AA). Se usa
  *   `#8296AD`, que da **5.17:1**.
@@ -199,8 +202,8 @@ describe("contrato · modo oscuro del panel (sistema Stitch)", () => {
     ).toEqual([]);
   });
 
-  it("el sistema oficial está versionado en el repo", () => {
-    expect(fileExists("ops/references/stitch/design-system.md")).toBe(true);
+  it("la ley visual está versionada en el repo", () => {
+    expect(fileExists("ops/design/DESIGN_SYSTEM.md")).toBe(true);
   });
 
   it("los modales del panel llevan el alcance oscuro (portal fuera del shell)", () => {

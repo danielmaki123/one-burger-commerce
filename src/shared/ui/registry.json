@@ -1,9 +1,9 @@
 {
-  "$comment": "Registro de componentes de UI (C0-3 de plan2uiux.md). Este archivo ES el catálogo de componentes desde el 2026-09-16 (los documentos de diseño viejos se borraron al declararse el sistema de Stitch). `src/shared/contracts/registry-contract.test.ts` exige que todo archivo de UI real tenga su fila y que los exports declarados existan: un archivo sin fila hace fallar el contrato.",
+  "$comment": "Registro de componentes de UI (C0-3 de plan2uiux.md). Este archivo ES el catálogo de componentes: las leyes visuales viven en ops/design/DESIGN_SYSTEM.md (DS v4, 2026-09-25) y el material de Stitch quedo archivado como historia. `src/shared/contracts/registry-contract.test.ts` exige que todo archivo de UI real tenga su fila y que los exports declarados existan: un archivo sin fila hace fallar el contrato.",
   "version": 2,
-  "updated": "2026-09-15",
-  "source_of_truth": "ops/references/stitch/design-system.md",
-  "catalog": "ops/references/stitch/design-system.md",
+  "updated": "2026-09-25",
+  "source_of_truth": "ops/design/DESIGN_SYSTEM.md",
+  "catalog": "ops/design/DESIGN_SYSTEM.md",
   "layers": {
     "shared": "src/shared/ui/ — usar siempre que exista",
     "admin": "src/app/(admin)/admin/_components/ — panel",

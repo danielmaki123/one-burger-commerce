@@ -91,7 +91,7 @@ Contestar las cinco preguntas. Si alguna queda sin respuesta, la TASK no arranca
 | Dinero | `money-change` (invariantes, transacción, concurrencia, idempotencia, auditoría) |
 | Auth / datos sensibles | `security-change` |
 | Esquema / migración | `database-migration` |
-| UI | `ui-change` (design system, 375/1280, screenshots) |
+| UI | `ui-change` (ley visual, 375/1280, screenshots); **pantalla nueva o rediseño material** → antes `screen-design` (spec aprobada) |
 | Solo documentación o CI | Validación estándar |
 
 ---

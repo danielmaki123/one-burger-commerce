@@ -1,26 +1,35 @@
-# SKILL: ui-change — tocar la interfaz
+# SKILL: ui-change — implementar interfaz
 
-**Se activa** cuando una TASK toca una pantalla, un componente, un token, un estilo o un flujo
-visible. **No** se reescribe el design system: se **usa**.
+**Se activa** cuando una TASK toca una pantalla, un componente, un token, un estilo o un flujo visible.
+**No** se reescribe el design system: se **usa**.
+
+**No se activa** para **diseñar** una pantalla nueva o un rediseño material: eso pasa primero por
+[`screen-design`](../screen-design/SKILL.md) (spec aprobada) y recién después se implementa acá.
 
 ---
 
-## 1. Antes de escribir UI
+## 1. Antes de escribir UI (en este orden)
 
 0. **Identificar el módulo y la sección de la pantalla**:
    [`../../../ops/product/MODULE_ARCHITECTURE.md`](../../../ops/product/MODULE_ARCHITECTURE.md). Una pantalla
    nueva **no** estrena módulo ni sección: pertenece a uno existente (Menú, Órdenes, Caja, Locales…). Si de
    verdad hace falta algo nuevo, primero pasa el gate de esa TASK y lo aprueba el owner — no se decide
    escribiendo la pantalla.
-1. **Leer el sistema de diseño oficial**: [`../../../ops/references/stitch/design-system.md`](../../../ops/references/stitch/design-system.md).
-   Gana **siempre** en lo visual. Sus reglas vinculantes son §2, §6, §7 y §8.
-2. **Leer el registro de componentes**: `src/shared/ui/registry.json` (campos `file`, `variants`,
+1. **Leer la ley visual**: [`../../../ops/design/DESIGN_SYSTEM.md`](../../../ops/design/DESIGN_SYSTEM.md).
+   Es la **única** fuente normativa visual; el material de Stitch está **archivado** y **no** es lectura
+   obligatoria.
+2. **Leer el documento especializado que corresponda**: [`CONTENT.md`](../../../ops/design/CONTENT.md) si
+   toca textos, [`PATTERNS.md`](../../../ops/design/PATTERNS.md) si es una pantalla entera,
+   [`MOTION.md`](../../../ops/design/MOTION.md) si hay animación,
+   [`DATA_VISUALIZATION.md`](../../../ops/design/DATA_VISUALIZATION.md) si hay números, tablas o gráficos.
+3. **Leer el registro de componentes**: `src/shared/ui/registry.json` (campos `file`, `variants`,
    `sizes`, `use_when`, `dont_use_when`).
-3. **Buscar antes de crear**: primero `src/shared/ui/`, después `(admin)/admin/_components/` y
+4. **Buscar antes de crear**: primero `src/shared/ui/`, después `(admin)/admin/_components/` y
    `(public)/_components/`. Si el primitivo existe, se usa.
-4. **La referencia visual de Stitch** (`ops/references/stitch/stitch_redise_o_de_secci_n_existente/<pantalla>/code.html`
-   y `screen.png`) es **referencia**: se **traduce** a componentes del repo. **Prohibido copiar su
-   HTML.**
+5. **Leer la spec si existe**: `ops/design/screens/<pantalla>.md`. Si el trabajo es un rediseño material y
+   **no** hay spec, no se implementa: se diseña ([`screen-design`](../screen-design/SKILL.md)).
+
+Las leyes **no se duplican acá**: esta skill dice **dónde mirar** y qué no se puede romper.
 
 ## 2. Reglas vinculantes
 
@@ -29,8 +38,9 @@ visible. **No** se reescribe el design system: se **usa**.
   **portal** tiene que llevar el alcance `dark` o sale en modo claro (hay un contrato que lo verifica).
 - **Los números van en `font-mono` con `tabular-nums`**: precios (`C$ 305.00`), cronómetros, IDs de
   ticket, PIN y contadores. Evita que la interfaz «tiemble» cuando cambian solos.
-- **Ámbar (`--brand-amber`) vs azul cielo (`--brand-primary`)**: ámbar para identidad, cocina y acción
-  de comanda; cielo para administración, navegación y confirmación del POS.
+- **Intención, no color**: `brand-primary` para la identidad/acción principal y `brand-accent` para la
+  secundaria. Qué color tiene cada una es **tema** (hoy acento = ámbar, primario = azul), no ley: no se elige
+  color por superficie ni se escribe un literal.
 - **`animate-pulse` solo en SLA vencido o pérdida de sincronización.** Prohibido animar tickets
   normales.
 - **La cabecera y los filtros no pasan el 20% del alto**: el 80% es operación.
@@ -55,6 +65,10 @@ visible. **No** se reescribe el design system: se **usa**.
 
 - **Mobile first real**: se verifica en **navegador real (Playwright) a 375 px y 1280 px**, no en HTML
   estático. Sin scroll horizontal entre 320 y 1280 px.
+- **Primer viewport (375 px)**: sin scrollear tienen que verse el **estado crítico**, la **acción principal**
+  y la **información mínima para iniciar** la tarea. El contenido secundario **puede** requerir scroll
+  vertical: eso no es un defecto
+  ([`DESIGN_SYSTEM.md`](../../../ops/design/DESIGN_SYSTEM.md) §12).
 - **Contraste**: texto/fondo **4.5:1** y borde de control **3:1** (WCAG 1.4.11). Lo mide
   `dark-mode-contract.test.ts` y la deuda del modo claro está declarada en `globals.css`.
 - **Foco visible propio** (≥3:1) en todo control. Un `outline` roto no falla el build: revisarlo a
@@ -94,11 +108,12 @@ problema queda escondido hasta producción. Es una lección pagada (ver
 
 ## 6. Checklist antes de cerrar
 
-- [ ] ¿Leí el design system y usé los primitivos del registro?
-- [ ] ¿**Traduje** el HTML de Stitch en vez de copiarlo?
+- [ ] ¿Leí [`DESIGN_SYSTEM.md`](../../../ops/design/DESIGN_SYSTEM.md) y usé los primitivos del registro?
+- [ ] ¿Si es un rediseño material, existe la **spec aprobada** de esa pantalla?
 - [ ] ¿Los **números** van en `font-mono` con `tabular-nums` y los **estados** en
       `--status-pending|prep|ready|sla`?
-- [ ] ¿Ámbar solo identidad/cocina/acción y cielo para administración y POS?
+- [ ] ¿La intención de marca sale de `brand-primary`/`brand-accent` (sin color literal ni asignación por
+      superficie)?
 - [ ] ¿Cabecera y filtros entran en el **20%** del alto?
 - [ ] ¿Controles táctiles **≥44 px** con foco visible propio (≥3:1)?
 - [ ] ¿`animate-pulse` aparece **solo** en SLA vencido o desincronización?
@@ -114,8 +129,9 @@ problema queda escondido hasta producción. Es una lección pagada (ver
 
 ## 7. Prohibiciones
 
-- Reescribir el design system o introducir un token nuevo sin pedido del owner.
-- Copiar el HTML/CSS de la referencia de Stitch.
+- Reescribir el design system o introducir un token nuevo sin pedido del owner: la ley se cambia en
+  `ops/design/**`, no en una pantalla.
+- Copiar el HTML/CSS del material **archivado** de Stitch (o de cualquier mockup): se traduce a componentes.
 - Colores, radios, sombras o tipografías fuera de token.
 - Subir un techo de `design-tokens.allow.json` para que el contrato pase.
 - Cerrar una pantalla sin verla en navegador real.

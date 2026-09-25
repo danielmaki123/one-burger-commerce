@@ -1,4 +1,6 @@
 # ONE BURGER — SISTEMA DE DISEÑO INTEGRAL & TOKENS DE PRODUCCIÓN
+
+> **ARCHIVED / NON-NORMATIVE** — Documento histórico. **No es ley**: la ley visual vigente vive en ops/design/DESIGN_SYSTEM.md (Design System v4, DS-001). Se conserva como evidencia; no es lectura obligatoria, no decide diseños nuevos y su HTML no se copia: se traduce a componentes del repo.
 **Archivo maestro de referencia:** `DESIGN_SYSTEM_SPEC.md` / `tokens.json`  
 **Versión:** 3.0.0 (Production Core & AI Agent Enforceable Directives)  
 **Entornos objetivo:** Pantallas KDS táctiles e industriales (visualización 1.5m–2m), Terminales POS táctiles de alta rotación, Desktop Admin Web de alta densidad.
