@@ -38,6 +38,13 @@ servicio son del **2026-09-12** (las dos del drill): no hay ningún archivo entr
 ni el del día del release a las 09:00. **No hay retención declarada.** El backup pre-deploy se generó a mano →
 `A-57` en el backlog.
 
+✅ **Verificación post-deploy con sesión (2026-09-25, después del deploy)**: con una cuenta de QA de administración (owner/manager, se revoca al terminar el QA) y **solo con `GET`** —sin crear, cerrar ni emitir nada— se verificó: **no hay ningún turno de caja abierto** (`GET /api/admin/pos/shift` → `{"data":null}`, y el corte X también null por eso mismo), las pantallas **Caja, POS, Historial de cierres y Órdenes cargan con sesión (200)**, y el **lado auditor del arqueo funciona**: el historial devuelve los cierres con `expectedAmount` y su diferencia. La verificación del lado `cashier` (que el esperado **no** llegue a esa sesión) **no se ejecutó**: no hay cuenta de ese rol y el brief prohíbe crear usuarios o cambiar roles en el release; la cubren los tests de CI.
+
+📋 **Pasada read-only de A-50/A-51 (acotada, sin reparar nada)**:
+
+- **A-51 (cierres históricos)**: los **5** cierres de producción tienen `expectedAmount` firmado; **4** tienen su conteo de cierre y el quinto es un **cierre ciego** (`closingAmount` y `difference` nulos: sin conteo por diseño, no un cierre a medias). **Cero confirmados y cero probables** con el defecto de las tres escrituras sueltas. El detalle de `ShiftBankClose` queda **no determinable** (producción no tiene bancos configurados, así que la ausencia de filas no distingue «no se declaró» de «no se escribió»). Dato relevante para el cambio de fórmula de AUD-005: **ninguno de los 5 turnos tenía retiros ni devoluciones**, así que el esperado corregido **no altera ningún número histórico**.
+- **A-50 (ventas POS previas)**: **no identificable con certeza solo desde el estado persistido accesible por API** — el listado del admin no expone los cobros ni la clave de intento, así que no se puede separar «pedido del menú pendiente de cobro» (normal) de «venta de mostrador a medias». Requiere lectura de la base (`Order.idempotencyKey` y el conteo de `Payment` por pedido). **No reparado.**
+
 ⚠️ **Límite del entorno del agente en este release**: **los logs del contenedor no son accesibles por API**
 (`actions/inspectAction`, `actions/getActionLogs` y `services/app/inspectServiceLogs` responden 404), así que
 la búsqueda de `P2002`/`P2028`/`25P02`/deadlock/5xx en logs **no se pudo hacer desde acá**: la verificación se
