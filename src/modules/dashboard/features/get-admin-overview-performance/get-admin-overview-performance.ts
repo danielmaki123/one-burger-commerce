@@ -75,6 +75,14 @@ export async function getAdminOverviewPerformance(
           lineTotal: true,
         },
       },
+      /**
+       * TASK-AUD-015 (`A-58`) — el importe devuelto de cada pedido, para que la métrica use el **neto**.
+       * Solo las devoluciones **aprobadas** son dinero que salio del negocio.
+       */
+      refunds: {
+        where: { status: "approved" },
+        select: { amount: true },
+      },
     },
   });
 
@@ -87,6 +95,10 @@ export async function getAdminOverviewPerformance(
       type: order.type,
       status: order.status,
       total: toNumber(order.total),
+      refundedAmount: (order.refunds ?? []).reduce(
+        (sum, refund) => sum + toNumber(refund.amount),
+        0,
+      ),
       statusHistory: order.statusHistory,
       items: order.items.map((item) => ({
         productId: item.productId,

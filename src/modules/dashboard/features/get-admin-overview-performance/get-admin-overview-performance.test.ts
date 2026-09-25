@@ -177,6 +177,12 @@ describe("getAdminOverviewPerformance", () => {
             lineTotal: true,
           },
         },
+        // TASK-AUD-015 (`A-58`): la consulta también trae el importe devuelto de cada pedido, porque la
+        // métrica comercial usa el **neto** (contrato de la consulta que cambió con la TASK).
+        refunds: {
+          where: { status: "approved" },
+          select: { amount: true },
+        },
       },
     });
   });

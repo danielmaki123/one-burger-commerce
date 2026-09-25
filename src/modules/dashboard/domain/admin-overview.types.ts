@@ -49,6 +49,14 @@ export type OverviewOrderPerformanceInput = {
   type: OrderType;
   status: OrderStatus;
   total: number;
+  /**
+   * TASK-AUD-015 (`A-58`) — lo que se **devolvió** (`Refund` aprobado) o se **invalidó** (`Void`/`Reversal`)
+   * de este pedido, en moneda del negocio. Es lo que convierte `total` en el **valor neto** del pedido: la
+   * única semántica económica del panel (ventas, ticket promedio, series y comparaciones).
+   *
+   * Sin dato se asume 0 (una venta limpia). Con `refundedAmount >= total` el pedido **no es una venta**.
+   */
+  refundedAmount?: number;
   statusHistory: CompletionHistoryItem[];
   items: OverviewOrderItemInput[];
 };
