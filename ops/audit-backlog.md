@@ -7,8 +7,11 @@
 >
 > **Reglas del ciclo** (no reemplazan a `AGENTS.md`, lo ordenan):
 > 1. Una task por vez. Cada task se cierra completa: **test que falla primero** (con el rojo
->    confirmado por la razón correcta) → implementación mínima → validación completa → commit + push
->    a `main` → CI verde → `ops/project-state.md` actualizado.
+>    confirmado por la razón correcta) → implementación mínima → **mutation check** → validación
+>    completa → **rama + PR hacia `main`** (nunca push directo: `main` está protegida por un ruleset)
+>    → CI verde → merge con `--squash` → **`ops/CURRENT.md` actualizado**.
+>    El procedimiento está en [`.agents/skills/bugfix/SKILL.md`](../.agents/skills/bugfix/SKILL.md) y
+>    el protocolo de integridad de tests en `AGENTS.md` § *Testing*.
 > 2. **Un commit por task**; si la task toca temas distintos, un commit por tema. Nunca dos tasks en
 >    un mismo commit.
 > 3. **Nada se arregla sin reproducirlo antes.** Si no se reproduce, se cierra como *no-repro* con
@@ -20,20 +23,28 @@
 > 6. La UI se verifica a **375 px y 1280 px en navegador real** (Playwright), no en HTML estático.
 > 7. **Producción no se toca ni se despliega sin confirmación explícita del owner.**
 >
-> **Fecha de apertura**: 2026-09-12 · **Rama**: `main` · **Estado (2026-09-17)**: **A-01/A-07**
-> (commit `83d7433`) y **A-08** (commit `f0366c8`) cerrados, y **A-06** cerrado el 2026-09-17 (el owner
-> rotó el `EASYPANEL_TOKEN`). **A-02 a A-05** están **bloqueados**: son datos, infraestructura o
-> decisiones del owner, así que no hay task técnica para atacar sin que él diga
+> **Fecha de apertura**: 2026-09-12 · **Rama**: `main` · **Estado**: el de la tabla del índice (§1), que
+> es el que manda: este encabezado **no** lleva estado, porque quedaba viejo mientras el índice avanzaba.
+> El estado operativo vigente está en [`CURRENT.md`](CURRENT.md).
+>
+> **De dónde salieron los ítems**: **A-01/A-07** (`83d7433`), **A-08** (`f0366c8`) y **A-06** (el owner
+> rotó el `EASYPANEL_TOKEN` el 2026-09-17) están **cerrados**. **A-02 a A-05** están **bloqueados**: son
+> datos, infraestructura o decisiones del owner, así que no hay task técnica para atacar sin que él diga
 > cuál. **A-09 a A-14** los registró el **agente** al cerrar la consola de comandas (B0–B6). **A-15 a
 > A-23** los registró el agente el **2026-09-15**, al responder **tres consultas del owner** (caja/POS,
 > fiscal/recibo y design system) que se pidieron **sin plan y sin código**: son el inventario medido de
 > esos tres frentes, con su evidencia, para que el próximo plan salga de ahí y no de una re-lectura.
 > **A-15, A-17, A-19, A-20 y A-23 son decisiones de producto o de operación: no se implementan sin
-> respuesta del owner.** **A-16, A-18 y A-22 son trabajo técnico** ya acotado (historial de cajas,
-> persistencia del arqueo por moneda y guardrails de UI). **A-21 se cerró el 2026-09-15** con la Capa 0
-> del plan de UI: los documentos del repo que mentían se reescribieron y hay un contrato que lo verifica
-> (el cuarto punto era de `plna.md`, que no está versionado).
+> respuesta del owner.** **A-16, A-18 y A-22 son trabajo técnico** ya acotado. **A-21 se cerró el
+> 2026-09-15** con la Capa 0 del plan de UI: los documentos del repo que mentían se reescribieron y hay un
+> contrato que lo verifica (el cuarto punto era de `plna.md`, que no está versionado).
 > **El plan `plna.md` (FASE 1-3) está completo y desplegado**: no queda trabajo pendiente de ese plan.
+>
+> ⚠️ **Dos entradas de la cola hay que revisarlas antes de agarrarlas** (anotado por TASK-AUD-000, no
+> corregido acá): **A-16** («no hay historial de cajas») y la segunda mitad de **A-18** («`Payment` no
+> tiene `shiftId`») **parecen obsoletas** — el historial existe en `/admin/history/cierres` y la Fase 6 del
+> rediseño de Caja agregó `shiftId`. Se confirman al abrir su TASK. El detalle, en
+> [`CURRENT.md`](CURRENT.md) §5.
 
 ## 1. Índice
 

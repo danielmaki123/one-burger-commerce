@@ -2,7 +2,8 @@
 
 > ⚠️ **Documento histórico — no es el deploy de producción actual.** Describe un proyecto
 > `oneburguer` con servicio `web`, que es el deploy **abandonado** (quedó como el servicio huérfano
-> que responde 502, pendiente #4 de `ops/project-state.md` §4). La producción real es:
+> que responde 502, pendiente #4 de `ops/history/project-state-legacy-2026-09.md` §4). La producción
+> real es:
 >
 > - Panel: `http://76.13.250.83:3000` · proyecto **`brunobot`** · servicio **`oneburguerweb`**
 > - Postgres: servicio `oneburguer-postgres` (sin puerto expuesto), base/usuario `oneburguer`
