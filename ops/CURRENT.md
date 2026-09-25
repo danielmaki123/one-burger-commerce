@@ -150,6 +150,12 @@ sin guardrail) · `A-23` (cuenta de prueba con rol `owner` en producción) · `A
 
 ## 4. Trabajo actual
 
+**Roadmap oficial de producto y UX adoptado (2026-09-25, `ROADMAP-001`)**: el proceso aprobado por el owner
+vive en [`roadmap/PRODUCT-UX-ROADMAP.md`](roadmap/PRODUCT-UX-ROADMAP.md) (decisiones en
+[`roadmap/DECISIONS.md`](roadmap/DECISIONS.md), secuencia en [`roadmap/NEXT.md`](roadmap/NEXT.md)). Rige
+**cómo** se hace el trabajo de producto y **no cambia ninguna regla vigente por sí solo**: la autoridad
+visual sigue siendo Stitch hasta que `DS-001` se apruebe.
+
 **Release consolidado a producción (2026-09-25, cerrado)**: `main` = `0b840e73b1a0899910f13d980faa005cd2c08c4f` **desplegado** y sirviendo `build-20260925-174535`. El release lleva A-54, A-55, AUD-007, AUD-008, A-58 y A-59 con su migración aditiva. Preflight, backup confirmado por el owner, deploy, migraciones, health/readiness, smokes (7/7 y 6/6) y la QA de dinero están en §1. **Sin reparación de datos históricos**: `A-50`/`A-51` siguen sin tocar.
 
 **Fase de estabilización técnica cerrada y desplegada (2026-09-25)**: **no hay ninguna TASK en curso**. La próxima planificada es **ARCH-001** (arquitectura de producto y módulos) y **no se inició**.
@@ -185,12 +191,14 @@ Pull Request** (0 aprobaciones) y `verify` corre `build:webpack` cuando la PR to
 ## 5. Siguiente trabajo
 
 El programa completo, con objetivo, prioridad, riesgo, dependencia y orden, está en
-[`tasks/AUDIT-REMEDIATION-ROADMAP.md`](tasks/AUDIT-REMEDIATION-ROADMAP.md).
+[`tasks/AUDIT-REMEDIATION-ROADMAP.md`](tasks/AUDIT-REMEDIATION-ROADMAP.md); el **proceso de producto** que
+aprobó el owner, en [`roadmap/`](roadmap/).
 
 **El bloque financiero de la remediación quedó cerrado y desplegado** (`AUD-003..006`, `A-54`, `A-55`,
 `A-58`, `A-59`) y con él la **fase de estabilización técnica**. Lo que sigue, en orden:
 
-1. **`ARCH-001` — Product & Module Architecture**: es la próxima TASK planificada y **no se inició**.
+1. **`ARCH-001` — Product & Module Architecture**: la próxima TASK planificada y **no iniciada**. No
+   rediseña nada: fija la constitución mínima de producto (módulos, secciones y ownership de reglas).
 2. `AUD-009`/`AUD-010` (outbox: lease y semántica de entrega) y `AUD-012`/`AUD-013`/`AUD-014` siguen en el
    roadmap, **sin iniciar**.
 3. `A-57` (backup programado) es **infraestructura**: el owner decide y no bloquea el producto.
