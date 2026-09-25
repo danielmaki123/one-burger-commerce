@@ -74,18 +74,27 @@ export function AdminPageHeader({
   actions,
 }: AdminPageHeaderProps) {
   return (
-    <section className="rounded-stitch-lg border border-line-subtle bg-surface-card p-4 shadow-elevation-1 md:p-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0 flex-1 space-y-1">
+    /*
+      A-43 (2026-09-25) — la cabecera no pasa el **20% del alto** del viewport (`design-system.md` §8.4).
+      Medía 186 px a 375×800 (23,3%) en las pantallas con descripción de dos líneas y acción propia. El
+      alto se baja achicando lo que es del componente —padding, aire entre las piezas y la escala del
+      título en celular—, no la estructura: el rótulo, la descripción y la acción siguen ahí, y el mínimo
+      táctil de 44 px de la acción no se toca. Desde 768 px vuelve la escala del sistema (`md:`).
+    */
+    <section className="rounded-stitch-lg border border-line-subtle bg-surface-card px-4 py-3 shadow-elevation-1 md:p-5">
+      <div className="flex flex-wrap items-start justify-between gap-2 md:gap-3">
+        <div className="min-w-0 flex-1 space-y-0.5 md:space-y-1">
           {label ? (
             <p className="text-st-overline font-bold uppercase tracking-wider text-brand-amber">{label}</p>
           ) : null}
-          <h1 className="font-heading text-st-h1 font-bold tracking-tight text-ink">
+          <h1 className="font-heading text-st-h2 font-bold tracking-tight text-ink md:text-st-h1">
             {title}
           </h1>
-          {/* La descripción se recorta a dos líneas en celular: la regla del 20% de cabecera deja el
-              alto para la operación, y el texto completo sigue en el DOM para el lector de pantalla. */}
-          <p className="max-w-2xl text-st-body leading-6 text-ink-secondary line-clamp-2 sm:line-clamp-none">
+          {/* La descripción se recorta a dos líneas hasta `lg` —y usa el interlineado del propio token,
+              que es el que entra en el techo del 20%—: en tablet la acción se lleva el ancho de la fila y
+              el texto queda en una columna angosta, donde una descripción larga se come el alto. El texto
+              completo sigue en el DOM para el lector de pantalla. */}
+          <p className="max-w-2xl text-st-body text-ink-secondary line-clamp-2 md:leading-6 lg:line-clamp-none">
             {description}
           </p>
         </div>
