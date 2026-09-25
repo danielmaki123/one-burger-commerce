@@ -67,10 +67,10 @@ filtra datos) · **P2** (función rota, fuga o deuda estructural con impacto).
 
 | Riesgo | Detalle | Dónde |
 |---|---|---|
-| **Medios de pago incompletos** | La tarjeta no se reporta al cerrar y transferencia/mixto no se pueden cobrar (el enum ya los tiene; el POS manda `cash\|card`) | `A-17` |
-| **Atomicidad de la venta del POS** | Falta el límite atómico explícito de la operación de venta (cobro + pago + movimiento + factura) | TASK-AUD-004 |
-| **Atomicidad del cierre de turno** | Ídem en el cierre: `Shift` + conteos + banco + pagos | TASK-AUD-005 |
-| **Numeración de facturas** | Concurrencia de la secuencia ante requests simultáneos | TASK-AUD-006 |
+| **`A-17` — pendiente de reproducir (probablemente obsoleta)** | El texto original decía que la tarjeta no se reportaba al cerrar y que transferencia no se podía cobrar. **Verificado en el código: ya no aplica** — el POS cobra `cash`/`card`/`transfer`/`other` (`POS_PAYMENT_METHODS`) y el cierre **congela** `cardSalesAmount`, `transferSalesAmount` y `otherSalesAmount`. Falta **reproducir** si sobrevive algún resto antes de tomarla | `A-17` en [`audit-backlog.md`](audit-backlog.md) |
+| **Atomicidad de la venta del POS** | Falta el límite atómico explícito de la venta. Alcance **a reproducir y estudiar** (sin decidir la solución): el `Order` (con cupón) + sus `Payment` + `shiftId`, y los efectos que quedan **fuera** de la persistencia —p. ej. el audit del descuento manual, que corre después— | TASK-AUD-004 |
+| **Atomicidad del cierre de turno** | Estudio del límite real del cierre: estado/snapshot de `Shift`, conteos de cierre y cierres de banco. `Payment.shiftId` se asigna **al cobrar**, no al cerrar | TASK-AUD-005 |
+| **Numeración de facturas** | Carrera entre `findLatestNumber` y el alta: el `UNIQUE` ya impide duplicados **persistidos**, pero la emisión puede **fallar**. Solución sin predeterminar | TASK-AUD-006 |
 | **Entorno de producción fail-closed** | El arranque no debe degradarse en silencio si falta una variable crítica | TASK-AUD-007 |
 | **Aislamiento de endpoints internos/de staging** | Deben ser inalcanzables fuera del entorno que les corresponde | TASK-AUD-008 |
 | **Lease y recuperación del outbox** | Un evento tomado y no confirmado no debe quedar colgado para siempre | TASK-AUD-009 |
@@ -135,7 +135,7 @@ Solo bloqueos **reales**. Todo lo demás es trabajo pendiente.
 | **Dos datos mal cargados en los locales** | El owner corrige en `/admin/locations` (el slug de Camino de Oriente y la ciudad de Casa Antigua) |
 | **Monitoreo externo inexistente** | El owner elige el servicio; la receta está en el runbook §8.5 |
 | **Puertos expuestos de servicios ajenos** | OK de quien administra esos servicios del panel compartido |
-| **Decisiones de producto pendientes** | Respuesta del owner sobre `A-15`, `A-17`, `A-19`, `A-20`/`A-34`, `A-23` (ver el backlog) |
+| **Decisiones de producto pendientes** | Respuesta del owner sobre `A-15`, `A-19`, `A-20`/`A-34` y `A-23` (ver el backlog). `A-17` **no** está acá: se reproduce primero |
 
 ## 7. Referencias
 

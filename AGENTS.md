@@ -210,8 +210,8 @@ PostgreSQL real, no contra un doble en memoria.
 
 ## Git, ramas, commits y PR
 
-Repo: `github.com/danielmaki123/one-burger-commerce`. La rama de deploy es **`main`**, que **no recibe push
-directo** (un ruleset lo bloquea).
+Repo: `github.com/danielmaki123/one-burger-commerce`. La rama de deploy es **`main`**: **por política no recibe
+push directo** (se trabaja en rama y se mergea por PR). Política ≠ enforcement: ver *CI y protección de `main`*.
 
 **Flujo**: 1. rama desde `main` actualizado (`git checkout main && git pull --ff-only origin main && git
 checkout -b <tipo>/<nombre-descriptivo>`) · 2. trabajar y commitear en la rama · 3. `git push -u origin
@@ -233,13 +233,13 @@ agentes de terceros (`.claude/`, los volcados de skills ajenas bajo `.agents/ski
 (imagen real: readiness y bootstrap del admin) · **publish** (imagen a GHCR, **solo** en push a `main`).
 
 **Protección de `main`**: **ruleset** `Protect main` (enforcement `active`, sobre `refs/heads/main`), no
-branch protection clásica. Reglas verificadas contra la API real de GitHub: **`deletion`** ·
-**`non_fast_forward`** · **`required_status_checks`** con `strict` y los checks **`verify`, `contracts`,
-`migrations`, `container`**. Se verifica con `gh api repos/danielmaki123/one-burger-commerce/rulesets`; **no**
-con `/branches/main/protection`, que devuelve **404** cuando la regla es un ruleset (ese 404 **no** significa
-«sin protección»). ⚠️ **Nunca marcar `publish` como *required check***: no corre en PRs y el PR quedaría
-trabado en «Expected» para siempre. La configuración de rama se toca **solo con pedido explícito del owner**;
-si algo falla por protección, **se reporta al humano**, no se saltea.
+branch protection clásica. Verificado contra la API real de GitHub: **`deletion`** · **`non_fast_forward`** ·
+**`required_status_checks`** con `strict` y los checks **`verify`, `contracts`, `migrations`, `container`**.
+⚠️ **El ruleset NO exige Pull Request**: el PR obligatorio es **política del equipo**, no enforcement (gap
+reservado a TASK-AUD-002). Se verifica con `gh api repos/danielmaki123/one-burger-commerce/rulesets`; **no** con
+`/branches/main/protection`, que devuelve **404** con ruleset (ese 404 **no** significa «sin protección»).
+⚠️ **Nunca marcar `publish` como *required check***: no corre en PRs y el PR quedaría en «Expected». La rama se
+toca **solo con pedido explícito del owner**; si algo falla por protección, **se reporta al humano**.
 
 ## Deploy y producción
 

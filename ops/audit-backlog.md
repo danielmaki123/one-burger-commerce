@@ -8,7 +8,8 @@
 > **Reglas del ciclo** (no reemplazan a `AGENTS.md`, lo ordenan):
 > 1. Una task por vez. Cada task se cierra completa: **test que falla primero** (con el rojo
 >    confirmado por la razón correcta) → implementación mínima → **mutation check** → validación
->    completa → **rama + PR hacia `main`** (nunca push directo: `main` está protegida por un ruleset)
+>    completa → **rama + PR hacia `main`** (nunca push directo: es política del repo; el ruleset no exige
+>    PR todavía — gap de TASK-AUD-002)
 >    → CI verde → merge con `--squash` → **`ops/CURRENT.md` actualizado**.
 >    El procedimiento está en [`.agents/skills/bugfix/SKILL.md`](../.agents/skills/bugfix/SKILL.md) y
 >    el protocolo de integridad de tests en `AGENTS.md` § *Testing*.
@@ -69,7 +70,7 @@ Estados: `reportado` · `a reproducir` · `en curso` · `cerrado` · `no-repro` 
 | A-14 | **El mapeo de errores repite el mismo bloque 12 veces**: `src/shared/lib/http/error-response.ts` tiene un `if (error instanceof XError)` idéntico por módulo (11 antes de TASK-301). Se puede resolver con una tabla de constructores sin cambiar el comportamiento | deuda | P3 | `reportado` (agente) | — |
 | A-15 | **Un cobro de un pedido cancelado sigue contando en el arqueo**: `listPaymentsInRange` filtra por local y ventana **sin mirar el estado del pedido** (`src/modules/orders/adapters/prisma-payment-repository.ts:92`) y `update-order-status.ts` no toca pagos; **no existe `Refund`** ni movimiento que compense. Si el cajero devuelve la plata, el cierre marca faltante sin forma de registrarlo | decisión + bug de plata | **P1** | `decisión-pendiente` (owner) | — |
 | A-16 | **No hay historial de cajas**: `get-current-shift.ts:21` devuelve solo la caja **abierta** y `listShifts` (`ports/shift-repository.ts:49`; el adaptador ya trae `include: {cashCounts:true}`) **no lo usa ninguna API ni pantalla**. Al cerrar y recargar, el arqueo desaparece de la UI aunque los datos están en `Shift` + `ShiftCashCount` | feat / deuda | P2 | `reportado` (agente) | — |
-| A-17 | **La tarjeta no se reporta y la transferencia no se puede cobrar**: el cierre filtra `method === "cash"` (`close-shift.ts:139`) y no hay vista que sume tarjeta del día; el enum `PaymentMethodType` ya tiene `transfer`/`mixed`/`other` (`schema.prisma:347-353`) pero el POS solo acepta `cash\|card` (`sale-payload.ts:30`) | decisión | P2 | `decisión-pendiente` (owner) | — |
+| A-17 | **La tarjeta no se reporta y la transferencia no se puede cobrar**: el cierre filtra `method === "cash"` (`close-shift.ts:139`) y no hay vista que sume tarjeta del día; el enum `PaymentMethodType` ya tiene `transfer`/`mixed`/`other` (`schema.prisma:347-353`) pero el POS solo acepta `cash\|card` (`sale-payload.ts:30`). ⚠️ **Corregido el 2026-09-24 (TASK-AUD-000): parece OBSOLETA** — verificado que el POS cobra `cash`/`card`/`transfer`/`other` (`pos-sale.ts:17`) y que el cierre congela `cardSalesAmount`/`transferSalesAmount`/`otherSalesAmount` (`schema.prisma:929-932`). **Reproducir antes de tomarla** | decisión | P2 | `a reproducir` (probablemente obsoleta) | — |
 | A-18 | **El detalle por moneda del cierre no se persiste**: `expectedByCurrency` viaja solo en `meta` (`close-shift.ts:113`) y `Shift` no tiene columnas por moneda; recomputar un cierre viejo usa la **tasa de hoy**. Tampoco hay `Payment.shiftId` (`schema.prisma:732-753`): la atribución es por ventana de tiempo | deuda / dato | P3 | `reportado` (agente) | — |
 | A-24 | **57 controles crudos** siguen en 21 archivos del admin (los `<select>`/`<textarea>` de Menú e Inventario, el `type=color` de Categorías, varios `<button>`): los tokens ya son los del sistema, pero el control no es el primitivo. Hay techo declarado por archivo en `design-tokens.allow.json` | deuda | P2 | `reportado` (agente) | — |
 | A-25 | **Tres `window.confirm`** (Usuarios, Locales, Promos) en vez del primitivo `Modal`: el guardrail pide el modal y el diálogo nativo no se puede estilar ni testear igual | deuda | P3 | `reportado` (agente) | — |
@@ -395,14 +396,33 @@ Estados: `reportado` · `a reproducir` · `en curso` · `cerrado` · `no-repro` 
 
 ### A-17 · La tarjeta no se reporta y la transferencia no se puede cobrar — `decisión-pendiente` (owner)
 
-- **Qué es**: el cierre calcula el esperado **solo con efectivo** (`close-shift.ts:138-139`) —correcto,
-  la tarjeta no está en el cajón— pero **nada** suma la tarjeta del día: ni la respuesta del cierre ni el
-  reporte diario (`src/modules/dashboard/features/get-daily-report/get-daily-report.ts` solo agrega
-  `Order`: totales, cantidad y estados de pedidos/reservas). Y el enum del cobro real
-  (`PaymentMethodType`, `schema.prisma:347-353`) ya tiene `transfer`, `mixed` y `other`, pero el payload
-  del POS solo acepta `cash|card` (`src/app/api/admin/pos/sale/sale-payload.ts:30`).
+- **Qué es** *(al 2026-09-15, cuando se reportó; las líneas citadas son del informe original y hoy pueden
+  estar corridas: el esquema y el payload crecieron desde entonces)*: el cierre calculaba el esperado
+  **solo con efectivo** (`close-shift.ts`) —correcto, la tarjeta no está en el cajón— pero **nada** sumaba
+  la tarjeta del día: ni la respuesta del cierre ni el reporte diario
+  (`src/modules/dashboard/features/get-daily-report/get-daily-report.ts` solo agrega `Order`: totales,
+  cantidad y estados de pedidos/reservas). Y el enum del cobro real (`PaymentMethodType`) ya tenía
+  `transfer`, `mixed` y `other`, pero el payload del POS **entonces** solo aceptaba `cash|card`
+  (`src/app/api/admin/pos/sale/sale-payload.ts`).
 - **Qué falta decidir**: si el mostrador cobra transferencia y pago mixto, y qué se espera ver al cerrar
   de lo que **no** pasó por el cajón (¿informativo? ¿cuadre contra el banco/POS?).
+
+> ⚠️ **Corrección del 2026-09-24 (TASK-AUD-000), verificada contra el código — pendiente de reproducción:
+> la ficha parece OBSOLETA.** El hallazgo se escribió el 2026-09-15 y desde entonces cerró el trabajo del
+> POS. Verificado hoy:
+>
+> - el POS **sí** cobra transferencia y otros: `POS_PAYMENT_METHODS` = `cash`, `card`, `transfer`, `other`
+>   (`src/modules/pos/domain/pos-sale.ts:17`, con test que fija la lista), y `mixed` se **deriva** de que
+>   el cobro se partió en más de un medio — no es una opción del cajero;
+> - el cierre **sí** conserva el desglose por medio: `Shift.cardSalesAmount`, `transferSalesAmount` y
+>   `otherSalesAmount` se congelan al cerrar (`prisma/schema.prisma:929-932`,
+>   migración `20260918130000_add_shift_payment_mix`; los escribe `close-shift.ts:178-180` desde
+>   `arqueo.paymentMix`), y el panel `payment-mix-panel.tsx` los dibuja.
+>
+> Lo que queda por reproducir es si **sobrevive algún resto** del hallazgo (p. ej. la suma de tarjeta del
+> día en el reporte diario, que vive en `dashboard`, **fuera del MVP**). Antes de tomar A-17 hay que
+> reproducirlo; si no se reproduce, se cierra como *no-repro* con este intento escrito — **no** se
+> implementa nada.
 
 ### A-18 · El detalle por moneda del cierre no se persiste y no hay `Payment.shiftId` — `reportado` (agente)
 

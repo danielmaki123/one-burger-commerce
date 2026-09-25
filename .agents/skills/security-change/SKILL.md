@@ -98,7 +98,9 @@ El patrón del repo (`src/app/api/internal/staging/**`) es **fail-closed**:
 
 - El `payload` del outbox lleva PII del cliente (nombre, teléfono, dirección): el acceso a los eventos
   está restringido a `owner`.
-- Los datos fiscales del cliente (`taxId`, `legalName`) se congelan en la factura.
+- Los datos fiscales **del cliente** (`taxId`, `legalName`) se congelan en la factura. La factura en sí
+  es una **factura simple, no fiscal**: que el documento lleve datos fiscales del cliente no la vuelve
+  un comprobante fiscal.
 - No imprimir datos sensibles en logs. No loguear tokens ni códigos OTP.
 
 ---

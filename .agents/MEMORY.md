@@ -77,8 +77,9 @@ va al historial o al PR. Si cambia semana a semana, va a `CURRENT.md`.
 
 ## Restricciones permanentes
 
-- **`main` no recibe push directo**: un ruleset lo bloquea. Se trabaja en rama, se abre PR y se
-  mergea con `--squash` **después** del CI verde.
+- **`main` no recibe push directo por política del repo**: se trabaja en rama, se abre PR y se mergea con
+  `--squash` **después** del CI verde. Ojo con no confundir política con enforcement: el **ruleset no exige
+  Pull Request** (solo borrado, force push y los cuatro checks) — ese gap está reservado a TASK-AUD-002.
 - **`publish` jamás va como *required check***: no corre en PRs y el PR quedaría en «Expected» para
   siempre.
 - **No hacer `db:seed` ni `migrate reset` contra producción.** El `seed` crea credenciales demo.

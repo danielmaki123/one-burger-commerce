@@ -35,8 +35,15 @@ Cada invariante necesita un test que la fije **y** que se ponga rojo si se rompe
 ### TRANSACCIÓN
 
 - ¿Cuál es el **límite atómico**? ¿Qué tiene que pasar todo junto o no pasar?
-- ¿La operación hoy escribe en más de una tabla (`Shift` + `ShiftCashCount` + `Payment` + `Invoice`)?
-  Si sí, ¿está dentro de una transacción?
+- ¿La operación hoy escribe en más de una tabla? Depende de cuál sea, y conviene no mezclarlas: una
+  **venta** escribe el pedido (`Order`/`OrderItem`/cupón) y sus `Payment`; un **cierre** escribe el
+  snapshot de `Shift`, los `ShiftCashCount` y los `ShiftBankClose`. Si es más de una, ¿está dentro de una
+  transacción?
+- Ojo con los vecinos que **no** son parte de la operación: `CashMovement` es plata que entra o sale del
+  cajón **sin ser un cobro**, y la `Invoice` (factura **simple, no fiscal**) se emite por su **propio**
+  caso de uso/API, no dentro del cobro. No los metas en el límite atómico por parecido de nombre.
+- Los efectos **posteriores** a la persistencia no están en la transacción y hay que declararlos: p. ej.
+  el audit del descuento manual corre **después** de que la venta quedó guardada.
 - ¿La transacción abarca llamadas externas (red, impresión, Telegram)? **No debería**: lo externo va
   **después** del commit, por outbox.
 - ¿Qué pasa si se corta a la mitad? ¿Queda un *partial write*?

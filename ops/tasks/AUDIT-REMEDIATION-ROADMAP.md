@@ -72,28 +72,53 @@ implementada.**
 
 ### TASK-AUD-004 — POS Sale Atomicity · `P1` · riesgo `dinero`
 
-- **Objetivo**: que la venta del mostrador tenga **un límite atómico explícito**: cobro, `Payment`,
-  movimiento de caja y factura, todo junto o nada.
-- **Riesgo**: *partial write* = un cobro sin su factura, o un pago que entra al arqueo sin venta. Es
-  plata que no cuadra y no se puede reconstruir.
-- **Depende de**: TASK-AUD-001 y TASK-AUD-003 (el patrón de autorización de caja ya resuelto). Requiere
-  prueba contra **PostgreSQL real**.
+- **Objetivo**: **reproducir y estudiar** el límite atómico real de la venta del mostrador, **sin decidir
+  todavía la solución**. Punto de partida: qué escribe hoy la venta —el pedido (`Order`, con su cupón) y
+  sus `Payment`, cada uno firmado con el `shiftId` de la terminal— y qué efectos quedan **fuera** de esa
+  persistencia.
+- **A investigar (registrado por el owner)**: `auditManualDiscount` corre **después** de que la venta se
+  persiste (`src/app/api/admin/pos/sale/route.ts:29-35`): un descuento manual aplicado con éxito y un
+  fallo posterior del audit dejan el registro de acciones sensibles incompleto. **No se resuelve acá.**
+- **Fuera del alcance (verificado)**: `CashMovement` **no** es parte de la venta —es plata que entra o
+  sale del cajón **sin ser un cobro**— y `Invoice` **no** nace en el cobro: se emite por su propio caso
+  de uso/API (`emit-invoice`).
+- **Riesgo**: *partial write* = un `Payment` sin la venta que lo respalda, o una venta sin sus cobros.
+  Es plata que no cuadra y no se puede reconstruir.
+- **Depende de**: TASK-AUD-001 y TASK-AUD-003. Requiere prueba contra **PostgreSQL real**.
 - **Por qué acá**: es la operación de dinero más frecuente del sistema.
 
 ### TASK-AUD-005 — Shift Close Atomicity · `P1` · riesgo `dinero`
 
-- **Objetivo**: que el cierre de turno sea atómico (`Shift` + conteos por moneda + banco + atribución de
-  pagos) y que un turno cerrado no reciba pagos nuevos.
+- **Objetivo**: **estudiar** la atomicidad real del cierre de turno: qué persiste y con qué límite, **sin
+  decidir la solución**. Punto de partida: la persistencia **propia** del cierre — estado/snapshot de
+  `Shift` (`closingAmount`, `expectedAmount`, `expectedByCurrency`, desglose por medio, propinas, neto de
+  movimientos, diferencia de banco), los **conteos de cierre** (`ShiftCashCount`) y los **cierres de
+  banco** (`ShiftBankClose`) — y que un turno cerrado no reciba pagos nuevos.
+- **Corrección (verificado)**: `Payment.shiftId` se asigna **al cobrar**, no al cerrar
+  (`src/modules/pos/adapters/production-pos-sale.ts`), así que la «atribución de pagos» **no** es parte
+  del límite atómico del cierre. Lo que el cierre sí hace es **leer** los pagos: por `shiftId` cuando el
+  turno tiene terminal, y con la ventana de tiempo del local como respaldo cuando no la tiene
+  (`src/modules/orders/features/shift/close-shift.ts:299-313`) — a verificar en el estudio.
 - **Riesgo**: un cierre a medias deja el arqueo mintiendo, que es justo el documento que se firma.
-- **Depende de**: TASK-AUD-004 (comparte la noción de límite atómico y los adaptadores).
+- **Depende de**: TASK-AUD-004.
 - **Por qué acá**: cierra el ciclo del turno después de la venta.
 
 ### TASK-AUD-006 — Invoice Sequence Concurrency · `P1` · riesgo `dinero`
 
-- **Objetivo**: que la numeración de facturas no se repita ni se saltee ante requests concurrentes.
-- **Riesgo**: dos facturas con el mismo número es un problema fiscal y de auditoría.
-- **Depende de**: TASK-AUD-004 (la factura nace en la misma transacción de la venta).
-- **Por qué acá**: la unicidad la tiene que garantizar la **base** (unique constraint), no un `if`.
+- **Objetivo**: **estudiar** la numeración de la factura bajo concurrencia, **sin predeterminar la
+  solución**. El número se calcula leyendo el último y sumando uno antes de crear
+  (`findLatestNumber` → `nextInvoiceNumber` → alta, `src/modules/invoices/features/emit-invoice/emit-invoice.ts:180`).
+- **Riesgo a investigar**: la base **ya** tiene dos `UNIQUE` — `Invoice.number` y `Invoice.orderId`
+  (`prisma/schema.prisma:1240-1241`) —, así que el síntoma realista no es un número repetido persistido
+  sino una **emisión que falla** cuando dos requests calculan el mismo número a la vez (o cuando se
+  reintenta emitir la factura de un pedido que ya la tiene). Reproducir y acotar el impacto: ¿el fallo es
+  visible para el cajero?, ¿queda el pedido sin factura?, ¿se puede reintentar?
+- **No es un problema fiscal**: la factura es una **factura simple, explícitamente no fiscal** (sin
+  autorización de la DGI ni rango oficial de numeración; `src/modules/invoices/domain/invoice.ts`).
+- **Fuera del alcance (verificado)**: la factura **no** nace en la transacción del POS; se emite por su
+  propio caso de uso/API después del cobro.
+- **Depende de**: TASK-AUD-001.
+- **Por qué acá**: comparte con AUD-004/005 la noción de unicidad garantizada por la **base**, no por un `if`.
 
 ### TASK-AUD-015 — Financial Invariants Review · `P1` · riesgo `dinero`
 
@@ -216,7 +241,7 @@ implementada.**
 | 003 | Blind Cash Authorization (`A-45`) | P1 | 001 |
 | 004 | POS Sale Atomicity | P1 | 001, 003 |
 | 005 | Shift Close Atomicity | P1 | 004 |
-| 006 | Invoice Sequence Concurrency | P1 | 004 |
+| 006 | Invoice Sequence Concurrency | P1 | 001 |
 | 015 | Financial Invariants Review | P1 | 004, 005, 006 |
 | 007 | Production Environment Fail-Closed | P1 | 001 |
 | 008 | Internal/Staging Endpoint Isolation | P1 | 007 |

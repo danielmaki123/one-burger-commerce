@@ -29,7 +29,7 @@ falta reconstruir por qué algo es como es. Es lo que evita leer 3.000 líneas p
 >
 > **Cómo se trabaja acá**: **de a una TASK por vez**, y cada una se cierra entera. TDD con el **rojo
 > observado por la razón correcta** → implementación mínima → **mutation check** → validación completa →
-> **rama + commit + PR hacia `main`** (nunca push directo: `main` está protegida por un ruleset) → **CI
+> **rama + commit + PR hacia `main`** (nunca push directo: es política del repo) → **CI
 > verde** → merge con `--squash` → estado actualizado en `ops/CURRENT.md`.
 >
 > **Antes de codear**: seguí la skill [`new-task`](../../.agents/skills/new-task/SKILL.md) y declaré

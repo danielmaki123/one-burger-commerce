@@ -110,7 +110,17 @@ No se reactiva sin pedido explícito del owner.
 - Las migraciones van **sin BOM** (un BOM rompe `migrate deploy` en cualquier base nueva) y hay un
   test que lo verifica.
 - Modelos centrales del dinero: `Payment`, `Refund`, `Shift`, `ShiftCashCount`, `ShiftBankClose`,
-  `CashMovement`, `Invoice`, `Coupon`, `OutboxEvent`. El POS cobra con `cash` o `card`.
+  `CashMovement`, `Invoice`, `Coupon`, `OutboxEvent`.
+- **Medios de cobro del POS**: `POS_PAYMENT_METHODS` = `cash`, `card`, `transfer`, `other` — una sola
+  lista para la pantalla, la API del cobro y la venta en espera (`src/modules/pos/domain/pos-sale.ts`).
+  `mixed` **no se elige**: se deriva de que el cobro se partió en más de un medio. Cada `Payment` se
+  firma con el `shiftId` de la terminal **al cobrar**, y el cierre congela el desglose por medio
+  (`cashSalesAmount`, `cardSalesAmount`, `transferSalesAmount`, `otherSalesAmount`, `tipsAmount`).
+- `CashMovement` es plata que entra o sale del cajón **sin ser un cobro** (retiro/ingreso, con motivo
+  obligatorio y responsable): afecta el esperado del turno, no es parte de una venta.
+- `Invoice` es una **factura simple, explícitamente no fiscal** (sin autorización de la DGI ni rango
+  oficial de numeración): se emite por su **propio caso de uso/API** (`emit-invoice`,
+  `POST /api/admin/orders/[id]/invoice`), **no** dentro del cobro del POS.
 
 ## 7. Eventos y outbox
 
