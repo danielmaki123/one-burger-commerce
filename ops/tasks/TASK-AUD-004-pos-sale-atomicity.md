@@ -107,15 +107,16 @@ Formas equivalentes que se fijan con tests, todas contra PostgreSQL real:
 - `src/modules/orders/adapters/prisma-payment-repository.ts`: constructor con cliente inyectable.
 - `src/modules/orders/features/create-order/create-order.ts`: dependencia **inyectable**
   `publishOrderCreated` (por defecto, el bus de eventos) para poder publicar el aviso después del commit.
-- `src/modules/pos/features/register-pos-sale/register-pos-sale.ts`: el puerto
-  `runInSaleTransaction` + `PosSaleTransactionScope`; todo lo que **escribe** la venta (`commitSale`) adentro
-  del alcance.
+- `src/modules/pos/features/register-pos-sale/register-pos-sale.ts`: el caso de uso — valida, cotiza y
+  **declara** el límite atómico (`runInSaleTransaction` + `PosSaleTransactionScope`).
+- `src/modules/pos/features/register-pos-sale/commit-sale.ts` (**nuevo**) y su `commit-sale.test.ts`: todo lo
+  que la venta **escribe**, en un solo lugar (ver *REVIEW ADVERSARIAL*, bloqueante 2).
 - `src/modules/pos/adapters/production-pos-sale.ts`: el `$transaction` real, el reintento único ante el
   conflicto de la clave de intento y el aviso diferido hasta después del commit.
-- Arnés de PostgreSQL real: `src/shared/testing/postgres.ts`, `vitest.postgres.config.ts`, script
-  `test:postgres`, y su paso en el job `migrations` del CI.
-- Tests: `register-pos-sale.postgres.test.ts` (7 casos), `register-pos-sale.test.ts` y
-  `src/app/api/admin/pos/sale/route.test.ts` (dobles al día).
+- Arnés de PostgreSQL real: `src/shared/testing/postgres.ts` (con la guardia contra `APP_ENV=production`),
+  `vitest.postgres.config.ts`, script `test:postgres`, y su paso en el job `migrations` del CI.
+- Tests: `register-pos-sale.postgres.test.ts` (8 casos), `commit-sale.test.ts` (5),
+  `register-pos-sale.test.ts` y `src/app/api/admin/pos/sale/route.test.ts` (dobles al día).
 
 ## SCOPE OUT
 
@@ -250,17 +251,28 @@ caso de uso no decide permisos.
 
 ## TESTS UNITARIOS
 
-- `src/modules/pos/features/register-pos-sale/register-pos-sale.test.ts` (25 casos, verdes): el doble de la
-  unidad de trabajo corre el trabajo con los mismos dobles, sin transacción. Fija que el caso de uso
-  **escriba todo adentro**, no cómo se abre la transacción.
-- `src/app/api/admin/pos/sale/route.test.ts` (11, verdes): la ruta mockea la composición; el `runInSaleTransaction`
-  del doble entrega los mismos dobles.
+- `src/modules/pos/features/register-pos-sale/commit-sale.test.ts` (**nuevo**, 5 casos): el archivo que se
+  extrajo tiene su propio test — los cobros se escriben todos (moneda normalizada, vuelto, turno que los
+  firma), un pago mixto no anuncia vuelto, el reintento **no vuelve a cobrar**, el total que ya no cubre corta
+  sin escribir ningún cobro (409 `CONFLICT` con la diferencia) y el alta se pide con los datos del cliente,
+  sin propina y con `paidWithAmount` solo en efectivo.
+- `src/modules/pos/features/register-pos-sale/register-pos-sale.test.ts` (**21 casos, verdes**): el doble de
+  la unidad de trabajo corre el trabajo con los mismos dobles, sin transacción. Fija que el caso de uso
+  **escriba todo adentro**, no cómo se abre la transacción. Ningún caso se borró ni se debilitó: el archivo
+  tenía 21 casos antes y tiene 21 después (lo único que cambió son las dependencias del doble).
+- `src/app/api/admin/pos/sale/route.test.ts` (11, verdes): la ruta mockea la composición; el
+  `runInSaleTransaction` del doble entrega los mismos dobles.
 - `src/modules/orders/features/create-order/create-order.test.ts` (52, verdes): sin cambios de
   comportamiento para el checkout público (el publicador por defecto sigue siendo el bus).
 
+**Nota de TDD**: los casos de `commit-sale.test.ts` son **caracterización** de código que se movió, no un
+cambio de comportamiento: el rojo de la atomicidad se observó en los tests de PostgreSQL y se verifica con
+las mutaciones de abajo (skill [`bugfix`](../../.agents/skills/bugfix/SKILL.md) §2, «caracterización de código
+heredado»).
+
 ## TESTS DE INTEGRACIÓN
 
-`src/modules/pos/features/register-pos-sale/register-pos-sale.postgres.test.ts`, **7 casos contra PostgreSQL
+`src/modules/pos/features/register-pos-sale/register-pos-sale.postgres.test.ts`, **8 casos contra PostgreSQL
 17 real** (`npm run test:postgres`):
 
 1. el segundo cobro que falla no deja el pedido persistido a medias;
@@ -269,7 +281,8 @@ caso de uso no decide permisos.
 4. si el total real del menú ya no cubre el cobro, no queda el pedido sin cobros;
 5. el aviso de pedido creado sale después del commit: una venta que se deshace no lo deja;
 6. una venta que se deshace no deja el cupón consumido;
-7. una venta que sí completa deja el pedido con sus dos cobros y el turno firmado (`Payment.shiftId`).
+7. dos ventas simultáneas con el mismo cupón consumen un solo uso (el límite lo decide la base);
+8. una venta que sí completa deja el pedido con sus dos cobros y el turno firmado (`Payment.shiftId`).
 
 El arnés es infraestructura de test de esta TASK (`src/shared/testing/postgres.ts`: `resetDatabase()` con
 `TRUNCATE … RESTART IDENTITY CASCADE` menos `_prisma_migrations`). **Corre en CI**: se agregó el paso
@@ -288,9 +301,12 @@ Tres mutaciones, todas con rojo observado y **restauradas** (no se commitean):
 
 | Mutación | Rojo esperado | Observado |
 |---|---|---|
-| Repositorios con el cliente **raíz** en vez del `tx` (sin atomicidad real) | Los 6 casos de invariante | **6 rojos** y verde solo el de la venta completa |
+| Repositorios con el cliente **raíz** en vez del `tx` (sin atomicidad real) | Los 6 casos de invariante | **6 rojos** de 8 y verde solo los dos que no dependen de la atomicidad (la venta completa y el cupón de un solo uso, que lo protege el lock de la fila del cupón) |
 | Sin el reintento del `P2002` | El caso de los dos cobros simultáneos | **1 rojo**, exactamente ese |
 | Publicar el aviso **dentro** de la transacción | El caso del aviso después del commit | **1 rojo**: `la venta se deshizo pero quedó el aviso del pedido: expected 1 to be +0` |
+
+La primera mutación se volvió a correr **después** de partir el archivo en dos: el rojo es el mismo (6 de 8),
+así que la extracción no se llevó puesta la propiedad.
 
 ## VALIDACIÓN
 
@@ -307,13 +323,44 @@ Sin `build:webpack` (no se toca ninguna `page.tsx`) y sin E2E (no cambia ningún
 - [x] Rojo observado antes del fix, por la razón correcta, contra PostgreSQL real.
 - [x] Límite atómico **nombrado**: el `$transaction` de `runInSaleTransaction` cubre el pedido, el cupón y
       todos los cobros.
-- [x] Los 7 casos de integración verdes contra PostgreSQL real.
+- [x] Los 8 casos de integración verdes contra PostgreSQL real.
 - [x] Los efectos posteriores (aviso) declarados y **probados** fuera de la transacción.
 - [x] Idempotencia preservada: la unicidad la garantiza la base y el reintento devuelve la venta completa.
-- [x] Concurrencia probada con dos requests simultáneos reales.
+- [x] Concurrencia probada con dos requests simultáneos reales (misma clave y mismo cupón).
 - [x] Sin migración, sin cambio de esquema, sin cambio de producto ni de la fórmula del dinero.
+- [x] Los datos anteriores al fix, declarados como pendientes del owner (no se reparan).
 - [x] El arnés de PostgreSQL corre en CI.
-- [x] Ningún techo de deuda subió.
+- [x] Ningún techo de deuda subió (archivo ≤400 y funciones ≤80).
+
+## DATOS PREVIOS — lo que este fix NO arregla (bloqueante de la review adversarial)
+
+La transacción garantiza la invariante **de acá en adelante**. Lo que el bug ya escribió antes del deploy
+sigue en la base y este cambio **no lo detecta ni lo repara**:
+
+- **pueden existir ventas de mostrador anteriores con menos `Payment` que los que la venta declaró** —o con
+  **cero**—, porque el alta se guardaba antes y los cobros se escribían uno por uno. El arqueo lee `Payment`:
+  una venta parcial vieja **subcuenta la caja** de su turno;
+- **el cupón de una de esas ventas pudo quedar consumido** sin que la venta se cobrara;
+- **este cambio no toca esos datos**: no hay backfill, no hay migración, no hay reparación automática. Es
+  deliberado: decidir qué hacer con plata ya cobrada (o no cobrada) es del **owner**, no de una TASK técnica,
+  y el repo prohíbe tocar producción sin su OK.
+
+Para medirlo alcanza una consulta de **solo lectura** (el caso que no admite dudas es el pedido sin ningún
+cobro; una venta parcial —algunos cobros y no todos— es más difícil de detectar porque el total declarado
+puede venir en otra moneda):
+
+```sql
+-- Pedidos de mostrador SIN ningún cobro. Solo lectura: no modifica nada.
+SELECT o.id, o."orderNumber", o."createdAt", o.total
+FROM "Order" o
+LEFT JOIN "Payment" p ON p."orderId" = o.id
+WHERE o.type = 'pickup' AND p.id IS NULL
+ORDER BY o."createdAt" DESC;
+```
+
+Si el conteo no es cero, la decisión (reparar, dejarlas como están o anularlas con un movimiento de caja)
+queda registrada como pendiente del owner en `ops/CURRENT.md` y en `A-50` del backlog: **esta TASK no la
+toma**.
 
 ## REGRESIÓN
 
@@ -330,10 +377,17 @@ el backup si apareciera un problema de datos.
 ## DOCUMENTACIÓN
 
 - Este archivo.
-- `ops/CURRENT.md`: riesgo de atomicidad de la venta **cerrado** y trabajo actual.
-- `ops/audit-backlog.md`: fila en *Registro de lo cerrado*.
-- `.agents/MEMORY.md`: el `P2002` que aborta la transacción y el arnés de PostgreSQL (lecciones reutilizables).
-- `.agents/skills/money-change/SKILL.md` §2: el arnés de PostgreSQL **ya existe** (antes decía que no).
+- `ops/CURRENT.md`: riesgo de atomicidad **cerrado** (y los nuevos abiertos: la carrera del turno y los datos
+  anteriores), trabajo actual y orden inmediato.
+- `ops/audit-backlog.md`: fila en *Registro de lo cerrado*, la decisión pendiente del owner (`A-50`) y los
+  cuatro hallazgos de la review adversarial (`A-46` a `A-49`).
+- `ops/tasks/AUDIT-REMEDIATION-ROADMAP.md`: nota en TASK-AUD-005 sobre dónde tiene que vivir la invariante
+  «un turno cerrado no recibe cobros» (`A-47`).
+- `.agents/MEMORY.md`: el `P2002` que aborta la transacción, el arnés de PostgreSQL real y la decisión de la
+  venta atómica con sus efectos posteriores después del commit. Se corrige, además, la línea que decía que el
+  ruleset NO exige Pull Request (lo cerró TASK-AUD-002 y MEMORY había quedado viejo).
+- `.agents/skills/money-change/SKILL.md` §2: el arnés de PostgreSQL real **ya existe** y corre en CI (antes
+  decía que había que montarlo); y la advertencia del `P2002` en la sección de concurrencia.
 
 ## MEMORY
 
@@ -343,13 +397,37 @@ PostgreSQL real (`*.postgres.test.ts` + `npm run test:postgres` + job `migration
 posteriores (aviso/outbox) se publican **después** del commit y la dependencia tiene que ser inyectable para
 poder probarlo.
 
+## REVIEW ADVERSARIAL
+
+Se hizo una pasada cuyo objetivo fue **refutar** la solución (no confirmarla), sobre el diff completo y con la
+suite de PostgreSQL corrida de verdad. **Veredicto: no pudo refutar la atomicidad** — no encontró forma de que
+una venta quede parcial, ni un cobro duplicado, ni un error tragado que esconda un conflicto, ni una
+expectativa bajada (los dos archivos de test que se tocaron solo cambiaron las dependencias del doble; el
+resto del diff no debilita ningún caso).
+
+Dejó **dos bloqueantes, los dos resueltos en esta TASK**:
+
+1. **Los datos anteriores al fix.** La transacción garantiza la invariante de acá en adelante, pero lo que el
+   bug ya escribió **no** se detecta ni se repara. Está escrito y medido en § *Datos previos* con una consulta
+   de solo lectura, y la decisión quedó registrada como `A-50` (del owner).
+2. **Tamaño.** El archivo del caso de uso había quedado en **479 líneas** (techo 400) y con funciones de
+   **134** (techo 80). Se partió en `register-pos-sale.ts` (251) + `commit-sale.ts` (238, con su
+   `commit-sale.test.ts`): ninguna función pasa de 71 y el tope de archivo se respeta.
+
+Y **cuatro hallazgos fuera de alcance**, registrados en el backlog (`A-46` a `A-49`) en vez de arreglados de
+paso (regla del repo): el pool dentro de la transacción, el TOCTOU del turno (es de **AUD-005**, y la nota
+quedó también en el roadmap), la ventana de pérdida del aviso (es de **AUD-010**) y el número de pedido por
+reloj (es de **AUD-006**). Dos más se cerraron acá mismo: el test del cupón de un solo uso con dos ventas
+concurrentes y la guardia de `resetDatabase()` contra una base con `APP_ENV=production`.
+
 ## DEFINITION OF DONE
 
 - [x] Rojo observado (y documentado el primer intento descartado).
 - [x] `security:secrets`, `lint`, `typecheck`, `test`, `test:contracts`, `build` verdes.
-- [x] `test:postgres` verde (7 + 3 casos).
-- [x] Mutation check hecho y restaurado.
-- [x] Ningún techo de deuda subió.
+- [x] `test:postgres` verde (8 + 3 casos), y el arnés corre en CI.
+- [x] Mutation check hecho y restaurado (repetido después de partir el archivo).
+- [x] Review adversarial con sus dos bloqueantes resueltos y los cuatro hallazgos derivados al backlog.
+- [x] Ningún techo de deuda subió (archivo y funciones por debajo de los topes).
 - [x] Documentación actualizada.
 - [x] PR abierto, CI verde, merge `--squash`.
 - [x] **Sin deploy**: esta TASK no toca producción.

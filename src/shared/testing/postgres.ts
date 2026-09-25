@@ -45,6 +45,14 @@ export function databaseUrl(): string {
  * `RESTART IDENTITY` deja las secuencias en cero: dos corridas no se pisan.
  */
 export async function resetDatabase(): Promise<void> {
+  // Guardia barata contra el accidente caro: `resetDatabase()` **borra** lo que haya en `DATABASE_URL`.
+  // El entorno marcado como producción no se toca ni con el nombre de la base equivocado.
+  if (process.env.APP_ENV === "production") {
+    throw new Error(
+      "APP_ENV=production: el arnés de PostgreSQL no vacía una base de producción. Apuntá DATABASE_URL a una base de test.",
+    );
+  }
+
   const prisma = getPrismaClient();
 
   const rows = await prisma.$queryRaw<Array<{ tablename: string }>>`

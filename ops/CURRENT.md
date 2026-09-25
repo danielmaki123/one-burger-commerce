@@ -63,11 +63,13 @@ filtra datos) · **P2** (función rota, fuga o deuda estructural con impacto).
 | Riesgo | Detalle | Dónde |
 |---|---|---|
 | **Cobros de pedidos cancelados** | Un cobro de un pedido cancelado sigue contando en el arqueo y no hay devolución ni movimiento que lo compense: el cierre marca faltante sin forma de registrarlo | `A-15` en [`audit-backlog.md`](audit-backlog.md) · TASK-AUD-015 |
+| **Un turno cerrado puede recibir un cobro nuevo (ventana de carrera)** | `registerPosSale` resuelve la caja abierta **fuera** de su transacción y le firma el turno a cada `Payment`: un cierre en el medio deja el cobro firmado por un turno ya cerrado. No se puede cerrar solo desde `closeShift` — hay que decidir dónde vive la comprobación | `A-47` en [`audit-backlog.md`](audit-backlog.md) · **TASK-AUD-005** |
 
 **P2**
 
 | Riesgo | Detalle | Dónde |
 |---|---|---|
+| **Ventas anteriores al arreglo de atomicidad (AUD-004)** | El bug que se cerró pudo dejar, **antes del deploy del fix**, pedidos con menos `Payment` que los declarados (o con **cero**) y cupones consumidos por ventas que no se cobraron. El cambio garantiza la invariante **de acá en adelante** y **no** las detecta ni las repara (sin backfill ni migración, a propósito): una venta parcial vieja subcuenta la caja. Repararlas es **decisión del owner**; el conteo es de solo lectura | `A-50` en [`audit-backlog.md`](audit-backlog.md) · TASK-AUD-004 § *Datos previos* |
 | **`A-17` — pendiente de reproducir (probablemente obsoleta)** | El texto original decía que la tarjeta no se reportaba al cerrar y que transferencia no se podía cobrar. **Verificado en el código: ya no aplica** — el POS cobra `cash`/`card`/`transfer`/`other` (`POS_PAYMENT_METHODS`) y el cierre **congela** `cardSalesAmount`, `transferSalesAmount` y `otherSalesAmount`. Falta **reproducir** si sobrevive algún resto antes de tomarla | `A-17` en [`audit-backlog.md`](audit-backlog.md) |
 | **Atomicidad del cierre de turno** | Estudio del límite real del cierre: estado/snapshot de `Shift`, conteos de cierre y cierres de banco. `Payment.shiftId` se asigna **al cobrar**, no al cerrar | TASK-AUD-005 |
 | **Numeración de facturas** | Carrera entre `findLatestNumber` y el alta: el `UNIQUE` ya impide duplicados **persistidos**, pero la emisión puede **fallar**. Solución sin predeterminar | TASK-AUD-006 |
@@ -96,6 +98,9 @@ sus cobros en un solo `$transaction`. Dos hallazgos nuevos en el camino: dentro 
 **aborta** la transacción (hay que rehacerla, no re-leer adentro) y el aviso de pedido creado tenía que salir
 **después del commit** para no sobrevivir a un rollback. Se montó el **arnés de PostgreSQL real** para
 Vitest y corre en CI (job `migrations`). Sin cambio de producto ni de la fórmula del dinero, sin migración.
+La **review adversarial** no encontró forma de que una venta quede parcial ni un cobro duplicado y dejó
+cuatro hallazgos fuera de alcance (`A-46` a `A-49`) más el pendiente del owner sobre los datos anteriores
+(`A-50`).
 
 **TASK-AUD-003 — Blind Cash Authorization**: **cerrada**. PR #35 → `4deb8e5`. Encontró y cerró dos fugas
 reales: el corte X y el cierre mandaban los **sumandos** del esperado, y el **traspaso** devolvía el esperado

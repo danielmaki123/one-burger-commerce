@@ -318,6 +318,46 @@ describe("TASK-AUD-004 · atomicidad de la venta del mostrador (PostgreSQL real)
     expect(coupon?.usedCount, "el cupón quedó gastado por una venta que no existe").toBe(0);
   });
 
+  it("dos ventas simultáneas con el mismo cupón consumen un solo uso", async () => {
+    const prisma = getPrismaClient();
+
+    // TASK-AUD-004 — el consumo del cupón se movió **adentro** de la transacción de la venta, así que vale
+    // la pena fijar lo que eso implica: el límite lo decide la base (un `UPDATE` condicional con lock de
+    // fila), no un `if`. Dos ventas distintas con el mismo cupón de un solo uso: una gana, la otra no, y
+    // queda **un** pedido cobrado con **un** uso consumido.
+    await prisma.coupon.create({
+      data: { code: "LIMITE1", type: "percentage", value: 10, usageLimit: 1, usedCount: 0 },
+    });
+
+    const conCupon = (idempotencyKey: string) => ({
+      ...saleInput([{ method: "cash", amount: 90 }]),
+      couponCode: "LIMITE1",
+      idempotencyKey,
+    });
+
+    const results = await Promise.allSettled([
+      registerPosSale(conCupon("cupon-a"), await createProductionPosSaleDependencies()),
+      registerPosSale(conCupon("cupon-b"), await createProductionPosSaleDependencies()),
+    ]);
+
+    const ganadoras = results.filter((result) => result.status === "fulfilled");
+
+    expect(ganadoras).toHaveLength(1);
+    expect(await prisma.order.count()).toBe(1);
+    expect(await prisma.payment.count()).toBe(1);
+
+    const coupon = await prisma.coupon.findUnique({ where: { code: "LIMITE1" } });
+
+    expect(coupon?.usedCount, "el cupón de un solo uso se consumió más de una vez").toBe(1);
+
+    // Y la que pierde no se cae por un error técnico: la rechaza una regla de negocio.
+    const perdedora = results.find((result) => result.status === "rejected");
+
+    expect(String((perdedora as PromiseRejectedResult).reason)).toMatch(
+      /limit|alcanza|reach|cupón|Coupon/i,
+    );
+  });
+
   it("una venta que sí completa deja el pedido con sus dos cobros y el turno firmado", async () => {
     const prisma = getPrismaClient();
 
