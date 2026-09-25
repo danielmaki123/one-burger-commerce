@@ -47,6 +47,11 @@ va al historial o al PR. Si cambia semana a semana, va a `CURRENT.md`.
 - **El design system oficial es `ops/references/stitch/design-system.md`** y el panel es **oscuro**.
   Los documentos viejos (`DESIGN_REFERENCES.md`, `DESIGN_SYSTEM.md`, `design/*.md`) están borrados: no
   se citan ni se recrean.
+- **La venta del mostrador es una sola operación atómica**: el pedido (con su cupón y el consumo de su uso)
+  y **todos** sus cobros, en una transacción; si falla cualquiera, no queda nada. El límite lo **declara** el
+  caso de uso por un puerto (`runInSaleTransaction`) y lo implementa el adaptador con `prisma.$transaction`.
+  Los efectos **posteriores** a la persistencia —el aviso `OrderCreated` al outbox— se publican **después del
+  commit** y por eso la dependencia del alta es inyectable (`publishOrderCreated`).
 
 ## Errores ya comprendidos
 
@@ -67,6 +72,14 @@ va al historial o al PR. Si cambia semana a semana, va a `CURRENT.md`.
   `getByLabel("Código")` también matchea el select de «Estado».
 - **Un `asyncUtilTimeout` igual al `testTimeout` mata el test justo cuando la espera resuelve.** Las
   esperas van holgadas y **por debajo** del presupuesto del test.
+- **Hay un arnés de PostgreSQL real para Vitest** (`TASK-AUD-004`): los archivos `*.postgres.test.ts` corren
+  con `npm run test:postgres` (`vitest.postgres.config.ts`, `src/shared/testing/postgres.ts`), **no** entran
+  en `npm test` (el job `verify` no tiene base) y los corre el job **`migrations`** del CI, que ya levanta
+  PostgreSQL 17 y aplica las migraciones. Es lo que se usa para **atomicidad, rollback, índice único,
+  transacciones y carreras**: un repositorio en memoria no puede fallar como falla la base. Si falta
+  `DATABASE_URL` el arnés falla fuerte en vez de saltearse. Para inyectar una falla **adentro** de la
+  transacción se envuelve el repositorio del alcance con un `Proxy` que delega al real y rompe en la
+  N-ésima llamada.
 - **`lineTotal` no debe incluir el packaging**: el «+» rápido lo contaba dos veces y el total mostrado
   superaba el cobrado. Fue un bug de plata real.
 - **`inspectService` de Easypanel devuelve los secretos del servicio en claro** (`DATABASE_URL`,
@@ -74,12 +87,21 @@ va al historial o al PR. Si cambia semana a semana, va a `CURRENT.md`.
   En la misma clase: `services/postgres/destroyService` **no** valida el nombre del servicio.
 - **Los `sr-only` no se pueden automatizar**: para un radio nativo testeable se usa un overlay con
   `opacity-0`.
+- **Un `P2002` adentro de un `$transaction` de Prisma aborta la transacción entera** (`25P02 current
+  transaction is aborted, commands ignored until end of transaction block`): a diferencia de la conexión
+  suelta, la recuperación «chocó con el índice único → re-leo la fila que ya existe» **no puede correr
+  adentro**. Se devuelve el conflicto original y quien abrió la transacción la **rehace** (en el intento
+  nuevo la lectura encuentra la fila antes de escribir). Un `catch` que se traga el error de la re-lectura
+  esconde el `25P02` y el síntoma pasa a ser un 500 sin significado (`TASK-AUD-004`,
+  `src/modules/orders/adapters/prisma-order-repository.ts`).
 
 ## Restricciones permanentes
 
 - **`main` no recibe push directo por política del repo**: se trabaja en rama, se abre PR y se mergea con
-  `--squash` **después** del CI verde. Ojo con no confundir política con enforcement: el **ruleset no exige
-  Pull Request** (solo borrado, force push y los cuatro checks) — ese gap está reservado a TASK-AUD-002.
+  `--squash` **después** del CI verde. Política y enforcement **coinciden** desde TASK-AUD-002: el ruleset
+  `Protect main` exige Pull Request (`required_approving_review_count: 0`, así que el owner completa el flujo
+  sin una segunda cuenta) además de borrado, force push y los cuatro checks. Se verifica con
+  `gh api repos/<owner>/<repo>/rulesets`: `/branches/main/protection` devuelve **404** con ruleset.
 - **`publish` jamás va como *required check***: no corre en PRs y el PR quedaría en «Expected» para
   siempre.
 - **No hacer `db:seed` ni `migrate reset` contra producción.** El `seed` crea credenciales demo.

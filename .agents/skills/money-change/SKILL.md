@@ -56,6 +56,10 @@ Cada invariante necesita un test que la fije **y** que se ponga rojo si se rompe
   estado condicional (`UPDATE … WHERE status = …`)?
 - Un `if` que **lee y después escribe** sin lock **no** es protección: es una race condition con
   apariencia de control.
+- ⚠️ Un `P2002` (choque con un índice único) adentro de un `$transaction` **aborta la transacción**
+  (`25P02`): la recuperación «re-leo la fila que ya existe» **no** puede correr adentro. Hay que devolver
+  el conflicto y **rehacer la transacción** desde afuera (en el intento nuevo la lectura encuentra la fila
+  antes de escribir). TASK-AUD-004.
 
 ### IDEMPOTENCIA
 
@@ -101,20 +105,24 @@ Cada invariante necesita un test que la fije **y** que se ponga rojo si se rompe
 Si el riesgo es **unique constraint · race condition · transaction · rollback · lock · request
 concurrente · partial write**, la prueba tiene que correr contra **PostgreSQL real**.
 
-Estado real del arnés hoy (verificado, no supuesto):
+**El arnés existe desde TASK-AUD-004** (es de este repo, no hay que montarlo de nuevo):
 
-- Los unitarios de Vitest cubren `src/**` con adaptadores **en memoria** (`vitest.config.ts` incluye
-  solo `src/**/*.test.ts(x)`): sirven para reglas de dominio, cálculos y orquestación, **no** para
-  atomicidad.
-- El servidor real + PostgreSQL real se ejercita hoy con **Playwright** (`tests/e2e/`, con el
-  contenedor de Postgres arriba) y en CI con los jobs **`migrations`** (base limpia + drift) y
-  **`container`** (imagen real, readiness, bootstrap).
-- **No existe todavía un arnés de integración contra base dentro de Vitest.** Montarlo es trabajo
-  propio de la TASK que lo necesita, y si implicara una dependencia nueva del stack, se le pregunta al
-  owner.
+- el archivo se llama `*.postgres.test.ts` y **no** entra en `npm test`;
+- se corre con `npm run test:postgres` (`vitest.postgres.config.ts`) contra una base **migrada** y
+  dedicada a tests; `src/shared/testing/postgres.ts` da `databaseUrl()`, `resetDatabase()` (trunca todo
+  menos `_prisma_migrations`) y `closeDatabase()`. Sin `DATABASE_URL` **falla fuerte**: un test que se
+  saltea solo es un test que no existe;
+- **corre en CI**: es un paso del job `migrations`, que ya levanta PostgreSQL 17 y aplica las
+  migraciones. Un test de integración que no corre en CI no protege nada;
+- para inyectar una falla **adentro** de la transacción (el caso típico: «falla el segundo cobro») se
+  envuelve el repositorio del alcance con un `Proxy` que delega al adaptador real y rompe en la N-ésima
+  llamada. La base y el resto del camino quedan reales.
 
-Entonces: o la propiedad se demuestra por E2E contra la base real, o la TASK incluye explícitamente el
-arnés que falta — pero **no** se declara demostrada con un doble que no puede fallar.
+Los unitarios de Vitest con adaptadores en memoria siguen sirviendo para reglas de dominio, cálculos y
+orquestación —y para fijar que el caso de uso **escriba todo adentro** de su unidad de trabajo—, **no**
+para atomicidad. El servidor real + PostgreSQL real también se ejercita con **Playwright**
+(`tests/e2e/`) y con los jobs **`migrations`** (base limpia + drift) y **`container`** (imagen real,
+readiness, bootstrap).
 
 ---
 
