@@ -105,6 +105,16 @@ va al historial o al PR. Si cambia semana a semana, va a `CURRENT.md`.
 - **`inspectService` de Easypanel devuelve los secretos del servicio en claro** (`DATABASE_URL`,
   `NEXTAUTH_SECRET`, el token): se usa un `grep` acotado, **nunca** se vuelca la respuesta entera.
   En la misma clase: `services/postgres/destroyService` **no** valida el nombre del servicio.
+- **La marca que invalida un registro se excluye en la CONSULTA, no en cada consumidor, y las dos puntas
+  de la invariante se rechazan entre sí**: cuando un registro puede quedar anulado (un `Payment` mal
+  cargado), la regla «no cuenta» vive **una sola vez** por adaptador —el filtro `voidedAt: null` en cada
+  consulta de lista y en el agregado— en vez de repetirse en los diez consumidores (arqueo, saldo del
+  pedido, conciliación, documentos). Y la operación que mueve plata sobre ese registro tiene que
+  **rechazarlo en los dos sentidos**: no se anula un cobro con devolución viva (pendiente o aprobada) y no
+  se aprueba la devolución de un cobro anulado; cada lado por separado deja la puerta abierta a descontar
+  la misma plata dos veces. La guarda de la carrera va en el `WHERE` (`voidedAt: null` en el `updateMany`),
+  no en el `if` de la lectura: dos anulaciones simultáneas firman **una sola** y la otra es un 409
+  (`TASK-AUD-059`, `src/modules/orders/features/void-payment/void-payment.ts`).
 - **Los `sr-only` no se pueden automatizar**: para un radio nativo testeable se usa un overlay con
   `opacity-0`.
 - **Un `P2002` adentro de un `$transaction` de Prisma aborta la transacción entera** (`25P02 current
