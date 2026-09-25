@@ -339,9 +339,13 @@ function convertToBusinessCurrencyOrThrow(input: {
  *
  * Fase 6 del rediseño de Caja (2026-09-23) — desde que un local puede tener **dos cajas abiertas** (una por
  * terminal), leer por ventana de tiempo haría que las dos se contaran la misma plata: primero se leen los
- * cobros **del turno** (`Payment.shiftId`). Si el turno no tiene ninguno atribuido —los turnos de antes de
- * esta fase y los cobros del sitio público—, se cae a la ventana de siempre: así un turno viejo sigue
- * cuadrando igual que antes y no hay que migrar cobros históricos.
+ * cobros **del turno** (`Payment.shiftId`).
+ *
+ * TASK-AUD-054 — a esos se les suman los cobros de la ventana que **no tienen turno**: los que entraron sin
+ * caja abierta (el cobro de un pedido del menú se registra igual, a propósito) y los de antes de la Fase 6.
+ * Antes, un turno **con terminal** leía solo los suyos, así que un cobro sin turno no entraba al arqueo de
+ * nadie: la plata quedaba en el cajón y ningún cierre la explicaba. Filtrar por «sin turno» (y no por toda la
+ * ventana) es lo que mantiene la propiedad de las dos cajas: la plata de la otra terminal está atribuida.
  */
 async function listShiftPayments(
   window: {
@@ -355,20 +359,12 @@ async function listShiftPayments(
   paymentRepository: PaymentRepository,
 ): Promise<Awaited<ReturnType<PaymentRepository["listPaymentsInRange"]>>> {
   const attributed = await paymentRepository.listPaymentsByShift(window.shiftId);
-
-  /**
-   * Un turno **con terminal** lee solo lo suyo: en un local con dos cajas abiertas, la ventana de tiempo
-   * del local incluye la plata de la otra caja (el E2E de la fase lo cazo: el mostrador «esperaba» la venta
-   * de la barra). Que no tenga cobros atribuidos es un dato legitimo (no vendio), no un turno viejo.
-   */
-  if (window.terminalId) return attributed;
-
-  if (attributed.length > 0) return attributed;
-
-  return paymentRepository.listPaymentsInRange(window.locationId, {
+  const unattributed = await paymentRepository.listUnattributedPaymentsInRange(window.locationId, {
     from: window.openedAt,
     to: window.closedAt,
   });
+
+  return [...attributed, ...unattributed].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
 }
 
 /** Los bancos activos que liquida la sucursal. Sin repositorio no hay bancos: el cuadre se rechaza. */

@@ -57,6 +57,9 @@ function deps(shift: ShiftRecord | null = openShift) {
   const handoverRepository = new InMemoryShiftHandoverRepository();
   const paymentRepository = {
     listPaymentsInRange: vi.fn(async () => [cashPayment("pay_01", 500)]),
+    // TASK-AUD-054: el arqueo lee los cobros **sin turno** de la ventana (el doble representa un turno sin
+    // cobros atribuidos, el camino de los turnos de antes de la Fase 6).
+    listUnattributedPaymentsInRange: vi.fn(async () => [cashPayment("pay_01", 500)]),
     // Fase 6 del rediseño de Caja: este doble representa un turno **sin** cobros atribuidos, así que el
     // arqueo lee por ventana de tiempo (que es el camino de los turnos de antes de la fase).
     listPaymentsByShift: vi.fn(async () => []),
@@ -113,9 +116,9 @@ describe("registerShiftHandover", () => {
 
     // Después de firmar entra otro cobro en efectivo al mismo turno.
     const payments = dependencies.paymentRepository as unknown as {
-      listPaymentsInRange: ReturnType<typeof vi.fn>;
+      listUnattributedPaymentsInRange: ReturnType<typeof vi.fn>;
     };
-    payments.listPaymentsInRange.mockResolvedValue([
+    payments.listUnattributedPaymentsInRange.mockResolvedValue([
       cashPayment("pay_01", 500),
       cashPayment("pay_02", 900),
     ]);

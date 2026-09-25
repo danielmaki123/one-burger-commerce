@@ -127,6 +127,23 @@ export class PrismaPaymentRepository implements PaymentRepository {
     return payments.map(mapPayment);
   }
 
+  /**
+   * TASK-AUD-054 — los cobros del local en la ventana que **no** tienen turno. El arqueo los suma a los
+   * suyos: son los que entraron sin caja abierta y no los va a leer nadie más.
+   */
+  async listUnattributedPaymentsInRange(
+    locationId: string,
+    range: { from?: string; to?: string },
+  ): Promise<PaymentRecord[]> {
+    const prisma = this.client;
+    const payments = await prisma.payment.findMany({
+      where: { shiftId: null, order: { locationId }, ...rangeFilter(range) },
+      orderBy: { createdAt: "asc" },
+    });
+
+    return payments.map(mapPayment);
+  }
+
   async getPaymentSummary(orderId: string): Promise<PaymentSummary> {
     const prisma = this.client;
     // La suma la hace la base: es lo que usa el arqueo de caja y no tiene por qué traer las filas.
