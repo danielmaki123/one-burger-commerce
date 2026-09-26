@@ -29,7 +29,10 @@ const PANTALLAS: Pantalla[] = [
   { nombre: "Locales", ruta: "/admin/locations" },
   { nombre: "Usuarios", ruta: "/admin/users" },
   { nombre: "Alertas (Settings)", ruta: "/admin/settings/notifications" },
-  { nombre: "Menú", ruta: "/admin/menu" },
+  // TASK-IA-001: `/admin/menu` dejó de ser una pantalla (es un redirect al catálogo). En su lugar se miden
+  // las dos entradas del catálogo que antes solo se alcanzaban desde el hub.
+  { nombre: "Modificadores", ruta: "/admin/menu/modifier-groups" },
+  { nombre: "Contenido", ruta: "/admin/menu/marketing-blocks" },
   { nombre: "Categorías", ruta: "/admin/menu/categories" },
   { nombre: "Productos", ruta: "/admin/menu/products" },
   { nombre: "Promociones", ruta: "/admin/promotions" },

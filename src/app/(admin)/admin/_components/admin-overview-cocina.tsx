@@ -128,7 +128,7 @@ export function AdminOverviewQuickActions() {
           Nueva orden de mostrador
         </Link>
         <Link
-          href="/admin/menu"
+          href="/admin/menu/products"
           className="inline-flex min-h-11 items-center justify-center gap-2 rounded-stitch-md border border-line-control px-4 text-st-body font-semibold text-ink hover:bg-surface-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
         >
           <UtensilsCrossed aria-hidden="true" className="h-4 w-4" />

@@ -1,26 +1,41 @@
 import {
+  BadgePercent,
   Bell,
   Calculator,
   ClipboardList,
   Coins,
   History,
   LayoutDashboard,
+  LayoutTemplate,
   MapPin,
+  Package,
   ReceiptText,
   Settings,
   ShieldCheck,
-  UtensilsCrossed,
+  SlidersHorizontal,
+  Tag,
   Users,
   type LucideIcon,
 } from "lucide-react";
 
 import {
-  canManageCash,
+  canApproveRefund,
+  canManageBusinessSettings,
   canManageCashConfig,
+  canManageMenu,
+  canManagePromotions,
+  canManageUsers,
   canUsePOS,
+  canViewAdminOverview,
   canViewHistory,
 } from "@/modules/auth/domain/admin-permissions";
 import type { AdminRole } from "@/modules/auth/domain/admin-role";
+
+/** Lo que la navegación necesita saber para decidir qué se ofrece. */
+export type AdminNavContext = {
+  role?: AdminRole;
+  posAvailable: boolean;
+};
 
 export type AdminNavItem = {
   href: string;
@@ -28,13 +43,20 @@ export type AdminNavItem = {
   description: string;
   icon: LucideIcon;
   /**
-   * Fase 1a del rediseño de Caja (2026-09-19) — prefijo con el que el ítem se considera **activo**.
+   * Prefijo con el que el ítem se considera **activo**, cuando el `href` no alcanza.
    *
    * Existe por el ítem *Cierres*, que apunta a una tab (`/admin/history/cierres`) de una sección con dos
-   * tabs: con solo el `href`, entrar a Facturas dejaba el sidebar sin nada marcado. Cuando no está, el
-   * activo se resuelve con el `href` (lo que hacía antes).
+   * tabs: con solo el `href`, entrar a Facturas dejaba el sidebar sin nada marcado.
    */
   matchPath?: string;
+  /**
+   * TASK-IA-001 — la puerta de la **entrada**, que es **la misma** que la de su pantalla.
+   *
+   * Regla: una entrada nunca se ofrece a un rol que la pantalla rechaza. Cuando la pantalla y la entrada
+   * pedían cosas distintas, ganaba la de la pantalla (era el caso de *Aprobaciones*, que se ofrecía al
+   * manager y lo rebotaba a Órdenes).
+   */
+  canSee: (context: AdminNavContext) => boolean;
 };
 
 export type AdminNavGroup = {
@@ -42,181 +64,227 @@ export type AdminNavGroup = {
   items: AdminNavItem[];
 };
 
+/** Resumen vive **fuera** de los grupos: es la entrada superior del panel. */
+export type AdminNavigation = {
+  primary: AdminNavItem[];
+  groups: AdminNavGroup[];
+};
+
+const everyRole = () => true;
+
 /**
- * Los cuatro grupos del panel (Bloque 8 del roadmap del POS, Fase 2).
- *
- * Antes eran dos («Operación» y «Configuración») y la caja se inyectaba dentro de Operación. El
- * dinero tiene su propio grupo —**Control**— porque es lo que se audita, y el catálogo el suyo
- * —**Catálogo**— porque lo toca el manager y la configuración del negocio no.
+ * RESUMEN — el overview transversal del owner. Va como **entrada superior**, no dentro de Operación: no es
+ * una tarea de operación, es la vista que muestra señales de todos los módulos
+ * (`ops/product/MODULE_ARCHITECTURE.md` §6).
  */
-export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
+export const ADMIN_PRIMARY_NAV_ITEMS: AdminNavItem[] = [
   {
-    label: "Operación",
-    items: [
-      { href: "/admin", label: "Resumen", description: "Operación y rendimiento", icon: LayoutDashboard },
-      { href: "/admin/orders", label: "Órdenes", description: "Cocina y servicio", icon: ClipboardList },
-    ],
-  },
-  {
-    label: "Catálogo",
-    items: [
-      { href: "/admin/menu", label: "Menú", description: "Catálogo y promos", icon: UtensilsCrossed },
-    ],
-  },
-  {
-    label: "Configuración",
-    items: [
-      { href: "/admin/locations", label: "Locales", description: "Retiro, horario y contacto", icon: MapPin },
-      { href: "/admin/users", label: "Usuarios", description: "Roles y accesos", icon: Users },
-      { href: "/admin/settings", label: "Personalización", description: "Marca y operación", icon: Settings },
-      /**
-       * Decisión del owner (2026-09-17) — las **alertas** son una pantalla del negocio, no un rincón de
-       * Personalización: se llega desde el sidebar como cualquier otra configuración (antes solo había un
-       * enlace adentro de Personalización). Es del owner, así que tampoco se le ofrece a los otros roles.
-       */
-      {
-        href: "/admin/settings/notifications",
-        label: "Alertas",
-        description: "Notificaciones y avisos",
-        icon: Bell,
-      },
-    ],
+    href: "/admin",
+    label: "Resumen",
+    description: "Operación y rendimiento",
+    icon: LayoutDashboard,
+    canSee: ({ role }) => (role ? canViewAdminOverview(role) : false),
   },
 ];
 
-// Módulos fuera del MVP (reservas, mesas, delivery, inventario): sus páginas
-// siguen en el repositorio pero no se ofrecen en la navegación del admin.
-export const ADMIN_SECONDARY_NAV_ITEMS: AdminNavItem[] = [];
-
-export const ADMIN_NAV_ITEMS = ADMIN_NAV_GROUPS.flatMap((group) => group.items);
-
-const OPERATION_GROUP = ADMIN_NAV_GROUPS[0];
-const CATALOG_GROUP = ADMIN_NAV_GROUPS[1];
-
 /**
- * Bloque 8.2 del roadmap — la pantalla del mostrador se llama **POS** (antes «Caja»).
+ * OPERACIÓN — el trabajo del día: las órdenes y el mostrador.
  *
- * La ruta sigue siendo `/admin/pos`: la entrada `Caja` pasó a nombrar el **control del dinero**
- * (`/admin/cash`, historial de cierres), así que el nombre y la ruta dejaron de estar cruzados.
+ * El POS entró acá en TASK-IA-001: es una tarea de operación, no una pieza del control del dinero (que es
+ * Caja, Cierres, Aprobaciones y Config de Caja).
  */
-export const ADMIN_POS_NAV_ITEM: AdminNavItem = {
-  href: "/admin/pos",
-  label: "POS",
-  description: "Venta de mostrador",
-  icon: Calculator,
-};
+export const ADMIN_OPERATION_NAV_ITEMS: AdminNavItem[] = [
+  { href: "/admin/orders", label: "Órdenes", description: "Cocina y servicio", icon: ClipboardList, canSee: everyRole },
+  {
+    href: "/admin/pos",
+    label: "POS",
+    description: "Venta de mostrador",
+    icon: Calculator,
+    // La entrada sigue a la disponibilidad real del mostrador y al permiso de operarlo.
+    canSee: ({ role, posAvailable }) => posAvailable && Boolean(role && canUsePOS(role)),
+  },
+];
 
 /**
- * Bloque 8.3 + tarea 1 del brief (2026-09-17) — las rutas del control.
+ * CONTROL — el dinero del turno: dónde se cobra, dónde se audita y con qué reglas.
  *
- * «Caja» la ve **quien cobra** (el cajero incluido) desde que la caja se administra ahí: es donde abre y
- * cierra su turno. Lo que el cajero no ve es la mitad de auditoría de esa pantalla —cierres—, que se
- * resuelve adentro con `canViewCashHistory`. «Aprobaciones» sigue siendo de quien administra el dinero.
+ * «Caja» la ve **quien cobra** (el cajero incluido): es donde abre y cierra su turno. Lo que el cajero no ve
+ * es la mitad de auditoría (Cierres), las devoluciones (Aprobaciones) ni las reglas del arqueo (Config).
  */
 export const ADMIN_CONTROL_NAV_ITEMS: AdminNavItem[] = [
-  { href: "/admin/cash", label: "Caja", description: "Turno, apertura y cierre", icon: ReceiptText },
-  { href: "/admin/approvals", label: "Aprobaciones", description: "Devoluciones y ajustes", icon: ShieldCheck },
+  {
+    href: "/admin/cash",
+    label: "Caja",
+    description: "Turno, apertura y cierre",
+    icon: ReceiptText,
+    canSee: ({ role, posAvailable }) => posAvailable && Boolean(role && canUsePOS(role)),
+  },
+  {
+    href: "/admin/history/cierres",
+    label: "Cierres",
+    description: "Cierres y facturas",
+    icon: History,
+    matchPath: "/admin/history",
+    canSee: ({ role }) => Boolean(role && canViewHistory(role)),
+  },
+  {
+    href: "/admin/approvals",
+    label: "Aprobaciones",
+    description: "Devoluciones y ajustes",
+    icon: ShieldCheck,
+    // La pantalla exige `canApproveRefund` (solo el owner): la entrada usa **esa** puerta, no otra.
+    canSee: ({ role }) => Boolean(role && canApproveRefund(role)),
+  },
+  {
+    href: "/admin/cash/config",
+    label: "Config de Caja",
+    description: "Monedas, denominaciones y arqueo",
+    icon: Coins,
+    canSee: ({ role }) => Boolean(role && canManageCashConfig(role)),
+  },
 ];
 
 /**
- * Fase 1a del rediseño de Caja (2026-09-19) — **Config de Caja**, la pantalla de las reglas del arqueo
- * (monedas que se cuentan, denominaciones y si el cajero ve el esperado).
+ * CATÁLOGO — lo que el negocio vende y cómo lo presenta.
  *
- * Es del **dueño** (`canManageCashConfig`) y no depende del POS: las reglas existen aunque ningún local
- * tenga el mostrador prendido. Va al final del grupo porque se entra pocas veces.
+ * TASK-IA-001: el hub «Menú» deja de ser una entrada de navegación y sus capacidades pasan a ser **entradas
+ * hermanas**. Siguen siendo **un solo conjunto conceptual** (el catálogo) y **un solo módulo de dominio**
+ * (`menu`): esto no crea cinco módulos nuevos.
+ *
+ * Subcategorías pertenece a **Categorías** y no tiene entrada propia.
  */
-export const ADMIN_CASH_CONFIG_NAV_ITEM: AdminNavItem = {
-  href: "/admin/cash/config",
-  label: "Config de Caja",
-  description: "Monedas, denominaciones y arqueo",
-  icon: Coins,
-};
+export const ADMIN_CATALOG_NAV_ITEMS: AdminNavItem[] = [
+  {
+    href: "/admin/menu/products",
+    label: "Productos",
+    description: "Platos, precios y modificadores",
+    icon: Package,
+    canSee: ({ role }) => Boolean(role && canManageMenu(role)),
+  },
+  {
+    href: "/admin/menu/categories",
+    label: "Categorías",
+    description: "Cómo se agrupa la carta",
+    icon: Tag,
+    canSee: ({ role }) => Boolean(role && canManageMenu(role)),
+  },
+  {
+    href: "/admin/menu/modifier-groups",
+    label: "Modificadores",
+    description: "Opciones y adicionales",
+    icon: SlidersHorizontal,
+    canSee: ({ role }) => Boolean(role && canManageMenu(role)),
+  },
+  {
+    href: "/admin/promotions",
+    label: "Promociones",
+    description: "Cupones y combos",
+    icon: BadgePercent,
+    // `canManagePromotions` es una responsabilidad propia, aunque hoy coincida con `canManageMenu`.
+    canSee: ({ role }) => Boolean(role && canManagePromotions(role)),
+  },
+  {
+    href: "/admin/menu/marketing-blocks",
+    label: "Contenido",
+    description: "Bloques de la carta y la home",
+    icon: LayoutTemplate,
+    canSee: ({ role }) => Boolean(role && canManageMenu(role)),
+  },
+];
+
+/** CONFIGURACIÓN — el negocio: dónde, quién, con qué marca y con qué avisos. */
+export const ADMIN_CONFIGURATION_NAV_ITEMS: AdminNavItem[] = [
+  {
+    href: "/admin/locations",
+    label: "Locales",
+    description: "Retiro, horario y contacto",
+    icon: MapPin,
+    canSee: ({ role }) => Boolean(role && canManageBusinessSettings(role)),
+  },
+  {
+    href: "/admin/users",
+    label: "Usuarios",
+    description: "Roles y accesos",
+    icon: Users,
+    canSee: ({ role }) => Boolean(role && canManageUsers(role)),
+  },
+  {
+    href: "/admin/settings",
+    label: "Personalización",
+    description: "Marca y operación",
+    icon: Settings,
+    canSee: ({ role }) => Boolean(role && canManageBusinessSettings(role)),
+  },
+  /**
+   * Decisión del owner (2026-09-17) — las **alertas** son una pantalla del negocio, no un rincón de
+   * Personalización: se llega desde el sidebar como cualquier otra configuración.
+   */
+  {
+    href: "/admin/settings/notifications",
+    label: "Alertas",
+    description: "Notificaciones y avisos",
+    icon: Bell,
+    canSee: ({ role }) => Boolean(role && canManageBusinessSettings(role)),
+  },
+];
 
 /**
- * Fase 1a del rediseño de Caja (2026-09-19) — **Cierres**: el ítem del Historial, renombrado.
+ * Los cuatro grupos del panel, en el orden en que se dibujan.
  *
- * La sección junta las dos consultas (cierres de caja y facturas) en dos tabs con URL propia. El `href`
- * es la tab de cierres —la que el brief pide— y `matchPath` mantiene el ítem activo también en Facturas:
- * sin eso, entrar a la otra tab dejaría el sidebar sin nada marcado.
+ * El grupo **Control** va después de **Operación**: primero el turno, después la plata del turno.
  */
-export const ADMIN_HISTORY_NAV_ITEM: AdminNavItem = {
-  href: "/admin/history/cierres",
-  label: "Cierres",
-  description: "Cierres y facturas",
-  icon: History,
-  matchPath: "/admin/history",
-};
+export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
+  { label: "Operación", items: ADMIN_OPERATION_NAV_ITEMS },
+  { label: "Control", items: ADMIN_CONTROL_NAV_ITEMS },
+  { label: "Catálogo", items: ADMIN_CATALOG_NAV_ITEMS },
+  { label: "Configuración", items: ADMIN_CONFIGURATION_NAV_ITEMS },
+];
 
-const CONTROL_GROUP_LABEL = "Control";
+// Módulos fuera del MVP (reservas, mesas, delivery, inventario): sus páginas siguen en el repositorio pero
+// no se ofrecen en la navegación del admin.
+export const ADMIN_SECONDARY_NAV_ITEMS: AdminNavItem[] = [];
 
-function withControlGroup(
-  groups: AdminNavGroup[],
-  role: AdminRole | undefined,
-  posAvailable: boolean,
-): AdminNavGroup[] {
-  /**
-   * A-32 (2026-09-18) — **cada ítem con su propio permiso**.
-   *
-   * Antes el grupo entero se dibujaba solo si el POS estaba disponible (`if (!posAvailable) return
-   * groups`), así que sin mostrador un manager perdía también la sección **Cierres**, que no depende del
-   * POS: los cierres y las facturas existen igual. Lo que decide es si queda **al menos un ítem**.
-   *
-   * «Caja» se pide con `canUsePOS` **y** con el mostrador prendido en algún local: esa pantalla
-   * es donde el cajero abre y cierra **su** turno, así que sin POS no tiene nada que hacer ahí —el
-   * cajero no audita— y ofrecerla sería un enlace a una pantalla sin uso. **Cierres** y **Config de Caja**
-   * no llevan `posAvailable`: la lectura de los cierres y las reglas del arqueo existen igual.
-   */
-  const items = [
-    ...(posAvailable ? [ADMIN_POS_NAV_ITEM] : []),
-    ...(posAvailable && role && canUsePOS(role) ? [ADMIN_CONTROL_NAV_ITEMS[0]] : []),
-    ...(role && canViewHistory(role) ? [ADMIN_HISTORY_NAV_ITEM] : []),
-    ...(role && canManageCash(role) ? [ADMIN_CONTROL_NAV_ITEMS[1]] : []),
-    ...(role && canManageCashConfig(role) ? [ADMIN_CASH_CONFIG_NAV_ITEM] : []),
-  ];
+export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
+  ...ADMIN_PRIMARY_NAV_ITEMS,
+  ...ADMIN_NAV_GROUPS.flatMap((group) => group.items),
+];
 
-  // Un grupo sin ítems no se dibuja: un encabezado «Control» vacío no dice nada.
-  if (items.length === 0) return groups;
+/**
+ * Las entradas que van en la **barra inferior del móvil**; el resto cae en «Más».
+ *
+ * Son solo `href`: el label, el icono y el permiso salen de la **misma** fuente que el sidebar, así que
+ * desktop y mobile no pueden divergir. Antes había un array propio con labels e iconos duplicados (y una
+ * entrada muerta, «Mesas», que ningún grupo contenía y por eso nunca se dibujaba).
+ */
+export const ADMIN_MOBILE_TAB_HREFS = ["/admin", "/admin/orders", "/admin/pos"] as const;
 
-  const next: AdminNavGroup[] = [];
-  for (const group of groups) {
-    next.push(group);
-    // El grupo Control va después de Operación: primero el turno, después la plata del turno.
-    if (group.label === OPERATION_GROUP.label) {
-      next.push({ label: CONTROL_GROUP_LABEL, items });
-    }
-  }
-
-  return next;
+function withVisibleItems(
+  items: AdminNavItem[],
+  context: AdminNavContext,
+): AdminNavItem[] {
+  return items.filter((item) => item.canSee(context));
 }
 
-function onlyHrefs(group: AdminNavGroup, hrefs: readonly string[]): AdminNavGroup {
-  return { ...group, items: group.items.filter((item) => hrefs.includes(item.href)) };
-}
-
-export function getAdminNavGroups(
+/**
+ * La navegación de un rol: **una sola fuente** para el sidebar y la barra móvil.
+ *
+ * Un grupo sin ítems visibles no se devuelve: un encabezado vacío no dice nada.
+ */
+export function getAdminNavigation(
   role?: AdminRole,
   options: { posAvailable?: boolean } = {},
-): AdminNavGroup[] {
-  const posAvailable = options.posAvailable ?? false;
+): AdminNavigation {
+  const context: AdminNavContext = { role, posAvailable: options.posAvailable ?? false };
 
-  if (role === "owner") return withControlGroup(ADMIN_NAV_GROUPS, role, posAvailable);
+  const groups = ADMIN_NAV_GROUPS.map((group) => ({
+    label: group.label,
+    items: withVisibleItems(group.items, context),
+  })).filter((group) => group.items.length > 0);
 
-  if (role === "manager") {
-    const groups = [
-      onlyHrefs(OPERATION_GROUP, ["/admin/orders"]),
-      onlyHrefs(CATALOG_GROUP, ["/admin/menu"]),
-    ];
-
-    return withControlGroup(groups, role, posAvailable);
-  }
-
-  // Cocina no cobra ni ve el catálogo completo: no ve el control ni con el POS prendido.
-  if (role === "kitchen") {
-    return [onlyHrefs(OPERATION_GROUP, ["/admin/orders"])];
-  }
-
-  // Cajero (y el rato en que el rol todavía no se sabe): órdenes y, si hay mostrador, el POS.
-  return withControlGroup([onlyHrefs(OPERATION_GROUP, ["/admin/orders"])], role, posAvailable);
+  return {
+    primary: withVisibleItems(ADMIN_PRIMARY_NAV_ITEMS, context),
+    groups,
+  };
 }
 
 export function isAdminNavItemActive(pathname: string, href: string) {
@@ -228,10 +296,8 @@ export function isAdminNavItemActive(pathname: string, href: string) {
 }
 
 /**
- * Fase 1a del rediseño de Caja (2026-09-19) — con qué ruta se mide si un ítem está activo.
- *
- * Lo usan los dos call sites del panel (el shell de escritorio y la navegación móvil) para no repetir el
- * `matchPath ?? href` en cada uno. `isAdminNavItemActive` no cambia: sigue midiendo contra una ruta.
+ * Con qué ruta se mide si un ítem está activo. Lo usan los dos call sites del panel (el shell de escritorio y
+ * la navegación móvil) para no repetir el `matchPath ?? href` en cada uno.
  */
 export function getAdminNavItemActivePath(item: Pick<AdminNavItem, "href" | "matchPath">): string {
   return item.matchPath ?? item.href;
@@ -256,9 +322,7 @@ export function getFocusTrapTargetIndex({
 export function getAdminDesktopFocusTargetIndex(
   items: ReadonlyArray<{ isActive: boolean; isVisible: boolean }>,
 ): number | null {
-  const activeVisibleIndex = items.findIndex(
-    (item) => item.isActive && item.isVisible,
-  );
+  const activeVisibleIndex = items.findIndex((item) => item.isActive && item.isVisible);
   if (activeVisibleIndex >= 0) return activeVisibleIndex;
 
   const visibleIndex = items.findIndex((item) => item.isVisible);

@@ -38,7 +38,10 @@ describe("admin ui contracts", () => {
     const drawerPath = path.join(adminDir, "_components/admin-mobile-drawer.tsx");
     const controlsSource = readAdminFile("_components/admin-session-controls.tsx");
 
-    expect(shellSource).toContain("<AdminMobileNav pathname={pathname} groups={navGroups} session={session} />");
+    // TASK-IA-001: el móvil recibe la **navegación** (primary + grupos), no una lista de grupos propia.
+    expect(shellSource).toContain(
+      "<AdminMobileNav pathname={pathname} navigation={navigation} session={session} />",
+    );
     expect(shellSource).toContain('fetch("/api/auth/admin/session"');
     expect(shellSource.match(/fetch\("\/api\/auth\/admin\/session"/g)).toHaveLength(1);
     expect(controlsSource).not.toContain('fetch("/api/auth/admin/session"');
@@ -78,10 +81,17 @@ describe("admin ui contracts", () => {
     expect(navSource).toContain("AdminSessionControls");
     expect(navSource).toContain("<AdminSessionControls session={session} />");
     expect(navSource).toContain("aria-current={isActive ? \"page\" : undefined}");
-    expect(navSource).toContain('label: "Turno"');
-    expect(navSource).toContain('label: "Órdenes"');
-    expect(navSource).toContain('label: "Menú"');
-    expect(navSource).toContain('label: "Mesas"');
+    /**
+     * TASK-IA-001 — la barra móvil **no** tiene labels ni iconos propios: elige `href`s de la fuente única
+     * (`ADMIN_MOBILE_TAB_HREFS`) y el label, el icono y el permiso salen de la misma navegación que el
+     * sidebar. Antes había un array paralelo con labels duplicados, «Menú» como pestaña y una entrada muerta
+     * («Mesas») que ningún grupo contenía.
+     */
+    expect(navSource).toContain("ADMIN_MOBILE_TAB_HREFS");
+    expect(navSource).not.toContain("ADMIN_MOBILE_TAB_DEFS");
+    expect(navSource).not.toContain("/admin/tables");
+    expect(navSource).not.toContain("/admin/menu");
+    expect(navSource).not.toMatch(/label: "/);
     expect(navSource).toContain("min-h-14");
     expect(navSource).toContain("pb-[env(safe-area-inset-bottom)]");
     expect(shellSource).toContain("pb-24");
@@ -117,11 +127,41 @@ describe("admin ui contracts", () => {
     const helperSource = readAdminFile("admin-layout-helpers.ts");
     const layoutSource = readAdminFile("layout.tsx");
     const shellSource = readAdminFile("_components/admin-shell.tsx");
+    const mobileSource = readAdminFile("_components/admin-mobile-nav.tsx");
 
     expect(helperSource).toContain("ADMIN_NAV_GROUPS");
-    expect(helperSource).toContain("getAdminNavGroups");
+    expect(helperSource).toContain("getAdminNavigation");
+    expect(helperSource).toContain("ADMIN_MOBILE_TAB_HREFS");
     expect(helperSource).toContain('label: "Operación"');
     expect(helperSource).toContain('label: "Configuración"');
+    /**
+     * TASK-IA-001 — la arquitectura aprobada, congelada en la **fuente única**: Resumen como entrada
+     * superior, POS en Operación (no en Control) y las cinco entradas hermanas del catálogo.
+     */
+    expect(helperSource).toContain("ADMIN_PRIMARY_NAV_ITEMS");
+    expect(helperSource).toContain('label: "Catálogo"');
+    for (const href of [
+      "/admin/menu/products",
+      "/admin/menu/categories",
+      "/admin/menu/modifier-groups",
+      "/admin/promotions",
+      "/admin/menu/marketing-blocks",
+    ]) {
+      expect(helperSource, `falta ${href} en el catálogo`).toContain(`href: "${href}"`);
+    }
+    // El POS vive en Operación y «Menú» ya no es una entrada.
+    expect(helperSource).toContain("ADMIN_OPERATION_NAV_ITEMS");
+    expect(helperSource).not.toContain('href: "/admin/menu"');
+    // La entrada de Aprobaciones usa la misma puerta que su pantalla.
+    expect(helperSource).toContain("canApproveRefund");
+
+    // Los dos consumidores leen la misma navegación: ni el shell ni el móvil arman su propia lista.
+    expect(shellSource).toContain("getAdminNavigation");
+    expect(shellSource).toContain("navigation.primary");
+    expect(shellSource).toContain("navigation.groups");
+    expect(mobileSource).toContain("navigation.primary");
+    expect(mobileSource).toContain("navigation.groups");
+
     expect(layoutSource).toContain('export const dynamic = "force-dynamic"');
     expect(layoutSource).toContain("AdminShell");
     expect(shellSource).toContain("admin-sidebar-shell");
@@ -361,13 +401,22 @@ describe("admin ui contracts", () => {
     expect(cardSource).not.toContain(">$<");
   });
 
-  it("uses compact operational navigation for the menu overview", () => {
+  /**
+   * TASK-IA-001 — `/admin/menu` deja de ser un hub obligatorio: mantiene la URL por compatibilidad y manda
+   * a la primera entrada del catálogo. No se borró ninguna ruta profunda.
+   */
+  it("keeps /admin/menu as a compatibility redirect into the catalog", () => {
     const source = readAdminFile("menu/page.tsx");
 
-    expect(source).not.toContain("<Card");
-    expect(source).not.toContain("Resumen rapido");
-    expect(source).toContain("Catálogo operativo");
-    expect(source).toContain("menu-section-row");
+    expect(source).toContain('redirect("/admin/menu/products")');
+    expect(source).not.toContain("menu-section-row");
+    expect(source).not.toContain("Catálogo operativo");
+    expect(existsSync(path.join(adminDir, "menu/menu-hub-helpers.ts"))).toBe(false);
+    expect(existsSync(path.join(adminDir, "menu/products/page.tsx"))).toBe(true);
+    expect(existsSync(path.join(adminDir, "menu/categories/page.tsx"))).toBe(true);
+    expect(existsSync(path.join(adminDir, "menu/modifier-groups/page.tsx"))).toBe(true);
+    expect(existsSync(path.join(adminDir, "menu/marketing-blocks/page.tsx"))).toBe(true);
+    expect(existsSync(path.join(adminDir, "promotions/page.tsx"))).toBe(true);
   });
 
   it("uses the Phase 2A shared operational UI primitives", () => {

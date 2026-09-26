@@ -1,22 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import {
-  Calculator,
-  ClipboardList,
-  Ellipsis,
-  LayoutDashboard,
-  Table2,
-  UtensilsCrossed,
-  X,
-  type LucideIcon,
-} from "lucide-react";
+import { Ellipsis, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import {
+  ADMIN_MOBILE_TAB_HREFS,
   ADMIN_SECONDARY_NAV_ITEMS,
   type AdminNavGroup,
   type AdminNavItem,
+  type AdminNavigation,
   getAdminNavItemActivePath,
   getFocusTrapTargetIndex,
   isAdminNavItemActive,
@@ -43,29 +36,20 @@ function getSheetFocusableElements(sheet: HTMLElement): HTMLElement[] {
   );
 }
 
-type AdminMobileTab = {
-  href: string;
-  label: string;
-  icon: LucideIcon;
-};
-
-const ADMIN_MOBILE_TAB_DEFS: AdminMobileTab[] = [
-  { href: "/admin", label: "Turno", icon: LayoutDashboard },
-  { href: "/admin/orders", label: "Órdenes", icon: ClipboardList },
-  // TASK-308: el POS es la pantalla del cajero, así que va en la barra y no escondida en «Más».
-  // Bloque 8.2 del roadmap: se llama **POS**; «Caja» pasó a nombrar el control del dinero (/admin/cash).
-  { href: "/admin/pos", label: "POS", icon: Calculator },
-  { href: "/admin/menu", label: "Menú", icon: UtensilsCrossed },
-  { href: "/admin/tables", label: "Mesas", icon: Table2 },
-];
-
+/**
+ * TASK-IA-001 — la barra móvil y el sidebar salen de la **misma** navegación.
+ *
+ * Acá ya no hay un array propio con labels e iconos: solo se elige **qué `href` va en la barra**
+ * (`ADMIN_MOBILE_TAB_HREFS`), y el resto —label, icono, permiso, orden— lo aporta la fuente única. El label
+ * del Resumen es «Resumen» (antes decía «Turno», que era el nombre de otra cosa).
+ */
 export default function AdminMobileNav({
   pathname,
-  groups,
+  navigation,
   session,
 }: {
   pathname: string;
-  groups: AdminNavGroup[];
+  navigation: AdminNavigation;
   session: AdminSessionState;
 }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -73,14 +57,25 @@ export default function AdminMobileNav({
   const sheetRef = useRef<HTMLElement>(null);
   const wasOpenRef = useRef(false);
 
-  const allItems = groups.flatMap((group) => group.items);
-  const tabs = ADMIN_MOBILE_TAB_DEFS.filter((tab) =>
-    allItems.some((item) => item.href === tab.href),
-  );
+  const primaryItems = navigation.primary;
+  const allItems = [
+    ...primaryItems,
+    ...navigation.groups.flatMap((group) => group.items),
+  ];
+  const tabs = ADMIN_MOBILE_TAB_HREFS.map((href) =>
+    allItems.find((item) => item.href === href),
+  ).filter((item): item is AdminNavItem => item !== undefined);
+
+  /** El resto, **con sus grupos**, en el mismo orden que el sidebar. */
+  const moreGroups: AdminNavGroup[] = navigation.groups
+    .map((group) => ({
+      label: group.label,
+      items: group.items.filter((item) => !tabs.some((tab) => tab.href === item.href)),
+    }))
+    .filter((group) => group.items.length > 0);
+
   const moreItems: AdminNavItem[] = [
-    ...allItems.filter(
-      (item) => !tabs.some((tab) => tab.href === item.href),
-    ),
+    ...moreGroups.flatMap((group) => group.items),
     ...ADMIN_SECONDARY_NAV_ITEMS,
   ];
   const isMoreActive = moreItems.some((item) =>
@@ -232,7 +227,42 @@ export default function AdminMobileNav({
           className="flex-1 space-y-1.5 overflow-y-auto px-4 py-4"
           aria-label="Secciones secundarias"
         >
-          {moreItems.map((item) => {
+          {moreGroups.map((group) => (
+            <div key={group.label} className="space-y-1.5">
+              <p className="px-1 pt-2 text-st-overline font-bold uppercase tracking-wider text-ink-muted">
+                {group.label}
+              </p>
+              {group.items.map((item) => {
+                const isActive = isAdminNavItemActive(pathname, getAdminNavItemActivePath(item));
+                const Icon = item.icon;
+
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    aria-current={isActive ? "page" : undefined}
+                    onClick={closeSheet}
+                    className={[
+                      "flex min-h-11 items-center gap-3 rounded-stitch-md border px-3 py-2 text-st-body font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary motion-reduce:transition-none",
+                      isActive
+                        ? "border-transparent bg-brand-primary-muted text-brand-primary"
+                        : "border-transparent text-ink hover:bg-surface-elevated hover:text-brand-primary",
+                    ].join(" ")}
+                  >
+                    <Icon className="h-5 w-5 shrink-0" strokeWidth={2} aria-hidden="true" />
+                    <span className="min-w-0">
+                      <span className="block truncate">{item.label}</span>
+                      <span className={isActive ? "block truncate text-st-caption text-brand-primary/80" : "block truncate text-st-caption text-ink-secondary"}>
+                        {item.description}
+                      </span>
+                    </span>
+                  </Link>
+                );
+              })}
+            </div>
+          ))}
+
+          {ADMIN_SECONDARY_NAV_ITEMS.map((item) => {
             const isActive = isAdminNavItemActive(pathname, getAdminNavItemActivePath(item));
             const Icon = item.icon;
 
@@ -252,9 +282,6 @@ export default function AdminMobileNav({
                 <Icon className="h-5 w-5 shrink-0" strokeWidth={2} aria-hidden="true" />
                 <span className="min-w-0">
                   <span className="block truncate">{item.label}</span>
-                  <span className={isActive ? "block truncate text-st-caption text-brand-primary/80" : "block truncate text-st-caption text-ink-secondary"}>
-                    {item.description}
-                  </span>
                 </span>
               </Link>
             );
