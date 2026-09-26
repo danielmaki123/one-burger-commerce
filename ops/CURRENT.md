@@ -8,17 +8,18 @@ en qué estado está el sistema en pocos minutos.
 [`.agents/CONTEXT.md`](../.agents/CONTEXT.md)). Este archivo se **actualiza seguido** y se mantiene
 corto: si crece como un diario, dejó de servir.
 
-> **Última actualización**: 2026-09-25, por el **release consolidado de `main` a producción** (Easypanel).
-> `main` = `0b840e73b1a0899910f13d980faa005cd2c08c4f` y **es lo que está sirviendo producción**:
-> `build-20260925-174535`, desplegado el 2026-09-25 17:44–17:48 UTC, `/api/health` ok,
-> `/api/readiness` `ready` (base 4 ms), smokes **7/7** y **6/6**, QA pública de solo lectura
-> **33 pasaron / 2 salteados / 0 fallas**. El release lleva **A-54, A-55, AUD-007, AUD-008, A-58 y A-59**
-> (con la migración aditiva `20260925120000_add_payment_void`) sobre la base que ya tenía AUD-003..006.
-> **La fase de estabilización técnica queda cerrada y desplegada**: A-15 completo, tests verdes,
-> **ningún P0 conocido** y **ningún P1 de dinero abierto**. Lo que sigue abierto es **operativo**
-> (`A-57`, backup) o de **decisión del owner** (`A-50`/`A-51`, datos históricos). La TASK que siguió fue
-> **ARCH-001**, **cerrada** el 2026-09-25 (docs-only): la constitución de producto está en
-> [`ops/product/MODULE_ARCHITECTURE.md`](product/MODULE_ARCHITECTURE.md); **`DS-001`** está **en revisión del owner** (PR abierto).
+> **Última actualización**: 2026-09-26, por el **release baseline de DS-001** (Easypanel).
+> `main` = `4dc2cbba6f131eef3973919db144d080fed0b050` y **es lo que está sirviendo producción**:
+> `build-20260926-003808`, desplegado el 2026-09-26 00:36–00:41 UTC, `/api/health` ok,
+> `/api/readiness` `ready` (base 13 ms), smokes **7/7** y **6/6**, QA pública de solo lectura
+> **34 pasaron / 1 salteado / 0 fallas**. El release lleva **`ROADMAP-001`, `ARCH-001` y `DS-001`** (docs +
+> la ley visual v4): **sin migraciones** y **sin cambios funcionales**. **Cero cambios visuales**: el único
+> cambio de runtime es `globals.css` **+92 / −0** (tokens aditivos y la media query de `prefers-reduced-motion`)
+> y los 20 tokens del panel medidos en el navegador dan **valores idénticos**.
+> **La fase de estabilización técnica sigue cerrada**: **ningún P0 conocido** y **ningún P1 de dinero abierto**.
+> Lo que sigue abierto es **operativo** (`A-57`, backup) o de **decisión del owner** (`A-50`/`A-51`, datos
+> históricos). Con **`DS-001` aprobado y desplegado** ([`ops/design/`](design/)), lo que sigue es
+> **`SCREEN-001 — Resumen`**, que **no se inició**.
 
 ---
 
@@ -26,10 +27,10 @@ corto: si crece como un diario, dejó de servir.
 
 | Qué | Estado |
 |---|---|
-| **Último deploy** | `build-20260925-174535`, sobre `0b840e73b1a0899910f13d980faa005cd2c08c4f` (**A-54, A-55, AUD-007, AUD-008, A-58, A-59**), 2026-09-25 17:44–17:48 UTC. `commit.sha` del panel = `0b840e7`, `/api/health` = `build-20260925-174535`, `/api/readiness` `ready` (DB 4 ms), smokes **menú 7/7** y **hosts 6/6**, QA pública **33/2/0** |
-| **`main`** | `0b840e73b1a0899910f13d980faa005cd2c08c4f` — **idéntico a lo desplegado**. CI verde en el PR #49 y en el push a `main` (los cuatro checks + `publish`) |
-| **Migración aplicada en este deploy** | `20260925120000_add_payment_void` (aditiva: `voidedAt`, `voidedByUserId`, `voidReason` en `Payment`, nullable y sin backfill). La aplicó el arranque del contenedor (`prisma migrate deploy`) **antes** de servir: prueba de que corrió es que el build nuevo está sirviendo y `readiness` responde; si hubiera fallado, Easypanel no promueve y seguiría `build-20260925-123054` |
-| **Rollback target** | `build-20260925-123054` (commit `17ecb27`, el release anterior de hoy) — la aplicación se revierte revirtiendo el commit en `main` y volviendo a disparar `deployService`; la base se resuelve *fix-forward* con el backup de `oneburguer/2026-09-25T12:27:16.589Z.sql.gz` |
+| **Último deploy** | `build-20260926-003808`, sobre `4dc2cbba6f131eef3973919db144d080fed0b050` (**ROADMAP-001, ARCH-001, DS-001**), 2026-09-26 00:36–00:41 UTC. `commit.sha` del panel = `4dc2cbb`, `/api/health` = `build-20260926-003808`, `/api/readiness` `ready` (DB 13 ms), smokes **menú 7/7** y **hosts 6/6**, QA pública **34/1/0**. Backup manual previo confirmado por API (`2026-09-26 00:33:05`, `done`) |
+| **`main`** | `4dc2cbba6f131eef3973919db144d080fed0b050` — **idéntico a lo desplegado**. CI verde en el PR #53 y en el push a `main` (los cuatro checks + `publish`) |
+| **Migración aplicada en este deploy** | **Ninguna**: el release es documental + tokens aditivos. La última sigue siendo `20260925120000_add_payment_void`, aplicada el 2026-09-25 |
+| **Rollback target** | `build-20260925-174535` (commit `0b840e7`) — la aplicación se revierte revirtiendo el commit en `main` y volviendo a disparar `deployService`; la base no se toca (este release no migró) |
 | **Modelo de deploy** | Easypanel, proyecto `brunobot`, servicio `oneburguerweb`; build **desde GitHub `main`** con `forceRebuild`. Una sola llamada a `deployService` (la llamada cortó por timeout y el build siguió en segundo plano: comportamiento conocido, la action quedó `done`) |
 | **Migraciones** | El release de AUD-003..006 no trajo ninguna. Este **sí**: `20260925120000_add_payment_void` (A-59), aditiva y sin backfill, aplicada por el arranque |
 | **Réplicas** | `1` |
@@ -151,20 +152,17 @@ sin guardrail) · `A-23` (cuenta de prueba con rol `owner` en producción) · `A
 
 ## 4. Trabajo actual
 
-**Roadmap oficial de producto y UX adoptado (2026-09-25, `ROADMAP-001`)**: el proceso aprobado por el owner
-vive en [`roadmap/PRODUCT-UX-ROADMAP.md`](roadmap/PRODUCT-UX-ROADMAP.md) (decisiones en
-[`roadmap/DECISIONS.md`](roadmap/DECISIONS.md), secuencia en [`roadmap/NEXT.md`](roadmap/NEXT.md)). Rige
-**cómo** se hace el trabajo de producto. **`DS-001`** (ley visual v4) **reemplazó a Stitch**, que quedó
-**archivado y no normativo** en `ops/references/stitch/`: la ley vive en [`ops/design/`](design/) con la
-**revisión del owner ya aplicada** y **espera su aprobación** (tokens **aditivos**, sin rediseños ni deploy).
+**Roadmap adoptado (2026-09-25, `ROADMAP-001`) y sus dos primeras fases cerradas**: el proceso vive en
+[`roadmap/PRODUCT-UX-ROADMAP.md`](roadmap/PRODUCT-UX-ROADMAP.md) (decisiones en [`roadmap/DECISIONS.md`](roadmap/DECISIONS.md),
+secuencia en [`roadmap/NEXT.md`](roadmap/NEXT.md)). **`DS-001`** (ley visual v4, en [`ops/design/`](design/))
+está **aprobado y desplegado**, y reemplazó a Stitch, que quedó **archivado y no normativo**. Lo que sigue es
+**`SCREEN-001 — Resumen`**, que **no se inició**.
 
 **Release consolidado a producción (2026-09-25, cerrado)**: `main` = `0b840e73b1a0899910f13d980faa005cd2c08c4f` **desplegado** y sirviendo `build-20260925-174535`. El release lleva A-54, A-55, AUD-007, AUD-008, A-58 y A-59 con su migración aditiva. Preflight, backup confirmado por el owner, deploy, migraciones, health/readiness, smokes (7/7 y 6/6) y la QA de dinero están en §1. **Sin reparación de datos históricos**: `A-50`/`A-51` siguen sin tocar.
 
 **ARCH-001 — Product & Module Architecture (cerrada, 2026-09-25, docs-only)**: la constitución de producto vive en [`ops/product/MODULE_ARCHITECTURE.md`](product/MODULE_ARCHITECTURE.md): las secciones reales del panel, los módulos que existen, el **ownership** de cada agregado, la regla del Resumen como overview transversal, el gate para capacidades nuevas y la **deuda registrada** (el dominio de Caja repartido entre `orders` y `pos`, promociones en `orders`, `dashboard` sin puertos, los cascarones `coupons`/`table-ordering`, puertas sin call site y la entrada muerta «Mesas» del móvil). **No cambió producto, rutas, navegación, diseño ni DB**: lo que no coincide con la dirección conceptual del roadmap quedó **documentado**, no corregido por decreto. El enforcement objetivo vive en los contratos: la fuente existe una sola vez, el camino de entrada la cita y no crece como un manual.
 
 **TASK-AUD-059 — Void/Reversal de cobro (cerrada, `974fa74`, desplegada)**: un cobro mal registrado se **anula** conservando la fila (migración aditiva `20260925120000_add_payment_void`), con `canVoidPayment` (solo owner), motivo obligatorio y asiento `payment.void`. La exclusión vive una sola vez por adaptador, así que el arqueo, el saldo del pedido, la conciliación y los documentos dejan de verlo; y las dos puntas de la invariante se rechazan entre sí (no se anula un cobro con devolución viva, no se aprueba la devolución de un cobro anulado). Detalle y evidencia en §3.
-
-**Release anterior del mismo día (reemplazado)**: `17ecb27` (**AUD-003..006**) sirvió como `build-20260925-123054` hasta este release; es el **rollback target** de §1. **Sin reparación de datos históricos**: `A-50`/`A-51` siguen sin tocar y no se pudieron leer desde el entorno del agente (sin acceso read-only a la base).
 
 **TASK-AUD-006 — Invoice Sequence Concurrency** (cerrada, `17ecb27`): el correlativo de la factura se calculaba leyendo la última y sumando uno, y la emisión que perdía la carrera contra el índice único **le fallaba al cajero** (el pedido quedaba sin factura; en el mismo pedido, dos toques simultáneos reventaban). Ahora el repositorio **asigna el correlativo y crea como una sola operación**, con reintento acotado (choque de número) y devolviendo la factura existente cuando el choque es del pedido. Factura **simple, no fiscal**; sin migración.
 
@@ -196,12 +194,14 @@ El programa completo, con objetivo, prioridad, riesgo, dependencia y orden, est�
 [`tasks/AUDIT-REMEDIATION-ROADMAP.md`](tasks/AUDIT-REMEDIATION-ROADMAP.md); el **proceso de producto** que
 aprobó el owner, en [`roadmap/`](roadmap/).
 
+**Release baseline de `DS-001` (2026-09-26, cerrado)**: `main` = `4dc2cbba6f131eef3973919db144d080fed0b050` **desplegado** y sirviendo `build-20260926-003808`. Lleva `ROADMAP-001`, `ARCH-001` y la ley visual v4: **sin migraciones**, **sin cambios funcionales** y **cero cambios visuales** (único cambio de runtime: `globals.css` **+92/−0**; los tokens del panel medidos en el navegador dan valores idénticos). Backup manual confirmado, deploy, `commit.sha`, health/readiness, smokes (7/7 y 6/6) y QA pública (34/1/0) en §1.
+
 **El bloque financiero de la remediación quedó cerrado y desplegado** (`AUD-003..006`, `A-54`, `A-55`,
 `A-58`, `A-59`) y con él la **fase de estabilización técnica**. Lo que sigue, en orden:
 
-1. **`DS-001` — One Burger Design System v4**: la ley visual nueva está escrita y **espera la revisión del
-   owner** (PR abierto, sin mergear). Después sigue la migración **sección por sección** (`SCREEN-001`), que
-   **no se inició**.
+1. **`SCREEN-001` — `/admin` Resumen**: **no iniciado**. Se diseña con la skill `screen-design` (spec
+   aprobada por el owner) siguiendo el roadmap, y recién después se implementa bajo DS v4. `DS-001` quedó
+   **aprobado y desplegado** (`4dc2cbb`).
 2. `AUD-009`/`AUD-010` (outbox: lease y semántica de entrega) y `AUD-012`/`AUD-013`/`AUD-014` siguen en el
    roadmap, **sin iniciar**.
 3. `A-57` (backup programado) es **infraestructura**: el owner decide y no bloquea el producto.
