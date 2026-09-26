@@ -179,10 +179,12 @@ export function OrderComandaBoard({
                       ? `Ninguna comanda de este carril coincide con «${searchTerm}».`
                       : lane.empty}
                   </p>
-                  <span className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-surface-low px-2.5 py-1 font-mono text-st-caption text-ink-muted">
+                  <span className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-surface-low px-2.5 py-1 font-mono text-panel-meta text-ink-muted">
+                    {/* DS v4 (`MOTION.md`): el pulso está reservado al SLA vencido o a la pérdida de
+                        sincronización. Un carril vacío en reposo no es ninguna de las dos cosas. */}
                     <span
                       aria-hidden="true"
-                      className="h-1.5 w-1.5 rounded-full bg-status-pending-dot motion-safe:animate-pulse"
+                      className="h-1.5 w-1.5 rounded-full bg-status-pending-dot"
                     />
                     Esperando solicitudes
                   </span>

@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import InvoicePrintButton from "./invoice-print-button";
 
 /**
- * Factura simple (2026-09-18) — el botón «Imprimir» de la hoja A4.
+ * Factura simple (2026-09-18) — el botón «Imprimir» de la hoja de 80 mm.
  *
  * Es lo único con JavaScript de la página del documento: llama al diálogo de impresión del navegador, que es
  * el que guarda el PDF. Sin dependencias y sin generador en el servidor (decisión 1.6).

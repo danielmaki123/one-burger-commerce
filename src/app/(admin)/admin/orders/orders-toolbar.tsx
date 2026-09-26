@@ -27,6 +27,15 @@ import type { OrderPaymentFilter } from "./comanda-url";
  */
 
 const CHIP_LIST_CLASS = "flex flex-wrap gap-2 bg-transparent p-0";
+/**
+ * La barra compacta de celular (DS v4, primera pantalla a 375 px).
+ *
+ * En el teléfono la barra competía con las comandas: los contadores repetían lo que ya dice el
+ * conmutador de carriles y tres botones con texto propio se llevaban dos filas. Ahora los
+ * contadores viven solo en escritorio (`lg`), los botones del turno muestran su ícono —con el
+ * nombre accesible intacto— y «Atrasados» viaja con ellos. En escritorio no cambia nada.
+ */
+const MOBILE_ICON_LABEL_CLASS = "hidden sm:inline";
 const CHIP_TRIGGER_CLASS =
   "min-h-11 flex-none whitespace-nowrap rounded-stitch-md border border-line-subtle bg-surface-card px-3";
 
@@ -157,13 +166,18 @@ export function OrdersToolbar({
           </TabsList>
         </Tabs>
 
-        <p className="ml-auto flex flex-wrap items-center gap-2" aria-label="Comandas en el turno">
+        {/* Los contadores repiten lo que el conmutador de carriles ya dice en celular: ahí no van. */}
+        <p
+          className="ml-auto hidden flex-wrap items-center gap-2 lg:flex"
+          aria-label="Comandas en el turno"
+        >
           {/* Los contadores del sistema: una píldora por estado, con su punto y el número en
               mono (`design-system.md` §6.5 y §2.1), para leer el turno de un vistazo. */}
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-status-pending-bg px-2.5 py-1 font-mono text-st-caption font-semibold tabular-nums text-status-pending-text">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-status-pending-bg px-2.5 py-1 font-mono text-panel-meta font-semibold tabular-nums text-status-pending-text">
+            {/* DS v4 (`MOTION.md`): el número ya comunica; el pulso queda para el SLA vencido. */}
             <span
               aria-hidden="true"
-              className="h-1.5 w-1.5 rounded-full bg-status-pending-dot motion-safe:animate-pulse"
+              className="h-1.5 w-1.5 rounded-full bg-status-pending-dot"
             />
             Nuevas: {counters.pending}
           </span>
@@ -213,7 +227,7 @@ export function OrdersToolbar({
           />
         </label>
 
-        <div className="w-[11rem] shrink-0">
+        <div className="w-auto shrink-0">
           <Tabs className="min-w-0">
             <TabsList className={CHIP_LIST_CLASS} ariaLabel="Filtro por tipo de pedido">
               {TYPE_TABS.map((option) => (
@@ -231,7 +245,7 @@ export function OrdersToolbar({
           </Tabs>
         </div>
 
-        <div className="w-40 shrink-0">
+        <div className="w-[8.5rem] shrink-0 sm:w-40">
           <Select
             aria-label="Forma de pago"
             value={paymentFilter}
@@ -244,16 +258,6 @@ export function OrdersToolbar({
           />
         </div>
 
-        <Button
-          variant="outline"
-          className="min-h-11 gap-2"
-          aria-pressed={lateOnly}
-          onClick={onToggleLateOnly}
-        >
-          <AlarmClock aria-hidden="true" className="h-4 w-4" />
-          Atrasados
-        </Button>
-
         {showClearFilters ? (
           <Button variant="ghost" className="min-h-11" onClick={onClearFilters}>
             Limpiar filtros
@@ -263,7 +267,7 @@ export function OrdersToolbar({
 
       {/* El ritmo del turno y sus controles, en su propia fila: el 80% de la pantalla es para las
           comandas, no para la barra. */}
-      <div className="mt-2 flex flex-wrap items-center justify-end gap-2">
+      <div className="mt-2 flex flex-wrap items-center justify-end gap-1.5">
         <span className="mr-auto flex flex-wrap items-center gap-2">
           {/* B5: el ritmo de la cocina hoy. Sin pedidos listos dice que todavía no hay datos,
               porque un "0 min" se leería como una cocina instantánea. */}
@@ -285,40 +289,58 @@ export function OrdersToolbar({
           </span>
         </span>
 
-          <Button
-            variant="outline"
-            className="min-h-11 gap-2"
-            aria-pressed={soundEnabled}
-            onClick={onToggleSound}
-          >
-            {soundEnabled ? (
-              <Bell aria-hidden="true" className="h-4 w-4" />
-            ) : (
-              <BellOff aria-hidden="true" className="h-4 w-4" />
-            )}
-            Aviso sonoro
-          </Button>
+        <Button
+          variant="outline"
+          className="min-h-11 gap-1.5 px-3"
+          aria-pressed={lateOnly}
+          aria-label="Atrasados"
+          onClick={onToggleLateOnly}
+        >
+          <AlarmClock aria-hidden="true" className="h-4 w-4" />
+          <span className={MOBILE_ICON_LABEL_CLASS}>Atrasados</span>
+        </Button>
 
-          {/*
-            B6 · Punto 3 — el modo cocina. Antes este control entraba al *Fullscreen API* y escondía
-            la barra lateral; ahora que el chrome se ve siempre, lo que hace es cambiar de modo: la
-            barra lateral y el encabezado se van, quedan los carriles, y la vuelta es «Salir» (que se
-            ve en el modo). La elección queda guardada en el dispositivo, así que la tablet de pared
-            vuelve a entrar en modo cocina sola.
-          */}
-          <Button
-            variant="outline"
-            className="min-h-11 gap-2"
-            onClick={onToggleKitchenMode}
-          >
-            <ChefHat aria-hidden="true" className="h-4 w-4" />
-            Modo cocina
-          </Button>
+        <Button
+          variant="outline"
+          className="min-h-11 gap-1.5 px-3"
+          aria-pressed={soundEnabled}
+          aria-label="Aviso sonoro"
+          onClick={onToggleSound}
+        >
+          {soundEnabled ? (
+            <Bell aria-hidden="true" className="h-4 w-4" />
+          ) : (
+            <BellOff aria-hidden="true" className="h-4 w-4" />
+          )}
+          <span className={MOBILE_ICON_LABEL_CLASS}>Aviso sonoro</span>
+        </Button>
 
-          <Button variant="outline" className="min-h-11 gap-2" onClick={onRefresh}>
-            <RefreshCw aria-hidden="true" className="h-4 w-4" />
-            Actualizar
-          </Button>
+        {/*
+          B6 · Punto 3 — el modo cocina. Antes este control entraba al *Fullscreen API* y escondía
+          la barra lateral; ahora que el chrome se ve siempre, lo que hace es cambiar de modo: la
+          barra lateral y el encabezado se van, quedan los carriles, y la vuelta es «Salir» (que se
+          ve en el modo). La elección queda guardada en el dispositivo, así que la tablet de pared
+          vuelve a entrar en modo cocina sola.
+        */}
+        <Button
+          variant="outline"
+          className="min-h-11 gap-1.5 px-3"
+          aria-label="Modo cocina"
+          onClick={onToggleKitchenMode}
+        >
+          <ChefHat aria-hidden="true" className="h-4 w-4" />
+          <span className={MOBILE_ICON_LABEL_CLASS}>Modo cocina</span>
+        </Button>
+
+        <Button
+          variant="outline"
+          className="min-h-11 gap-1.5 px-3"
+          aria-label="Actualizar"
+          onClick={onRefresh}
+        >
+          <RefreshCw aria-hidden="true" className="h-4 w-4" />
+          <span className={MOBILE_ICON_LABEL_CLASS}>Actualizar</span>
+        </Button>
       </div>
     </div>
   );

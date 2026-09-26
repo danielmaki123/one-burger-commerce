@@ -29,7 +29,6 @@ import {
 import { describeOrderActionFailure } from "./order-action-helpers";
 import { OrderActions } from "./order-actions";
 import {
-  DEFAULT_LATE_MINUTES,
   comandaCounters,
   comandaLane,
   comandaThresholds,
@@ -453,41 +452,14 @@ export default function AdminOrdersPage() {
   }, [newOrderIds]);
 
   /**
-   * B3 — aviso para quien no está mirando la pantalla: cuando una comanda cruza el umbral de atraso se
-   * anuncia **una vez** (no en cada refresco de 15 segundos, que sería ruido puro).
-   */
-  useEffect(() => {
-    if (!showBoard) return;
-
-    const justLate = orders.filter((order) => {
-      if (!comandaLane(order.status)) return false;
-      if (announcedLateIdsRef.current.has(order.id)) return false;
-
-      return (
-        resolveComandaUrgency({ stageChangedAt: order.stageChangedAt, nowMs }).level === "late"
-      );
-    });
-
-    if (justLate.length === 0) return;
-
-    for (const order of justLate) announcedLateIdsRef.current.add(order.id);
-
-    setLateAnnouncement(
-      justLate.length === 1
-        ? `La comanda ${justLate[0].orderNumber} lleva más de ${DEFAULT_LATE_MINUTES} minutos en esta etapa.`
-        : `${justLate.length} comandas llevan más de ${DEFAULT_LATE_MINUTES} minutos en esta etapa.`,
-    );
-  }, [orders, nowMs, showBoard]);
-
-  const boardCounters = useMemo(() => comandaCounters(orders), [orders]);
-
-  /**
-   * B5 — con qué minutos avisa este tablero.
+   * Los umbrales del tablero, **del local** que se está mirando.
    *
-   * Los umbrales son **del local**: la sucursal del centro no cocina al ritmo de la de la carretera. Se
-   * usan los del local que se está mirando (el filtro elegido, o el único del alcance). Con varias
-   * sucursales a la vista y sin filtro no hay un ritmo único que valga, así que rigen los valores por
-   * defecto: inventar un promedio sería mentir sobre las dos.
+   * La sucursal del centro no cocina al ritmo de la de la carretera. Se usan los del local filtrado, o los
+   * del único local del alcance. Con varias sucursales a la vista y sin filtro no hay un ritmo único que
+   * valga, así que rigen los valores por defecto: inventar un promedio sería mentir sobre las dos.
+   *
+   * Vive acá arriba porque lo usan **el tablero y el anuncio accesible de atraso**: los dos tienen que medir
+   * con el mismo número.
    */
   const boardThresholds = useMemo(() => {
     const activeLocation =
@@ -502,6 +474,48 @@ export default function AdminOrdersPage() {
       prepAlertMinutes: activeLocation?.prepAlertMinutes,
     });
   }, [locationFilter, locations, scopedLocations]);
+
+  /**
+   * B3 — aviso para quien no está mirando la pantalla: cuando una comanda cruza el umbral de atraso se
+   * anuncia **una vez** (no en cada refresco de 15 segundos, que sería ruido puro).
+   *
+   * El umbral es el **del local** (el mismo que usa el tablero, `boardThresholds`): antes el anuncio medía
+   * con los valores por defecto, así que en una sucursal con otro ritmo decía un número que la pantalla no
+   * estaba usando.
+   */
+  useEffect(() => {
+    if (!showBoard) return;
+
+    const lateOf = (status: OrderStatus) =>
+      comandaLane(status) === "pending" ? boardThresholds.pending : boardThresholds.kitchen;
+
+    const justLate = orders.filter((order) => {
+      if (!comandaLane(order.status)) return false;
+      if (announcedLateIdsRef.current.has(order.id)) return false;
+
+      return (
+        resolveComandaUrgency({
+          stageChangedAt: order.stageChangedAt,
+          nowMs,
+          ...lateOf(order.status),
+        }).level === "late"
+      );
+    });
+
+    if (justLate.length === 0) return;
+
+    for (const order of justLate) announcedLateIdsRef.current.add(order.id);
+
+    const lateMinutes = lateOf(justLate[0].status).lateMinutes;
+
+    setLateAnnouncement(
+      justLate.length === 1
+        ? `La comanda ${justLate[0].orderNumber} lleva más de ${lateMinutes} minutos en esta etapa.`
+        : `${justLate.length} comandas llevan más de ${lateMinutes} minutos en esta etapa.`,
+    );
+  }, [boardThresholds, orders, nowMs, showBoard]);
+
+  const boardCounters = useMemo(() => comandaCounters(orders), [orders]);
 
   /**
    * B3 — un pedido programado para **otro día** no es trabajo de este turno: no entra en los carriles
@@ -850,7 +864,7 @@ export default function AdminOrdersPage() {
       ) : null}
 
       {authRequired ? (
-        <div className="rounded-md border border-warning-strong/30 bg-warning p-4 text-st-body text-status-pending-text">
+        <div className="rounded-stitch-md border border-warning-strong/30 bg-warning p-4 text-st-body text-status-pending-text">
           <p>Sesión de administrador requerida.</p>
           <p className="mt-1">
             <Link
@@ -865,7 +879,7 @@ export default function AdminOrdersPage() {
 
       {/* Sin lista que conservar, el error se explica entero, con el motivo real y la acción que sirve. */}
       {!authRequired && error && orders.length === 0 ? (
-        <div className="flex flex-col gap-3 rounded-md border border-danger-strong/30 bg-danger p-4 text-st-body text-danger-foreground sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-3 rounded-stitch-md border border-danger-strong/30 bg-danger p-4 text-st-body text-danger-foreground sm:flex-row sm:items-center sm:justify-between">
           <span>{error}</span>
           <div className="flex shrink-0 flex-wrap gap-2">
             <Button
@@ -886,7 +900,7 @@ export default function AdminOrdersPage() {
 
       {/* Con lista en pantalla, el fallo avisa que está vieja en vez de vaciarla (B0). */}
       {!authRequired && error && orders.length > 0 ? (
-        <div className="flex flex-col gap-3 rounded-md border border-warning-strong/30 bg-warning p-4 text-st-body text-status-pending-text sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-3 rounded-stitch-md border border-warning-strong/30 bg-warning p-4 text-st-body text-status-pending-text sm:flex-row sm:items-center sm:justify-between">
           <span>
             No se pudo actualizar la bandeja.{" "}
             <span className="text-status-pending-text/80">
