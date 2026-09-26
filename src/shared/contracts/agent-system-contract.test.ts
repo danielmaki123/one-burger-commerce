@@ -34,6 +34,7 @@ const REQUIRED_DOCUMENTS = [
 /** El procedimiento por tipo de trabajo. Las cuatro separaciones conceptuales dependen de que estén. */
 const REQUIRED_SKILLS = [
   "new-task",
+  "delivery-e2e",
   "bugfix",
   "money-change",
   "database-migration",
@@ -371,5 +372,195 @@ describe("contrato · sistema operativo de ingeniería del agente", () => {
       versioned.filter((path) => !fileExists(path)),
       "los archivos del sistema tienen que existir en el repo, no solo en el disco local",
     ).toEqual([]);
+  });
+});
+
+/**
+ * TASK-OPS-001 — **contrato de entrega E2E por defecto**.
+ *
+ * La decisión del owner: una TASK aprobada se ejecuta hasta el estado operativo final **sin pedir permisos
+ * intermedios** para PR, merge o deploy. Este guardrail custodia lo **objetivo** de esa decisión, no su
+ * redacción:
+ *
+ * 1. la política existe **una sola vez** y nombra los tres modos;
+ * 2. `production-release` ya no pide un segundo OK, pero **conserva** los guardrails del deploy;
+ * 3. `new-task` declara el modo al arrancar y la plantilla lo pide;
+ * 4. ningún documento **activo** vuelve a exigir backup manual por frecuencia;
+ * 5. el deploy sigue siendo **solo desde `main` y con CI verde**.
+ *
+ * Lo que este contrato **no** hace: decidir riesgo de negocio. Ningún regex puede saber si un cambio toca
+ * dinero; eso lo declara el humano en el Delivery Mode y lo resuelven las skills de cada clase de riesgo.
+ */
+const DELIVERY_POLICY_SKILL = ".agents/skills/delivery-e2e/SKILL.md";
+const DELIVERY_MODES = ["docs-only", "runtime-e2e", "high-risk-e2e"] as const;
+
+/** La frase que se proclama dueña de la política: una sola, como la de la arquitectura de producto. */
+const DELIVERY_AUTHORITY_CLAIM = "fuente de la política de entrega";
+
+/** La regla vieja, textual: si vuelve a un documento activo, este contrato la delata. */
+const MANUAL_BACKUP_RULE = /backup manual antes de cada deploy|antes de cada deploy[^.]{0,120}backup manual/i;
+
+/**
+ * Documentos activos: la constitución, el mapa del sistema y todo `ops/` que no sea historia.
+ * `ops/history/` queda afuera a propósito: la historia **no se reescribe**.
+ */
+function activeGovernanceDocs(): string[] {
+  const candidates = [
+    "AGENTS.md",
+    "CLAUDE.md",
+    ...listFiles(".agents", (repoPath) => repoPath.endsWith(".md")),
+    ...listFiles("ops", (repoPath) => repoPath.endsWith(".md") && !repoPath.startsWith("ops/history/")),
+  ];
+
+  return Array.from(new Set(candidates)).filter(fileExists).sort();
+}
+
+describe("contrato · entrega E2E por defecto (TASK-OPS-001)", () => {
+  it("cada skill obligatoria está fuera del ignore: existir en el disco no alcanza", () => {
+    /**
+     * Un archivo puede existir en la máquina y **no** estar en el repo: `.agents/skills/*` está ignorado y
+     * cada skill propia se habilita con una línea `!`. Así se coló una skill nueva durante TASK-OPS-001: el
+     * contrato la veía en el disco y el clon no la tenía. La propiedad objetiva es la negación explícita.
+     */
+    const gitignore = readRepoFile(".gitignore").split("\n").map((line) => line.trim());
+
+    const sinVersionar = REQUIRED_SKILLS.filter(
+      (skill) => !gitignore.includes(`!.agents/skills/${skill}/`),
+    ).map((skill) => `.agents/skills/${skill}/`);
+
+    expect(
+      sinVersionar,
+      "una skill obligatoria sin su `!` en .gitignore existe en el disco y falta en el repo: el sistema operativo del agente no se versiona a medias",
+    ).toEqual([]);
+  });
+
+  it("la política de entrega existe, es una sola fuente y nombra los tres modos", () => {
+    expect(
+      fileExists(DELIVERY_POLICY_SKILL),
+      `falta ${DELIVERY_POLICY_SKILL}: sin la política escrita, cada sesión vuelve a preguntar si mergea o despliega`,
+    ).toBe(true);
+
+    const policy = readRepoFile(DELIVERY_POLICY_SKILL);
+
+    const missingModes = DELIVERY_MODES.filter((mode) => !policy.includes(mode));
+
+    expect(
+      missingModes,
+      "la política tiene que nombrar los tres modos: es lo que el humano elige una vez y el agente ejecuta",
+    ).toEqual([]);
+
+    const required: Array<[string, string]> = [
+      ["stop condition", "las condiciones de parada reales, no la duda del agente"],
+      ["destructiva", "la operación destructiva en producción"],
+      ["backfill", "el backfill/reparación de datos sin aprobar"],
+      ["secreto", "el secreto o permiso externo que no existe"],
+      ["p0/p1", "el incidente nuevo causado por la TASK"],
+    ];
+
+    // Sin distinguir mayúsculas: la política nombra las condiciones como títulos y el chequeo custodia el
+    // concepto, no la tipografía.
+    const haystack = policy.toLowerCase();
+    const missing = required.filter(([needle]) => !haystack.includes(needle)).map(([, why]) => why);
+
+    expect(missing, "a la política le falta una condición de parada o una regla dura").toEqual([]);
+
+    // Una sola declaración de autoridad: si un segundo documento se proclama dueño, se contradicen.
+    const claimants = activeGovernanceDocs()
+      .filter((repoPath) => readRepoFile(repoPath).includes(DELIVERY_AUTHORITY_CLAIM))
+      .sort();
+
+    expect(
+      claimants,
+      "la política de entrega se escribe una vez y se enlaza: dos fuentes terminan contradiciéndose",
+    ).toEqual([DELIVERY_POLICY_SKILL]);
+  });
+
+  it("production-release ya no exige una segunda autorización, pero conserva los guardrails del deploy", () => {
+    const skill = readRepoFile(".agents/skills/production-release/SKILL.md");
+
+    const segundaAutorizacion = skill.match(/OK explícito del owner|con el OK del owner|sin el OK del owner/i);
+
+    expect(
+      segundaAutorizacion?.[0] ?? null,
+      "el deploy ya no se autoriza dos veces: la aprobación de una TASK de runtime (o el Delivery Mode declarado) alcanza, salvo Stop Condition",
+    ).toBeNull();
+
+    const required: Array<[string, string]> = [
+      ["CI verde", "el deploy sigue esperando el CI verde"],
+      ["main", "el deploy sale solo de main"],
+      ["autoriza", "la semántica nueva: la aprobación de la TASK autoriza el release"],
+      ["deployService", "una sola llamada a deployService"],
+      ["forceRebuild", "el rebuild explícito"],
+      ["/api/health", "la verificación de health"],
+      ["/api/readiness", "la verificación de readiness"],
+      ["test:e2e:prod", "los smokes posteriores"],
+      ["commit.sha", "la confirmación del sha desplegado"],
+      ["db:seed", "la prohibición de seed en producción"],
+      ["migrate reset", "la prohibición de reset en producción"],
+      ["cacommerce", "la prohibición de tocar servicios ajenos"],
+      ["Rollback", "el rollback documentado"],
+    ];
+
+    const missing = required.filter(([needle]) => !skill.includes(needle)).map(([, why]) => why);
+
+    expect(
+      missing,
+      "cambiar la autorización no puede aflojar el procedimiento: los guardrails del deploy quedan intactos",
+    ).toEqual([]);
+  });
+
+  it("new-task declara el Delivery Mode al arrancar y no pide elegirlo cuando es inferible", () => {
+    const skill = readRepoFile(".agents/skills/new-task/SKILL.md");
+
+    const missingModes = DELIVERY_MODES.filter((mode) => !skill.includes(mode));
+
+    expect(
+      missingModes,
+      "el arranque de una TASK tiene que declarar su modo de entrega: es lo que decide si hay deploy",
+    ).toEqual([]);
+
+    expect(
+      skill.includes("Delivery Mode") || skill.includes("DELIVERY MODE"),
+      "el gate de arranque tiene que nombrar el campo que se completa",
+    ).toBe(true);
+
+    expect(
+      /inferible|se infiere|no se pregunta/i.test(skill),
+      "el modo se infiere del brief: no se le pide al owner que elija cuando ya se sabe",
+    ).toBe(true);
+  });
+
+  it("la plantilla de TASK pide el Delivery Mode y las stop conditions de esa TASK", () => {
+    const template = readRepoFile("ops/tasks/TEMPLATE.md");
+
+    const missingModes = DELIVERY_MODES.filter((mode) => !template.includes(mode));
+
+    expect(
+      missingModes,
+      "una TASK sin modo de entrega declarado no sabe si termina en merge o en producción",
+    ).toEqual([]);
+
+    expect(
+      template.includes("STOP CONDITIONS"),
+      "la plantilla tiene que pedir las condiciones de parada propias de la TASK (no repetir el procedimiento)",
+    ).toBe(true);
+  });
+
+  it("ningún documento activo vuelve a exigir backup manual por frecuencia", () => {
+    const offenders = activeGovernanceDocs()
+      .filter((repoPath) => MANUAL_BACKUP_RULE.test(readRepoFile(repoPath)))
+      .sort();
+
+    expect(
+      offenders,
+      "el backup se decide por riesgo del release, no por frecuencia: la regla vieja no puede volver a un documento activo",
+    ).toEqual([]);
+
+    const policy = readRepoFile(DELIVERY_POLICY_SKILL);
+
+    expect(
+      /por riesgo/i.test(policy) && /backup/i.test(policy),
+      "la política tiene que decir explícitamente que el backup se decide por riesgo del release",
+    ).toBe(true);
   });
 });

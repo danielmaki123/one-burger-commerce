@@ -8,13 +8,13 @@ en qué estado está el sistema en pocos minutos.
 [`.agents/CONTEXT.md`](../.agents/CONTEXT.md)). Este archivo se **actualiza seguido** y se mantiene
 corto: si crece como un diario, dejó de servir.
 
-> **Última actualización**: 2026-09-26, por el **release de `SCREEN-ORDERS-001`** (Easypanel).
-> `main` = `fff8d71a7d5b5042c8ecd21370218e84f1da7a0b` y **es lo que está sirviendo producción**:
-> `build-20260926-031111`, desplegado el 2026-09-26 03:11–03:14 UTC, `/api/health` ok,
-> `/api/readiness` `ready` (base 7 ms), smokes **menú 7/7** y **hosts 6/6**, y QA autenticada de Órdenes en
-> el build nuevo a 375/1280. El release lleva **`IA-001`** (navegación aprobada) y **`SCREEN-ORDERS-001`**
-> (Órdenes: motion, umbral del local, copy de la factura, barra compacta en celular): **sin migraciones**,
-> **sin cambios de dominio, rutas ni permisos** y **sin backup manual** (autorizado por el owner).
+> **Última actualización**: 2026-09-26, por **`TASK-OPS-001`** (gobierno del agente, `docs-only`) y el
+> **release de `SCREEN-ORDERS-001`** (ya desplegado, ver §1).
+> **Vigente desde hoy: el Default E2E Delivery Contract** ([`.agents/skills/delivery-e2e/SKILL.md`](../.agents/skills/delivery-e2e/SKILL.md)):
+> una TASK aprobada declara su **Delivery Mode** (`docs-only` · `runtime-e2e` · `high-risk-e2e`) y se ejecuta
+> hasta el estado final **sin pedir permisos intermedios** de merge o deploy, y el **backup se decide por
+> riesgo del release**, no por frecuencia. `A-57` sigue abierto como problema del **scheduler** de backups y
+> **no obliga** a un backup manual en releases que no lo necesitan.
 > **La fase de estabilización técnica sigue cerrada**: **ningún P0 conocido** y **ningún P1 de dinero abierto**.
 > Lo que sigue abierto es **operativo** (`A-57`, backup) o de **decisión del owner** (`A-66`, el `cashier` en
 > Órdenes, y los datos históricos de los releases de dinero). Con **`DS-001`**, **`IA-001`** y **Órdenes**
@@ -27,7 +27,7 @@ corto: si crece como un diario, dejó de servir.
 | Qué | Estado |
 |---|---|
 | **Último deploy** | `build-20260926-031111`, sobre `fff8d71a7d5b5042c8ecd21370218e84f1da7a0b` (**IA-001, SCREEN-ORDERS-001**), 2026-09-26 03:11–03:14 UTC. `commit.sha` del panel = `fff8d71`, `/api/health` = `build-20260926-031111`, `/api/readiness` `ready` (DB 7 ms), smokes **menú 7/7** y **hosts 6/6**, QA autenticada 2/2 a 375 y 1280. **Sin backup manual**: no hay migración ni cambio de datos (autorizado por el owner) |
-| **`main`** | `8aa8962` (documentación de cierre) con el **código desplegado** en `fff8d71a7d5b5042c8ecd21370218e84f1da7a0b`. CI verde en los PR #57/#58 y en los dos push a `main` (los cuatro checks + `publish`) |
+| **`main`** | La **documentación de cierre avanza** con cada PR y no cambia lo desplegado: el **código en producción** sigue siendo `fff8d71a7d5b5042c8ecd21370218e84f1da7a0b` hasta que un release de runtime diga otra cosa. CI verde en cada push a `main` (los cuatro checks + `publish`) |
 | **Migración aplicada en este deploy** | **Ninguna**: el release es de pantalla y navegación. La última sigue siendo `20260925120000_add_payment_void`, aplicada el 2026-09-25 |
 | **Rollback target** | `build-20260926-022334` (commit `aa898cc`, navegación IA-001) — la aplicación se revierte revirtiendo el commit en `main` y volviendo a disparar `deployService`; la base no se toca (este release no migró) |
 | **Modelo de deploy** | Easypanel, proyecto `brunobot`, servicio `oneburguerweb`; build **desde GitHub `main`** con `forceRebuild`. Una sola llamada a `deployService` (la llamada cortó por timeout y el build siguió en segundo plano: comportamiento conocido, la action quedó `done`) |
@@ -111,7 +111,7 @@ filtra datos) · **P2** (función rota, fuga o deuda estructural con impacto).
 
 | Riesgo | Detalle | Dónde |
 |---|---|---|
-| **El backup programado no genera archivos** | La config del servicio `oneburguer-postgres` está `enabled: true` (cron `0 0 * * *`) pero el respaldo programado **nunca** produjo un archivo: las únicas acciones de backup son las dos del drill (2026-09-12) y la manual del release anterior (2026-09-25 12:27), y **no hay retención declarada**. Es **materia de infraestructura/operación**: requiere revisar la sección Backups del panel y decidir retención — no es código y **no bloquea** el trabajo de producto. Mientras tanto: **backup manual antes de cada deploy** | `A-57` en [`audit-backlog.md`](audit-backlog.md) |
+| **El backup programado no genera archivos** | La config del servicio `oneburguer-postgres` está `enabled: true` (cron `0 0 * * *`) pero el respaldo programado **nunca** produjo un archivo: las únicas acciones de backup son las dos del drill (2026-09-12) y la manual del release anterior (2026-09-25 12:27), y **no hay retención declarada**. Es **materia de infraestructura/operación**: requiere revisar la sección Backups del panel y decidir retención — no es código y **no bloquea** el trabajo de producto. Mientras tanto: el **backup se decide por riesgo del release**, no por frecuencia ([`delivery-e2e`](../.agents/skills/delivery-e2e/SKILL.md) §4) | `A-57` en [`audit-backlog.md`](audit-backlog.md) |
 
 **P2**
 

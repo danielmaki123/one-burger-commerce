@@ -217,4 +217,7 @@ va al historial o al PR. Si cambia semana a semana, va a `CURRENT.md`.
   (existe una ventana entre el `NOT NULL` y el cambio de tráfico).
 - **Un 404 con HTML ajeno en el apex**: primero se identifica de quién es ese HTML
   (`domains/listDomains`) antes de tocar la app.
-- **Nunca se despliega sin el OK explícito del owner**, y nunca se despliega una rama de trabajo.
+- **El deploy sale solo de `main` y después del CI verde**, y una TASK de entrega aprobada
+  (`runtime-e2e`/`high-risk-e2e`) **ya autoriza** su merge y su release: no se pide un segundo OK salvo
+  **Stop Condition** ([`skills/delivery-e2e/SKILL.md`](skills/delivery-e2e/SKILL.md)). Nunca se despliega
+  una rama de trabajo, y el **backup se decide por riesgo del release**, no por frecuencia.

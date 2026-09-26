@@ -227,7 +227,7 @@ Estado actual del repo:
 Política recomendada para producción:
 
 1. Activar backups programados en el servicio PostgreSQL de Easypanel y fijar retención explícita (mínimo 7 días).
-2. Antes de cada deploy que incluya migraciones: backup manual (`pg_dump`) y anotar el identificador del backup.
+2. **El backup se decide por riesgo del release, no por frecuencia** ([`delivery-e2e`](../.agents/skills/delivery-e2e/SKILL.md) §4): un release de docs, CSS, UI, navegación, frontend, backend sin cambio persistente riesgoso o refactor sin datos **no** necesita backup manual. Sí lo necesita una **migración destructiva**, un **backfill**, una **reparación o transformación de datos**, o un cambio persistente de dinero cuyo rollback dependa de un snapshot: en esos casos, backup manual (`pg_dump`) y el identificador anotado **antes** de desplegar. Una **migración aditiva segura** (la que la skill [`database-migration`](../.agents/skills/database-migration/SKILL.md) clasifica como tal) puede correr E2E sin detenerse.
 3. Si se necesita control total del paso de migración: desplegar con `MIGRATIONS_AUTO=false`, correr `npm run db:deploy` como paso explícito y recién entonces habilitar el tráfico.
 4. Hacer un **drill de restore** en una base aislada antes de la primera salida y luego cada trimestre: restaurar el backup, comparar conteos de `Order`, `Product`, `AdminUser` y registrar la evidencia.
 5. No usar `npm run db:seed` en producción: crea credenciales demo (`admin@example.com` / `Admin1234!`).

@@ -170,7 +170,9 @@ readiness y bootstrap del admin). **`publish`** (imagen a GHCR) corre **solo** e
 `strict`). Detalle operativo y cómo verificarlo, en `AGENTS.md` § *PR y CI*.
 
 **Despliegue**: Easypanel (`brunobot` / `oneburguerweb`), **una sola llamada** a `deployService` con
-`forceRebuild`, **solo desde `main`** y con el OK del owner. Secuencia exacta, backups, rollback y
+`forceRebuild`, **solo desde `main` y después del CI verde**. La aprobación de una TASK de entrega
+(`runtime-e2e`/`high-risk-e2e`) ya autoriza el release: no se pide un segundo OK salvo **Stop Condition**
+([`skills/delivery-e2e/SKILL.md`](skills/delivery-e2e/SKILL.md)). Secuencia exacta, backups, rollback y
 límites conocidos en [`../ops/production-readiness.md`](../ops/production-readiness.md).
 
 ## 10. Integraciones externas
