@@ -9,16 +9,15 @@ en qué estado está el sistema en pocos minutos.
 corto: si crece como un diario, dejó de servir.
 
 > **Última actualización**: 2026-09-26, por el release de **`SCREEN-POS-QUICK-SALE-001`** (POS Fase 1 — Venta
-> rápida, ver §4) y `TASK-OPS-001` (gobierno del agente, `docs-only`).
+> rápida, **desplegado** por el owner; ver §1 y §4).
 > **Vigente desde hoy: el Default E2E Delivery Contract** ([`.agents/skills/delivery-e2e/SKILL.md`](../.agents/skills/delivery-e2e/SKILL.md)):
-> una TASK aprobada declara su **Delivery Mode** (`docs-only` · `runtime-e2e` · `high-risk-e2e`) y se ejecuta
-> hasta el estado final **sin pedir permisos intermedios** de merge o deploy, y el **backup se decide por
-> riesgo del release**, no por frecuencia. `A-57` sigue abierto como problema del **scheduler** de backups y
-> **no obliga** a un backup manual en releases que no lo necesitan.
-> **La fase de estabilización técnica sigue cerrada**: **ningún P0 conocido** y **ningún P1 de dinero abierto**.
-> Lo que sigue abierto es **operativo** (`A-57`, backup) o de **decisión del owner** (`A-66`, el `cashier` en
-> Órdenes, y los datos históricos de los releases de dinero). Con **`DS-001`**, **`IA-001`**, **Órdenes** y
-> **la Venta rápida del POS** cerrados, lo que sigue es **`SCREEN-001 — Resumen`**, que **no se inició**.
+> una TASK aprobada declara su **Delivery Mode** y se ejecuta hasta el estado final **sin pedir permisos
+> intermedios**, y el **backup se decide por riesgo del release**, no por frecuencia (`A-57` sigue abierto como
+> problema del **scheduler** de backups y **no obliga** a un backup manual en releases que no lo necesitan).
+> **La fase de estabilización técnica sigue cerrada**: ningún P0 conocido y ningún P1 de dinero abierto. Lo que
+> sigue abierto es **operativo** (`A-57`) o **decisión del owner** (`A-66`, el `cashier` en Órdenes). Con
+> `DS-001`, `IA-001`, Órdenes y la **Venta rápida del POS** cerrados, lo que sigue es **`SCREEN-001 — Resumen`**,
+> que **no se inició**.
 
 ---
 
@@ -26,13 +25,12 @@ corto: si crece como un diario, dejó de servir.
 
 | Qué | Estado |
 |---|---|
-| **Último deploy** | `build-20260926-031111`, sobre `fff8d71a7d5b5042c8ecd21370218e84f1da7a0b` (**IA-001, SCREEN-ORDERS-001**), 2026-09-26 03:11–03:14 UTC. `commit.sha` del panel = `fff8d71`, `/api/health` = `build-20260926-031111`, `/api/readiness` `ready` (DB 7 ms), smokes **menú 7/7** y **hosts 6/6**, QA autenticada 2/2 a 375 y 1280. **Sin backup manual**: no hay migración ni cambio de datos (autorizado por el owner) |
-| **⚠️ Release pendiente de deploy: `SCREEN-POS-QUICK-SALE-001`** | El **código está mergeado y verde en `main`** (`be4c051`, PR #62: los cuatro checks en verde) y **todavía NO está en producción**: el deploy requiere `EASYPANEL_TOKEN` por entorno y **el token no está disponible en el entorno del agente** (Stop Condition 6: *secreto o permiso externo inexistente*). Sin migración ni cambio de datos → **no requiere backup**. Queda a un paso del owner: `deployService` sobre `brunobot`/`oneburguerweb` (`forceRebuild: true`), y después health, readiness, los dos smokes y la QA autenticada 375/768/1280 |
-| **`main`** | La **documentación de cierre avanza** con cada PR y no cambia lo desplegado: el **código en producción** sigue siendo `fff8d71a7d5b5042c8ecd21370218e84f1da7a0b` hasta que un release de runtime diga otra cosa. CI verde en cada push a `main` (los cuatro checks + `publish`) |
+| **Último deploy** | `build-20260926-170322`, sobre `be4c051a`+ (`main` con **`SCREEN-POS-QUICK-SALE-001`**, PR #62), 2026-09-26 17:03 UTC — deploy disparado por el **owner**. `/api/health` = `build-20260926-170322`, `/api/readiness` `ready` (DB 85 ms), smokes **menú 7/7** y **hosts 6/6**. **Sin backup manual**: no hay migración ni cambio de datos |
+| **`main`** | `3a58633` (docs de cierre, PR #63). El **código en producción** es `be4c051` — el commit de la TASK; el de docs no cambia lo desplegado. CI verde en cada push a `main` (los cuatro checks + `publish`) |
 | **Migración aplicada en este deploy** | **Ninguna**: el release es de pantalla y navegación. La última sigue siendo `20260925120000_add_payment_void`, aplicada el 2026-09-25 |
-| **Rollback target** | `build-20260926-022334` (commit `aa898cc`, navegación IA-001) — la aplicación se revierte revirtiendo el commit en `main` y volviendo a disparar `deployService`; la base no se toca (este release no migró) |
+| **Rollback target** | `build-20260926-031111` sobre `fff8d71` (IA-001 + Órdenes) — la aplicación se revierte revirtiendo el commit en `main` y volviendo a disparar `deployService`; la base no se toca (este release no migró) |
 | **Modelo de deploy** | Easypanel, proyecto `brunobot`, servicio `oneburguerweb`; build **desde GitHub `main`** con `forceRebuild`. Una sola llamada a `deployService` (la llamada cortó por timeout y el build siguió en segundo plano: comportamiento conocido, la action quedó `done`) |
-| **Migraciones** | El release de AUD-003..006 no trajo ninguna. Este **sí**: `20260925120000_add_payment_void` (A-59), aditiva y sin backfill, aplicada por el arranque |
+| **Migraciones** | El release de AUD-003..006 no trajo ninguna. El de A-59 **sí**: `20260925120000_add_payment_void`, aditiva y sin backfill, aplicada por el arranque |
 | **Réplicas** | `1` |
 | **Backup pre-deploy** | **No aplica en este release**: no hay migración ni cambio de datos, y el owner autorizó desplegar sin backup manual (el hallazgo de `A-57` —el backup programado no genera archivos— sigue abierto y es del owner) |
 | **Hosts activos** | `oneburgernic.com` y `www` (landing + redirects 307) · `menu.oneburgernic.com` (app de pedidos) · `admin.oneburgernic.com` (panel) |
@@ -41,6 +39,13 @@ corto: si crece como un diario, dejó de servir.
 | **Datos de negocio** | 3 sucursales reales (Camino de Oriente, Carretera Masaya, Casa Antigua). La carta la sigue cargando el owner |
 | **Caja en producción** | Sin terminales de caja cargadas al momento del último QA: es el estado real del negocio, no un defecto |
 
+⚠️ **Lo que la verificación de este release NO pudo hacer desde el entorno del agente**: no hay
+credenciales de admin de producción (`E2E_ADMIN_*`), así que la **QA autenticada 375/768/1280 del POS queda
+pendiente del owner** (es el mismo límite que arrastran los releases anteriores, anotado en el runbook §3).
+El POS se verificó **antes** del deploy contra una base local con la suite E2E completa (`admin-pos` 11/11 a
+375, 768 y 1280, con capturas en [`design/screens/`](design/screens/)), y después del deploy lo que se puede
+comprobar sin sesión: `build-20260926-170322` sirviendo, readiness `ready` y los dos smokes en verde.
+
 ⚠️ **Hallazgo operativo (sigue abierto): el backup programado no genera archivos.** La config está
 `enabled: true` (cron `0 0 * * *`) y carpeta `oneburguer`, pero las **únicas** acciones de backup del
 servicio son **tres** desde siempre: las dos del drill (2026-09-12) y la manual del release anterior
@@ -48,26 +53,18 @@ servicio son **tres** desde siempre: las dos del drill (2026-09-12) y la manual 
 release. **No hay retención declarada.** El backup de este release lo confirmó el owner a mano →
 `A-57` en el backlog.
 
-✅ **Verificación post-deploy de este release (2026-09-25, solo lectura y sin sesión de admin)**:
-`commit.sha` del panel idéntico a `main` (`0b840e7`) y `/api/health` con la versión nueva; `/api/readiness`
-`ready` con la base en 4 ms; los dos smokes **7/7** y **6/6** (los mismos números que la corrida de base
-hecha **antes** del deploy, así que no hay regresión atribuible al release); la QA pública de solo lectura
-**33 pasaron / 2 salteados / 0 fallas** (los dos salteados son los que necesitan credenciales de admin y
-lo dicen con su motivo); y la **QA de dinero**: la ruta nueva del release responde **405** a un `GET`
-(existe y solo acepta `POST`) y **401** a un `POST` sin sesión —la puerta de autorización corre en el
-servidor antes de tocar la base, así que no se escribió nada—, con las rutas de caja y cobro existentes
-respondiendo igual que antes.
-⚠️ **Lo que esta verificación NO pudo hacer desde el entorno del agente**: no había credenciales de admin
-disponibles, así que **no** se abrió ninguna pantalla con sesión (Caja, POS, Historial, Órdenes) ni se
-leyó el detalle de un pedido: el estado de las cajas lo **confirmó el owner** («no hay nada abierto») y no
-es una verificación del agente. La presencia de la columna `voidedAt` en la base tampoco se ejercitó con
-una lectura autenticada (sí la aplica el contenedor al arrancar, y el esquema se probó contra PostgreSQL 17
-real en local y en el CI del release).
+✅ **Verificación post-deploy del release de la Venta rápida (2026-09-26, solo lectura y sin sesión)**:
+`/api/health` = `build-20260926-170322` (versión nueva) y `/api/readiness` `ready`; los dos smokes **7/7** y
+**6/6**. Lo que **no** se pudo hacer: abrir una pantalla con sesión —no hay credenciales de admin acá—, así
+que la **QA autenticada del POS 375/768/1280 queda pendiente del owner** (se verificó antes del deploy contra
+una base local: `admin-pos` **11/11**, capturas en [`design/screens/`](design/screens/)). Tampoco se
+ejercitó la presencia de `voidedAt` con lectura autenticada (sí la aplica el contenedor al arrancar).
 
-📋 **Pasada read-only de A-50/A-51 (acotada, sin reparar nada)**:
-
-- **A-51 (cierres históricos)**: los **5** cierres de producción tienen `expectedAmount` firmado; **4** tienen su conteo de cierre y el quinto es un **cierre ciego** (`closingAmount` y `difference` nulos: sin conteo por diseño, no un cierre a medias). **Cero confirmados y cero probables** con el defecto de las tres escrituras sueltas. El detalle de `ShiftBankClose` queda **no determinable** (producción no tiene bancos configurados, así que la ausencia de filas no distingue «no se declaró» de «no se escribió»). Dato relevante para el cambio de fórmula de AUD-005: **ninguno de los 5 turnos tenía retiros ni devoluciones**, así que el esperado corregido **no altera ningún número histórico**.
-- **A-50 (ventas POS previas)**: **no identificable con certeza solo desde el estado persistido accesible por API** — el listado del admin no expone los cobros ni la clave de intento, así que no se puede separar «pedido del menú pendiente de cobro» (normal) de «venta de mostrador a medias». Requiere lectura de la base (`Order.idempotencyKey` y el conteo de `Payment` por pedido). **No reparado.**
+📋 **Pasada read-only de A-50/A-51 (acotada, sin reparar nada)**: **A-51** — los **5** cierres tienen
+`expectedAmount` firmado y **ninguno** tenía retiros ni devoluciones, así que la fórmula corregida de AUD-005
+**no altera ningún número histórico**; el detalle de `ShiftBankClose` es **no determinable** (producción no
+tiene bancos configurados). **A-50** — **no identificable** desde la API (no expone los cobros ni la clave de
+intento): requiere leer la base. **No reparado.**
 
 ⚠️ **Límite del entorno del agente en este release**: **los logs del contenedor no son accesibles por API**
 (`actions/inspectAction`, `actions/getActionLogs` y `services/app/inspectServiceLogs` responden 404), así que
@@ -160,11 +157,13 @@ está **aprobado y desplegado**; **`IA-001`** (navegación del panel) también; 
 **`SCREEN-POS-QUICK-SALE-001`** la segunda ([`design/screens/pos-quick-sale.md`](design/screens/pos-quick-sale.md)).
 Lo que sigue es **`SCREEN-001 — Resumen`**, que **no se inició**.
 
-**SCREEN-POS-QUICK-SALE-001 — POS Fase 1 / Venta rápida (cerrada en `main`, `be4c051`, deploy pendiente del
-token)**: la Venta rápida pasó a un **workspace `CATÁLOGO | VENTA`** —ticket anclado al viewport en escritorio,
-barra + sheet en celular y tablet, opciones secundarias bajo demanda—. **Sin dominio, sin endpoints, sin
-permisos y sin DB.** `pos-client.tsx` bajó de **1.005 a 427 líneas**. El detalle, la QA y los dos desvíos
-medidos respecto del boceto están en [`design/screens/pos-quick-sale.md`](design/screens/pos-quick-sale.md).
+**SCREEN-POS-QUICK-SALE-001 — POS Fase 1 / Venta rápida (cerrada, `be4c051`, `build-20260926-170322`,
+desplegada por el owner)**: la Venta rápida pasó a un **workspace `CATÁLOGO | VENTA`** —ticket anclado al
+viewport en escritorio, barra + sheet en celular y tablet, opciones secundarias bajo demanda—. **Sin dominio,
+sin endpoints, sin permisos y sin DB.** `pos-client.tsx` bajó de **1.005 a 427 líneas**. El detalle, la QA y
+los dos desvíos medidos respecto del boceto están en
+[`design/screens/pos-quick-sale.md`](design/screens/pos-quick-sale.md). **QA autenticada de producción
+pendiente del owner**: desde acá no hay credenciales de admin (§1).
 
 **SCREEN-ORDERS-001 — Órdenes (cerrada, `fff8d71`, desplegada)**: discovery, arquitectura/IA, spec, prototipo
 y capturas → implementación bajo DS v4 → QA de navegador a 375/768/1280 → PR #57 con CI verde. Entregado: los
@@ -173,11 +172,9 @@ defecto: decía un número que la pantalla no usaba), el copy de la factura a **
 celular** (la primera comanda ya no queda debajo del pliegue). Sin dominio, sin endpoints, sin permisos y sin
 DB. La deuda del discovery quedó registrada como `A-60` a `A-66`.
 
-**Release consolidado a producción (2026-09-25, cerrado)**: `main` = `0b840e73b1a0899910f13d980faa005cd2c08c4f` **desplegado** y sirviendo `build-20260925-174535`. El release lleva A-54, A-55, AUD-007, AUD-008, A-58 y A-59 con su migración aditiva. Preflight, backup confirmado por el owner, deploy, migraciones, health/readiness, smokes (7/7 y 6/6) y la QA de dinero están en §1. **Sin reparación de datos históricos**: `A-50`/`A-51` siguen sin tocar.
+**Release consolidado a producción (2026-09-25, cerrado)**: `main` = `0b840e7` **desplegado** y sirviendo `build-20260925-174535`. El release llevó A-54, A-55, AUD-007, AUD-008, A-58 y A-59 con su migración aditiva. **Sin reparación de datos históricos**: `A-50`/`A-51` siguen sin tocar.
 
-**ARCH-001 — Product & Module Architecture (cerrada, 2026-09-25, docs-only)**: la constitución de producto vive en [`ops/product/MODULE_ARCHITECTURE.md`](product/MODULE_ARCHITECTURE.md): las secciones reales del panel, los módulos que existen, el **ownership** de cada agregado, la regla del Resumen como overview transversal, el gate para capacidades nuevas y la **deuda registrada** (el dominio de Caja repartido entre `orders` y `pos`, promociones en `orders`, `dashboard` sin puertos, los cascarones `coupons`/`table-ordering`, puertas sin call site y la entrada muerta «Mesas» del móvil). **No cambió producto, rutas, navegación, diseño ni DB**: lo que no coincide con la dirección conceptual del roadmap quedó **documentado**, no corregido por decreto. El enforcement objetivo vive en los contratos: la fuente existe una sola vez, el camino de entrada la cita y no crece como un manual.
-
-**TASK-AUD-059 — Void/Reversal de cobro (cerrada, `974fa74`, desplegada)**: un cobro mal registrado se **anula** conservando la fila (migración aditiva `20260925120000_add_payment_void`), con `canVoidPayment` (solo owner), motivo obligatorio y asiento `payment.void`. La exclusión vive una sola vez por adaptador, así que el arqueo, el saldo del pedido, la conciliación y los documentos dejan de verlo; y las dos puntas de la invariante se rechazan entre sí (no se anula un cobro con devolución viva, no se aprueba la devolución de un cobro anulado). Detalle y evidencia en §3.
+**ARCH-001 — Product & Module Architecture (cerrada, 2026-09-25, docs-only)**: la constitución de producto vive en [`ops/product/MODULE_ARCHITECTURE.md`](product/MODULE_ARCHITECTURE.md): las secciones reales del panel, los módulos que existen, el **ownership** de cada agregado, la regla del Resumen como overview transversal, el gate para capacidades nuevas y la **deuda registrada** (el dominio de Caja repartido entre `orders` y `pos`, promociones en `orders`, `dashboard` sin puertos, los cascarones `coupons`/`table-ordering`, puertas sin call site y la entrada muerta «Mesas» del móvil). **No cambió producto, rutas, navegación, diseño ni DB**: lo que no coincide con la dirección conceptual del roadmap quedó **documentado**, no corregido por decreto.
 
 **TASK-AUD-004 — POS Sale Atomicity** (cerrada, `c0b427b`): el riesgo se **reprodujo** contra PostgreSQL real (pedido persistido con 1 de 2 cobros, y con **cero** cobros por la otra vía; el cupón consumido y el reintento devolviendo la venta incompleta) y se cerró con un **límite atómico explícito**: el pedido, su cupón y todos sus cobros en un solo `$transaction`. Dos hallazgos en el camino: dentro de una transacción un `P2002` **aborta** la transacción, y el aviso de pedido creado tenía que salir **después del commit**. Montó el **arnés de PostgreSQL real** para Vitest (corre en CI, job `migrations`); sin migración. Su review adversarial dejó `A-46` a `A-49`.
 
@@ -193,13 +190,15 @@ aprobó el owner, en [`roadmap/`](roadmap/).
 
 **Baseline de `DS-001` (2026-09-26, cerrado)**: `4dc2cbb` → `build-20260926-003808`, sin migraciones ni cambios visuales; quedó superado por el release de `IA-001` + Órdenes (ver §1).
 
-**Release de `IA-001` + `SCREEN-ORDERS-001` (2026-09-26, cerrado)**: `main` = `fff8d71` **desplegado** sirviendo `build-20260926-031111`. Navegación aprobada (Resumen fuera de los grupos) y Órdenes: motion, umbral del local en el anuncio, copy de factura a 80 mm y barra compacta en celular. Sin migraciones, sin dominio y **sin backup manual**. Deploy, `commit.sha`, health/readiness, smokes (7/7 y 6/6) y QA de Órdenes en §1.
+**Release de `SCREEN-POS-QUICK-SALE-001` (2026-09-26, cerrado)**: `main` = `be4c051` **desplegado** sirviendo
+`build-20260926-170322` (deploy del owner). Sin migraciones, sin dominio y sin backup. Health/readiness y los
+dos smokes (7/7 y 6/6) en §1; la **QA autenticada de producción queda pendiente del owner** porque acá no hay
+credenciales de admin.
 
 **El bloque financiero de la remediación quedó cerrado y desplegado** (`AUD-003..006`, `A-54`, `A-55`,
 `A-58`, `A-59`) y con él la **fase de estabilización técnica**. Lo que sigue, en orden:
 
-1. **Desplegar `SCREEN-POS-QUICK-SALE-001`**: el código ya está en `main` y verde; falta la llamada a
-   `deployService` porque **el `EASYPANEL_TOKEN` no está disponible en el entorno del agente** (§1).
+1. **QA autenticada de producción del POS** (375/768/1280) — la hace el owner o alguien con las credenciales.
 2. **`SCREEN-001` — `/admin` Resumen**: **no iniciado**. Se diseña con la skill `screen-design` (spec
    aprobada por el owner) y se implementa bajo DS v4 en una sola pasada, como en Órdenes.
 3. **POS Fase 2 — pedidos existentes / pagos / bancos / USD / factura**: la define el owner **aparte**; la
