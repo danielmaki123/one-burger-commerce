@@ -76,7 +76,7 @@ test.describe("terminal por turno", () => {
     await page.getByLabel("Terminal").selectOption({ label: BARRA });
     await page.getByRole("button", { name: /^Agregar .+ a la venta$/ }).first().click();
 
-    const etiqueta = await page.getByRole("button", { name: /^Cobrar / }).textContent();
+    const etiqueta = await page.getByRole("button", { name: /^Cobrar C\$/ }).textContent();
     const total = Number((etiqueta ?? "").replace(/[^\d.]/g, ""));
     expect(total).toBeGreaterThan(0);
 
@@ -87,7 +87,7 @@ test.describe("terminal por turno", () => {
     await page.getByLabel("Número del cliente").pressSequentially("88887777");
     await expect(page.getByLabel("Número del cliente")).toHaveValue("88887777");
     await page.getByLabel("Con cuánto paga").fill(String(total));
-    await page.getByRole("button", { name: /^Cobrar / }).click();
+    await page.getByRole("button", { name: /^Cobrar C\$/ }).click();
     await expect(page.getByRole("status")).toContainText("Venta P-");
 
     // 3. Se cierra **la caja del mostrador**, que no vendió nada.

@@ -5,16 +5,20 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { MAX_POS_HELDS, type PosHeldSale } from "@/modules/pos/domain/pos-holds";
+import { DEFAULT_CURRENCY_FORMAT } from "@/shared/lib/format-currency";
 
-import PosHoldsPanel from "./pos-holds-panel";
+import PosHoldsPanel from "./pos-holds";
 
 /**
- * Tareas 9.4 y 9.5 del roadmap del POS (Fase 2) — «Guardar en espera» y «Retomar» en pantalla.
+ * Tareas 9.4 y 9.5 del roadmap del POS (Fase 2) — «En espera» en la venta rápida.
  *
  * El mostrador atiende de a uno: cuando el cliente no está listo, el cajero deja la venta a un lado y sigue
- * con el próximo. La pantalla tiene que decir tres cosas sin que nadie las adivine: **cómo** dejar la venta
- * en espera, **cuál** se puede retomar (y por qué no, si hay una venta en curso) y que descartar una espera
+ * con el próximo. La pieza tiene que decir tres cosas sin que nadie las adivine: **cómo** dejar la venta en
+ * espera, **cuál** se puede retomar (y por qué no, si hay una venta en curso) y que descartar una espera
  * **no se deshace**.
+ *
+ * Lo que cambia en la Fase 1 es dónde vive: el bloque permanente se fue y quedó **una capa secundaria** que
+ * se abre desde `En espera (N)` — sin nada que revisar no ocupa la venta.
  *
  * jsdom no implementa el modo modal del `<dialog>` (igual que en `modal.test.tsx`): se le agrega el mínimo
  * para poder verificar la confirmación, que es del navegador cuando corre de verdad.
@@ -36,7 +40,7 @@ beforeAll(() => {
 
 afterEach(cleanup);
 
-const currency = { symbol: "C$", locale: "es-NI" };
+const currency = DEFAULT_CURRENCY_FORMAT;
 
 const attemptKey = "ce9b1f5e-1a2b-4c3d-8e4f-5a6b7c8d9e0f";
 
@@ -176,5 +180,13 @@ describe("PosHoldsPanel", () => {
         `Ya hay ${MAX_POS_HELDS} ventas en espera. Retomá o descartá una para dejar otra.`,
       ),
     ).toBeTruthy();
+  });
+
+  it("la lista vive en una región propia, con las esperas que se le pasan", () => {
+    renderPanel({ holds: [heldSale()] });
+
+    const region = screen.getByRole("region", { name: "Ventas en espera" });
+    expect(region).toBeTruthy();
+    expect(screen.getByRole("list", { name: "Ventas en espera" })).toBeTruthy();
   });
 });

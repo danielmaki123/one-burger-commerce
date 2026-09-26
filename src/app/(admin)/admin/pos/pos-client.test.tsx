@@ -19,7 +19,8 @@ vi.mock("@/shared/lib/receipt-image", () => ({
   shareOrDownloadReceipt: shareOrDownloadReceiptMock,
 }));
 
-import PosClient, { POS_REFRESH_MS } from "./pos-client";
+import PosClient from "./pos-client";
+import { POS_REFRESH_MS } from "./quick-sale/use-pos-catalog";
 
 /**
  * jsdom no implementa el modo modal del `<dialog>` (igual que en `modal.test.tsx`): la pantalla abre el
@@ -167,9 +168,24 @@ const locations = [
   { id: "loc_sur", name: "Local Sur" },
 ];
 
-/** El total que se muestra en la venta (la fila "Total" del desglose). */
+/**
+ * El total que se muestra en la venta.
+ *
+ * La Fase 1 separó el número del rótulo (`Total` y el monto son hermanos dentro de una fila), así que el
+ * oráculo es la pieza que lo muestra: el `<dd>` del total del resumen de la venta.
+ */
 function totalDeLaVenta() {
-  return screen.getByText("Total").nextElementSibling?.textContent;
+  return screen.getByTestId("pos-sale-total").textContent;
+}
+
+/**
+ * Abre una **opción secundaria** de la venta (Fase 1): promo, descuento manual o ventas en espera.
+ *
+ * Lo que no se usa en una venta normal vive detrás de su disparador (`CONTENT.md` §9): el test lo abre como lo
+ * haría el cajero. El disparador de «En espera» lleva la cuenta en el nombre (`En espera (N)`).
+ */
+async function abrirOpcion(user: ReturnType<typeof userEvent.setup>, label: string | RegExp) {
+  await user.click(screen.getByRole("button", { name: label }));
 }
 
 async function fillCustomer(user: ReturnType<typeof userEvent.setup>) {
@@ -243,11 +259,29 @@ describe("PosClient", () => {
       return jsonResponse({ data: [] });
     });
     vi.stubGlobal("fetch", fetchMock);
+
+    /**
+     * El POS de la venta rápida decide con `matchMedia` si el panel de venta es **columna** (escritorio y
+     * tablet) o **sheet** (celular). jsdom no trae media queries: acá se dobla el ancho de escritorio, que es
+     * el que deja la venta a la vista y sus campos en el DOM. El sheet del celular tiene sus propios casos
+     * (`quick-sale/pos-workspace.test.tsx`) y el E2E real los mide a 375 px.
+     */
+    Object.defineProperty(window, "matchMedia", {
+      configurable: true,
+      writable: true,
+      value: (query: string) => ({
+        matches: query === "(min-width: 64rem)",
+        media: query,
+        addEventListener: () => {},
+        removeEventListener: () => {},
+      }),
+    });
   });
 
   afterEach(() => {
     cleanup();
     vi.unstubAllGlobals();
+    Reflect.deleteProperty(window, "matchMedia");
   });
 
   it("carga el catálogo del primer local y lo muestra con su precio", async () => {
@@ -279,7 +313,7 @@ describe("PosClient", () => {
     await screen.findByText("Taco de birria");
     await user.click(screen.getByRole("button", { name: "Agregar Taco de birria a la venta" }));
 
-    const venta = screen.getByRole("region", { name: "Venta en curso" });
+    const venta = screen.getByRole("dialog", { name: "Venta en curso" });
     expect(within(venta).getByText("Taco de birria")).toBeTruthy();
     expect(within(venta).getByText("Empaque")).toBeTruthy();
     expect(totalDeLaVenta()).toBe("C$40.00");
@@ -293,11 +327,13 @@ describe("PosClient", () => {
     await screen.findByText("Taco especial");
     await user.click(screen.getByRole("button", { name: "Agregar Taco especial a la venta" }));
 
-    const selector = await screen.findByRole("dialog");
+    // El POS tiene dos diálogos en pantalla (el panel de venta y el selector): el selector lleva el
+    // nombre del producto como título.
+    const selector = await screen.findByRole("dialog", { name: "Taco especial" });
     await user.click(within(selector).getByRole("radio", { name: "Cerdo" }));
     await user.click(within(selector).getByRole("button", { name: /^Agregar/ }));
 
-    const venta = screen.getByRole("region", { name: "Venta en curso" });
+    const venta = screen.getByRole("dialog", { name: "Venta en curso" });
     // El modificador viaja en la línea y su delta entra al total: 55 del taco + 15 del cerdo.
     expect(within(venta).getByText("Taco especial")).toBeTruthy();
     expect(within(venta).getByText("Cerdo")).toBeTruthy();
@@ -372,7 +408,7 @@ describe("PosClient", () => {
     await user.click(screen.getByRole("button", { name: "Agregar Taco de birria a la venta" }));
     await fillCustomer(user);
     await user.type(screen.getByLabelText("Con cuánto paga"), "100");
-    await user.click(screen.getByRole("button", { name: /^Cobrar / }));
+    await user.click(screen.getByRole("button", { name: /^Cobrar C\$/ }));
 
     const saleCall = fetchMock.mock.calls.find(([input]) => String(input) === "/api/admin/pos/sale");
     expect(saleCall).toBeTruthy();
@@ -430,7 +466,7 @@ describe("PosClient", () => {
     // Con el tilde puesto y el RUC corto, el cobro no sale y lo dice junto al campo.
     await user.type(screen.getByLabelText("RUC (mínimo 8 caracteres)"), "J0310");
     await user.type(screen.getByLabelText("Razón social"), "Distribuidora La Unión");
-    await user.click(screen.getByRole("button", { name: /^Cobrar / }));
+    await user.click(screen.getByRole("button", { name: /^Cobrar C\$/ }));
 
     expect(fetchMock.mock.calls.some(([input]) => String(input) === "/api/admin/pos/sale")).toBe(
       false,
@@ -439,7 +475,7 @@ describe("PosClient", () => {
     // Se corrige el RUC y la venta sale con los dos datos.
     await user.clear(screen.getByLabelText("RUC (mínimo 8 caracteres)"));
     await user.type(screen.getByLabelText("RUC (mínimo 8 caracteres)"), "J0310000001");
-    await user.click(screen.getByRole("button", { name: /^Cobrar / }));
+    await user.click(screen.getByRole("button", { name: /^Cobrar C\$/ }));
 
     const saleCall = fetchMock.mock.calls.find(([input]) => String(input) === "/api/admin/pos/sale");
     expect(saleCall).toBeTruthy();
@@ -473,7 +509,7 @@ describe("PosClient", () => {
     expect(screen.getAllByLabelText("Con cuánto paga")).toHaveLength(2);
     expect(screen.getByText("Cobro 2")).toBeTruthy();
 
-    await user.click(screen.getByRole("button", { name: "Quitar este cobro" }));
+    await user.click(screen.getByRole("button", { name: "Quitar el cobro 2" }));
 
     expect(screen.queryByLabelText("Referencia de la transferencia (opcional)")).toBeNull();
     expect(screen.getAllByLabelText("Con cuánto paga")).toHaveLength(1);
@@ -492,7 +528,7 @@ describe("PosClient", () => {
 
     // La segunda fila quedó sin monto: el cobro no sale. El mensaje aparece en el campo y en el
     // resumen del error, por eso se cuenta en vez de buscarlo una vez.
-    await user.click(screen.getByRole("button", { name: /^Cobrar / }));
+    await user.click(screen.getByRole("button", { name: /^Cobrar C\$/ }));
 
     expect(screen.getAllByText("Completá el monto de todos los cobros.").length).toBeGreaterThan(0);
     expect(fetchMock.mock.calls.some(([input]) => String(input) === "/api/admin/pos/sale")).toBe(
@@ -507,7 +543,7 @@ describe("PosClient", () => {
     await esperarCajaAbierta();
     await screen.findByText("Taco de birria");
     await user.click(screen.getByRole("button", { name: "Agregar Taco de birria a la venta" }));
-    await user.click(screen.getByRole("button", { name: /^Cobrar / }));
+    await user.click(screen.getByRole("button", { name: /^Cobrar C\$/ }));
 
     expect(screen.getByText("Escribí el nombre del cliente.")).toBeTruthy();
     expect(screen.getByText("Escribí con cuánto paga el cliente.")).toBeTruthy();
@@ -543,7 +579,7 @@ describe("PosClient", () => {
     await user.click(screen.getByRole("button", { name: "Agregar Taco de birria a la venta" }));
     await fillCustomer(user);
     await user.type(screen.getByLabelText("Con cuánto paga"), "100");
-    await user.click(screen.getByRole("button", { name: /^Cobrar / }));
+    await user.click(screen.getByRole("button", { name: /^Cobrar C\$/ }));
 
     expect(await screen.findByRole("alert")).toBeTruthy();
     expect(screen.getByText("Revisá los datos de la venta.")).toBeTruthy();
@@ -638,7 +674,7 @@ describe("PosClient", () => {
     await user.type(screen.getByLabelText("Con cuánto paga"), "100");
 
     expect(screen.getByText(/exige cerrar la caja todos los días/)).toBeTruthy();
-    expect((screen.getByRole("button", { name: /^Cobrar / }) as HTMLButtonElement).disabled).toBe(
+    expect((screen.getByRole("button", { name: /^Cobrar C\$/ }) as HTMLButtonElement).disabled).toBe(
       true,
     );
   });
@@ -666,7 +702,7 @@ describe("PosClient", () => {
     await user.type(screen.getByLabelText("Con cuánto paga"), "100");
 
     expect(screen.queryByText(/exige cerrar la caja todos los días/)).toBeNull();
-    expect((screen.getByRole("button", { name: /^Cobrar / }) as HTMLButtonElement).disabled).toBe(
+    expect((screen.getByRole("button", { name: /^Cobrar C\$/ }) as HTMLButtonElement).disabled).toBe(
       false,
     );
   });
@@ -694,7 +730,7 @@ describe("PosClient", () => {
     await fillCustomer(user);
     await user.type(screen.getByLabelText("Con cuánto paga"), "100");
 
-    const cobrar = screen.getByRole("button", { name: /^Cobrar / });
+    const cobrar = screen.getByRole("button", { name: /^Cobrar C\$/ });
     expect((cobrar as HTMLButtonElement).disabled).toBe(true);
     // La alerta de caja cerrada, con su borde ámbar (la tarjeta destacada de las mejoras visuales).
     const alerta = screen.getByText("Caja cerrada").closest("[role='status']");
@@ -732,7 +768,7 @@ describe("PosClient", () => {
       // Lo que el cajero estaba escribiendo sigue donde estaba: el refresco no toca su estado.
       expect((screen.getByLabelText("Buscar en el catálogo") as HTMLInputElement).value).toBe("cola");
       expect(
-        within(screen.getByRole("region", { name: "Venta en curso" })).getByText("Taco de birria"),
+        within(screen.getByRole("dialog", { name: "Venta en curso" })).getByText("Taco de birria"),
       ).toBeTruthy();
     } finally {
       vi.useRealTimers();
@@ -748,7 +784,7 @@ describe("PosClient", () => {
     await user.click(screen.getByRole("button", { name: "Agregar Taco de birria a la venta" }));
     await fillCustomer(user);
     await user.type(screen.getByLabelText("Con cuánto paga"), "100");
-    await user.click(screen.getByRole("button", { name: /^Cobrar / }));
+    await user.click(screen.getByRole("button", { name: /^Cobrar C\$/ }));
 
     await screen.findByRole("status");
     await user.click(screen.getByRole("button", { name: "Enviar recibo" }));
@@ -816,10 +852,10 @@ describe("PosClient", () => {
     await fillCustomer(user);
     await user.type(screen.getByLabelText("Con cuánto paga"), "100");
 
-    await user.click(screen.getByRole("button", { name: /^Cobrar / }));
+    await user.click(screen.getByRole("button", { name: /^Cobrar C\$/ }));
     expect(await screen.findByRole("alert")).toBeTruthy();
 
-    await user.click(screen.getByRole("button", { name: /^Cobrar / }));
+    await user.click(screen.getByRole("button", { name: /^Cobrar C\$/ }));
     await screen.findByRole("status");
 
     const claves = fetchMock.mock.calls
@@ -862,7 +898,7 @@ describe("PosClient", () => {
     await user.click(screen.getByRole("button", { name: "Agregar Taco de birria a la venta" }));
     await fillCustomer(user);
     await user.type(screen.getByLabelText("Con cuánto paga"), "100");
-    await user.click(screen.getByRole("button", { name: /^Cobrar / }));
+    await user.click(screen.getByRole("button", { name: /^Cobrar C\$/ }));
     await screen.findByRole("status");
 
     const saleCall = fetchMock.mock.calls.find(
@@ -887,7 +923,7 @@ describe("PosClient", () => {
     await user.click(screen.getByRole("button", { name: "Agregar Taco de birria a la venta" }));
     await fillCustomer(user);
     await user.type(screen.getByLabelText("Con cuánto paga"), "100");
-    await user.click(screen.getByRole("button", { name: /^Cobrar / }));
+    await user.click(screen.getByRole("button", { name: /^Cobrar C\$/ }));
     await screen.findByRole("status");
 
     const saleCall = fetchMock.mock.calls.find(
@@ -911,7 +947,7 @@ describe("PosClient", () => {
       await user.click(screen.getByRole("button", { name: "Agregar Taco de birria a la venta" }));
       await fillCustomer(user);
       await user.type(screen.getByLabelText("Con cuánto paga"), "100");
-      await user.click(screen.getByRole("button", { name: /^Cobrar / }));
+      await user.click(screen.getByRole("button", { name: /^Cobrar C\$/ }));
       await screen.findByRole("status");
     }
 
@@ -948,7 +984,7 @@ describe("PosClient", () => {
     await user.click(screen.getByRole("button", { name: "Agregar Taco de birria a la venta" }));
     await fillCustomer(user);
     await user.type(screen.getByLabelText("Con cuánto paga"), "100");
-    await user.click(screen.getByRole("button", { name: /^Cobrar / }));
+    await user.click(screen.getByRole("button", { name: /^Cobrar C\$/ }));
 
     const confirmacion = await screen.findByRole("status");
     expect(confirmacion.textContent).toContain("P-ABC123");
@@ -972,6 +1008,7 @@ describe("PosClient", () => {
     await fillCustomer(user);
     await user.type(screen.getByLabelText("Con cuánto paga"), "100");
 
+    await abrirOpcion(user, /^En espera \(/);
     await user.click(screen.getByRole("button", { name: "Guardar en espera" }));
 
     // El mostrador queda libre: el próximo cliente puede empezar.
@@ -989,7 +1026,7 @@ describe("PosClient", () => {
     // Retomarla la trae de vuelta entera (productos, cliente y cobro).
     await user.click(screen.getByRole("button", { name: "Retomar la venta de Cliente Mostrador" }));
 
-    const venta = await screen.findByRole("region", { name: "Venta en curso" });
+    const venta = await screen.findByRole("dialog", { name: "Venta en curso" });
     expect(within(venta).getByText("Taco de birria")).toBeTruthy();
     expect(totalDeLaVenta()).toBe("C$40.00");
     expect((screen.getByLabelText("Nombre del cliente") as HTMLInputElement).value).toBe(
@@ -1031,10 +1068,11 @@ describe("PosClient", () => {
     await user.click(screen.getByRole("button", { name: "Agregar Taco de birria a la venta" }));
     await fillCustomer(user);
     await user.type(screen.getByLabelText("Con cuánto paga"), "100");
-    await user.click(screen.getByRole("button", { name: /^Cobrar / }));
+    await user.click(screen.getByRole("button", { name: /^Cobrar C\$/ }));
     expect(await screen.findByRole("alert")).toBeTruthy();
 
     // El cliente no está listo: la venta queda en espera con ese intento a medio hacer.
+    await abrirOpcion(user, /^En espera \(/);
     await user.click(screen.getByRole("button", { name: "Guardar en espera" }));
     await screen.findByRole("list", { name: "Ventas en espera" });
 
@@ -1043,7 +1081,7 @@ describe("PosClient", () => {
     await waitFor(() =>
       expect(screen.queryByRole("list", { name: "Ventas en espera" })).toBeNull(),
     );
-    await user.click(screen.getByRole("button", { name: /^Cobrar / }));
+    await user.click(screen.getByRole("button", { name: /^Cobrar C\$/ }));
     await screen.findByRole("status");
 
     const claves = fetchMock.mock.calls
@@ -1070,17 +1108,18 @@ describe("PosClient", () => {
     // Sin cupón: 35 del taco + 5 de empaque.
     expect(totalDeLaVenta()).toBe("C$40.00");
 
+    await abrirOpcion(user, "Aplicar promo");
     await user.type(screen.getByLabelText("Código de promo (opcional)"), "BIENVENIDA10");
     await user.click(screen.getByRole("button", { name: "Aplicar" }));
 
     // La cotización se ve (qué promo es) y el total ya la tiene descontada: 35 + 5 de empaque − 3.50.
-    expect(await screen.findByText("10 % de descuento")).toBeTruthy();
+    expect(await screen.findAllByText("10 % de descuento")).toBeTruthy();
     expect(totalDeLaVenta()).toBe("C$36.50");
     expect(screen.getByRole("button", { name: "Cobrar C$36.50" })).toBeTruthy();
 
     await fillCustomer(user);
     await user.type(screen.getByLabelText("Con cuánto paga"), "40");
-    await user.click(screen.getByRole("button", { name: /^Cobrar / }));
+    await user.click(screen.getByRole("button", { name: /^Cobrar C\$/ }));
     await screen.findByRole("status");
 
     const saleBody = JSON.parse(
@@ -1098,14 +1137,15 @@ describe("PosClient", () => {
 
     await screen.findByText("Taco de birria");
     await user.click(screen.getByRole("button", { name: "Agregar Taco de birria a la venta" }));
+    await abrirOpcion(user, "Aplicar promo");
     await user.type(screen.getByLabelText("Código de promo (opcional)"), "BIENVENIDA10");
     await user.click(screen.getByRole("button", { name: "Aplicar" }));
-    expect(await screen.findByText("10 % de descuento")).toBeTruthy();
+    expect((await screen.findAllByText("10 % de descuento")).length).toBeGreaterThan(0);
 
     // Otra ronda de la misma venta: la cotización era de lo que había antes.
     await user.click(screen.getByRole("button", { name: "Agregar Cola a la venta" }));
 
-    expect(screen.queryByText("10 % de descuento")).toBeNull();
+    expect(screen.queryAllByText("10 % de descuento")).toHaveLength(0);
     expect(
       screen.getByText("La venta cambió: volvé a aplicar el código para recalcular el descuento."),
     ).toBeTruthy();
@@ -1136,6 +1176,7 @@ describe("PosClient", () => {
     await screen.findByText("Taco de birria");
     await user.click(screen.getByRole("button", { name: "Agregar Taco de birria a la venta" }));
 
+    await abrirOpcion(user, "Aplicar promo");
     await user.type(screen.getByLabelText("Código de promo (opcional)"), "UNICA");
     await user.click(screen.getByRole("button", { name: "Aplicar" }));
 
@@ -1178,17 +1219,19 @@ describe("PosClient", () => {
     await user.click(screen.getByRole("button", { name: "Agregar Taco de birria a la venta" }));
     expect(totalDeLaVenta()).toBe("C$40.00");
 
-    await user.clear(screen.getByLabelText("Descuento (%)"));
-    await user.type(screen.getByLabelText("Descuento (%)"), "10");
-    await user.type(screen.getByLabelText("Motivo del descuento"), "Cliente de siempre");
+    // El descuento manual vive detrás de su opción (Fase 1): se abre y se completa en su panel.
     await user.click(screen.getByRole("button", { name: "Aplicar descuento" }));
+    const panelDescuento = screen.getByRole("region", { name: "Descuento manual" });
+    await user.type(within(panelDescuento).getByLabelText("Descuento (%)"), "10");
+    await user.type(within(panelDescuento).getByLabelText("Motivo del descuento"), "Cliente de siempre");
+    await user.click(within(panelDescuento).getByRole("button", { name: "Aplicar descuento" }));
 
-    expect(await screen.findByText("Descuento manual · 10 %")).toBeTruthy();
+    expect((await screen.findAllByText("Descuento manual · 10 %")).length).toBeGreaterThan(0);
     expect(totalDeLaVenta()).toBe("C$36.50");
 
     await fillCustomer(user);
     await user.type(screen.getByLabelText("Con cuánto paga"), "40");
-    await user.click(screen.getByRole("button", { name: /^Cobrar / }));
+    await user.click(screen.getByRole("button", { name: /^Cobrar C\$/ }));
     await screen.findByRole("status");
 
     const saleBody = JSON.parse(

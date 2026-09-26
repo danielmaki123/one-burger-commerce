@@ -42,49 +42,69 @@ async function createPublicOrder(page: Page) {
   return numero!;
 }
 
-/** Deja una caja abierta (el cobro del POS la exige): primero pregunta, después abre contando cero. */
+/**
+ * Deja una caja abierta **en la terminal que el POS va a usar** (el cobro del POS la exige).
+ *
+ * Fase 6 del rediseño de Caja: el POS hereda la primera terminal activa del local. Si la base quedó con una
+ * caja abierta «sin terminal» —lo que dejan otras suites—, el POS no la ve y el cobro queda bloqueado; el
+ * arnés resuelve el estado con la misma regla que la pantalla.
+ */
 async function ensureOpenShift(page: Page) {
-  const abierta = await page.evaluate(async () => {
+  const resuelto = await page.evaluate(async () => {
     const locations = (
       (await (await fetch("/api/admin/locations", { cache: "no-store" })).json()) as {
         data: Array<{ id: string; posEnabled: boolean }>;
       }
     ).data.filter((location) => location.posEnabled);
 
-    for (const location of locations) {
-      const shift = (
-        (await (
-          await fetch(`/api/admin/pos/shift?locationId=${encodeURIComponent(location.id)}`, {
-            cache: "no-store",
-          })
-        ).json()) as { data?: { id: string } | null }
-      ).data;
+    const shiftOf = async (locationId: string, terminalId: string | null) => {
+      const response = await fetch(
+        `/api/admin/pos/shift?locationId=${encodeURIComponent(locationId)}${terminalId ? `&terminalId=${encodeURIComponent(terminalId)}` : ""}`,
+        { cache: "no-store" },
+      );
 
-      if (shift) return true;
+      return ((await response.json()) as { data?: { id: string } | null }).data ?? null;
+    };
+
+    const openShift = async (locationId: string, terminalId: string | null) =>
+      (
+        await fetch("/api/admin/pos/shift/open", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ locationId, ...(terminalId ? { terminalId } : {}), counts: [] }),
+        })
+      ).ok;
+
+    for (const location of locations) {
+      const terminalsResponse = await fetch(
+        `/api/admin/cash/terminals?locationId=${encodeURIComponent(location.id)}`,
+        { cache: "no-store" },
+      );
+      const terminalsBody = terminalsResponse.ok
+        ? ((await terminalsResponse.json()) as {
+            data?: { terminals?: unknown } | Array<{ id: string; isActive: boolean }>;
+          }).data
+        : undefined;
+      const terminalsRaw = Array.isArray(terminalsBody) ? terminalsBody : terminalsBody?.terminals;
+      const terminals = (Array.isArray(terminalsRaw) ? terminalsRaw : []).filter(
+        (terminal) => terminal.isActive,
+      );
+
+      if (terminals.length > 0) {
+        const terminalId = terminals[0]!.id;
+        if (await shiftOf(location.id, terminalId)) return true;
+        if (await openShift(location.id, terminalId)) return true;
+        continue;
+      }
+
+      if (await shiftOf(location.id, null)) return true;
+      if (await openShift(location.id, null)) return true;
     }
 
     return false;
   });
 
-  if (!abierta) {
-    await page.evaluate(async () => {
-      const locations = (
-        (await (await fetch("/api/admin/locations", { cache: "no-store" })).json()) as {
-          data: Array<{ id: string; posEnabled: boolean }>;
-        }
-      ).data.filter((location) => location.posEnabled);
-
-      for (const location of locations) {
-        const created = await fetch("/api/admin/pos/shift/open", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ locationId: location.id, counts: [] }),
-        });
-
-        if (created.ok) return;
-      }
-    });
-  }
+  expect(resuelto, "el arnés tiene que poder dejar una caja abierta para el POS").toBe(true);
 
   await page.reload();
   await expect(page.getByText(/Caja abierta · fondo/)).toBeVisible();
@@ -104,7 +124,12 @@ test.describe("N3 — el POS cobra un pedido del menú y la factura sale despué
     await page.goto("/admin/pos");
     await ensureOpenShift(page);
 
-    const panel = page.getByRole("region", { name: "Cobrar un pedido del menú" });
+    // La Fase 1 (`SCREEN-POS-QUICK-SALE-001`): cobrar un pedido del menú dejó de ser una tarjeta
+    // permanente del workspace y quedó como acción secundaria compacta que abre el mismo panel en un
+    // diálogo. El flujo de adentro es el de siempre.
+    await page.getByRole("button", { name: "Cobrar pedido del menú" }).click();
+    const panel = page.getByRole("dialog", { name: "Cobrar un pedido del menú" });
+    await expect(panel).toBeVisible();
     await panel.getByLabel("Número de pedido").fill(numero);
     await panel.getByRole("button", { name: "Buscar" }).click();
 
@@ -243,8 +268,22 @@ test.describe("A-45 — el arqueo ciego también es una regla de servidor", () =
         }
       ).data.filter((location) => location.posEnabled);
 
+      // La caja que importa es la de la **terminal** del POS (Fase 6): el corte X sin terminal devuelve el
+      // turno «sin terminal», que no es el que el mostrador abre. Se pregunta por la primera activa, igual
+      // que la pantalla.
+      const terminalsResponse = await fetch(
+        `/api/admin/cash/terminals?locationId=${encodeURIComponent(locations[0]!.id)}`,
+        { cache: "no-store" },
+      );
+      const terminalsBody = terminalsResponse.ok
+        ? ((await terminalsResponse.json()) as {
+            data?: { terminals?: Array<{ id: string; isActive: boolean }> };
+          }).data?.terminals
+        : undefined;
+      const terminalId = terminalsBody?.find((terminal) => terminal.isActive)?.id;
+
       const response = await fetch(
-        `/api/admin/pos/shift/x?locationId=${encodeURIComponent(locations[0]!.id)}`,
+        `/api/admin/pos/shift/x?locationId=${encodeURIComponent(locations[0]!.id)}${terminalId ? `&terminalId=${encodeURIComponent(terminalId)}` : ""}`,
         { cache: "no-store" },
       );
       return { status: response.status, body: await response.json() };
@@ -270,8 +309,22 @@ test.describe("A-45 — el arqueo ciego también es una regla de servidor", () =
         }
       ).data.filter((location) => location.posEnabled);
 
+      // La caja que importa es la de la **terminal** del POS (Fase 6): el corte X sin terminal devuelve el
+      // turno «sin terminal», que no es el que el mostrador abre. Se pregunta por la primera activa, igual
+      // que la pantalla.
+      const terminalsResponse = await fetch(
+        `/api/admin/cash/terminals?locationId=${encodeURIComponent(locations[0]!.id)}`,
+        { cache: "no-store" },
+      );
+      const terminalsBody = terminalsResponse.ok
+        ? ((await terminalsResponse.json()) as {
+            data?: { terminals?: Array<{ id: string; isActive: boolean }> };
+          }).data?.terminals
+        : undefined;
+      const terminalId = terminalsBody?.find((terminal) => terminal.isActive)?.id;
+
       const response = await fetch(
-        `/api/admin/pos/shift/x?locationId=${encodeURIComponent(locations[0]!.id)}`,
+        `/api/admin/pos/shift/x?locationId=${encodeURIComponent(locations[0]!.id)}${terminalId ? `&terminalId=${encodeURIComponent(terminalId)}` : ""}`,
         { cache: "no-store" },
       );
       return { status: response.status, body: await response.json() };

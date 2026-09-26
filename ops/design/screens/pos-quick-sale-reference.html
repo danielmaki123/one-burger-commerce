@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>One Burger · POS Quick Sale Reference</title>
+<style>
+:root{
+  color-scheme:dark;
+  --canvas:#07111f;--surface:#0b1728;--surface2:#102139;--surface3:#142a46;
+  --ink:#f7fafc;--muted:#98a9be;--line:rgba(255,255,255,.11);
+  --brand:#35b9ff;--brand-soft:rgba(53,185,255,.14);--ok:#2ed39a;
+  --shadow:0 20px 60px rgba(0,0,0,.3);--r:18px;
+}
+*{box-sizing:border-box} html,body{margin:0;background:var(--canvas);color:var(--ink);font-family:Inter,system-ui,sans-serif}
+button,input{font:inherit}.money{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-variant-numeric:tabular-nums}
+.app{min-height:100vh;display:flex}.sidebar{width:220px;background:#06101d;border-right:1px solid var(--line);padding:18px 14px}
+.brand{font-weight:800;font-size:17px;margin:4px 8px 22px}.nav{display:grid;gap:6px}.nav a{color:var(--muted);text-decoration:none;padding:11px 12px;border-radius:12px}.nav a.active{background:var(--brand-soft);color:var(--ink)}
+.main{flex:1;min-width:0;padding:14px}.top{display:flex;align-items:center;gap:10px;padding:0 0 12px}.top h1{font-size:22px;margin:0 auto 0 0}
+.ctrl{min-height:42px;border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--ink);padding:0 12px}
+.ok{background:rgba(46,211,154,.09)}.ok:before{content:"";width:8px;height:8px;background:var(--ok);border-radius:50%;display:inline-block;margin-right:7px}
+.workspace{display:grid;grid-template-columns:minmax(0,1fr) 390px;gap:14px;align-items:start}
+.catalog{min-height:calc(100vh - 82px);background:var(--surface);border:1px solid var(--line);border-radius:22px;padding:16px}
+.search{width:100%;min-height:46px;border-radius:12px;border:1px solid var(--line);background:#091525;color:var(--ink);padding:0 13px}
+.chips{display:flex;gap:8px;overflow:auto;padding:12px 0}.chip{min-height:40px;border-radius:999px;border:1px solid var(--line);background:var(--surface2);color:var(--muted);padding:0 14px}.chip.active{background:var(--brand);color:#06101d;font-weight:800}
+.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.product{border:1px solid var(--line);background:var(--surface2);border-radius:16px;overflow:hidden}
+.pic{height:90px;display:grid;place-items:center;background:linear-gradient(145deg,#172337,#0b1524);font-size:34px}.copy{padding:10px}.name{font-weight:750;font-size:13px;margin-bottom:6px}.row{display:flex;align-items:center;justify-content:space-between}.add{width:30px;height:30px;border:0;border-radius:9px;background:var(--brand-soft);color:var(--brand)}
+.sale{position:sticky;top:14px;max-height:calc(100vh - 28px);display:flex;flex-direction:column;background:#0a1728;border:1px solid var(--line);border-radius:22px;box-shadow:var(--shadow);overflow:hidden}
+.sale-head{display:flex;align-items:center;padding:15px}.sale-head h2{margin:0;font-size:19px}.sale-head button{margin-left:auto;background:transparent;color:var(--muted);border:0}
+.sale-scroll{overflow:auto;padding:0 15px 14px}.line{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;padding:11px 0;border-bottom:1px solid var(--line)}.qty{display:flex;align-items:center;border:1px solid var(--line);border-radius:10px;overflow:hidden}.qty button{width:30px;height:32px;border:0;background:var(--surface2);color:var(--ink)}
+.total{padding:12px 0;border-bottom:1px solid var(--line)}.total .big{display:flex;justify-content:space-between;align-items:end;font-size:18px}.total strong{font-size:30px;color:var(--brand)}
+.section{padding:12px 0;border-bottom:1px solid var(--line)}.label{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:800;margin-bottom:8px}.fields{display:grid;grid-template-columns:1fr 1fr;gap:8px}.input{min-height:42px;border:1px solid var(--line);border-radius:11px;background:#091525;color:var(--ink);padding:0 10px;width:100%}
+.methods{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}.methods button{min-height:42px;border:1px solid var(--line);border-radius:11px;background:var(--surface2);color:var(--muted)}.methods .active{background:var(--brand);color:#06101d;font-weight:800}
+.details button{width:100%;min-height:44px;text-align:left;border:0;border-bottom:1px solid var(--line);background:transparent;color:var(--ink)}.details .body{display:none;padding:8px 0 12px}.details .open .body{display:block}
+.footer{padding:12px 15px 15px;border-top:1px solid var(--line);background:#091525}.charge{width:100%;min-height:52px;border:0;border-radius:14px;background:var(--brand);color:#04111b;font-weight:900}
+.mobilebar,.sheet,.backdrop{display:none}
+@media(max-width:1050px){.sidebar{display:none}.workspace{grid-template-columns:minmax(0,1fr) 330px}.grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:720px){
+  body{padding-bottom:74px}.main{padding:0}.top{position:sticky;top:0;z-index:20;background:rgba(7,17,31,.96);padding:8px 12px;border-bottom:1px solid var(--line)}.top h1{font-size:18px}.top .ctrl:not(.ok){display:none}
+  .workspace{display:block}.catalog{border:0;border-radius:0;background:transparent;min-height:100vh;padding:12px}.sale{display:none}.grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .mobilebar{display:flex;position:fixed;left:10px;right:10px;bottom:10px;z-index:30;min-height:56px;border:0;border-radius:16px;background:var(--brand);color:#04111b;align-items:center;padding:0 12px;font-weight:800}.mobilebar span:last-child{margin-left:auto;background:#07111f;color:var(--ink);padding:11px 13px;border-radius:12px}
+  .backdrop.open{display:block;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:39}
+  .sheet{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:40;max-height:92vh;background:#0a1728;border-radius:22px 22px 0 0;border:1px solid var(--line);transform:translateY(102%);transition:transform .24s ease;flex-direction:column}.sheet.open{transform:translateY(0)}
+  .sheet .sale-scroll{overflow:auto}.sheet .footer{padding-bottom:max(14px,env(safe-area-inset-bottom))}
+}
+@media(prefers-reduced-motion:reduce){*{transition-duration:.01ms!important;animation-duration:.01ms!important}}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">One Burger</div>
+    <nav class="nav"><a href="#">Resumen</a><a href="#">Órdenes</a><a href="#" class="active">POS</a><a href="#">Caja</a><a href="#">Cierres</a><a href="#">Productos</a></nav>
+  </aside>
+  <main class="main">
+    <header class="top">
+      <h1>Punto de venta</h1>
+      <button class="ctrl">Camino de Oriente ▾</button>
+      <button class="ctrl">Caja 1 ▾</button>
+      <button class="ctrl ok">Caja abierta</button>
+      <button class="ctrl">En espera (2)</button>
+      <button class="ctrl">Cobrar pedido</button>
+    </header>
+
+    <div class="workspace">
+      <section class="catalog">
+        <input class="search" placeholder="Buscar productos…" aria-label="Buscar productos">
+        <div class="chips"><button class="chip active">Todos</button><button class="chip">Hamburguesas</button><button class="chip">Combos</button><button class="chip">Bebidas</button><button class="chip">Postres</button></div>
+        <div class="grid">
+          <article class="product"><div class="pic">🍔</div><div class="copy"><div class="name">Doble Bacon</div><div class="row"><span class="money">C$200</span><button class="add">+</button></div></div></article>
+          <article class="product"><div class="pic">🍔</div><div class="copy"><div class="name">Clásica</div><div class="row"><span class="money">C$160</span><button class="add">+</button></div></div></article>
+          <article class="product"><div class="pic">🍟</div><div class="copy"><div class="name">Papas</div><div class="row"><span class="money">C$90</span><button class="add">+</button></div></div></article>
+          <article class="product"><div class="pic">🥤</div><div class="copy"><div class="name">Coca Cola</div><div class="row"><span class="money">C$50</span><button class="add">+</button></div></div></article>
+          <article class="product"><div class="pic">🌮</div><div class="copy"><div class="name">Tacos de birria</div><div class="row"><span class="money">C$120</span><button class="add">+</button></div></div></article>
+          <article class="product"><div class="pic">🍰</div><div class="copy"><div class="name">Postre</div><div class="row"><span class="money">C$115</span><button class="add">+</button></div></div></article>
+        </div>
+      </section>
+
+      <aside class="sale">
+        <div class="sale-head"><h2>Venta en curso</h2><button>Limpiar</button></div>
+        <div class="sale-scroll">
+          <div class="line"><div><strong>Doble Bacon</strong><div style="color:var(--muted);font-size:11px">Con papas</div></div><div class="qty"><button>−</button><span>2</span><button>+</button></div><div class="money">C$400</div></div>
+          <div class="line"><div><strong>Coca Cola</strong><div style="color:var(--muted);font-size:11px">Regular</div></div><div class="qty"><button>−</button><span>1</span><button>+</button></div><div class="money">C$50</div></div>
+          <div class="total"><div style="display:flex;justify-content:space-between;color:var(--muted);font-size:12px"><span>Subtotal</span><span class="money">C$450.00</span></div><div class="big"><span>Total</span><strong class="money">C$450.00</strong></div></div>
+          <section class="section"><div class="label">Cliente</div><div class="fields"><input class="input" value="Daniel Ruiz"><input class="input" value="8888-8888"></div></section>
+          <section class="section"><div class="label">Pago</div><div class="methods"><button class="active">Efectivo</button><button>Tarjeta</button><button>Transfer.</button><button>Otro</button></div></section>
+          <div class="details">
+            <div class="d"><button>Correo opcional</button><div class="body"><input class="input" placeholder="cliente@correo.com"></div></div>
+            <div class="d"><button>Aplicar promo</button><div class="body"><input class="input" placeholder="Código promocional"></div></div>
+            <div class="d"><button>Factura con RUC</button><div class="body"><div class="fields"><input class="input" placeholder="RUC"><input class="input" placeholder="Razón social"></div></div></div>
+            <div class="d"><button>Más opciones</button><div class="body" style="color:var(--muted);font-size:12px">Dividir pago · Descuento manual · Ventas en espera</div></div>
+          </div>
+        </div>
+        <div class="footer"><button class="charge">Cobrar <span class="money">C$450.00</span></button></div>
+      </aside>
+    </div>
+  </main>
+</div>
+
+<button class="mobilebar" id="openSheet"><span>3 productos · <span class="money">C$450.00</span></span><span>Ver venta →</span></button>
+<div class="backdrop" id="backdrop"></div>
+<section class="sheet" id="sheet">
+  <div class="sale-head"><h2>Venta en curso</h2><button id="closeSheet">Cerrar</button></div>
+  <div class="sale-scroll">
+    <div class="line"><div><strong>Doble Bacon</strong></div><div class="qty"><button>−</button><span>2</span><button>+</button></div><div class="money">C$400</div></div>
+    <div class="line"><div><strong>Coca Cola</strong></div><div class="qty"><button>−</button><span>1</span><button>+</button></div><div class="money">C$50</div></div>
+    <div class="total"><div class="big"><span>Total</span><strong class="money">C$450.00</strong></div></div>
+    <section class="section"><div class="label">Cliente</div><div class="fields"><input class="input" value="Daniel Ruiz"><input class="input" value="8888-8888"></div></section>
+    <section class="section"><div class="label">Pago</div><div class="methods"><button class="active">Efectivo</button><button>Tarjeta</button><button>Transfer.</button><button>Otro</button></div></section>
+  </div>
+  <div class="footer"><button class="charge">Cobrar <span class="money">C$450.00</span></button></div>
+</section>
+
+<script>
+document.querySelectorAll('.d>button').forEach(b=>b.onclick=()=>b.parentElement.classList.toggle('open'));
+const sheet=document.getElementById('sheet'),backdrop=document.getElementById('backdrop');
+function openSheet(){sheet.classList.add('open');backdrop.classList.add('open')}
+function closeSheet(){sheet.classList.remove('open');backdrop.classList.remove('open')}
+document.getElementById('openSheet').onclick=openSheet;
+document.getElementById('closeSheet').onclick=closeSheet;
+backdrop.onclick=closeSheet;
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeSheet()});
+</script>
+</body>
+</html>
