@@ -28,6 +28,34 @@ export interface DesignGuardrailRule {
   id: string;
   message: string;
   pattern: RegExp;
+  /**
+   * Archivos donde la regla **no aplica** porque ahí el valor crudo es el **dato**, no un estilo. Se evalúa
+   * por regla y por ruta: la fuente de tokens y las herramientas de color del negocio nunca son deuda.
+   */
+  skipFile?: (repoPath: string) => boolean;
+}
+
+/**
+ * La **fuente de tokens**: es el único lugar donde un color se declara como token, así que ahí un valor
+ * crudo no es deuda (es la definición). Misma ruta que usa `ui-contract.test.ts`.
+ */
+export const DESIGN_GUARDRAIL_TOKEN_SOURCE = "src/app/globals.css";
+
+/**
+ * Archivos donde el color **es el dato**: la paleta que el owner elige en `/admin/settings` y las
+ * herramientas que la validan (contraste) o la derivan (color de categoría). Es la misma lista que declara
+ * `ui-contract.test.ts` para el `#hex`: mover un color de acá a la UI es el error que estos contratos evitan.
+ */
+export const DESIGN_GUARDRAIL_COLOR_DATA_FILES = new Set([
+  "src/modules/business-settings/domain/color-presets.ts",
+  "src/modules/business-settings/domain/business-settings-defaults.ts",
+  "src/modules/business-settings/domain/business-settings.schema.ts",
+  "src/modules/business-settings/domain/color-contrast.ts",
+  "src/modules/menu/domain/category-color.ts",
+]);
+
+function isColorData(repoPath: string): boolean {
+  return repoPath === DESIGN_GUARDRAIL_TOKEN_SOURCE || DESIGN_GUARDRAIL_COLOR_DATA_FILES.has(repoPath);
 }
 
 /**
@@ -90,6 +118,21 @@ export const DESIGN_GUARDRAIL_RULES: DesignGuardrailRule[] = [
     message: "control HTML crudo donde hay primitivo (Button, Input, Select, Textarea, Toggle, …)",
     pattern: /<(?:button|input|select|textarea)(?=[\s>/])/g,
   },
+  {
+    /**
+     * DS-001 — el `#hex` ya tenía techo (`ui-contract.test.ts`); esto cierra el resto de la ley de color:
+     * `rgb()`, `rgba()`, `hsl()` y `hsla()` crudos en un componente son deuda **nueva prohibida**. La deuda
+     * vieja queda congelada por archivo (no se obliga a limpiarla) y la fuente de tokens y los archivos de
+     * color del negocio quedan excluidos: ahí el valor es el dato, no un estilo.
+     *
+     * El lookbehind evita falsos positivos dentro de un identificador (`--my-rgba`), y no toca
+     * `color-mix(in srgb, …)`, que es derivación de un token y no un color literal.
+     */
+    id: "raw-color-function",
+    message: "color crudo en rgb()/rgba()/hsl()/hsla() (usá un token: bg-surface-card, text-ink-muted, …)",
+    pattern: /(?<![\w-])(?:rgba?|hsla?)\s*\(/g,
+    skipFile: isColorData,
+  },
 ];
 
 export interface DesignGuardrailViolation {
@@ -115,9 +158,10 @@ export function measureDesignGuardrails(): DesignGuardrailViolation[] {
 
   for (const rule of DESIGN_GUARDRAIL_RULES) {
     for (const path of sources) {
-      // El HTML crudo es la única regla que no aplica a los primitivos: ahí el `<button>` es el
-      // componente, no una violación.
+      // El HTML crudo no aplica a los primitivos: ahí el `<button>` es el componente, no una violación.
       if (rule.id === "raw-html-control" && path.startsWith("src/shared/ui/")) continue;
+      // Donde el color es el dato (tokens y paleta del negocio) la regla no mide: no es deuda.
+      if (rule.skipFile?.(path)) continue;
 
       const count = countMatches(readRepoFile(path), rule.pattern);
       if (count > 0) violations.push({ rule: rule.id, path, count });

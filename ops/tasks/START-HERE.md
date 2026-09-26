@@ -69,8 +69,8 @@ falta reconstruir por qué algo es como es. Es lo que evita leer 3.000 líneas p
 - **Programa de remediación completo, en orden**: [`AUDIT-REMEDIATION-ROADMAP.md`](AUDIT-REMEDIATION-ROADMAP.md).
   Ese archivo dice qué sigue, con su objetivo, prioridad, riesgo y dependencia.
 - **Plantilla obligatoria de TASK**: [`TEMPLATE.md`](TEMPLATE.md).
-- **Lo que está pausado**: el **rediseño del menú público** (9 pantallas de Stitch) espera confirmación
-  explícita del owner, y antes de tocar el sistema de diseño hay que revisar la rama
+- **Lo que está pausado**: el **rediseño del menú público** (9 pantallas del mock archivado) espera
+  confirmación explícita del owner, y antes de tocar el sistema de diseño hay que revisar la rama
   `feat/design-system` del otro dev (`A-36`).
 - **Bloqueos reales** (lo que necesita al owner): [`../CURRENT.md`](../CURRENT.md) §6.
 
@@ -89,5 +89,5 @@ Si no lo hay, se pregunta antes de codear.
 | Procedimiento de cada tipo de trabajo | [`../../.agents/skills/`](../../.agents/skills/) |
 | Hallazgos con ID y severidad | [`../audit-backlog.md`](../audit-backlog.md) |
 | Runbook de producción (entorno, deploy, backups, rollback, límites) | [`../production-readiness.md`](../production-readiness.md) |
-| Sistema de diseño oficial (UI) | [`../references/stitch/design-system.md`](../references/stitch/design-system.md) |
+| Ley visual (Design System v4) | [`../design/DESIGN_SYSTEM.md`](../design/DESIGN_SYSTEM.md) |
 | Historia archivada | [`../history/`](../history/) |

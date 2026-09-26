@@ -33,6 +33,17 @@
   --chart-3: var(--gold);
   --chart-4: #4f8a68;          /* verde mediterráneo suave */
   --chart-5: #7f95a3;          /* gris azulado apagado */
+  /* ── Datos (DS v4): vocabulario semántico de los gráficos ──
+     Alias de los `--chart-N` de arriba, que **no cambian de valor**: el sistema gana un nombre por
+     intención sin recolorear ningún chart (`ops/design/DATA_VISUALIZATION.md` §3). `positive` y `negative`
+     NO derivan de la marca: salen del estado semántico, así que la personalización del negocio no puede
+     volver verde un error. */
+  --chart-primary: var(--chart-1);
+  --chart-secondary: var(--chart-2);
+  --chart-tertiary: var(--chart-3);
+  --chart-muted: var(--chart-5);
+  --chart-positive: var(--success-strong);
+  --chart-negative: var(--danger-strong);
   --success-soft: #e8f3ea;         /* fondo de éxito */
   --success-strong: #1f5c3f;       /* texto/dato de éxito */
   --warning-soft: #f7ecd6;         /* fondo de alerta */
@@ -103,6 +114,13 @@
   --brand-amber-hover: #d97706;
   --brand-amber-soft: #fef3c7;
   --brand-yellow: #eab308;
+  /* DS v4 — vocabulario NEUTRAL de la marca: `brand-accent` es la intención secundaria y hoy resuelve al
+     ámbar. Los nombres `brand-amber*` quedan como **alias del mismo valor** (compatibilidad): código nuevo
+     pide la intención (`brand-primary`, `brand-accent`) y no el color, así el tema puede cambiar sin tocar la
+     ley (`ops/design/DESIGN_SYSTEM.md` §3.2). */
+  --brand-accent: var(--brand-amber);
+  --brand-accent-hover: var(--brand-amber-hover);
+  --brand-accent-soft: var(--brand-amber-soft);
   /* Estados operativos (§1.4): fondo translúcido + borde + texto + punto. */
   --status-pending-bg: rgba(56, 189, 248, 0.12);
   --status-pending-border: rgba(56, 189, 248, 0.35);
@@ -126,6 +144,16 @@
   --status-inactive-dot: #64748b;
 
   --radius: 0.625rem;
+
+  /* ── Motion (DS v4) — la escala de `ops/design/MOTION.md` ──
+     Tres pasos y dos curvas, ni uno más. Los componentes que hoy usan las duraciones de Tailwind
+     (150/200/300 ms) ya corresponden a esta escala: la migración a los tokens es por sección, no un
+     cambio global. */
+  --motion-fast: 120ms;
+  --motion-standard: 180ms;
+  --motion-emphasized: 240ms;
+  --motion-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --motion-ease-emphasized: cubic-bezier(0.2, 0, 0, 1.2);
 }
 
 body {
@@ -197,6 +225,12 @@ body {
   --color-chart-3: var(--chart-3);
   --color-chart-2: var(--chart-2);
   --color-chart-1: var(--chart-1);
+  --color-chart-primary: var(--chart-primary);
+  --color-chart-secondary: var(--chart-secondary);
+  --color-chart-tertiary: var(--chart-tertiary);
+  --color-chart-muted: var(--chart-muted);
+  --color-chart-positive: var(--chart-positive);
+  --color-chart-negative: var(--chart-negative);
   --color-input: var(--input);
   --color-border: var(--border);
   --color-success-soft: var(--success-soft);
@@ -276,6 +310,9 @@ body {
   --color-brand-amber: var(--brand-amber);
   --color-brand-amber-hover: var(--brand-amber-hover);
   --color-brand-amber-soft: var(--brand-amber-soft);
+  --color-brand-accent: var(--brand-accent);
+  --color-brand-accent-hover: var(--brand-accent-hover);
+  --color-brand-accent-soft: var(--brand-accent-soft);
   --color-brand-yellow: var(--brand-yellow);
   --color-status-pending-bg: var(--status-pending-bg);
   --color-status-pending-border: var(--status-pending-border);
@@ -423,6 +460,41 @@ body {
   --text-st-overline--line-height: 0.75rem;
   --text-st-overline--font-weight: 700;
   --text-st-overline--letter-spacing: 0.08em;
+
+  /* ── Vocabulario NEUTRAL de la tipografía del panel (DS v4) ──
+     Mismos valores que los `--text-st-*` de arriba, que quedan como **nomenclatura histórica**: el código
+     nuevo usa `text-panel-*` y lo existente se migra cuando su sección se revise (no hay migración masiva).
+     Son alias, así que un cambio de valor se hace una sola vez, en la escala de arriba. */
+  --text-panel-display: var(--text-st-display);
+  --text-panel-display--line-height: var(--text-st-display--line-height);
+  --text-panel-display--font-weight: var(--text-st-display--font-weight);
+  --text-panel-display--letter-spacing: var(--text-st-display--letter-spacing);
+  --text-panel-title: var(--text-st-h1);
+  --text-panel-title--line-height: var(--text-st-h1--line-height);
+  --text-panel-title--font-weight: var(--text-st-h1--font-weight);
+  --text-panel-title--letter-spacing: var(--text-st-h1--letter-spacing);
+  --text-panel-section: var(--text-st-h2);
+  --text-panel-section--line-height: var(--text-st-h2--line-height);
+  --text-panel-section--font-weight: var(--text-st-h2--font-weight);
+  --text-panel-section--letter-spacing: var(--text-st-h2--letter-spacing);
+  --text-panel-item: var(--text-st-h3);
+  --text-panel-item--line-height: var(--text-st-h3--line-height);
+  --text-panel-item--font-weight: var(--text-st-h3--font-weight);
+  --text-panel-item--letter-spacing: var(--text-st-h3--letter-spacing);
+  --text-panel-body-lg: var(--text-st-body-lg);
+  --text-panel-body-lg--line-height: var(--text-st-body-lg--line-height);
+  --text-panel-body-lg--font-weight: var(--text-st-body-lg--font-weight);
+  --text-panel-body: var(--text-st-body);
+  --text-panel-body--line-height: var(--text-st-body--line-height);
+  --text-panel-body--font-weight: var(--text-st-body--font-weight);
+  --text-panel-meta: var(--text-st-caption);
+  --text-panel-meta--line-height: var(--text-st-caption--line-height);
+  --text-panel-meta--font-weight: var(--text-st-caption--font-weight);
+  --text-panel-meta--letter-spacing: var(--text-st-caption--letter-spacing);
+  --text-panel-overline: var(--text-st-overline);
+  --text-panel-overline--line-height: var(--text-st-overline--line-height);
+  --text-panel-overline--font-weight: var(--text-st-overline--font-weight);
+  --text-panel-overline--letter-spacing: var(--text-st-overline--letter-spacing);
 
   /* Curvaturas: las tarjetas usan 16 px y los paneles 24 px (`design-system.md` §4). */
   --radius-card: 1rem;
@@ -594,4 +666,24 @@ html.comandas-view main[data-admin-main-focus-target] {
 
 html.comandas-view [data-admin-main-inner] {
   max-width: none;
+}
+
+/**
+ * MOVIMIENTO REDUCIDO (DS v4 — `ops/design/MOTION.md` §4).
+ *
+ * Se declara **una sola vez, global**, y cubre todo lo que se escriba en el futuro: si el sistema
+ * operativo pide menos movimiento, las animaciones y transiciones dejan de durar (0.01 ms en vez de
+ * `none`, para no romper los `transitionend` que esperan un evento) y el desplazamiento suave se
+ * desactiva. No es estética: es la garantía de accesibilidad del sistema. El landing público tiene
+ * además su propia regla, porque anima el scroll.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

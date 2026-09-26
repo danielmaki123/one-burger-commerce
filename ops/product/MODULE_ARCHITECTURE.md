@@ -314,9 +314,9 @@ existe fuera del MVP.
 
 ## 14. Qué NO decide este documento
 
-- **Lo visual**: colores, tipografía, densidad, motion y componentes. Eso es la constitución visual que cree
-  `DS-001` (fase del roadmap; **todavía no existe**, así que hoy la autoridad visual sigue siendo la que
-  declara [`AGENTS.md`](../../AGENTS.md)).
+- **Lo visual**: colores, tipografía, densidad, motion y componentes. Eso es la ley visual, que desde `DS-001`
+  vive en [`../design/DESIGN_SYSTEM.md`](../design/DESIGN_SYSTEM.md) —con sus leyes auxiliares de contenido,
+  arquetipos, motion y datos— y en la spec de cada pantalla.
 - **El diseño de una pantalla**: propósito, información, jerarquía y estados van en la spec de esa pantalla,
   por sección y con aprobación del owner.
 - **El detalle técnico de la construcción**: vive en [`.agents/CONTEXT.md`](../../.agents/CONTEXT.md) y en

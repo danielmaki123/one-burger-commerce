@@ -2,16 +2,19 @@
 
 ## Ahora
 
-`ARCH-001 — Product & Module Architecture` **cerrada** (2026-09-25): la constitución de producto vive en
-[`../product/MODULE_ARCHITECTURE.md`](../product/MODULE_ARCHITECTURE.md). A-15 y la fase de estabilización
-técnica quedaron cerradas el 2026-09-25; el estado real está en [`../CURRENT.md`](../CURRENT.md).
+`DS-001 — One Burger Design System v4` **escrita y en revisión del owner** (PR abierto, **sin mergear**): la
+ley visual vive en [`../design/DESIGN_SYSTEM.md`](../design/DESIGN_SYSTEM.md) y el material de Stitch quedó
+**archivado y no normativo** ([`../references/stitch/`](../references/stitch/README.md)). `ARCH-001` quedó
+**cerrada** el 2026-09-25 ([`../product/MODULE_ARCHITECTURE.md`](../product/MODULE_ARCHITECTURE.md)), y A-15
+con la fase de estabilización técnica también; el estado real está en [`../CURRENT.md`](../CURRENT.md).
 
 ## Después
-1. **Revisión del owner de `ARCH-001`** — la constitución es el punto de partida, no un techo: las
-   divergencias registradas (Resumen/POS en la navegación, el dominio de Caja repartido) son decisiones suyas.
-2. `DS-001 — One Burger Design System v4` (brief separado del owner; **no iniciada**)
-3. Revisión del owner
-4. `SCREEN-001 — /admin Resumen`
+1. **Revisión del owner de `DS-001`** — la ley es el punto de partida: lo que no cierre se corrige en la ley,
+   no en una pantalla.
+2. **Revisión del owner de `ARCH-001`** — las divergencias registradas (Resumen/POS en la navegación, el
+   dominio de Caja repartido) son decisiones suyas.
+3. `SCREEN-001 — /admin Resumen`: **no iniciado**. Se diseña con `screen-design` (spec aprobada) y recién
+   después se implementa bajo DS v4.
 
 ## SCREEN-001 no empieza con código
 

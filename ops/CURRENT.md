@@ -18,7 +18,7 @@ corto: si crece como un diario, dejó de servir.
 > **ningún P0 conocido** y **ningún P1 de dinero abierto**. Lo que sigue abierto es **operativo**
 > (`A-57`, backup) o de **decisión del owner** (`A-50`/`A-51`, datos históricos). La TASK que siguió fue
 > **ARCH-001**, **cerrada** el 2026-09-25 (docs-only): la constitución de producto está en
-> [`ops/product/MODULE_ARCHITECTURE.md`](product/MODULE_ARCHITECTURE.md) y **`DS-001` no se inició**.
+> [`ops/product/MODULE_ARCHITECTURE.md`](product/MODULE_ARCHITECTURE.md); **`DS-001`** está **en revisión del owner** (PR abierto).
 
 ---
 
@@ -154,8 +154,9 @@ sin guardrail) · `A-23` (cuenta de prueba con rol `owner` en producción) · `A
 **Roadmap oficial de producto y UX adoptado (2026-09-25, `ROADMAP-001`)**: el proceso aprobado por el owner
 vive en [`roadmap/PRODUCT-UX-ROADMAP.md`](roadmap/PRODUCT-UX-ROADMAP.md) (decisiones en
 [`roadmap/DECISIONS.md`](roadmap/DECISIONS.md), secuencia en [`roadmap/NEXT.md`](roadmap/NEXT.md)). Rige
-**cómo** se hace el trabajo de producto y **no cambia ninguna regla vigente por sí solo**: la autoridad
-visual sigue siendo Stitch hasta que `DS-001` se apruebe.
+**cómo** se hace el trabajo de producto. **`DS-001`** (ley visual v4) **reemplazó a Stitch**, que quedó
+**archivado y no normativo** en `ops/references/stitch/`: la ley vive en [`ops/design/`](design/) con la
+**revisión del owner ya aplicada** y **espera su aprobación** (tokens **aditivos**, sin rediseños ni deploy).
 
 **Release consolidado a producción (2026-09-25, cerrado)**: `main` = `0b840e73b1a0899910f13d980faa005cd2c08c4f` **desplegado** y sirviendo `build-20260925-174535`. El release lleva A-54, A-55, AUD-007, AUD-008, A-58 y A-59 con su migración aditiva. Preflight, backup confirmado por el owner, deploy, migraciones, health/readiness, smokes (7/7 y 6/6) y la QA de dinero están en §1. **Sin reparación de datos históricos**: `A-50`/`A-51` siguen sin tocar.
 
@@ -198,9 +199,9 @@ aprobó el owner, en [`roadmap/`](roadmap/).
 **El bloque financiero de la remediación quedó cerrado y desplegado** (`AUD-003..006`, `A-54`, `A-55`,
 `A-58`, `A-59`) y con él la **fase de estabilización técnica**. Lo que sigue, en orden:
 
-1. **`ARCH-001` — Product & Module Architecture**: **cerrada** el 2026-09-25 (docs-only, sin cambios
-   funcionales). Lo que sigue es la **revisión del owner** de esa constitución y después `DS-001`, que
-   **no se inició** y tiene brief separado.
+1. **`DS-001` — One Burger Design System v4**: la ley visual nueva está escrita y **espera la revisión del
+   owner** (PR abierto, sin mergear). Después sigue la migración **sección por sección** (`SCREEN-001`), que
+   **no se inició**.
 2. `AUD-009`/`AUD-010` (outbox: lease y semántica de entrega) y `AUD-012`/`AUD-013`/`AUD-014` siguen en el
    roadmap, **sin iniciar**.
 3. `A-57` (backup programado) es **infraestructura**: el owner decide y no bloquea el producto.

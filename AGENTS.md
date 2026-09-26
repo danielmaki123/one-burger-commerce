@@ -37,9 +37,8 @@ contratos, la configuración real de GitHub y el estado del repo**; después doc
 
 Derivadas, no negociables: **el historial NO gana sobre el estado actual** · **una referencia visual no gana
 sobre una invariante de negocio** · **una UI nunca es por sí sola una frontera de autorización**. En lo
-visual hay una excepción declarada: el sistema oficial es
-[`ops/references/stitch/design-system.md`](ops/references/stitch/design-system.md) y gana siempre ahí (los
-vinculantes: `design-system.md` §2, §6, §7 y §8).
+visual la ley es [`ops/design/DESIGN_SYSTEM.md`](ops/design/DESIGN_SYSTEM.md) y gana siempre ahí (color §3,
+tokens §5, accesibilidad §13); el material de Stitch está **archivado** y no es lectura obligatoria.
 
 ## Mapa del sistema
 
@@ -50,7 +49,7 @@ vinculantes: `design-system.md` §2, §6, §7 y §8).
 | [`.agents/MEMORY.md`](.agents/MEMORY.md) | Conocimiento estable aprendido: decisiones cerradas, errores comprendidos, restricciones, lecciones |
 | [`.agents/skills/`](.agents/skills/) | Procedimientos repetibles, uno por tipo de trabajo |
 | [`ops/CURRENT.md`](ops/CURRENT.md) | Estado operativo actual: producción, riesgos, trabajo en curso, qué sigue |
-| [`ops/tasks/`](ops/tasks/) · [`ops/roadmap/`](ops/roadmap/) | Trabajo planificado: briefs, [plantilla obligatoria](ops/tasks/TEMPLATE.md), [programa de remediación](ops/tasks/AUDIT-REMEDIATION-ROADMAP.md) y [roadmap de producto/UX](ops/roadmap/PRODUCT-UX-ROADMAP.md) |
+| [`ops/tasks/`](ops/tasks/) · [`ops/roadmap/`](ops/roadmap/) · [`ops/design/`](ops/design/) | Trabajo planificado: briefs, [plantilla obligatoria](ops/tasks/TEMPLATE.md), [programa de remediación](ops/tasks/AUDIT-REMEDIATION-ROADMAP.md) y [roadmap de producto/UX](ops/roadmap/PRODUCT-UX-ROADMAP.md) · **ley visual** y specs de pantalla |
 | [`ops/audit-backlog.md`](ops/audit-backlog.md) · [`ops/decisions/`](ops/decisions/) | Cola de hallazgos con ID, tipo y severidad · decisiones de arquitectura (ADR) |
 | [`ops/history/`](ops/history/) | Historia archivada. **No es fuente de verdad** |
 
@@ -156,25 +155,26 @@ para que pase? ¿hay **rollback** e **idempotencia**? ¿dos requests simultáneo
 
 ## UI y design system
 
-El sistema oficial (y gana siempre en lo visual) es
-[`ops/references/stitch/design-system.md`](ops/references/stitch/design-system.md); el checklist completo está
-en [`.agents/skills/ui-change/SKILL.md`](.agents/skills/ui-change/SKILL.md). Las reglas duras:
+La ley visual es [`ops/design/DESIGN_SYSTEM.md`](ops/design/DESIGN_SYSTEM.md) —con `CONTENT`, `PATTERNS`,
+`MOTION` y `DATA_VISUALIZATION` al lado—; el checklist está en
+[`.agents/skills/ui-change/SKILL.md`](.agents/skills/ui-change/SKILL.md) y una pantalla nueva pasa antes por
+[`screen-design`](.agents/skills/screen-design/SKILL.md). Las reglas duras:
 
 - El **panel** (KDS/POS/Admin) es **oscuro** sobre `--bg-canvas` con superficies por capas; el **público** es
   **claro**. Nada de contenedores blancos planos.
 - Los **números** van en `font-mono` con `tabular-nums` (precios, cronómetros, IDs, PIN, contadores).
-- **Ámbar (`--brand-amber`)** para identidad, cocina y acción de comanda; **azul cielo (`--brand-primary`)**
-  para administración, navegación y POS.
+- **Intención, no color**: la marca se pide por intención (`--brand-primary`, `--brand-accent`); qué color
+  tiene cada una es **tema** (hoy acento = ámbar), no una asignación fija por superficie.
 - **`animate-pulse` solo en SLA vencido o desincronización**; cabecera y filtros en el **20%** del alto;
   **controles ≥44 px** (`h-11`); estados del sistema (`--status-pending|prep|ready|sla`).
 - **Datos reales**: `C$`/`NIO`, `+505` y las tres sucursales (**Camino de Oriente**, **Carretera Masaya**,
   **Casa Antigua**). Prohibido inventar nombres, ciudades o monedas.
-- **Nada de color fuera de token** (`#hex`, `rgba()`, paleta cruda, `fontFamily` inline), **contraste**
+- **Nada de color fuera de token** (`#hex`, `rgb()`, `rgba()`, `hsl()`, paleta cruda, `fontFamily` inline), **contraste**
   texto/fondo **4.5:1** y borde de control **3:1** (WCAG 1.4.11), y **los tokens muertos no vuelven**:
   `--primary`, `--popover`, `--destructive`, `--ring` y `--sidebar-*` se eliminaron —borrar `--ring` además
   rompe el foco, porque Tailwind compila `outline-ring/50` a `var(--ring)`—.
 - **Componente que existe, componente que se usa**; **prohibido el HTML crudo equivalente** donde hay
-  primitivo y **prohibido copiar el HTML de Stitch** (se traduce). **Componente nuevo = registro previo** en
+  primitivo y **prohibido copiar el HTML del material archivado** (se traduce). **Componente nuevo = registro previo** en
   `src/shared/ui/registry.json`, en el mismo commit, con su «cuándo SÍ» y «cuándo NO».
 - **Ningún control ni copy decorativo**: cada control con su estado/API **y su test**, o se elimina con el
   motivo escrito. **Los techos de UI solo bajan**, y la UI se verifica en **navegador real a 375 px y 1280

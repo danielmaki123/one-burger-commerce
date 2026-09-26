@@ -39,6 +39,7 @@ const REQUIRED_SKILLS = [
   "database-migration",
   "security-change",
   "ui-change",
+  "screen-design",
   "audit",
   "production-release",
 ] as const;
@@ -77,7 +78,7 @@ const LEGACY_STATE_DOCUMENT = "ops/history/project-state-legacy-2026-09.md";
  * vuelva a mezclar todas las responsabilidades.
  *
  * **`AGENTS.md` no está acá a propósito**: su techo (≤ 300 líneas, porque es el archivo que todo agente
- * lee primero) ya lo custodia `stitch-system-contract.test.ts`. Repetir el número sería crear una segunda
+ * lee primero) ya lo custodia `design-system-contract.test.ts`. Repetir el número sería crear una segunda
  * fuente de verdad para la misma regla — justo lo que `AGENTS.md` prohíbe.
  */
 const MAX_LINES = {
@@ -87,6 +88,16 @@ const MAX_LINES = {
   "CLAUDE.md": 40,
   // El puntero de compatibilidad: si crece, es que alguien volvió a escribir estado adentro.
   "ops/project-state.md": 60,
+  /**
+   * DS-001 — la ley visual es una constitución mínima, no un manual: si crece, el detalle va a una skill,
+   * a una spec de pantalla o al archivo histórico. Techos medidos el 2026-09-25 (387 / 168 / 143 / 73 / 106
+   * líneas): solo bajan.
+   */
+  "ops/design/DESIGN_SYSTEM.md": 400,
+  "ops/design/CONTENT.md": 200,
+  "ops/design/PATTERNS.md": 200,
+  "ops/design/MOTION.md": 150,
+  "ops/design/DATA_VISUALIZATION.md": 200,
 } as const;
 
 /** Cuántas líneas de un documento son un espacio en blanco o un encabezado. */
@@ -150,7 +161,7 @@ describe("contrato · sistema operativo de ingeniería del agente", () => {
       ["ops/CURRENT.md", "el estado operativo actual"],
       ["ops/tasks/TEMPLATE.md", "la plantilla de TASK"],
       [".agents/skills/", "los procedimientos"],
-      ["ops/references/stitch/design-system.md", "el sistema de diseño oficial"],
+      ["ops/design/DESIGN_SYSTEM.md", "la ley visual"],
       ["ops/production-readiness.md", "el runbook de producción"],
     ];
 

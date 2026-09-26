@@ -32,6 +32,7 @@ prisma/dev.db
 !.agents/skills/ui-change/
 !.agents/skills/audit/
 !.agents/skills/production-release/
+!.agents/skills/screen-design/
 .claude
 .codex
 .gemini

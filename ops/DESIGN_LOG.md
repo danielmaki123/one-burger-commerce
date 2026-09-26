@@ -2,6 +2,10 @@
 
 > Registro de cambios de UI/UX. Un entry por cambio significativo.
 > Orden: más reciente arriba.
+>
+> **Historia, no ley.** Lo que acá se cuenta del sistema anterior (Stitch) es archivo: la ley visual vigente
+> es [`design/DESIGN_SYSTEM.md`](design/DESIGN_SYSTEM.md) (Design System v4, `DS-001`) y
+> `ops/references/stitch/` quedó **ARCHIVED / NON-NORMATIVE**.
 
 ## 2026-09-17 — Segundo pase: los modales del panel y el horario por sucursal
 **Tipo:** bug de sistema + 26 superficies + producto (horarios)

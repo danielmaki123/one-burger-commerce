@@ -194,6 +194,6 @@ límites conocidos en [`../ops/production-readiness.md`](../ops/production-readi
 | Estado operativo actual | [`../ops/CURRENT.md`](../ops/CURRENT.md) |
 | Cola de auditoría | [`../ops/audit-backlog.md`](../ops/audit-backlog.md) |
 | Runbook de producción | [`../ops/production-readiness.md`](../ops/production-readiness.md) |
-| UI — sistema de diseño oficial | [`../ops/references/stitch/design-system.md`](../ops/references/stitch/design-system.md) |
+| UI — ley visual (Design System v4) | [`../ops/design/DESIGN_SYSTEM.md`](../ops/design/DESIGN_SYSTEM.md) |
 | Registro de componentes | `src/shared/ui/registry.json` |
 | Reglas ejecutables | `src/shared/contracts/*.test.ts` |

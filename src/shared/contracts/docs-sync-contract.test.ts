@@ -31,7 +31,7 @@ import { fileExists, readRepoFile, repoRoot } from "./contract-files";
  */
 
 const AGENTS_DOC = "AGENTS.md";
-const DESIGN_SYSTEM_DOC = "ops/references/stitch/design-system.md";
+const DESIGN_SYSTEM_DOC = "ops/design/DESIGN_SYSTEM.md";
 
 /** El procedimiento por tipo de trabajo: son los documentos con más links cruzados del repo. */
 const SKILL_NAMES = [
@@ -41,6 +41,7 @@ const SKILL_NAMES = [
   "database-migration",
   "security-change",
   "ui-change",
+  "screen-design",
   "audit",
   "production-release",
 ] as const;
@@ -60,6 +61,14 @@ const AGENT_DOCS: string[] = [
   // ARCH-001: la arquitectura de producto se consulta **antes** de crear una capacidad nueva, así que
   // sus propias referencias también tienen que poder seguirse.
   "ops/product/MODULE_ARCHITECTURE.md",
+  // DS-001: la ley visual es punto de entrada obligatorio de cualquier cambio de UI.
+  "ops/design/README.md",
+  "ops/design/DESIGN_SYSTEM.md",
+  "ops/design/CONTENT.md",
+  "ops/design/PATTERNS.md",
+  "ops/design/MOTION.md",
+  "ops/design/DATA_VISUALIZATION.md",
+  "ops/design/screens/TEMPLATE.md",
   ...SKILL_NAMES.map((skill) => `.agents/skills/${skill}/SKILL.md`),
 ];
 

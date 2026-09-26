@@ -140,8 +140,8 @@ describe("contrato · registro de componentes (src/shared/ui/registry.json)", ()
 
     expect(registry.version).toBe(2);
     expect(registry.updated).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-    expect(registry.source_of_truth).toBe("ops/references/stitch/design-system.md");
-    expect(registry.catalog).toContain("ops/references/stitch/design-system.md");
+    expect(registry.source_of_truth).toBe("ops/design/DESIGN_SYSTEM.md");
+    expect(registry.catalog).toContain("ops/design/DESIGN_SYSTEM.md");
     expect(Object.keys(registry.layers).sort()).toEqual([...LAYERS].sort());
     expect(registry.components.length).toBeGreaterThan(0);
 
@@ -279,7 +279,7 @@ describe("contrato · registro de componentes (src/shared/ui/registry.json)", ()
 
     expect(
       unregistered,
-      "registralos en src/shared/ui/registry.json y en DESIGN_SYSTEM.md §3 en el mismo commit",
+      "registralos en src/shared/ui/registry.json (el catálogo ejecutable; su fuente es ops/design/DESIGN_SYSTEM.md) en el mismo commit",
     ).toEqual([]);
   });
 
