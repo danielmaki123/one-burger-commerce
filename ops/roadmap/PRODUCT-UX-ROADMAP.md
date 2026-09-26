@@ -684,7 +684,7 @@ SCREEN-POS-QUICK-SALE-001.1 — POS Fase 1 / Venta rápida ✅ (Fase 1 COMPLETA)
 ├── barra + sheet en celular y tablet · opciones secundarias bajo demanda
 ├── referencia del owner aplicada: barra de una línea, caja solo donde bloquea el cobro
 ├── guardrails: reuse-first · one canonical flow · reuse audit · reference fidelity · viewport contract
-├── desplegado (`build-20260926-195012`) y QA autenticada de producción en los 4 viewports
+├── desplegado (`build-20260926-202551` sobre `3c6951a`) y QA autenticada de producción en los 4 viewports
 └── cero dominio / DB · Fase 2 NO iniciada
         ↓
 POS Fase 2 — pedidos existentes / pagos / bancos / USD / factura

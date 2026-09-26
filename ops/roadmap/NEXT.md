@@ -9,9 +9,10 @@ secundarias bajo demanda— y la **001.1** la corrigió contra la **referencia r
 barra operativa de una línea, acciones de caja solo donde bloquean el cobro, `Cobrar pedido del menú` fuera del
 POS, catálogo y ticket a alto útil) y le agregó los guardrails de **reuse-first**, **one canonical flow**,
 **reuse audit**, **reference fidelity** y **viewport contract**. La spec canónica vive en
-[`../design/screens/pos-quick-sale.md`](../design/screens/pos-quick-sale.md); el deploy, la **QA autenticada de
-producción a los cuatro viewports** (`1366×768`, `1280×720`, `768×1024`, `375×812`) y los dos smokes están en
-[`../CURRENT.md`](../CURRENT.md) §1 y §4. **La Fase 2 NO se inició.**
+[`../design/screens/pos-quick-sale.md`](../design/screens/pos-quick-sale.md); el deploy (`build-20260926-202551`
+sobre `3c6951a`), la **QA autenticada de producción a los cuatro viewports** (`1366×768`, `1280×720`,
+`768×1024`, `375×812`) y los dos smokes están en [`../CURRENT.md`](../CURRENT.md) §1 y §4. **La Fase 2 NO se
+inició.**
 
 **`SCREEN-ORDERS-001 — Órdenes` cerrada y desplegada** (2026-09-26): es la **primera sección rediseñada de
 punta a punta** con el proceso completo —discovery, arquitectura/IA, spec de pantalla, prototipo y capturas,

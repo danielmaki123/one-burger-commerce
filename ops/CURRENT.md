@@ -27,8 +27,8 @@ corto: si crece como un diario, dejó de servir.
 
 | Qué | Estado |
 |---|---|
-| **Último deploy** | `build-20260926-195012`, sobre `262962c` (`main` con **`SCREEN-POS-QUICK-SALE-001.1`**, PR #66), 2026-09-26 19:50 UTC. `/api/health` = `build-20260926-195012`, `/api/readiness` `ready` (DB 1 ms), smokes **menú 7/7** y **hosts 6/6**, y **QA autenticada en producción** a `1366×768`, `1280×720`, `768×1024` y `375×812` (§4). **Sin backup manual**: no hay migración ni cambio de datos |
-| **`main`** | `262962c` (PR #66, squash) — el commit que está en producción. El cierre de POS Fase 1 es **este PR**: código, spec y estado van juntos. CI verde en cada push a `main` (los cuatro checks + `publish`) |
+| **Último deploy** | `build-20260926-202551`, sobre `3c6951a` (`main` con el cierre visual de POS Fase 1, PR #67), 2026-09-26 20:25 UTC. `/api/health` = `build-20260926-202551`, `/api/readiness` `ready` (DB 2 ms), smokes **menú 7/7** y **hosts 6/6**, y **QA autenticada en producción** a `1366×768`, `1280×720`, `768×1024` y `375×812` (§4). **Sin backup manual**: no hay migración ni cambio de datos |
+| **`main`** | `3c6951a` (PR #67, squash) — el commit que está en producción. CI verde en cada push a `main` (los cuatro checks + `publish`) |
 | **Migración aplicada en este deploy** | **Ninguna**: el release es de pantalla. La última sigue siendo `20260925120000_add_payment_void`, aplicada el 2026-09-25 |
 | **Rollback target** | `build-20260926-170322` sobre `be4c051` (Venta rápida, `SCREEN-POS-QUICK-SALE-001`) — la aplicación se revierte revirtiendo el commit en `main` y volviendo a disparar `deployService`; la base no se toca (ninguno de los dos releases migró) |
 | **Modelo de deploy** | Easypanel, proyecto `brunobot`, servicio `oneburguerweb`; build **desde GitHub `main`** con `forceRebuild`. Una sola llamada a `deployService` (la llamada puede cortar por timeout y el build sigue en segundo plano: comportamiento conocido) |
@@ -41,35 +41,42 @@ corto: si crece como un diario, dejó de servir.
 | **Datos de negocio** | 3 sucursales reales (Camino de Oriente, Carretera Masaya, Casa Antigua). La carta la sigue cargando el owner |
 | **Caja en producción** | Sin terminales de caja cargadas al momento del último QA: es el estado real del negocio, no un defecto |
 
-✅ **QA autenticada de producción del POS (2026-09-26, hecha)**: el owner dio credenciales de admin, así que
-—a diferencia de los releases anteriores, donde este paso quedaba pendiente— la pantalla se abrió **en
-producción con sesión** a los cuatro viewports del contrato (`1366×768`, `1280×720`, `768×1024`, `375×812`).
-Cada uno se midió en el navegador: sin scroll horizontal, barra operativa en una línea, sin hero y sin
-`Cobrar pedido del menú`, el `Cobrar C$…` dentro del primer viewport y el sheet de celular abriendo con su
-total. Las credenciales se usaron solo por entorno y **no** se guardan en el repo.
+✅ **QA autenticada de producción del POS (2026-09-26, hecha)**: con las credenciales que dio el owner —a
+diferencia de los releases anteriores, donde este paso quedaba pendiente— la pantalla se abrió **en producción
+con sesión** a los cuatro viewports del contrato (`1366×768`, `1280×720`, `768×1024`, `375×812`), medidos en el
+navegador contra `build-20260926-202551`: **cero scroll horizontal** en los cuatro; barra operativa en **una
+línea** (44 px); sin hero ni `Cobrar pedido del menú`; catálogo de **612 px** de 668 a `1366×768` y **564** de
+620 a `1280×720`, con **3 columnas** en escritorio y 2 abajo de `lg`; el `Cobrar C$…` visible con su pie en 743
+y 695 px (dentro de 768 y 720) y **sin scroll de página** en los dos tamaños de escritorio; abajo de `lg` el
+CTA **no** se dibuja hasta abrir el sheet (el patrón de la referencia), que abre con su total. Health,
+readiness y los dos smokes **7/7** y **6/6** en §1. Las credenciales se usaron solo por entorno y **no** se
+guardan en el repo.
+
+✅ **Venta real cobrada en producción (2026-09-26)**: además del contrato de viewport se ejercitó el flujo
+completo con una venta de mostrador de verdad —`COCA COLA` (el primer producto **sin** modificadores de la
+carta: con uno con modificadores el selector intercepta el «+»)—, cliente `QA POS Fase 1` / `8888-8888`,
+efectivo con «Exacto», y en el medio apareció el bloqueo real de caja: el `Cobrar` estaba **deshabilitado** con
+la tarjeta `Caja cerrada`, así que se abrió el turno (autorizado por el owner) y el cobro salió
+**`Venta P-MUIW4IS4 cobrada por C$44.57 · Sin cambio`**. Queda un **turno abierto** en Camino de Oriente desde
+las 03:15 p.m. con fondo C$0.00, cuyo efectivo esperado es **C$44.57**: lo cierra el owner desde `/admin/cash`
+(la venta no se puede borrar: es un pedido real).
+
 ⚠️ **Lo que la verificación de este release NO pudo hacer desde acá**: los **logs del contenedor** no son
-accesibles por API (`inspectAction`/`getActionLogs`/`inspectServiceLogs` responden 404) y no se ejercitó la
-presencia de `voidedAt` con lectura autenticada (sí la aplica el contenedor al arrancar). El POS se verificó
-además **antes** del deploy contra una base local con la suite E2E completa (`admin-pos` 11/11 con mutaciones,
-capturas en [`design/screens/`](design/screens/)).
+accesibles por API (`inspectAction`/`getActionLogs`/`inspectServiceLogs` responden 404, así que la búsqueda de
+`P2002`/`P2028`/`25P02`/deadlock/5xx queda pendiente) y no se ejercitó la presencia de `voidedAt` con lectura
+autenticada (sí la aplica el contenedor al arrancar). El POS se verificó además **antes** del deploy contra una
+base local con la suite E2E completa (`admin-pos` 11/11 con mutaciones, capturas en
+[`design/screens/`](design/screens/)).
 
 ⚠️ **Hallazgo operativo (sigue abierto): el backup programado no genera archivos.** La config está
 `enabled: true` (cron `0 0 * * *`) y carpeta `oneburguer`, pero las **únicas** acciones de backup del servicio
 son **tres** desde siempre: las dos del drill (2026-09-12) y la manual del release anterior. El respaldo
 programado **no produjo ningún archivo** y **no hay retención declarada** → `A-57` en el backlog.
+📋 **A-50/A-51 (pasada read-only, sin reparar nada)**: **A-51** — los **5** cierres tienen `expectedAmount`
+firmado y **ninguno** tenía retiros ni devoluciones, así que la fórmula de AUD-005 **no altera ningún número
+histórico**; el detalle de `ShiftBankClose` es **no determinable** (producción no tiene bancos). **A-50** — **no
+identificable** desde la API: requiere leer la base. **No reparado.**
 
-✅ **Verificación post-deploy del release (2026-09-26, solo lectura)**: `/api/health` =
-`build-20260926-195012` (versión nueva) y `/api/readiness` `ready`; los dos smokes **7/7** y **6/6**.
-
-📋 **Pasada read-only de A-50/A-51 (acotada, sin reparar nada)**: **A-51** — los **5** cierres tienen
-`expectedAmount` firmado y **ninguno** tenía retiros ni devoluciones, así que la fórmula corregida de AUD-005
-**no altera ningún número histórico**; el detalle de `ShiftBankClose` es **no determinable** (producción no
-tiene bancos configurados). **A-50** — **no identificable** desde la API: requiere leer la base. **No reparado.**
-
-⚠️ **Límite del entorno del agente en este release**: **los logs del contenedor no son accesibles por API**
-(`actions/inspectAction`, `actions/getActionLogs` y `services/app/inspectServiceLogs` responden 404), así que
-la búsqueda de `P2002`/`P2028`/`25P02`/deadlock/5xx en logs **no se pudo hacer desde acá**: la verificación se
-apoya en health, readiness, los dos smokes y comprobaciones HTTP de solo lectura.
 
 **Integraciones**
 
@@ -190,12 +197,11 @@ El programa completo, con objetivo, prioridad, riesgo, dependencia y orden, est�
 [`tasks/AUDIT-REMEDIATION-ROADMAP.md`](tasks/AUDIT-REMEDIATION-ROADMAP.md); el **proceso de producto** que
 aprobó el owner, en [`roadmap/`](roadmap/).
 
-**Baseline de `DS-001` (2026-09-26, cerrado)**: `4dc2cbb` → `build-20260926-003808`, sin migraciones ni cambios visuales; quedó superado por el release de `IA-001` + Órdenes (ver §1).
+**Baseline de `DS-001` (2026-09-26, cerrado)**: `4dc2cbb` → `build-20260926-003808`, sin migraciones; superado por `IA-001` + Órdenes (ver §1).
 
-**Release de `SCREEN-POS-QUICK-SALE-001.1` (2026-09-26, cerrado)**: `main` = `262962c` **desplegado** sirviendo
-`build-20260926-195012`, más las tres correcciones que salieron de la QA autenticada. Sin migraciones, sin
-dominio y sin backup. Health/readiness y los dos smokes (7/7 y 6/6) en §1; la **QA autenticada de producción**
-del contrato de viewport quedó **hecha** con las credenciales del owner (§4).
+**Release de `SCREEN-POS-QUICK-SALE-001.1` (2026-09-26, CERRADO — POS Fase 1 COMPLETA)**: `main` = `3c6951a`
+**desplegado** sirviendo `build-20260926-202551`, con las tres correcciones de la QA autenticada y la **venta
+real cobrada** en producción (§4). Sin migraciones, sin dominio y sin backup.
 
 **El bloque financiero de la remediación quedó cerrado y desplegado** (`AUD-003..006`, `A-54`, `A-55`,
 `A-58`, `A-59`) y con él la **fase de estabilización técnica**. Lo que sigue, en orden:
@@ -208,22 +214,15 @@ del contrato de viewport quedó **hecha** con las credenciales del owner (§4).
 4. `A-57` (backup programado) es **infraestructura**: el owner decide y no bloquea el producto. Y **higiene
    pendiente del owner**: revocar la cuenta de QA anterior y **rotar el `EASYPANEL_TOKEN`**.
 
-> ⚠️ **Dos correcciones al brief de la auditoría, verificadas en el repo:**
->
-> 1. **A-45 ya está cerrado** (2026-09-23): el arqueo ciego es regla de servidor
->    (`src/app/api/admin/pos/shift/shift-arqueo-role-filter.ts`, con tests). TASK-AUD-003 no debe
->    reimplementarlo: su alcance real es **verificar** que no queden caminos que filtren el esperado y
->    convertirlo en guardrail permanente.
-> 2. **El informe de auditoría que originó este roadmap no está versionado en el repo.** Los títulos de
->    `TASK-AUD-004` a `TASK-AUD-017` vienen del brief del owner; la **evidencia** de cada uno se
->    reproduce y se registra en [`audit-backlog.md`](audit-backlog.md) al abrir su TASK (regla de la
->    skill [`audit`](../.agents/skills/audit/SKILL.md)). Hasta entonces son el programa, no hallazgos
->    probados.
->
-> **Dos entradas del backlog que hay que revisar antes de agarrarlas**: `A-16` («no hay historial de
-> cajas») y la segunda mitad de `A-18` («`Payment` no tiene `shiftId`») parecen **obsoletas**: el
-> historial existe en `/admin/history/cierres` y la Fase 6 del rediseño de Caja agregó `shiftId`. Se
-> confirman al abrir su TASK, no acá.
+> ⚠️ **Dos correcciones al brief de la auditoría, verificadas en el repo**: **A-45 ya está cerrado**
+> (2026-09-23, el arqueo ciego es regla de servidor: `src/app/api/admin/pos/shift/shift-arqueo-role-filter.ts`),
+> así que TASK-AUD-003 debe **verificar** que no queden caminos que filtren el esperado, no reimplementarlo; y
+> **el informe de auditoría que originó este roadmap no está versionado**: los títulos de `TASK-AUD-004` a
+> `TASK-AUD-017` vienen del brief del owner y su evidencia se reproduce al abrir cada TASK.
+
+> **Dos entradas del backlog a revisar antes de agarrarlas**: `A-16` («no hay historial de cajas») y la segunda
+> mitad de `A-18` («`Payment` no tiene `shiftId`») parecen **obsoletas** —el historial existe en
+> `/admin/history/cierres` y la Fase 6 de Caja agregó `shiftId`—. Se confirman al abrir su TASK, no acá.
 
 ## 6. Bloqueos
 
