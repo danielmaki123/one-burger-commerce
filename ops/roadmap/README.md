@@ -36,6 +36,8 @@ Esos archivos serán creados por las TASKs correspondientes y, una vez aprobados
 - **Estado de las fases**: A-15 y la fase de estabilización técnica **cerradas** (2026-09-25) · `ARCH-001`
   **cerrada** el 2026-09-25 ([`../product/MODULE_ARCHITECTURE.md`](../product/MODULE_ARCHITECTURE.md)) · `DS-001`
   **aprobada y desplegada** el 2026-09-26 ([`../design/DESIGN_SYSTEM.md`](../design/DESIGN_SYSTEM.md)) ·
-  `SCREEN-001` **no iniciado**.
+  `IA-001` (navegación del panel) **cerrada y desplegada** el 2026-09-26 · **`SCREEN-ORDERS-001 — Órdenes`,
+  la primera sección rediseñada de punta a punta**, cerrada y desplegada el 2026-09-26
+  ([`../design/screens/orders.md`](../design/screens/orders.md)) · `SCREEN-001 — Resumen` **no iniciado**.
 - La ley visual vigente es [`../design/DESIGN_SYSTEM.md`](../design/DESIGN_SYSTEM.md), que declara a Stitch
   **archivado y no normativo** (`D-003` ya aplicada por `DS-001`).
