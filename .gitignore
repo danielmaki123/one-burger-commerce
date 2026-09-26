@@ -25,6 +25,7 @@ prisma/dev.db
 !.agents/skills/
 .agents/skills/*
 !.agents/skills/new-task/
+!.agents/skills/delivery-e2e/
 !.agents/skills/bugfix/
 !.agents/skills/money-change/
 !.agents/skills/database-migration/

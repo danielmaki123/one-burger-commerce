@@ -15,13 +15,17 @@ agente: el detalle va a una skill y acá queda la regla general.
   **gana el plan** y la excepción se anota acá en el mismo commit.
 - **No se inventa producto** ni se completa trabajo para no quedar quieto: si no hay TASK, se pregunta.
 
-**Parar y preguntar SOLO ante:** (1) una decisión de **producto** no definida que cambie comportamiento
-visible; (2) una operación **destructiva** contra producción; (3) **credenciales externas** no disponibles;
-(4) una **dependencia nueva** que cambie significativamente el stack; (5) una **migración destructiva** de
-datos; (6) una **contradicción imposible** entre una instrucción del owner y una restricción técnica real;
-(7) permisos de GitHub que impiden push o PR. Nada más se pregunta: nombres, formato y decisiones inferibles
-del repo se resuelven y se sigue. Ante documentación contradictoria, verificá **primero el código, los
-contratos, la configuración real de GitHub y el estado del repo**; después documentá la diferencia.
+**Entrega E2E por defecto**: una TASK **aprobada** se ejecuta hasta el estado operativo final **sin pedir
+permisos intermedios** —«¿mergeo?», «¿deployo?», «¿borro la rama?» no se preguntan con los gates verdes—.
+Antes de tocar código se declara su **Delivery Mode** (`docs-only` · `runtime-e2e` · `high-risk-e2e`), que
+decide si la TASK termina en merge o también en producción. El flujo, los modos, la **política de backups**
+(por **riesgo del release**, no por frecuencia) y las **Stop Conditions** —la única lista de cuándo parar—
+viven en [`.agents/skills/delivery-e2e/SKILL.md`](.agents/skills/delivery-e2e/SKILL.md): se escriben una vez.
+
+**Parar y preguntar SOLO ante una Stop Condition** de esa política. Nada más se pregunta: nombres, formato y
+decisiones inferibles del repo se resuelven y se sigue. Ante documentación contradictoria, verificá **primero
+el código, los contratos, la configuración real de GitHub y el estado del repo**; después documentá la
+diferencia.
 
 ## Jerarquía de fuentes
 
@@ -31,9 +35,8 @@ contratos, la configuración real de GitHub y el estado del repo**; después doc
 3. **Contratos ejecutables, tests y configuración real** (`src/shared/contracts/*.test.ts`,
    `prisma/schema.prisma`, `.github/workflows/`, la API real de GitHub).
 4. **`AGENTS.md`** (este archivo).
-5. **`.agents/CONTEXT.md`** y **`ops/CURRENT.md`** (cómo está construido / qué pasa hoy).
-6. **Documentación histórica** (`ops/history/`, briefs cerrados).
-7. **Referencias secundarias** (skills de terceros, mockups).
+5. **`.agents/CONTEXT.md`** y **`ops/CURRENT.md`** (cómo está construido / qué pasa hoy) · 6. **documentación
+histórica** (`ops/history/`, briefs cerrados) · 7. **referencias secundarias** (skills de terceros, mockups).
 
 Derivadas, no negociables: **el historial NO gana sobre el estado actual** · **una referencia visual no gana
 sobre una invariante de negocio** · **una UI nunca es por sí sola una frontera de autorización**. En lo
@@ -78,12 +81,11 @@ src/app/** rutas + API routes · src/shared/{ui,lib,config,pwa,contracts} · src
 ```
 
 **ROUTE**: HTTP → validación → auth/authz → caso de uso; **sin Prisma directo y sin reglas de negocio**.
-**FEATURE / APPLICATION**: orquesta el caso de uso con dependencias inyectadas (`{ repository, ... }`),
-define la transacción cuando corresponde y **no** instancia Prisma. **DOMAIN**: invariantes, políticas, value
-objects, transiciones y reglas financieras — **sin Next, sin Prisma, sin HTTP**. **PORTS**: interfaces que
-necesitan aplicación y dominio. **ADAPTERS**: Prisma, cookies, Telegram, servicios externos. El **dominio no
-depende de los adapters** y un módulo nuevo nace con las cuatro capas (`module-contract.test.ts`,
-`route-contract.test.ts`).
+**FEATURE / APPLICATION**: orquesta el caso de uso con dependencias inyectadas (`{ repository, ... }`), define
+la transacción cuando corresponde y **no** instancia Prisma. **DOMAIN**: invariantes, políticas, value objects,
+transiciones y reglas financieras — **sin Next, sin Prisma, sin HTTP**. **PORTS**: interfaces que necesitan
+aplicación y dominio. **ADAPTERS**: Prisma, cookies, Telegram, servicios externos. El **dominio no depende de
+los adapters** y un módulo nuevo nace con las cuatro capas (`module-contract.test.ts`, `route-contract.test.ts`).
 
 ## Límites de código
 
@@ -93,7 +95,7 @@ depende de los adapters** y un módulo nuevo nace con las cuatro capas (`module-
 - **Una sola fuente por cálculo**: los totales salen de `src/shared/lib/order-totals.ts`
   (`calculateOrderTotal` / `calculateOrderTotals`) y el estado del pedido de
   `src/modules/orders/domain/order-workflows.ts`. Prohibido sumar `subtotal + packaging + tip` a mano.
-- **Antes de crear, buscar**: si la regla, el cálculo o el texto ya existen, se reusan. Componentes y helpers
+- **Antes de crear, buscar**: si la regla, el cálculo o el texto ya existen, se reusan; componentes y helpers
   van en su propio archivo.
 
 ## Testing (no negociable)
@@ -149,9 +151,9 @@ el archivo, no se agrega la fila. Un documento tampoco crece: se mueve a `ops/hi
 
 Una TASK crítica (dinero, auth, datos, migraciones) lleva una pasada cuyo objetivo es **refutar** la solución,
 no confirmarla: ¿puede el CI estar verde y el requisito seguir **roto**? ¿hay un test **tautológico** o un
-**mock** permisivo? ¿faltan **escenarios negativos**? ¿hay **race condition** o **partial write**? ¿la
-**autorización** vive solo en la UI? ¿se **tragó** un error? ¿se duplicó una regla? ¿se **modificó un test**
-para que pase? ¿hay **rollback** e **idempotencia**? ¿dos requests simultáneos rompen la invariante?
+**mock** permisivo? ¿faltan **escenarios negativos**, **race condition**, **partial write**, **rollback**,
+**idempotencia** o **autorización** que solo viva en la UI? ¿se **tragó** un error, se duplicó una regla o se
+**modificó un test** para que pase? ¿dos requests simultáneos rompen la invariante?
 
 ## UI y design system
 
@@ -195,9 +197,8 @@ La ley visual es [`ops/design/DESIGN_SYSTEM.md`](ops/design/DESIGN_SYSTEM.md) �
 
 ## Datos, migraciones y dinero
 
-- Migraciones Prisma **versionadas**, **aditivas primero** y **sin BOM** (un BOM rompe `prisma migrate deploy`
-  en cualquier base nueva): hay un test que lo verifica. `prisma/seed.ts` es **solo para local/demo**, nunca
-  en producción.
+- Migraciones Prisma **versionadas**, **aditivas primero** y **sin BOM** —un BOM rompe `prisma migrate deploy`
+  en una base nueva, y hay un test que lo verifica—. `prisma/seed.ts` es **solo para local/demo**, nunca en producción.
 - Los datos del negocio (nombre, colores, contacto, horarios, precios, propina, zona horaria) **no se
   hardcodean**: salen de la configuración editable en el admin. Procedimiento en
   [`.agents/skills/database-migration/SKILL.md`](.agents/skills/database-migration/SKILL.md).
@@ -213,12 +214,11 @@ PostgreSQL real, no contra un doble en memoria.
 Repo: `github.com/danielmaki123/one-burger-commerce`. La rama de deploy es **`main`**: **por política no recibe
 push directo** (se trabaja en rama y se mergea por PR). Política ≠ enforcement: ver *CI y protección de `main`*.
 
-**Flujo**: 1. rama desde `main` actualizado (`git checkout main && git pull --ff-only origin main && git
-checkout -b <tipo>/<nombre-descriptivo>`) · 2. trabajar y commitear en la rama · 3. `git push -u origin
-<tipo>/<nombre>` · 4. **abrir PR hacia `main`** con problema, qué cambió, qué **no** cambió, cómo se verificó y
-qué quedó fuera · 5. **esperar el CI verde** (la aprobación de otro dev **no** se exige: approvals 0) · 6.
-**merge con `--squash`**, solo después del paso 5. Nomenclatura: `feature/` · `fix/` · `refactor/` · `docs/` ·
-`chore/`.
+**Flujo**: 1. rama desde `main` actualizado (`git pull --ff-only origin main && git checkout -b <tipo>/<nombre>`)
+· 2. trabajar y commitear en la rama · 3. `git push -u origin <tipo>/<nombre>` · 4. **abrir PR hacia `main`** con
+problema, qué cambió, qué **no** cambió, cómo se verificó y qué quedó fuera · 5. **esperar el CI verde** (la
+aprobación de otro dev **no** se exige: approvals 0) · 6. **merge con `--squash`**, solo después del paso 5.
+Nomenclatura: `feature/` · `fix/` · `refactor/` · `docs/` · `chore/`.
 
 **Prohibiciones**: push directo a `main` · `git push --force` a `main`, siempre · ramas ajenas sin avisar.
 **Commits**: uno por tema, en español, prefijo + área + resumen, con **problema, evidencia de verificación y
@@ -243,8 +243,9 @@ toca **solo con pedido explícito del owner**; si algo falla por protección, **
 
 ## Deploy y producción
 
-- **Solo se despliega desde `main` después del merge y con el OK explícito del owner. Nunca desde una rama de
-  trabajo.**
+- **Solo se despliega desde `main` y después del CI verde.** La aprobación de una TASK `runtime-e2e` —o el
+  pedido explícito del owner— **autoriza** su merge y su release: **no se pide una segunda autorización** salvo
+  una **Stop Condition**. Nunca desde una rama de trabajo.
 - Una sola llamada a `deployService` (`forceRebuild: true`) por API, con `EASYPANEL_TOKEN` **por entorno**.
   ⚠️ **No** usar `npm run deploy:easypanel`: fusiona variables y puede crear servicios.
 - Después: **health** y **readiness** (`/api/health`, `/api/readiness`) y los dos smokes de solo lectura
@@ -258,11 +259,10 @@ toca **solo con pedido explícito del owner**; si algo falla por protección, **
 ## Validación mínima antes de cerrar
 
 `npm run security:secrets && npm run lint && npm run typecheck && npm run test && npm run test:contracts &&
-npm run build`. Además: **`npm run build:webpack`** si tocaste una página (`src/app/**/page.tsx`) —el build de
-Turbopack no valida los exports de una página y el problema queda escondido— · `npx prisma generate` si tocaste
-`prisma/schema.prisma` (el build no lo regenera; con `next start` levantado está bloqueado) · los E2E locales
-con Postgres arriba (`BASE_URL=http://127.0.0.1:3210 npm run test:e2e:prod:full`) si tocaste flujos, con límites
-de tasa altos y **una sola suite a la vez**.
+npm run build`. Además: **`npm run build:webpack`** si tocaste una página (`src/app/**/page.tsx`) —Turbopack no
+valida los exports de una página y el problema queda escondido— · `npx prisma generate` si tocaste `prisma/schema.prisma` ·
+los E2E locales con Postgres arriba (`BASE_URL=http://127.0.0.1:3210 npm run test:e2e:prod:full`) si tocaste flujos, con
+límites de tasa altos y **una sola suite a la vez**.
 
 ## Definition of Done
 
@@ -274,15 +274,15 @@ de tasa altos y **una sola suite a la vez**.
 - [ ] `ops/CURRENT.md` actualizado (y `ops/audit-backlog.md` si cierra un hallazgo); `MEMORY.md` **solo** si
       la lección es reutilizable.
 - [ ] Commit + push a la rama, **PR abierto**, **CI verde** (los cuatro checks).
-- [ ] Si toca deploy: **aprobación del owner** + los dos smokes después; excepciones documentadas en el commit.
+- [ ] Si el **Delivery Mode** incluye deploy: health/readiness, los dos smokes y QA de producción **después**
+      del merge, sin una segunda autorización; excepciones documentadas en el commit.
 
 ## Cierre de sesión
 
 En este orden: 1. mergear el PR (`--squash --delete-branch`) **después** del CI verde y volver a `main` con
-`git pull --ff-only` · 2. actualizar **`ops/CURRENT.md`** (qué quedó desplegado, qué se cerró y **qué
-falta**), `ops/tasks/START-HERE.md` y `ops/audit-backlog.md` si hay hallazgos · 3. **ese cierre también va por
-PR** · 4. reportar al humano la rama actual, el **último commit de `main`**, `git status` limpio y qué queda
-pendiente; si algo del pedido no coincide con GitHub, **se reporta la diferencia**.
+`git pull --ff-only` · 2. actualizar **`ops/CURRENT.md`** (qué quedó desplegado, qué se cerró y **qué falta**),
+`ops/tasks/START-HERE.md` y `ops/audit-backlog.md` si hay hallazgos · 3. **ese cierre también va por PR** ·
+4. reportar la rama actual, el **último commit de `main`**, `git status` limpio y qué queda pendiente; si algo no coincide con GitHub, **se reporta la diferencia**.
 
 ## Idioma y estilo
 
@@ -294,7 +294,7 @@ asociados a sus inputs y textos de error claros en español. Estilos con los **t
 ## Prohibiciones
 
 Además de las repartidas arriba (push a `main` y force push, `db:seed` y `migrate reset` en producción, tocar
-servicios ajenos, deployar sin OK, cambiar el ruleset): no reactivar módulos fuera del MVP en navegación ni en
+servicios ajenos, deployar sin CI verde, cambiar el ruleset): no reactivar módulos fuera del MVP en navegación ni en
 APIs públicas sin pedido explícito · no dejar `BOOTSTRAP_ADMIN_*` ni secretos temporales en el entorno · no
 corregir un bug encontrado durante una auditoría o una reorganización (**documentarlo**) · no escribir la misma
 regla completa en varios documentos: se escribe una vez y se enlaza.

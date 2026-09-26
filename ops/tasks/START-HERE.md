@@ -42,7 +42,9 @@ falta reconstruir por qué algo es como es. Es lo que evita leer 3.000 líneas p
 > — el build de Turbopack no valida los exports de una página.
 >
 > **Deploy**: una sola llamada a `deployService` (runbook §2), **nunca** `npm run deploy:easypanel`, y
-> **jamás a producción sin el OK explícito del owner**.
+> **solo desde `main` con el CI verde**. Una TASK de entrega aprobada (`runtime-e2e`/`high-risk-e2e`) ya
+> autoriza su merge y su release: no se pide un segundo OK salvo **Stop Condition**
+> ([`delivery-e2e`](../../.agents/skills/delivery-e2e/SKILL.md)).
 
 ## 3. Prompt para un chat de **auditoría**
 

@@ -33,6 +33,22 @@ Una línea, en imperativo y en español.
 `dinero` · `auth/datos` · `migración` · `UI` · `docs/CI`. Es la **más alta** que aplique: una TASK que
 toca dinero y UI es de riesgo *dinero*.
 
+## DELIVERY MODE
+
+`docs-only` (docs/ADR/roadmap/contratos sin runtime: **sin deploy**) · `runtime-e2e` (producto o runtime:
+merge **y** deploy con QA en producción) · `high-risk-e2e` (dinero, auth, datos o esquema: ídem, con los
+gates de su skill). El flujo y las condiciones de parada están en
+[`delivery-e2e`](../../.agents/skills/delivery-e2e/SKILL.md); acá **no** se repite el procedimiento.
+
+- [ ] `docs-only`
+- [ ] `runtime-e2e` (default cuando toca producto/runtime)
+- [ ] `high-risk-e2e`
+
+## STOP CONDITIONS específicas de esta TASK
+
+Qué condición de parada tiene **esta** TASK en particular, además de las diez de la política. Si no hay
+ninguna propia: `N/A — solo las de la política`.
+
 ---
 
 ## PROBLEMA

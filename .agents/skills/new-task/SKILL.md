@@ -10,7 +10,7 @@
 
 ## 1. Procedimiento
 
-### Fase 0 — Repo y rama (antes de leer nada más)
+### Fase 0 — Repo, rama y **Delivery Mode** (antes de leer nada más)
 
 ```bash
 git status --short                      # tiene que estar limpio (salvo residuos locales que no se commitean)
@@ -26,6 +26,18 @@ git checkout -b <tipo>/<nombre-descriptivo>
   arrastra trabajo ajeno a la rama.
 - Nomenclatura: `feature/` · `fix/` · `refactor/` · `docs/` · `chore/`.
 - Si el origen de la TASK es la cola de auditoría, el tipo casi siempre es `fix/`.
+
+**Delivery Mode** — se declara acá y decide hasta dónde llega la TASK sin volver a preguntar
+([`../delivery-e2e/SKILL.md`](../delivery-e2e/SKILL.md)):
+
+| Si la TASK… | Modo | Termina en |
+|---|---|---|
+| toca producto o runtime | `runtime-e2e` (**default**) | merge **y** deploy, con QA en producción |
+| toca dinero, auth, datos o esquema | `high-risk-e2e` | ídem, con los gates de su skill de riesgo |
+| es solo docs, ADR, roadmap o contratos sin runtime | `docs-only` | merge. **Sin deploy** |
+
+Se **infiere** del brief: no se le pide al owner que elija el modo cuando ya se sabe. Se escribe en la TASK,
+en el cuerpo del PR y en el reporte final.
 
 ### Fase 1 — Lectura obligatoria, en este orden
 
@@ -78,6 +90,7 @@ Contestar las cinco preguntas. Si alguna queda sin respuesta, la TASK no arranca
 
 | Puerta | Pregunta | Qué la responde |
 |---|---|---|
+| **DELIVERY** | ¿La TASK termina en merge o también en producción? | `docs-only` · `runtime-e2e` · `high-risk-e2e`, inferido del brief |
 | **SCOPE** | ¿Qué cambia exactamente? | Scope IN / Scope OUT escritos |
 | **RISK** | ¿Toca dinero, auth, datos, migraciones, infraestructura o producción? | Clase de riesgo + skill que se activa |
 | **TEST** | ¿Qué prueba va a demostrar que está correcto? | Test rojo nombrado antes de implementar |
@@ -113,10 +126,11 @@ Contestar las cinco preguntas. Si alguna queda sin respuesta, la TASK no arranca
 
 ## 4. Cuándo parar y preguntar
 
-Solo ante: decisión de **producto** no definida que cambie comportamiento visible · operación
-destructiva contra producción · credenciales externas no disponibles · dependencia nueva que cambie
-significativamente el stack · migración destructiva de datos · contradicción imposible entre una
-instrucción del owner y una restricción técnica real · permisos de GitHub que impiden push o PR.
+Solo ante una **Stop Condition** ([`../delivery-e2e/SKILL.md`](../delivery-e2e/SKILL.md) §3): decisión de
+**producto** no definida · operación **destructiva** en producción · **migración destructiva** ·
+**backfill/reparación/transformación** de datos no aprobada · riesgo de **pérdida o reinterpretación** de
+datos · **secreto o permiso externo** inexistente · **costo externo** no aprobado · **P0/P1 nuevo** causado
+por la TASK · operación **irreversible** no contemplada · GitHub/Easypanel **bloquean** técnicamente.
 
-Todo lo demás (nombres, formato, ubicación de documentos, decisiones ya inferibles del repo) se
-**resuelve y se sigue**.
+Todo lo demás —nombres, formato, ubicación de documentos, decisiones inferibles del repo, mergear con CI
+verde y desplegar una TASK de runtime— se **resuelve y se sigue**.

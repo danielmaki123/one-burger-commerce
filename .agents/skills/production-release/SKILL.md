@@ -3,8 +3,10 @@
 **Se activa** cuando una TASK va a llevar código a producción, o cuando hay que verificar o revertir un
 despliegue.
 
-> **Solo se despliega desde `main`, después del merge, con el OK explícito del owner.**
-> Nunca desde una rama de trabajo. Nunca sin pedirlo.
+> **Solo se despliega desde `main` y después del CI verde.** La aprobación de una TASK de entrega
+> (`runtime-e2e` o `high-risk-e2e`) —o el pedido explícito del owner— **autoriza** su merge y su release:
+> **no se solicita una segunda autorización** salvo que se active una **Stop Condition**
+> ([`delivery-e2e`](../delivery-e2e/SKILL.md) §3). Nunca desde una rama de trabajo.
 
 Este archivo resume el procedimiento y sus porqués. La **secuencia exacta de comandos, los límites
 conocidos y las recetas operativas viven en**
@@ -20,8 +22,12 @@ el runbook.
 - [ ] `git checkout main && git pull --ff-only origin main` y anotar el **commit que se va a
       desplegar** (el `sha` de código, no `HEAD` si el último push fue de documentación).
 - [ ] `npm run security:secrets` en verde.
-- [ ] **OK explícito del owner.**
-- [ ] Si la release incluye migraciones: **backup identificado** y la reversión lógica escrita.
+- [ ] El **Delivery Mode** de la TASK incluye deploy (`runtime-e2e` o `high-risk-e2e`) y no hay ninguna
+      **Stop Condition** activa ([`delivery-e2e`](../delivery-e2e/SKILL.md)).
+- [ ] Si el release **sí** lo necesita —migración destructiva, backfill, reparación o transformación de
+      datos, o cambio persistente de dinero cuyo rollback dependa de un snapshot—: **backup identificado** y
+      la reversión lógica escrita. Un release de UI, CSS, navegación, frontend, docs o refactor **no**
+      requiere backup manual.
 - [ ] No hay otra release en curso (una sola cosa a la vez).
 
 ## 2. Migraciones
@@ -88,7 +94,11 @@ BASE_URL="https://<host>" npm run test:e2e:prod:hosts     # landing, redireccion
 
 ## 7. Prohibiciones
 
-- Desplegar una **rama de trabajo** o sin el OK del owner.
+- Desplegar una **rama de trabajo**, sin CI verde o sin un Delivery Mode que incluya deploy.
+- Exigir una **segunda autorización** con los gates verdes: la aprobación de la TASK ya autoriza el release
+  (salvo Stop Condition).
+- Pedir un **backup manual** para un release que no lo necesita por riesgo: ver
+  [`delivery-e2e`](../delivery-e2e/SKILL.md) §4.
 - Usar `npm run deploy:easypanel` (fusiona variables, puede crear servicios).
 - Correr `db:seed` o `migrate reset` contra producción.
 - Imprimir configuración sensible o volcar la respuesta de `inspectService`.
