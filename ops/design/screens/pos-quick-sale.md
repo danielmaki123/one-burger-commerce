@@ -149,9 +149,10 @@ en un **sheet** que se abre desde la barra inferior persistente.
 
 ## Estado de implementación (`SCREEN-POS-QUICK-SALE-001`)
 
-**Cerrada y en `main`** (PR #62, `be4c051`), con los cuatro checks de CI en verde. **El deploy a producción
-está pendiente**: el `EASYPANEL_TOKEN` no está disponible en el entorno del agente (Stop Condition 6 del
-contrato de entrega) y el release no migra datos, así que no requiere backup. Roadmap al cerrar:
+**Cerrada y desplegada** (PR #62, `be4c051`, `build-20260926-170322`): los cuatro checks de CI en verde y,
+después del deploy, `/api/health` con la versión nueva, `/api/readiness` `ready` y los dos smokes (7/7 y 6/6).
+**QA autenticada de producción (375/768/1280): pendiente del owner** —desde el entorno del agente no hay
+credenciales de admin—. Roadmap al cerrar:
 
 ```text
 POS Fase 1 — Venta rápida  ✅

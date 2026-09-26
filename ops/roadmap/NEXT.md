@@ -2,13 +2,13 @@
 
 ## Ahora
 
-**`SCREEN-POS-QUICK-SALE-001 — POS Fase 1 / Venta rápida` cerrada en `main`** (2026-09-26, PR #62, `be4c051`
-con los cuatro checks de CI en verde): la Venta rápida dejó de ser un formulario vertical y pasó a un
+**`SCREEN-POS-QUICK-SALE-001 — POS Fase 1 / Venta rápida` cerrada y desplegada** (2026-09-26, PR #62,
+`be4c051`, `build-20260926-170322`): la Venta rápida dejó de ser un formulario vertical y pasó a un
 **workspace `CATÁLOGO | VENTA`** —ticket anclado al viewport en escritorio, barra + sheet en celular y
 opciones secundarias bajo demanda—. La spec canónica vive en
 [`../design/screens/pos-quick-sale.md`](../design/screens/pos-quick-sale.md), con la referencia del owner al
-lado. **El deploy a producción está pendiente**: el `EASYPANEL_TOKEN` no está disponible en el entorno del
-agente (Stop Condition 6 del contrato de entrega). El estado, en [`../CURRENT.md`](../CURRENT.md) §1.
+lado. Health, readiness y los dos smokes en [`../CURRENT.md`](../CURRENT.md) §1. **QA autenticada de
+producción (375/768/1280): pendiente del owner** —desde el entorno del agente no hay credenciales de admin.
 
 **`SCREEN-ORDERS-001 — Órdenes` cerrada y desplegada** (2026-09-26): es la **primera sección rediseñada de
 punta a punta** con el proceso completo —discovery, arquitectura/IA, spec de pantalla, prototipo y capturas,
@@ -25,9 +25,11 @@ no normativo**. `ARCH-001` ([`../product/MODULE_ARCHITECTURE.md`](../product/MOD
 
 ## Después
 
-1. **Desplegar la Venta rápida**: una sola llamada a `deployService` (`brunobot` / `oneburguerweb`,
-   `forceRebuild: true`) en cuanto el token esté disponible, y después health, readiness, los dos smokes y la
-   QA autenticada a 375/768/1280. Sin migración ni cambio de datos: **no requiere backup**.
+1. **QA autenticada de producción de la Venta rápida** (375/768/1280) — la hace el owner o alguien con
+   credenciales de admin; desde el entorno del agente no hay. Casos mínimos: venta vacía, agregar/sacar,
+   modificadores, cantidades, búsqueda, categorías, agotado, efectivo y vuelto, tarjeta, transferencia,
+   multi-pago, promo, RUC, descuento, esperas, caja cerrada, cierre obligatorio, offline, success y recarga
+   con draft recuperado.
 2. **`SCREEN-001 — /admin Resumen`**: **no iniciado**. El camino es producto + arquitectura + IA + UX →
    mockup canónico → revisión del owner → implementación bajo DS v4 (skill `screen-design`), igual que se
    hizo en Órdenes.
