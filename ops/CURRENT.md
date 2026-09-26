@@ -27,7 +27,7 @@ corto: si crece como un diario, dejó de servir.
 | Qué | Estado |
 |---|---|
 | **Último deploy** | `build-20260926-031111`, sobre `fff8d71a7d5b5042c8ecd21370218e84f1da7a0b` (**IA-001, SCREEN-ORDERS-001**), 2026-09-26 03:11–03:14 UTC. `commit.sha` del panel = `fff8d71`, `/api/health` = `build-20260926-031111`, `/api/readiness` `ready` (DB 7 ms), smokes **menú 7/7** y **hosts 6/6**, QA autenticada 2/2 a 375 y 1280. **Sin backup manual**: no hay migración ni cambio de datos (autorizado por el owner) |
-| **`main`** | `fff8d71a7d5b5042c8ecd21370218e84f1da7a0b` — **idéntico a lo desplegado**. CI verde en el PR #57 y en el push a `main` (los cuatro checks + `publish`) |
+| **`main`** | `8aa8962` (documentación de cierre) con el **código desplegado** en `fff8d71a7d5b5042c8ecd21370218e84f1da7a0b`. CI verde en los PR #57/#58 y en los dos push a `main` (los cuatro checks + `publish`) |
 | **Migración aplicada en este deploy** | **Ninguna**: el release es de pantalla y navegación. La última sigue siendo `20260925120000_add_payment_void`, aplicada el 2026-09-25 |
 | **Rollback target** | `build-20260926-022334` (commit `aa898cc`, navegación IA-001) — la aplicación se revierte revirtiendo el commit en `main` y volviendo a disparar `deployService`; la base no se toca (este release no migró) |
 | **Modelo de deploy** | Easypanel, proyecto `brunobot`, servicio `oneburguerweb`; build **desde GitHub `main`** con `forceRebuild`. Una sola llamada a `deployService` (la llamada cortó por timeout y el build siguió en segundo plano: comportamiento conocido, la action quedó `done`) |
