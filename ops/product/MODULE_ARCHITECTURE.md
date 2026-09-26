@@ -52,32 +52,50 @@ Corolario: **una pantalla nueva no crea un módulo**, y **una ruta nueva no crea
 ## 3. Estado real del panel (verificado en el código)
 
 Fuente única de la navegación: `src/app/(admin)/admin/admin-layout-helpers.ts`. Secciones y entradas de hoy,
-en el orden en que se dibujan:
+en el orden en que se dibujan (decidido en **TASK-IA-001**, 2026-09-26):
 
 | Sección | Entradas | Ruta | Quién la ve |
 |---|---|---|---|
-| **Operación** | Resumen | `/admin` | owner |
-| | Órdenes | `/admin/orders` | owner, manager, kitchen, cashier |
-| **Control** | POS | `/admin/pos` | owner, manager, cashier (con el mostrador prendido en algún local) |
-| | Caja | `/admin/cash` | owner, manager, cashier |
+| **(entrada superior)** | Resumen | `/admin` | owner |
+| **Operación** | Órdenes | `/admin/orders` | owner, manager, kitchen, cashier |
+| | POS | `/admin/pos` | owner, manager, cashier (con el mostrador prendido en algún local) |
+| **Control** | Caja | `/admin/cash` | owner, manager, cashier |
 | | Cierres | `/admin/history/cierres` | owner, manager |
-| | Aprobaciones | `/admin/approvals` | la entrada la ve también el manager, pero la pantalla exige `canApproveRefund`: el manager rebota a Órdenes (§12.11) |
+| | Aprobaciones | `/admin/approvals` | owner (su pantalla exige `canApproveRefund`) |
 | | Config de Caja | `/admin/cash/config` | owner |
-| **Catálogo** | Menú | `/admin/menu` | owner, manager |
+| **Catálogo** | Productos | `/admin/menu/products` | owner, manager |
+| | Categorías | `/admin/menu/categories` | owner, manager |
+| | Modificadores | `/admin/menu/modifier-groups` | owner, manager |
+| | Promociones | `/admin/promotions` | owner, manager |
+| | Contenido | `/admin/menu/marketing-blocks` | owner, manager |
 | **Configuración** | Locales | `/admin/locations` | owner |
 | | Usuarios | `/admin/users` | owner |
 | | Personalización | `/admin/settings` | owner |
 | | Alertas | `/admin/settings/notifications` | owner |
 
-El grupo **Control** se arma ítem por ítem con su propia puerta y no se dibuja si queda vacío
-(`withControlGroup`). El rol llega **por cliente** (`/api/auth/admin/session`) y **la autorización real es
+**Resumen es una entrada superior, fuera de los grupos**: no es una tarea de operación, es el overview
+transversal. El grupo **Control** se arma ítem por ítem con la puerta de **su pantalla** y no se dibuja si
+queda vacío. El rol llega **por cliente** (`/api/auth/admin/session`) y **la autorización real es
 server-side**: ocultar una entrada no autoriza nada.
 
-**Dirección conceptual del roadmap y realidad del código**: el roadmap dibuja `RESUMEN` como overview
-transversal separado y `POS` dentro de `OPERACIÓN`. El código de hoy pone **Resumen como primer ítem de
-Operación** y **POS dentro de Control** (después de Operación: primero el turno, después la plata del
-turno). Ninguna de las dos es un error: es una **divergencia registrada** y moverla es una decisión
-explícita del owner en la revisión de la sección, no un efecto colateral de este documento.
+### Catálogo: un conjunto, cinco entradas hermanas
+
+- **Catálogo sigue siendo un solo conjunto conceptual y un solo módulo de dominio** (`menu`). Productos,
+  Categorías, Modificadores, Promociones y Contenido son **entradas hermanas de navegación**: esto **no**
+  crea cinco módulos nuevos (Promociones, además, vive en el módulo `orders`, como registra §5).
+- **Subcategorías pertenece a Categorías** y no tiene entrada propia.
+- **`/admin/menu` deja de ser un hub requerido**: la ruta se conserva por compatibilidad y hace `redirect` a
+  `/admin/menu/products`. Ninguna ruta profunda se borró y ningún bookmark se rompió.
+- **Contenido** es el nombre de navegación de la capacidad de bloques comerciales (antes nombrada con jerga
+  técnica, como «hero comercial» o «marketing blocks»).
+- **Desktop y mobile salen de la misma fuente**: la barra inferior elige `href`s (`ADMIN_MOBILE_TAB_HREFS`) y
+  el resto —label, icono, permiso y orden— lo aporta la navegación única. No hay arrays paralelos.
+
+**Divergencia con la dirección conceptual del roadmap: resuelta.** El roadmap dibujaba `RESUMEN` como
+overview separado y `POS` dentro de `OPERACIÓN`; el código ponía Resumen como primer ítem de Operación y POS
+dentro de Control. `TASK-IA-001` alineó el código con esa dirección (Resumen arriba, POS en Operación) y
+corrigió la entrada de **Aprobaciones**, que se ofrecía al manager cuando su pantalla exige
+`canApproveRefund` (era el hallazgo §12.11: una entrada nunca se ofrece a un rol que la pantalla rechaza).
 
 ---
 
@@ -294,10 +312,10 @@ próxima TASK no los herede por accidente.
    `src/shared/contracts/route-contract.test.ts`, que prohíbe ampliarla.
 10. **`/admin` no existe para roles sin Resumen** (`A-10`): un `manager` o una `kitchen` aterrizan en
     Órdenes. Es una decisión de producto pendiente, no un bug de arquitectura.
-11. **Aprobaciones: la entrada y la pantalla no piden lo mismo.** El ítem del sidebar se dibuja con
+11. **Aprobaciones: la entrada y la pantalla pedían cosas distintas.** El ítem del sidebar se dibujaba con
     `canManageCash` (owner y manager), pero `/admin/approvals` exige `canApproveRefund` (solo owner), así que
-    un manager ve una entrada que lo rebota a Órdenes. La pantalla es la dueña de la decisión; el ítem
-    debería usar la misma puerta.
+    un manager veía una entrada que lo rebotaba a Órdenes. **Corregido en `TASK-IA-001`**: la entrada usa la
+    puerta de su pantalla.
 
 ---
 
