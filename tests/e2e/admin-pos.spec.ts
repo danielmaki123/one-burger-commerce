@@ -107,7 +107,7 @@ async function ensureOpenShift(page: Page) {
 
   await page.reload();
   expect(resuelto, "el arnés tiene que poder dejar una caja abierta para el POS").toBe(true);
-  await expect(page.getByText(/Caja abierta · fondo/)).toBeVisible();
+  await expect(page.getByText("Caja abierta").first()).toBeVisible();
 }
 
 /**
@@ -151,7 +151,7 @@ test.describe("punto de venta", () => {
       await loginAsOwner(page);
       await page.goto("/admin/pos");
 
-      await expect(page.getByRole("heading", { name: "Punto de venta" })).toBeVisible();
+      await expect(page.getByRole("heading", { level: 1, name: "POS" })).toBeVisible();
 
       // El catálogo llega por la API del POS: se espera al primer producto vendible del seed.
       const agregar = page.getByRole("button", { name: /^Agregar .+ a la venta$/ }).first();
@@ -436,7 +436,7 @@ test.describe("punto de venta", () => {
     await page.getByLabel("Con cuánto paga").fill(String(total * 2));
     await page.getByRole("button", { name: /^Cobrar C\$/ }).click();
 
-    const confirmacion = page.getByRole("status");
+    const confirmacion = page.getByRole("status").last();
     await expect(confirmacion).toContainText("Venta P-");
     await expect(confirmacion).toContainText("Cambio");
 
@@ -532,7 +532,7 @@ test.describe("punto de venta", () => {
     await page.getByLabel("RUC (mínimo 8 caracteres)").fill("J0310000001");
     await page.getByRole("button", { name: /^Cobrar C\$/ }).click();
 
-    const confirmacion = page.getByRole("status");
+    const confirmacion = page.getByRole("status").last();
     await expect(confirmacion).toContainText("Venta P-");
     const numero = (await confirmacion.textContent())?.match(/P-[A-Z0-9]+/)?.[0];
     expect(numero, "la confirmación trae el número de pedido").toBeTruthy();
@@ -679,7 +679,7 @@ test.describe("punto de venta", () => {
     await expect(entradaPos).toBeVisible();
     await entradaPos.click();
     await expect(page).toHaveURL(/\/admin\/pos$/);
-    await expect(page.getByRole("heading", { name: "Punto de venta" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "POS" })).toBeVisible();
 
     try {
       const apagados = await setPosEnabledForEveryLocation(page, false);

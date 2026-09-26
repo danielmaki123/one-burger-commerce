@@ -72,6 +72,19 @@ Composición a 768: qué cambia respecto de desktop y por qué.
 
 Composición a 375: qué se conserva, qué se pliega, qué se va. Sin scroll horizontal.
 
+## Viewport contract
+
+Qué tiene que verse en el **primer viewport** (ancho **y alto**) a `1366×768`, `1280×720`, `768×1024` y
+`375×812` en una operación normal, y qué scrollea: el panel que crece (catálogo, líneas, opciones abiertas),
+no la página. Es obligatorio para una superficie operativa (POS, KDS, Caja, Órdenes); en una pantalla de
+consulta alcanza con declarar el ancho.
+
+## Referencia aprobada
+
+Si el owner dejó `reference.html` (o capturas aprobadas) al lado de esta spec: qué es contrato (composición,
+jerarquía, densidad, responsive) y qué divergencia deliberada existe, con su motivo. **Una divergencia
+material no se decide en implementación**: se corrige o se para y se pregunta.
+
 ## Qué se elimina
 
 Lo que la pantalla actual muestra y deja de mostrar. Se escribe explícitamente: es la parte que evita el
@@ -92,6 +105,8 @@ se documenta, no se arregla de paso.
 - [ ] Ninguna métrica nueva sin fórmula, período, comparación y fuente.
 - [ ] Todos los estados están definidos, incluidos error y sin permiso.
 - [ ] Los tres anchos (375/768/1280) están resueltos sin scroll horizontal.
+- [ ] El **viewport contract** está declarado (o se justificó por qué la pantalla no es operativa).
+- [ ] Si hay referencia aprobada, la spec dice qué es contrato y qué se desvía a propósito.
 - [ ] En el **primer viewport de 375 px** se ven el estado crítico, la acción principal y lo mínimo para
       iniciar la tarea (el resto puede scrollear).
 - [ ] Está escrito qué se elimina.

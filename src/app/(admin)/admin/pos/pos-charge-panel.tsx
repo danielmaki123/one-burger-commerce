@@ -1,7 +1,5 @@
 "use client";
 
-import { TriangleAlert } from "lucide-react";
-
 import type { CurrencyFormat } from "@/shared/lib/format-currency";
 import { formatCurrency } from "@/shared/lib/format-currency";
 import { useOnlineStatus } from "@/shared/lib/online-status";
@@ -22,7 +20,6 @@ import { Button } from "@/shared/ui/button";
  * toca «Cobrar» y no puede. El ámbar acá es el del sistema (`--brand-amber`), no un color suelto.
  */
 export default function PosChargePanel({
-  needsOpenShift,
   canCharge,
   blockedReason = null,
   total,
@@ -32,8 +29,10 @@ export default function PosChargePanel({
   restoredSale,
   onCharge,
 }: {
-  /** Hay local elegido y caja abierta: sin eso no se cobra (Bloque 9.2). */
-  needsOpenShift: boolean;
+  /**
+   * Hay caja abierta y el turno permite cobrar. El **motivo** de que no se pueda (sin caja, o caja de otro
+   * día) lo explica `PosCashAction`, en el mismo bloque del checkout: acá no se repite el diagnóstico.
+   */
   canCharge: boolean;
   /**
    * Tarea 3 del brief (2026-09-17) — por qué **no** se puede cobrar aunque haya caja: hoy, la sucursal
@@ -51,30 +50,8 @@ export default function PosChargePanel({
 }) {
   const online = useOnlineStatus();
 
-  const warning = needsOpenShift
-    ? {
-        title: "Caja cerrada",
-        text: "El cobro requiere abrir el turno antes: un cobro con la caja cerrada no entra a ningún arqueo.",
-      }
-    : blockedReason
-      ? { title: "Caja cerrada", text: blockedReason }
-      : null;
-
   return (
     <>
-      {warning ? (
-        <div
-          role="status"
-          className="flex items-start gap-3 rounded-stitch-lg border-2 border-brand-amber bg-brand-amber/10 px-3 py-3"
-        >
-          <TriangleAlert aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0 text-brand-amber" />
-          <div className="space-y-1">
-            <p className="text-st-h3 text-brand-amber">{warning.title}</p>
-            <p className="text-st-body text-ink">{warning.text}</p>
-          </div>
-        </div>
-      ) : null}
-
       {/*
         Bloque 12.4: sin red el cobro no se registra. Se dice antes de que el cajero cobre, no después:
         el aviso usa el estado de alerta del sistema (y es el único caso, con el SLA vencido, donde el

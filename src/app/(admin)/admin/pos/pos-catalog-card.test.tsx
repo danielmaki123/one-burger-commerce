@@ -76,12 +76,24 @@ describe("PosCatalogCard", () => {
     expect(screen.getByTestId("pos-catalog-photo-fallback")).toBeTruthy();
   });
 
-  it("muestra el nombre, la categoría y el precio del local en mono", () => {
+  it("muestra el nombre y el precio del local en mono, sin repetir la categoría de los chips", () => {
     render(<PosCatalogCard product={product()} currency={currency} onAdd={() => {}} />);
 
     expect(screen.getByText("DOBLE")).toBeTruthy();
-    expect(screen.getByText("ONE BURGER")).toBeTruthy();
     expect(screen.getByText(/305\.00/)).toBeTruthy();
+    // La categoría vive en los chips (que además filtran): la tarjeta no la repite.
+    expect(screen.queryByText("ONE BURGER")).toBeNull();
+  });
+
+  it("la tarjeta es compacta y el control de agregar conserva el mínimo táctil", () => {
+    render(<PosCatalogCard product={product()} currency={currency} onAdd={() => {}} />);
+
+    const agregar = screen.getByRole("button", { name: "Agregar DOBLE a la venta" });
+    expect(agregar.className).toContain("min-h-11");
+    expect(agregar.className).toContain("min-w-11");
+
+    // La foto no puede comerse el viewport: la densidad es parte del contrato de la pantalla.
+    expect(screen.getByTestId("pos-catalog-photo-fallback").className).toContain("h-20");
   });
 
   it("un producto agotado se ve, dice «Agotado» y no tiene botón", () => {

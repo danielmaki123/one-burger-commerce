@@ -31,9 +31,9 @@ export default function PosCatalogPhoto({
       <div
         data-testid="pos-catalog-photo-fallback"
         aria-hidden="true"
-        className="flex h-24 w-full items-center justify-center rounded-stitch-md bg-surface-low"
+        className="flex h-20 w-full items-center justify-center bg-surface-low"
       >
-        <UtensilsCrossed className="h-8 w-8 text-ink-muted" />
+        <UtensilsCrossed className="h-7 w-7 text-ink-muted" />
       </div>
     );
   }
@@ -42,7 +42,7 @@ export default function PosCatalogPhoto({
     <img
       src={primary.url}
       alt={primary.alt?.trim() ? primary.alt : name}
-      className="h-24 w-full rounded-stitch-md object-cover"
+      className="h-20 w-full object-cover"
       onError={() => setFailed(true)}
     />
   );

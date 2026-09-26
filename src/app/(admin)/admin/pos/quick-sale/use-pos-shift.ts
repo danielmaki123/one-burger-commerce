@@ -40,6 +40,8 @@ export function usePosShift({
 }) {
   const [shift, setShift] = React.useState<PosShift | null>(null);
   const [shiftLoading, setShiftLoading] = React.useState(true);
+  const [shiftActionBusy, setShiftActionBusy] = React.useState(false);
+  const [shiftActionError, setShiftActionError] = React.useState<string | null>(null);
 
   const loadShift = React.useCallback(
     async (targetLocationId: string, options: { silent?: boolean } = {}) => {
@@ -95,6 +97,51 @@ export function usePosShift({
     timezone,
   });
 
+  /**
+   * La acción de caja desde el checkout (`SCREEN-POS-QUICK-SALE-001.1` §5): **abrir** cuando no hay turno.
+   *
+   * Cerrar no vive acá: el cierre firma el arqueo (conteo, bancos, diferencia) y esa capacidad es de la
+   * pantalla de Caja, que es su dueña. Un cierre «a medias» desde el POS sería una segunda implementación del
+   * mismo flujo —lo que la ley de *one canonical flow* prohíbe—, así que el POS **enlaza** a Caja.
+   */
+  const openShift = React.useCallback(async () => {
+    if (shiftActionBusy) return;
+
+    setShiftActionBusy(true);
+    setShiftActionError(null);
+
+    try {
+      const response = await fetch("/api/admin/pos/shift/open", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          locationId,
+          ...(terminalId ? { terminalId } : {}),
+          counts: [],
+        }),
+      });
+
+      const body = (await response.json().catch(() => ({}))) as {
+        error?: { message?: string; fields?: Record<string, string> };
+      };
+
+      if (!response.ok) {
+        setShiftActionError(
+          body.error?.fields?.locationId ??
+            body.error?.message ??
+            "No se pudo abrir la caja de este local.",
+        );
+        return;
+      }
+
+      await loadShift(locationId);
+    } catch {
+      setShiftActionError("No se pudo abrir la caja: revisá la conexión.");
+    } finally {
+      setShiftActionBusy(false);
+    }
+  }, [loadShift, locationId, shiftActionBusy, terminalId]);
+
   return {
     shift,
     shiftLoading,
@@ -105,5 +152,19 @@ export function usePosShift({
     canCharge: Boolean(shift),
     /** `true` cuando ya se sabe que no hay caja abierta (el aviso no parpadea mientras carga). */
     needsOpenShift: !shift && !shiftLoading,
+    /**
+     * Qué acción de caja corresponde: `open` (nada que hacer), `no-shift` (abrir), `pending-close` (cerrar el
+     * turno anterior) o `loading` (todavía no se sabe).
+     */
+    cashActionState: (shiftLoading
+      ? "loading"
+      : shift
+        ? shiftOverdue
+          ? "pending-close"
+          : "open"
+        : "no-shift") as "loading" | "open" | "no-shift" | "pending-close",
+    openShift,
+    shiftActionBusy,
+    shiftActionError,
   };
 }

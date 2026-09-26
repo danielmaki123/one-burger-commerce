@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import * as React from "react";
 
 import {
@@ -14,7 +13,6 @@ import type { PosPaymentMethod } from "@/modules/pos/domain/pos-sale";
 import type { PosCatalogProduct } from "@/modules/pos/ports/pos-catalog";
 import { hasSelectableModifiers } from "@/modules/menu/domain/modifier-selection";
 import { useBusinessSettings, useCurrencyFormat } from "@/shared/lib/business-settings";
-import { formatCurrency } from "@/shared/lib/format-currency";
 import {
   renderReceiptJpeg,
   shareOrDownloadReceipt,
@@ -23,7 +21,6 @@ import {
 import { AdminEmptyState, AdminPageHeader } from "../_components/admin-operational-ui";
 import { EMPTY_POS_FISCAL_DRAFT } from "./pos-fiscal-payload";
 import PosModifierDialog, { type PosModifierSelection } from "./pos-modifier-dialog";
-import PosOrderChargeAction from "./pos-order-charge-action";
 import PosSaleConfirmation from "./pos-sale-confirmation";
 import PosTicketButtons from "./pos-ticket-buttons";
 import type { PosLocationOption, PosSaleSummary } from "./pos-types";
@@ -299,49 +296,21 @@ export default function PosClient({
     );
   }
 
-  const contextBar = (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-      <span
-        aria-hidden="true"
-        className={`h-2 w-2 rounded-full ${
-          shiftState.shift ? "bg-status-ready-dot" : "bg-status-inactive-dot"
-        }`}
-      />
-      <p className="text-st-body text-ink-secondary">
-        {shiftState.shiftLoading ? (
-          "Leyendo la caja…"
-        ) : shiftState.shift ? (
-          <>
-            Caja abierta · fondo{" "}
-            <span className="font-mono tabular-nums">
-              {formatCurrency(shiftState.shift.openingAmount, currency)}
-            </span>
-          </>
-        ) : (
-          "Sin caja abierta en este local."
-        )}
-      </p>
-
-      {/* Tarea 1 del brief (2026-09-17): la caja se abre y se cierra en «Caja», no acá. */}
-      <Link
-        href="/admin/cash"
-        className="inline-flex min-h-11 items-center text-st-body font-semibold text-brand-primary underline"
-      >
-        {shiftState.shift ? "Ver la caja" : "Abrir la caja"}
-      </Link>
-
-      {/*
-        Hallazgo N3 de la auditoría post-deploy (2026-09-23) — el pedido del menú que se paga al retirar: en
-        esta fase deja de ser una tarjeta permanente y queda como **acción secundaria compacta**. Su rediseño
-        funcional pertenece a la Fase 2.
-      */}
-      <PosOrderChargeAction
-        currencies={[settings.currencyCode, "USD"]}
-        currency={currency}
-        terminalId={terminalId}
-      />
-    </div>
-  );
+  /**
+   * La **caja** como estado para la barra y como acción para el checkout.
+   *
+   * `SCREEN-POS-QUICK-SALE-001.1` §5: la barra muestra `● Caja abierta` y nada más; las acciones aparecen
+   * donde el cobro está bloqueado. El cierre enlaza a Caja (ahí se firma el arqueo con su conteo y sus
+   * bancos): reimplementarlo acá sería un segundo flujo para la misma capacidad.
+   */
+  const cash = {
+    state: shiftState.cashActionState,
+    loading: shiftState.shiftLoading,
+    busy: shiftState.shiftActionBusy,
+    error: shiftState.shiftActionError,
+    onOpen: () => void shiftState.openShift(),
+    closeHref: "/admin/cash",
+  };
 
   const confirmation = sale.lastSale ? (
     <PosSaleConfirmation
@@ -386,15 +355,9 @@ export default function PosClient({
   );
 
   return (
-    <div className="space-y-5 pb-8">
-      <AdminPageHeader
-        label="Caja"
-        title="Punto de venta"
-        description="Armá la venta del mostrador con el catálogo del local."
-      />
-
+    <div className="pb-24 lg:pb-0">
       <PosWorkspace
-        contextBar={contextBar}
+        cash={cash}
         catalog={{
           locationId,
           locations,
@@ -432,7 +395,6 @@ export default function PosClient({
           addPaymentRow: sale.addPaymentRow,
           removePaymentRow: sale.removePaymentRow,
           canCharge: shiftState.canCharge,
-          needsOpenShift: shiftState.needsOpenShift,
           blockedReason: shiftState.blockedReason,
           total: sale.totals.total,
           charging: sale.charging,

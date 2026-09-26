@@ -1,15 +1,39 @@
 # Spec de pantalla — POS / Venta rápida (`/admin/pos`)
 
-> **Plantilla**: [`TEMPLATE.md`](TEMPLATE.md). **Estado**: Fase 1 definida y adoptada por
-> `SCREEN-POS-QUICK-SALE-001` (2026-09-26). El owner dejó la referencia canónica en el repo y esta spec la
-> adopta: es la **misma** versión, no una segunda divergente.
+> **Plantilla**: [`TEMPLATE.md`](TEMPLATE.md). **Estado**: Fase 1 adoptada por `SCREEN-POS-QUICK-SALE-001` y
+> **corregida visual y contractualmente** por `SCREEN-POS-QUICK-SALE-001.1` (2026-09-26): la referencia anterior
+> queda **reemplazada** para composición, densidad y comportamiento responsive.
 >
 > **Referencia de UX/layout/comportamiento**: [`pos-quick-sale-reference.html`](pos-quick-sale-reference.html)
-> (prototipo, **no** código productivo: no se copia su HTML/CSS).
+> (prototipo, **no** código productivo: se traduce a componentes reales, **no** se reinterpreta).
+> **Es contrato** de composición, jerarquía, densidad, progressive disclosure y responsive: una divergencia
+> material se corrige antes del merge o se para y se pregunta al owner.
 >
 > **Prohibiciones que esta spec respeta**: no inventa estados ni métricas, no toca dinero, no mueve reglas del
 > dominio a React, no hardcodea sucursales ni moneda, y **no** implementa Checks, mesas, table service, waiter
 > ni seats/courses.
+
+---
+
+## Reuse audit (`SCREEN-POS-QUICK-SALE-001.1`)
+
+**Objetivo**: cerrar la Venta rápida del POS —composición, densidad y fidelidad visual— sin abrir Fase 2.
+
+**Capacidad existente**: catálogo POS (`GET /api/admin/pos/catalog`), borrador y sus totales
+(`modules/pos/domain/pos-draft`), cobro con multi-pago/vuelto/cupón/descuento (`POST /api/admin/pos/sale`),
+caja y turno (`/api/admin/pos/shift*`), ventas en espera (`modules/pos/domain/pos-holds`) **y Órdenes** para
+localizar y revisar pedidos.
+
+**Se reutiliza**: todo lo anterior, sin cambios de dominio, endpoints ni permisos. El cierre de caja **enlaza**
+a `/admin/cash`: el arqueo con su conteo y sus bancos es de esa pantalla.
+
+**Realmente nuevo**: solo **composición visual y densidad** (barra de una línea, alto útil de viewport,
+catálogo más denso, ticket que usa su alto) y los **guardrails documentales** de esta TASK.
+
+**Lo que se elimina y por qué**: `Cobrar pedido del menú` sale del POS porque **localizar un pedido pertenece a
+Órdenes** y **cobrar pertenece a POS** (`MODULE_ARCHITECTURE.md` §10.2, *one canonical flow*): un buscador de
+pedidos dentro del mostrador era un segundo flujo para la misma operación. Su cobertura E2E queda como deuda
+registrada (`A-67`) para la TASK que resuelva el camino desde Órdenes.
 
 ---
 
@@ -114,80 +138,90 @@ cobro exitoso · venta recuperada del dispositivo · esperas llenas.
 
 ## Desktop
 
-A 1280: dos columnas dentro del ancho del panel (`lg:grid-cols-[minmax(0,1fr)_minmax(360px,27rem)]`): el
-catálogo toma el resto (~65–70 %) y **scrollea con la página**, mientras el panel de venta queda `sticky` con
-su propio scroll interno: el ticket no se pierde mientras se navega el catálogo.
+A 1280 y 1366: dos columnas (`lg:grid-cols-[minmax(0,1fr)_minmax(340px,25rem)]`). El **catálogo scrollea
+dentro de su panel** y el **ticket queda anclado al viewport con todo su alto útil** (`max-h: 100vh − 1.5rem`):
+el total y `Cobrar C$…` no se van de la pantalla.
+
+## Viewport contract
+
+Lo que tiene que verse **sin scrollear la página** en una venta normal de 1–3 productos:
+
+| Viewport | Qué entra | Qué scrollea |
+|---|---|---|
+| `1366×768` | barra operativa, búsqueda, categorías, ≥1 fila de catálogo, líneas, total, cliente, pago y `Cobrar` | catálogo (dentro de su panel); líneas (dentro del ticket) si crecen; opciones abiertas |
+| `1280×720` | ídem | ídem |
+| `768×1024` | barra, buscador, chips, catálogo amplio y la barra `N productos · Total · Ver venta` | el catálogo; el ticket vive en el sheet |
+| `375×812` | barra, buscador, chips, productos y la barra inferior | el catálogo; el sheet al abrirse |
+
+**Prohibido**: scrollear la página para llegar a `Cobrar`; reservar una zona alta vacía para las líneas con
+0–3 productos.
 
 ## Tablet
 
-A 768: **el mismo par de columnas** con un panel de venta más angosto (320 px), porque el ancho real lo
-soporta (768 − 264 de barra lateral = ~500 px de catálogo). Los controles táctiles se mantienen en 44 px y las
-opciones secundarias nacen plegadas. **No** se comprime el desktop ni se apilan los paneles.
+A 768: **patrón de celular** (barra + sheet), no dos columnas. Motivo medido: a 768 la barra lateral del panel
+todavía ocupa 264 px y dos columnas dejaban las tarjetas de producto en ~110 px —ilegibles—; la referencia
+permite el patrón mobile cuando dos columnas comprometen la legibilidad. Los controles táctiles se mantienen en
+44 px.
 
 ## Mobile
 
-A 375: la vista primaria es el **catálogo** (más la barra de contexto con local/terminal/caja) y la venta vive
-en un **sheet** que se abre desde la barra inferior persistente.
+A 375: la vista primaria es el **catálogo** (más la barra operativa con local/terminal/estado de caja) y la
+venta vive en un **sheet** que se abre desde la barra inferior persistente, al pie del viewport.
 
-- **Primer viewport**: barra de contexto (caja), búsqueda, categorías, productos y la barra inferior con
+- **Primer viewport**: barra operativa, búsqueda, categorías, productos y la barra inferior con
   `N productos · Total` y **Ver venta** → se puede empezar la venta sin scrollear.
-- **Sheet**: encabezado "Venta en curso" con **Cerrar venta**, líneas, total, cliente, pago, opciones
-  secundarias y `Cobrar C$…` en el pie. Fondo con `inert`/`aria-hidden`, `role="dialog"`, `aria-modal`, foco
-  al primer control, **Esc** cierra y el foco vuelve al disparador.
+- **Sheet**: encabezado "Venta en curso" con el conteo y **Cerrar venta**, líneas, total, cliente, pago,
+  opciones secundarias y `Cobrar C$…` en el pie anclado. Cerrado **no hay formulario en el DOM**; abierto es un
+  `<dialog open>` con nombre accesible, foco al primer control, **Esc** cierra y el foco vuelve al disparador.
 - Cero scroll horizontal (la fila de chips scrollea dentro de su contenedor).
 
 ## Qué se elimina
 
 | Elemento actual | Clase | Por qué |
 |---|---|---|
-| Tarjeta grande permanente `Cobrar un pedido del menú` | **ELIMINAR** (queda como acción compacta `Cobrar pedido`) | Es una tarea ocasional, no parte de una venta normal |
+| Hero `CAJA / Punto de venta / Armá la venta…` | **ELIMINAR** | Es una herramienta operativa, no una página: la cabecera no consume el primer viewport |
+| Bloque de Local en fila propia + mensaje permanente `Sin caja abierta…` + enlace `Abrir la caja` | **ELIMINAR** | El contexto va en **una línea** y la acción de caja aparece **solo donde bloquea** (el checkout) |
+| Tarjeta o acción `Cobrar pedido del menú` | **ELIMINAR** | Localizar pedidos pertenece a **Órdenes** (*one canonical flow*); el POS no reconstruye ese flujo |
 | Bloque permanente de ventas en espera (aunque esté vacío) | **ELIMINAR** (queda `En espera (N)` + capa secundaria) | No ocupa espacio si no hay nada que revisar |
 | Correo, promo, factura/RUC, descuento, dividir pago siempre abiertos | **PLIEGUE** | Progressive disclosure: no dominan una venta normal |
-| Venta debajo del catálogo en móvil/tablet | **ELIMINAR** | En móvil la venta va al sheet; en tablet/desktop, al lado |
-| Copy explicativo redundante de la cabecera | **ELIMINAR** | Presupuesto de texto del arquetipo Operational (0 subtítulos) |
+| Venta debajo del catálogo en móvil/tablet | **ELIMINAR** | En móvil/tablet la venta va al sheet; en escritorio, al lado |
+| Zona alta vacía dentro del ticket con 0–3 productos | **ELIMINAR** | Las líneas se llevan el espacio libre; el CTA queda anclado al pie |
 | Botón primario de "Cobrar" duplicado | **MANTENER UNO SOLO** | Una acción primaria por contexto |
 
-## Estado de implementación (`SCREEN-POS-QUICK-SALE-001`)
+## Estado de implementación (`SCREEN-POS-QUICK-SALE-001.1`)
 
-**Cerrada y desplegada** (PR #62, `be4c051`, `build-20260926-170322`): los cuatro checks de CI en verde y,
-después del deploy, `/api/health` con la versión nueva, `/api/readiness` `ready` y los dos smokes (7/7 y 6/6).
-**QA autenticada de producción (375/768/1280): pendiente del owner** —desde el entorno del agente no hay
-credenciales de admin—. Roadmap al cerrar:
-
-```text
-POS Fase 1 — Venta rápida  ✅
-POS Fase 2 — pedidos existentes / pagos / bancos / USD / factura  →  la define el owner aparte
-```
-
-Entregado con test y capturas ([`pos-quick-sale-after-1280.png`](pos-quick-sale-after-1280.png),
-[`pos-quick-sale-after-768.png`](pos-quick-sale-after-768.png),
-[`pos-quick-sale-after-375.png`](pos-quick-sale-after-375.png),
-[`pos-quick-sale-sheet-375.png`](pos-quick-sale-sheet-375.png) y
-[`pos-quick-sale-scroll-1280.png`](pos-quick-sale-scroll-1280.png)):
+**En la rama de la TASK** (2026-09-26): corrección visual y contractual sobre el release anterior
+(`build-20260926-170322`). Lo entregado:
 
 | Cambio | Evidencia |
 |---|---|
-| Workspace `CATÁLOGO \| VENTA` con el ticket **anclado al viewport** en escritorio | QA de navegador 1280 (con el catálogo scrolleado) + E2E |
-| Barra inferior `N productos · Total · Ver venta` y sheet de checkout (cerrado sin formulario, Escape, foco de vuelta) | Tests del workspace + QA 375 |
-| Progressive disclosure de correo/promo/factura/descuento/dividir pago/en espera | Tests de las opciones + E2E de promo y descuento |
-| `Cobrar pedido del menú` compacto en diálogo (la tarjeta grande se elimina) | E2E del cobro de un pedido del menú |
-| `En espera (N)` en vez del bloque permanente | E2E de esperas |
-| Reparto por responsabilidades (`quick-sale/`, `use-pos-catalog`, `use-pos-shift`, `use-pos-sale`) | `pos-client.tsx` baja de **1.005 a 427** líneas |
+| Hero eliminado; barra operativa de **una línea** (`POS · Local · Terminal · ● Caja abierta`) | Tests del workspace + capturas 1366/1280 |
+| Caja: **estado** en la barra, **acción** en el checkout (`Abrir caja`; `Cierre pendiente → Cerrar caja`, que enlaza a Caja) | `pos-cash-action.test.tsx` + tests del workspace + E2E de caja |
+| `Cobrar pedido del menú` **eliminado** del POS (sin reemplazo: pertenece a Órdenes) | lint/typecheck sin referencias + spec § *Reuse audit* |
+| Ticket con **alto útil**: las líneas se llevan el espacio libre y el CTA queda anclado al pie | Tests del workspace + medición en los cuatro viewports |
+| Catálogo más **denso** (foto compacta, sin repetir la categoría de los chips, 3–4 columnas) | `pos-catalog-card.test.tsx` + capturas |
+| Scroll de página eliminado en operación normal; el scroll vive en el catálogo y en las líneas | QA de navegador: `1366×768`, `1280×720`, `768×1024`, `375×812` |
+| Guardrails nuevos (reuse-first, one canonical flow, reuse audit, reference fidelity, viewport contract) | `MODULE_ARCHITECTURE.md` §10.1–§10.3, `DESIGN_SYSTEM.md` §12, `TEMPLATE.md`, skills `screen-design` / `new-task` |
 
-**Dos desvíos deliberados respecto del boceto de la TASK, medidos en el navegador** (y por qué):
+**Divergencias respecto de la referencia, decididas y medidas** (una divergencia material sin decisión sería
+Stop Condition; estas están justificadas por la propia spec aprobada, que permite el patrón mobile cuando dos
+columnas comprometen la legibilidad):
 
-1. **El corte de dos paneles es `lg` (1024 px), no la tablet de 768**: a 768 px la barra lateral del panel
-   todavía ocupa 264 px y dos columnas dejaban las tarjetas de producto en ~110 px. La spec pide dos paneles
-   *solo si el ancho real lo soporta* y, si no, el patrón de celular antes que comprimir los controles.
-2. **El panel se ancla con `position: fixed` medido, no con `sticky`**: un `<dialog open>` con `sticky`
-   **no se pega** (medido en Chromium) y el `<dialog>` es la forma correcta frente a la ley que prohíbe el rol
-   de diálogo escrito a mano.
+1. **A 768×1024 se usa el patrón de celular**, no dos columnas: la barra lateral del panel ocupa 264 px y las
+   tarjetas quedaban en ~110 px.
+2. **El panel de escritorio se ancla con `position: fixed` medido, no con `sticky`**: un `<dialog open>` con
+   `sticky` no se pega (medido en Chromium) y el `<dialog>` es la forma correcta frente a la ley que prohíbe el
+   rol de diálogo escrito a mano.
+
+**Estado previo (Fase 1, `be4c051`, `build-20260926-170322`)**: cerrada y desplegada con los cuatro checks de
+CI verdes, `/api/health` con la versión nueva, `/api/readiness` `ready` y los dos smokes (7/7 y 6/6).
 
 ## Fuera de scope
 
 - **Checks/Open Checks, mesas, table service, waiter, seats/courses/rondas**: no se implementan.
+- **Órdenes / Pedidos / Cocina**: no se tocan. La capacidad de **cobrar un pedido del menú** se resolverá en la
+  siguiente fase desde Órdenes → Pedido → Cobrar en POS; su cobertura E2E queda como `A-67`.
 - **Corrección USD del cobro de pedidos existentes** y **aplicar promo a un pedido ya creado**: Fase 2.
-- **Rediseño final de `Cobrar pedido`**: se conserva la funcionalidad actual detrás de una acción compacta.
 - **Nueva entidad financiera, `Payment` ↔ banco/procesador, política de cash drawer, rediseño de facturación**:
   fuera.
 - **Migraciones y cambios de base**: ninguno.
