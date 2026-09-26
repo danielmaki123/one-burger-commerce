@@ -678,12 +678,14 @@ IA-001 — navegación del panel
         ↓
 SCREEN-ORDERS-001 — Órdenes ✅
         ↓
-SCREEN-POS-QUICK-SALE-001 — POS Fase 1 / Venta rápida ✅
+SCREEN-POS-QUICK-SALE-001.1 — POS Fase 1 / Venta rápida ✅ (Fase 1 COMPLETA)
 │
 ├── workspace CATÁLOGO | VENTA (ticket anclado en escritorio)
-├── barra + sheet en celular y tablet
-├── opciones secundarias bajo demanda
-└── cero dominio / DB  (el deploy queda pendiente del token)
+├── barra + sheet en celular y tablet · opciones secundarias bajo demanda
+├── referencia del owner aplicada: barra de una línea, caja solo donde bloquea el cobro
+├── guardrails: reuse-first · one canonical flow · reuse audit · reference fidelity · viewport contract
+├── desplegado (`build-20260926-195012`) y QA autenticada de producción en los 4 viewports
+└── cero dominio / DB · Fase 2 NO iniciada
         ↓
 POS Fase 2 — pedidos existentes / pagos / bancos / USD / factura
 │

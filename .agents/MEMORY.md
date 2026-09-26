@@ -33,6 +33,15 @@ va al historial o al PR. Si cambia semana a semana, va a `CURRENT.md`.
   de uso, porque el aviso al dueño y el traspaso se firman con el arqueo completo).
 - **La zona horaria del negocio sale de `BusinessSettings.timezone`**; `America/Managua` y `-06:00`
   están prohibidos como literales (los detecta el contrato anti-hardcode).
+- **Un `<dialog open>` no es un bloque común para CSS de layout** (`SCREEN-POS-QUICK-SALE-001.1`, medido en
+  Chromium): trae `inset: 0` y `margin: auto` del navegador —con `top` puesto, el navegador lo **estira**
+  hasta el fondo—, **no se pega** con `position: sticky`, y un `max-height` en `vh` ignora el ancla (si
+  arranca debajo de una barra, el pie queda fuera de pantalla). Para usarlo como columna: `position: fixed`
+  con el ancla **medida** (`getBoundingClientRect` + `bottom: auto` + `margin: 0`) y el alto en
+  `calc(100dvh - ancla)`.
+- **Una fila de `grid` no crece con `flex-1`**: `flex-1` trae `display: flex`, que pisa el `grid`. Para
+  repartir alto en un grid hace falta `grow` + `grid-rows-1`. Y si el panel vecino es `fixed`, la fila se
+  mide por **contenido**: sin reparto explícito el panel queda a su alto natural y no al del viewport.
 - **La aceptación de pedidos tiene una sola puerta**: `order-acceptance.ts`. Un control que nadie lee
   es una mentira: `isAcceptingOrders` existía en el esquema y en la UI, pero **ningún** caso de uso lo
   consultaba.

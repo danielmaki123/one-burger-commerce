@@ -86,7 +86,9 @@ export default function PosChargePanel({
           "Cobrando…"
         ) : (
           <>
-            Cobrar <span className="font-mono">{formatCurrency(total, currency)}</span>
+            {/* El espacio antes del monto es explícito: sin él, el JSX lo come y el CTA dice `CobrarC$…`. */}
+            Cobrar{" "}
+            <span className="font-mono">{formatCurrency(total, currency)}</span>
           </>
         )}
       </Button>

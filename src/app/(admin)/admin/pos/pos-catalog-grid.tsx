@@ -110,7 +110,12 @@ export default function PosCatalogGrid({
           />
         ) : (
           <ul
-            className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-4"
+            /*
+              Tres columnas en escritorio, como la referencia aprobada, y dos abajo de `lg` (tablet y celular).
+              Con cuatro columnas las tarjetas bajaban a ~147 px a `1366×768` y el nombre quedaba cortado en
+              dos renglones por una palabra; con tres quedan ~210 px, que es la proporción de la referencia.
+            */
+            className="grid grid-cols-2 gap-2.5 lg:grid-cols-3"
             aria-label="Productos del local"
           >
             {visibleProducts.map((product) => (
