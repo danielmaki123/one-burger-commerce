@@ -34,6 +34,7 @@ export default function PosSaleSummary({
   appliedCoupon,
   manualDiscountAmount,
   currency,
+  variant = "full",
 }: {
   linesCount: number;
   totals: PosSaleTotals;
@@ -42,38 +43,46 @@ export default function PosSaleSummary({
   /** El monto del descuento manual autorizado, o `0`. */
   manualDiscountAmount: number;
   currency: CurrencyFormat;
+  /**
+   * `full` (dentro del checkout: subtotal, descuentos y **total**) o `meta` (solo el conteo de líneas, para el
+   * encabezado del panel, donde el título y el conteo van juntos y los importes viven más abajo).
+   */
+  variant?: "full" | "meta";
 }) {
   const discount = (appliedCoupon?.discount ?? 0) + manualDiscountAmount;
 
-  return (
-    <div className="space-y-2">
-      <div className="flex items-baseline justify-between gap-2">
-        <h2 className="text-panel-section font-bold tracking-tight text-ink">Venta en curso</h2>
-        <p
-          data-testid="pos-sale-lines-count"
-          className="text-panel-overline font-bold uppercase tracking-wider text-ink-muted"
-        >
-          {posSaleLinesLabel(linesCount)}
-        </p>
-      </div>
+  if (variant === "meta") {
+    return (
+      <p
+        data-testid="pos-sale-lines-count"
+        className="text-panel-overline font-bold uppercase tracking-wider text-ink-muted"
+      >
+        {posSaleLinesLabel(linesCount)}
+      </p>
+    );
+  }
 
-      <dl className="space-y-1">
-        <div className="flex items-baseline justify-between text-st-body">
+  return (
+    <div className="space-y-1">
+      <dl className="space-y-1 border-b border-line-subtle pb-2">
+        <div className="flex items-baseline justify-between text-st-caption">
           <dt className="text-ink-secondary">Subtotal</dt>
-          <dd className="font-mono tabular-nums text-ink">{formatCurrency(totals.subtotal, currency)}</dd>
+          <dd className="font-mono tabular-nums text-ink-secondary">
+            {formatCurrency(totals.subtotal, currency)}
+          </dd>
         </div>
 
         {totals.packagingAmount > 0 ? (
-          <div className="flex items-baseline justify-between text-st-body">
+          <div className="flex items-baseline justify-between text-st-caption">
             <dt className="text-ink-secondary">Empaque</dt>
-            <dd className="font-mono tabular-nums text-ink">
+            <dd className="font-mono tabular-nums text-ink-secondary">
               {formatCurrency(totals.packagingAmount, currency)}
             </dd>
           </div>
         ) : null}
 
         {discount > 0 ? (
-          <div className="flex items-baseline justify-between text-st-body">
+          <div className="flex items-baseline justify-between text-st-caption">
             <dt className="text-ink-secondary">
               {appliedCoupon ? (
                 <>
@@ -89,12 +98,16 @@ export default function PosSaleSummary({
           </div>
         ) : null}
 
-        <div className="flex items-baseline justify-between gap-2 border-t border-line-subtle pt-2">
-          <dt className="text-st-h3 font-bold text-ink">Total</dt>
+        {/*
+          El **total** es el número de mayor jerarquía de la pantalla: el cajero lo dice en voz alta. Va en su
+          fila, en `text-panel-display` y mono tabular (el número no tiembla cuando cambia).
+        */}
+        <div className="flex items-end justify-between gap-2 pt-1">
+          <dt className="text-panel-item font-bold text-ink">Total</dt>
           <dd
             data-testid="pos-sale-total"
             aria-live="polite"
-            className="font-mono text-st-display font-bold tabular-nums text-brand-primary"
+            className="font-mono text-panel-display font-bold tabular-nums text-brand-primary"
           >
             {formatCurrency(totals.total, currency)}
           </dd>

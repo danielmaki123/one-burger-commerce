@@ -10,22 +10,20 @@ import {
 } from "./helpers";
 
 /**
- * Brief «Corrección post-deploy + cierre de Caja» (2026-09-23) — los cinco casos del cierre, en un
- * navegador real y contra datos reales.
+ * Brief «Corrección post-deploy + cierre de Caja» (2026-09-23) — los casos del cierre, en un navegador real y
+ * contra datos reales.
  *
- * 1. **N3** — un pedido del menú (que se paga al retirar) no tenía forma de cobrarse: sin cobro la factura
- *    era imposible. El recorrido completo: pedido público → búsqueda por número en el POS → cobro → factura.
- * 2. **H3b** — la confirmación del cliente no tenía camino al seguimiento del pedido.
- * 3. **N2** — el alta pública limitada por tasa decía «revisá los datos» en vez de decir que espere.
- * 4. **H1** — el aviso de dónde aparecen los bancos, en la Caja, antes de abrir el cierre.
- * 5. **A-45** — el arqueo ciego dejó de ser un sello de pantalla: por API, el cajero tampoco ve el esperado.
+ * 1. **H3b** — la confirmación del cliente no tenía camino al seguimiento del pedido.
+ * 2. **N2** — el alta pública limitada por tasa decía «revisá los datos» en vez de decir que espere.
+ * 3. **H1** — el aviso de dónde aparecen los bancos, en la Caja, antes de abrir el cierre.
+ * 4. **A-45** — el arqueo ciego dejó de ser un sello de pantalla: por API, el cajero tampoco ve el esperado.
+ *
+ * ⚠️ **El caso N3 se retiró con `SCREEN-POS-QUICK-SALE-001.1`** (2026-09-26): cobrar un pedido del menú dejó
+ * de vivir en el POS. La capacidad no desaparece —el pedido se cobra desde Órdenes y la factura desde su
+ * detalle—, pero su flujo canónico es otro y la búsqueda de pedidos dentro del POS se eliminó a propósito
+ * (*one canonical flow*: localizar pedidos pertenece a Órdenes). Su cobertura queda pendiente de la TASK de
+ * esa superficie y está anotada en `ops/audit-backlog.md` como `A-67`.
  */
-
-async function horizontalOverflow(page: Page) {
-  return page.evaluate(
-    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
-  );
-}
 
 /** Un pedido del menú, hecho por la UI real del cliente, con su número. */
 async function createPublicOrder(page: Page) {
@@ -107,60 +105,8 @@ async function ensureOpenShift(page: Page) {
   expect(resuelto, "el arnés tiene que poder dejar una caja abierta para el POS").toBe(true);
 
   await page.reload();
-  await expect(page.getByText(/Caja abierta · fondo/)).toBeVisible();
+  await expect(page.getByText("Caja abierta").first()).toBeVisible();
 }
-
-test.describe("N3 — el POS cobra un pedido del menú y la factura sale después", () => {
-  test.skip(!mutationsAllowed, "Order creation is disabled unless E2E_ALLOW_MUTATIONS=true.");
-
-  test("de la confirmación del cliente a la factura, pasando por el POS (375 px)", async ({ page }) => {
-    test.setTimeout(120_000);
-    await page.setViewportSize({ width: 375, height: 812 });
-
-    const numero = await createPublicOrder(page);
-
-    // El POS: se busca el pedido por su número (es el código que el cliente dicta en el mostrador).
-    await loginAsOwner(page);
-    await page.goto("/admin/pos");
-    await ensureOpenShift(page);
-
-    // La Fase 1 (`SCREEN-POS-QUICK-SALE-001`): cobrar un pedido del menú dejó de ser una tarjeta
-    // permanente del workspace y quedó como acción secundaria compacta que abre el mismo panel en un
-    // diálogo. El flujo de adentro es el de siempre.
-    await page.getByRole("button", { name: "Cobrar pedido del menú" }).click();
-    const panel = page.getByRole("dialog", { name: "Cobrar un pedido del menú" });
-    await expect(panel).toBeVisible();
-    await panel.getByLabel("Número de pedido").fill(numero);
-    await panel.getByRole("button", { name: "Buscar" }).click();
-
-    // El pedido aparece con su cliente y su total, y el monto ya viene precargado con ese total.
-    await expect(panel.getByText("Cliente Cierre Caja")).toBeVisible();
-    const monto = panel.getByLabel("Monto cobrado");
-    await expect(monto).not.toHaveValue("");
-
-    // Cobrar desde el POS no puede desbordar la pantalla del mostrador.
-    expect(await horizontalOverflow(page)).toBeLessThanOrEqual(1);
-
-    // Y tampoco en escritorio: la misma pantalla, sin scroll horizontal a 1280.
-    await page.setViewportSize({ width: 1280, height: 900 });
-    await expect(panel.getByText("Cliente Cierre Caja")).toBeVisible();
-    expect(await horizontalOverflow(page)).toBeLessThanOrEqual(1);
-    await page.setViewportSize({ width: 375, height: 812 });
-
-    await panel.getByRole("button", { name: "Registrar cobro" }).click();
-    await expect(panel.getByText(new RegExp(`${numero} quedó cobrado`))).toBeVisible();
-
-    // Y desde ahí, el camino a la factura: el detalle del pedido es donde se emite.
-    await panel.getByRole("link", { name: "Abrí el pedido para emitir la factura" }).click();
-    await expect(page).toHaveURL(/\/admin\/orders\/.+/);
-
-    await page.getByRole("button", { name: "Emitir factura" }).click();
-    // La factura emitida se muestra congelada, con su hoja para imprimir (y sin el error de emisión).
-    await expect(page.getByRole("link", { name: /Imprimir o guardar PDF/ })).toBeVisible();
-    await expect(page.getByText(/No se pudo emitir la factura/)).toHaveCount(0);
-    await expect(page.getByRole("button", { name: "Emitir factura" })).toHaveCount(0);
-  });
-});
 
 test.describe("H3b — la confirmación lleva al seguimiento del pedido", () => {
   test.skip(!mutationsAllowed, "Order creation is disabled unless E2E_ALLOW_MUTATIONS=true.");

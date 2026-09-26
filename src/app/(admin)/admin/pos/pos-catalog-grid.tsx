@@ -56,55 +56,74 @@ export default function PosCatalogGrid({
   }, [products, query, activeCategoryId]);
 
   return (
-    <section className="min-w-0 space-y-4" aria-label="Catálogo">
-      <Input
-        label="Buscar en el catálogo"
-        value={query}
-        onChange={(event) => onQueryChange(event.target.value)}
-        placeholder="Taco, bebida, postre…"
-      />
-
-      <PosCategoryChips
-        categories={categories}
-        activeCategoryId={activeCategoryId}
-        onSelect={onCategorySelect}
-      />
-
-      {loading ? (
-        <p className="rounded-stitch-lg border border-line-subtle bg-surface-card px-4 py-6 text-st-body text-ink-secondary">
-          Cargando el catálogo…
-        </p>
-      ) : loadError ? (
-        <AdminEmptyState
-          title="No se pudo cargar el catálogo"
-          description={loadError}
-          action={
-            <Button type="button" variant="outline" className="min-h-11" onClick={onRetry}>
-              Reintentar
-            </Button>
-          }
+    <section
+      className="flex min-w-0 flex-col overflow-hidden rounded-stitch-lg border border-line-subtle bg-surface-card max-lg:rounded-none max-lg:border-x-0 lg:h-full"
+      aria-label="Catálogo"
+    >
+      {/*
+        El encabezado del catálogo (búsqueda + chips) no scrollea con los productos: `reference.html` lo deja
+        fijo dentro del panel para que el primer viewport tenga siempre el buscador y los filtros a mano.
+      */}
+      <div className="shrink-0 space-y-2 border-b border-line-subtle p-3">
+        <Input
+          label="Buscar en el catálogo"
+          value={query}
+          onChange={(event) => onQueryChange(event.target.value)}
+          placeholder="Taco, bebida, postre…"
         />
-      ) : visibleProducts.length === 0 ? (
-        <AdminEmptyState
-          title={products.length === 0 ? "El local no tiene productos vendibles" : "Sin resultados"}
-          description={
-            products.length === 0
-              ? "Cargá la carta del local en Menú y volvé a entrar."
-              : "Probá con otro nombre o con la categoría."
-          }
+
+        <PosCategoryChips
+          categories={categories}
+          activeCategoryId={activeCategoryId}
+          onSelect={onCategorySelect}
+          scale="compact"
         />
-      ) : (
-        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3" aria-label="Productos del local">
-          {visibleProducts.map((product) => (
-            <PosCatalogCard
-              key={product.id}
-              product={product}
-              currency={currency}
-              onAdd={onAdd}
-            />
-          ))}
-        </ul>
-      )}
+      </div>
+
+      {/*
+        Los productos scrollean **dentro** del catálogo, no la página: el ticket queda siempre a la vista y en
+        una venta normal (1–3 productos) el scroll de página no hace falta.
+      */}
+      <div className="min-h-0 flex-1 overflow-y-auto p-3">
+        {loading ? (
+          <p className="rounded-stitch-lg border border-line-subtle bg-surface-low px-4 py-6 text-st-body text-ink-secondary">
+            Cargando el catálogo…
+          </p>
+        ) : loadError ? (
+          <AdminEmptyState
+            title="No se pudo cargar el catálogo"
+            description={loadError}
+            action={
+              <Button type="button" variant="outline" className="min-h-11" onClick={onRetry}>
+                Reintentar
+              </Button>
+            }
+          />
+        ) : visibleProducts.length === 0 ? (
+          <AdminEmptyState
+            title={products.length === 0 ? "El local no tiene productos vendibles" : "Sin resultados"}
+            description={
+              products.length === 0
+                ? "Cargá la carta del local en Menú y volvé a entrar."
+                : "Probá con otro nombre o con la categoría."
+            }
+          />
+        ) : (
+          <ul
+            className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-4"
+            aria-label="Productos del local"
+          >
+            {visibleProducts.map((product) => (
+              <PosCatalogCard
+                key={product.id}
+                product={product}
+                currency={currency}
+                onAdd={onAdd}
+              />
+            ))}
+          </ul>
+        )}
+      </div>
     </section>
   );
 }

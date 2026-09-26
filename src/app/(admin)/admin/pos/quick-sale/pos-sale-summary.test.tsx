@@ -74,9 +74,10 @@ describe("PosSaleSummary", () => {
     expect(screen.getByText(`−${money(40)}`)).toBeTruthy();
   });
 
-  it("el encabezado cuenta las líneas con su singular y plural", () => {
+  it("el encabezado cuenta las líneas con su singular y plural (variante `meta`)", () => {
     const { rerender } = render(
       <PosSaleSummary
+        variant="meta"
         linesCount={0}
         totals={{ subtotal: 0, packagingAmount: 0, total: 0 }}
         appliedCoupon={null}
@@ -86,9 +87,12 @@ describe("PosSaleSummary", () => {
     );
 
     expect(screen.getByText("Sin productos")).toBeTruthy();
+    // En `meta` los importes no se repiten: viven en el checkout del panel.
+    expect(screen.queryByText("Subtotal")).toBeNull();
 
     rerender(
       <PosSaleSummary
+        variant="meta"
         linesCount={1}
         totals={{ subtotal: 35, packagingAmount: 0, total: 35 }}
         appliedCoupon={null}
@@ -100,6 +104,7 @@ describe("PosSaleSummary", () => {
 
     rerender(
       <PosSaleSummary
+        variant="meta"
         linesCount={3}
         totals={{ subtotal: 105, packagingAmount: 0, total: 105 }}
         appliedCoupon={null}

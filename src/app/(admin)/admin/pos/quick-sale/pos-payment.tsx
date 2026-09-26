@@ -107,11 +107,11 @@ export default function PosPaymentFields({
   );
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-2">
       <OverlineLabel>Pago</OverlineLabel>
 
       {payments.map((payment, index) => (
-        <div key={payment.id} className="space-y-3 rounded-stitch-md border border-line-subtle p-3">
+        <div key={payment.id} className="space-y-2 rounded-stitch-md border border-line-subtle p-2.5">
           {index > 0 ? (
             <p className="text-st-body font-semibold text-ink">{`Cobro ${index + 1}`}</p>
           ) : null}

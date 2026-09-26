@@ -55,6 +55,22 @@ ninguna propia: `N/A — solo las de la política`.
 
 Qué está mal, en términos del sistema (no del síntoma).
 
+## REUSE AUDIT
+
+La ley está en [`../product/MODULE_ARCHITECTURE.md`](../product/MODULE_ARCHITECTURE.md) §10.1–§10.3: antes de
+crear una pantalla, ruta, feature, caso de uso, componente o flujo, se busca si la capacidad **ya existe**.
+
+```md
+Objetivo:                 <qué quiere lograr el usuario>
+Capacidad existente:      <qué hay hoy y dónde (módulo, caso de uso, ruta, componente)>
+Qué se reutiliza:         <lo que se compone o se enlaza>
+Qué es realmente nuevo:   <lo que no existía; si no hay nada, la TASK no crea>
+```
+
+Una implementación paralela (**lo nuevo**) exige una **responsabilidad de dominio distinta** y su
+justificación. Si la capacidad ya existe y la TASK la reconstruye, la respuesta correcta es reutilizar,
+componer o **enlazar al flujo canónico** (§10.2).
+
 ## EVIDENCIA
 
 Lo observado y reproducible: `archivo:línea`, el comando, el test, la medición. Si es un hallazgo de

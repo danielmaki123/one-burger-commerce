@@ -188,6 +188,20 @@ async function abrirOpcion(user: ReturnType<typeof userEvent.setup>, label: stri
   await user.click(screen.getByRole("button", { name: label }));
 }
 
+/** La confirmacion del ultimo cobro: es el ultimo `role=status` del panel de venta. */
+function ultimaConfirmacion() {
+  const estados = screen.getAllByRole("status");
+  return estados[estados.length - 1]!;
+}
+
+async function confirmacionDelCobro() {
+  return waitFor(() => {
+    const texto = ultimaConfirmacion().textContent ?? "";
+    if (!texto.includes("Venta P-")) throw new Error("todavia no hay confirmacion");
+    return ultimaConfirmacion();
+  });
+}
+
 async function fillCustomer(user: ReturnType<typeof userEvent.setup>) {
   await user.type(screen.getByLabelText("Nombre del cliente"), "Cliente Mostrador");
   await user.type(screen.getByLabelText("Número del cliente"), "88887777");
@@ -199,7 +213,7 @@ async function fillCustomer(user: ReturnType<typeof userEvent.setup>) {
  * «sin caja abierta» lo dobla a `null` para comprobar el aviso y el enlace.
  */
 async function esperarCajaAbierta() {
-  await screen.findByText(/Caja abierta · fondo/);
+  await screen.findByText("Caja abierta");
 }
 
 describe("PosClient", () => {
@@ -432,7 +446,7 @@ describe("PosClient", () => {
     expect(body.payments).toEqual([{ method: "cash", currency: "NIO", amount: 100 }]);
     expect(body.idempotencyKey).toBeTruthy();
 
-    const confirmacion = await screen.findByRole("status");
+    const confirmacion = await confirmacionDelCobro();
     expect(confirmacion.textContent).toContain("P-ABC123");
     expect(confirmacion.textContent).toContain("Cambio C$60.00");
     // El mostrador queda listo para la venta siguiente.
@@ -611,12 +625,11 @@ describe("PosClient", () => {
   });
 
   /**
-   * Tarea 1 del brief (2026-09-17) — el POS no administra la caja: la abre y la cierra «Caja».
-   *
-   * Lo que el POS sí hace es **decir el estado** (es lo que habilita cobrar) y llevar al lugar donde se
-   * arregla, con un enlace, en vez de esconder un arqueo plegado en la cabecera del mostrador.
+   * `SCREEN-POS-QUICK-SALE-001.1` §5 — el POS no administra la caja ni mantiene un enlace permanente a
+   * Caja: muestra el **estado** (`● Caja abierta`) y, cuando el cobro está bloqueado, ofrece la **acción**
+   * donde está el bloqueo (el checkout). El arqueo con su conteo vive en Caja.
    */
-  it("sin caja abierta avisa y manda a Caja", async () => {
+  it("sin caja, el checkout ofrece abrirla y no hay enlaces permanentes", async () => {
     fetchMock.mockImplementation((input: RequestInfo | URL) => {
       const url = String(input);
       if (url.startsWith("/api/admin/pos/catalog")) return jsonResponse(productos);
@@ -626,22 +639,26 @@ describe("PosClient", () => {
 
     render(<PosClient locations={locations} />);
 
-    expect(await screen.findByText("Sin caja abierta en este local.")).toBeTruthy();
+    // El estado, en la barra operativa.
+    const barra = await screen.findByLabelText("Barra del mostrador");
+    expect(within(barra).getByRole("status").textContent).toContain("Sin caja abierta");
 
-    const abrir = screen.getByRole("link", { name: "Abrir la caja" });
-    expect(abrir.getAttribute("href")).toBe("/admin/cash");
-    // El conteo de billetes y el arqueo ya no viven acá.
+    // La acción, en el checkout, que es donde el cobro está bloqueado.
+    expect(screen.getByText("Caja cerrada")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Abrir caja" })).toBeTruthy();
+    // El conteo de billetes y el arqueo no viven acá.
     expect(screen.queryByLabelText("Cantidad de billetes de NIO 100")).toBeNull();
-    expect(screen.queryByRole("button", { name: "Abrir caja" })).toBeNull();
+    // Y ningún enlace permanente a Caja.
+    expect(screen.queryByRole("link", { name: /caja/i })).toBeNull();
   });
 
-  it("con la caja abierta muestra el fondo y el enlace a la caja", async () => {
+  it("con la caja abierta muestra el estado y ninguna acción de caja", async () => {
     render(<PosClient locations={locations} />);
 
     await esperarCajaAbierta();
-    expect(screen.getByRole("link", { name: "Ver la caja" }).getAttribute("href")).toBe(
-      "/admin/cash",
-    );
+    expect(screen.getByText("Caja abierta")).toBeTruthy();
+    expect(screen.queryByRole("link", { name: /caja/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /caja/i })).toBeNull();
   });
 
   /**
@@ -673,7 +690,10 @@ describe("PosClient", () => {
     await fillCustomer(user);
     await user.type(screen.getByLabelText("Con cuánto paga"), "100");
 
-    expect(screen.getByText(/exige cerrar la caja todos los días/)).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Cierre pendiente" })).toBeTruthy();
+    expect(screen.getByText("La caja pertenece al turno anterior.")).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Cerrar caja" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Abrir caja" })).toBeNull();
     expect((screen.getByRole("button", { name: /^Cobrar C\$/ }) as HTMLButtonElement).disabled).toBe(
       true,
     );
@@ -701,7 +721,7 @@ describe("PosClient", () => {
     await fillCustomer(user);
     await user.type(screen.getByLabelText("Con cuánto paga"), "100");
 
-    expect(screen.queryByText(/exige cerrar la caja todos los días/)).toBeNull();
+    expect(screen.queryByRole("heading", { name: "Cierre pendiente" })).toBeNull();
     expect((screen.getByRole("button", { name: /^Cobrar C\$/ }) as HTMLButtonElement).disabled).toBe(
       false,
     );
@@ -734,7 +754,7 @@ describe("PosClient", () => {
     expect((cobrar as HTMLButtonElement).disabled).toBe(true);
     // La alerta de caja cerrada, con su borde ámbar (la tarjeta destacada de las mejoras visuales).
     const alerta = screen.getByText("Caja cerrada").closest("[role='status']");
-    expect(alerta?.textContent).toContain("no entra a ningún arqueo");
+    expect(alerta?.textContent).toContain("Abrí una caja para cobrar.");
     expect(alerta?.className).toContain("border-brand-amber");
 
     // Y no se manda nada al servidor si igual se intenta.
@@ -786,7 +806,7 @@ describe("PosClient", () => {
     await user.type(screen.getByLabelText("Con cuánto paga"), "100");
     await user.click(screen.getByRole("button", { name: /^Cobrar C\$/ }));
 
-    await screen.findByRole("status");
+    await confirmacionDelCobro();
     await user.click(screen.getByRole("button", { name: "Enviar recibo" }));
 
     expect(renderReceiptJpegMock).toHaveBeenCalledTimes(1);
@@ -856,7 +876,7 @@ describe("PosClient", () => {
     expect(await screen.findByRole("alert")).toBeTruthy();
 
     await user.click(screen.getByRole("button", { name: /^Cobrar C\$/ }));
-    await screen.findByRole("status");
+    await confirmacionDelCobro();
 
     const claves = fetchMock.mock.calls
       .filter(([input]) => String(input) === "/api/admin/pos/sale")
@@ -899,7 +919,7 @@ describe("PosClient", () => {
     await fillCustomer(user);
     await user.type(screen.getByLabelText("Con cuánto paga"), "100");
     await user.click(screen.getByRole("button", { name: /^Cobrar C\$/ }));
-    await screen.findByRole("status");
+    await confirmacionDelCobro();
 
     const saleCall = fetchMock.mock.calls.find(
       ([input]) => String(input) === "/api/admin/pos/sale",
@@ -924,7 +944,7 @@ describe("PosClient", () => {
     await fillCustomer(user);
     await user.type(screen.getByLabelText("Con cuánto paga"), "100");
     await user.click(screen.getByRole("button", { name: /^Cobrar C\$/ }));
-    await screen.findByRole("status");
+    await confirmacionDelCobro();
 
     const saleCall = fetchMock.mock.calls.find(
       ([input]) => String(input) === "/api/admin/pos/sale",
@@ -948,7 +968,7 @@ describe("PosClient", () => {
       await fillCustomer(user);
       await user.type(screen.getByLabelText("Con cuánto paga"), "100");
       await user.click(screen.getByRole("button", { name: /^Cobrar C\$/ }));
-      await screen.findByRole("status");
+      await confirmacionDelCobro();
     }
 
     await cobrar();
@@ -986,7 +1006,7 @@ describe("PosClient", () => {
     await user.type(screen.getByLabelText("Con cuánto paga"), "100");
     await user.click(screen.getByRole("button", { name: /^Cobrar C\$/ }));
 
-    const confirmacion = await screen.findByRole("status");
+    const confirmacion = await confirmacionDelCobro();
     expect(confirmacion.textContent).toContain("P-ABC123");
     expect(confirmacion.textContent).toContain("ya estaba registrada");
     expect(confirmacion.textContent).toContain("no se cobró de nuevo");
@@ -1082,7 +1102,7 @@ describe("PosClient", () => {
       expect(screen.queryByRole("list", { name: "Ventas en espera" })).toBeNull(),
     );
     await user.click(screen.getByRole("button", { name: /^Cobrar C\$/ }));
-    await screen.findByRole("status");
+    await confirmacionDelCobro();
 
     const claves = fetchMock.mock.calls
       .filter(([input]) => String(input) === "/api/admin/pos/sale")
@@ -1120,7 +1140,7 @@ describe("PosClient", () => {
     await fillCustomer(user);
     await user.type(screen.getByLabelText("Con cuánto paga"), "40");
     await user.click(screen.getByRole("button", { name: /^Cobrar C\$/ }));
-    await screen.findByRole("status");
+    await confirmacionDelCobro();
 
     const saleBody = JSON.parse(
       String(
@@ -1232,7 +1252,7 @@ describe("PosClient", () => {
     await fillCustomer(user);
     await user.type(screen.getByLabelText("Con cuánto paga"), "40");
     await user.click(screen.getByRole("button", { name: /^Cobrar C\$/ }));
-    await screen.findByRole("status");
+    await confirmacionDelCobro();
 
     const saleBody = JSON.parse(
       String(

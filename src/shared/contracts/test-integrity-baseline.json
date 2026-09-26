@@ -17,7 +17,7 @@
     "tests/e2e/admin-promotions.spec.ts::Order creation is disabled unless E2E_ALLOW_MUTATIONS=true.": 1,
     "tests/e2e/admin-reconciliation.spec.ts::Order creation is disabled unless E2E_ALLOW_MUTATIONS=true.": 1,
     "tests/e2e/admin.spec.ts::Admin mutations are disabled unless E2E_ALLOW_MUTATIONS=true.": 1,
-    "tests/e2e/cash-post-deploy.spec.ts::Order creation is disabled unless E2E_ALLOW_MUTATIONS=true.": 2,
+    "tests/e2e/cash-post-deploy.spec.ts::Order creation is disabled unless E2E_ALLOW_MUTATIONS=true.": 1,
     "tests/e2e/cash-post-deploy.spec.ts::The cashier account is created through the UI.": 1,
     "tests/e2e/design-tokens.spec.ts::hacen falta credenciales del admin del entorno (E2E_ADMIN_EMAIL/E2E_ADMIN_PASSWORD)": 1,
     "tests/e2e/landing.spec.ts::Se activa con E2E_APEX_HOST en el entorno local.": 1,

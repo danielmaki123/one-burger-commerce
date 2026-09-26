@@ -236,10 +236,9 @@ En el público, la superficie es `card` sobre `background`, con las sombras teñ
 `line-focus` es el anillo de foco.
 
 **Radios**: `rounded-card` (16) para tarjetas y `rounded-panel` (24) para paneles; `rounded-full` solo en
-piezas circulares (sello, pulgar, punto de estado); para un paso intermedio, la escala de Tailwind
-(`rounded-sm|md|lg|xl|2xl`). `rounded-stitch-*` es la **nomenclatura histórica** del mismo valor: se conserva
-por compatibilidad y **no** es la recomendada para código nuevo. **Prohibido el radio arbitrario**
-(`rounded-[7px]`).
+piezas circulares (sello, pulgar, punto de estado); para un paso intermedio, la escala de Tailwind. El alias
+histórico `rounded-stitch-*` se conserva por compatibilidad y **no** es el recomendado para código nuevo.
+**Prohibido el radio arbitrario** (`rounded-[7px]`).
 
 **Elevación**: en el panel, `shadow-elevation-1..4` (cada sombra trae su anillo de 1 px, para no ensuciar el
 borde a alto brillo); en el público, `shadow-card`/`raised`/`float`, teñidas con el color de marca. La
@@ -311,12 +310,15 @@ cada título o card.
 ## 12. Responsive
 
 Breakpoints de revisión **obligatorios**: **375**, **768** y **1280**.
+**Viewport contract (superficies operativas)**: además de los tres anchos se prueba el viewport **completo**
+—ancho × alto—, porque en una pantalla de trabajo lo que se pierde no es el ancho: es el alto. QA mínima:
+`1366×768`, `1280×720`, `768×1024`, `375×812`, y la spec declara qué entra en el primer viewport. En una
+operación normal **no se scrollea la página**: el scroll vive dentro del panel que crece (catálogo, líneas,
+opciones abiertas).
 
-**Ley del primer viewport (375 px).** En el primer viewport, sin scrollear, tienen que estar visibles:
-
-1. el **estado crítico** (qué está pasando: turno, pedido, alerta, filtro activo);
-2. la **acción principal** de la tarea;
-3. la **información mínima para iniciar** la tarea.
+**Ley del primer viewport (375 px).** En el primer viewport, sin scrollear, tienen que estar visibles: el
+**estado crítico** (turno, pedido, alerta, filtro activo), la **acción principal** de la tarea y la
+**información mínima para iniciar** la tarea.
 
 El contenido **secundario y de detalle puede requerir scroll vertical**: eso es esperable y no es un defecto.
 Lo que **no** se admite es que el scroll haga falta para *entender dónde estoy* o para *empezar*.
@@ -352,8 +354,7 @@ Accesibilidad comprobada **gana** sobre estética. Se preserva y se refuerza:
 - **Componente que existe, componente que se usa.** Prohibido el HTML crudo equivalente donde hay primitivo
   (`Button`, `Input`, `Select`, `Textarea`, `Toggle`, `Modal`, `Tabs`, `Card`, `Badge`, …).
 - **Componente nuevo = registro previo** en [`../../src/shared/ui/registry.json`](../../src/shared/ui/registry.json),
-  en el mismo commit, con **cuándo SÍ** y **cuándo NO**: el registro es el catálogo ejecutable y este
-  documento **no** copia componentes.
+  en el mismo commit, con **cuándo SÍ** y **cuándo NO**: el registro es el catálogo ejecutable.
 - Un componente declara **variantes**, **tamaños**, **estados** y **accesibilidad**; una variante que nadie
   usa se elimina o se justifica. **Ningún control ni copy decorativo**: cada control tiene estado, API y test,
   o se elimina con el motivo escrito.
@@ -395,6 +396,5 @@ cite dentro de su techo de líneas · que el material archivado no sea exigido p
 que los tokens existan en los dos modos y tengan utilidad · que los **techos de deuda visual** —incluidos los
 de color crudo— y los pares de **contraste** sigan vigentes · y que `prefers-reduced-motion` esté contemplado.
 
-**No se automatiza** —y no se va a inventar un regex para eso—: decidir si una pantalla "se ve premium",
-si un texto "explica demasiado" o si una Card "estaba de más". Eso lo resuelve el criterio, con estas leyes
-delante y la revisión del owner.
+**No se automatiza** —y no se va a inventar un regex para eso—: decidir si una pantalla "se ve premium", si un
+texto "explica demasiado" o si una Card "estaba de más". Eso lo resuelve el criterio, con estas leyes delante.

@@ -12,15 +12,21 @@ import { Button } from "@/shared/ui/button";
  *
  * Se desplazan en horizontal y **no** se envuelven: con muchas categorías, envolver empujaría el catálogo
  * fuera de la pantalla en la tablet del mostrador.
+ *
+ * `scale="compact"` es la densidad del `reference.html` **solo en celular**, donde la barra no compite con
+ * controles de escritorio: ahí el chip baja a 40 px. En tablet y escritorio se queda en el mínimo táctil de
+ * 44 px, porque el dedo no cambia de tamaño con el ancho de la pantalla.
  */
 export default function PosCategoryChips({
   categories,
   activeCategoryId,
   onSelect,
+  scale = "touch",
 }: {
   categories: PosCatalogCategoryChip[];
   activeCategoryId: string | null;
   onSelect: (categoryId: string | null) => void;
+  scale?: "touch" | "compact";
 }) {
   // Con una sola categoría no hay nada que filtrar: el chip «Todos» sería el único y no haría nada.
   if (categories.length <= 1) return null;
@@ -38,7 +44,10 @@ export default function PosCategoryChips({
         variant={active ? "primary" : "secondary"}
         aria-pressed={active}
         onClick={() => onSelect(active ? null : id)}
-        className="shrink-0"
+        className={[
+          "shrink-0",
+          scale === "compact" ? "max-lg:min-h-10 max-lg:px-3" : "",
+        ].join(" ")}
       >
         {name}
         <span className="ml-1.5 font-mono text-xs tabular-nums">{count}</span>
@@ -47,11 +56,7 @@ export default function PosCategoryChips({
   };
 
   return (
-    <div
-      role="group"
-      aria-label="Categorías del catálogo"
-      className="flex gap-2 overflow-x-auto pb-1"
-    >
+    <div role="group" aria-label="Categorías del catálogo" className="flex gap-2 overflow-x-auto">
       {chip(null, "Todos", total)}
       {categories.map((category) => chip(category.id, category.name, category.count))}
     </div>

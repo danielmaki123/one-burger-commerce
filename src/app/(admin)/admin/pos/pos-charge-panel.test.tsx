@@ -7,13 +7,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import PosChargePanel from "./pos-charge-panel";
 
 /**
- * El bloque de cobro: lo que dice si se puede cobrar **ahora** y por qué no.
+ * El **pie del checkout**: el CTA `Cobrar C$…`, el aviso de sin conexión y la venta recuperada.
  *
- * Mejoras visuales (2026-09-19): la caja cerrada deja de ser una línea más y pasa a ser una **tarjeta
- * de alerta con borde ámbar**, que es lo primero que el cajero tiene que ver cuando toca «Cobrar» y no
- * puede (el mockup la muestra así).
- *
- * El componente no tenía test propio: se agrega acá al tocarlo (AGENTS.md § Testing).
+ * `SCREEN-POS-QUICK-SALE-001.1` §8 y §11: el diagnóstico de la caja («Caja cerrada», «Cierre pendiente») y su
+ * acción viven en `PosCashAction`, en el mismo bloque; acá no se repiten. Lo que sí vive acá es la **única
+ * acción primaria** de la pantalla, que tiene que quedar bloqueada cuando no se puede cobrar.
  */
 
 afterEach(cleanup);
@@ -25,7 +23,6 @@ function renderPanel(over: Partial<React.ComponentProps<typeof PosChargePanel>> 
 
   const { unmount } = render(
     <PosChargePanel
-      needsOpenShift={false}
       canCharge
       blockedReason={null}
       total={145}
@@ -52,33 +49,12 @@ describe("PosChargePanel", () => {
     expect(screen.getByRole("button", { name: /Cobrar/ }).textContent).toContain("145.00");
   });
 
-  it("sin caja abierta avisa con una tarjeta de alerta ámbar", () => {
-    renderPanel({ needsOpenShift: true, canCharge: false });
-
-    const alerta = screen.getByRole("status");
-
-    expect(alerta.textContent).toContain("Caja cerrada");
-    expect(alerta.textContent).toContain("arqueo");
-    // El borde ámbar es la señal visual del mockup (no el estado de preparación del sistema).
-    expect(alerta.className).toContain("border-brand-amber");
-  });
-
-  it("con la caja abierta no dice nada de la caja", () => {
-    renderPanel();
-
-    expect(screen.queryByText(/Caja cerrada/)).toBeNull();
-  });
-
-  it("el motivo de bloqueo (caja de otro día) se muestra igual de visible", () => {
-    renderPanel({ blockedReason: "Cerrá la caja de ayer antes de cobrar.", canCharge: false });
-
-    expect(screen.getByText(/Cerrá la caja de ayer/)).toBeTruthy();
-  });
-
-  it("sin caja no se puede cobrar", () => {
-    renderPanel({ needsOpenShift: true, canCharge: false });
+  it("sin caja no se puede cobrar (y el motivo lo dice el bloque de caja)", () => {
+    renderPanel({ canCharge: false });
 
     expect((screen.getByRole("button", { name: /Cobrar/ }) as HTMLButtonElement).disabled).toBe(true);
+    // Este panel no repite el diagnóstico: no hay tarjeta de alerta acá.
+    expect(screen.queryByText(/Caja cerrada/)).toBeNull();
   });
 
   it("con un motivo de bloqueo el botón queda deshabilitado", () => {
@@ -96,5 +72,16 @@ describe("PosChargePanel", () => {
 
     renderPanel({ restoredSale: true });
     expect(screen.getByText(/Recuperamos la venta/)).toBeTruthy();
+  });
+
+  it("mientras cobra, el botón lo dice y no acepta un segundo toque", async () => {
+    const user = userEvent.setup();
+    const { onCharge } = renderPanel({ charging: true });
+
+    const boton = screen.getByRole("button", { name: "Cobrando…" });
+    expect(boton.hasAttribute("disabled")).toBe(true);
+
+    await user.click(boton);
+    expect(onCharge).not.toHaveBeenCalled();
   });
 });

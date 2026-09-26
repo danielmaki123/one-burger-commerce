@@ -45,7 +45,8 @@ implementación viene después, con [`ui-change`](../ui-change/SKILL.md).
 ## 2. Leyes que la spec aplica (y no reescribe)
 
 - [`../../../ops/design/DESIGN_SYSTEM.md`](../../../ops/design/DESIGN_SYSTEM.md) — tokens, tipografía,
-  densidad, superficies, botones, estados, responsive y accesibilidad. **No se inventan tokens en una spec.**
+  densidad, superficies, botones, estados, responsive (**incluido el viewport contract**) y accesibilidad. **No
+  se inventan tokens en una spec.**
 - [`../../../ops/design/CONTENT.md`](../../../ops/design/CONTENT.md) — presupuesto de texto por arquetipo y
   cómo se escribe cada control.
 - [`../../../ops/design/PATTERNS.md`](../../../ops/design/PATTERNS.md) — composición del arquetipo elegido.
@@ -54,7 +55,14 @@ implementación viene después, con [`ui-change`](../ui-change/SKILL.md).
 - [`../../../ops/design/MOTION.md`](../../../ops/design/MOTION.md) — cuándo se mueve algo y qué pasa con
   `prefers-reduced-motion`.
 - [`../../../ops/product/MODULE_ARCHITECTURE.md`](../../../ops/product/MODULE_ARCHITECTURE.md) — quién es
-  dueño de las reglas y si la pantalla merece navegación.
+  dueño de las reglas, si la pantalla merece navegación, y las leyes de **reuse-first** y **one canonical
+  flow** (§10.1–§10.2): la pantalla no reconstruye una capacidad que ya existe en otra superficie.
+
+**Reference fidelity.** Cuando el owner deja `SPEC.md` + `reference.html` aprobados, los dos son **contrato**
+de composición, jerarquía, densidad, progressive disclosure y comportamiento responsive. Se traducen a los
+componentes reales —«no copiar el HTML» quiere decir eso, **no** reinterpretar el diseño— y cualquier
+divergencia material se corrige antes del merge o se convierte en **Stop Condition** (decisión del owner).
+Los dos archivos viven juntos en `ops/design/screens/`.
 
 **Si una necesidad parece universal** (un patrón nuevo, un token nuevo), la pregunta es *¿esto aplica a todo
 el producto?*: si sí, se propone un cambio al Design System **como TASK aparte**; si no, se resuelve local en
@@ -70,6 +78,10 @@ la spec. Una pantalla no cambia la ley.
 - [ ] Ninguna métrica sin fórmula, período, comparación y fuente.
 - [ ] Todos los estados definidos: cargando, vacío, con datos, error, sin permiso.
 - [ ] 375 / 768 / 1280 resueltos, sin scroll horizontal.
+- [ ] El **viewport contract** está declarado: qué entra en el primer viewport a `1366×768`, `1280×720`,
+      `768×1024` y `375×812`, y qué scrollea (el panel que crece, no la página) cuando la superficie es
+      operativa.
+- [ ] Si hay `reference.html` aprobado, la spec declara que es contrato y no se desvía sin decisión del owner.
 - [ ] Está escrito **qué se elimina**.
 - [ ] Los componentes necesarios **ya existen** en el registro (o se propone su alta).
 - [ ] El texto cumple el presupuesto del arquetipo.

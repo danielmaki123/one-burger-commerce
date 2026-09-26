@@ -245,6 +245,51 @@ Corolario de UI: un componente recibe **colecciones**; no conoce la lista de suc
 
 ## 10. Gate para capacidades nuevas
 
+### 10.1 Reuse-first (ley general)
+
+Antes de crear una **pantalla, ruta, feature, caso de uso, componente o flujo**, el agente:
+
+1. identifica el **objetivo de usuario**;
+2. **busca** si la capacidad ya existe (módulo, caso de uso, ruta, componente en
+   [`registry.json`](../../src/shared/ui/registry.json));
+3. si existe, **reutiliza, compone o enlaza**;
+4. crea algo nuevo **solo** cuando hay una **responsabilidad distinta y estable**.
+
+**Prohibido**: una implementación paralela de una capacidad que ya existe sin justificar el ownership. Una
+segunda superficie puede **enlazar o cargar contexto**; no reconstruir el flujo.
+
+### 10.2 One canonical flow (la operación es una sola)
+
+Cada operación de negocio tiene **un** flujo canónico, y las demás superficies enlazan:
+
+| Operación | Dónde vive |
+|---|---|
+| **Localizar / revisar un pedido** | **Órdenes** |
+| **Preparar un pedido** | Órdenes / Cocina |
+| **Cobrar** | **POS** |
+| **Factura** | la capacidad existente de **Invoices** |
+
+Corolario que esta ley ya aplicó (`SCREEN-POS-QUICK-SALE-001.1`): el POS **no** busca pedidos del menú para
+cobrarlos. Esa búsqueda se eliminó de la pantalla porque la localización pertenece a Órdenes y el cobro a POS:
+dos buscadores del mismo pedido serían dos flujos para la misma operación.
+
+### 10.3 Reuse audit (lo que declara cada TASK)
+
+Toda TASK nueva escribe, antes de tocar código:
+
+```md
+## Reuse audit
+Objetivo:
+Capacidad existente:
+Qué se reutiliza:
+Qué es realmente nuevo:
+```
+
+Sin ese bloque no se sabe si el trabajo era una capacidad nueva o una copia. La plantilla
+([`../tasks/TEMPLATE.md`](../tasks/TEMPLATE.md)) lo pide.
+
+### 10.4 Gate estructural
+
 Antes de crear una **ruta o sección importante**, el agente contesta por escrito:
 
 1. ¿Es un **módulo**, una **sección**, una **pantalla** o una **feature**?
