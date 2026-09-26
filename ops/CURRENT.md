@@ -32,7 +32,7 @@ corto: si crece como un diario, dejó de servir.
 | **Modelo de deploy** | Easypanel, proyecto `brunobot`, servicio `oneburguerweb`; build **desde GitHub `main`** con `forceRebuild`. Una sola llamada a `deployService` (la llamada cortó por timeout y el build siguió en segundo plano: comportamiento conocido, la action quedó `done`) |
 | **Migraciones** | El release de AUD-003..006 no trajo ninguna. El de A-59 **sí**: `20260925120000_add_payment_void`, aditiva y sin backfill, aplicada por el arranque |
 | **Réplicas** | `1` |
-| **Backup pre-deploy** | **No aplica en este release**: no hay migración ni cambio de datos, y el owner autorizó desplegar sin backup manual (el hallazgo de `A-57` —el backup programado no genera archivos— sigue abierto y es del owner) |
+| **Backup pre-deploy** | **El owner generó un backup manual de la base** (confirmado el 2026-09-26) aunque el release no lo exigía —no hay migración ni cambio de datos—. El hallazgo `A-57` (el backup **programado** no genera archivos y no hay retención declarada) **sigue abierto** y es del owner; el archivo **no se pudo verificar** desde acá (el panel de Easypanel responde **401** sin token) |
 | **Hosts activos** | `oneburgernic.com` y `www` (landing + redirects 307) · `menu.oneburgernic.com` (app de pedidos) · `admin.oneburgernic.com` (panel) |
 | **Health / readiness** | `GET /api/health` (versión del build) · `GET /api/readiness` (`SELECT 1`, 503 si la base no responde) |
 | **Base de datos** | PostgreSQL 17 en `oneburguer-postgres` (sin puerto expuesto: `exposedPort=0`) |
