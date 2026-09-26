@@ -86,14 +86,14 @@ describe("OrderInvoicePanel", () => {
     });
   });
 
-  it("con la factura emitida se muestra congelada y se ofrece la hoja A4 para imprimir", async () => {
+  it("con la factura emitida se muestra congelada y se ofrece la hoja de 80 mm para imprimir", async () => {
     fetchMock.mockImplementation(() => jsonResponse({ data: { invoice, canEmit: true } }));
     renderPanel();
 
     expect(await screen.findByText("F-000001")).toBeTruthy();
     expect(screen.getByText(/100\.00/)).toBeTruthy();
 
-    // La hoja A4 vive en su propia página (con el logo y la sucursal): acá solo se enlaza.
+    // La hoja de 80 mm vive en su propia página (con el logo y la sucursal): acá solo se enlaza.
     const imprimir = screen.getByRole("link", { name: "Imprimir o guardar PDF" });
     expect(imprimir.getAttribute("href")).toBe("/admin/orders/ord_01/invoice/print");
     expect(imprimir.getAttribute("target")).toBe("_blank");

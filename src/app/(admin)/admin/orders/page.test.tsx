@@ -1043,13 +1043,17 @@ describe("bandeja de órdenes: tablero de comandas (B3)", () => {
       order({
         id: "ord_1",
         status: "preparing",
-        // 20 minutos en la etapa: ya está atrasada (el umbral es 15).
+        /**
+         * 20 minutos en la etapa: ya está atrasada. El umbral es el **del carril** (cocina: preparación
+         * 15 + 5 = 20), el mismo que pinta la tarjeta: hasta TASK-ORDERS-001 el anuncio medía con el valor
+         * por defecto del carril «Por aceptar» (15) y decía un número que la pantalla no usaba.
+         */
         stageChangedAt: new Date(NOW.getTime() - 20 * 60_000).toISOString(),
       }),
     ]);
 
     const announcement = screen.getByTestId("comandas-late-announcement");
-    expect(announcement.textContent).toMatch(/OB-1.*más de 15 minutos/);
+    expect(announcement.textContent).toMatch(/OB-1.*más de 20 minutos/);
 
     // Otro tick del reloj no lo repite: sería ruido cada cinco segundos.
     await act(async () => {
@@ -1057,7 +1061,7 @@ describe("bandeja de órdenes: tablero de comandas (B3)", () => {
     });
     await flush();
     expect(screen.getByTestId("comandas-late-announcement").textContent).toMatch(
-      /OB-1.*más de 15 minutos/,
+      /OB-1.*más de 20 minutos/,
     );
   });
 
@@ -1140,9 +1144,12 @@ describe("bandeja de órdenes: umbrales por local (B5)", () => {
   async function renderWithThresholds({
     locations,
     locationScope = null,
+    stageMinutes = 7,
   }: {
     locations: Array<Record<string, unknown>>;
     locationScope?: string[] | null;
+    /** Minutos que lleva la comanda en su etapa (para cruzar —o no— el umbral del local). */
+    stageMinutes?: number;
   }) {
     vi.stubGlobal(
       "fetch",
@@ -1158,8 +1165,7 @@ describe("bandeja de órdenes: umbrales por local (B5)", () => {
                     order({
                       id: "ord_1",
                       status: "new",
-                      // Siete minutos sin que nadie lo acepte.
-                      stageChangedAt: new Date(NOW.getTime() - 7 * 60_000).toISOString(),
+                      stageChangedAt: new Date(NOW.getTime() - stageMinutes * 60_000).toISOString(),
                     }),
                   ],
                   meta: { count: 1, locationScope },
@@ -1177,6 +1183,26 @@ describe("bandeja de órdenes: umbrales por local (B5)", () => {
   function urgency(container: HTMLElement) {
     return container.querySelector("[data-urgency]")?.getAttribute("data-urgency");
   }
+
+  /**
+   * TASK-ORDERS-001 — el anuncio accesible mide con el umbral **del local**, igual que el tablero.
+   *
+   * Antes usaba los valores por defecto del negocio: en una sucursal con otro ritmo el lector de pantalla
+   * decía un número que la pantalla no estaba usando (y el semáforo de la tarjeta decía otro).
+   */
+  it("el anuncio de atraso usa el umbral del local, no el de por defecto", async () => {
+    await renderWithThresholds({
+      locations: [
+        { id: "loc_centro", name: "Centro", isActive: true, acceptAlertMinutes: 25, prepAlertMinutes: 30 },
+      ],
+      locationScope: ["loc_centro"],
+      // 20 minutos en la etapa: con los valores por defecto (late 15) ya estaría atrasada; con el umbral
+      // del local (25 + 5 = 30) todavía no.
+      stageMinutes: 20,
+    });
+
+    expect(screen.getByTestId("comandas-late-announcement").textContent).toBe("");
+  });
 
   it("con un solo local usa su umbral: avisa a los 5 minutos, no a los 10", async () => {
     const { container } = await renderWithThresholds({

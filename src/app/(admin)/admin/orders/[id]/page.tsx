@@ -259,13 +259,13 @@ export default function AdminOrderDetailPage() {
       </Link>
 
       {authRequired ? (
-        <div className="rounded-md border border-warning-strong/30 bg-warning p-4 text-st-body text-status-pending-text">
+        <div className="rounded-stitch-md border border-warning-strong/30 bg-warning p-4 text-st-body text-status-pending-text">
           Sesión admin requerida para consultar o actualizar órdenes.
         </div>
       ) : null}
 
       {error ? (
-        <div className="rounded-md border border-danger-strong/30 bg-danger p-4 text-st-body text-danger-foreground">
+        <div className="rounded-stitch-md border border-danger-strong/30 bg-danger p-4 text-st-body text-danger-foreground">
           {error}
         </div>
       ) : null}
@@ -679,7 +679,7 @@ export default function AdminOrderDetailPage() {
                             setNextStatus(event.target.value as OrderStatus);
                             setReviewMode(null);
                           }}
-                          className="h-10 w-full rounded-md border border-line-subtle bg-surface-card px-3 text-st-body focus:border-line-subtle focus:outline-none"
+                          className="h-10 w-full rounded-stitch-md border border-line-subtle bg-surface-card px-3 text-st-body focus:border-line-subtle focus:outline-none"
                         >
                           {allowedTransitions.map((status) => (
                             <option key={status} value={status}>
@@ -702,7 +702,7 @@ export default function AdminOrderDetailPage() {
                         />
 
                         {reviewMode === "manual" ? (
-                          <div className="rounded-md border border-warning-strong/30 bg-warning p-3 text-st-body text-status-pending-text">
+                          <div className="rounded-stitch-md border border-warning-strong/30 bg-warning p-3 text-st-body text-status-pending-text">
                             <p>
                               Confirmar cambio:{" "}
                               <strong>{getAdminOrderStatusLabel(order.status)}</strong> a{" "}
@@ -752,7 +752,7 @@ export default function AdminOrderDetailPage() {
                         setNextStatus(event.target.value as OrderStatus);
                         setReviewMode(null);
                       }}
-                      className="h-10 w-full rounded-md border border-line-subtle bg-surface-card px-3 text-st-body focus:border-line-subtle focus:outline-none"
+                      className="h-10 w-full rounded-stitch-md border border-line-subtle bg-surface-card px-3 text-st-body focus:border-line-subtle focus:outline-none"
                     >
                       {allowedTransitions.map((status) => (
                         <option key={status} value={status}>
@@ -794,7 +794,7 @@ export default function AdminOrderDetailPage() {
                     ) : null}
 
                     {reviewMode === "manual" ? (
-                      <div className="rounded-md border border-warning-strong/30 bg-warning p-3 text-st-body text-status-pending-text">
+                      <div className="rounded-stitch-md border border-warning-strong/30 bg-warning p-3 text-st-body text-status-pending-text">
                         <p>
                           Confirmar cambio:{" "}
                           <strong>{getAdminOrderStatusLabel(order.status)}</strong> a{" "}

@@ -183,14 +183,14 @@ export default function OrderInvoicePanel({ orderId, currency }: OrderInvoicePan
       </dl>
 
       <p className="text-st-body text-ink-secondary">
-        La factura simple se imprime en hoja A4, con el logo, los datos del negocio y los de la sucursal
+        La factura simple se imprime en una hoja de 80 mm (impresora térmica del mostrador), con el logo, los datos del negocio y los de la sucursal
         donde se retiró el pedido.
       </p>
       <Link
         href={printHref}
         target="_blank"
         rel="noopener"
-        className="inline-flex min-h-11 items-center rounded-md border border-border px-4 text-st-body font-semibold text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        className="inline-flex min-h-11 items-center rounded-stitch-md border border-border px-4 text-st-body font-semibold text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-background"
       >
         Imprimir o guardar PDF
       </Link>
