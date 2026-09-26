@@ -53,9 +53,16 @@ test.describe("el cajero", () => {
 
     // 4. El mostrador: cobra y **no descuenta a mano** (tarea 9.7). Un descuento manual es plata que el
     //    cliente deja de pagar porque alguien lo decidió, y lo autoriza quien administra la caja.
+    //
+    //    La Fase 1 (`SCREEN-POS-QUICK-SALE-001`): la venta es un panel de dos columnas y las opciones
+    //    secundarias viven detrás de su disparador. El cajero **no tiene** el descuento manual: el
+    //    disparador no existe para él y el formulario tampoco.
     await page.goto("/admin/pos");
-    await expect(page.getByRole("region", { name: "Venta en curso" })).toBeVisible();
+    await expect(page.getByRole("dialog", { name: "Venta en curso" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Aplicar descuento" })).toHaveCount(0);
     await expect(page.getByRole("region", { name: "Descuento manual" })).toHaveCount(0);
+
+    await page.getByRole("button", { name: "Aplicar promo" }).click();
     await expect(page.getByLabel("Código de promo (opcional)")).toBeVisible();
   });
 });

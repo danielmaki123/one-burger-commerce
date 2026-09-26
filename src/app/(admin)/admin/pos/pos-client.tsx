@@ -6,79 +6,50 @@ import * as React from "react";
 import {
   addPosLine,
   createPosDraft,
-  posDraftTotals,
   removePosLine,
   setPosLineQuantity,
 } from "@/modules/pos/domain/pos-draft";
 import type { PosHeldSale } from "@/modules/pos/domain/pos-holds";
-import { mustCloseShiftBeforeCharging } from "@/modules/pos/domain/shift-close-policy";
-import type {
-  PosCatalogCategoryChip,
-  PosCatalogProduct,
-  PosCatalogView,
-} from "@/modules/pos/ports/pos-catalog";
+import type { PosPaymentMethod } from "@/modules/pos/domain/pos-sale";
+import type { PosCatalogProduct } from "@/modules/pos/ports/pos-catalog";
 import { hasSelectableModifiers } from "@/modules/menu/domain/modifier-selection";
 import { useBusinessSettings, useCurrencyFormat } from "@/shared/lib/business-settings";
-import { describeCouponLabel } from "@/shared/lib/coupon-label";
 import { formatCurrency } from "@/shared/lib/format-currency";
-import { Button } from "@/shared/ui/button";
-import { Select } from "@/shared/ui/select";
-import { PAYMENT_METHOD_TYPE_LABELS } from "@/modules/orders/domain/order.types";
 import {
   renderReceiptJpeg,
   shareOrDownloadReceipt,
   type ReceiptData,
 } from "@/shared/lib/receipt-image";
 import { AdminEmptyState, AdminPageHeader } from "../_components/admin-operational-ui";
-import PosCatalogGrid from "./pos-catalog-grid";
-import PosChargePanel from "./pos-charge-panel";
-import PosCouponPanel from "./pos-coupon-panel";
-import PosCustomerFields from "./pos-customer-fields";
-import type { PosCustomerDraft } from "./pos-customer-fields";
-import { buildPosFiscalPayload, EMPTY_POS_FISCAL_DRAFT } from "./pos-fiscal-payload";
-import PosDiscountPanel, { type AppliedManualDiscount } from "./pos-discount-panel";
-import PosHoldsPanel from "./pos-holds-panel";
+import { EMPTY_POS_FISCAL_DRAFT } from "./pos-fiscal-payload";
 import PosModifierDialog, { type PosModifierSelection } from "./pos-modifier-dialog";
-import PosOrderChargePanel from "./pos-order-charge-panel";
-import PosPaymentRows from "./pos-payment-rows";
-import PosSaleLines from "./pos-sale-lines";
+import PosOrderChargeAction from "./pos-order-charge-action";
+import PosSaleConfirmation from "./pos-sale-confirmation";
 import PosTicketButtons from "./pos-ticket-buttons";
-import type {
-  PosLocationOption,
-  PosPaymentDraft,
-  PosSaleSummary,
-  PosShift,
-} from "./pos-types";
+import type { PosLocationOption, PosSaleSummary } from "./pos-types";
+import { PosSaleOptions } from "./quick-sale/pos-sale-options";
+import { PosWorkspace } from "./quick-sale/pos-workspace";
+import { usePosCatalog } from "./quick-sale/use-pos-catalog";
+import { usePosSale } from "./quick-sale/use-pos-sale";
+import { usePosShift } from "./quick-sale/use-pos-shift";
 import { usePosDraft } from "./use-pos-draft";
 import { usePosHolds } from "./use-pos-holds";
 
 /**
  * TASK-302 + TASK-303b — el mostrador: catálogo del local a un lado, venta al otro.
  *
- * Se pide y se paga **de una vez** (decisión del owner): el cajero arma la venta, deja el nombre y el
- * número del cliente (el correo es opcional) y cobra. El total que se muestra sale de la misma
- * fórmula que usa el servidor (`posDraftTotals`) y **el que manda es el del servidor**: si el menú
- * cambió entre que se cargó el catálogo y se cobró, la respuesta del servidor lo dice con el número
- * de pedido en vez de guardar un cobro que no alcanza.
+ * Se pide y se paga **de una vez** (decisión del owner): el cajero arma la venta, deja el nombre y el número
+ * del cliente (el correo es opcional) y cobra. El total que se muestra sale de la misma fórmula que usa el
+ * servidor (`posDraftTotals`) y **el que manda es el del servidor**: si el menú cambió entre que se cargó el
+ * catálogo y se cobró, la respuesta del servidor lo dice con el número de pedido en vez de guardar un cobro
+ * que no alcanza.
  *
- * La búsqueda filtra en memoria con la regla compartida (`filterPosProducts`): el catálogo del local
- * se trae **una vez** y escribir no dispara una consulta por tecla.
+ * **Reparto de la Fase 1 (`SCREEN-POS-QUICK-SALE-001`)**: esta pantalla quedó como **orquestación** —estado
+ * compartido, carga y composición—. La UI vive en `quick-sale/` (workspace, líneas, resumen, cliente, pago,
+ * opciones y sheet del celular) y las tres responsabilidades con su propia API en sus hooks: catálogo
+ * (`use-pos-catalog`), caja (`use-pos-shift`) y cobro (`use-pos-sale`). El archivo es deuda con techo
+ * congelado y este cambio lo **baja**.
  */
-
-const CLOSE_SHIFT_FIRST_MESSAGE =
-  "Este local exige cerrar la caja todos los días y la caja quedó abierta de otro día: cerrala en «Caja» y volvé a cobrar.";
-
-/**
- * TASK-306 — cada cuánto se refresca el mostrador solo.
- *
- * Decisión del owner (2026-09-14): **polling**, no SSE. Con una sola réplica y un catálogo chico, dos
- * consultas cada 3 s no necesitan conexiones largas ni tocar los timeouts del proxy.
- */
-export const POS_REFRESH_MS = 3000;
-
-function catalogUrl(locationId: string) {
-  return `/api/admin/pos/catalog?locationId=${encodeURIComponent(locationId)}`;
-}
 
 export default function PosClient({
   locations,
@@ -98,38 +69,18 @@ export default function PosClient({
    * el mismo local, el turno de **esta** estación es el que recibe la plata.
    */
   cashTerminalsByLocation?: Record<string, { id: string; label: string }[]>;
-}) {  const currency = useCurrencyFormat();
+}) {
+  const currency = useCurrencyFormat();
   const settings = useBusinessSettings();
 
-  const [locationId, setLocationId] = React.useState(locations[0]?.id ?? "");
-  /**
-   * Fase 6 del rediseño de Caja (2026-09-23) — la **terminal** del POS elegida en este local. Nace en la
-   * primera activa y se recuerda **en el dispositivo** (como el borrador): el equipo del mostrador es siempre
-   * el mismo POS, y volver a elegirlo en cada venta sería un paso de más. Sin terminales cargadas queda
-   * `null`: la venta entra al turno «sin terminal» del local, que es la sucursal de una sola caja.
-   */
-  const terminals = React.useMemo(
-    () => cashTerminalsByLocation[locationId] ?? [],
-    [cashTerminalsByLocation, locationId],
-  );
-  const [terminalId, setTerminalId] = React.useState<string | null>(
-    () => cashTerminalsByLocation[locations[0]?.id ?? ""]?.[0]?.id ?? null,
-  );
+  const catalog = usePosCatalog({
+    locations,
+    cashTerminalsByLocation,
+    currencyCode: settings.currencyCode,
+    currency,
+  });
+  const { locationId, terminalId } = catalog;
 
-  React.useEffect(() => {
-    setTerminalId(terminals[0]?.id ?? null);
-  }, [terminals]);
-  const [products, setProducts] = React.useState<PosCatalogProduct[]>([]);
-  /**
-   * Los chips de categoría, con su contador, tal como los devuelve el catálogo (el servidor los arma en
-   * `categories`): la pantalla no los agrupa ni los cuenta.
-   */
-  const [catalogCategories, setCatalogCategories] = React.useState<PosCatalogCategoryChip[]>([]);
-  /** La categoría elegida en los chips; `null` es «Todos». */
-  const [activeCategoryId, setActiveCategoryId] = React.useState<string | null>(null);
-  const [loading, setLoading] = React.useState(true);
-  const [loadError, setLoadError] = React.useState<string | null>(null);
-  const [query, setQuery] = React.useState("");
   const {
     draft,
     setDraft,
@@ -138,290 +89,105 @@ export default function PosClient({
     renewAttemptKey,
     restoreAttemptKey,
   } = usePosDraft(locationId, settings.currencyCode);
+
   /**
-   * Tareas 9.4 y 9.5 del roadmap del POS (Fase 2) — las ventas en espera de este dispositivo.
-   *
-   * Guardar libera el mostrador cuando el cliente no está listo; retomar la trae completa. La lista vive
-   * acá y el trabajo de guardar y leer, en el hook (y en el dominio).
+   * Tareas 9.4 y 9.5 del roadmap del POS (Fase 2) — las ventas en espera de este dispositivo. Guardar libera
+   * el mostrador cuando el cliente no está listo; retomar la trae completa. La lista vive acá y el trabajo de
+   * guardar y leer, en el hook (y en el dominio).
    */
   const { holds, hold, discard, full: holdsFull } = usePosHolds(locationId, settings.currencyCode);
-  /**
-   * Tarea 9.6 del roadmap del POS (Fase 2) — el cupón que el cliente trajo, **cotizado por el servidor**.
-   *
-   * Se guarda con la **firma de la venta** sobre la que se cotizó: un código aplicado a una venta que
-   * después cambió vale para esa venta, no para esta (el descuento se calculó sobre lo que había). Con la
-   * firma, la cotización vencida se descarta sola, sin efectos ni estados que se pisen.
-   */
-  const [coupon, setCoupon] = React.useState<{
-    code: string;
-    label: string;
-    discount: number;
-    cartSignature: string;
-  } | null>(null);
-  const [couponBusy, setCouponBusy] = React.useState(false);
-  const [couponError, setCouponError] = React.useState<string | null>(null);
-  /**
-   * Tarea 9.7 del roadmap del POS (Fase 2) — el descuento manual autorizado, si lo hay. El panel solo se
-   * muestra a quien puede darlo y acá se guarda lo que quedó aplicado (forma, motivo y monto).
-   */
-  const [manualDiscount, setManualDiscount] = React.useState<AppliedManualDiscount | null>(null);
-  const [reloadKey, setReloadKey] = React.useState(0);
-  const [customer, setCustomer] = React.useState<PosCustomerDraft>({
+
+  const shiftState = usePosShift({
+    locationId,
+    terminalId,
+    locations,
+    timezone: settings.timezone,
+  });
+
+  const [customer, setCustomer] = React.useState<{
+    name: string;
+    whatsapp: string;
+    email: string;
+    fiscal: typeof EMPTY_POS_FISCAL_DRAFT;
+  }>({
     name: "",
     whatsapp: "",
     email: "",
     // Punto 4: la factura con RUC arranca **apagada** (la mayoría de las ventas no llevan factura).
     fiscal: EMPTY_POS_FISCAL_DRAFT,
   });
+
   /**
-   * Bloque 4 del roadmap del POS (Fase 2) — el cobro es una **lista**.
-   *
-   * Antes era un monto, un medio y una moneda: el contrato ya aceptaba N cobros y el caso de uso los
-   * registraba, pero el cajero no tenía forma de armar dos (efectivo + transferencia, dos tarjetas).
-   * El primero se edita con los controles de siempre y «Partir el cobro» agrega filas.
-   */
-  const [payments, setPayments] = React.useState<PosPaymentDraft[]>(() => [
-    { id: "pay_1", method: "cash", currency: settings.currencyCode, amount: "" },
-  ]);
-  /**
-   * El producto cuyo selector de modificadores está abierto, si hay alguno. La venta se arma con lo que
-   * el cajero confirma en el selector: un producto con opciones no entra a la venta sin pasar por ahí.
+   * El producto cuyo selector de modificadores está abierto, si hay alguno. La venta se arma con lo que el
+   * cajero confirma en el selector: un producto con opciones no entra a la venta sin pasar por ahí.
    */
   const [modifierProduct, setModifierProduct] = React.useState<PosCatalogProduct | null>(null);
-  const [charging, setCharging] = React.useState(false);
-  const [saleError, setSaleError] = React.useState<string | null>(null);
-  const [fieldErrors, setFieldErrors] = React.useState<Record<string, string>>({});
-  const [lastSale, setLastSale] = React.useState<PosSaleSummary | null>(null);
-  /**
-   * Tarea 11 del brief (2026-09-17) — la clave del intento la administra `usePosDraft`: se guarda en el
-   * dispositivo junto al borrador y sobrevive a la recarga. Antes vivía acá en memoria y se perdía justo
-   * en el caso que importa (el cobro que quedó a medias porque se cortó la red).
-   *
-   * TASK-305b + tarea 1 del brief (2026-09-17) — la caja del local.
-   *
-   * El POS **lee** si hay caja abierta (es lo que habilita cobrar, Bloque 9.2) y muestra el estado, pero
-   * no la administra: abrir y cerrar se hace en «Caja».
-   */
-  const [shift, setShift] = React.useState<PosShift | null>(null);
-  const [shiftLoading, setShiftLoading] = React.useState(true);
   const [receiptState, setReceiptState] = React.useState<"idle" | "busy" | "done" | "error">("idle");
-  // El local actual, para que un refresco que llega tarde no pise el catálogo del local nuevo.
-  const locationRef = React.useRef(locationId);
-
-  /** Lo que el cajero lleva cobrado sumando todas las filas (en moneda del negocio, sin convertir). */  const paidTotal = React.useMemo(
-    () =>
-      payments.reduce(
-        (sum, payment) => sum + (Number.isFinite(Number(payment.amount)) ? Number(payment.amount) : 0),
-        0,
-      ),
-    [payments],
-  );
-
-  const loadShift = React.useCallback(
-    async (targetLocationId: string, options: { silent?: boolean } = {}) => {
-      if (targetLocationId === "") {
-        setShiftLoading(false);
-        return;
-      }
-
-      if (!options.silent) {
-        setShiftLoading(true);
-      }
-
-      try {
-        const response = await fetch(
-          // Fase 6 del rediseno de Caja: la caja que el POS mira es la de **su** terminal. Sin el
-          // `terminalId`, con dos terminales cargadas esta lectura devolvia la caja «sin terminal» (que no
-          // existe) y el POS se quedaba en «sin caja abierta» con el boton de cobrar apagado.
-          `/api/admin/pos/shift?locationId=${encodeURIComponent(targetLocationId)}${terminalId ? `&terminalId=${encodeURIComponent(terminalId)}` : ""}`,
-        );
-        const body = (await response.json()) as {
-          data?: PosShift | null;
-          error?: { message?: string };
-        };
-
-        if (!response.ok) throw new Error(body.error?.message ?? "No se pudo leer la caja.");
-        setShift(body.data ?? null);
-      } catch {
-        // Un error de lectura deja el POS en «sin caja abierta» (no se puede cobrar) sin romper la
-        // pantalla: el cajero ve el aviso y el enlace a Caja, que es donde se arregla.
-        if (options.silent) return;
-
-        setShift(null);
-      } finally {
-        if (!options.silent) setShiftLoading(false);
-      }
-    },
-    // La caja que se mira es la de la terminal elegida (Fase 6): cambiar de POS cambia la lectura.
-    [terminalId],
-  );
-
-  React.useEffect(() => {
-    void loadShift(locationId);
-  }, [locationId, loadShift]);
 
   /**
-   * Trae el catálogo del local. `silent` es el refresco de fondo (TASK-306): no muestra "Cargando…"
-   * ni borra lo que el cajero ya tiene en pantalla si la red falla.
+   * El cobro: cupón, descuento manual, filas de pago, validación, idempotencia, totales y alta. El estado y
+   * las llamadas viven en el hook (su propia responsabilidad); acá se conecta con el borrador y el cliente.
    */
-  const applyCatalog = React.useCallback(
-    async (targetLocationId: string, options: { silent?: boolean } = {}) => {
-      if (targetLocationId === "") {
-        setLoading(false);
-        return;
-      }
-
-      if (!options.silent) {
-        setLoading(true);
-        setLoadError(null);
-      }
-
-      try {
-        const response = await fetch(catalogUrl(targetLocationId));
-        if (!response.ok) throw new Error("No se pudo cargar el catálogo de ese local.");
-
-        // La respuesta es la **vista** del catálogo (el caso de uso del menú + la proyección del POS):
-        // los productos ya traen el precio del local en `basePrice` y los agotados. Los chips de
-        // categoría (`categories`) llegan en la misma respuesta.
-        const body = (await response.json()) as { data: PosCatalogView };
-        // Una respuesta de un local que el cajero ya dejó no puede pisar el catálogo del actual.
-        if (locationRef.current !== targetLocationId) return;
-
-        // Solo se reemplaza si cambió: refrescar cada 3 s no tiene que re-renderizar la pantalla.
-        setProducts((current) =>
-          JSON.stringify(current) === JSON.stringify(body.data.products)
-            ? current
-            : body.data.products,
-        );
-        setCatalogCategories(body.data.categories);
-      } catch (error) {
-        if (options.silent) return;
-
-        setProducts([]);
-        setCatalogCategories([]);
-        setLoadError(error instanceof Error ? error.message : "No se pudo cargar el catálogo.");
-      } finally {
-        if (!options.silent) setLoading(false);
-      }
+  const sale = usePosSale({
+    locationId,
+    terminalId,
+    currencyCode: settings.currencyCode,
+    currency,
+    fiscal: customer.fiscal,
+    customer: { name: customer.name, whatsapp: customer.whatsapp, email: customer.email },
+    attempt: { attemptKey, renewAttemptKey, restoreAttemptKey },
+    draft,
+    onSaleCharged: () => {
+      setDraft(createPosDraft(locationId));
+      setCustomer({ name: "", whatsapp: "", email: "", fiscal: { ...EMPTY_POS_FISCAL_DRAFT } });
     },
-    [],
-  );
+    onHold: ({ lines, payments, attemptKey: heldAttemptKey }) => {
+      hold({
+        lines,
+        customer,
+        // Los pagos del borrador ya son del dominio; el payload de la espera los tipa como texto.
+        payments: payments.map((payment) => ({
+          ...payment,
+          method: payment.method as PosPaymentMethod,
+        })),
+        attemptKey: heldAttemptKey,
+      });
+      setDraft(createPosDraft(locationId));
+      setCustomer({ name: "", whatsapp: "", email: "", fiscal: { ...EMPTY_POS_FISCAL_DRAFT } });
+    },
+  });
 
-  React.useEffect(() => {
-    locationRef.current = locationId;
-    void applyCatalog(locationId);
-  }, [locationId, reloadKey, applyCatalog]);
+  const { startNewSale } = sale;
+  const { refreshCatalog, refreshMs } = catalog;
+  const { refreshShift } = shiftState;
 
   /**
-   * TASK-306 — el POS se refresca solo cada 3 s: el catálogo (precios y disponibilidad pueden
-   * cambiar en el menú) y la caja (otra terminal puede abrirla o cerrarla). **No toca el borrador, ni
-   * la búsqueda, ni el conteo**: lo que el cajero está escribiendo queda donde está.
+   * Cambiar de local (o de moneda) empieza una venta nueva: el borrador lleva el local y sus precios y lo
+   * resetea su hook; acá se limpia el cobro y se suelta la confirmación anterior.
+   */
+  React.useEffect(() => {
+    startNewSale();
+  }, [locationId, settings.currencyCode, startNewSale]);
+
+  /**
+   * TASK-306 — el POS se refresca solo: el catálogo (precios y disponibilidad pueden cambiar en el menú) y
+   * la caja (otra terminal puede abrirla o cerrarla). **No toca el borrador, ni la búsqueda, ni el conteo**:
+   * lo que el cajero está escribiendo queda donde está.
    */
   React.useEffect(() => {
     if (locationId === "") return;
 
     const timer = setInterval(() => {
-      void applyCatalog(locationId, { silent: true });
-      void loadShift(locationId, { silent: true });
-    }, POS_REFRESH_MS);
+      void refreshCatalog({ silent: true });
+      void refreshShift();
+    }, refreshMs);
 
     return () => clearInterval(timer);
-  }, [locationId, applyCatalog, loadShift]);
-
-  // Cambiar de local empieza una venta nueva: el borrador lleva el local y sus precios y lo resetea el
-  // hook (que además lo guarda en el dispositivo, Bloque 12.3); acá se renueva el cobro, el cupón y la
-  // confirmación.
-  React.useEffect(() => {
-    setPayments([{ id: "pay_1", method: "cash", currency: settings.currencyCode, amount: "" }]);
-    setLastSale(null);
-    setCoupon(null);
-    setCouponError(null);
-    setManualDiscount(null);
-  }, [locationId, settings.currencyCode]);
-
-  /** Cambiar de local vuelve a «Todos»: los chips del local anterior ya no describen este catálogo. */
-  React.useEffect(() => {
-    setActiveCategoryId(null);
-  }, [locationId]);
-
-  /** La firma de la venta: si cambia, el cupón cotizado ya no vale para lo que hay en el mostrador. */
-  const cartSignature = draft.lines
-    .map((line) => `${line.productId}x${line.quantity}`)
-    .join("|");
-  const appliedCoupon =
-    coupon !== null && coupon.cartSignature === cartSignature ? coupon : null;
-  const totals = posDraftTotals(
-    draft,
-    (appliedCoupon?.discount ?? 0) + (manualDiscount?.amount ?? 0),
-  );
+  }, [locationId, refreshCatalog, refreshShift, refreshMs]);
 
   /**
-   * Tarea 9.6 — pide al servidor cuánto descuenta el código sobre **esta** venta. El descuento lo calcula el
-   * servidor con la misma fórmula que el alta y sin consumir el cupón; acá solo se muestra.
-   */
-  const applyCoupon = async (code: string) => {
-    setCouponBusy(true);
-    setCouponError(null);
-
-    try {
-      const response = await fetch("/api/admin/pos/coupon", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          locationId,
-          code,
-          lines: draft.lines.map((line) => ({
-            productId: line.productId,
-            quantity: line.quantity,
-          })),
-        }),
-      });
-
-      const body = (await response.json()) as {
-        data?: {
-          coupon: Parameters<typeof describeCouponLabel>[0];
-          discount: number;
-        };
-        error?: { message?: string; fields?: Record<string, string> };
-      };
-
-      if (!response.ok || !body.data) {
-        setCoupon(null);
-        setCouponError(body.error?.message ?? "No se pudo aplicar el código.");
-        return;
-      }
-
-      setCoupon({
-        code: body.data.coupon.code,
-        label: describeCouponLabel(body.data.coupon, currency.symbol),
-        discount: body.data.discount,
-        cartSignature,
-      });
-    } catch {
-      setCouponError("No se pudo aplicar el código: revisá la conexión.");
-    } finally {
-      setCouponBusy(false);
-    }
-  };
-
-  /**
-   * Tarea 3 del brief (2026-09-17) — cierre obligatorio por sucursal (1.7).
-   *
-   * Si el local lo exige y la caja abierta es de **otro día del negocio**, no se cobra hasta cerrarla: el
-   * POS lo dice con su motivo y el botón queda bloqueado (la regla pura vive en
-   * `shift-close-policy.ts`, con la zona del negocio).
-   */
-  const shiftOverdue = mustCloseShiftBeforeCharging({
-    requireShiftClose:
-      locations.find((location) => location.id === locationId)?.requireShiftClose ?? false,
-    openedAt: shift?.openedAt ?? null,
-    now: new Date(),
-    timezone: settings.timezone,
-  });
-
-  /**
-   * Agregar un producto a la venta. Si tiene modificadores que preguntar, primero se eligen en el
-   * selector: sin ellos el alta rechazaría la venta (y el precio de la línea saldría sin los extras).
+   * Agregar un producto a la venta. Si tiene modificadores que preguntar, primero se eligen en el selector:
+   * sin ellos el alta rechazaría la venta (y el precio de la línea saldría sin los extras).
    */
   const addProduct = (product: PosCatalogProduct) => {
     if (hasSelectableModifiers(product.modifierGroups)) {
@@ -451,50 +217,20 @@ export default function PosClient({
   };
 
   /**
-   * Las líneas de la venta se suman, se restan y se sacan con las reglas del dominio, direccionadas por
-   * la **clave de la línea** (`producto + modificadores + nota`): el mismo plato con dos
-   * configuraciones distintas son dos líneas y tocar una no puede cambiar la otra.
+   * Las líneas de la venta se suman, se restan y se sacan con las reglas del dominio, direccionadas por la
+   * **clave de la línea** (`producto + modificadores + nota`): el mismo plato con dos configuraciones
+   * distintas son dos líneas y tocar una no puede cambiar la otra.
    */
   const changeLineQuantity = (lineKey: string, quantity: number) =>
     setDraft((current) => setPosLineQuantity(current, lineKey, quantity));
-  const removeSaleLine = (lineKey: string) =>
-    setDraft((current) => removePosLine(current, lineKey));
-
-  /**
-   * Tareas 9.4 y 9.5 del roadmap del POS (Fase 2) — dejar la venta en curso a un lado.
-   *
-   * Se guarda **todo** lo que el cajero armó —productos, cliente y cobros— junto con la **clave del
-   * intento**: si la dejó en espera después de un cobro que quedó a medias (se cortó la red), volver a
-   * cobrarla tiene que seguir siendo la misma operación para el servidor. Después se limpia el mostrador
-   * —el próximo cliente ya puede empezar— y la venta que venga estrena su propia clave.
-   */
-  const holdCurrentSale = () => {
-    hold({
-      lines: draft.lines,
-      customer,
-      payments: payments.map((payment) => ({
-        method: payment.method,
-        currency: payment.currency,
-        amount: payment.amount,
-        ...(payment.reference ? { reference: payment.reference } : {}),
-      })),
-      attemptKey,
-    });
-
-    setDraft(createPosDraft(locationId));
-    setCustomer({ name: "", whatsapp: "", email: "", fiscal: { ...EMPTY_POS_FISCAL_DRAFT } });
-    setPayments([{ id: "pay_1", method: "cash", currency: settings.currencyCode, amount: "" }]);
-    renewAttemptKey();
-    setSaleError(null);
-    setFieldErrors({});
-  };
+  const removeSaleLine = (lineKey: string) => setDraft((current) => removePosLine(current, lineKey));
 
   /** Tareas 9.4 y 9.5 — traer de vuelta la venta en espera, con su cliente, su cobro y su clave. */
   const resumeHeldSale = (heldSale: PosHeldSale) => {
     setDraft({ locationId, lines: heldSale.lines });
     // Punto 4: la factura que quedó a medio cargar vuelve con la venta; sin ella, arranca apagada.
     setCustomer({ ...heldSale.customer, fiscal: heldSale.customer.fiscal ?? EMPTY_POS_FISCAL_DRAFT });
-    setPayments(
+    sale.setPayments(
       heldSale.payments.length === 0
         ? [{ id: "pay_1", method: "cash", currency: settings.currencyCode, amount: "" }]
         : heldSale.payments.map((payment, index) => ({ ...payment, id: `pay_${index + 1}` })),
@@ -502,8 +238,7 @@ export default function PosClient({
     // La espera trae el intento con el que se armó; un guardado viejo sin clave usa la que ya está (nueva).
     if (heldSale.attemptKey) restoreAttemptKey(heldSale.attemptKey);
     discard(heldSale.id);
-    setSaleError(null);
-    setFieldErrors({});
+    sale.setFieldErrors({});
   };
 
   /**
@@ -511,6 +246,7 @@ export default function PosClient({
    * descarga del JPG. Sin API ni credenciales: la imagen se genera en el dispositivo.
    */
   const sendReceipt = async () => {
+    const lastSale: PosSaleSummary | null = sale.lastSale;
     if (!lastSale) return;
 
     setReceiptState("busy");
@@ -546,122 +282,108 @@ export default function PosClient({
     }
   };
 
-  const charge = async () => {
-    const problems: Record<string, string> = {};
-    const filled = payments.filter((payment) => Number(payment.amount) > 0);
-    if (draft.lines.length === 0) problems.lines = "Agregá al menos un producto.";
-    if (customer.name.trim() === "") problems.name = "Escribí el nombre del cliente.";
-    if (customer.whatsapp.trim() === "") problems.whatsapp = "Escribí el número del cliente.";
-    /**
-     * Punto 4 — la factura con RUC. El servidor valida lo mismo; acá el cajero lo ve junto al campo que
-     * falta, en vez de descubrirlo después del viaje.
-     */
-    const fiscal = buildPosFiscalPayload(customer.fiscal);
-    if (!fiscal.ok) problems[fiscal.field] = fiscal.message;
-    if (filled.length === 0) problems.amount = "Escribí con cuánto paga el cliente.";
-    // Bloque 4: cada fila del cobro partido tiene que tener monto, o el total cobrado no cierra.
-    else if (filled.length !== payments.length) {
-      problems.amount = "Completá el monto de todos los cobros.";
-    }
+  if (locations.length === 0) {
+    return (
+      <div className="space-y-5 pb-8">
+        <AdminPageHeader
+          label="Caja"
+          title="Punto de venta"
+          description="El punto de venta necesita un local activo."
+        />
 
-    setFieldErrors(problems);
-    setSaleError(null);
+        <AdminEmptyState
+          title="Sin locales activos"
+          description="El punto de venta necesita un local activo para saber qué precios cobrar."
+        />
+      </div>
+    );
+  }
 
-    if (Object.keys(problems).length > 0) {
-      setSaleError("Revisá los datos marcados.");
-      return;
-    }
+  const contextBar = (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+      <span
+        aria-hidden="true"
+        className={`h-2 w-2 rounded-full ${
+          shiftState.shift ? "bg-status-ready-dot" : "bg-status-inactive-dot"
+        }`}
+      />
+      <p className="text-st-body text-ink-secondary">
+        {shiftState.shiftLoading ? (
+          "Leyendo la caja…"
+        ) : shiftState.shift ? (
+          <>
+            Caja abierta · fondo{" "}
+            <span className="font-mono tabular-nums">
+              {formatCurrency(shiftState.shift.openingAmount, currency)}
+            </span>
+          </>
+        ) : (
+          "Sin caja abierta en este local."
+        )}
+      </p>
 
-    setCharging(true);
-    try {
-      const response = await fetch("/api/admin/pos/sale", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          locationId,
-          customer: {
-            name: customer.name,
-            whatsapp: customer.whatsapp,
-            email: customer.email.trim() === "" ? null : customer.email,
-            // Punto 4: ya validados arriba; sin factura viajan los dos en null.
-            taxId: fiscal.ok ? fiscal.taxId : null,
-            legalName: fiscal.ok ? fiscal.legalName : null,
-          },
-          lines: draft.lines,
-          payments: filled.map((payment) => ({
-            method: payment.method,
-            currency: payment.currency,
-            amount: Number(payment.amount),
-            ...(payment.reference ? { reference: payment.reference } : {}),
-          })),
-          idempotencyKey: attemptKey,
-          // Fase 6 del rediseño de Caja: la terminal con la que se cobra. El servidor resuelve el turno de
-          // **esa** terminal y le firma el cobro (`Payment.shiftId`).
-          terminalId,
-          // Tarea 9.6: el código viaja al servidor, que es el que valida, calcula y consume el uso.
-          couponCode: appliedCoupon?.code ?? null,
-          // Tarea 9.7: el descuento manual viaja como forma y motivo; el monto lo calcula el servidor.
-          manualDiscount: manualDiscount
-            ? {
-                kind: manualDiscount.kind,
-                value: manualDiscount.value,
-                reason: manualDiscount.reason,
-              }
-            : null,
-        }),
-      });
+      {/* Tarea 1 del brief (2026-09-17): la caja se abre y se cierra en «Caja», no acá. */}
+      <Link
+        href="/admin/cash"
+        className="inline-flex min-h-11 items-center text-st-body font-semibold text-brand-primary underline"
+      >
+        {shiftState.shift ? "Ver la caja" : "Abrir la caja"}
+      </Link>
 
-      const body = (await response.json()) as {
-        data?: PosSaleSummary & {
-          payments?: { method: string; amount: number; currency: string | null }[];
-        };
-        error?: { message?: string; fields?: Record<string, string> };
-      };
+      {/*
+        Hallazgo N3 de la auditoría post-deploy (2026-09-23) — el pedido del menú que se paga al retirar: en
+        esta fase deja de ser una tarjeta permanente y queda como **acción secundaria compacta**. Su rediseño
+        funcional pertenece a la Fase 2.
+      */}
+      <PosOrderChargeAction
+        currencies={[settings.currencyCode, "USD"]}
+        currency={currency}
+        terminalId={terminalId}
+      />
+    </div>
+  );
 
-      if (!response.ok || !body.data) {
-        setFieldErrors(body.error?.fields ?? {});
-        setSaleError(body.error?.message ?? "No se pudo cobrar la venta.");
-        return;
+  const confirmation = sale.lastSale ? (
+    <PosSaleConfirmation
+      sale={sale.lastSale}
+      currency={currency}
+      receiptState={receiptState}
+      onSendReceipt={() => void sendReceipt()}
+      tickets={<PosTicketButtons sale={sale.lastSale} />}
+    />
+  ) : null;
+
+  const options = (
+    <PosSaleOptions
+      currency={currency}
+      saleSubtotal={sale.totals.subtotal}
+      couponApplied={
+        sale.coupon === null
+          ? null
+          : {
+              code: sale.coupon.code,
+              label: sale.coupon.label,
+              discount: sale.coupon.discount,
+            }
       }
-
-      setLastSale({
-        ...body.data,
-        // La hora del cobro queda fija acá: los tickets llevan la hora de la venta, no la de la
-        // impresión (el cajero puede imprimir el de cliente un rato después).
-        chargedAt: new Date().toISOString(),
-        // El recibo se arma con lo que se acaba de cobrar: el borrador se limpia enseguida.
-        receipt: {
-          customerName: customer.name,
-          lines: draft.lines.map((line) => ({
-            name: line.name,
-            quantity: line.quantity,
-            unitPrice: line.unitPrice,
-            lineTotal: line.unitPrice * line.quantity,
-          })),
-          subtotal: totals.subtotal,
-          packagingAmount: totals.packagingAmount,
-          payments: (body.data.payments ?? []).map((payment) => ({
-            methodLabel: PAYMENT_METHOD_TYPE_LABELS[payment.method as keyof typeof PAYMENT_METHOD_TYPE_LABELS],
-            amount: payment.amount,
-            currency: payment.currency,
-          })),
-        },
-      });
-      setDraft(createPosDraft(locationId));
-      setCustomer({ name: "", whatsapp: "", email: "", fiscal: { ...EMPTY_POS_FISCAL_DRAFT } });
-      setPayments([{ id: "pay_1", method: "cash", currency: settings.currencyCode, amount: "" }]);
-      // La venta se cobró: el cupón ya se consumió y la que venga empieza sin promo ni descuento.
-      setCoupon(null);
-      setCouponError(null);
-      setManualDiscount(null);
-      // La operación se resolvió (cobrada o reconocida): la venta que venga es otra y necesita su clave.
-      renewAttemptKey();
-    } catch {
-      setSaleError("No se pudo cobrar: revisá la conexión y reintentá.");
-    } finally {
-      setCharging(false);
-    }
-  };
+      couponStale={sale.couponStale}
+      couponBusy={sale.couponBusy}
+      couponError={sale.couponError}
+      onApplyCoupon={(code) => void sale.applyCoupon(code)}
+      onRemoveCoupon={sale.removeCoupon}
+      canDiscount={canDiscount}
+      manualDiscount={sale.manualDiscount}
+      onChangeManualDiscount={sale.setManualDiscount}
+      holdsCount={holds.length}
+      holds={holds}
+      holdsFull={holdsFull}
+      saleInProgress={draft.lines.length > 0}
+      locationId={locationId}
+      onHold={sale.hold}
+      onResume={resumeHeldSale}
+      onDiscard={(heldSale) => discard(heldSale.id)}
+    />
+  );
 
   return (
     <div className="space-y-5 pb-8">
@@ -671,324 +393,60 @@ export default function PosClient({
         description="Armá la venta del mostrador con el catálogo del local."
       />
 
-      {locations.length === 0 ? null : (
-        <section className="space-y-3" aria-label="Caja">
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-            <span
-              aria-hidden="true"
-              className={`h-2 w-2 rounded-full ${
-                shift ? "bg-status-ready-dot" : "bg-status-inactive-dot"
-              }`}
-            />
-            <p className="text-st-body text-ink-secondary">
-              {shiftLoading ? (
-                "Leyendo la caja…"
-              ) : shift ? (
-                <>
-                  Caja abierta · fondo{" "}
-                  <span className="font-mono tabular-nums">
-                    {formatCurrency(shift.openingAmount, currency)}
-                  </span>
-                </>
-              ) : (
-                "Sin caja abierta en este local."
-              )}
-            </p>
-
-            {/* Tarea 1 del brief (2026-09-17): la caja se abre y se cierra en «Caja», no acá. */}
-            <Link
-              href="/admin/cash"
-              className="inline-flex min-h-11 items-center text-st-body font-semibold text-brand-primary underline"
-            >
-              {shift ? "Ver la caja" : "Abrir la caja"}
-            </Link>
-          </div>
-        </section>
-      )}
-
-      {locations.length === 0 ? (
-        <AdminEmptyState
-          title="Sin locales activos"
-          description="El punto de venta necesita un local activo para saber qué precios cobrar."
-        />
-      ) : (
-        <div className="grid gap-5 lg:grid-cols-[1.6fr_1fr]">
-          {/*
-            `min-w-0`: sin eso la columna del catálogo se estira con su contenido (la fila de chips con
-            scroll horizontal la dejaba más ancha que la pantalla y aparecía scroll horizontal a 375 px).
-          */}
-          <div className="min-w-0 space-y-4">
-            <Select
-              label="Local"
-              value={locationId}
-              onChange={(event) => setLocationId(event.target.value)}
-              options={locations.map((location) => ({ value: location.id, label: location.name }))}
-            />
-
-            {/*
-              Fase 6 del rediseño de Caja (2026-09-23) — con más de una terminal en el local, el cajero
-              confirma en qué POS está: cada venta se firma con el turno de esa estación (y con dos cajas
-              abiertas, cobrar «en la del local» no existiría). Con una sola no se dibuja: no hay nada que
-              elegir y el POS la hereda.
-            */}
-            {terminals.length > 1 ? (
-              <Select
-                label="Terminal"
-                value={terminalId ?? ""}
-                onChange={(event) => setTerminalId(event.target.value)}
-                options={terminals.map((terminal) => ({
-                  value: terminal.id,
-                  label: terminal.label,
-                }))}
-              />
-            ) : null}
-
-            <PosCatalogGrid
-              products={products}
-              categories={catalogCategories}
-              query={query}
-              onQueryChange={setQuery}
-              activeCategoryId={activeCategoryId}
-              onCategorySelect={setActiveCategoryId}
-              loading={loading}
-              loadError={loadError}
-              onRetry={() => setReloadKey((key) => key + 1)}
-              currency={currency}
-              onAdd={addProduct}
-            />
-
-            {/*
-              Hallazgo N3 de la auditoría post-deploy (2026-09-23) — el pedido del menú que se paga al
-              retirar no tenía forma de cobrarse desde el panel, y sin cobro la factura era imposible
-              (`emit-invoice` corta con 409). Las monedas son las mismas de las filas de cobro.
-            */}
-            <PosOrderChargePanel
-              currencies={[settings.currencyCode, "USD"]}
-              currency={currency}
-              terminalId={terminalId}
-            />
-          </div>
-
-          <section
-            className="h-fit space-y-3 rounded-stitch-xl border border-line-subtle bg-surface-card p-4"
-            aria-label="Venta en curso"
-          >
-            <div className="flex items-baseline justify-between">
-              <h2 className="text-st-h2 text-ink">Venta en curso</h2>
-              <p className="text-st-caption font-semibold uppercase tracking-wide text-ink-secondary">
-                {draft.lines.length === 0
-                  ? "Sin productos"
-                  : `${draft.lines.length} ${draft.lines.length === 1 ? "producto" : "productos"}`}
-              </p>
-            </div>
-
-            <PosSaleLines
-              lines={draft.lines}
-              currency={currency}
-              onChangeQuantity={changeLineQuantity}
-              onRemove={removeSaleLine}
-            />
-
-            <dl className="space-y-1 border-t border-line-subtle pt-3 text-st-body">
-              <div className="flex items-baseline justify-between">
-                <dt className="text-ink-secondary">Subtotal</dt>
-                <dd className="font-mono tabular-nums text-ink">{formatCurrency(totals.subtotal, currency)}</dd>
-              </div>
-              {totals.packagingAmount > 0 ? (
-                <div className="flex items-baseline justify-between">
-                  <dt className="text-ink-secondary">Empaque</dt>
-                  <dd className="font-mono tabular-nums text-ink">
-                    {formatCurrency(totals.packagingAmount, currency)}
-                  </dd>
-                </div>
-              ) : null}
-              {appliedCoupon ? (
-                <div className="flex items-baseline justify-between">
-                  <dt className="text-ink-secondary">
-                    Promo <span className="font-mono">{appliedCoupon.code}</span>
-                  </dt>
-                  <dd className="font-mono tabular-nums text-brand-primary">
-                    {`−${formatCurrency(appliedCoupon.discount, currency)}`}
-                  </dd>
-                </div>
-              ) : null}
-              <div className="flex items-baseline justify-between">
-                <dt className="font-medium text-ink">Total</dt>
-                <dd className="font-mono text-st-display font-bold tabular-nums text-brand-primary" aria-live="polite">
-                  {formatCurrency(totals.total, currency)}
-                </dd>
-              </div>
-            </dl>
-
-            {fieldErrors.lines ? (
-              <p className="text-st-body font-medium text-status-sla-text">{fieldErrors.lines}</p>
-            ) : null}
-
-            <div className="space-y-3 border-t border-line-subtle pt-3">
-              <PosCustomerFields
-                customer={customer}
-                setCustomer={setCustomer}
-                fieldErrors={fieldErrors}
-              />
-
-              <PosPaymentRows
-                payments={payments}
-                setPayments={setPayments}
-                fieldErrors={fieldErrors}
-                currencyCode={settings.currencyCode}
-                currency={currency}
-                total={totals.total}
-                usdExchangeRate={settings.usdExchangeRate}
-              />
-
-              {/* Bloque 4: partir el cobro entre medios (efectivo + transferencia, dos tarjetas). */}              <Button
-                type="button"
-                variant="outline"
-                className="min-h-11"
-                onClick={() =>
-                  setPayments((current) => [
-                    ...current,
-                    {
-                      id: `pay_${current.length + 1}_${Date.now()}`,
-                      method: "transfer",
-                      currency: settings.currencyCode,
-                      amount: "",
-                    },
-                  ])
-                }
-              >
-                Partir el cobro
-              </Button>
-
-              {payments.length > 1 ? (
-                <p className="text-st-body text-ink-secondary">
-                  Cobrado{" "}
-                  <span className="font-mono tabular-nums text-ink">
-                    {formatCurrency(paidTotal, currency)}
-                  </span>{" "}
-                  de <span className="font-mono tabular-nums">{formatCurrency(totals.total, currency)}</span>
-                  . En un cobro partido no hay vuelto.
-                </p>
-              ) : null}
-
-              {/* Tarea 9.6: el cupón del cliente, cotizado por el servidor antes de cobrar. */}
-              <PosCouponPanel
-                applied={
-                  appliedCoupon
-                    ? {
-                        code: appliedCoupon.code,
-                        label: appliedCoupon.label,
-                        discount: appliedCoupon.discount,
-                      }
-                    : null
-                }
-                stale={coupon !== null && appliedCoupon === null}
-                busy={couponBusy}
-                error={couponError}
-                currency={currency}
-                onApply={(code) => void applyCoupon(code)}
-                onRemove={() => {
-                  setCoupon(null);
-                  setCouponError(null);
-                }}
-              />
-
-              {/* Tarea 9.7: el descuento manual, solo para quien puede darlo (owner o manager). */}
-              {canDiscount ? (
-                <PosDiscountPanel
-                  subtotal={totals.subtotal}
-                  currency={currency}
-                  applied={manualDiscount}
-                  onChange={setManualDiscount}
-                />
-              ) : null}
-
-              {/*
-                Bloque 12.3/12.4 del roadmap del POS (Fase 2): el cobro, con el aviso de caja cerrada, el
-                de **sin conexión** (con el botón bloqueado: un cobro que no se registra es un pedido
-                perdido) y el de la venta recuperada del dispositivo.
-              */}
-              <PosChargePanel
-                needsOpenShift={!shift && !shiftLoading}
-                canCharge={Boolean(shift)}
-                blockedReason={shiftOverdue ? CLOSE_SHIFT_FIRST_MESSAGE : null}
-                total={totals.total}
-                currency={currency}
-                charging={charging}
-                saleError={saleError}
-                restoredSale={draftRestored}
-                onCharge={() => void charge()}
-              />
-
-              {/*
-                Tareas 9.4/9.5 del roadmap del POS (Fase 2): dejar la venta a un lado y retomarla. Está al
-                lado del cobro —donde el cajero decide— y no en otra pantalla: la espera aparece ahí mismo.
-              */}
-              <PosHoldsPanel
-                locationId={locationId}
-                holds={holds}
-                full={holdsFull}
-                saleInProgress={draft.lines.length > 0}
-                currency={currency}
-                onHold={holdCurrentSale}
-                onResume={resumeHeldSale}
-                onDiscard={(heldSale) => discard(heldSale.id)}
-              />
-
-              {lastSale ? (
-                <div
-                  role="status"
-                  className="rounded-stitch-lg border border-status-ready-border bg-status-ready-bg px-3 py-2 text-st-body text-status-ready-text"
-                >
-                  Venta <span className="font-mono">{lastSale.orderNumber}</span> cobrada por <span className="font-mono">{formatCurrency(lastSale.total, currency)}</span>
-                  {lastSale.change !== null && lastSale.change > 0
-                    ? ` · Cambio ${formatCurrency(lastSale.change, currency)}`
-                    : " · Sin cambio"}
-
-                  {/* Tarea 11 del brief (2026-09-17): el reintento de un cobro que sí llegó al servidor.
-                      Se dice con todas las letras porque lo que viene después es volver a cobrar. */}
-                  {lastSale.reused ? (
-                    <p className="mt-1 font-semibold">
-                      Esa venta ya estaba registrada con esta clave: no se cobró de nuevo.
-                    </p>
-                  ) : null}
-
-                  <div className="mt-2 flex flex-wrap items-center gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="min-h-11"
-                      disabled={receiptState === "busy"}
-                      onClick={() => void sendReceipt()}
-                    >
-                      {receiptState === "busy" ? "Generando…" : "Enviar recibo"}
-                    </Button>
-                    {receiptState === "done" ? (
-                      <span className="text-st-body">Recibo listo para enviar o imprimir.</span>
-                    ) : null}
-                    {receiptState === "error" ? (
-                      <span className="text-st-body font-medium text-status-sla-text">
-                        No se pudo generar el recibo en este dispositivo.
-                      </span>
-                    ) : null}
-                    {/*
-                      Bloque 10.1/10.2 del roadmap del POS (Fase 2) — los dos papeles de la venta:
-                      el de cocina (sin importes) y el del cliente (el comprobante con precios, total
-                      y con qué pagó). Se imprimen con la hoja del sistema, en texto plano: sin
-                      dependencia ni impresora de red, que es la decisión para este bloque.
-                    */}
-                    <PosTicketButtons sale={lastSale} />
-                  </div>
-                </div>
-              ) : null}
-            </div>
-          </section>
-        </div>
-      )}
+      <PosWorkspace
+        contextBar={contextBar}
+        catalog={{
+          locationId,
+          locations,
+          onLocationChange: catalog.setLocationId,
+          terminals: catalog.terminals,
+          terminalId,
+          onTerminalChange: catalog.setTerminalId,
+          products: catalog.products,
+          categories: catalog.categories,
+          query: catalog.query,
+          onQueryChange: catalog.setQuery,
+          activeCategoryId: catalog.activeCategoryId,
+          onCategorySelect: catalog.setActiveCategoryId,
+          loading: catalog.loading,
+          loadError: catalog.loadError,
+          onRetry: catalog.retryCatalog,
+          currency,
+          onAdd: addProduct,
+        }}
+        sale={{
+          lines: draft.lines,
+          changeQuantity: changeLineQuantity,
+          removeLine: removeSaleLine,
+          totals: sale.totals,
+          appliedCoupon: sale.coupon,
+          manualDiscountAmount: sale.manualDiscount?.amount ?? 0,
+          currency,
+          customer,
+          setCustomer,
+          payments: sale.payments,
+          setPayments: sale.setPayments,
+          fieldErrors: sale.fieldErrors,
+          currencyCode: settings.currencyCode,
+          usdExchangeRate: settings.usdExchangeRate,
+          addPaymentRow: sale.addPaymentRow,
+          removePaymentRow: sale.removePaymentRow,
+          canCharge: shiftState.canCharge,
+          needsOpenShift: shiftState.needsOpenShift,
+          blockedReason: shiftState.blockedReason,
+          total: sale.totals.total,
+          charging: sale.charging,
+          saleError: sale.saleError,
+          restoredSale: draftRestored,
+          onCharge: () => void sale.charge(),
+          options,
+          confirmation,
+        }}
+      />
 
       {/*
-        El selector de modificadores del mostrador: se monta inline (no en un portal) para heredar el
-        alcance oscuro del shell del panel. Los datos vienen del catálogo y la regla, del dominio.
+        El selector de modificadores del mostrador: se monta inline (no en un portal) para heredar el alcance
+        oscuro del shell del panel. Los datos vienen del catálogo y la regla, del dominio.
       */}
       <PosModifierDialog
         product={modifierProduct}

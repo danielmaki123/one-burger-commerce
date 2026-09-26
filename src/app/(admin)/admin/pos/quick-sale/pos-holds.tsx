@@ -15,20 +15,24 @@ import { Button } from "@/shared/ui/button";
 import { Modal } from "@/shared/ui/modal";
 
 /**
- * Tareas 9.4 y 9.5 del roadmap del POS (Fase 2) — «Guardar en espera» y «Retomar» en pantalla.
+ * Tareas 9.4 y 9.5 del roadmap del POS (Fase 2) — **«En espera»** en la venta rápida.
  *
  * El mostrador atiende de a uno y el cliente no siempre está listo: cuando se va a buscar la billetera o
  * vuelve en diez minutos, el cajero **no puede** dejar la pantalla ocupada. Acá se deja la venta a un lado y
  * se la retoma completa (el trabajo de guardar y leer vive en `use-pos-holds` y en el dominio).
  *
- * Tres decisiones de la pantalla que no son obvias:
+ * **Qué cambió en la Fase 1**: el bloque permanente se fue. Sin nada que revisar, «En espera» no ocupa la
+ * venta; con algo, la capa se abre desde su disparador. El contenido (guardar, retomar, descartar) es el
+ * mismo de siempre.
+ *
+ * Tres decisiones que no son obvias:
  *
  * 1. **Una cosa por vez.** Con una venta armada no se puede retomar otra (se perdería la que está en
  *    curso): el botón queda bloqueado y se dice por qué. El camino es el real —cobrar o dejar en espera—.
  * 2. **Descartar pregunta.** Es lo único que no se deshace: se pierde la venta de un cliente que está ahí
  *    parado. Se confirma en el `Modal` del sistema, no con un click accidental.
- * 3. **La lista está donde está la venta**, no en otra pantalla: el cajero deja la venta en espera y la ve
- *    aparecer ahí mismo para retomarla cuando el cliente vuelve.
+ * 3. **Guardar sigue estando a un toque** dentro de la capa: dejar la venta en espera es una acción del
+ *    momento, no algo que se descubra abriendo un menú.
  */
 
 type PosHoldsPanelProps = {
@@ -62,9 +66,13 @@ export default function PosHoldsPanel({
   const canResume = !saleInProgress;
 
   return (
-    <section className="space-y-2 border-t border-line-subtle pt-3" aria-label="Ventas en espera">
+    <section className="space-y-2" aria-label="Ventas en espera">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-st-h3 text-ink">En espera</h3>
+        <p className="text-st-body text-ink-secondary">
+          {holds.length === 0
+            ? "No hay ventas en espera."
+            : `${holds.length} ${holds.length === 1 ? "venta esperando" : "ventas esperando"}.`}
+        </p>
         <Button
           type="button"
           variant="outline"
@@ -86,9 +94,7 @@ export default function PosHoldsPanel({
         </p>
       )}
 
-      {holds.length === 0 ? (
-        <p className="text-st-body text-ink-secondary">No hay ventas en espera.</p>
-      ) : (
+      {holds.length > 0 ? (
         <ul className="space-y-2" aria-label="Ventas en espera">
           {holds.map((hold) => {
             const title = posHoldTitle(hold);
@@ -97,10 +103,7 @@ export default function PosHoldsPanel({
             const total = posDraftTotals({ locationId, lines: hold.lines }).total;
 
             return (
-              <li
-                key={hold.id}
-                className="space-y-2 rounded-stitch-md border border-line-subtle p-3"
-              >
+              <li key={hold.id} className="space-y-2 rounded-stitch-md border border-line-subtle p-3">
                 <div className="flex items-baseline justify-between gap-2">
                   <p className="truncate text-st-body font-semibold text-ink">{title}</p>
                   <p className="font-mono text-st-body font-bold tabular-nums text-ink">
@@ -139,7 +142,7 @@ export default function PosHoldsPanel({
             );
           })}
         </ul>
-      )}
+      ) : null}
 
       {saleInProgress && holds.length > 0 ? (
         <p className="text-st-body text-ink-secondary">

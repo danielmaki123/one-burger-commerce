@@ -40,46 +40,73 @@ async function addFirstProduct(page: Page) {
  * o después del caso que abre y cierra.
  */
 async function ensureOpenShift(page: Page) {
-  const abierta = await page.evaluate(async () => {
+  // Tarea 1 del brief (2026-09-17): el POS ya no abre la caja —eso pasó a «Caja»—, así que el arnés la abre
+  // por la API (es lo que hace el cajero en la otra pantalla).
+  //
+  // Fase 6 del rediseño de Caja: el POS hereda la **terminal** del local (la primera activa) y lee la caja de
+  // esa estación. Si el arnés dejó una caja abierta «sin terminal» en un local que **tiene** terminales
+  // cargadas, el POS no la ve y el cajero no puede cobrar. El estado se resuelve con la misma regla que la
+  // pantalla, así que la suite es idempotente y no depende del orden de sus casos.
+  const resuelto = await page.evaluate(async () => {
     const locationsResponse = await fetch("/api/admin/locations", { cache: "no-store" });
     const locations = ((await locationsResponse.json()) as {
       data: Array<{ id: string; posEnabled: boolean }>;
     }).data.filter((location) => location.posEnabled);
 
-    for (const location of locations) {
-      const shiftResponse = await fetch(
-        `/api/admin/pos/shift?locationId=${encodeURIComponent(location.id)}`,
+    const shiftOf = async (locationId: string, terminalId: string | null) => {
+      const response = await fetch(
+        `/api/admin/pos/shift?locationId=${encodeURIComponent(locationId)}${terminalId ? `&terminalId=${encodeURIComponent(terminalId)}` : ""}`,
         { cache: "no-store" },
       );
-      const shift = ((await shiftResponse.json()) as { data?: { id: string } | null }).data;
-      if (shift) return true;
+
+      return ((await response.json()) as { data?: { id: string } | null }).data ?? null;
+    };
+
+    const openShift = async (locationId: string, terminalId: string | null) =>
+      (
+        await fetch("/api/admin/pos/shift/open", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            locationId,
+            ...(terminalId ? { terminalId } : {}),
+            counts: [],
+          }),
+        })
+      ).ok;
+
+    for (const location of locations) {
+      const terminalsResponse = await fetch(
+        `/api/admin/cash/terminals?locationId=${encodeURIComponent(location.id)}`,
+        { cache: "no-store" },
+      );
+      const terminalsBody = terminalsResponse.ok
+        ? ((await terminalsResponse.json()) as {
+            data?: { terminals?: unknown } | Array<{ id: string; isActive: boolean }>;
+          }).data
+        : undefined;
+      // La ruta devuelve `{ terminals }`; el doble del contrato acepta también un arreglo suelto.
+      const terminalsRaw = Array.isArray(terminalsBody) ? terminalsBody : terminalsBody?.terminals;
+      const terminals = (Array.isArray(terminalsRaw) ? terminalsRaw : []).filter(
+        (terminal) => terminal.isActive,
+      );
+
+      if (terminals.length > 0) {
+        const terminalId = terminals[0]!.id;
+        if (await shiftOf(location.id, terminalId)) return true;
+        if (await openShift(location.id, terminalId)) return true;
+        continue;
+      }
+
+      if (await shiftOf(location.id, null)) return true;
+      if (await openShift(location.id, null)) return true;
     }
 
     return false;
   });
 
-  if (abierta) return;
-
-  // Tarea 1 del brief (2026-09-17): el POS ya no abre la caja —eso pasó a «Caja»—, así que el
-  // arnés la abre por la API (es lo que hace el cajero en la otra pantalla).
-  await page.evaluate(async () => {
-    const locationsResponse = await fetch("/api/admin/locations", { cache: "no-store" });
-    const locations = ((await locationsResponse.json()) as {
-      data: Array<{ id: string; posEnabled: boolean }>;
-    }).data.filter((location) => location.posEnabled);
-
-    for (const location of locations) {
-      const created = await fetch("/api/admin/pos/shift/open", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ locationId: location.id, counts: [] }),
-      });
-
-      if (created.ok) return;
-    }
-  });
-
   await page.reload();
+  expect(resuelto, "el arnés tiene que poder dejar una caja abierta para el POS").toBe(true);
   await expect(page.getByText(/Caja abierta · fondo/)).toBeVisible();
 }
 
@@ -133,22 +160,30 @@ test.describe("punto de venta", () => {
       const boton = await agregar.boundingBox();
       expect(boton!.height).toBeGreaterThanOrEqual(44);
 
-      const venta = page.getByRole("region", { name: "Venta en curso" });
-      await expect(venta.getByText("Agregá productos del catálogo para armar la venta.")).toBeVisible();
+      // La Fase 1 (`SCREEN-POS-QUICK-SALE-001`): en el celular el primer viewport es el **catálogo** y la
+      // venta vive en un sheet que se abre desde la barra inferior. El resumen de la barra ya dice el estado.
+      const resumen = page.getByRole("region", { name: "Resumen de la venta" });
+      await expect(resumen).toContainText("Sin productos");
 
       await agregar.click();
 
-      await expect(
-        venta.getByText("Agregá productos del catálogo para armar la venta."),
-      ).toBeHidden();
+      await expect(resumen).toContainText("1 producto");
+      await expect(resumen).toContainText("C$");
+
+      // `Ver venta` abre el ticket (el sheet de checkout) con las líneas, el desglose y el cobro.
+      await page.getByRole("button", { name: /^Ver venta · C\$/ }).click();
+      const venta = page.getByRole("dialog", { name: "Venta en curso" });
+      await expect(venta).toBeVisible();
+
       // El desglose muestra subtotal, empaque (cuando lo hay) y el total con la moneda configurada.
       // `exact: true` porque "Total" también matchea "Subtotal" (Playwright no distingue mayúsculas).
       await expect(venta.getByText("Subtotal")).toBeVisible();
       await expect(venta.getByText("Total", { exact: true })).toBeVisible();
-      await expect(venta.locator("dd[aria-live='polite']")).toContainText("C$");
+      await expect(venta.getByTestId("pos-sale-total")).toContainText("C$");
 
       // El cobro existe (TASK-303b) y mide el mínimo táctil.
-      const cobrar = page.getByRole("button", { name: /^Cobrar / });
+      const cobrar = venta.getByRole("button", { name: /^Cobrar C\$/ });
+      await expect(cobrar).toBeVisible();
       const botonCobrar = await cobrar.boundingBox();
       expect(botonCobrar!.height).toBeGreaterThanOrEqual(44);
 
@@ -163,7 +198,7 @@ test.describe("punto de venta", () => {
       await page.goto("/admin/pos");
 
       const catalogo = page.getByRole("region", { name: "Catálogo" });
-      const venta = page.getByRole("region", { name: "Venta en curso" });
+      const venta = page.getByRole("dialog", { name: "Venta en curso" });
 
       await expect(catalogo).toBeVisible();
       await expect(venta).toBeVisible();
@@ -198,7 +233,7 @@ test.describe("punto de venta", () => {
     });
     await page.reload();
 
-    const venta = page.getByRole("region", { name: "Venta en curso" });
+    const venta = page.getByRole("dialog", { name: "Venta en curso" });
     const agregar = page.getByRole("button", { name: /^Agregar .+ a la venta$/ }).first();
     await expect(agregar).toBeVisible();
     const nombre = (await agregar.getAttribute("aria-label"))!
@@ -207,6 +242,9 @@ test.describe("punto de venta", () => {
     await agregar.click();
     await venta.getByLabel("Nombre del cliente").fill("Espera E2E");
 
+    // La Fase 1: «En espera» dejó de ser un bloque permanente y vive en su capa, con la cuenta en el
+    // disparador. Se abre como lo hace el cajero.
+    await venta.getByRole("button", { name: /^En espera \(/ }).click();
     const espera = venta.getByRole("region", { name: "Ventas en espera" });
     const guardar = espera.getByRole("button", { name: "Guardar en espera" });
     const cajaGuardar = await guardar.boundingBox();
@@ -215,15 +253,14 @@ test.describe("punto de venta", () => {
     await guardar.click();
 
     // El mostrador queda libre para el próximo cliente y la venta espera con lo que llevaba.
-    await expect(
-      venta.getByText("Agregá productos del catálogo para armar la venta."),
-    ).toBeVisible();
+    await expect(venta.getByText("Sin productos")).toBeVisible();
     await expect(venta.getByRole("list", { name: "Ventas en espera" })).toBeVisible();
     await expect(venta.getByText("Espera E2E")).toBeVisible();
-    await expect(venta.getByText(/^1 producto/)).toBeVisible();
+    await expect(venta.getByText(/^1 producto/).first()).toBeVisible();
 
     // Una recarga no la pierde: la espera está en el dispositivo, no en la memoria de la pantalla.
     await page.reload();
+    await page.getByRole("dialog", { name: "Venta en curso" }).getByRole("button", { name: /^En espera \(/ }).click();
     await expect(page.getByRole("list", { name: "Ventas en espera" })).toBeVisible();
     await expect(page.getByText("Espera E2E")).toBeVisible();
 
@@ -232,14 +269,16 @@ test.describe("punto de venta", () => {
     await expect(page.getByRole("list", { name: "Ventas en espera" })).toBeHidden();
     await expect(page.getByLabel("Nombre del cliente")).toHaveValue("Espera E2E");
     await expect(
-      page.getByRole("region", { name: "Venta en curso" }).getByText(nombre),
+      page.getByRole("dialog", { name: "Venta en curso" }).getByText(nombre),
     ).toBeVisible();
-    await expect(page.getByRole("button", { name: /^Cobrar / })).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Cobrar C\$/ })).toBeVisible();
 
     // Descartar pregunta antes, y deja el mostrador limpio (el caso no ensucia la terminal del siguiente).
     await page.getByRole("button", { name: "Guardar en espera" }).click();
     await page.getByRole("button", { name: "Descartar la venta de Espera E2E" }).click();
-    const dialogo = page.getByRole("dialog");
+    // Hay dos `<dialog>` en pantalla (el panel de venta y esta confirmación): se busca la confirmación por su
+    // nombre, que es el del título del `Modal`.
+    const dialogo = page.getByRole("dialog", { name: "Descartar la venta en espera" });
     await expect(dialogo).toBeVisible();
 
     // El diálogo sale **centrado** en la pantalla: el modo modal del navegador centra con `margin: auto`
@@ -303,14 +342,16 @@ test.describe("punto de venta", () => {
       await expect(agregar).toBeVisible();
       await agregar.click();
 
-      const totalSinPromo = (await page.getByRole("button", { name: /^Cobrar / }).textContent())!;
+      const totalSinPromo = (await page.getByRole("button", { name: /^Cobrar C\$/ }).textContent())!;
 
+      // La promo vive detrás de su opción (Fase 1): se abre como lo hace el cajero.
+      await page.getByRole("button", { name: "Aplicar promo" }).click();
       await page.getByLabel("Código de promo (opcional)").fill(code);
       await page.getByRole("button", { name: "Aplicar", exact: true }).click();
 
       // La cotización se ve con su descripción y el total ya la tiene descontada.
-      await expect(page.getByText("10 % de descuento")).toBeVisible();
-      const totalConPromo = (await page.getByRole("button", { name: /^Cobrar / }).textContent())!;
+      await expect(page.getByText("10 % de descuento").first()).toBeVisible();
+      const totalConPromo = (await page.getByRole("button", { name: /^Cobrar C\$/ }).textContent())!;
       expect(totalConPromo).not.toBe(totalSinPromo);
 
       const aNumero = (etiqueta: string) => Number(etiqueta.replace(/[^\d.]/g, ""));
@@ -319,11 +360,11 @@ test.describe("punto de venta", () => {
       await expect(page.getByText(/^−C\$/).first()).toBeVisible();
 
       // Un código que no existe se dice sin tocar el total, y la promo se puede quitar.
-      await page.getByRole("button", { name: "Quitar", exact: true }).click();
+      await page.getByRole("button", { name: /^Quitar promo / }).click();
       await page.getByLabel("Código de promo (opcional)").fill("NOEXISTE");
       await page.getByRole("button", { name: "Aplicar", exact: true }).click();
       await expect(page.getByText("Ese código no existe.")).toBeVisible();
-      await expect(page.getByRole("button", { name: /^Cobrar / })).toHaveText(totalSinPromo);
+      await expect(page.getByRole("button", { name: /^Cobrar C\$/ })).toHaveText(totalSinPromo);
     } finally {
       if (created.id) {
         await page.evaluate(async (promotionId) => {
@@ -355,24 +396,26 @@ test.describe("punto de venta", () => {
     await expect(agregar).toBeVisible();
     await agregar.click();
 
-    const totalSinDescuento = (await page.getByRole("button", { name: /^Cobrar / }).textContent())!;
+    const totalSinDescuento = (await page.getByRole("button", { name: /^Cobrar C\$/ }).textContent())!;
 
+    // El descuento manual vive detrás de su opción (Fase 1): se abre como lo hace el dueño.
+    await page.getByRole("button", { name: "Aplicar descuento" }).click();
     const descuento = page.getByRole("region", { name: "Descuento manual" });
     await expect(descuento).toBeVisible();
-    await page.getByLabel("Descuento (%)").fill("10");
-    await page.getByLabel("Motivo del descuento").fill("Cliente de siempre");
-    await page.getByRole("button", { name: "Aplicar descuento" }).click();
+    await descuento.getByLabel("Descuento (%)").fill("10");
+    await descuento.getByLabel("Motivo del descuento").fill("Cliente de siempre");
+    await descuento.getByRole("button", { name: "Aplicar descuento" }).click();
 
-    await expect(page.getByText("Descuento manual · 10 %")).toBeVisible();
-    await expect(page.getByText("Cliente de siempre")).toBeVisible();
+    await expect(page.getByText("Descuento manual · 10 %").first()).toBeVisible();
+    await expect(page.getByText("Cliente de siempre").first()).toBeVisible();
 
-    const totalConDescuento = (await page.getByRole("button", { name: /^Cobrar / }).textContent())!;
+    const totalConDescuento = (await page.getByRole("button", { name: /^Cobrar C\$/ }).textContent())!;
     const aNumero = (etiqueta: string) => Number(etiqueta.replace(/[^\d.]/g, ""));
     expect(aNumero(totalConDescuento)).toBeLessThan(aNumero(totalSinDescuento));
 
     // El descuento se puede quitar: el total vuelve al de antes y la venta queda limpia.
-    await page.getByRole("button", { name: "Quitar descuento" }).click();
-    await expect(page.getByRole("button", { name: /^Cobrar / })).toHaveText(totalSinDescuento);
+    await page.getByRole("button", { name: "Quitar descuento manual" }).click();
+    await expect(page.getByRole("button", { name: /^Cobrar C\$/ })).toHaveText(totalSinDescuento);
     await page.getByRole("button", { name: /^Sacar / }).first().click();
   });
 
@@ -384,14 +427,14 @@ test.describe("punto de venta", () => {
     await addFirstProduct(page);
 
     // Se paga el doble del total mostrado, para que haya cambio que verificar.
-    const etiqueta = await page.getByRole("button", { name: /^Cobrar / }).textContent();
+    const etiqueta = await page.getByRole("button", { name: /^Cobrar C\$/ }).textContent();
     const total = Number((etiqueta ?? "").replace(/[^\d.]/g, ""));
     expect(total).toBeGreaterThan(0);
 
     await page.getByLabel("Nombre del cliente").fill("Cliente POS E2E");
     await page.getByLabel("Número del cliente").fill("88887777");
     await page.getByLabel("Con cuánto paga").fill(String(total * 2));
-    await page.getByRole("button", { name: /^Cobrar / }).click();
+    await page.getByRole("button", { name: /^Cobrar C\$/ }).click();
 
     const confirmacion = page.getByRole("status");
     await expect(confirmacion).toContainText("Venta P-");
@@ -471,7 +514,7 @@ test.describe("punto de venta", () => {
     await ensureOpenShift(page);
     await addFirstProduct(page);
 
-    const etiqueta = await page.getByRole("button", { name: /^Cobrar / }).textContent();
+    const etiqueta = await page.getByRole("button", { name: /^Cobrar C\$/ }).textContent();
     const total = Number((etiqueta ?? "").replace(/[^\d.]/g, ""));
     expect(total).toBeGreaterThan(0);
 
@@ -483,11 +526,11 @@ test.describe("punto de venta", () => {
     await page.getByLabel("Cliente pide factura con RUC").check();
     await page.getByLabel("RUC (mínimo 8 caracteres)").fill("J0310");
     await page.getByLabel("Razón social").fill("Distribuidora La Unión");
-    await page.getByRole("button", { name: /^Cobrar / }).click();
+    await page.getByRole("button", { name: /^Cobrar C\$/ }).click();
     await expect(page.getByText("Revisá los datos marcados.")).toBeVisible();
 
     await page.getByLabel("RUC (mínimo 8 caracteres)").fill("J0310000001");
-    await page.getByRole("button", { name: /^Cobrar / }).click();
+    await page.getByRole("button", { name: /^Cobrar C\$/ }).click();
 
     const confirmacion = page.getByRole("status");
     await expect(confirmacion).toContainText("Venta P-");
@@ -572,24 +615,27 @@ test.describe("punto de venta", () => {
     await ensureOpenShift(page);
     await addFirstProduct(page);
 
-    const venta = page.getByRole("region", { name: "Venta en curso" });
-    await expect(venta.getByText(/1 producto/)).toBeVisible();
+    // La venta armada, medida por el resumen de la venta (el conteo de líneas).
+    const resumenVenta = page.getByTestId("pos-sale-lines-count");
+    await expect(resumenVenta).toHaveText("1 producto");
 
     // 12.3: la recarga del navegador (corte de luz, F5 sin querer) no se lleva la venta armada.
     await page.reload();
     await expect(page.getByText(/Recuperamos la venta que estaba en curso/)).toBeVisible();
-    await expect(venta.getByText(/1 producto/)).toBeVisible();
+    await expect(resumenVenta).toHaveText("1 producto");
 
     // 12.4: sin red, el cobro se bloquea con el motivo escrito (un cobro que no se registra es un
     // pedido perdido) y la venta queda guardada en el dispositivo.
     await context.setOffline(true);
     await expect(page.getByText(/Sin conexión: el cobro no se va a registrar/)).toBeVisible();
-    await expect(page.getByRole("button", { name: /^Cobrar / })).toBeDisabled();
+    await expect(page.getByRole("button", { name: /^Cobrar C\$/ })).toBeDisabled();
 
-    // Y al volver la conexión se puede cobrar lo que quedó armado.
+    // Y al volver la conexión se puede cobrar lo que quedó armado. Se espera a que el aviso se **vaya**
+    // antes de mirar el botón: la transición de vuelta pasa por el mismo estado que la de ida, y el
+    // navegador no borra la clase `disabled` en el mismo frame en que vuelve `online`.
     await context.setOffline(false);
-    await expect(page.getByRole("button", { name: /^Cobrar / })).toBeEnabled();
     await expect(page.getByText(/Sin conexión: el cobro no se va a registrar/)).toBeHidden();
+    await expect(page.getByRole("button", { name: /^Cobrar C\$/ })).toBeEnabled();
   });
 
   test("cocina no entra al punto de venta (vuelve a comandas)", async ({ page }) => {
