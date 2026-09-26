@@ -149,17 +149,38 @@ en un **sheet** que se abre desde la barra inferior persistente.
 
 ## Estado de implementación (`SCREEN-POS-QUICK-SALE-001`)
 
-Entregado en la rama de la TASK, con test y capturas ([`pos-quick-sale-after-1280.png`](pos-quick-sale-after-1280.png),
-[`pos-quick-sale-after-768.png`](pos-quick-sale-after-768.png), [`pos-quick-sale-after-375.png`](pos-quick-sale-after-375.png)):
+**Cerrada y en `main`** (PR #62, `be4c051`), con los cuatro checks de CI en verde. **El deploy a producción
+está pendiente**: el `EASYPANEL_TOKEN` no está disponible en el entorno del agente (Stop Condition 6 del
+contrato de entrega) y el release no migra datos, así que no requiere backup. Roadmap al cerrar:
+
+```text
+POS Fase 1 — Venta rápida  ✅
+POS Fase 2 — pedidos existentes / pagos / bancos / USD / factura  →  la define el owner aparte
+```
+
+Entregado con test y capturas ([`pos-quick-sale-after-1280.png`](pos-quick-sale-after-1280.png),
+[`pos-quick-sale-after-768.png`](pos-quick-sale-after-768.png),
+[`pos-quick-sale-after-375.png`](pos-quick-sale-after-375.png),
+[`pos-quick-sale-sheet-375.png`](pos-quick-sale-sheet-375.png) y
+[`pos-quick-sale-scroll-1280.png`](pos-quick-sale-scroll-1280.png)):
 
 | Cambio | Evidencia |
 |---|---|
-| Workspace `CATÁLOGO \| VENTA` con el ticket `sticky` en desktop y en tablet | QA de navegador 1280/768 + E2E |
-| Barra inferior `N productos · Total · Ver venta` y sheet de checkout con foco atrapado y Esc | Test del sheet + QA 375 |
+| Workspace `CATÁLOGO \| VENTA` con el ticket **anclado al viewport** en escritorio | QA de navegador 1280 (con el catálogo scrolleado) + E2E |
+| Barra inferior `N productos · Total · Ver venta` y sheet de checkout (cerrado sin formulario, Escape, foco de vuelta) | Tests del workspace + QA 375 |
 | Progressive disclosure de correo/promo/factura/descuento/dividir pago/en espera | Tests de las opciones + E2E de promo y descuento |
-| `Cobrar pedido` compacto en diálogo (la tarjeta grande se elimina) | E2E del cobro de un pedido del menú |
+| `Cobrar pedido del menú` compacto en diálogo (la tarjeta grande se elimina) | E2E del cobro de un pedido del menú |
 | `En espera (N)` en vez del bloque permanente | E2E de esperas |
-| Reparto por responsabilidades (`quick-sale/`, `use-pos-catalog`, `use-pos-shift`, `use-pos-sale`) | `pos-client.tsx` baja de 1.005 a < 400 líneas |
+| Reparto por responsabilidades (`quick-sale/`, `use-pos-catalog`, `use-pos-shift`, `use-pos-sale`) | `pos-client.tsx` baja de **1.005 a 427** líneas |
+
+**Dos desvíos deliberados respecto del boceto de la TASK, medidos en el navegador** (y por qué):
+
+1. **El corte de dos paneles es `lg` (1024 px), no la tablet de 768**: a 768 px la barra lateral del panel
+   todavía ocupa 264 px y dos columnas dejaban las tarjetas de producto en ~110 px. La spec pide dos paneles
+   *solo si el ancho real lo soporta* y, si no, el patrón de celular antes que comprimir los controles.
+2. **El panel se ancla con `position: fixed` medido, no con `sticky`**: un `<dialog open>` con `sticky`
+   **no se pega** (medido en Chromium) y el `<dialog>` es la forma correcta frente a la ley que prohíbe el rol
+   de diálogo escrito a mano.
 
 ## Fuera de scope
 
