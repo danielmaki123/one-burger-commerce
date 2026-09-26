@@ -1,8 +1,14 @@
 # Spec de pantalla — POS / Venta rápida (`/admin/pos`)
 
-> **Plantilla**: [`TEMPLATE.md`](TEMPLATE.md). **Estado**: Fase 1 adoptada por `SCREEN-POS-QUICK-SALE-001` y
-> **corregida visual y contractualmente** por `SCREEN-POS-QUICK-SALE-001.1` (2026-09-26): la referencia anterior
-> queda **reemplazada** para composición, densidad y comportamiento responsive.
+> **Plantilla**: [`TEMPLATE.md`](TEMPLATE.md).
+>
+> **Estado: `SCREEN-POS-QUICK-SALE-001.1` desplegada y con QA autenticada de producción cerrada** (2026-09-26):
+> sobre `262962c`, sirviendo `build-20260926-195012`, con la QA en navegador real a los cuatro viewports del
+> contrato (`1366×768`, `1280×720`, `768×1024`, `375×812`) contra producción y sesión de admin. La Venta rápida
+> de la Fase 1 queda **completa**; la Fase 2 **no** se inició.
+>
+> **Corrección visual y contractual**: la referencia anterior queda **reemplazada** para composición, densidad y
+> comportamiento responsive.
 >
 > **Referencia de UX/layout/comportamiento**: [`pos-quick-sale-reference.html`](pos-quick-sale-reference.html)
 > (prototipo, **no** código productivo: se traduce a componentes reales, **no** se reinterpreta).
@@ -199,9 +205,10 @@ venta vive en un **sheet** que se abre desde la barra inferior persistente, al p
 | Caja: **estado** en la barra, **acción** en el checkout (`Abrir caja`; `Cierre pendiente → Cerrar caja`, que enlaza a Caja) | `pos-cash-action.test.tsx` + tests del workspace + E2E de caja |
 | `Cobrar pedido del menú` **eliminado** del POS (sin reemplazo: pertenece a Órdenes) | lint/typecheck sin referencias + spec § *Reuse audit* |
 | Ticket con **alto útil**: las líneas se llevan el espacio libre y el CTA queda anclado al pie | Tests del workspace + medición en los cuatro viewports |
-| Catálogo más **denso** (foto compacta, sin repetir la categoría de los chips, 3–4 columnas) | `pos-catalog-card.test.tsx` + capturas |
+| Catálogo más **denso** (foto compacta, sin repetir la categoría de los chips, **tres columnas** en escritorio y dos abajo de `lg`, como la referencia) | `pos-catalog-card.test.tsx` + capturas |
 | Scroll de página eliminado en operación normal; el scroll vive en el catálogo y en las líneas | QA de navegador: `1366×768`, `1280×720`, `768×1024`, `375×812` |
 | Guardrails nuevos (reuse-first, one canonical flow, reuse audit, reference fidelity, viewport contract) | `MODULE_ARCHITECTURE.md` §10.1–§10.3, `DESIGN_SYSTEM.md` §12, `TEMPLATE.md`, skills `screen-design` / `new-task` |
+| **Correcciones del QA de producción** (2026-09-26, sobre `262962c`): el catálogo ocupa **todo el alto útil** de su columna (antes quedaba a su alto natural, 496 px de 668), la grilla es de **tres columnas** (cuatro dejaba la tarjeta en 147 px y el nombre partido) y el CTA dice **`Cobrar C$…`** con su espacio (antes: `CobrarC$…`) | Medición en navegador + `pos-charge-panel.test.tsx` (con RED observado) |
 
 **Divergencias respecto de la referencia, decididas y medidas** (una divergencia material sin decisión sería
 Stop Condition; estas están justificadas por la propia spec aprobada, que permite el patrón mobile cuando dos
@@ -212,6 +219,9 @@ columnas comprometen la legibilidad):
 2. **El panel de escritorio se ancla con `position: fixed` medido, no con `sticky`**: un `<dialog open>` con
    `sticky` no se pega (medido en Chromium) y el `<dialog>` es la forma correcta frente a la ley que prohíbe el
    rol de diálogo escrito a mano.
+3. **La foto del producto mide 80 px fijos** (la referencia usa 84 px): la tarjeta real tiene el nombre en
+   dos renglones y el precio con `tabular-nums`, así que la proporción se ajustó para conservar la densidad
+   de la referencia sin cortar nombres reales.
 
 **Estado previo (Fase 1, `be4c051`, `build-20260926-170322`)**: cerrada y desplegada con los cuatro checks de
 CI verdes, `/api/health` con la versión nueva, `/api/readiness` `ready` y los dos smokes (7/7 y 6/6).

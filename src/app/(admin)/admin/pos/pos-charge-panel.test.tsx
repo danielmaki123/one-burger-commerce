@@ -49,6 +49,13 @@ describe("PosChargePanel", () => {
     expect(screen.getByRole("button", { name: /Cobrar/ }).textContent).toContain("145.00");
   });
 
+  it("el CTA separa la acción del monto (no dice `CobrarC$…`)", () => {
+    // Regresión visible en producción: el JSX se comía el espacio entre el texto y el `<span>` del monto.
+    renderPanel();
+
+    expect(screen.getByRole("button", { name: "Cobrar C$145.00" })).toBeTruthy();
+  });
+
   it("sin caja no se puede cobrar (y el motivo lo dice el bloque de caja)", () => {
     renderPanel({ canCharge: false });
 

@@ -311,15 +311,25 @@ export function PosWorkspace({
   const unitsCount = sale.lines.reduce((sum, line) => sum + line.quantity, 0);
 
   return (
-    <div className="flex flex-col gap-3 lg:h-[calc(100vh-13.5rem)] lg:min-h-[30rem]">
+    <div className="flex flex-col gap-3 lg:box-border lg:h-[calc(100dvh-6.25rem)] lg:overflow-hidden">
       <PosToolbar catalog={catalog} cash={cash} />
 
-      <div className="grid min-h-0 gap-3 max-lg:block lg:grid-cols-[minmax(0,1fr)_minmax(340px,25rem)]">
+      {/*
+        El segundo renglón se lleva **todo el alto que sobra**: la barra operativa mide lo que mide y el resto
+        es catálogo y venta.
+
+        El alto del workspace es `100dvh` menos el chrome real del admin (28 px de padding arriba y abajo más
+        los 44 px de la barra con su separación): con `100vh` a secas el pie del viewport se pasaba ~48 px y
+        el ticket terminaba fuera de la pantalla (medido a `1366×768`). `lg:overflow-hidden` es la red: si una
+        fila se niega a encogerse, se recorta acá y el catálogo sigue scrolleando adentro, en vez de empujar
+        el `Cobrar C$…` fuera de la vista.
+      */}
+      <div className="grid min-h-0 gap-3 max-lg:block lg:grow lg:grid-cols-[minmax(0,1fr)_minmax(340px,25rem)] lg:grid-rows-1">
         {/*
           `min-w-0`: sin eso la columna del catálogo se estira con su contenido (la fila de chips con scroll
           horizontal la dejaba más ancha que la pantalla y aparecía scroll horizontal a 375 px).
         */}
-        <div className="min-h-0 min-w-0">
+        <div className="min-h-0 min-w-0 max-lg:h-full">
           <PosCatalogGrid
             products={catalog.products}
             categories={catalog.categories}
