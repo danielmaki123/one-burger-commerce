@@ -213,16 +213,25 @@ Estado actual del repo:
 
 - El contenedor aplica `prisma migrate deploy` al arrancar, con reintentos, **antes** de servir tráfico.
 - CI (`.github/workflows/publish-ghcr.yml`) aplica las migraciones sobre una base vacía y falla si hay drift entre `prisma/migrations` y `prisma/schema.prisma`.
-- **Backup programado: configurado y probado el 2026-09-12.** El servicio `oneburguer-postgres` tiene un
-  respaldo diario en el panel (sección *Backups* del servicio): cron `0 9 * * *`, destino **Local Disk**
-  (`/etc/easypanel/backups`) y carpeta `oneburguer`.
+- **Backup programado: la configuración existe, el archivo no. `A-57` sigue ABIERTO.** El servicio
+  `oneburguer-postgres` tiene la sección *Backups* con `enabled: true`, cron **`0 0 * * *`**, destino
+  **Local Disk** (`/etc/easypanel/backups`), carpeta `oneburguer` y **sin retención declarada**. Pero las
+  **únicas** acciones de backup del servicio son las **dos del drill del 2026-09-12** y **una manual** del
+  2026-09-25: el **scheduler automático nunca produjo un archivo**. Por lo tanto **no se puede afirmar que
+  el respaldo diario funcione**: verificarlo y decidir la retención es materia de infraestructura/operación
+  ([`audit-backlog.md`](audit-backlog.md) `A-57`, §8.1 de este runbook) y **no bloquea** el trabajo de
+  producto — lo que **no** habilita es confiar en un backup que no existe: mientras `A-57` esté abierto, el
+  respaldo que se use para un rollback tiene que ser uno **verificado**, no el programado.
 - **Los archivos producidos sí se pueden verificar por API** (el runbook decía que no): cada respaldo
   queda como una *action* con su ruta, así que `POST /api/rpc/actions/listActions` devuelve
-  `meta = {databaseName, path, storageProviderId}`. Al 2026-09-12 hay dos archivos:
-  `oneburguer/2026-09-12T16:33:20.265Z.sql.gz` y `oneburguer/2026-09-12T16:35:34.905Z.sql.gz`.
-  `databaseBackups/listDatabaseBackups` sigue devolviendo **solo la configuración** (cron, destino,
-  carpeta), que es lo que no alcanza para saber si el respaldo salió bien.
+  `meta = {databaseName, path, storageProviderId}`; sirve tanto para auditar un backup puntual como para
+  alimentar la receta de restore de §8.1. Al 2026-09-26 las acciones con archivo son las dos del drill
+  (`oneburguer/2026-09-12T16:33:20.265Z.sql.gz` y `oneburguer/2026-09-12T16:35:34.905Z.sql.gz`) y la manual
+  del release del 2026-09-25. `databaseBackups/listDatabaseBackups` sigue devolviendo **solo la
+  configuración** (cron, destino, carpeta), que es lo que no alcanza para saber si el respaldo salió bien.
 - **Drill de restore: hecho y verificado el 2026-09-12** — resultado y receta completa en §8.1.
+  ⚠️ El drill prueba que un backup **se puede restaurar**; **no** prueba que el scheduler produzca uno
+  nuevo: eso es exactamente lo que `A-57` deja abierto.
 
 Política recomendada para producción:
 
@@ -238,7 +247,21 @@ Política recomendada para producción:
 
 - **Aplicación**: el deploy construye desde GitHub `main` con `forceRebuild`. Para volver atrás, revertir el commit en `main` y volver a disparar `deployService` (§2). El servicio **no** está apuntado a una imagen fija: siempre construye desde `main`.
 - **Artefacto inmutable**: el workflow publica `ghcr.io/<owner>/one-burger-commerce:<sha>`. Apuntar el servicio a esa imagen permite volver a una versión exacta sin reconstruir; hoy el servicio usa build desde Git.
-- **Base de datos**: no hay down-migrations. Toda migración aplicada se resuelve con *fix-forward* apoyado en el backup previo. Registrar en el mismo PR la reversión lógica (script SQL o migración nueva) cuando una migración sea destructiva.
+- **Base de datos**: no hay down-migrations, así que toda migración se resuelve con *fix-forward* y la
+  **reversión lógica se registra en el mismo PR** (script SQL o migración nueva). El backup que hay que
+  tener depende de la clase de migración:
+  - **Migración aditiva segura** —columna nueva *nullable*, tabla nueva, índice nuevo, un valor más en un
+    enum—: se revierte **revirtiendo el commit** y volviendo a desplegar (§2), porque el código viejo sigue
+    leyendo la base tal como quedó. **No** necesita backup manual ni detener el release, y el contenedor la
+    puede aplicar E2E: quién la clasifica es la skill
+    [`database-migration`](../.agents/skills/database-migration/SKILL.md).
+  - **Migración riesgosa o destructiva** —`DROP`, `NOT NULL` sobre datos existentes, *backfill*, cambio de
+    tipo o cualquier reinterpretación de datos—: **sí** necesita **backup manual verificado** y el
+    identificador anotado **antes** de desplegar, porque el rollback depende del snapshot y revertir el
+    commit no alcanza. Si backfillea y después pone `NOT NULL`, va **fuera del horario comercial** (existe
+    una ventana entre las dos cosas).
+  - Un release que **no** trae migración no necesita backup: ver
+    [`delivery-e2e`](../.agents/skills/delivery-e2e/SKILL.md) §4.
 
 ---
 
@@ -373,10 +396,17 @@ Reglas de operación:
 
 ## 8. Pendientes operativos (lo que no se puede hacer desde el repositorio)
 
-Están ordenados por peso. El drill de restore (1) ya está hecho y verificado; los demás siguen abiertos,
-cada uno con su receta y su verificación.
+Están ordenados por peso. El **backup programado** (1) es el primero y sigue **abierto** (`A-57`); el
+drill de restore (2) ya está hecho y verificado; los demás también siguen abiertos, cada uno con su
+receta y su verificación.
 
-1. **Drill de restore** — **hecho y verificado el 2026-09-12**; repetir cada trimestre. Receta completa
+1. **Backup programado** (`A-57`) — **la config está, el archivo no**: la sección *Backups* de
+   `oneburguer-postgres` está `enabled: true` con cron **`0 0 * * *`** y carpeta `oneburguer`, y el
+   scheduler **nunca generó un archivo** (solo existen los dos del drill y uno manual). Qué hacer:
+   revisar la sección *Backups* en el panel, decidir **retención explícita** (mínimo 7 días) y comprobar
+   con `actions/listActions` que aparece una acción nueva con `meta.path` **después** del próximo cron.
+   Hasta entonces, **el respaldo de un rollback es el que se verificó a mano**, nunca «el programado».
+2. **Drill de restore** — **hecho y verificado el 2026-09-12**; repetir cada trimestre. Receta completa
    (una hora, casi toda de espera):
    1. Crear el Postgres temporal:
       `services/postgres/createService` con `{projectName, serviceName, databaseName, user, password,
@@ -405,25 +435,25 @@ cada uno con su receta y su verificación.
    intacta (`oneburguer-postgres` con `exposedPort: 0`) y el servicio temporal, borrado.
    - Alternativa manual si hiciera falta: *Terminal* del servicio y
      `pg_dump -U oneburguer -d oneburger -Fc -f /tmp/oneburger-$(date +%F).dump`.
-2. **Notificaciones de pedidos a cocina** (§5) — **en pausa por decisión del owner (2026-09-12): "no
+3. **Notificaciones de pedidos a cocina** (§5) — **en pausa por decisión del owner (2026-09-12): "no
    telegram por el momento"**. La operación es 100 % panel: alguien tiene que tener `/admin/orders`
    abierto (la bandeja ordena por estado y las órdenes nuevas van primero). Para retomarlo hacen falta
    el **bot token** y el **chat id** del grupo de cocina; después: cargar las cuatro variables del §5,
    desplegar y probar con un pedido real.
-3. **Rotar el token del panel** (`EASYPANEL_TOKEN`) — **cuando terminen los cambios** (decisión del
+4. **Rotar el token del panel** (`EASYPANEL_TOKEN`) — **cuando terminen los cambios** (decisión del
    owner, 2026-09-12). Mientras tanto: el token da acceso total al servidor y se pasó por chat varias
    veces, así que no debería quedar en capturas ni en repos. Al rotarlo: panel → *Settings* → *API
    tokens*, crear uno nuevo, usarlo y revocar el viejo.
-4. **Cerrar puertos innecesarios de servicios ajenos** (`capostgres` 5455, `postimage` 8585, en el
+5. **Cerrar puertos innecesarios de servicios ajenos** (`capostgres` 5455, `postimage` 8585, en el
    panel compartido): no son de One Burger, así que requiere el OK de quien administra esos servicios.
    Se cierran quitando el *port mapping* en el panel de cada servicio.
-5. **Monitoreo externo**: un uptime que pegue a `GET /api/readiness` (hace `SELECT 1` y responde 503
+6. **Monitoreo externo**: un uptime que pegue a `GET /api/readiness` (hace `SELECT 1` y responde 503
    si la base no responde) y avise al canal del equipo.
-6. **Datos reales**: terminar de cargar el menú y definir la estrategia de fotos (§6.3 y §6.4).
-7. **Propina**: ya **no** se cambia en el código ni hace falta tocar `DEFAULT_TIP_RATE`: el porcentaje
+7. **Datos reales**: terminar de cargar el menú y definir la estrategia de fotos (§6.3 y §6.4).
+8. **Propina**: ya **no** se cambia en el código ni hace falta tocar `DEFAULT_TIP_RATE`: el porcentaje
    se edita en `/admin/settings` (configuración del negocio) y el servidor es la fuente de verdad del
    monto. Solo se toca el código si se quiere cambiar el valor por defecto de una instalación nueva.
-8. **Locales en producción** — corregido el 2026-09-12 con el drill: producción **no** tiene un solo
+9. **Locales en producción** — corregido el 2026-09-12 con el drill: producción **no** tiene un solo
    local, tiene **tres**, y el owner confirmó que **los tres son reales**. Los tres están activos y
    tomando pedidos, con `pickupLeadMinutes: 20` y `sortOrder: 0`:
 
