@@ -209,6 +209,7 @@ venta vive en un **sheet** que se abre desde la barra inferior persistente, al p
 | Scroll de página eliminado en operación normal; el scroll vive en el catálogo y en las líneas | QA de navegador: `1366×768`, `1280×720`, `768×1024`, `375×812` |
 | Guardrails nuevos (reuse-first, one canonical flow, reuse audit, reference fidelity, viewport contract) | `MODULE_ARCHITECTURE.md` §10.1–§10.3, `DESIGN_SYSTEM.md` §12, `TEMPLATE.md`, skills `screen-design` / `new-task` |
 | **Correcciones del QA de producción** (2026-09-26, sobre `262962c`): el catálogo ocupa **todo el alto útil** de su columna (antes quedaba a su alto natural, 496 px de 668), la grilla es de **tres columnas** (cuatro dejaba la tarjeta en 147 px y el nombre partido) y el CTA dice **`Cobrar C$…`** con su espacio (antes: `CobrarC$…`) — corregidas en `3c6951a` y verificadas otra vez en producción a los cuatro viewports | Medición en navegador (antes y después) + `pos-charge-panel.test.tsx` (con RED observado) |
+| **Venta real cobrada en producción**: `COCA COLA` (primer producto **sin** modificadores), efectivo con «Exacto», turno abierto en el camino (el `Cobrar` estaba deshabilitado por `Caja cerrada`, que es el bloqueo correcto) → **`Venta P-MUIW4IS4 cobrada por C$44.57 · Sin cambio`** | Captura `pos-quick-sale-prod-cobro-1366.png` + el turno en `/admin/cash` |
 
 **Divergencias respecto de la referencia, decididas y medidas** (una divergencia material sin decisión sería
 Stop Condition; estas están justificadas por la propia spec aprobada, que permite el patrón mobile cuando dos
