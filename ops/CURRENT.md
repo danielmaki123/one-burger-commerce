@@ -27,8 +27,8 @@ corto: si crece como un diario, dejó de servir.
 
 | Qué | Estado |
 |---|---|
-| **Último deploy** | `build-20260926-195012`, sobre `262962c` (`main` con **`SCREEN-POS-QUICK-SALE-001.1`**, PR #66), 2026-09-26 19:50 UTC. `/api/health` = `build-20260926-195012`, `/api/readiness` `ready` (DB 1 ms), smokes **menú 7/7** y **hosts 6/6**, y **QA autenticada en producción** a `1366×768`, `1280×720`, `768×1024` y `375×812` (§4). **Sin backup manual**: no hay migración ni cambio de datos |
-| **`main`** | `262962c` (PR #66, squash) — el commit que está en producción. El cierre de POS Fase 1 es **este PR**: código, spec y estado van juntos. CI verde en cada push a `main` (los cuatro checks + `publish`) |
+| **Último deploy** | `build-20260926-202551`, sobre `3c6951a` (`main` con el cierre visual de POS Fase 1, PR #67), 2026-09-26 20:25 UTC. `/api/health` = `build-20260926-202551`, `/api/readiness` `ready` (DB 2 ms), smokes **menú 7/7** y **hosts 6/6**, y **QA autenticada en producción** a `1366×768`, `1280×720`, `768×1024` y `375×812` (§4). **Sin backup manual**: no hay migración ni cambio de datos |
+| **`main`** | `3c6951a` (PR #67, squash) — el commit que está en producción. CI verde en cada push a `main` (los cuatro checks + `publish`) |
 | **Migración aplicada en este deploy** | **Ninguna**: el release es de pantalla. La última sigue siendo `20260925120000_add_payment_void`, aplicada el 2026-09-25 |
 | **Rollback target** | `build-20260926-170322` sobre `be4c051` (Venta rápida, `SCREEN-POS-QUICK-SALE-001`) — la aplicación se revierte revirtiendo el commit en `main` y volviendo a disparar `deployService`; la base no se toca (ninguno de los dos releases migró) |
 | **Modelo de deploy** | Easypanel, proyecto `brunobot`, servicio `oneburguerweb`; build **desde GitHub `main`** con `forceRebuild`. Una sola llamada a `deployService` (la llamada puede cortar por timeout y el build sigue en segundo plano: comportamiento conocido) |
@@ -44,32 +44,31 @@ corto: si crece como un diario, dejó de servir.
 ✅ **QA autenticada de producción del POS (2026-09-26, hecha)**: el owner dio credenciales de admin, así que
 —a diferencia de los releases anteriores, donde este paso quedaba pendiente— la pantalla se abrió **en
 producción con sesión** a los cuatro viewports del contrato (`1366×768`, `1280×720`, `768×1024`, `375×812`).
-Cada uno se midió en el navegador: sin scroll horizontal, barra operativa en una línea, sin hero y sin
-`Cobrar pedido del menú`, el `Cobrar C$…` dentro del primer viewport y el sheet de celular abriendo con su
-total. Las credenciales se usaron solo por entorno y **no** se guardan en el repo.
+Cada uno se midió en el navegador contra `build-20260926-202551`: **cero scroll horizontal** en los cuatro;
+barra operativa en **una línea** (44 px); sin hero ni `Cobrar pedido del menú`; catálogo de **612 px** de 668 a
+`1366×768` y **564** de 620 a `1280×720`, con **3 columnas** en escritorio y 2 abajo de `lg`; el `Cobrar C$…`
+visible con su pie en 743 y 695 px (dentro de 768 y 720) y **sin scroll de página** en los dos tamaños de
+escritorio; el sheet de celular abre con su total. Las credenciales se usaron solo por entorno y **no** se
+guardan en el repo. Post-deploy, solo lectura: `/api/health` = `build-20260926-202551`, `/api/readiness`
+`ready` y los dos smokes **7/7** y **6/6**.
+
 ⚠️ **Lo que la verificación de este release NO pudo hacer desde acá**: los **logs del contenedor** no son
-accesibles por API (`inspectAction`/`getActionLogs`/`inspectServiceLogs` responden 404) y no se ejercitó la
-presencia de `voidedAt` con lectura autenticada (sí la aplica el contenedor al arrancar). El POS se verificó
-además **antes** del deploy contra una base local con la suite E2E completa (`admin-pos` 11/11 con mutaciones,
-capturas en [`design/screens/`](design/screens/)).
+accesibles por API (`inspectAction`/`getActionLogs`/`inspectServiceLogs` responden 404, así que la búsqueda de
+`P2002`/`P2028`/`25P02`/deadlock/5xx queda pendiente) y no se ejercitó la presencia de `voidedAt` con lectura
+autenticada (sí la aplica el contenedor al arrancar). El POS se verificó además **antes** del deploy contra una
+base local con la suite E2E completa (`admin-pos` 11/11 con mutaciones, capturas en
+[`design/screens/`](design/screens/)).
 
 ⚠️ **Hallazgo operativo (sigue abierto): el backup programado no genera archivos.** La config está
 `enabled: true` (cron `0 0 * * *`) y carpeta `oneburguer`, pero las **únicas** acciones de backup del servicio
 son **tres** desde siempre: las dos del drill (2026-09-12) y la manual del release anterior. El respaldo
 programado **no produjo ningún archivo** y **no hay retención declarada** → `A-57` en el backlog.
 
-✅ **Verificación post-deploy del release (2026-09-26, solo lectura)**: `/api/health` =
-`build-20260926-195012` (versión nueva) y `/api/readiness` `ready`; los dos smokes **7/7** y **6/6**.
-
 📋 **Pasada read-only de A-50/A-51 (acotada, sin reparar nada)**: **A-51** — los **5** cierres tienen
 `expectedAmount` firmado y **ninguno** tenía retiros ni devoluciones, así que la fórmula corregida de AUD-005
 **no altera ningún número histórico**; el detalle de `ShiftBankClose` es **no determinable** (producción no
 tiene bancos configurados). **A-50** — **no identificable** desde la API: requiere leer la base. **No reparado.**
 
-⚠️ **Límite del entorno del agente en este release**: **los logs del contenedor no son accesibles por API**
-(`actions/inspectAction`, `actions/getActionLogs` y `services/app/inspectServiceLogs` responden 404), así que
-la búsqueda de `P2002`/`P2028`/`25P02`/deadlock/5xx en logs **no se pudo hacer desde acá**: la verificación se
-apoya en health, readiness, los dos smokes y comprobaciones HTTP de solo lectura.
 
 **Integraciones**
 
@@ -192,10 +191,10 @@ aprobó el owner, en [`roadmap/`](roadmap/).
 
 **Baseline de `DS-001` (2026-09-26, cerrado)**: `4dc2cbb` → `build-20260926-003808`, sin migraciones ni cambios visuales; quedó superado por el release de `IA-001` + Órdenes (ver §1).
 
-**Release de `SCREEN-POS-QUICK-SALE-001.1` (2026-09-26, cerrado)**: `main` = `262962c` **desplegado** sirviendo
-`build-20260926-195012`, más las tres correcciones que salieron de la QA autenticada. Sin migraciones, sin
-dominio y sin backup. Health/readiness y los dos smokes (7/7 y 6/6) en §1; la **QA autenticada de producción**
-del contrato de viewport quedó **hecha** con las credenciales del owner (§4).
+**Release de `SCREEN-POS-QUICK-SALE-001.1` (2026-09-26, CERRADO — POS Fase 1 COMPLETA)**: `main` = `3c6951a`
+**desplegado** sirviendo `build-20260926-202551`, que incluye las tres correcciones que salieron de la QA
+autenticada. Sin migraciones, sin dominio y sin backup. Health/readiness y los dos smokes (7/7 y 6/6) en §1; la
+**QA autenticada de producción** del contrato de viewport quedó **hecha** con las credenciales del owner (§4).
 
 **El bloque financiero de la remediación quedó cerrado y desplegado** (`AUD-003..006`, `A-54`, `A-55`,
 `A-58`, `A-59`) y con él la **fase de estabilización técnica**. Lo que sigue, en orden:

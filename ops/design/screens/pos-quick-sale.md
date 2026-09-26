@@ -3,7 +3,7 @@
 > **Plantilla**: [`TEMPLATE.md`](TEMPLATE.md).
 >
 > **Estado: `SCREEN-POS-QUICK-SALE-001.1` desplegada y con QA autenticada de producción cerrada** (2026-09-26):
-> sobre `262962c`, sirviendo `build-20260926-195012`, con la QA en navegador real a los cuatro viewports del
+> sobre `3c6951a`, sirviendo `build-20260926-202551`, con la QA en navegador real a los cuatro viewports del
 > contrato (`1366×768`, `1280×720`, `768×1024`, `375×812`) contra producción y sesión de admin. La Venta rápida
 > de la Fase 1 queda **completa**; la Fase 2 **no** se inició.
 >
@@ -208,7 +208,7 @@ venta vive en un **sheet** que se abre desde la barra inferior persistente, al p
 | Catálogo más **denso** (foto compacta, sin repetir la categoría de los chips, **tres columnas** en escritorio y dos abajo de `lg`, como la referencia) | `pos-catalog-card.test.tsx` + capturas |
 | Scroll de página eliminado en operación normal; el scroll vive en el catálogo y en las líneas | QA de navegador: `1366×768`, `1280×720`, `768×1024`, `375×812` |
 | Guardrails nuevos (reuse-first, one canonical flow, reuse audit, reference fidelity, viewport contract) | `MODULE_ARCHITECTURE.md` §10.1–§10.3, `DESIGN_SYSTEM.md` §12, `TEMPLATE.md`, skills `screen-design` / `new-task` |
-| **Correcciones del QA de producción** (2026-09-26, sobre `262962c`): el catálogo ocupa **todo el alto útil** de su columna (antes quedaba a su alto natural, 496 px de 668), la grilla es de **tres columnas** (cuatro dejaba la tarjeta en 147 px y el nombre partido) y el CTA dice **`Cobrar C$…`** con su espacio (antes: `CobrarC$…`) | Medición en navegador + `pos-charge-panel.test.tsx` (con RED observado) |
+| **Correcciones del QA de producción** (2026-09-26, sobre `262962c`): el catálogo ocupa **todo el alto útil** de su columna (antes quedaba a su alto natural, 496 px de 668), la grilla es de **tres columnas** (cuatro dejaba la tarjeta en 147 px y el nombre partido) y el CTA dice **`Cobrar C$…`** con su espacio (antes: `CobrarC$…`) — corregidas en `3c6951a` y verificadas otra vez en producción a los cuatro viewports | Medición en navegador (antes y después) + `pos-charge-panel.test.tsx` (con RED observado) |
 
 **Divergencias respecto de la referencia, decididas y medidas** (una divergencia material sin decisión sería
 Stop Condition; estas están justificadas por la propia spec aprobada, que permite el patrón mobile cuando dos
