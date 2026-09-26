@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="es" class="dark">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Órdenes — prototipo de referencia (DS v4)</title>
+<!--
+  PROTOTIPO DE REFERENCIA — no es código productivo y no se copia.
+  Demuestra jerarquía, densidad, estados, filtros y responsive de la spec
+  `ops/design/screens/orders.md` con los tokens del Design System v4.
+  Los valores de los tokens están copiados de `src/app/globals.css` (modo `.dark`)
+  solo para que la referencia se vea como se ve el panel.
+-->
+<style>
+  :root{
+    --bg-canvas:#000f21; --bg-surface:#031427; --bg-surface-low:#0b1c30; --bg-surface-card:#132438;
+    --bg-surface-elevated:#1a2d46; --border-subtle:rgba(255,255,255,.08); --border-control:rgba(255,255,255,.4);
+    --text-primary:#f8fafc; --text-secondary:#94a3b8; --text-muted:#8296ad;
+    --brand-primary:#38bdf8; --brand-primary-muted:rgba(56,189,248,.12); --brand-amber:#f59e0b;
+    --status-pending-bg:rgba(56,189,248,.12); --status-pending-text:#38bdf8;
+    --status-prep-bg:rgba(245,158,11,.12); --status-prep-text:#f59e0b;
+    --status-ready-bg:rgba(16,185,129,.12); --status-ready-text:#34d399;
+    --status-sla-bg:rgba(239,68,68,.2); --status-sla-text:#f87171;
+    --radius-card:16px; --radius-panel:24px; --radius-control:12px;
+    --shadow-elevation-1:0 1px 2px 0 #00000040,0 0 0 1px #ffffff0f;
+    --shadow-elevation-2:0 4px 12px -2px #0006,0 0 0 1px #ffffff14;
+    --mono:ui-monospace,SFMono-Regular,"Roboto Mono",monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg-canvas);color:var(--text-primary);
+       font:14px/1.35 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+  .frame{max-width:1280px;margin:0 auto;padding:20px 28px 40px}
+  /* ── cabecera (una fila, no una landing) ───────────────────────────── */
+  header{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:12px}
+  h1{margin:0;font-size:20px;font-weight:800;letter-spacing:-.01em}
+  .sub{color:var(--text-secondary);font-size:12px;margin-top:2px}
+  /* ── toolbar (filtros en una franja, 20% del alto como máximo) ─────── */
+  .toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:var(--bg-surface-low);
+           border:1px solid var(--border-subtle);border-radius:var(--radius-card);padding:8px 10px;
+           position:sticky;top:0;z-index:5}
+  .tabs{display:flex;gap:4px;flex-wrap:wrap}
+  .tab{min-height:44px;display:inline-flex;align-items:center;gap:6px;padding:0 12px;border:0;
+       border-radius:var(--radius-control);background:transparent;color:var(--text-secondary);
+       font-weight:600;font-size:13px;white-space:nowrap;cursor:pointer}
+  .tab[aria-pressed="true"]{background:var(--brand-primary-muted);color:var(--brand-primary)}
+  .tab .n{font-family:var(--mono);font-variant-numeric:tabular-nums}
+  .field{min-height:44px;display:inline-flex;align-items:center;gap:8px;padding:0 12px;border-radius:var(--radius-control);
+         background:var(--bg-surface-elevated);color:var(--text-primary);border:1px solid var(--border-control);font-size:13px}
+  .search{flex:1 1 220px;min-width:0}
+  .search input{background:transparent;border:0;color:inherit;font:inherit;width:100%;outline:none}
+  .meta{margin-left:auto;display:flex;gap:12px;align-items:center;color:var(--text-secondary);font-size:12px}
+  .meta b{color:var(--text-primary);font-family:var(--mono);font-variant-numeric:tabular-nums}
+  /* ── carriles ─────────────────────────────────────────────────────── */
+  .lanes{display:grid;grid-template-columns:1fr;gap:12px;margin-top:14px}
+  @media (min-width:1024px){.lanes{grid-template-columns:repeat(3,minmax(0,1fr))}}
+  .lane{background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:var(--radius-card);padding:10px;
+        min-height:220px}
+  .lane h2{margin:0 0 8px;font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);
+           display:flex;justify-content:space-between;align-items:center}
+  .lane h2 .n{font-family:var(--mono);font-variant-numeric:tabular-nums;color:var(--text-primary)}
+  .card{background:var(--bg-surface-card);border:1px solid var(--border-subtle);border-radius:var(--radius-card);
+        box-shadow:var(--shadow-elevation-1);padding:12px;display:grid;gap:8px;margin-bottom:10px}
+  .card header{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:0}
+  .num{font-family:var(--mono);font-variant-numeric:tabular-nums;font-weight:700;font-size:15px}
+  .chip{display:inline-flex;align-items:center;gap:6px;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:600}
+  .chip.pending{background:var(--status-pending-bg);color:var(--status-pending-text)}
+  .chip.prep{background:var(--status-prep-bg);color:var(--status-prep-text)}
+  .chip.ready{background:var(--status-ready-bg);color:var(--status-ready-text)}
+  .chip.late{background:var(--status-sla-bg);color:var(--status-sla-text)}
+  .who{color:var(--text-secondary);font-size:12px}
+  .items{margin:0;padding:0;list-style:none;display:grid;gap:2px;font-size:13px}
+  .items li{display:flex;gap:8px}
+  .items .q{font-family:var(--mono);font-variant-numeric:tabular-nums;color:var(--brand-amber);font-weight:700}
+  .note{color:var(--text-muted);font-size:12px}
+  .primary{min-height:44px;width:100%;border:0;border-radius:var(--radius-control);background:var(--brand-primary);
+           color:#000f21;font-weight:700;font-size:14px;cursor:pointer}
+  .ghost{min-height:44px;border:1px solid var(--border-control);background:transparent;color:var(--text-primary);
+         border-radius:var(--radius-control);font-weight:600;cursor:pointer;padding:0 12px}
+  .empty{border:1px dashed var(--border-subtle);border-radius:var(--radius-card);padding:18px;text-align:center;
+         color:var(--text-secondary)}
+  .empty b{display:block;color:var(--text-primary);margin-bottom:2px}
+  .legend{margin-top:18px;display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+          color:var(--text-secondary);font-size:12px}
+  .legend div{background:var(--bg-surface-low);border:1px solid var(--border-subtle);border-radius:var(--radius-control);padding:8px 10px}
+</style>
+</head>
+<body>
+<div class="frame">
+  <header>
+    <div>
+      <h1>Órdenes</h1>
+      <div class="sub">Turno de hoy · Camino de Oriente</div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="ghost">Aviso sonoro</button>
+      <button class="ghost">Modo cocina</button>
+      <button class="ghost">Actualizar</button>
+    </div>
+  </header>
+
+  <!-- Filtros: una franja, no tres filas de controles. -->
+  <div class="toolbar" role="group" aria-label="Filtros de órdenes">
+    <div class="tabs" role="group" aria-label="Estado">
+      <button class="tab" aria-pressed="true">Todas</button>
+      <button class="tab" aria-pressed="false">Nuevas <span class="n">3</span></button>
+      <button class="tab" aria-pressed="false">Preparando <span class="n">4</span></button>
+      <button class="tab" aria-pressed="false">Listas <span class="n">2</span></button>
+      <button class="tab" aria-pressed="false">Cerradas</button>
+    </div>
+    <label class="field search"><span class="note">Buscar</span>
+      <input placeholder="Número, nombre, WhatsApp o PIN" aria-label="Buscar comanda" />
+    </label>
+    <label class="field">Local
+      <select aria-label="Local de las comandas" style="background:transparent;border:0;color:inherit;font:inherit">
+        <option>Todas las sucursales</option><option>Camino de Oriente</option>
+        <option>Carretera Masaya</option><option>Casa Antigua</option>
+      </select>
+    </label>
+    <button class="field" aria-pressed="false" style="cursor:pointer;background:transparent">Atrasados</button>
+    <div class="meta"><span>Preparación promedio <b>12 min</b></span><span>Actualizado <b>hace 5 s</b></span></div>
+  </div>
+
+  <!-- Carriles: la jerarquía de la pantalla. -->
+  <div class="lanes">
+    <section class="lane" aria-label="Por aceptar">
+      <h2>Por aceptar <span class="n">3</span></h2>
+
+      <article class="card">
+        <header><span class="num">#1042</span><span class="chip late">Atrasado hace 3 min</span></header>
+        <div class="who">Retiro · Ana R. · Entró 12:04 · PIN 4821</div>
+        <ul class="items">
+          <li><span class="q">1x</span> Hamburguesa clásica</li>
+          <li><span class="q">2x</span> Papas rústicas</li>
+        </ul>
+        <div class="note">Retiro 12:30 · Programado</div>
+        <button class="primary">Aceptar</button>
+      </article>
+
+      <article class="card">
+        <header><span class="num">#1043</span><span class="chip pending">hace 4 min</span></header>
+        <div class="who">Retiro · Luis M. · Entró 12:11</div>
+        <ul class="items"><li><span class="q">1x</span> Burrito de pollo</li>
+          <li style="display:block"><span class="note">• sin cebolla · «para llevar»</span></li></ul>
+        <button class="primary">Aceptar</button>
+      </article>
+    </section>
+
+    <section class="lane" aria-label="En preparación">
+      <h2>En preparación <span class="n">4</span></h2>
+      <article class="card">
+        <header><span class="num">#1039</span><span class="chip prep">hace 9 min</span></header>
+        <div class="who">Retiro · Marta S. · Entró 11:58</div>
+        <ul class="items"><li><span class="q">2x</span> Costilla BBQ</li><li><span class="q">1x</span> Limonada</li></ul>
+        <button class="primary">Terminado</button>
+      </article>
+      <article class="card">
+        <header><span class="num">#1040</span><span class="chip late">Atrasado hace 6 min</span></header>
+        <div class="who">Retiro · José P. · Entró 11:52</div>
+        <ul class="items"><li><span class="q">1x</span> Ensalada César</li></ul>
+        <button class="primary">Terminado</button>
+      </article>
+    </section>
+
+    <section class="lane" aria-label="Listas">
+      <h2>Listas <span class="n">2</span></h2>
+      <article class="card">
+        <header><span class="num">#1036</span><span class="chip ready">hace 2 min</span></header>
+        <div class="who">Retiro · Carla V. · Entró 11:44</div>
+        <ul class="items"><li><span class="q">3x</span> Tacos de birria</li></ul>
+        <button class="primary">Entregada</button>
+      </article>
+      <div class="empty"><b>Mostrador limpio</b><span class="note">Nada listo esperando retiro.</span></div>
+    </section>
+  </div>
+
+  <div class="legend">
+    <div><b>Densidad</b> · un carril por vez a 375/768; tres columnas con scroll propio a 1280.</div>
+    <div><b>Estados</b> · cargando (esqueleto por carril), vacío por carril, sin coincidencias, error con datos viejos.</div>
+    <div><b>Semáforo</b> · umbrales del local: «hace N min» en normal, «Atrasado hace N min» en late.</div>
+    <div><b>Acción</b> · una sola primaria por tarjeta; el resto vive en el detalle.</div>
+    <div><b>Prohibido</b> · precios y PIN en la tarjeta del KDS; caja, analytics y configuración en esta pantalla.</div>
+    <div><b>DS v4</b> · tokens semánticos, radios del sistema, números en mono tabular, sin color crudo.</div>
+  </div>
+</div>
+</body>
+</html>
