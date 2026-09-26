@@ -674,6 +674,21 @@ DS-001
 ├── contracts
 └── cero rediseño
         ↓
+IA-001 — navegación del panel
+        ↓
+SCREEN-ORDERS-001 — Órdenes ✅
+        ↓
+SCREEN-POS-QUICK-SALE-001 — POS Fase 1 / Venta rápida ✅
+│
+├── workspace CATÁLOGO | VENTA (ticket anclado en escritorio)
+├── barra + sheet en celular y tablet
+├── opciones secundarias bajo demanda
+└── cero dominio / DB  (el deploy queda pendiente del token)
+        ↓
+POS Fase 2 — pedidos existentes / pagos / bancos / USD / factura
+│
+└── la define el owner **aparte**; no se inicia automáticamente
+        ↓
 SCREEN-001 — Resumen
 │
 ├── discovery

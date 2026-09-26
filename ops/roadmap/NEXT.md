@@ -2,6 +2,14 @@
 
 ## Ahora
 
+**`SCREEN-POS-QUICK-SALE-001 — POS Fase 1 / Venta rápida` cerrada en `main`** (2026-09-26, PR #62, `be4c051`
+con los cuatro checks de CI en verde): la Venta rápida dejó de ser un formulario vertical y pasó a un
+**workspace `CATÁLOGO | VENTA`** —ticket anclado al viewport en escritorio, barra + sheet en celular y
+opciones secundarias bajo demanda—. La spec canónica vive en
+[`../design/screens/pos-quick-sale.md`](../design/screens/pos-quick-sale.md), con la referencia del owner al
+lado. **El deploy a producción está pendiente**: el `EASYPANEL_TOKEN` no está disponible en el entorno del
+agente (Stop Condition 6 del contrato de entrega). El estado, en [`../CURRENT.md`](../CURRENT.md) §1.
+
 **`SCREEN-ORDERS-001 — Órdenes` cerrada y desplegada** (2026-09-26): es la **primera sección rediseñada de
 punta a punta** con el proceso completo —discovery, arquitectura/IA, spec de pantalla, prototipo y capturas,
 implementación bajo DS v4, QA de navegador a 375/768/1280 y PR con CI verde—. La spec canónica vive en
@@ -17,12 +25,18 @@ no normativo**. `ARCH-001` ([`../product/MODULE_ARCHITECTURE.md`](../product/MOD
 
 ## Después
 
-1. **`SCREEN-001 — /admin Resumen`**: **no iniciado**. El camino es producto + arquitectura + IA + UX →
+1. **Desplegar la Venta rápida**: una sola llamada a `deployService` (`brunobot` / `oneburguerweb`,
+   `forceRebuild: true`) en cuanto el token esté disponible, y después health, readiness, los dos smokes y la
+   QA autenticada a 375/768/1280. Sin migración ni cambio de datos: **no requiere backup**.
+2. **`SCREEN-001 — /admin Resumen`**: **no iniciado**. El camino es producto + arquitectura + IA + UX →
    mockup canónico → revisión del owner → implementación bajo DS v4 (skill `screen-design`), igual que se
    hizo en Órdenes.
-2. **Deuda de Órdenes (`A-60` a `A-66`)**: por riesgo, primero `A-60` (plata y PIN en el detalle para
+3. **`POS Fase 2 — pedidos existentes / pagos / bancos / USD / factura`**: la define el owner **aparte**. La
+   Fase 1 dejó escrito qué **no** se tocó (banco/procesador en `Payment`, corrección USD del cobro de pedidos
+   existentes, promo a un pedido ya creado y el rediseño final de «Cobrar pedido»). **No se inicia sola.**
+4. **Deuda de Órdenes (`A-60` a `A-66`)**: por riesgo, primero `A-60` (plata y PIN en el detalle para
    `kitchen`) y `A-61` (proyección del endpoint de la bandeja).
-3. **Revisión del owner de `ARCH-001`** — las divergencias registradas (Resumen/POS en la navegación, el
+5. **Revisión del owner de `ARCH-001`** — las divergencias registradas (Resumen/POS en la navegación, el
    dominio de Caja repartido) siguen siendo decisiones suyas, y `A-66` (el `cashier` en Órdenes) es la
    primera de la lista.
 
