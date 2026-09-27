@@ -8,10 +8,10 @@ en qué estado está el sistema en pocos minutos.
 [`.agents/CONTEXT.md`](../.agents/CONTEXT.md)). Este archivo se **actualiza seguido** y se mantiene
 corto: si crece como un diario, dejó de servir.
 
-> **Última actualización**: 2026-09-26, por el release de **`SCREEN-POS-QUICK-SALE-001.1`** (cierre visual y
-> contractual de POS Fase 1, **desplegado**; ver §1 y §4). **POS Fase 1 queda COMPLETA**: con las credenciales
-> de admin que dio el owner se corrió la **QA autenticada en producción** a los cuatro viewports del contrato
-> (`1366×768`, `1280×720`, `768×1024`, `375×812`). **La Fase 2 NO se inició.**
+> **Última actualización**: 2026-09-27, por el release de **`SCREEN-POS-QUICK-SALE-001.2`** (corrección final
+> del ticket, **desplegado**; ver §1 y §4). **POS Fase 1 — Venta rápida queda CERRADA DEFINITIVAMENTE**: la
+> pantalla tiene un solo scroll, no comprime la lista de líneas y la **QA autenticada de producción** corrió a
+> los cuatro viewports del contrato (`1366×768`, `1280×720`, `768×1024`, `375×812`). **La Fase 2 NO se inició.**
 > **Vigente desde hoy: el Default E2E Delivery Contract** ([`.agents/skills/delivery-e2e/SKILL.md`](../.agents/skills/delivery-e2e/SKILL.md)):
 > una TASK aprobada declara su **Delivery Mode** y se ejecuta hasta el estado final **sin pedir permisos
 > intermedios**, y el **backup se decide por riesgo del release**, no por frecuencia (`A-57` sigue abierto como
@@ -27,8 +27,8 @@ corto: si crece como un diario, dejó de servir.
 
 | Qué | Estado |
 |---|---|
-| **Último deploy** | `build-20260926-202551`, sobre `3c6951a` (`main` con el cierre visual de POS Fase 1, PR #67), 2026-09-26 20:25 UTC. `/api/health` = `build-20260926-202551`, `/api/readiness` `ready` (DB 2 ms), smokes **menú 7/7** y **hosts 6/6**, y **QA autenticada en producción** a `1366×768`, `1280×720`, `768×1024` y `375×812` (§4). **Sin backup manual**: no hay migración ni cambio de datos |
-| **`main`** | `3c6951a` (PR #67, squash) — el commit que está en producción. CI verde en cada push a `main` (los cuatro checks + `publish`) |
+| **Último deploy** | `build-20260927-193653`, sobre `4f69a24` (`main` con el cierre definitivo de POS Fase 1: PR #69, #70 y #71), 2026-09-27 19:37 UTC. `/api/health` = `build-20260927-193653`, `/api/readiness` `ready` (DB 2 ms), smokes **menú 7/7** y **hosts 6/6**, y **QA autenticada en producción** a `1366×768`, `1280×720`, `768×1024` y `375×812` (§4). **Sin backup manual**: no hay migración ni cambio de datos |
+| **`main`** | `4f69a24` (PR #71, squash) — el commit que está en producción. CI verde en cada push a `main` (los cuatro checks + `publish`) |
 | **Migración aplicada en este deploy** | **Ninguna**: el release es de pantalla. La última sigue siendo `20260925120000_add_payment_void`, aplicada el 2026-09-25 |
 | **Rollback target** | `build-20260926-170322` sobre `be4c051` (Venta rápida, `SCREEN-POS-QUICK-SALE-001`) — la aplicación se revierte revirtiendo el commit en `main` y volviendo a disparar `deployService`; la base no se toca (ninguno de los dos releases migró) |
 | **Modelo de deploy** | Easypanel, proyecto `brunobot`, servicio `oneburguerweb`; build **desde GitHub `main`** con `forceRebuild`. Una sola llamada a `deployService` (la llamada puede cortar por timeout y el build sigue en segundo plano: comportamiento conocido) |
@@ -41,16 +41,16 @@ corto: si crece como un diario, dejó de servir.
 | **Datos de negocio** | 3 sucursales reales (Camino de Oriente, Carretera Masaya, Casa Antigua). La carta la sigue cargando el owner |
 | **Caja en producción** | Sin terminales de caja cargadas al momento del último QA: es el estado real del negocio, no un defecto |
 
-✅ **QA autenticada de producción del POS (2026-09-26, hecha)**: con las credenciales que dio el owner —a
-diferencia de los releases anteriores, donde este paso quedaba pendiente— la pantalla se abrió **en producción
-con sesión** a los cuatro viewports del contrato (`1366×768`, `1280×720`, `768×1024`, `375×812`), medidos en el
-navegador contra `build-20260926-202551`: **cero scroll horizontal** en los cuatro; barra operativa en **una
-línea** (44 px); sin hero ni `Cobrar pedido del menú`; catálogo de **612 px** de 668 a `1366×768` y **564** de
-620 a `1280×720`, con **3 columnas** en escritorio y 2 abajo de `lg`; el `Cobrar C$…` visible con su pie en 743
-y 695 px (dentro de 768 y 720) y **sin scroll de página** en los dos tamaños de escritorio; abajo de `lg` el
-CTA **no** se dibuja hasta abrir el sheet (el patrón de la referencia), que abre con su total. Health,
-readiness y los dos smokes **7/7** y **6/6** en §1. Las credenciales se usaron solo por entorno y **no** se
-guardan en el repo.
+✅ **QA autenticada de producción del POS (2026-09-27, hecha sobre el build final `build-20260927-193653`)**:
+la pantalla se abrió **en producción con sesión** a los cuatro viewports del contrato (`1366×768`, `1280×720`,
+`768×1024`, `375×812`), con la **carta real del local** (2 productos sin modificadores). Medido en el
+navegador: **una sola** superficie con scroll dentro del ticket en los cuatro; **ninguna fila cortada**;
+**cero scroll horizontal**; `Cobrar C$…` siempre visible; y a `1366×768` y `1280×720` la **forma de pago entra
+sin scrollear** (`pagoOffset 0`) y el **scroll de página es 0**.
+
+⚠️ **`375×812` es el único con scroll de página (155 px)**: es el comportamiento de la referencia aprobada —la
+vista primaria es el catálogo y el ticket vive en el sheet—. Health, readiness y los dos smokes **7/7** y
+**6/6** en §1. Las credenciales se usaron solo por entorno y **no** se guardan en el repo.
 
 ✅ **Venta real cobrada en producción (2026-09-26)**: además del contrato de viewport se ejercitó el flujo
 completo con una venta de mostrador de verdad —`COCA COLA` (el primer producto **sin** modificadores de la
@@ -164,15 +164,14 @@ está **aprobado y desplegado**; **`IA-001`** (navegación del panel) también; 
 **`SCREEN-POS-QUICK-SALE-001`** la segunda ([`design/screens/pos-quick-sale.md`](design/screens/pos-quick-sale.md)).
 Lo que sigue es **`SCREEN-001 — Resumen`**, que **no se inició**.
 
-**SCREEN-POS-QUICK-SALE-001.1 — POS Fase 1 / Venta rápida (CERRADA: Fase 1 COMPLETA)**: la 001 adoptó el
-workspace `CATÁLOGO | VENTA` (`be4c051`, `build-20260926-170322`) y la **001.1** lo corrigió contra la
-**referencia revisada del owner**: hero y explicaciones fuera, barra operativa de **una línea**, acciones de
-caja **solo donde bloquean el cobro**, `Cobrar pedido del menú` fuera del POS (*one canonical flow*: Órdenes
-localiza, POS cobra), catálogo y ticket a **alto útil** y opciones secundarias plegadas. **Sin dominio, sin
-endpoints, sin permisos y sin DB.** La **QA autenticada de producción** del contrato de viewport encontró tres
-defectos visuales —catálogo a su alto natural (496 px de 668), cuatro columnas con tarjetas de 147 px y el CTA
-diciendo `CobrarC$…`— que este release corrige y vuelve a medir (detalle y evidencia en
-[`design/screens/pos-quick-sale.md`](design/screens/pos-quick-sale.md)). **La Fase 2 NO se inició.**
+**SCREEN-POS-QUICK-SALE-001.1 y 001.2 — POS Fase 1 / Venta rápida (CERRADA DEFINITIVAMENTE)**: la 001 adoptó
+el workspace `CATÁLOGO | VENTA` (`be4c051`) y la **001.1** lo corrigió contra la **referencia revisada del
+owner**: hero y explicaciones fuera, barra operativa de **una línea**, acciones de caja **solo donde bloquean
+el cobro**, `Cobrar pedido del menú` fuera del POS (*one canonical flow*: Órdenes localiza, POS cobra) y
+opciones secundarias plegadas. La **001.2** corrigió la composición del ticket: el panel **no comprime la
+lista de líneas** y tiene **un solo scroll** (líneas + checkout en la misma superficie), con el **total en el
+pie** junto al CTA. **Sin dominio, sin endpoints, sin permisos y sin DB** en las tres. Detalle, mediciones y
+evidencia en [`design/screens/pos-quick-sale.md`](design/screens/pos-quick-sale.md). **La Fase 2 NO se inició.**
 
 **SCREEN-ORDERS-001 — Órdenes (cerrada, `fff8d71`, desplegada)**: discovery, arquitectura/IA, spec, prototipo
 y capturas → implementación bajo DS v4 → QA de navegador a 375/768/1280 → PR #57 con CI verde. Entregado: los
@@ -199,9 +198,10 @@ aprobó el owner, en [`roadmap/`](roadmap/).
 
 **Baseline de `DS-001` (2026-09-26, cerrado)**: `4dc2cbb` → `build-20260926-003808`, sin migraciones; superado por `IA-001` + Órdenes (ver §1).
 
-**Release de `SCREEN-POS-QUICK-SALE-001.1` (2026-09-26, CERRADO — POS Fase 1 COMPLETA)**: `main` = `3c6951a`
-**desplegado** sirviendo `build-20260926-202551`, con las tres correcciones de la QA autenticada y la **venta
-real cobrada** en producción (§4). Sin migraciones, sin dominio y sin backup.
+**Release de `SCREEN-POS-QUICK-SALE-001.2` (2026-09-27, CERRADO — POS Fase 1 CERRADA DEFINITIVAMENTE)**:
+`main` = `4f69a24` **desplegado** sirviendo `build-20260927-193653`, con el ticket de **un solo scroll**, el
+total en el pie y la QA autenticada de producción en los cuatro viewports (§4). Reabrió POS Fase 1 **solo**
+para el defecto del ticket; **sin migraciones, sin dominio y sin backup**.
 
 **El bloque financiero de la remediación quedó cerrado y desplegado** (`AUD-003..006`, `A-54`, `A-55`,
 `A-58`, `A-59`) y con él la **fase de estabilización técnica**. Lo que sigue, en orden:
