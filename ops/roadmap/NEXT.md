@@ -7,16 +7,17 @@
 
 ## ACTIVE
 
-**`TASK-GOV-001` — Consolidación final de arquitectura, reglas y roadmap** (`docs-only`): el repo queda con
-una sola arquitectura vigente, un solo roadmap, un solo proceso de trabajo y las leyes escritas una sola vez.
-No toca runtime, POS, DB, migraciones, navegación ni pantallas. Estado y evidencia: [`../CURRENT.md`](../CURRENT.md).
+**Ninguno.** `TASK-GOV-001` **cerró** (mergeada, `docs-only`, sin deploy) y no hay ninguna TASK de runtime en
+curso: **una sola TASK activa por vez** y la próxima **no se abre sin autorización explícita del owner**.
+Estado y evidencia: [`../CURRENT.md`](../CURRENT.md) § 4.
 
 ## NEXT
 
-**Auditoría y diseño de `Pedidos / Cocina`** (orden 3 del roadmap): hoy Órdenes es una sola superficie y
-mezcla la bandeja de operación con la vista de cocina. La TASK arranca con la **auditoría real** de las dos
-necesidades, el **reuse audit** y la decisión de **ownership** (¿una pantalla con dos vistas o dos entradas?),
-y sigue con la spec y su aprobación antes de tocar código. **No se inicia en `TASK-GOV-001`.**
+**Auditoría y diseño de `Pedidos / Cocina`** (orden 3 del roadmap), **pendiente de que el owner autorice la
+TASK**: hoy Órdenes es una sola superficie y mezcla la bandeja de operación con la vista de cocina. Cuando se
+autorice, arranca con la **auditoría real** de las dos necesidades, el **reuse audit** y la decisión de
+**ownership** (¿una pantalla con dos vistas o dos entradas?), y sigue con la spec y su aprobación antes de
+tocar código.
 
 Antes de abrirla: leer [`../CURRENT.md`](../CURRENT.md) § 4–5 y el orden autoritativo del
 [roadmap maestro](PRODUCT-UX-ROADMAP.md) § 2.
