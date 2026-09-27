@@ -80,31 +80,40 @@ export default function PosCustomerFields({
   const fiscal = customer.fiscal;
 
   return (
-    <div className="space-y-2">
+    /* `SCREEN-POS-QUICK-SALE-001.2`: `space-y-1.5` (antes `space-y-2`) aprieta un escalón el bloque del
+       cliente, que es el que va justo arriba de la forma de pago en el primer viewport. */
+    <div className="space-y-1.5">
       <OverlineLabel>Cliente</OverlineLabel>
 
-      <FieldWithIcon field="name">
-        <Input
-          label="Nombre del cliente"
-          className="pr-10"
-          value={customer.name}
-          error={fieldErrors.name ?? fieldErrors.customerName}
-          onChange={(event) => setCustomer((current) => ({ ...current, name: event.target.value }))}
-        />
-      </FieldWithIcon>
+      {/*
+        Nombre y número **en una fila** en escritorio (la columna mide 320 px y los dos campos entran: medido,
+        libera 44 px, que era exactamente lo que dejaba la forma de pago debajo del pliegue a `1280×720`), y
+        apilados abajo de `lg`, donde el `Input` trae su propia etiqueta y a 170 px el nombre se corta.
+      */}
+      <div className="grid grid-cols-1 gap-1.5 lg:grid-cols-2">
+        <FieldWithIcon field="name">
+          <Input
+            label="Nombre del cliente"
+            className="pr-10"
+            value={customer.name}
+            error={fieldErrors.name ?? fieldErrors.customerName}
+            onChange={(event) => setCustomer((current) => ({ ...current, name: event.target.value }))}
+          />
+        </FieldWithIcon>
 
-      <FieldWithIcon field="whatsapp">
-        <Input
-          label="Número del cliente"
-          className="pr-10"
-          inputMode="tel"
-          value={customer.whatsapp}
-          error={fieldErrors.whatsapp ?? fieldErrors.customerWhatsapp}
-          onChange={(event) =>
-            setCustomer((current) => ({ ...current, whatsapp: event.target.value }))
-          }
-        />
-      </FieldWithIcon>
+        <FieldWithIcon field="whatsapp">
+          <Input
+            label="Número del cliente"
+            className="pr-10"
+            inputMode="tel"
+            value={customer.whatsapp}
+            error={fieldErrors.whatsapp ?? fieldErrors.customerWhatsapp}
+            onChange={(event) =>
+              setCustomer((current) => ({ ...current, whatsapp: event.target.value }))
+            }
+          />
+        </FieldWithIcon>
+      </div>
 
       <PosDisclosure label="Correo (opcional)">
         <FieldWithIcon field="email">

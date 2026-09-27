@@ -44,11 +44,14 @@ export default function PosSaleSummary({
   manualDiscountAmount: number;
   currency: CurrencyFormat;
   /**
-   * `full` (dentro del checkout: subtotal, descuentos y **total**) o `meta` (solo el conteo de líneas, para el
-   * encabezado del panel, donde el título y el conteo van juntos y los importes viven más abajo).
+   * `full` (dentro del checkout: subtotal, descuentos y **total**), `meta` (solo el conteo de líneas, para el
+   * encabezado del panel) o `footer` (solo el **total**, para el pie, pegado al `Cobrar C$…`).
+   *
+   * `SCREEN-POS-QUICK-SALE-001.2` agregó `footer`: el total deja de vivir dentro del checkout que scrollea y
+   * pasa al pie, que no scrollea. Con eso el número queda siempre a la vista junto al CTA y el checkout libera
+   * **67 px**, que es lo que hacía que la forma de pago cayera fuera del primer viewport a `1280×720`.
    */
-  variant?: "full" | "meta";
-}) {
+  variant?: "full" | "meta" | "footer";}) {
   const discount = (appliedCoupon?.discount ?? 0) + manualDiscountAmount;
 
   if (variant === "meta") {
@@ -59,6 +62,28 @@ export default function PosSaleSummary({
       >
         {posSaleLinesLabel(linesCount)}
       </p>
+    );
+  }
+
+  if (variant === "footer") {
+    return (
+      <div className="flex items-end justify-between gap-2">
+        <p className="text-panel-item font-bold text-ink">
+          Total
+          {discount > 0 ? (
+            <span className="ml-2 align-middle font-mono text-st-caption tabular-nums text-brand-primary">
+              {`−${formatCurrency(discount, currency)}`}
+            </span>
+          ) : null}
+        </p>
+        <p
+          data-testid="pos-sale-total"
+          aria-live="polite"
+          className="font-mono text-panel-display font-bold tabular-nums text-brand-primary"
+        >
+          {formatCurrency(totals.total, currency)}
+        </p>
+      </div>
     );
   }
 
@@ -97,21 +122,6 @@ export default function PosSaleSummary({
             </dd>
           </div>
         ) : null}
-
-        {/*
-          El **total** es el número de mayor jerarquía de la pantalla: el cajero lo dice en voz alta. Va en su
-          fila, en `text-panel-display` y mono tabular (el número no tiembla cuando cambia).
-        */}
-        <div className="flex items-end justify-between gap-2 pt-1">
-          <dt className="text-panel-item font-bold text-ink">Total</dt>
-          <dd
-            data-testid="pos-sale-total"
-            aria-live="polite"
-            className="font-mono text-panel-display font-bold tabular-nums text-brand-primary"
-          >
-            {formatCurrency(totals.total, currency)}
-          </dd>
-        </div>
       </dl>
     </div>
   );

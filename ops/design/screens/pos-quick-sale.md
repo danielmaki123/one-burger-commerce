@@ -2,10 +2,11 @@
 
 > **Plantilla**: [`TEMPLATE.md`](TEMPLATE.md).
 >
-> **Estado: `SCREEN-POS-QUICK-SALE-001.1` desplegada y con QA autenticada de producción cerrada** (2026-09-26):
-> sobre `3c6951a`, sirviendo `build-20260926-202551`, con la QA en navegador real a los cuatro viewports del
-> contrato (`1366×768`, `1280×720`, `768×1024`, `375×812`) contra producción y sesión de admin. La Venta rápida
-> de la Fase 1 queda **completa**; la Fase 2 **no** se inició.
+> **Estado: `SCREEN-POS-QUICK-SALE-001.2` desplegada** (2026-09-26): la 001.1 quedó en
+> `build-20260926-202551` sobre `3c6951a` con QA autenticada de producción a los cuatro viewports del
+> contrato, y la **001.2** corrigió la composición del ticket (las líneas ya no se comprimen) y limpió las
+> contradicciones de esta spec y de la referencia. La Venta rápida de la Fase 1 queda **completa**; la Fase 2
+> **no** se inició.
 >
 > **Corrección visual y contractual**: la referencia anterior queda **reemplazada** para composición, densidad y
 > comportamiento responsive.
@@ -99,16 +100,33 @@ borrador en el dispositivo y las puertas `canUsePOS`/`canDiscountPosSale`. **No 
 ## Jerarquía
 
 ```text
-1. CATÁLOGO        → búsqueda, categorías, productos (siempre utilizable)
-2. VENTA           → líneas, cantidades, subtotal, TOTAL
-3. COBRO           → forma de pago + `Cobrar C$…` (una sola acción primaria)
-4. CLIENTE         → nombre y teléfono (obligatorios), siempre visibles
-5. ESTADO          → local, terminal, caja, conexión, cierre obligatorio
-6. BAJO DEMANDA    → correo · promo · factura/RUC · descuento · dividir pago · En espera (N) · Cobrar pedido
+1. PRODUCTOS       → líneas de la venta con sus cantidades (lo que el cajero toca todo el tiempo)
+2. TOTAL           → en el pie, pegado al `Cobrar C$…`, sin scrollear
+3. CLIENTE         → nombre y teléfono (obligatorios), siempre visibles
+4. PAGO            → forma de pago y monto
+5. OPCIONES        → correo · promo · descuento · dividir pago · En espera (N) (plegadas)
+6. COBRAR          → `Cobrar C$…`, una sola acción primaria, anclada al pie
 ```
 
-Cómo se logra: **posición y tamaño**, no color. El total es el número más grande después del título del
-panel; `Cobrar C$…` es el único botón `primary` del contexto y mide 48 px de alto.
+Cómo se logra: **posición y tamaño**, no color. El total es el número más grande del ticket y vive en el
+**pie que no scrollea**; `Cobrar C$…` es el único botón `primary` del contexto y mide 48 px de alto.
+
+## Reparto del alto del ticket (`SCREEN-POS-QUICK-SALE-001.2`)
+
+El ticket tiene **tres zonas con reglas explícitas**. No se negocian solas: la versión anterior dejaba las
+líneas y el checkout en un tira y afloja de `flex` que el checkout —un formulario de **887 px** de
+contenido— ganaba siempre, y con tres productos la lista quedaba en **34 px** (menos de una fila de 57) con
+su propio scrollbar.
+
+| Zona | Regla | Por qué |
+|---|---|---|
+| **Líneas** | `flex-none` + `lg:max-h-[15rem]` (240 px) | Crecen con su contenido hasta el tope y recién ahí scrollean: 1–3 líneas entran **completas y sin scroll interno** (medido: 190 px). Abajo de `lg` el tope se suelta (el ticket vive en el sheet) |
+| **Checkout** | `flex-1` + scroll propio | Es el que cede cuando la venta crece. Mantiene a la vista el arranque: subtotal, empaque, cliente y forma de pago |
+| **Pie** | `shrink-0`, sin `grow` | El total y el `Cobrar C$…` **no dependen del reparto**: siempre al pie |
+
+**Medido en navegador real** (`admin-pos-ticket.spec.ts`, 3 líneas distintas): la zona de líneas queda en
+**190 px con 190 px de contenido** (cero scroll interno) a `1366×768` y a `1280×720`; el total, la forma de
+pago y el CTA están visibles; y con más líneas de las que entran el scroll aparece **solo** en la lista.
 
 ## Acciones
 
@@ -119,9 +137,14 @@ panel; `Cobrar C$…` es el único botón `primary` del contexto y mide 48 px de
 | Cantidad | **−** / **+** y **Sacar** | secundaria | Fila de la línea |
 | Abrir la venta (375) | **Ver venta** | primaria en móvil | Barra inferior persistente |
 | Cerrar la venta (375) | **Cerrar venta** | terciaria | Encabezado del sheet |
-| Dejar en espera | **Guardar en espera** / **En espera (N)** | secundaria | Opciones de la venta |
-| Cobrar pedido del menú | **Cobrar pedido** → diálogo `Cobrar un pedido del menú` | secundaria compacta | Barra de contexto |
-| Ver la caja | **Ver la caja** / **Abrir la caja** | navegación | Barra de contexto |
+| Dejar en espera | **Guardar en espera** / **En espera (N)** | secundaria | Opciones de la venta (plegadas) |
+| Elegir local / terminal | **Local** · **Terminal** (`aria-label`, sin etiqueta visible) | contexto | Barra operativa |
+| Estado de caja | **● Caja abierta** / **● Caja cerrada** / **● Cierre pendiente** (`role="status"`) | estado (no acción) | Barra operativa |
+| Abrir o cerrar la caja | **Abrir caja** / **Cerrar caja** | bloqueante | Checkout, junto al `Cobrar`, **solo** cuando bloquea el cobro |
+
+**Ya no está en esta pantalla** — y no vuelve sin una TASK: `Cobrar pedido del menú` (localizar un pedido es
+de **Órdenes**, cobrarlo es del POS: *one canonical flow*), `Ver la caja` / `Abrir la caja` permanentes en la
+barra y el bloque explicativo de Local. Deuda registrada en `A-67`.
 
 ## Estados
 
@@ -135,18 +158,19 @@ cobro exitoso · venta recuperada del dispositivo · esperas llenas.
 - **Catálogo vacío**: "El local no tiene productos vendibles" + "Cargá la carta del local en Menú y volvé a entrar."
 - **Sin resultados**: "Sin resultados" + "Probá con otro nombre o con la categoría."
 - **Error de catálogo**: "No se pudo cargar el catálogo" + el motivo del servidor + **Reintentar**.
-- **Caja cerrada**: "Caja cerrada" + "El cobro requiere abrir el turno antes: un cobro con la caja cerrada no
-  entra a ningún arqueo." + enlace **Abrir la caja**.
-- **Cierre obligatorio**: el motivo lo arma `shift-close-policy` (sucursal con cierre diario y turno de otro
-  día) y el botón queda bloqueado.
+- **Caja cerrada**: "Caja cerrada" + "Abrí una caja para cobrar." + botón **Abrir caja** (en el mismo bloque
+  del `Cobrar`, que es el que queda deshabilitado).
+- **Cierre obligatorio**: "Cierre pendiente" + "La caja pertenece al turno anterior." + **Cerrar caja**, que
+  **enlaza** a `/admin/cash` (el arqueo es de Caja); con un turno viejo abierto **no** se ofrece abrir otra.
 - **Sin conexión**: "Sin conexión: el cobro no se va a registrar. La venta en curso queda guardada en este
   dispositivo; recuperá la red y volvé a cobrar." (único `animate-pulse` admitido, con la venta en curso).
 
 ## Desktop
 
 A 1280 y 1366: dos columnas (`lg:grid-cols-[minmax(0,1fr)_minmax(340px,25rem)]`). El **catálogo scrollea
-dentro de su panel** y el **ticket queda anclado al viewport con todo su alto útil** (`max-h: 100vh − 1.5rem`):
-el total y `Cobrar C$…` no se van de la pantalla.
+dentro de su panel** y el **ticket queda anclado al viewport con todo su alto útil** (`calc(100dvh − 6.25rem)`,
+el chrome real del admin, y `position: fixed` con el ancla medida): el total y `Cobrar C$…` no se van de la
+pantalla. El reparto interno del ticket está en **§ Reparto del alto del ticket**.
 
 ## Viewport contract
 
@@ -154,13 +178,33 @@ Lo que tiene que verse **sin scrollear la página** en una venta normal de 1–3
 
 | Viewport | Qué entra | Qué scrollea |
 |---|---|---|
-| `1366×768` | barra operativa, búsqueda, categorías, ≥1 fila de catálogo, líneas, total, cliente, pago y `Cobrar` | catálogo (dentro de su panel); líneas (dentro del ticket) si crecen; opciones abiertas |
+| `1366×768` | barra operativa, búsqueda, categorías, una fila de catálogo, **las 3 líneas completas y sin scroll interno**, subtotal, cliente, **forma de pago**, total y `Cobrar` | catálogo (dentro de su panel); la lista de líneas recién de la cuarta en adelante; el checkout desde el monto/opciones; las opciones abiertas |
 | `1280×720` | ídem | ídem |
 | `768×1024` | barra, buscador, chips, catálogo amplio y la barra `N productos · Total · Ver venta` | el catálogo; el ticket vive en el sheet |
 | `375×812` | barra, buscador, chips, productos y la barra inferior | el catálogo; el sheet al abrirse |
 
-**Prohibido**: scrollear la página para llegar a `Cobrar`; reservar una zona alta vacía para las líneas con
-0–3 productos.
+**Prohibido**: scrollear la página para llegar a `Cobrar`; **comprimir la lista de líneas** (con 1–3 productos
+no lleva scroll propio); reservar una zona alta vacía para las líneas con 0–3 productos; y empujar el
+`Cobrar C$…` fuera del primer viewport.
+
+**Medición de la esquina más ajustada (`1280×720`, 3 líneas distintas)**, con el tooling de la spec
+(`admin-pos-ticket.spec.ts`, `pagoOffset`):
+
+| Zona | Medición |
+|---|---|
+| Líneas | **190 px de contenido en 190 px de zona** → 3 filas completas, **scroll interno: no** |
+| Checkout | 273 px visibles de 749 px de contenido; **offset de la forma de pago: 0** (entra en el primer viewport) |
+| Pie | total + `Cobrar C$…` siempre visibles; scroll de página **0** |
+
+Lo que sí scrollea es el **excedente** del checkout (monto rápido, correo, promo, descuento, esperas) y, con
+más de 4 líneas, la propia lista. La página nunca scrollea para cobrar.
+
+## Ticket con muchas líneas
+
+- **1–3 líneas**: todas completas, sin scroll interno en la lista.
+- **Más líneas**: el scroll aparece **solo** en la lista (tope `lg:max-h-[15rem]`); las primeras filas siguen
+  enteras, el checkout no desaparece y el **CTA no se mueve**.
+- **Opciones abiertas** (promo, descuento, esperas): scrollean dentro del checkout; no empujan las líneas.
 
 ## Tablet
 
@@ -192,6 +236,7 @@ venta vive en un **sheet** que se abre desde la barra inferior persistente, al p
 | Correo, promo, factura/RUC, descuento, dividir pago siempre abiertos | **PLIEGUE** | Progressive disclosure: no dominan una venta normal |
 | Venta debajo del catálogo en móvil/tablet | **ELIMINAR** | En móvil/tablet la venta va al sheet; en escritorio, al lado |
 | Zona alta vacía dentro del ticket con 0–3 productos | **ELIMINAR** | Las líneas se llevan el espacio libre; el CTA queda anclado al pie |
+| Lista de líneas comprimida con su propio scrollbar teniendo 1–3 productos | **ELIMINAR** | El defecto de `001.2`: la lista entra completa; el scroll recién de la cuarta línea en adelante |
 | Botón primario de "Cobrar" duplicado | **MANTENER UNO SOLO** | Una acción primaria por contexto |
 
 ## Estado de implementación (`SCREEN-POS-QUICK-SALE-001.1`)
@@ -210,6 +255,8 @@ venta vive en un **sheet** que se abre desde la barra inferior persistente, al p
 | Guardrails nuevos (reuse-first, one canonical flow, reuse audit, reference fidelity, viewport contract) | `MODULE_ARCHITECTURE.md` §10.1–§10.3, `DESIGN_SYSTEM.md` §12, `TEMPLATE.md`, skills `screen-design` / `new-task` |
 | **Correcciones del QA de producción** (2026-09-26, sobre `262962c`): el catálogo ocupa **todo el alto útil** de su columna (antes quedaba a su alto natural, 496 px de 668), la grilla es de **tres columnas** (cuatro dejaba la tarjeta en 147 px y el nombre partido) y el CTA dice **`Cobrar C$…`** con su espacio (antes: `CobrarC$…`) — corregidas en `3c6951a` y verificadas otra vez en producción a los cuatro viewports | Medición en navegador (antes y después) + `pos-charge-panel.test.tsx` (con RED observado) |
 | **Venta real cobrada en producción**: `COCA COLA` (primer producto **sin** modificadores), efectivo con «Exacto», turno abierto en el camino (el `Cobrar` estaba deshabilitado por `Caja cerrada`, que es el bloqueo correcto) → **`Venta P-MUIW4IS4 cobrada por C$44.57 · Sin cambio`** | Captura `pos-quick-sale-prod-cobro-1366.png` + el turno en `/admin/cash` |
+| **`001.2` — el ticket reparte el alto con reglas explícitas**: las líneas son `flex-none` con tope (`lg:max-h-[15rem]`) y el checkout cede; el **total pasó al pie** junto al CTA y el cliente quedó en **una fila** en escritorio. Con 3 líneas a `1366×768` y `1280×720`: lista **completa y sin scroll interno** (190 px de contenido en 190 px de zona), **forma de pago con offset 0**, total/CTA siempre visibles y cero scroll de página | `tests/e2e/admin-pos-ticket.spec.ts` (geometría real, con **RED observado**: `filas.every(visibleEntera)` en `false` con las reglas viejas) + `pos-sale-summary.test.tsx` |
+| **Limpieza de la referencia y de la spec**: la referencia canónica dejó de reproducir el defecto (`.lines` era `flex:0 1 auto` con tope 210 px) y ahora expone `?regla=1` para medir filas y scroll; la spec quedó con una sola verdad (jerarquía, acciones y contrato de viewport sin `Cobrar pedido del menú` ni acciones de caja permanentes) | `pos-quick-sale-reference.html` + esta spec |
 
 **Divergencias respecto de la referencia, decididas y medidas** (una divergencia material sin decisión sería
 Stop Condition; estas están justificadas por la propia spec aprobada, que permite el patrón mobile cuando dos

@@ -443,12 +443,25 @@ export function PosWorkspace({
           {contentMounted ? (
             <>
               {/*
-                **Dos zonas de scroll, no una.** Arriba las **líneas** (`flex-[0_1_auto]` con su tope): con 0–3
-                productos el ticket no reserva una zona alta vacía y con muchas líneas scrollea solo esta lista.
-                Abajo el **checkout** —total, cliente, pago, opciones— con su propio scroll: es la parte que
-                crece cuando el cajero abre una opción, y así el pie con el CTA queda siempre visible.
+                **El ticket reparte el alto con reglas explícitas, no con `flex-grow`.** Auditado con
+                `SCREEN-POS-QUICK-SALE-001.2`: con la versión anterior (`flex-[0_1_auto]` arriba + `flex-1`
+                abajo) el checkout —un formulario de **887 px** de contenido— ganaba la negociación del flex y
+                las líneas quedaban en **34 px**, menos de una fila de 57, con su propio scrollbar: con tres
+                productos había que scrollear para ver el tercero. El reparto ahora es:
+
+                1. **Líneas**: `flex-none` con `lg:max-h-[15rem]` (240 px: las tres filas de una venta normal
+                   medidas en 184 px más su separación y el aire del contenedor). En escritorio entran
+                   1–3 líneas **completas y sin scroll interno**; recién de la cuarta en adelante scrollea esta
+                   zona. Abajo de `lg` el tope se suelta: ahí el ticket vive en el sheet y puede usar todo su
+                   alto.
+                2. **Checkout**: `flex-1` con su scroll. Es el que cede cuando la venta crece, y el que
+                   mantiene a la vista el arranque (subtotal, total, cliente y forma de pago).
+                3. **Pie** con el `Cobrar C$…`: `shrink-0` y sin `grow`, así que no participa del reparto.
               */}
-              <div className="min-h-0 flex-[0_1_auto] overflow-y-auto border-b border-line-subtle px-4 pt-2">
+              <div
+                data-testid="pos-sale-lines-zone"
+                className="min-h-0 flex-none overflow-y-auto border-b border-line-subtle px-4 pt-2 lg:max-h-[15rem]"
+              >
                 <PosSaleLines
                   lines={sale.lines}
                   currency={sale.currency}
@@ -457,7 +470,10 @@ export function PosWorkspace({
                 />
               </div>
 
-              <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-2">
+              <div
+                data-testid="pos-sale-checkout-zone"
+                className="min-h-0 flex-1 overflow-y-auto px-4 pb-2"
+              >
                 <PosSaleSummary
                   linesCount={sale.lines.length}
                   totals={sale.totals}
@@ -488,7 +504,21 @@ export function PosWorkspace({
                 {sale.options}
               </div>
 
-              <div className="max-h-[45%] shrink-0 space-y-2 overflow-y-auto border-t border-line-subtle bg-surface-low px-4 py-2">
+              <div className="min-h-0 max-h-[30%] shrink-0 space-y-2 overflow-y-auto border-t border-line-subtle bg-surface-low px-4 py-2">
+                {/*
+                  El **total** vive acá, no dentro del checkout: así queda siempre a la vista junto al
+                  `Cobrar C$…` (el pie no scrollea) y el checkout libera el alto que necesita la forma de pago
+                  (`SCREEN-POS-QUICK-SALE-001.2`).
+                */}
+                <PosSaleSummary
+                  linesCount={sale.lines.length}
+                  totals={sale.totals}
+                  appliedCoupon={sale.appliedCoupon}
+                  manualDiscountAmount={sale.manualDiscountAmount}
+                  currency={sale.currency}
+                  variant="footer"
+                />
+
                 {/*
                   La caja, **donde el cobro está bloqueado**: sin turno se ofrece abrirla; con un turno de otro
                   día, cerrarlo (y no se ofrece abrir otra). Con la caja abierta no se dibuja nada.
