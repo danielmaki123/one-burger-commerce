@@ -1,15 +1,16 @@
 # Roadmap POS · Fase 2 — 13 bloques
 
-> **Qué es este archivo**: el roadmap funcional del **POS completo (Fase 2)** que definió el owner.
-> Es un documento de **producto/alcance**, distinto de `ops/audit-backlog.md` (que es el backlog de
-> hallazgos de UI y deuda). Los dos conviven, pero se priorizan distinto.
+> ⚠️ **HISTÓRICO — no normativo** (2026-09-27, `TASK-GOV-001`). Este archivo es el **alcance funcional que el
+> owner pasó por chat** en 2026-09-17, guardado *verbatim* para que el inventario
+> [`pos-fase2-status.md`](audit-ui/pos-fase2-status.md) tenga su fuente. **No es un segundo roadmap**: la
+> secuencia vigente la manda el [roadmap maestro](../roadmap/PRODUCT-UX-ROADMAP.md) y **«POS Fase 2» dejó de
+> existir como fase** — su contenido se repartió en los órdenes 4 a 7 y 10 de ese roadmap (Money, Payments,
+> «Pedido existente → Cobrar en POS», Cash, Promotions) —. Se conserva como **evidencia** de lo que se pidió,
+> no como plan a ejecutar.
 >
-> **Origen**: se pasó por chat el 2026-09-17 y **nunca se había guardado como `.md` en el repo**
-> (error de proceso). Se guarda acá **verbatim** para que el inventario de
-> [`ops/tasks/audit-ui/pos-fase2-status.md`](audit-ui/pos-fase2-status.md) tenga su fuente.
+> **Origen**: chat del 2026-09-17, nunca guardado como `.md` en su momento (error de proceso).
 >
-> **Estado**: **no es un plan aprobado para ejecutar** todavía: primero se mide (inventario) y después
-> el owner decide. Lo que no esté en este archivo no es alcance de Fase 2.
+> **Estado**: **no es un plan aprobado para ejecutar**.
 
 ---
 

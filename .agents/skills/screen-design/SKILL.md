@@ -15,6 +15,11 @@ implementación viene después, con [`ui-change`](../ui-change/SKILL.md).
 
 ## 1. Procedimiento (en este orden)
 
+0. **Reuse audit** (ley 2, [`MODULE_ARCHITECTURE.md`](../../../ops/product/MODULE_ARCHITECTURE.md) §10.1–§10.3):
+   antes de diseñar una pantalla nueva, buscar si la capacidad **ya existe** —otra pantalla, un caso de uso,
+   un componente del registro— y decidir si se **reutiliza, se compone o se enlaza**. Una pantalla que
+   reconstruye una capacidad existente no se diseña: se enlaza al **flujo canónico** (ley 3). El bloque
+   `REUSE AUDIT` de la TASK es el registro de esa búsqueda.
 1. **Módulo.** ¿A qué módulo pertenece la capacidad y quién es dueño de sus reglas?
    [`../../../ops/product/MODULE_ARCHITECTURE.md`](../../../ops/product/MODULE_ARCHITECTURE.md) §4–§5. Si la
    respuesta pide un módulo o una sección nueva, **parar**: eso es una decisión del owner, no un paso del
@@ -36,9 +41,13 @@ implementación viene después, con [`ui-change`](../ui-change/SKILL.md).
 9. **Wireframe / spec.** Se completa
    [`../../../ops/design/screens/TEMPLATE.md`](../../../ops/design/screens/TEMPLATE.md) entero, con los tres
    anchos (375/768/1280), todos los estados y lo que se elimina.
-10. **Aprobación del owner.** Sin aprobación **no hay implementación**. La spec es el contrato: si algo
-    cambia después, se cambia la spec primero.
+10. **Aprobación del owner y Design Freeze.** Sin aprobación **no hay implementación**. Aprobadas la spec y
+    su `reference.html`, la composición, la IA y el comportamiento principal quedan **congelados** (**Design
+    Freeze**): si algo cambia después, se cambia **primero la spec** y lo decide el owner. La spec es el
+    contrato.
 11. **Implementación.** Recién acá: [`ui-change`](../ui-change/SKILL.md), con la spec como fuente del alcance.
+12. **Comparación de cierre.** Antes de cerrar, la **implementación real se compara contra la SPEC y la
+    referencia**: qué entró, qué se desvió y por qué. El merge **no** es esa comparación.
 
 ---
 
@@ -72,6 +81,7 @@ la spec. Una pantalla no cambia la ley.
 
 ## 3. Checklist de la spec
 
+- [ ] Hay **reuse audit** escrito: capacidad existente, qué se reutiliza y qué es realmente nuevo.
 - [ ] El módulo dueño está identificado (o la excepción está justificada y aprobada).
 - [ ] El arquetipo está declarado.
 - [ ] Cada dato mostrado existe hoy en el backend, o está marcado **FALTA**.
@@ -82,11 +92,14 @@ la spec. Una pantalla no cambia la ley.
       `768×1024` y `375×812`, y qué scrollea (el panel que crece, no la página) cuando la superficie es
       operativa.
 - [ ] Si hay `reference.html` aprobado, la spec declara que es contrato y no se desvía sin decisión del owner.
+- [ ] El **Design Freeze** está declarado: qué queda congelado al aprobar y quién decide una desviación material.
 - [ ] Está escrito **qué se elimina**.
 - [ ] Los componentes necesarios **ya existen** en el registro (o se propone su alta).
 - [ ] El texto cumple el presupuesto del arquetipo.
 - [ ] La spec **no** contradice el Design System ni la arquitectura de producto.
 - [ ] El owner la aprobó **antes** de que exista código.
+- [ ] Está previsto el **cierre contra la referencia**: comparar la implementación real contra la spec y el
+      `reference.html` (el merge no es la comparación).
 
 ---
 

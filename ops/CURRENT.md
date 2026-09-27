@@ -8,18 +8,21 @@ en qué estado está el sistema en pocos minutos.
 [`.agents/CONTEXT.md`](../.agents/CONTEXT.md)). Este archivo se **actualiza seguido** y se mantiene
 corto: si crece como un diario, dejó de servir.
 
-> **Última actualización**: 2026-09-27, por el release de **`SCREEN-POS-QUICK-SALE-001.2`** (corrección final
-> del ticket, **desplegado**; ver §1 y §4). **POS Fase 1 — Venta rápida queda CERRADA DEFINITIVAMENTE**: la
-> pantalla tiene un solo scroll, no comprime la lista de líneas y la **QA autenticada de producción** corrió a
-> los cuatro viewports del contrato (`1366×768`, `1280×720`, `768×1024`, `375×812`). **La Fase 2 NO se inició.**
-> **Vigente desde hoy: el Default E2E Delivery Contract** ([`.agents/skills/delivery-e2e/SKILL.md`](../.agents/skills/delivery-e2e/SKILL.md)):
-> una TASK aprobada declara su **Delivery Mode** y se ejecuta hasta el estado final **sin pedir permisos
-> intermedios**, y el **backup se decide por riesgo del release**, no por frecuencia (`A-57` sigue abierto como
-> problema del **scheduler** de backups y **no obliga** a un backup manual en releases que no lo necesitan).
-> **La fase de estabilización técnica sigue cerrada**: ningún P0 conocido y ningún P1 de dinero abierto. Lo que
-> sigue abierto es **operativo** (`A-57`) o **decisión del owner** (`A-66`, el `cashier` en Órdenes). Con
-> `DS-001`, `IA-001`, Órdenes y la **Venta rápida del POS** (Fase 1) cerradas, lo que sigue es
-> **`SCREEN-001 — Resumen`**, que **no se inició**.
+> **Última actualización**: 2026-09-27, por **`TASK-GOV-001`** (`docs-only`: gobierno, leyes, arquitectura
+> objetivo y roadmap) además del release de **`SCREEN-POS-QUICK-SALE-001.2`** (corrección final del ticket,
+> **desplegado**; ver §1 y §4). **POS Fase 1 — Venta rápida queda CERRADA DEFINITIVAMENTE**: la pantalla
+> tiene un solo scroll, no comprime la lista de líneas y la **QA autenticada de producción** corrió a los
+> cuatro viewports del contrato (`1366×768`, `1280×720`, `768×1024`, `375×812`). **«POS Fase 2» dejó de
+> existir como fase**: su contenido se reparte en el [roadmap maestro](roadmap/PRODUCT-UX-ROADMAP.md) §2
+> órdenes 4 a 7 y 10, y **lo que sigue es la auditoría y el diseño de `Pedidos / Cocina`** (orden 3), que
+> **no se inició**. **Vigente desde hoy: el Default E2E Delivery Contract**
+> ([`.agents/skills/delivery-e2e/SKILL.md`](../.agents/skills/delivery-e2e/SKILL.md)): una TASK aprobada
+> declara su **Delivery Mode** y se ejecuta hasta el estado final **sin pedir permisos intermedios**, y el
+> **backup se decide por riesgo del release**, no por frecuencia (`A-57` sigue abierto como problema del
+> **scheduler** de backups). **La fase de estabilización técnica sigue cerrada**: ningún P0 conocido y ningún
+> P1 de dinero abierto. Lo que sigue abierto es **operativo** (`A-57`) o **decisión del owner** (`A-66`, el
+> `cashier` en Órdenes). Con `DS-001`, `IA-001`, Órdenes y la **Venta rápida del POS** (Fase 1) cerradas, la
+> secuencia la manda el [roadmap maestro](roadmap/PRODUCT-UX-ROADMAP.md): **16 pasos, no una pantalla suelta**.
 
 ---
 
@@ -140,77 +143,50 @@ obsoletos**, ver §5) · `A-19` (movimientos de caja) · `A-20`/`A-34` (fiscal y
 sin guardrail) · `A-23` (cuenta de prueba con rol `owner` en producción) · `A-25` · `A-27` · `A-28` ·
 `A-30` · `A-33`.
 
-**AUD-007 — Production Environment Fail-Closed (cerrada)**: el entrypoint de produccion (`scripts/start-production.mjs`, el `CMD` de la imagen) ahora **se niega a arrancar si `APP_ENV` no es `production`**: antes solo avisaba por consola y con `APP_ENV=staging` los endpoints internos de staging (que crean admins y corren seeds) quedaban alcanzables. Se sumo el modo `START_PRODUCTION_VALIDATE_ONLY=true` (valida y sale, sin migrar ni arrancar) y el contrato `production-environment-contract.test.ts` (5 casos, con mutacion).
-
-**AUD-008 — Internal/Staging Endpoint Isolation (cerrada)**: se inventariaron las **6** rutas internas (`/api/internal/**`). Las **5** de staging cierran por entorno (`APP_ENV === "staging"` -> 403, y si la variable faltara tambien) y todas exigen un secreto comparado con `timingSafeEqual`; el procesador del outbox rechaza si el secreto falta. **Verificado en produccion con GET** (nunca POST: el de staging crea admins y el del outbox procesa la cola): las 6 responden **405** sin ejecutar nada. Guardrail nuevo: `internal-endpoint-isolation-contract.test.ts` recorre las rutas y falla si una nueva nace sin su puerta (con mutacion verificada).
-
-**A-54 — ningun cobro fuera de arqueo (cerrada)**: el arqueo (cierre y corte X) leia, para un turno con terminal, **solo** los cobros atribuidos a ese turno, asi que un cobro entrado **sin caja abierta** (`Payment.shiftId = null`, el caso del cobro de un pedido del menu) no entraba al arqueo de nadie. Ahora suma los cobros de su ventana **sin turno** (puerto nuevo `listUnattributedPaymentsInRange`, en los dos adaptadores): todo cobro entra al arqueo de exactamente un turno. Probado contra PostgreSQL real, con mutacion, y sin contarse la plata entre dos terminales.
-
-**A-55 — doble cobro concurrente (cerrada)**: `registerOrderPayment` validaba el tope leyendo la suma de los cobros y despues escribia: dos cobros simultaneos del mismo pedido leian el mismo saldo, los dos pasaban la comprobacion y el pedido quedaba cobrado por encima de su total (RED real: `los dos cobros pasaron la comprobacion previa ... to have a length of 1 but got 2`). Ahora la validacion corre **dentro** de la transaccion con la fila del pedido bloqueada (`lockOrder`, `SELECT ... FOR UPDATE`), asi que el segundo espera y lee la suma actualizada. Orden de locks: pedido y despues turno (el cierre bloquea el turno: sin inversion). Probado contra PostgreSQL real con dos requests simultaneos forzados por barrera y mutation check.
-
-**A-15 / A-58 — semantica economica neta (cerrada)**: las metricas comerciales del panel nunca cuentan como ingreso plata devuelta o invalidada. La regla vive en **un solo lugar** (el dominio): `netOrderValue` = `total - importe devuelto/invalidado`, nunca negativo, y `countsAsSale` (con devoluciones, el pedido cuenta solo si le quedo algo; sin devoluciones, una venta de C$0 sigue siendo una venta) — la usan ventas, ticket promedio, series, comparaciones y cualquier agregado futuro. La consulta del KPI trae los `Refund` **aprobados** del pedido y el agregado calcula el neto. **Limitacion declarada**: el modelo no guarda que items se devolvieron, asi que un pedido con devoluciones **no entra en el desglose por producto** (omitir antes que inventar). RED observado (`una venta reembolsada seguia contando como ingreso: expected 100 to be +0`), 6 casos nuevos, mutation check (4 de 6 en rojo) y el contrato previo del agregado intacto.
-
-**A-15 / A-59 — anular un cobro (cerrada, cierra A-15)**: el remanente de A-15 se implemento y A-15 quedo **cerrado**. Un `Payment` mal registrado —duplicado, con el monto o el medio equivocados— se **anula** conservando el registro original: migracion aditiva `20260925120000_add_payment_void` (`voidedAt`, `voidedByUserId`, `voidReason`), puerta `canVoidPayment` (**solo owner**), `POST /api/admin/payments/[id]/void` con su composicion y asiento `payment.void`. La regla «un cobro anulado no cuenta» vive **una sola vez** por adaptador (`NOT_VOIDED` / `activePayments`): las cinco consultas de lista y la agregacion del saldo excluyen los anulados, asi que el arqueo (cierre y corte X), el saldo del pedido, la conciliacion y los documentos quedan afuera sin tocar cada consumidor. Las dos puntas de la misma invariante se rechazan entre si: **no se anula un cobro con devolucion viva** (pendiente o aprobada) y **no se aprueba la devolucion de un cobro anulado** (rechazarla si: es como se limpia antes de anular). La anulacion es **idempotente y segura ante carreras** porque la guarda va en el `WHERE` (`voidedAt: null`), no en el `if` de la lectura. Las **metricas no se tocaron**: no leen `Payment` (verificado) y el neto de `A-58` ya contemplaba el «importe invalidado». RED observado (`The column Payment.voidedAt does not exist in the current database`), 4 casos contra PostgreSQL real (el arqueo pasa de 800 a 300 al anular el cobro de 500 con la fila original intacta; el saldo del pedido vuelve a 0; dos anulaciones simultaneas firman una sola; una devolucion viva bloquea la anulacion) y **tres mutation checks** (filtro de exclusion, guarda del `WHERE` y devoluciones vivas), los tres restaurados. **Fuera de alcance a proposito**: la superficie de UI para anular (la ruta es la API) y mostrar el cobro anulado en el detalle del pedido.
-
-**Fase de estabilizacion tecnica — CERRADA (2026-09-25)**: se cumple el criterio que el owner fijo: **A-15 completo**, tests verdes (unitarios, contratos, PostgreSQL real y CI), **ningun P0 conocido** y **ningun P1 de dinero abierto ligado a A-15**. No se iniciaron `AUD-009/010/012/013/014` ni una auditoria nueva, y **no** se abrio ninguna TASK por hallazgos laterales: lo que aparecio quedo en el backlog como observacion. La TASK que siguio fue **ARCH-001** (arquitectura de producto y modulos), **cerrada** el 2026-09-25.
-
 ## 4. Trabajo actual
 
-**Roadmap adoptado (2026-09-25, `ROADMAP-001`) y sus cuatro primeras fases cerradas**: el proceso vive en
-[`roadmap/PRODUCT-UX-ROADMAP.md`](roadmap/PRODUCT-UX-ROADMAP.md) (decisiones en [`roadmap/DECISIONS.md`](roadmap/DECISIONS.md),
-secuencia en [`roadmap/NEXT.md`](roadmap/NEXT.md)). **`DS-001`** (ley visual v4, en [`ops/design/`](design/))
-está **aprobado y desplegado**; **`IA-001`** (navegación del panel) también; **`SCREEN-ORDERS-001`** es la
-**primera sección rediseñada de punta a punta** ([`design/screens/orders.md`](design/screens/orders.md)) y
-**`SCREEN-POS-QUICK-SALE-001`** la segunda ([`design/screens/pos-quick-sale.md`](design/screens/pos-quick-sale.md)).
-Lo que sigue es **`SCREEN-001 — Resumen`**, que **no se inició**.
+**Roadmap maestro adoptado y consolidado (2026-09-27, `TASK-GOV-001`)**: el proceso vive en
+[`roadmap/PRODUCT-UX-ROADMAP.md`](roadmap/PRODUCT-UX-ROADMAP.md) —**roadmap maestro único**, con el orden
+autoritativo de 16 pasos— y su secuencia inmediata en [`roadmap/NEXT.md`](roadmap/NEXT.md); las decisiones ya
+cerradas del owner, en [`roadmap/DECISIONS.md`](roadmap/DECISIONS.md). **`TASK-GOV-001` (`docs-only`)**
+consolidó las leyes en [`../AGENTS.md`](../AGENTS.md) § *Leyes del repo*, la arquitectura objetivo y la
+clasificación `ACTIVE`/`FROZEN`/`LEGACY`/`FUTURE` en `ops/product/MODULE_ARCHITECTURE.md` §4, y el **flujo
+obligatorio** en [`delivery-e2e`](../.agents/skills/delivery-e2e/SKILL.md): **no tocó runtime, POS, DB,
+migraciones, navegación ni pantallas**. **`DS-001`** (ley visual v4, en [`ops/design/`](design/)) está **aprobado y desplegado**;
+**`IA-001`** (navegación del panel) también; **`SCREEN-ORDERS-001`** fue la **primera sección rediseñada de
+punta a punta** ([`design/screens/orders.md`](design/screens/orders.md)) y **`SCREEN-POS-QUICK-SALE-001`** la
+segunda ([`design/screens/pos-quick-sale.md`](design/screens/pos-quick-sale.md)). **Lo que sigue es la
+auditoría y el diseño de `Pedidos / Cocina`** (orden 3 del roadmap), que **no se inició**; `Resumen` pasó al
+orden 16 y **«POS Fase 2» dejó de existir como fase**.
 
-**SCREEN-POS-QUICK-SALE-001.1 y 001.2 — POS Fase 1 / Venta rápida (CERRADA DEFINITIVAMENTE)**: la 001 adoptó
-el workspace `CATÁLOGO | VENTA` (`be4c051`) y la **001.1** lo corrigió contra la **referencia revisada del
-owner**: hero y explicaciones fuera, barra operativa de **una línea**, acciones de caja **solo donde bloquean
-el cobro**, `Cobrar pedido del menú` fuera del POS (*one canonical flow*: Órdenes localiza, POS cobra) y
-opciones secundarias plegadas. La **001.2** corrigió la composición del ticket: el panel **no comprime la
-lista de líneas** y tiene **un solo scroll** (líneas + checkout en la misma superficie), con el **total en el
-pie** junto al CTA. **Sin dominio, sin endpoints, sin permisos y sin DB** en las tres. Detalle, mediciones y
-evidencia en [`design/screens/pos-quick-sale.md`](design/screens/pos-quick-sale.md). **La Fase 2 NO se inició.**
-
-**SCREEN-ORDERS-001 — Órdenes (cerrada, `fff8d71`, desplegada)**: discovery, arquitectura/IA, spec, prototipo
-y capturas → implementación bajo DS v4 → QA de navegador a 375/768/1280 → PR #57 con CI verde. Entregado: los
-dos `animate-pulse` fuera de reposo, el anuncio de atraso con el **umbral del local** (antes, el de por
-defecto: decía un número que la pantalla no usaba), el copy de la factura a **80 mm** y la **barra compacta en
-celular** (la primera comanda ya no queda debajo del pliegue). Sin dominio, sin endpoints, sin permisos y sin
-DB. La deuda del discovery quedó registrada como `A-60` a `A-66`.
-
-**Release consolidado a producción (2026-09-25, cerrado)**: `main` = `0b840e7` **desplegado** y sirviendo `build-20260925-174535`. El release llevó A-54, A-55, AUD-007, AUD-008, A-58 y A-59 con su migración aditiva. **Sin reparación de datos históricos**: `A-50`/`A-51` siguen sin tocar.
-
-**ARCH-001 — Product & Module Architecture (cerrada, 2026-09-25, docs-only)**: la constitución de producto vive en [`ops/product/MODULE_ARCHITECTURE.md`](product/MODULE_ARCHITECTURE.md): las secciones reales del panel, los módulos que existen, el **ownership** de cada agregado, la regla del Resumen como overview transversal, el gate para capacidades nuevas y la **deuda registrada** (el dominio de Caja repartido entre `orders` y `pos`, promociones en `orders`, `dashboard` sin puertos, los cascarones `coupons`/`table-ordering`, puertas sin call site y la entrada muerta «Mesas» del móvil). **No cambió producto, rutas, navegación, diseño ni DB**: lo que no coincide con la dirección conceptual del roadmap quedó **documentado**, no corregido por decreto.
-
-**TASK-AUD-004 — POS Sale Atomicity** (cerrada, `c0b427b`): el riesgo se **reprodujo** contra PostgreSQL real (pedido persistido con 1 de 2 cobros, y con **cero** cobros por la otra vía; el cupón consumido y el reintento devolviendo la venta incompleta) y se cerró con un **límite atómico explícito**: el pedido, su cupón y todos sus cobros en un solo `$transaction`. Dos hallazgos en el camino: dentro de una transacción un `P2002` **aborta** la transacción, y el aviso de pedido creado tenía que salir **después del commit**. Montó el **arnés de PostgreSQL real** para Vitest (corre en CI, job `migrations`); sin migración. Su review adversarial dejó `A-46` a `A-49`.
-
-**AUD-003, AUD-002, AUD-001 y AUD-000** (`4deb8e5`, `f441c48`, `1b12dfd`, `eeaa810`): arqueo ciego sin fugas
-en corte X, cierre y traspaso; y gobierno de Git/CI (el ruleset `Protect main` exige Pull Request con 0
-aprobaciones).
+**Los cierres anteriores ya no viven acá**: el detalle —reproducción, límite atómico, mutaciones y evidencia—
+se movió a [`history/cierres-2026-09.md`](history/cierres-2026-09.md) cuando este archivo llegó a su techo de
+**250 líneas**. Ahí están `AUD-003..008`, `A-54`/`A-55`/`A-58`/`A-59`, `SCREEN-POS-QUICK-SALE-001.x`,
+`SCREEN-ORDERS-001`, `ARCH-001`, `TASK-AUD-004` y los baselines superados; acá queda la **línea de estado**:
+el bloque financiero está cerrado y desplegado, y con él la fase de estabilización técnica (2026-09-25:
+ningún P0 y ningún P1 de dinero abierto).
 
 ## 5. Siguiente trabajo
 
-El programa completo, con objetivo, prioridad, riesgo, dependencia y orden, está en
-[`tasks/AUDIT-REMEDIATION-ROADMAP.md`](tasks/AUDIT-REMEDIATION-ROADMAP.md); el **proceso de producto** que
-aprobó el owner, en [`roadmap/`](roadmap/).
+La secuencia la manda el **[roadmap maestro de producto y UX](roadmap/PRODUCT-UX-ROADMAP.md)** §2 (16 órdenes);
+la inmediata, [`roadmap/NEXT.md`](roadmap/NEXT.md). El **programa de remediación técnica** —hallazgos `A-*`,
+con objetivo, prioridad, riesgo y dependencia— sigue en
+[`tasks/AUDIT-REMEDIATION-ROADMAP.md`](tasks/AUDIT-REMEDIATION-ROADMAP.md): son dos cosas distintas y **no se
+duplican**.
 
-**Baseline de `DS-001` (2026-09-26, cerrado)**: `4dc2cbb` → `build-20260926-003808`, sin migraciones; superado por `IA-001` + Órdenes (ver §1).
-
-**Release de `SCREEN-POS-QUICK-SALE-001.2` (2026-09-27, CERRADO — POS Fase 1 CERRADA DEFINITIVAMENTE)**:
+**Release de `SCREEN-POS-QUICK-SALE-001.2` (2026-09-27, cerrado — POS Fase 1 cerrada definitivamente)**:
 `main` = `4f69a24` **desplegado** sirviendo `build-20260927-193653`, con el ticket de **un solo scroll**, el
-total en el pie y la QA autenticada de producción en los cuatro viewports (§4). Reabrió POS Fase 1 **solo**
+total en el pie y la QA autenticada de producción en los cuatro viewports (§1). Reabrió POS Fase 1 **solo**
 para el defecto del ticket; **sin migraciones, sin dominio y sin backup**.
 
-**El bloque financiero de la remediación quedó cerrado y desplegado** (`AUD-003..006`, `A-54`, `A-55`,
-`A-58`, `A-59`) y con él la **fase de estabilización técnica**. Lo que sigue, en orden:
+Lo que sigue, en orden:
 
-1. **`SCREEN-001` — `/admin` Resumen**: **no iniciado**. Se diseña con la skill `screen-design` (spec
-   aprobada por el owner) y se implementa bajo DS v4 en una sola pasada, como en Órdenes.
-2. **POS Fase 2 — pedidos existentes / pagos / bancos / USD / factura**: la define el owner **aparte**; la
-   Fase 1 dejó escrito qué no se tocó. **No se inicia automáticamente.**
-3. **Deuda de Órdenes (`A-60` a `A-66`)** y después `AUD-009`/`AUD-010`, `AUD-012`/`AUD-013`/`AUD-014`.
+1. **`Pedidos / Cocina`** (orden 3 del roadmap): **no iniciado**. Empieza con la auditoría real de las dos
+   necesidades, el **reuse audit** y la decisión de ownership; después spec aprobada, design freeze e
+   implementación, como en Órdenes. **No se inicia automáticamente desde `TASK-GOV-001`.**
+2. **Money / Payments / Cash ownership** (órdenes 4, 5 y 7): el dueño del dinero se separa de `orders` y de
+   `pos`, con **snapshots** de lo firmado. **No se inicia sola.**
+3. **Deuda de Órdenes (`A-60` a `A-67`)** y después `AUD-009`/`AUD-010`, `AUD-012`/`AUD-013`/`AUD-014`.
 4. `A-57` (backup programado) es **infraestructura**: el owner decide y no bloquea el producto. Y **higiene
    pendiente del owner**: revocar la cuenta de QA anterior y **rotar el `EASYPANEL_TOKEN`**.
 
@@ -243,6 +219,10 @@ Solo bloqueos **reales**. Todo lo demás es trabajo pendiente.
 - Conocimiento estable aprendido: [`../.agents/MEMORY.md`](../.agents/MEMORY.md)
 - Procedimientos: [`../.agents/skills/`](../.agents/skills/)
 - Cola de hallazgos: [`audit-backlog.md`](audit-backlog.md)
+- **Roadmap maestro** (`ops/roadmap/PRODUCT-UX-ROADMAP.md`):
+  [`roadmap/PRODUCT-UX-ROADMAP.md`](roadmap/PRODUCT-UX-ROADMAP.md) — secuencia inmediata en
+  [`roadmap/NEXT.md`](roadmap/NEXT.md)
+- Arquitectura de producto: [`product/MODULE_ARCHITECTURE.md`](product/MODULE_ARCHITECTURE.md)
 - Programa de remediación: [`tasks/AUDIT-REMEDIATION-ROADMAP.md`](tasks/AUDIT-REMEDIATION-ROADMAP.md)
 - Runbook de producción: [`production-readiness.md`](production-readiness.md)
 - Punto de entrada de una sesión: [`tasks/START-HERE.md`](tasks/START-HERE.md)

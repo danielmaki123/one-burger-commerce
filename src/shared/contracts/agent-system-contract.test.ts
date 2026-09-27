@@ -68,8 +68,15 @@ const SKILLS_THAT_CONSULT_ARCHITECTURE = ["new-task", "ui-change"] as const;
 /**
  * Un techo para la constitución de producto: el mismo principio que el resto de los documentos del
  * sistema —si crece como un manual, dejó de ser la fuente corta que un agente lee antes de decidir—.
+ *
+ * **Se movió de 400 a 422 (2026-09-27, `TASK-GOV-001`) y queda medido**: la TASK agregó la **arquitectura
+ * objetivo de módulos** (`payments`, `money`, `cash`, `promotions`), la **clasificación explícita**
+ * `ACTIVE` / `FROZEN` / `LEGACY` / `FUTURE` de las capacidades fuera del MVP y la **arquitectura visible
+ * objetivo**, que son fuente normativa y no caben en un puntero. Para pagarlo, la lista de deuda conocida
+ * (§12) se comprimió a una tabla y perdió el detalle que ya vive en `ops/audit-backlog.md`. **A partir de
+ * acá el número solo baja.**
  */
-const MAX_MODULE_ARCHITECTURE_LINES = 400;
+const MAX_MODULE_ARCHITECTURE_LINES = 422;
 
 /** El archivo del que salió esta reorganización. No se borra: se archiva. */
 const LEGACY_STATE_DOCUMENT = "ops/history/project-state-legacy-2026-09.md";

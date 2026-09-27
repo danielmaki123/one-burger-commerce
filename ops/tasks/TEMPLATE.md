@@ -57,8 +57,9 @@ Qué está mal, en términos del sistema (no del síntoma).
 
 ## REUSE AUDIT
 
-La ley está en [`../product/MODULE_ARCHITECTURE.md`](../product/MODULE_ARCHITECTURE.md) §10.1–§10.3: antes de
-crear una pantalla, ruta, feature, caso de uso, componente o flujo, se busca si la capacidad **ya existe**.
+**Gate obligatorio**: la ley está en [`../product/MODULE_ARCHITECTURE.md`](../product/MODULE_ARCHITECTURE.md)
+§10.1–§10.3 (**ley 2, *Reuse Audit***): antes de crear una pantalla, ruta, feature, caso de uso, componente o
+flujo, se busca si la capacidad **ya existe**. **Sin este bloque no se implementa.**
 
 ```md
 Objetivo:                 <qué quiere lograr el usuario>
@@ -70,6 +71,18 @@ Qué es realmente nuevo:   <lo que no existía; si no hay nada, la TASK no crea>
 Una implementación paralela (**lo nuevo**) exige una **responsabilidad de dominio distinta** y su
 justificación. Si la capacidad ya existe y la TASK la reconstruye, la respuesta correcta es reutilizar,
 componer o **enlazar al flujo canónico** (§10.2).
+
+## SPEC / REFERENCE / DESIGN FREEZE (solo si toca una pantalla)
+
+- **SPEC aprobada**: `ops/design/screens/<pantalla>.md` (o `N/A — no toca una pantalla`). Sin spec aprobada
+  **no hay implementación** de un rediseño material ([`screen-design`](../../.agents/skills/screen-design/SKILL.md)).
+- **`reference.html`**: `Sí — <ruta>` o `N/A — el owner no dejó referencia`. Si existe, es **contrato** de
+  composición, IA y comportamiento (*Reference Fidelity*).
+- **Design Freeze**: qué queda **congelado** al aprobar y cómo se trata una desviación **material** (modifica
+  primero la spec; la decide el owner; si aparece durante la implementación es **Stop Condition**).
+- **Viewport Contract** (superficies **operativas**): `1366×768`, `1280×720`, `768×1024`, `375×812` —qué entra
+  en el primer viewport y qué scrollea (el panel, no la página)—.
+- **Cierre**: cómo se compara la **implementación real** contra la SPEC y la referencia antes de cerrar la TASK.
 
 ## EVIDENCIA
 

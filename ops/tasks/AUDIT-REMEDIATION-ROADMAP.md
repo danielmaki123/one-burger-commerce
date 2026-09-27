@@ -4,6 +4,12 @@
 prioridad, riesgo, dependencia previa y por qué va en ese orden**. **Ninguna TASK de acá está
 implementada.**
 
+**Qué NO es** (2026-09-27, `TASK-GOV-001`): **no es el roadmap de producto**. El **orden del trabajo de
+producto y de las secciones** lo manda [`../roadmap/PRODUCT-UX-ROADMAP.md`](../roadmap/PRODUCT-UX-ROADMAP.md)
+(el roadmap maestro, que es uno solo); este archivo es el **qué técnico de la remediación** —hallazgos `A-*`,
+con su prioridad y su riesgo— y se ejecuta **dentro** de ese orden. Si los dos se contradicen sobre *qué
+sigue*, manda el roadmap maestro; sobre *cómo se arregla*, manda este programa.
+
 **Reglas de este programa**
 
 - Una TASK por vez, con la plantilla [`TEMPLATE.md`](TEMPLATE.md) y la skill que corresponda a su clase

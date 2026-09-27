@@ -74,6 +74,32 @@ versión corta del §3— y dejarla en la TASK o en el cuerpo del PR.
 6. **Dependencias**: si necesita una TASK previa, una decisión del owner, una credencial o una
    migración.
 
+### Fase 2b — **REUSE AUDIT**: el gate que va antes de implementar
+
+La ley está en [`../../../ops/product/MODULE_ARCHITECTURE.md`](../../../ops/product/MODULE_ARCHITECTURE.md)
+§10.1–§10.3 (ley 2, *Reuse Audit*). **REUSE AUDIT no es un resumen del plan: es una puerta.** Se escribe el
+bloque —objetivo, capacidad existente, qué se reutiliza y qué es **realmente** nuevo— y **sin ese bloque no se
+implementa**: si la capacidad ya existe, la respuesta correcta es reutilizar, componer o **enlazar al flujo
+canónico**, no reconstruir.
+
+```md
+Objetivo:                 <qué quiere lograr el usuario>
+Capacidad existente:      <qué hay hoy y dónde (módulo, caso de uso, ruta, componente)>
+Qué se reutiliza:         <lo que se compone o se enlaza>
+Qué es realmente nuevo:   <lo que no existía; si no hay nada, la TASK no crea>
+```
+
+### Fase 2c — Design Freeze y viewport (si la TASK toca una pantalla)
+
+- Si el trabajo es una **pantalla nueva** o un **rediseño material** va antes por
+  [`screen-design`](../screen-design/SKILL.md), y con la **SPEC aprobada** y su `reference.html` (si el owner
+  dejó referencia) la composición, la IA y el comportamiento principal quedan **congelados** (**Design
+  Freeze**): una desviación material modifica primero la spec y la decide el owner.
+- La QA de una superficie **operativa** se declara desde el arranque en **viewport completo** —
+  **`1366×768`, `1280×720`, `768×1024` y `375×812`**—, no solo por ancho (*Viewport Contract*).
+- Al cerrar, una TASK material de UI **compara la implementación real contra la SPEC y la referencia**: el
+  merge no es la comparación.
+
 ### Fase 3 — Entender las invariantes antes de implementar
 
 No se escribe código hasta poder contestar: *¿qué propiedad tiene que seguir siendo verdad después de
@@ -115,7 +141,11 @@ Contestar las cinco preguntas. Si alguna queda sin respuesta, la TASK no arranca
 - [ ] Leí `AGENTS.md`, `CONTEXT.md` y `ops/CURRENT.md`.
 - [ ] Leí la TASK y la skill que corresponde a su clase de riesgo.
 - [ ] Identifiqué el bounded context.
+- [ ] **Escribí el bloque `REUSE AUDIT`** (capacidad existente / qué se reutiliza / qué es nuevo).
 - [ ] Declaré riesgos, Scope IN y Scope OUT.
+- [ ] Si toca una pantalla: hay **SPEC aprobada** (y `reference.html`) y sé qué queda **congelado**;
+      si la superficie es operativa, declaré los **cuatro viewports** (`1366×768`, `1280×720`,
+      `768×1024`, `375×812`).
 - [ ] Identifiqué tests existentes afectados y si alguno cambia (con justificación).
 - [ ] Identifiqué dependencias y bloqueos.
 - [ ] Contesté SCOPE / RISK / TEST / DONE / RECORD.
