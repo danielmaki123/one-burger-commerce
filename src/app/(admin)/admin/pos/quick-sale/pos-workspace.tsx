@@ -443,37 +443,34 @@ export function PosWorkspace({
           {contentMounted ? (
             <>
               {/*
-                **El ticket reparte el alto con reglas explícitas, no con `flex-grow`.** Auditado con
-                `SCREEN-POS-QUICK-SALE-001.2`: con la versión anterior (`flex-[0_1_auto]` arriba + `flex-1`
-                abajo) el checkout —un formulario de **887 px** de contenido— ganaba la negociación del flex y
-                las líneas quedaban en **34 px**, menos de una fila de 57, con su propio scrollbar: con tres
-                productos había que scrollear para ver el tercero. El reparto ahora es:
+                **UN solo scroll para el ticket: las líneas van adentro del mismo contenedor.** Es la regla que
+                quedó después de dos intentos:
 
-                1. **Líneas**: `flex-none` con `lg:max-h-[15rem]` (240 px: las tres filas de una venta normal
-                   medidas en 184 px más su separación y el aire del contenedor). En escritorio entran
-                   1–3 líneas **completas y sin scroll interno**; recién de la cuarta en adelante scrollea esta
-                   zona. Abajo de `lg` el tope se suelta: ahí el ticket vive en el sheet y puede usar todo su
-                   alto.
-                2. **Checkout**: `flex-1` con su scroll. Es el que cede cuando la venta crece, y el que
-                   mantiene a la vista el arranque (subtotal, total, cliente y forma de pago).
-                3. **Pie** con el `Cobrar C$…`: `shrink-0` y sin `grow`, así que no participa del reparto.
+                - `001.1` dejaba las líneas con `flex-[0_1_auto]` y el checkout con `flex-1`; el checkout —un
+                  formulario de **887 px** de contenido— ganaba la negociación del flex y las líneas quedaban
+                  en **34 px**, menos de una fila: con tres productos había que scrollear para ver el tercero.
+                - La primera corrección de `001.2` separó las zonas (líneas con tope de 240 px + checkout con
+                  su propio scroll) y **creó un segundo scroll**: con cuatro o más productos la lista
+                  scrolleaba *y* el checkout scrolleaba, con dos barras y filas cortadas al medio (visto en
+                  producción por el owner).
+
+                Ahora las líneas son parte del **mismo contenedor con scroll** que el resto del checkout: la
+                lista crece, desplaza a lo que sigue y nunca se recorta. El **pie** con el total y el
+                `Cobrar C$…` queda fuera del scroll, así que no se mueve nunca.
               */}
-              <div
-                data-testid="pos-sale-lines-zone"
-                className="min-h-0 flex-none overflow-y-auto border-b border-line-subtle px-4 pt-2 lg:max-h-[15rem]"
-              >
-                <PosSaleLines
-                  lines={sale.lines}
-                  currency={sale.currency}
-                  onChangeQuantity={sale.changeQuantity}
-                  onRemove={sale.removeLine}
-                />
-              </div>
-
               <div
                 data-testid="pos-sale-checkout-zone"
                 className="min-h-0 flex-1 overflow-y-auto px-4 pb-2"
               >
+                <div data-testid="pos-sale-lines-zone" className="pb-2">
+                  <PosSaleLines
+                    lines={sale.lines}
+                    currency={sale.currency}
+                    onChangeQuantity={sale.changeQuantity}
+                    onRemove={sale.removeLine}
+                  />
+                </div>
+
                 <PosSaleSummary
                   linesCount={sale.lines.length}
                   totals={sale.totals}

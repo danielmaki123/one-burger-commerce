@@ -76,10 +76,15 @@ export default function PosSaleSummary({
             </span>
           ) : null}
         </p>
+        {/*
+          `text-panel-title` (24 px) y no `panel-display` (32 px): el total tiene que ser el número más grande
+          del ticket —el cajero lo dice en voz alta— pero **sin comerse el panel**. Medido: con 32 px el pie
+          se iba a ~64 px y empujaba la forma de pago fuera del primer viewport a `1280×720`.
+        */}
         <p
           data-testid="pos-sale-total"
           aria-live="polite"
-          className="font-mono text-panel-display font-bold tabular-nums text-brand-primary"
+          className="font-mono text-panel-title font-bold tabular-nums text-brand-primary"
         >
           {formatCurrency(totals.total, currency)}
         </p>

@@ -111,22 +111,35 @@ borrador en el dispositivo y las puertas `canUsePOS`/`canDiscountPosSale`. **No 
 Cómo se logra: **posición y tamaño**, no color. El total es el número más grande del ticket y vive en el
 **pie que no scrollea**; `Cobrar C$…` es el único botón `primary` del contexto y mide 48 px de alto.
 
-## Reparto del alto del ticket (`SCREEN-POS-QUICK-SALE-001.2`)
+## El ticket tiene UN solo scroll (`SCREEN-POS-QUICK-SALE-001.2`)
 
-El ticket tiene **tres zonas con reglas explícitas**. No se negocian solas: la versión anterior dejaba las
-líneas y el checkout en un tira y afloja de `flex` que el checkout —un formulario de **887 px** de
-contenido— ganaba siempre, y con tres productos la lista quedaba en **34 px** (menos de una fila de 57) con
-su propio scrollbar.
+Es la regla que quedó después de **dos intentos fallidos**, los dos medidos:
+
+- `001.1` dejaba las líneas con `flex-[0_1_auto]` y el checkout con `flex-1`; el checkout —un formulario de
+  **887 px** de contenido— ganaba todas las negociaciones del `flex` y las líneas quedaban en **34 px**, menos
+  de una fila: con tres productos había que scrollear para ver el tercero.
+- La primera corrección de `001.2` le puso un **tope a las líneas** (240 px con su propio scroll) y dejó el
+  scroll del checkout: eso **creó un segundo scroll** —con cuatro o más productos se veían dos barras y filas
+  cortadas al medio (reportado por el owner desde producción)—.
+
+**Cómo es ahora** (y no se cambia sin medir):
 
 | Zona | Regla | Por qué |
 |---|---|---|
-| **Líneas** | `flex-none` + `lg:max-h-[15rem]` (240 px) | Crecen con su contenido hasta el tope y recién ahí scrollean: 1–3 líneas entran **completas y sin scroll interno** (medido: 190 px). Abajo de `lg` el tope se suelta (el ticket vive en el sheet) |
-| **Checkout** | `flex-1` + scroll propio | Es el que cede cuando la venta crece. Mantiene a la vista el arranque: subtotal, empaque, cliente y forma de pago |
-| **Pie** | `shrink-0`, sin `grow` | El total y el `Cobrar C$…` **no dependen del reparto**: siempre al pie |
+| **Cuerpo** (líneas **+** checkout) | **una sola** superficie con scroll (`flex-1`, `overflow-y-auto`) | Las líneas crecen, desplazan a lo que sigue y **nunca se recortan**. Agregar productos empuja el contenido hacia abajo, que es lo que el cajero espera: se agrega, se scrollea la misma superficie, se cobra |
+| **Líneas** | sin scroll propio, sin tope | Con 1–3 productos se ven **completas** sin tocar nada |
+| **Pie** | `shrink-0`, fuera del scroll | El **total** (24 px, no 32: el número más grande del ticket pero sin comerse el panel) y el `Cobrar C$…` **no se mueven nunca**, ni con la venta llena |
 
-**Medido en navegador real** (`admin-pos-ticket.spec.ts`, 3 líneas distintas): la zona de líneas queda en
-**190 px con 190 px de contenido** (cero scroll interno) a `1366×768` y a `1280×720`; el total, la forma de
-pago y el CTA están visibles; y con más líneas de las que entran el scroll aparece **solo** en la lista.
+**Medido en navegador real** (`admin-pos-ticket.spec.ts`) — la aserción central es
+`superficies con scroll = 1`:
+
+| Viewport, 3 líneas | Superficies con scroll | Filas | Offset de la forma de pago | Scroll de página |
+|---|---|---|---|---|
+| `1366×768` | **1** | 3 completas, ninguna cortada | **0** | 0 |
+| `1280×720` | **1** | 3 completas, ninguna cortada | **0** | 0 |
+
+Con la venta llena (más líneas que alto): sigue habiendo **una** superficie con scroll, ninguna fila queda
+cortada por la mitad y el CTA no se mueve.
 
 ## Acciones
 
@@ -170,7 +183,7 @@ cobro exitoso · venta recuperada del dispositivo · esperas llenas.
 A 1280 y 1366: dos columnas (`lg:grid-cols-[minmax(0,1fr)_minmax(340px,25rem)]`). El **catálogo scrollea
 dentro de su panel** y el **ticket queda anclado al viewport con todo su alto útil** (`calc(100dvh − 6.25rem)`,
 el chrome real del admin, y `position: fixed` con el ancla medida): el total y `Cobrar C$…` no se van de la
-pantalla. El reparto interno del ticket está en **§ Reparto del alto del ticket**.
+pantalla. El reparto interno del ticket está en **§ El ticket tiene UN solo scroll**.
 
 ## Viewport contract
 
@@ -178,33 +191,35 @@ Lo que tiene que verse **sin scrollear la página** en una venta normal de 1–3
 
 | Viewport | Qué entra | Qué scrollea |
 |---|---|---|
-| `1366×768` | barra operativa, búsqueda, categorías, una fila de catálogo, **las 3 líneas completas y sin scroll interno**, subtotal, cliente, **forma de pago**, total y `Cobrar` | catálogo (dentro de su panel); la lista de líneas recién de la cuarta en adelante; el checkout desde el monto/opciones; las opciones abiertas |
+| `1366×768` | barra operativa, búsqueda, categorías, una fila de catálogo, **las 3 líneas completas**, subtotal, cliente, **forma de pago**, total y `Cobrar` | catálogo (dentro de su panel); **una sola** superficie en el ticket (líneas + checkout) cuando el contenido no entra; las opciones abiertas |
 | `1280×720` | ídem | ídem |
 | `768×1024` | barra, buscador, chips, catálogo amplio y la barra `N productos · Total · Ver venta` | el catálogo; el ticket vive en el sheet |
 | `375×812` | barra, buscador, chips, productos y la barra inferior | el catálogo; el sheet al abrirse |
 
-**Prohibido**: scrollear la página para llegar a `Cobrar`; **comprimir la lista de líneas** (con 1–3 productos
-no lleva scroll propio); reservar una zona alta vacía para las líneas con 0–3 productos; y empujar el
-`Cobrar C$…` fuera del primer viewport.
+**Prohibido**: scrollear la página para llegar a `Cobrar`; **comprimir o recortar la lista de líneas** (con
+1–3 productos se ve completa y ninguna fila queda cortada por la mitad); **dos superficies con scroll dentro
+del ticket**; reservar una zona alta vacía para las líneas con 0–3 productos; y empujar el `Cobrar C$…` fuera
+del primer viewport.
 
-**Medición de la esquina más ajustada (`1280×720`, 3 líneas distintas)**, con el tooling de la spec
-(`admin-pos-ticket.spec.ts`, `pagoOffset`):
+**Medición de la esquina más ajustada (`1280×720`, 3 líneas)**, con el tooling de la spec:
 
-| Zona | Medición |
+| Qué | Medición |
 |---|---|
-| Líneas | **190 px de contenido en 190 px de zona** → 3 filas completas, **scroll interno: no** |
-| Checkout | 273 px visibles de 749 px de contenido; **offset de la forma de pago: 0** (entra en el primer viewport) |
+| Superficies con scroll en el ticket | **1** (la del cuerpo: líneas + checkout) |
+| Filas | 3, todas completas y **ninguna cortada** |
+| Forma de pago | **offset 0**: entra sin scrollear |
 | Pie | total + `Cobrar C$…` siempre visibles; scroll de página **0** |
 
-Lo que sí scrollea es el **excedente** del checkout (monto rápido, correo, promo, descuento, esperas) y, con
-más de 4 líneas, la propia lista. La página nunca scrollea para cobrar.
+Lo que sí scrollea es el **cuerpo del ticket** (monto rápido, correo, promo, descuento, esperas y las líneas
+de más). La página nunca scrollea para cobrar.
 
 ## Ticket con muchas líneas
 
-- **1–3 líneas**: todas completas, sin scroll interno en la lista.
-- **Más líneas**: el scroll aparece **solo** en la lista (tope `lg:max-h-[15rem]`); las primeras filas siguen
-  enteras, el checkout no desaparece y el **CTA no se mueve**.
-- **Opciones abiertas** (promo, descuento, esperas): scrollean dentro del checkout; no empujan las líneas.
+- **1–3 líneas**: todas completas, sin tocar el scroll.
+- **Más líneas**: se scrollea **la misma superficie** (no hay otra barra); ninguna fila queda cortada por la
+  mitad y el **CTA no se mueve**.
+- **Opciones abiertas** (promo, descuento, esperas): crecen dentro del mismo cuerpo; no empujan las líneas
+  fuera de un contenedor aparte.
 
 ## Tablet
 
