@@ -23,8 +23,19 @@ export default function PosQuickCash({
   onPick: (amount: number) => void;
 }) {
   return (
-    <div role="group" aria-label="Montos rápidos de efectivo" className="flex flex-wrap gap-2">
-      <Button type="button" size="pill" variant="secondary" onClick={() => onPick(total)}>
+    /*
+      `max-lg:min-h-10` (40 px): en escritorio estos atajos son un apoyo del campo de monto y con 44 px
+      ocupaban un renglón entero de más, que a `1280×720` empujaba la forma de pago fuera del primer viewport
+      (`SCREEN-POS-QUICK-SALE-001.2`). Abajo de `lg` —donde se toca con el dedo— siguen en 44 px.
+    */
+    <div role="group" aria-label="Montos rápidos de efectivo" className="flex flex-wrap gap-1.5">
+      <Button
+        type="button"
+        size="pill"
+        variant="secondary"
+        className="max-lg:min-h-10"
+        onClick={() => onPick(total)}
+      >
         Exacto
       </Button>
 
@@ -34,6 +45,7 @@ export default function PosQuickCash({
           type="button"
           size="pill"
           variant="secondary"
+          className="max-lg:min-h-10"
           onClick={() => onPick(amount)}
         >
           {formatCurrency(amount, currency)}
