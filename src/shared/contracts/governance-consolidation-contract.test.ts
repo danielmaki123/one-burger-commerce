@@ -355,7 +355,7 @@ describe("contrato · consolidación de arquitectura, reglas y roadmap (TASK-GOV
     expect(claimants, "el flujo se escribe una vez y se enlaza").toEqual([DELIVERY_SKILL]);
   });
 
-  it("NEXT.md es pequeño y apunta a la próxima TASK y al roadmap maestro", () => {
+  it("NEXT.md es pequeño, declara que no hay TASK activa y apunta a la próxima TASK y al roadmap maestro", () => {
     expect(countLines(NEXT_DOC)).toBeLessThanOrEqual(60);
 
     const next = readRepoFile(NEXT_DOC);
@@ -364,7 +364,8 @@ describe("contrato · consolidación de arquitectura, reglas y roadmap (TASK-GOV
       ["## ACTIVE", "lo que se está haciendo ahora"],
       ["## NEXT", "lo que sigue"],
       ["## LATER", "lo que queda lejos"],
-      ["TASK-GOV-001", "la TASK activa"],
+      ["**Ninguno.**", "que no hay ninguna TASK en curso"],
+      ["autorización explícita del owner", "que la próxima TASK no se abre sola"],
       ["Pedidos", "la próxima TASK"],
       ["roadmap maestro", "el roadmap maestro"],
     ];
@@ -372,6 +373,15 @@ describe("contrato · consolidación de arquitectura, reglas y roadmap (TASK-GOV
     const missing = expected.filter(([needle]) => !next.includes(needle)).map(([, why]) => why);
 
     expect(missing, "NEXT.md es la secuencia inmediata, no un segundo roadmap").toEqual([]);
+
+    // La TASK cerrada puede **nombrarse** como cerrada, pero no puede quedar declarada como lo que se está
+    // haciendo: `ACTIVE` es lo único que autoriza a trabajar (una TASK por vez).
+    const activeBody = next.split("## NEXT")[0].replace("## ACTIVE", "");
+
+    expect(
+      activeBody,
+      "una TASK cerrada no puede declararse activa: `ACTIVE` es lo que está en curso hoy",
+    ).not.toMatch(/TASK-GOV-001[^\n]*(en curso|activa|ACTIVE)/i);
 
     expect(
       next,
