@@ -8,21 +8,21 @@ en qué estado está el sistema en pocos minutos.
 [`.agents/CONTEXT.md`](../.agents/CONTEXT.md)). Este archivo se **actualiza seguido** y se mantiene
 corto: si crece como un diario, dejó de servir.
 
-> **Última actualización**: 2026-09-27, por **`TASK-GOV-001`** (`docs-only`: gobierno, leyes, arquitectura
-> objetivo y roadmap) además del release de **`SCREEN-POS-QUICK-SALE-001.2`** (corrección final del ticket,
-> **desplegado**; ver §1 y §4). **POS Fase 1 — Venta rápida queda CERRADA DEFINITIVAMENTE**: la pantalla
-> tiene un solo scroll, no comprime la lista de líneas y la **QA autenticada de producción** corrió a los
-> cuatro viewports del contrato (`1366×768`, `1280×720`, `768×1024`, `375×812`). **«POS Fase 2» dejó de
-> existir como fase**: su contenido se reparte en el [roadmap maestro](roadmap/PRODUCT-UX-ROADMAP.md) §2
-> órdenes 4 a 7 y 10, y **lo que sigue es la auditoría y el diseño de `Pedidos / Cocina`** (orden 3), que
-> **no se inició**. **Vigente desde hoy: el Default E2E Delivery Contract**
-> ([`.agents/skills/delivery-e2e/SKILL.md`](../.agents/skills/delivery-e2e/SKILL.md)): una TASK aprobada
-> declara su **Delivery Mode** y se ejecuta hasta el estado final **sin pedir permisos intermedios**, y el
-> **backup se decide por riesgo del release**, no por frecuencia (`A-57` sigue abierto como problema del
-> **scheduler** de backups). **La fase de estabilización técnica sigue cerrada**: ningún P0 conocido y ningún
-> P1 de dinero abierto. Lo que sigue abierto es **operativo** (`A-57`) o **decisión del owner** (`A-66`, el
-> `cashier` en Órdenes). Con `DS-001`, `IA-001`, Órdenes y la **Venta rápida del POS** (Fase 1) cerradas, la
-> secuencia la manda el [roadmap maestro](roadmap/PRODUCT-UX-ROADMAP.md): **16 pasos, no una pantalla suelta**.
+> **Última actualización**: 2026-09-27, por **`TASK-GOV-001`** (gobierno, leyes, arquitectura objetivo y
+> roadmap, `docs-only`: **cerrada y mergeada**, sin deploy) además del release de
+> **`SCREEN-POS-QUICK-SALE-001.2`** (corrección final del ticket, **desplegado**; ver §1 y §4). **POS Fase 1 —
+> Venta rápida queda CERRADA DEFINITIVAMENTE**: la pantalla tiene un solo scroll, no comprime la lista de
+> líneas y la **QA autenticada de producción** corrió a los cuatro viewports del contrato (`1366×768`,
+> `1280×720`, `768×1024`, `375×812`). **«POS Fase 2» dejó de existir como fase**: su contenido se reparte en el
+> [roadmap maestro](roadmap/PRODUCT-UX-ROADMAP.md) §2 órdenes 4 a 7 y 10, y **lo que sigue es la auditoría y el
+> diseño de `Pedidos / Cocina`** (orden 3), que **no se inició**. **Vigente: el Default E2E Delivery Contract**
+> ([`.agents/skills/delivery-e2e/SKILL.md`](../.agents/skills/delivery-e2e/SKILL.md)): una TASK aprobada declara
+> su **Delivery Mode** y se ejecuta hasta el estado final **sin pedir permisos intermedios**, y el **backup se
+> decide por riesgo del release**, no por frecuencia (`A-57` sigue abierto como problema del **scheduler** de
+> backups). **La fase de estabilización técnica sigue cerrada**: ningún P0 conocido y ningún P1 de dinero
+> abierto. Lo que sigue abierto es **operativo** (`A-57`) o **decisión del owner** (`A-66`, el `cashier` en
+> Órdenes). La secuencia la manda el [roadmap maestro](roadmap/PRODUCT-UX-ROADMAP.md): **16 pasos, no una
+> pantalla suelta**.
 
 ---
 
@@ -145,19 +145,20 @@ sin guardrail) · `A-23` (cuenta de prueba con rol `owner` en producción) · `A
 
 ## 4. Trabajo actual
 
-**Roadmap maestro adoptado y consolidado (2026-09-27, `TASK-GOV-001`)**: el proceso vive en
-[`roadmap/PRODUCT-UX-ROADMAP.md`](roadmap/PRODUCT-UX-ROADMAP.md) —**roadmap maestro único**, con el orden
-autoritativo de 16 pasos— y su secuencia inmediata en [`roadmap/NEXT.md`](roadmap/NEXT.md); las decisiones ya
-cerradas del owner, en [`roadmap/DECISIONS.md`](roadmap/DECISIONS.md). **`TASK-GOV-001` (`docs-only`)**
-consolidó las leyes en [`../AGENTS.md`](../AGENTS.md) § *Leyes del repo*, la arquitectura objetivo y la
-clasificación `ACTIVE`/`FROZEN`/`LEGACY`/`FUTURE` en `ops/product/MODULE_ARCHITECTURE.md` §4, y el **flujo
-obligatorio** en [`delivery-e2e`](../.agents/skills/delivery-e2e/SKILL.md): **no tocó runtime, POS, DB,
-migraciones, navegación ni pantallas**. **`DS-001`** (ley visual v4, en [`ops/design/`](design/)) está **aprobado y desplegado**;
-**`IA-001`** (navegación del panel) también; **`SCREEN-ORDERS-001`** fue la **primera sección rediseñada de
-punta a punta** ([`design/screens/orders.md`](design/screens/orders.md)) y **`SCREEN-POS-QUICK-SALE-001`** la
-segunda ([`design/screens/pos-quick-sale.md`](design/screens/pos-quick-sale.md)). **Lo que sigue es la
-auditoría y el diseño de `Pedidos / Cocina`** (orden 3 del roadmap), que **no se inició**; `Resumen` pasó al
-orden 16 y **«POS Fase 2» dejó de existir como fase**.
+**`TASK-GOV-001` — consolidación de arquitectura, reglas y roadmap (CERRADA, `docs-only`, sin deploy)**: el repo
+quedó con **una sola arquitectura vigente, un solo roadmap y un solo proceso**. Las **leyes** se enuncian una vez
+en [`../AGENTS.md`](../AGENTS.md) § *Leyes del repo*; la **arquitectura objetivo** y la clasificación
+`ACTIVE`/`FROZEN`/`LEGACY`/`FUTURE`, en `ops/product/MODULE_ARCHITECTURE.md` §4; el **orden del trabajo**, en el
+[roadmap maestro](roadmap/PRODUCT-UX-ROADMAP.md) (16 pasos); y el **flujo obligatorio**, en
+[`delivery-e2e`](../.agents/skills/delivery-e2e/SKILL.md). **No tocó runtime, POS, DB, migraciones, navegación
+ni pantallas.**
+
+**Lo que sigue es la auditoría y el diseño de `Pedidos / Cocina`** (orden 3 del roadmap), que **no se inició**;
+`Resumen` pasó al orden 16 y **«POS Fase 2» dejó de existir como fase**. **`DS-001`** (ley visual v4, en
+[`ops/design/`](design/)) está **aprobado y desplegado**; **`IA-001`** (navegación del panel) también;
+**`SCREEN-ORDERS-001`** fue la **primera sección rediseñada de punta a punta**
+([`design/screens/orders.md`](design/screens/orders.md)) y **`SCREEN-POS-QUICK-SALE-001`** la segunda
+([`design/screens/pos-quick-sale.md`](design/screens/pos-quick-sale.md)).
 
 **Los cierres anteriores ya no viven acá**: el detalle —reproducción, límite atómico, mutaciones y evidencia—
 se movió a [`history/cierres-2026-09.md`](history/cierres-2026-09.md) cuando este archivo llegó a su techo de
