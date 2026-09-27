@@ -1,6 +1,9 @@
 # One Burger — Decisions Register
 
-Decisiones ya tomadas para evitar reabrirlas sin nueva evidencia.
+Decisiones **ya tomadas** por el owner, como registro, para no reabrirlas sin evidencia nueva. **No son
+leyes**: las leyes del repo se enuncian una sola vez en [`../../AGENTS.md`](../../AGENTS.md) § *Leyes del
+repo*, y donde una decisión de acá coincide con una ley, **manda la ley** (acá queda el registro de cuándo y
+por qué se decidió).
 
 ## D-001 — No migración masiva de UI
 Las pantallas se revisan una por una.

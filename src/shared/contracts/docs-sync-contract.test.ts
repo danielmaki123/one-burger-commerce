@@ -61,6 +61,11 @@ const AGENT_DOCS: string[] = [
   // ARCH-001: la arquitectura de producto se consulta **antes** de crear una capacidad nueva, así que
   // sus propias referencias también tienen que poder seguirse.
   "ops/product/MODULE_ARCHITECTURE.md",
+  // TASK-GOV-001: el roadmap maestro es el único que decide el orden del trabajo de producto; sus
+  // referencias (specs, backlog, arquitectura) tienen que poder seguirse enteras.
+  "ops/roadmap/PRODUCT-UX-ROADMAP.md",
+  "ops/roadmap/NEXT.md",
+  "ops/roadmap/README.md",
   // DS-001: la ley visual es punto de entrada obligatorio de cualquier cambio de UI.
   "ops/design/README.md",
   "ops/design/DESIGN_SYSTEM.md",

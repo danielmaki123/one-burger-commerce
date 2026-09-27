@@ -1,719 +1,149 @@
-# One Burger — Product, Architecture & Design Roadmap
+# One Burger — roadmap maestro de producto y UX
 
-**Estado:** roadmap maestro de transición  
-**Objetivo:** pasar de la estabilización técnica a una evolución ordenada del producto sin rehacer dos veces la misma sección.
+**Qué es**: la **fuente del roadmap maestro de producto y UX** del repo — el **único** roadmap maestro. La
+secuencia del trabajo de producto, las leyes que lo gobiernan y el punto donde está hoy viven acá; el
+**programa de remediación técnica** (hallazgos `A-*`, con objetivo, prioridad y riesgo) sigue en
+[`../tasks/AUDIT-REMEDIATION-ROADMAP.md`](../tasks/AUDIT-REMEDIATION-ROADMAP.md).
+
+**Qué NO es**: no es el estado operativo (eso es [`../CURRENT.md`](../CURRENT.md)), no es la arquitectura de
+producto (eso es [`../product/MODULE_ARCHITECTURE.md`](../product/MODULE_ARCHITECTURE.md)) y no es la ley
+visual (eso es [`../design/DESIGN_SYSTEM.md`](../design/DESIGN_SYSTEM.md)). **No hay un segundo roadmap**: lo
+que no esté en el orden de §2 no está planificado, y si aparece la necesidad se discute con el owner y se
+anota acá **antes** de empezar.
+
+**Última actualización**: 2026-09-27, por **`TASK-GOV-001`** (gobierno y reglas: leyes consolidadas,
+arquitectura objetivo, este roadmap y el flujo de trabajo).
 
 ---
 
 ## 1. Principio central
 
 ```text
-SEGURIDAD / DINERO ESTABLE
+AUDITORÍA REAL DEL REPO
         ↓
-ARQUITECTURA DEL PRODUCTO
+REUSE AUDIT (¿ya existe?)
         ↓
-DESIGN SYSTEM
+OWNERSHIP / ARQUITECTURA (¿de quién es la regla?)
         ↓
-DISEÑO DE UNA SECCIÓN
+SPEC (+ reference.html si el owner dejó referencia)
         ↓
-IMPLEMENTACIÓN
+APROBACIÓN / DESIGN FREEZE
         ↓
-QA
+IMPLEMENTACIÓN → TESTS/QA → PR/CI → MERGE → DEPLOY → QA DE PRODUCCIÓN
         ↓
-SIGUIENTE SECCIÓN
+AUDITORÍA INDEPENDIENTE (spec/reference vs runtime)
+        ↓
+CURRENT / roadmap → STOP
 ```
 
-No volver a:
+No se vuelve a:
 
 ```text
-programar pantalla
-↓
-descubrir que estaba mal ubicada
-↓
-rediseñarla
-↓
-cambiar componentes
-↓
-volver a programarla
+programar una pantalla ↓ descubrir que estaba mal ubicada ↓ rediseñarla ↓ reprogramarla
 ```
 
-La meta es resolver cada sección una sola vez y con intención.
+**Una sola TASK de runtime activa por vez**, y **deploy no equivale a aceptación**: el release se acepta
+cuando la implementación se compara contra la spec y la referencia **después** del merge. El flujo completo,
+sus gates y las condiciones de parada **se escriben una sola vez** en [`delivery-e2e`](../../.agents/skills/delivery-e2e/SKILL.md) y no se repiten acá.
 
 ---
 
-## 2. Fase 0 — cerrar estabilización técnica
+## 2. Orden autoritativo
 
-Antes de iniciar este roadmap debe terminar A-15.
+Cada paso se abre como **una TASK**, con su brief en `ops/tasks/` y su Delivery Mode declarado. Lo que está
+«cerrado» se deja escrito para que nadie lo reabra por accidente.
 
-### A-15 — cancelación, refunds, reversals y métricas netas
+```text
+0.  Gobierno y reglas ................ TASK-GOV-001 · ESTA TASK · docs-only
+1.  POS Fase 1 (venta rápida) ........ CERRADA (SCREEN-POS-QUICK-SALE-001.2, desplegada)
+2.  Consolidación arquitectónica ..... TASK-GOV-001 · ESTA TASK · arquitectura objetivo + reordenamiento
+3.  Separar Pedidos / Cocina ......... PRÓXIMA TASK: Órdenes deja de ser una sola superficie (bandeja vs cocina)
+4.  Money ownership .................. moneda, locale, FX y conversión en un dueño explícito
+5.  Payments ownership ............... Payment, saldo, parcial, refund, void, banco y snapshots monetarios
+6.  Pedido existente → Cobrar en POS . Órdenes localiza el pedido y el POS lo cobra (cierra `A-67`)
+7.  Cash ownership ................... Shift, apertura, movimientos, conteo, cierre, handover y conciliación
+8.  Separar Configuración: Negocio / Finanzas / Personalización / Locales ... cada una con su entrada
+9.  Separar Cierres / Facturas ....... dos capacidades distintas, dos documentos, dos dueños
+10. Promotions ownership ............. elegibilidad, scope, límites, redemption y BOGO fuera de `orders`
+11. Consolidar /activity + /orders + /orders/track ... una sola historia del pedido para el cliente
+12. Clasificar y sanear FROZEN/LEGACY  inventario, reservas, delivery zones, mesas, coupons, table-ordering
+13. Check únicamente si aparece necesidad real ... no se crea por anticipación; solo con una necesidad real
+14. Table Service/Mesas .............. reabrir el servicio de mesa, con decisión del owner
+15. Refinamiento restante de Catálogo  lo que no entró en las secciones anteriores
+16. Resumen, cuando las fuentes estén maduras ... `/admin`, al final, cuando las fuentes estén maduras
+```
 
-Decisiones ya tomadas:
+**Dependencias que no se saltean**: 4 y 5 antes de 6 y 7 (no se cobra un pedido existente sin dueño del
+dinero ni del turno); 3 antes de 6 (Órdenes tiene que saber localizar y mostrar el pedido antes de delegar el
+cobro); 16 **al final**, porque un overview solo es honesto cuando las fuentes que resume ya están ordenadas.
 
-- nunca borrar `Payment`, `Refund`, `Invoice` ni historia financiera;
-- cancelar un pedido no mueve dinero automáticamente;
-- dinero recibido y posteriormente devuelto → `Refund`;
-- cobro registrado que debe invalidarse → `Void/Reversal`;
-- actor, fecha y motivo obligatorios;
-- inicialmente las operaciones sensibles requieren capability de owner;
-- factura original permanece con su estado correspondiente;
-- métricas comerciales no pueden contar dinero devuelto o invalidado como ingreso.
-
-Cuando A-15 cierre y `main` esté verde:
-
-> se considera cerrada la fase de estabilización general, salvo aparición de un nuevo P0/P1 crítico.
-
-Backups, monitoring y resiliencia pueden permanecer en backlog sin impedir el trabajo normal del producto, salvo riesgo crítico nuevo.
+**Lo que este roadmap retira**: la secuencia anterior mandaba a `Resumen` o a una «POS Fase 2» genérica
+inmediatamente después del POS. `Resumen` pasa al orden 16 y «POS Fase 2» **deja de existir como fase**: su
+contenido se reparte entre los órdenes 4 a 7 y 10 (dinero, cobros, turno, promociones). La Fase 1 del POS
+quedó cerrada y **no se reabre**.
 
 ---
 
-## 3. Fase 1 — ARCH-001: Product & Module Architecture
+## 3. Design Freeze
 
-### Objetivo
+Una vez **aprobadas** la SPEC de una pantalla y su `reference.html`:
 
-Crear una constitución pequeña que responda:
+- la **composición**, la **information architecture** y el **comportamiento principal** quedan **congelados**
+  para la implementación;
+- la referencia aprobada es **contrato** (ley 5, *Reference Fidelity*): se traduce a los componentes reales,
+  no se copia el HTML y no se reinterpreta;
+- una desviación **material** **no** se resuelve en el código: primero se modifica la spec y la decide el
+  owner. Si el desvío aparece durante la implementación, es una **Stop Condition**, no una decisión del
+  agente;
+- la comparación **implementación real vs SPEC/reference** es parte del cierre de una TASK material de UI, y
+  la **auditoría independiente** posterior al deploy la repite sobre el runtime.
 
-> ¿Dónde pertenece cada capacidad y quién es dueño de sus reglas?
-
-No reorganizar todo el código.  
-No rediseñar pantallas.  
-No crear módulos futuros por anticipación.
-
-### Fuente normativa futura
-
-```text
-ops/product/MODULE_ARCHITECTURE.md
-```
-
-### Definiciones oficiales a fijar
-
-**Módulo**  
-Capacidad estable del negocio con responsabilidades y reglas propias.
-
-**Sección**  
-Agrupación coherente de navegación.
-
-**Pantalla**  
-Vista concreta que permite cumplir una tarea.
-
-**Feature**  
-Capacidad específica dentro de un módulo.
-
-**Overview**  
-Vista transversal que consume información de varios módulos sin convertirse en dueño de ellos.
-
-### Regla de creación
-
-Una feature nueva pertenece por defecto a un módulo existente.
-
-Crear módulo, sección o entrada principal de navegación es la excepción y requiere justificar:
-
-- responsabilidad estable del negocio;
-- tareas propias;
-- datos/reglas propios;
-- necesidad de acceso recurrente;
-- imposibilidad de ubicarlo naturalmente en un módulo existente.
-
-### Arquitectura conceptual actual
-
-```text
-RESUMEN
-→ overview transversal del owner
-
-OPERACIÓN
-→ Órdenes
-→ POS
-
-CONTROL
-→ Caja
-→ Cierres
-→ Aprobaciones
-→ Configuración de Caja
-
-CATÁLOGO
-→ Menú
-
-NEGOCIO / CONFIGURACIÓN
-→ Locales
-→ Usuarios
-→ Personalización
-→ Alertas
-```
-
-No crear todavía `Ventas`, `Analytics`, `Productos` o `Inventario` como secciones nuevas solo porque puedan existir en el futuro.
-
-### Ownership conceptual
-
-Una entidad puede aparecer en varias pantallas, pero su significado se define en un solo dominio.
-
-| Concepto | Owner conceptual |
-|---|---|
-| Order | Órdenes |
-| Shift | Caja |
-| Cash count / cierre | Caja |
-| Product / Category / Modifier | Catálogo |
-| Location | Locales |
-| User / Role | Auth / Usuarios |
-| BusinessSettings | Configuración |
-| Invoice | dominio financiero/facturación |
-| Refund | dominio financiero |
-
-### Regla especial de Resumen
-
-`/admin` es transversal.
-
-> Resumen muestra señales; las secciones propietarias muestran y resuelven el detalle.
-
-Ejemplos:
-
-```text
-2 pedidos atrasados → Ver Órdenes
-1 cierre con diferencia → Ver Cierres
-Top productos → señal comercial, no módulo Productos
-```
-
-### Navegación
-
-El sidebar no es un sitemap.
-
-Una ruta de detalle puede existir sin entrada propia.
-
-Preferencia:
-
-```text
-Sección
-  ↓
-Pantalla
-  ↓
-Detalle
-```
-
-Si se requieren muchos niveles, revisar la arquitectura antes de seguir.
-
-### Roles
-
-Los roles cambian permisos, scope, acciones e información visible.
-
-No deben crear productos o rutas paralelas.
-
-### Datos dinámicos
-
-Sucursales, productos, categorías, usuarios y otras entidades administrables nunca se enumeran como estructura fija en JSX.
-
-Una nueva sucursal debe aparecer donde corresponda por datos, no por modificar componentes.
-
-### Límite de ARCH-001
-
-No debe:
-
-- mover masivamente carpetas;
-- renombrar todas las rutas;
-- rediseñar sidebar;
-- crear Ventas/Analytics/Productos;
-- tocar DB;
-- cambiar lógica funcional;
-- rediseñar pantallas.
+Aplica a toda pantalla con `ops/design/screens/<pantalla>.md` aprobada (`orders`, `pos-quick-sale`, y las que
+vengan).
 
 ---
 
-## 4. Fase 2 — DS-001: One Burger Design System v4
-
-### Objetivo
-
-Crear la única ley visual vigente.
-
-DS-001 no rediseña ninguna pantalla existente.
-
-### Cadena de autoridad
-
-```text
-Owner / regla de producto
-        ↓
-Seguridad / funcionalidad / accesibilidad
-        ↓
-MODULE_ARCHITECTURE
-        ↓
-DESIGN_SYSTEM
-        ↓
-Spec aprobada de pantalla
-        ↓
-Registry de componentes
-        ↓
-Implementación
-```
-
-### Stitch
-
-Stitch deja de ser normativo.
-
-Puede conservarse como historia/evidencia, pero:
-
-- no manda;
-- no es lectura obligatoria;
-- ninguna skill debe exigirlo;
-- no decide nuevos diseños.
-
-### Estructura futura
-
-```text
-ops/design/
-├── DESIGN_SYSTEM.md
-├── CONTENT.md
-├── PATTERNS.md
-├── MOTION.md
-├── DATA_VISUALIZATION.md
-└── screens/
-    └── TEMPLATE.md
-```
-
-### Principios visuales
-
-One Burger debe sentirse:
-
-- premium sin ostentación;
-- limpio;
-- operativo;
-- rápido de escanear;
-- de alta densidad útil;
-- jerárquico;
-- con poco texto explicativo;
-- accesible;
-- responsive;
-- consistente.
-
-Premium no significa más cards, colores, sombras o animaciones.
-
-Premium significa:
-
-- menos ruido;
-- mejores decisiones;
-- mejor jerarquía;
-- ritmo espacial consistente;
-- feedback preciso;
-- tipografía y densidad deliberadas.
-
-### Color y theming
-
-Los componentes consumen intención semántica, no colores concretos.
-
-Ejemplos:
-
-```text
-brand-primary
-surface
-surface-elevated
-text-primary
-text-muted
-status-danger
-status-success
-chart-primary
-```
-
-No hardcodear paletas dentro de componentes.
-
-Separar:
-
-**Brand** — configurable.  
-**Structural** — controlado/derivado por el sistema.  
-**Semantic** — success/warning/danger/SLA protegidos.
-
-`BusinessSettings` debe poder alimentar la identidad de marca en Menú, Admin, POS, KDS y charts sin que cada componente tenga que modificarse manualmente.
-
-DS-001 prepara la arquitectura; no recolorea todo el producto.
-
-### Content Design
-
-> Si una interacción normal necesita un párrafo para entenderse, primero se rediseña la interacción.
-
-La interfaz debe comunicar por posición, jerarquía, agrupación, estado, números, iconografía y acción antes de añadir explicación textual.
-
-### Botones
-
-Preferir verbo + objeto:
-
-- Crear usuario
-- Guardar cambios
-- Cerrar turno
-- Reembolsar pago
-
-Evitar labels vagos cuando el contexto no sea inequívoco.
-
-Una acción primaria por contexto visual.
-
-Estados mínimos:
-
-- default;
-- hover;
-- pressed;
-- focus-visible;
-- disabled;
-- loading.
-
-### Motion
-
-Motion es feedback, no decoración.
-
-Debe haber una escala pequeña y compartida.
-
-Obligatorio:
-
-- `prefers-reduced-motion`;
-- patrones comunes para menu/popover/sheet/modal/toast;
-- evitar rebotes, glows e infinite animation sin propósito funcional.
-
-### Cards
-
-Card significa agrupación semántica.
-
-No usar Card como wrapper universal.
-
-Evitar nesting visual profundo.
-
-### Formularios
-
-Default:
-
-```text
-Label
-[ Control ]
-```
-
-Helper text solo cuando evita error o explica una regla no evidente.
-
-### Progressive disclosure
-
-No mostrar configuración secundaria permanentemente.
-
-Usar cuando corresponda:
-
-- tooltip;
-- disclosure;
-- sheet;
-- drawer;
-- modal;
-- details.
-
-### Arquetipos
-
-PATTERNS debe definir al menos:
-
-- Dashboard / Overview
-- Operational
-- Management
-- Configuration
-- Detail
-
-### Data Visualization
-
-La visualización responde una pregunta de negocio.
-
-| Pregunta | Patrón |
-|---|---|
-| ¿Cuánto? | Metric/KPI |
-| ¿Subió o bajó? | Delta / sparkline |
-| ¿Cómo evoluciona? | Line/area |
-| ¿Quién rinde mejor? | Bars / ranking |
-| ¿Cómo se distribuye? | Donut con pocas categorías |
-| ¿Qué requiere atención? | Ranked/alert list |
-| ¿Necesito valores exactos? | Table/list |
-
-> Si dos números explican mejor que un gráfico, no usar gráfico.
-
-### No inventar métricas
-
-No crear margen, proyección, conversión u otras métricas si el backend no puede defenderlas con datos reales y fórmula clara.
-
-### Responsive
-
-QA visual mínimo:
-
-- 375 px
-- 768 px
-- 1280 px
-
-Mobile no es desktop comprimido.
-
-### Legacy policy
-
-```text
-pantalla legacy no revisada
-→ puede permanecer temporalmente
-
-deuda nueva
-→ prohibida
-
-pantalla rediseñada
-→ debe salir bajo DS v4
-
-pantalla nueva
-→ DS v4 obligatorio
-```
+## 4. Leyes que el roadmap aplica (no las reescribe)
+
+Las **leyes del repo** —Reuse First, Reuse Audit, One Canonical Flow, Single Owner, Reference Fidelity,
+Viewport Contract, la ley del **dueño único de la configuración con snapshot en los hechos históricos** y
+Design Freeze— se enuncian **una sola vez** en [`AGENTS.md`](../../AGENTS.md) § *Leyes del repo*, con el
+nombre que un agente cita. Acá solo se dice cómo las usa el roadmap:
+
+- **Reuse Audit** es el **gate obligatorio** de cada TASK antes de implementar (plantilla:
+  [`../tasks/TEMPLATE.md`](../tasks/TEMPLATE.md)).
+- **One Canonical Flow** es la razón de los órdenes 3, 6 y 11: una operación, una superficie que la resuelve.
+- **Single Owner** es la razón de los órdenes 4, 5, 7, 8, 9 y 10: separar dueños que hoy comparten módulo.
+- **Viewport Contract** y **Design Freeze** son las condiciones de cierre de cualquier TASK de UI.
+- La ley de **configuración y snapshots** es la razón de los órdenes 4, 5, 7 y 9: lo que se firma **congela**
+  los valores que lo explican (medios de cobro, desglose del turno, factura, tipo de cambio).
 
 ---
 
-## 5. Fase 3 — migración sección por sección
+## 5. Reglas de proceso del roadmap
 
-No hacer migración masiva.
-
-Cada sección pasa por una única revisión completa:
-
-```text
-1. Auditar estado actual
-        ↓
-2. Arquitectura de la sección
-        ↓
-3. Information Architecture
-        ↓
-4. UX
-        ↓
-5. Screen Spec
-        ↓
-6. Aprobación owner
-        ↓
-7. Implementación DS v4
-        ↓
-8. QA
-        ↓
-9. Cerrar
-```
-
-### Arquitectura de esa sección
-
-Responder:
-
-- ¿a qué módulo pertenece?;
-- ¿qué responsabilidad posee?;
-- ¿qué cosas actuales no deberían estar ahí?;
-- ¿qué features son propias?;
-- ¿qué consume de otros módulos?;
-- ¿qué permisos requiere?;
-- ¿debe aparecer en navegación?
-
-### Information Architecture
-
-Definir:
-
-- información principal;
-- secundaria;
-- detalle;
-- disclosure;
-- elementos a eliminar.
-
-### UX
-
-Definir:
-
-- tarea principal;
-- decisiones;
-- acciones;
-- estados;
-- errores;
-- empty states;
-- desktop;
-- mobile.
-
-### Screen Spec
-
-Todo rediseño material crea:
-
-```text
-ops/design/screens/<screen>.md
-```
-
-Debe contener:
-
-- ruta;
-- usuario;
-- objetivo;
-- preguntas;
-- datos;
-- jerarquía;
-- acciones;
-- estados;
-- responsive;
-- qué se elimina;
-- fuera de scope.
-
-La spec no crea nuevas leyes de diseño.
-
-### Cambios al Design System
-
-Una pantalla no modifica DS automáticamente.
-
-Primero preguntar:
-
-> ¿Esta necesidad es universal?
-
-Si sí, mejorar DS.  
-Si no, resolverla en la spec local.
+1. **Una TASK de runtime activa por vez.** Se cierra entera (implementación, tests, validación, PR, CI verde,
+   merge, deploy y QA) antes de abrir la siguiente.
+2. **El orden manda sobre la comodidad.** Si una TASK necesita algo de un orden posterior, se para y se
+   decide: o se adelanta la dependencia con su brief, o la TASK se acota.
+3. **Nada de migración masiva**: cada sección y cada módulo se mueven de a uno, con su TASK, su spec y su QA.
+   La arquitectura objetivo de `MODULE_ARCHITECTURE.md` §4.1 es dirección, **no** un big-bang.
+4. **Una sección se resuelve una sola vez**: no se implementa primero y se rediseña después.
+5. **Lo que no está en este orden no está planificado.** Aparece una necesidad real → se evalúa (orden 13) y,
+   si entra, se anota acá antes de empezar.
+6. **El estado se escribe donde corresponde**: el día a día en [`../CURRENT.md`](../CURRENT.md), la secuencia
+   inmediata en [`NEXT.md`](NEXT.md), las decisiones ya cerradas en [`DECISIONS.md`](DECISIONS.md) y lo que
+   pasó, en [`../history/`](../history/).
 
 ---
 
-## 6. Primera pantalla — `/admin` Resumen
+## 6. Anti-patrones
 
-Después de ARCH-001 y DS-001, la primera migración será Resumen.
-
-No se implementa antes de diseñarla con el owner.
-
-### Principio
-
-> Resumen muestra señales; las secciones muestran el detalle.
-
-### Propósito
-
-Permitir al owner entender en segundos:
-
-- cómo está el negocio;
-- qué está pasando;
-- qué requiere atención.
-
-No convertirse en Ventas, Caja, Productos, Órdenes o Analytics a la vez.
-
-### Contenido permitido
-
-Solo información respaldada por módulos/datos existentes:
-
-- ventas/valor comercial disponible;
-- pedidos;
-- pedidos abiertos;
-- atrasados;
-- tendencias;
-- comparación temporal;
-- comparación dinámica por sucursal;
-- top productos si el dato existe;
-- estado resumido de caja;
-- excepciones accionables.
-
-### Accesos
-
-No duplicar sidebar.
-
-MAL:
-
-```text
-[Usuarios] [Menú] [Locales] [Caja]
-```
-
-BIEN:
-
-```text
-2 pedidos atrasados
-→ Ver pedidos
-
-1 cierre con diferencia
-→ Revisar cierre
-```
-
-> La navegación dice adónde puedo ir. Resumen dice por qué debería ir.
-
-### Entidades dinámicas
-
-Sucursales y otras entidades configurables se renderizan desde datos.
-
-Si aparece una nueva sucursal, entra automáticamente en filtros, comparaciones y gráficos cuando corresponda.
-
----
-
-## 7. Nuevos módulos/secciones futuros
-
-Cuando aparezca una necesidad como Ventas, Productos, Analytics o Inventario:
-
-```text
-¿Es módulo?
-¿Es pantalla?
-¿Es feature?
-¿Quién es dueño?
-¿Necesita navegación?
-```
-
-Solo después se diseña e implementa.
-
-No reservar rutas vacías.
-
----
-
-## 8. Anti-patrones
-
-Evitar:
-
-- crear pantalla y luego decidir dónde pertenece;
-- crear sección por cada feature;
-- convertir sidebar en sitemap;
-- duplicar lógica de dominio en dashboards;
-- hardcodear sucursales/productos;
-- inventar KPI;
-- crear gráficos decorativos;
-- explicar cada control con párrafos;
-- usar cards para todo;
-- permitir que cada agente improvise estilos;
-- consultar múltiples sistemas externos en cada TASK;
-- rediseñar muchas pantallas simultáneamente;
-- mantener documentos contradictorios activos;
-- hacer una migración visual masiva antes de definir cada sección.
-
----
-
-## 9. Roadmap operativo oficial
-
-```text
-A-15
-│
-├── completar
-├── merge
-├── CI verde
-└── cerrar estabilización
-        ↓
-ARCH-001
-│
-├── MODULE_ARCHITECTURE
-└── cero rediseño
-        ↓
-DS-001
-│
-├── Design System v4
-├── skills
-├── contracts
-└── cero rediseño
-        ↓
-IA-001 — navegación del panel
-        ↓
-SCREEN-ORDERS-001 — Órdenes ✅
-        ↓
-SCREEN-POS-QUICK-SALE-001.1 + 001.2 — POS Fase 1 / Venta rápida ✅ (CERRADA DEFINITIVAMENTE)
-│
-├── workspace CATÁLOGO | VENTA (ticket anclado en escritorio)
-├── barra + sheet en celular y tablet · opciones secundarias bajo demanda
-├── referencia del owner aplicada: barra de una línea, caja solo donde bloquea el cobro
-├── ticket con UN solo scroll: líneas completas, total en el pie junto al CTA
-├── guardrails: reuse-first · one canonical flow · reuse audit · reference fidelity · viewport contract
-├── desplegado (`build-20260927-193653` sobre `4f69a24`) y QA autenticada de producción en los 4 viewports
-└── cero dominio / DB · Fase 2 NO iniciada
-        ↓
-POS Fase 2 — pedidos existentes / pagos / bancos / USD / factura
-│
-└── la define el owner **aparte**; no se inicia automáticamente
-        ↓
-SCREEN-001 — Resumen
-│
-├── discovery
-├── arquitectura
-├── IA
-├── UX
-├── spec
-├── aprobación
-├── implementación
-└── QA
-        ↓
-SCREEN-002
-        ↓
-SCREEN-003
-        ↓
-...
-```
-
----
-
-## 10. Principio final
-
-> One Burger no se seguirá desarrollando como una colección de pantallas independientes.
-
-Se desarrollará como un producto compuesto por capacidades dentro de una arquitectura estable, aplicando un único Design System y resolviendo cada sección de punta a punta una sola vez.
+- Crear una pantalla y después decidir dónde pertenece.
+- Duplicar una regla de dominio en un dashboard o en una segunda superficie.
+- Hardcodear sucursales, productos o precios como estructura de la UI.
+- Inventar un KPI o un gráfico que el backend no puede defender.
+- Reabrir una fase cerrada (la Fase 1 del POS) o una pantalla congelada sin spec nueva.
+- Mantener dos roadmaps, dos arquitecturas objetivo o la misma ley escrita dos veces.
+- Reservar rutas vacías o crear módulos por anticipación.
+- Declarar `docs-only` una TASK que toca runtime.

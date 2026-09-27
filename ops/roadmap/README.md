@@ -1,43 +1,29 @@
-# One Burger — Product & UX Roadmap
+# One Burger — roadmap de producto y UX (índice)
 
-Este paquete consolida el nuevo orden de trabajo acordado para One Burger.
+**Este paquete tiene un solo roadmap**: [`PRODUCT-UX-ROADMAP.md`](PRODUCT-UX-ROADMAP.md), el **roadmap maestro
+de producto y UX** —con el orden autoritativo de 16 pasos, las leyes que aplica y el Design Freeze—.
 
-## Propósito
+- [`PRODUCT-UX-ROADMAP.md`](PRODUCT-UX-ROADMAP.md) — **el roadmap maestro** y las reglas del proceso.
+- [`NEXT.md`](NEXT.md) — la secuencia inmediata (`ACTIVE` / `NEXT` / `LATER`), corta a propósito.
+- [`DECISIONS.md`](DECISIONS.md) — las decisiones **ya cerradas** del owner, como registro; no son leyes.
 
-Evitar rehacer arquitectura, UX y UI varias veces.
+## Reglas de autoridad
 
-Orden oficial:
+- Las **leyes del repo** (Reuse First, Reuse Audit, One Canonical Flow, Single Owner, Reference Fidelity,
+  Viewport Contract, la del **dueño único de la configuración con snapshot** y Design Freeze) se enuncian
+  **una sola vez** en [`../../AGENTS.md`](../../AGENTS.md) § *Leyes del repo*. Acá no se repiten.
+- La **arquitectura de producto y de módulos** —hoy y objetivo— vive en
+  [`../product/MODULE_ARCHITECTURE.md`](../product/MODULE_ARCHITECTURE.md).
+- La **ley visual** vive en [`../design/DESIGN_SYSTEM.md`](../design/DESIGN_SYSTEM.md).
+- El **programa de remediación técnica** (hallazgos `A-*`) vive en
+  [`../tasks/AUDIT-REMEDIATION-ROADMAP.md`](../tasks/AUDIT-REMEDIATION-ROADMAP.md): es el **qué** técnico, no
+  el orden de producto.
+- **No se mantiene un segundo roadmap.** Si algo no está en el orden de §2 del roadmap maestro, no está
+  planificado. Las fases históricas (`ROADMAP-001`, las fases `ARCH-001`/`DS-001`/`IA-001`) quedaron cerradas
+  y su estado está en [`../CURRENT.md`](../CURRENT.md).
 
-1. cerrar A-15 y la fase de estabilización;
-2. definir la arquitectura mínima de producto y módulos;
-3. definir el Design System v4 como única ley visual;
-4. rediseñar e implementar una sección por vez;
-5. aplicar arquitectura + information architecture + UX + Design System en una sola pasada por sección.
-
-## Archivos
-
-- [`PRODUCT-UX-ROADMAP.md`](PRODUCT-UX-ROADMAP.md) — roadmap maestro y reglas del proceso.
-- [`DECISIONS.md`](DECISIONS.md) — decisiones del owner ya cerradas.
-- [`NEXT.md`](NEXT.md) — secuencia operativa inmediata.
-
-## Regla de autoridad
-
-Este paquete es un roadmap de trabajo. No reemplaza todavía a las futuras leyes normativas:
-
-- `ops/product/MODULE_ARCHITECTURE.md`
-- `ops/design/DESIGN_SYSTEM.md`
-
-Esos archivos serán creados por las TASKs correspondientes y, una vez aprobados, serán las fuentes normativas del producto y del diseño.
-
-## Vigencia
-
-- El roadmap **no** cambia reglas vigentes por sí solo: cada fase entra en vigor cuando su TASK se mergea y
-  ese avance se anota acá.
-- **Estado de las fases**: A-15 y la fase de estabilización técnica **cerradas** (2026-09-25) · `ARCH-001`
-  **cerrada** el 2026-09-25 ([`../product/MODULE_ARCHITECTURE.md`](../product/MODULE_ARCHITECTURE.md)) · `DS-001`
-  **aprobada y desplegada** el 2026-09-26 ([`../design/DESIGN_SYSTEM.md`](../design/DESIGN_SYSTEM.md)) ·
-  `IA-001` (navegación del panel) **cerrada y desplegada** el 2026-09-26 · **`SCREEN-ORDERS-001 — Órdenes`,
-  la primera sección rediseñada de punta a punta**, cerrada y desplegada el 2026-09-26
-  ([`../design/screens/orders.md`](../design/screens/orders.md)) · `SCREEN-001 — Resumen` **no iniciado**.
-- La ley visual vigente es [`../design/DESIGN_SYSTEM.md`](../design/DESIGN_SYSTEM.md), que declara a Stitch
-  **archivado y no normativo** (`D-003` ya aplicada por `DS-001`).
+**Estado de las fases**: `A-15` y la estabilización técnica **cerradas** (2026-09-25) · `ARCH-001` **cerrada**
+([`../product/MODULE_ARCHITECTURE.md`](../product/MODULE_ARCHITECTURE.md)) · `DS-001` **aprobada y desplegada**
+([`../design/DESIGN_SYSTEM.md`](../design/DESIGN_SYSTEM.md)) · `IA-001` **cerrada y desplegada** ·
+`SCREEN-ORDERS-001` y `SCREEN-POS-QUICK-SALE-001.2` **cerradas y desplegadas** · `TASK-GOV-001`
+(**gobierno y reglas**, `docs-only`) **cerrada** · lo que sigue es **`Pedidos / Cocina`** (orden 3).

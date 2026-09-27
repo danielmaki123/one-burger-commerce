@@ -106,19 +106,19 @@ Un módulo nace con las cuatro capas (`domain` · `features` · `ports` · `adap
 
 | Módulo | Responsabilidad | Estado |
 |---|---|---|
-| `orders` | Ciclo de vida del pedido, cobros, devoluciones, promociones/cupones, turno de caja y movimientos de caja | REAL |
+| `orders` | Ciclo de vida del pedido, cobros, devoluciones, promociones/cupones, turno de caja y movimientos de caja | REAL — **hoy sobrecargado**: cuatro responsabilidades que no son del pedido (dinero, caja, promociones) viven acá |
 | `pos` | Venta de mostrador: borrador, venta, cierre de turno del mostrador, disponibilidad | REAL |
 | `menu` | Catálogo: categorías, subcategorías, productos, modificadores, bloques de marketing | REAL |
-| `locations` | Sucursales: datos de retiro, horario, catálogo y precio por local | REAL |
+| `locations` | Sucursales: **autoridad operativa por sucursal** — datos de retiro, horario, catálogo y precio por local | REAL |
 | `cash-config` | Reglas del arqueo: monedas, denominaciones, terminales | REAL |
 | `banks` | Bancos y su relación con los locales | REAL |
-| `invoices` | Factura del pedido: emisión, consulta y anulación | REAL |
+| `invoices` | Factura del pedido: emisión, consulta, anulación y **documentos con snapshot** | REAL |
 | `auth` | Sesión del admin, roles y **todas** las puertas de autorización | REAL |
 | `business-settings` | Configuración del negocio: marca, moneda, horarios, propina, aceptación de pedidos | REAL |
 | `notifications` | Outbox, ajustes de notificación y Telegram | REAL |
 | `customers` | Cliente del menú público: OTP, sesión, datos fiscales | REAL |
 | `audit` | Registro de acciones sensibles | REAL |
-| `dashboard` | **Read models** transversales: métricas del overview y reportes | REAL (solo `domain` + `features`) |
+| `dashboard` | **Read models** transversales: métricas del overview y reportes | REAL (solo `domain` + `features`) — **read model, nunca dueño de reglas** |
 | `inventory` | Inventario | FUERA DEL MVP (código presente, sin navegación ni API pública) |
 | `reservations` | Reservas | FUERA DEL MVP |
 | `tables` | Bootstrap heredado de mesas | FUERA DEL MVP + LEGACY |
@@ -129,9 +129,46 @@ Un módulo nace con las cuatro capas (`domain` · `features` · `ports` · `adap
 **Fuera del MVP no significa borrado**: significa que **no se ofrece** en navegación ni en APIs públicas y
 no se reactiva sin aprobación explícita del owner.
 
-Hay además **reglas transversales que no pertenecen a un módulo** y se consumen desde todos: los totales del
-pedido salen de `src/shared/lib/order-totals.ts` y el estado del pedido de
-`src/modules/orders/domain/order-workflows.ts`. Una sola fuente por cálculo, siempre.
+### 4.1 Arquitectura objetivo de módulos (registrada, **no creada**)
+
+El objetivo es que cada responsabilidad tenga **un dueño**, en migración **incremental** —nada de big-bang—.
+Ninguno de estos módulos existe todavía y **crearlos no es parte de `TASK-GOV-001`**: la secuencia está en el
+[roadmap maestro](../roadmap/PRODUCT-UX-ROADMAP.md).
+
+| Módulo objetivo | Qué posee |
+|---|---|
+| `payments` | `Payment`, saldo del pedido, cobro parcial, refund, void, banco/procesador y **snapshots monetarios** |
+| `money` | Moneda, locale, **FX** y conversión |
+| `cash` | `Shift`, apertura, movimientos, conteo, cierre, handover y conciliación |
+| `promotions` | Elegibilidad, scope, límites, redemption y **BOGO** |
+| `invoices` (ya existe) | Documentos y **snapshots** |
+| `orders` (queda) | `Order`, items y ciclo de vida — **sin** cobros, **sin** turnos y **sin** promociones |
+| `locations` (ya existe) | Autoridad operativa por sucursal |
+| `dashboard` (ya existe) | Read model: **nunca** dueño de reglas |
+
+**Ley que estos módulos aplican** ([`AGENTS.md`](../../AGENTS.md) § *Leyes del repo*, ley 7): la configuración
+mutable tiene un solo dueño **actual**; `Payment`, `Invoice`, `Shift` y `Order` **congelan los valores** que
+explican la operación en vez de reconstruir el pasado con la configuración de hoy.
+
+### 4.2 Capacidades fuera del MVP: clasificación explícita
+
+Estado real, verificado en el código (hay página y API, pero **no** entrada de navegación ni oferta pública):
+
+| Capacidad | Estado | Evidencia |
+|---|---|---|
+| **ACTIVE** | ofrecida hoy | Órdenes, POS, Caja, Cierres, Facturas, Aprobaciones, Menú (productos, categorías, modificadores, contenido), Promociones, Locales, Usuarios, Personalización, Alertas |
+| **Inventario** | FROZEN | `src/app/(admin)/admin/inventory/**` + `src/app/api/admin/inventory/**`; sin entrada en `admin-layout-helpers.ts` |
+| **Reservas** | FROZEN | `src/app/(admin)/admin/reservations/**` + `src/app/api/admin/reservations/**`; sin entrada |
+| **Delivery Zones** | FROZEN | `src/app/(admin)/admin/delivery-zones/**` + `src/app/api/admin/delivery-zones/**`; el motor vive en `orders`; sin entrada |
+| **Mesas legacy** | LEGACY | `src/modules/tables/**` + `/admin/tables` + `/api/admin/tables/**`; bootstrap heredado, **entrada muerta** en la barra móvil |
+| **table-ordering** | LEGACY | `src/modules/table-ordering/` — solo `README.md`, **sin una línea de código** (`A-13`) |
+| **coupons** | LEGACY | `src/modules/coupons/` — solo `README.md`; el motor real de promociones vive en `orders` (`A-13`) |
+| **Mesas / Table Service** | FUTURE | orden 14 del roadmap; `tables` no se reactiva como servicio de mesa sin decisión del owner |
+
+Los cuatro significados, para que la etiqueta no sea una opinión: **ACTIVE** = **ofrecida hoy** en la UI o en
+una API pública · **FROZEN** = el código está, **código presente, no ofrecida** y no se reactiva sin pedido
+del owner · **LEGACY** = **huérfana** o cascarón, se conserva solo por compatibilidad · **FUTURE** =
+**arquitectura objetivo**, todavía no existe.
 
 ---
 
@@ -329,49 +366,47 @@ criterio y lo resuelve §2 + §5 + §10, con revisión humana.
 
 ## 12. Deuda conocida (documentada, no corregida en `ARCH-001`)
 
-Nada de esta lista se tocó: son hallazgos de la verificación previa y quedan **registrados** para que la
-próxima TASK no los herede por accidente.
+Nada de esta lista se tocó: son hallazgos de la verificación previa, **registrados** para que la próxima TASK
+no los herede por accidente. Cada uno se cierra con la TASK que le toca (orden en el
+[roadmap maestro](../roadmap/PRODUCT-UX-ROADMAP.md)), nunca de paso. Las **reglas transversales** que no
+pertenecen a un módulo —los totales de `src/shared/lib/order-totals.ts` y el estado del pedido de
+`src/modules/orders/domain/order-workflows.ts`— se consumen desde todos: una sola fuente por cálculo.
 
-1. **El dominio de Caja está repartido**: las reglas del turno viven en `src/modules/orders/domain/shift-*.ts`
-   y `src/modules/pos/domain/shift-close-policy.ts`, con adaptadores en `orders`. El dueño conceptual es
-   **Caja**; hoy no existe un módulo `cash`. Unificarlo es una decisión, no un reflejo.
-2. **Promociones**: la entidad y su motor viven en `orders`, la pantalla en `/admin/promotions` y se entra
-   por el hub de Menú. Coherente con «una feature vive en un módulo existente», pero el nombre del módulo no
-   lo sugiere.
-3. **`dashboard` lee Prisma directo** en sus cinco features y no define puertos: es el único módulo que
-   construye sus read models sin puerto propio. Riesgo real: que una regla de `orders` se reimplemente ahí.
-4. **Cascarones**: `src/modules/coupons/README.md` y `src/modules/table-ordering/README.md` no tienen una
-   línea de código (`A-13` en el backlog: borrarlos o completarlos, decide el owner).
-5. **`/admin/menu`** (página de servidor) no verifica sesión ni permiso y lee la base con
-   `src/modules/menu/adapters/prisma-menu-repository.ts` directamente.
-6. **Puertas sin uso**: `canRefund` solo se invoca dentro de `assertCanRefund`, que hoy no tiene call site,
-   así que la ruta de devoluciones autoriza por `canManageCash`; `canPrintCashDocuments` se evalúa en la
-   pantalla de Caja y ninguna ruta lo exige. `/api/admin/users` no aplica `canManageUsers` en la ruta
-   (la aplican los casos de uso, que sí es una frontera de servidor válida).
-7. **Locales sin puerta propia**: `/api/admin/locations/**` se autoriza con `canManageBusinessSettings`
-   (marca del negocio), no con una puerta `canManageLocations`. Hoy coinciden en rol; son responsabilidades
-   distintas.
-8. **Entrada muerta en la barra móvil**: `/admin/tables` («Mesas») está declarada como tab del móvil y el
-   filtro por permisos la descarta siempre, porque no pertenece a ningún grupo.
-9. **Prisma en route handlers** de `src/app/api/admin/tables/**`: deuda congelada por
-   `src/shared/contracts/route-contract.test.ts`, que prohíbe ampliarla.
-10. **`/admin` no existe para roles sin Resumen** (`A-10`): un `manager` o una `kitchen` aterrizan en
-    Órdenes. Es una decisión de producto pendiente, no un bug de arquitectura.
-11. **Aprobaciones: la entrada y la pantalla pedían cosas distintas.** El ítem del sidebar se dibujaba con
-    `canManageCash` (owner y manager), pero `/admin/approvals` exige `canApproveRefund` (solo owner), así que
-    un manager veía una entrada que lo rebotaba a Órdenes. **Corregido en `TASK-IA-001`**: la entrada usa la
-    puerta de su pantalla.
+| # | Deuda | Evidencia |
+|---|---|---|
+| 1 | **Caja repartida**: el turno vive en `orders` + `pos` y no existe un módulo `cash` | `src/modules/orders/domain/shift-*.ts` · `pos/domain/shift-close-policy.ts` |
+| 2 | **Promociones** con entidad y motor en `orders` y pantalla en Catálogo | `src/modules/orders/**` · `/admin/promotions` |
+| 3 | **`dashboard` lee Prisma directo** en sus cinco features, sin puertos: riesgo de reimplementar una regla de `orders` | `src/modules/dashboard/features/**` |
+| 4 | **Cascarones** `coupons` y `table-ordering`: solo `README.md` (borrarlos o completarlos lo decide el owner) | `A-13` |
+| 5 | **`/admin/menu`** no verifica sesión ni permiso y lee la base con el adaptador de `menu` | `src/app/(admin)/admin/menu/page.tsx` |
+| 6 | **Puertas sin uso**: `canRefund` sin call site; `canPrintCashDocuments` solo en la pantalla; `/api/admin/users` no la aplica en la ruta (sí en los casos de uso) | `auth/domain/admin-permissions.ts` |
+| 7 | **Locales sin puerta propia**: `/api/admin/locations/**` se autoriza con `canManageBusinessSettings` | `src/app/api/admin/locations/**` |
+| 8 | **Entrada muerta «Mesas»** en la barra móvil y **Prisma en route handlers** de `tables` (deuda congelada) | `A-62` · `route-contract.test.ts` |
+| 9 | **`/admin` no existe para roles sin Resumen**: `manager` y `kitchen` aterrizan en Órdenes (decisión de producto) | `A-10` |
+
+**Corregido en `TASK-IA-001`** (queda como registro de la clase de bug): Aprobaciones dibujaba la entrada con
+`canManageCash` cuando la pantalla exige `canApproveRefund`.
 
 ---
 
-## 13. Evolución registrada (no creada)
+## 13. Arquitectura visible objetivo (dirección, **no** el sidebar de hoy)
 
-Secciones que **podrían** existir y que este documento **no** crea: `Ventas`, `Analytics`, `Productos`,
-`Inventario` como sección. Si alguna aparece, tiene que ganarse su lugar con el gate de §10 y con una
-responsabilidad estable que no sea ya de `dashboard`, `menu`, `orders` o del módulo de inventario que ya
-existe fuera del MVP.
+```text
+Resumen
+Operación:      Pedidos · Cocina · POS
+Control:        Caja · Cierres · Facturas · Aprobaciones · Config de Caja
+Catálogo:       Productos · Categorías · Modificadores · Promociones · Contenido
+Configuración:  Locales · Negocio · Finanzas · Personalización · Usuarios · Alertas
+```
 
-**No se reservan rutas vacías** ni se crean módulos por anticipación.
+Es **arquitectura objetivo**: el sidebar vigente es el de §3 y **no se toca en esta TASK**. Las diferencias
+—`Pedidos`/`Cocina` como entradas separadas, `Facturas` con entrada propia, `Negocio`/`Finanzas` separadas de
+`Personalización`— son los órdenes 3, 8 y 9 del [roadmap maestro](../roadmap/PRODUCT-UX-ROADMAP.md).
+
+Secciones que **podrían** existir y que este documento **no** crea: `Ventas`, `Analytics`, `Productos` o
+`Inventario` como sección. Si alguna aparece, se gana su lugar con el gate de §10 y con una responsabilidad
+estable que no sea ya de `dashboard`, `menu`, `orders` o del módulo de inventario. **No se reservan rutas
+vacías** ni se crean módulos por anticipación.
 
 ---
 

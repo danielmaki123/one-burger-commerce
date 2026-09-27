@@ -8,12 +8,13 @@ falta nada de conversaciones anteriores. Si algo acá contradice a [`../../AGENT
 
 | # | Documento | Responde |
 |---|---|---|
-| 1 | [`../../AGENTS.md`](../../AGENTS.md) | **Reglas y límites**: autonomía, jerarquía de fuentes, arquitectura, DDD, TDD, integridad de tests, ratcheting, seguridad, git, PR, CI, Definition of Done y prohibiciones |
+| 1 | [`../../AGENTS.md`](../../AGENTS.md) | **Reglas, límites y las leyes del repo**: autonomía, jerarquía de fuentes, arquitectura, DDD, TDD, integridad de tests, ratcheting, seguridad, git, PR, CI, Definition of Done y prohibiciones |
 | 2 | [`../../.agents/CONTEXT.md`](../../.agents/CONTEXT.md) | **Cómo está construido el sistema**: superficies, hosts, stack, DDD, bounded contexts, persistencia, outbox, auth, CI y deploy |
 | 3 | [`../CURRENT.md`](../CURRENT.md) | **El estado real de hoy**: qué está en producción, capacidades activas, riesgos abiertos, trabajo en curso, qué sigue y bloqueos |
-| 3b | [`ops/product/MODULE_ARCHITECTURE.md`](../product/MODULE_ARCHITECTURE.md) | **Dónde vive cada capacidad del producto y quién es dueño de sus reglas**. Se consulta **antes** de crear una pantalla, una sección o un módulo |
-| 4 | **La TASK** | El brief (`ops/tasks/*.md`), el roadmap o el pedido del owner |
-| 5 | **La skill que corresponda** | [`../../.agents/skills/`](../../.agents/skills/): `new-task`, `bugfix`, `money-change`, `database-migration`, `security-change`, `ui-change`, `audit`, `production-release` |
+| 3b | [`ops/product/MODULE_ARCHITECTURE.md`](../product/MODULE_ARCHITECTURE.md) | **Dónde vive cada capacidad del producto y quién es dueño de sus reglas** (hoy y **objetivo**). Se consulta **antes** de crear una pantalla, una sección o un módulo |
+| 3c | [`../roadmap/PRODUCT-UX-ROADMAP.md`](../roadmap/PRODUCT-UX-ROADMAP.md) | **El orden del trabajo de producto** (roadmap maestro único, 16 pasos) y el Design Freeze. La secuencia inmediata, en [`../roadmap/NEXT.md`](../roadmap/NEXT.md) |
+| 4 | **La TASK** | El brief (`ops/tasks/*.md`) o el pedido del owner |
+| 5 | **La skill que corresponda** | [`../../.agents/skills/`](../../.agents/skills/): `new-task`, `delivery-e2e`, `bugfix`, `money-change`, `database-migration`, `security-change`, `ui-change`, `audit`, `production-release` |
 | 6 | [`../../.agents/MEMORY.md`](../../.agents/MEMORY.md) | **Solo si** la TASK toca un área donde sus lecciones aplican |
 
 **No cargues toda la historia.** [`../history/`](../history/) se consulta **a propósito**, cuando hace
@@ -63,14 +64,16 @@ falta reconstruir por qué algo es como es. Es lo que evita leer 3.000 líneas p
 
 ## 4. Trabajo planificado y qué NO arrancar
 
-- **Roadmap oficial de producto y UX (proceso vigente)**: [`../roadmap/PRODUCT-UX-ROADMAP.md`](../roadmap/PRODUCT-UX-ROADMAP.md),
+- **Roadmap maestro de producto y UX (el único)**: [`../roadmap/PRODUCT-UX-ROADMAP.md`](../roadmap/PRODUCT-UX-ROADMAP.md),
   con las decisiones cerradas del owner en [`../roadmap/DECISIONS.md`](../roadmap/DECISIONS.md) y la secuencia
-  inmediata en [`../roadmap/NEXT.md`](../roadmap/NEXT.md). Rige **cómo** se hace el trabajo de producto
-  (arquitectura → design system → una sección por vez); el **qué** de la remediación sigue en
-  [`AUDIT-REMEDIATION-ROADMAP.md`](AUDIT-REMEDIATION-ROADMAP.md).
+  inmediata en [`../roadmap/NEXT.md`](../roadmap/NEXT.md). **El orden del trabajo de producto sale de ahí**; el
+  **qué** de la remediación técnica sigue en [`AUDIT-REMEDIATION-ROADMAP.md`](AUDIT-REMEDIATION-ROADMAP.md).
 - **Programa de remediación completo, en orden**: [`AUDIT-REMEDIATION-ROADMAP.md`](AUDIT-REMEDIATION-ROADMAP.md).
   Ese archivo dice qué sigue, con su objetivo, prioridad, riesgo y dependencia.
+- **Arquitectura de producto (hoy y objetivo)**: [`../product/MODULE_ARCHITECTURE.md`](../product/MODULE_ARCHITECTURE.md).
 - **Plantilla obligatoria de TASK**: [`TEMPLATE.md`](TEMPLATE.md).
+- **Lo que sigue**: la auditoría y el diseño de **`Pedidos / Cocina`** (orden 3 del roadmap maestro), que **no
+  se inició**. **No se arranca `Resumen`** (pasó al orden 16) ni una «POS Fase 2» (esa fase ya no existe).
 - **Lo que está pausado**: el **rediseño del menú público** (9 pantallas del mock archivado) espera
   confirmación explícita del owner, y antes de tocar el sistema de diseño hay que revisar la rama
   `feat/design-system` del otro dev (`A-36`).

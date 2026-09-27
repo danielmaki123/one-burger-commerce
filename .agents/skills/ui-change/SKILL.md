@@ -15,6 +15,9 @@
    nueva **no** estrena módulo ni sección: pertenece a uno existente (Menú, Órdenes, Caja, Locales…). Si de
    verdad hace falta algo nuevo, primero pasa el gate de esa TASK y lo aprueba el owner — no se decide
    escribiendo la pantalla.
+0b. **Reuse audit antes de escribir una línea** (ley 2, §10.1–§10.3): buscar si el componente, el caso de uso,
+   la ruta o el flujo **ya existen**, y reutilizar, componer o enlazar. El bloque `REUSE AUDIT` de la TASK es
+   el registro; **sin ese bloque no se implementa**.
 1. **Leer la ley visual**: [`../../../ops/design/DESIGN_SYSTEM.md`](../../../ops/design/DESIGN_SYSTEM.md).
    Es la **única** fuente normativa visual; el material de Stitch está **archivado** y **no** es lectura
    obligatoria.
@@ -65,10 +68,14 @@ Las leyes **no se duplican acá**: esta skill dice **dónde mirar** y qué no se
 
 - **Mobile first real**: se verifica en **navegador real (Playwright) a 375 px y 1280 px**, no en HTML
   estático. Sin scroll horizontal entre 320 y 1280 px.
+- **Viewport Contract (superficies operativas)**: además del ancho se prueba el **viewport completo** —
+  **`1366×768`, `1280×720`, `768×1024` y `375×812`**—, porque en una pantalla de trabajo lo que se pierde es
+  el **alto**: la cabecera y los filtros no pasan el 20 % y **la página no scrollea** (el scroll vive en el
+  panel que crece). El contrato completo está en
+  [`DESIGN_SYSTEM.md`](../../../ops/design/DESIGN_SYSTEM.md) §12.
 - **Primer viewport (375 px)**: sin scrollear tienen que verse el **estado crítico**, la **acción principal**
   y la **información mínima para iniciar** la tarea. El contenido secundario **puede** requerir scroll
-  vertical: eso no es un defecto
-  ([`DESIGN_SYSTEM.md`](../../../ops/design/DESIGN_SYSTEM.md) §12).
+  vertical: eso no es un defecto ([`DESIGN_SYSTEM.md`](../../../ops/design/DESIGN_SYSTEM.md) §12).
 - **Contraste**: texto/fondo **4.5:1** y borde de control **3:1** (WCAG 1.4.11). Lo mide
   `dark-mode-contract.test.ts` y la deuda del modo claro está declarada en `globals.css`.
 - **Foco visible propio** (≥3:1) en todo control. Un `outline` roto no falla el build: revisarlo a
@@ -108,8 +115,10 @@ problema queda escondido hasta producción. Es una lección pagada (ver
 
 ## 6. Checklist antes de cerrar
 
+- [ ] ¿Hice el **reuse audit** y usé lo que ya existía (componente, caso de uso, flujo canónico)?
 - [ ] ¿Leí [`DESIGN_SYSTEM.md`](../../../ops/design/DESIGN_SYSTEM.md) y usé los primitivos del registro?
-- [ ] ¿Si es un rediseño material, existe la **spec aprobada** de esa pantalla?
+- [ ] ¿Si es un rediseño material, existe la **spec aprobada** de esa pantalla y sé qué quedó **congelado**?
+- [ ] ¿Comparé la **implementación real contra la SPEC y el `reference.html`** antes de cerrar?
 - [ ] ¿Los **números** van en `font-mono` con `tabular-nums` y los **estados** en
       `--status-pending|prep|ready|sla`?
 - [ ] ¿La intención de marca sale de `brand-primary`/`brand-accent` (sin color literal ni asignación por
@@ -122,7 +131,8 @@ problema queda escondido hasta producción. Es una lección pagada (ver
 - [ ] ¿Hay **una sola** acción primaria y ningún texto decorativo?
 - [ ] ¿Están los **cinco estados**?
 - [ ] ¿Contraste ≥4.5:1 texto y ≥3:1 borde, sin scroll horizontal entre 320 y 1280 px?
-- [ ] ¿Verifiqué en navegador real a 375 px y 1280 px, con captura antes/después?
+- [ ] ¿Verifiqué en navegador real a 375 px y 1280 px, con captura antes/después? ¿Y en los cuatro viewports
+      del **Viewport Contract** (`1366×768`, `1280×720`, `768×1024`, `375×812`) si la superficie es operativa?
 - [ ] ¿El registro de componentes quedó actualizado (si creé uno)?
 - [ ] ¿Los techos de tokens/UI **no** subieron?
 - [ ] ¿Corrí `build:webpack` si toqué una página?

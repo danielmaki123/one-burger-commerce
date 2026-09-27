@@ -1,28 +1,52 @@
 # SKILL: delivery-e2e — la entrega por defecto de una TASK
 
 **Se activa** al abrir cualquier TASK: es la que decide **hasta dónde llega** esa TASK sin volver a pedir
-permiso. Es la **fuente de la política de entrega** del repo: el flujo, los tres modos, las condiciones de
-parada y la política de backups se escriben acá y se enlazan desde `AGENTS.md`, `new-task`,
-`production-release` y la plantilla.
+permiso. Es la **fuente de la política de entrega** del repo y la **fuente del flujo obligatorio**: el flujo,
+los tres modos, las condiciones de parada y la política de backups se escriben acá y se enlazan desde
+`AGENTS.md`, `new-task`, `production-release`, el roadmap maestro y la plantilla.
 
 > **La decisión del owner (2026-09-26)**: una TASK **aprobada** autoriza su ejecución completa hasta el
-> estado operativo final —implementación, tests, PR, CI, merge, deploy, QA en producción y estado— **sin
-> pedir permisos intermedios**. Preguntar «¿mergeo?», «¿procedo?», «¿deployo?» o «¿borro la rama?» con los
-> gates verdes no es prudencia: es trabajo perdido.
+> estado operativo final (§1) **sin pedir permisos intermedios**. Preguntar «¿mergeo?», «¿procedo?»,
+> «¿deployo?» o «¿borro la rama?» con los gates verdes no es prudencia: es trabajo perdido.
 
 ---
 
-## 1. El flujo por defecto
+## 1. El flujo obligatorio (de punta a punta)
 
-```
-discovery/spec (si aplica) → implementación → TDD/tests → QA → PR → CI verde → squash merge
-→ main verde → deploy → health/readiness → smokes → QA en producción
-→ CURRENT/roadmap → reporte final → STOP
-```
+Es **la** secuencia de trabajo del repo: **auditoría real → reuse audit → ownership/arquitectura → SPEC →
+reference.html → aprobación/design freeze → implementación → tests/QA → PR/CI → merge → deploy cuando
+corresponda → QA de producción → auditoría independiente (spec/reference vs runtime) → CURRENT/roadmap →
+STOP**.
 
-El tramo final (**deploy → … → reporte**) **solo** existe en los modos que llegan a producción. Si aparece
-una **Stop Condition** (§3) en cualquier punto, se para ahí y se reporta la condición: eso es una parada
-real, no una duda.
+1. **Auditoría real del repo** antes de creerle al brief: qué código, contratos y documentos ya resuelven
+   parte del pedido. El brief se corrige con lo que se encontró, no al revés.
+2. **Reuse audit** ([`../new-task/SKILL.md`](../new-task/SKILL.md) §2 y
+   [`../../ops/product/MODULE_ARCHITECTURE.md`](../../ops/product/MODULE_ARCHITECTURE.md) §10.1–§10.3): qué
+   existe, qué se reutiliza y qué es realmente nuevo. **Es un gate**: sin ese bloque no se implementa.
+3. **Ownership y arquitectura**: qué módulo es dueño de las reglas y si la capacidad merece navegación
+   (gate estructural §10.4). Sin dueño claro, no hay TASK.
+4. **SPEC** en `ops/design/screens/<pantalla>.md` (skill [`screen-design`](../screen-design/SKILL.md)) cuando
+   el trabajo toca una pantalla nueva o un rediseño material.
+5. **`reference.html`**, si el owner dejó referencia: vive al lado de la spec y es **contrato** de
+   composición y comportamiento (*Reference Fidelity*).
+6. **Aprobación del owner y Design Freeze**: aprobadas spec y referencia, composición, IA y comportamiento
+   principal quedan **congelados**. Una desviación material modifica primero la spec y la decide el owner.
+7. **Implementación**: TDD, sin Prisma en un route handler, sin duplicar una regla de dominio.
+8. **Tests y QA**: rojo observado, mutación y la verificación en navegador real (los cuatro viewports del
+   **Viewport Contract** cuando la superficie es operativa).
+9. **PR + CI verde**: PR hacia `main` con problema, alcance, evidencia y lo que quedó fuera.
+10. **Merge** con `--squash`, solo con el CI verde.
+11. **Deploy** cuando el Delivery Mode lo incluye (§2), desde `main` y con los guardrails de
+    [`production-release`](../production-release/SKILL.md).
+12. **QA de producción**: health, readiness y los dos smokes; y la pantalla, en producción y con sesión.
+13. **Auditoría independiente** que compara **implementación real vs SPEC/reference**: el deploy **no
+    equivale a aceptación**; la aceptación es esa comparación, con evidencia.
+14. **`CURRENT.md` y roadmap**: qué quedó desplegado, qué se cerró y qué sigue.
+15. **STOP**: no se abre la siguiente TASK sin cerrar esta.
+
+**Una sola TASK de runtime activa por vez.** El tramo final (**deploy → … → STOP**) solo existe en los modos
+que llegan a producción. Si aparece una **Stop Condition** (§3) en cualquier punto, se para ahí y se reporta
+la condición: eso es una parada real, no una duda.
 
 ---
 

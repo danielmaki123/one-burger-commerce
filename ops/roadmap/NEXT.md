@@ -1,70 +1,31 @@
-# Next — Secuencia inmediata
+# NEXT — secuencia inmediata
 
-## Ahora
+> **Qué es**: la secuencia inmediata del [roadmap maestro de producto y UX](PRODUCT-UX-ROADMAP.md)
+> (`ops/roadmap/PRODUCT-UX-ROADMAP.md`), que es el **único** roadmap. Acá no se decide el orden: se dice qué
+> está activo hoy, qué sigue y qué queda lejos. **Regla de tamaño**: este archivo se mantiene **chico**
+> (≤ 60 líneas). Si crece, el detalle se va al roadmap o a `CURRENT.md`.
 
-**`SCREEN-POS-QUICK-SALE-001.1` y `001.2 — POS Fase 1 / Venta rápida` CERRADAS: la Fase 1 quedó CERRADA
-DEFINITIVAMENTE** (2026-09-27). La 001 convirtió la Venta rápida en un **workspace `CATÁLOGO | VENTA`**
-—ticket anclado al viewport en escritorio, barra + sheet en celular y tablet y opciones secundarias bajo
-demanda—; la **001.1** la corrigió contra la **referencia revisada del owner** (hero fuera, barra operativa de
-una línea, acciones de caja solo donde bloquean el cobro, `Cobrar pedido del menú` fuera del POS, catálogo y
-ticket a alto útil) y le agregó los guardrails de **reuse-first**, **one canonical flow**, **reuse audit**,
-**reference fidelity** y **viewport contract**; y la **001.2** corrigió la **composición del ticket**: no
-comprime la lista de líneas, tiene **un solo scroll** (líneas + checkout en la misma superficie) y el **total
-en el pie** junto al CTA. La spec canónica vive en
-[`../design/screens/pos-quick-sale.md`](../design/screens/pos-quick-sale.md); el deploy
-(`build-20260927-193653` sobre `4f69a24`), la **QA autenticada de producción a los cuatro viewports**
-(`1366×768`, `1280×720`, `768×1024`, `375×812`) y los dos smokes están en [`../CURRENT.md`](../CURRENT.md) §1
-y §4. **La Fase 2 NO se inició.**
+## ACTIVE
 
-**`SCREEN-ORDERS-001 — Órdenes` cerrada y desplegada** (2026-09-26): es la **primera sección rediseñada de
-punta a punta** con el proceso completo —discovery, arquitectura/IA, spec de pantalla, prototipo y capturas,
-implementación bajo DS v4, QA de navegador a 375/768/1280 y PR con CI verde—. La spec canónica vive en
-[`../design/screens/orders.md`](../design/screens/orders.md) (con el prototipo y las capturas al lado) y lo
-que quedó documentado —no corregido de paso— está en [`../audit-backlog.md`](../audit-backlog.md) como
-`A-60` a `A-66`. El estado del deploy, en [`../CURRENT.md`](../CURRENT.md) §1.
+**`TASK-GOV-001` — Consolidación final de arquitectura, reglas y roadmap** (`docs-only`): el repo queda con
+una sola arquitectura vigente, un solo roadmap, un solo proceso de trabajo y las leyes escritas una sola vez.
+No toca runtime, POS, DB, migraciones, navegación ni pantallas. Estado y evidencia: [`../CURRENT.md`](../CURRENT.md).
 
-`DS-001 — One Burger Design System v4` **aprobado y desplegado** (baseline del 2026-09-26,
-`build-20260926-003808` sobre `4dc2cbb`, con smokes y QA en [`../CURRENT.md`](../CURRENT.md) §1). La ley visual
-vive en [`../design/DESIGN_SYSTEM.md`](../design/DESIGN_SYSTEM.md) y el material de Stitch quedó **archivado y
-no normativo**. `ARCH-001` ([`../product/MODULE_ARCHITECTURE.md`](../product/MODULE_ARCHITECTURE.md)),
-`IA-001` (navegación del panel) y la fase de estabilización técnica también están cerradas.
+## NEXT
 
-## Después
+**Auditoría y diseño de `Pedidos / Cocina`** (orden 3 del roadmap): hoy Órdenes es una sola superficie y
+mezcla la bandeja de operación con la vista de cocina. La TASK arranca con la **auditoría real** de las dos
+necesidades, el **reuse audit** y la decisión de **ownership** (¿una pantalla con dos vistas o dos entradas?),
+y sigue con la spec y su aprobación antes de tocar código. **No se inicia en `TASK-GOV-001`.**
 
-1. **`SCREEN-001 — /admin Resumen`**: **no iniciado**. El camino es producto + arquitectura + IA + UX →
-   mockup canónico → revisión del owner → implementación bajo DS v4 (skill `screen-design`), igual que se
-   hizo en Órdenes.
-2. **`POS Fase 2 — pedidos existentes / pagos / bancos / USD / factura`**: la define el owner **aparte**. La
-   Fase 1 dejó escrito qué **no** se tocó (banco/procesador en `Payment`, corrección USD del cobro de pedidos
-   existentes, promo a un pedido ya creado y el rediseño final de «Cobrar pedido», que ahora vive en
-   `A-67`: Órdenes localiza el pedido y el POS lo cobra). **No se inicia sola.**
-3. **Deuda de Órdenes (`A-60` a `A-67`)**: por riesgo, primero `A-60` (plata y PIN en el detalle para
-   `kitchen`) y `A-61` (proyección del endpoint de la bandeja).
-4. **Revisión del owner de `ARCH-001`** — las divergencias registradas (Resumen/POS en la navegación, el
-   dominio de Caja repartido) siguen siendo decisiones suyas, y `A-66` (el `cashier` en Órdenes) es la
-   primera de la lista.
+Antes de abrirla: leer [`../CURRENT.md`](../CURRENT.md) § 4–5 y el orden autoritativo del
+[roadmap maestro](PRODUCT-UX-ROADMAP.md) § 2.
 
-## SCREEN-001 no empieza con código
+## LATER
 
-Primero resolver:
+Los órdenes **4 a 16** del [roadmap maestro](PRODUCT-UX-ROADMAP.md) § 2, en ese orden: Money ownership,
+Payments ownership, «Pedido existente → Cobrar en POS», Cash ownership, Configuración separada, Cierres /
+Facturas, Promotions ownership, consolidación de la historia del pedido, saneamiento `FROZEN`/`LEGACY`,
+Table Service/Mesas, refinamiento de Catálogo y —al final— `Resumen`.
 
-- propósito;
-- datos actuales;
-- jerarquía;
-- señales;
-- accesos contextuales;
-- sucursales dinámicas;
-- desktop/mobile;
-- elementos a eliminar.
-
-Después implementar una sola vez bajo DS v4.
-
-## Stop conditions
-
-Detenerse si:
-
-- aparece una decisión de producto no definida;
-- se requiere mover/reparar datos de producción;
-- aparece una operación destructiva;
-- una nueva sección/módulo necesita decisión del owner;
-- una métrica no puede defenderse con datos reales.
+**No se abre ninguna de esas TASK por iniciativa propia**: cada una necesita su brief y su aprobación.

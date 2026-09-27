@@ -1,5 +1,11 @@
 # Estado real de la Fase 2 (POS completo) — inventario
 
+> ⚠️ **HISTÓRICO — no normativo** (2026-09-27, `TASK-GOV-001`). Es el **inventario medido** del POS completo
+> al 2026-09-17 y **no es un roadmap vigente**: la secuencia la manda el
+> [roadmap maestro](../../roadmap/PRODUCT-UX-ROADMAP.md), donde **«POS Fase 2» dejó de existir como fase** (su
+> contenido está en los órdenes 4 a 7 y 10). Se conserva como **evidencia** de lo que falta y de lo que se
+> cerró.
+>
 > **Actualización 2026-09-17 (ronda de implementación)**: este documento es el inventario medido del
 > 2026-09-17 y **sigue siendo la línea de base**. Lo que se va cerrando queda acá abajo en
 > «Requiere decisión» y en el registro de bloques; el estado detallado por tarea no se reescribe para
