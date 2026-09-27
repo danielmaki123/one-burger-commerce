@@ -111,14 +111,26 @@ export default function PosPaymentFields({
       <OverlineLabel>Pago</OverlineLabel>
 
       {payments.map((payment, index) => (
-        <div key={payment.id} className="space-y-2 rounded-stitch-md border border-line-subtle p-2.5">
+        /*
+          `SCREEN-POS-QUICK-SALE-001.2`: la tarjeta del cobro se aprieta un escalón (`p-2` y `space-y-1.5`)
+          porque es lo que decide si la forma de pago entra en el primer viewport a `1280×720`. Los controles
+          siguen en 44 px: lo que baja es el aire, no el área táctil.
+        */
+        <div key={payment.id} className="space-y-1.5 rounded-stitch-md border border-line-subtle p-2">
           {index > 0 ? (
             <p className="text-st-body font-semibold text-ink">{`Cobro ${index + 1}`}</p>
           ) : null}
 
-          <div className="space-y-1.5">
+          <div className="space-y-1">
             <p className="text-st-body font-medium leading-none text-ink">¿Cómo paga?</p>
-            <div role="group" aria-label="¿Cómo paga?" className="flex flex-wrap gap-2">
+            {/*
+              `max-lg:min-h-10 max-lg:px-3` acorta las píldoras **solo en escritorio** (el mismo criterio que
+              los chips de categoría del catálogo): con 44 px de alto, «Transferencia» se va a un tercer
+              renglón en la columna de 320 px y ese renglón de más era lo que dejaba la forma de pago fuera del
+              primer viewport a `1280×720` (`SCREEN-POS-QUICK-SALE-001.2`). Abajo de `lg` siguen en 44 px,
+              que es donde se toca con el dedo.
+            */}
+            <div role="group" aria-label="¿Cómo paga?" className="flex flex-wrap gap-1.5">
               {PAYMENT_METHOD_CHOICES.map((option) => (
                 <Button
                   key={option.id}
@@ -126,6 +138,7 @@ export default function PosPaymentFields({
                   size="pill"
                   variant={payment.method === option.id ? "primary" : "secondary"}
                   aria-pressed={payment.method === option.id}
+                  className="max-lg:min-h-10 max-lg:px-3"
                   onClick={() =>
                     setPayments((current) =>
                       current.map((item) =>

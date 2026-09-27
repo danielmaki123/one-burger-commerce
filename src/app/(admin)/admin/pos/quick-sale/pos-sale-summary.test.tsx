@@ -25,7 +25,7 @@ const money = (amount: number) => formatCurrency(amount, currency);
 afterEach(cleanup);
 
 describe("PosSaleSummary", () => {
-  it("muestra subtotal, empaque y total cuando la venta los tiene", () => {
+  it("en el checkout muestra subtotal, empaque y descuento (el total vive en el pie)", () => {
     render(
       <PosSaleSummary
         linesCount={2}
@@ -38,11 +38,17 @@ describe("PosSaleSummary", () => {
 
     expect(screen.getByText("Subtotal")).toBeTruthy();
     expect(screen.getByText("Empaque")).toBeTruthy();
-    expect(screen.getByText("Total", { exact: true })).toBeTruthy();
     expect(
       screen.getByText((_, element) => element?.textContent === "Descuento BIENVENIDA10"),
     ).toBeTruthy();
     expect(screen.getByText(`−${money(45)}`)).toBeTruthy();
+
+    /*
+      `SCREEN-POS-QUICK-SALE-001.2`: el **total** salió del checkout que scrollea y pasó al pie, al lado del
+      `Cobrar C$…`. Si volviera a dibujarse acá, volvería a empujar la forma de pago fuera del primer
+      viewport a `1280×720`.
+    */
+    expect(screen.queryByTestId("pos-sale-total")).toBeNull();
   });
 
   it("no dibuja empaque cuando es cero", () => {
@@ -115,9 +121,10 @@ describe("PosSaleSummary", () => {
     expect(screen.getByText("3 productos")).toBeTruthy();
   });
 
-  it("el total se lee con tipografía mono y se anuncia al cambiar", () => {
+  it("el total del pie se lee con tipografía mono y se anuncia al cambiar", () => {
     render(
       <PosSaleSummary
+        variant="footer"
         linesCount={1}
         totals={{ subtotal: 40, packagingAmount: 0, total: 40 }}
         appliedCoupon={null}
@@ -131,6 +138,24 @@ describe("PosSaleSummary", () => {
     expect(total.className).toContain("tabular-nums");
     expect(total.getAttribute("aria-live")).toBe("polite");
     expect(total.textContent).toBe(money(40));
+    // El pie no repite subtotal ni empaque: eso es del checkout.
+    expect(screen.queryByText("Subtotal")).toBeNull();
+  });
+
+  it("el total del pie avisa el descuento sin abrir nada", () => {
+    render(
+      <PosSaleSummary
+        variant="footer"
+        linesCount={1}
+        totals={{ subtotal: 100, packagingAmount: 0, total: 60 }}
+        appliedCoupon={null}
+        manualDiscountAmount={40}
+        currency={currency}
+      />,
+    );
+
+    expect(screen.getByTestId("pos-sale-total").textContent).toBe(money(60));
+    expect(screen.getByText(`−${money(40)}`)).toBeTruthy();
   });
 });
 
