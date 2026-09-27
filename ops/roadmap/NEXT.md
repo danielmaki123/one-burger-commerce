@@ -2,17 +2,19 @@
 
 ## Ahora
 
-**`SCREEN-POS-QUICK-SALE-001.1 — POS Fase 1 / Venta rápida` CERRADA: la Fase 1 está COMPLETA** (2026-09-26).
-La 001 (PR #62, `be4c051`, `build-20260926-170322`) convirtió la Venta rápida en un **workspace
-`CATÁLOGO | VENTA`** —ticket anclado al viewport en escritorio, barra + sheet en celular y tablet y opciones
-secundarias bajo demanda— y la **001.1** la corrigió contra la **referencia revisada del owner** (hero fuera,
-barra operativa de una línea, acciones de caja solo donde bloquean el cobro, `Cobrar pedido del menú` fuera del
-POS, catálogo y ticket a alto útil) y le agregó los guardrails de **reuse-first**, **one canonical flow**,
-**reuse audit**, **reference fidelity** y **viewport contract**. La spec canónica vive en
-[`../design/screens/pos-quick-sale.md`](../design/screens/pos-quick-sale.md); el deploy (`build-20260926-202551`
-sobre `3c6951a`), la **QA autenticada de producción a los cuatro viewports** (`1366×768`, `1280×720`,
-`768×1024`, `375×812`) y los dos smokes están en [`../CURRENT.md`](../CURRENT.md) §1 y §4. **La Fase 2 NO se
-inició.**
+**`SCREEN-POS-QUICK-SALE-001.1` y `001.2 — POS Fase 1 / Venta rápida` CERRADAS: la Fase 1 quedó CERRADA
+DEFINITIVAMENTE** (2026-09-27). La 001 convirtió la Venta rápida en un **workspace `CATÁLOGO | VENTA`**
+—ticket anclado al viewport en escritorio, barra + sheet en celular y tablet y opciones secundarias bajo
+demanda—; la **001.1** la corrigió contra la **referencia revisada del owner** (hero fuera, barra operativa de
+una línea, acciones de caja solo donde bloquean el cobro, `Cobrar pedido del menú` fuera del POS, catálogo y
+ticket a alto útil) y le agregó los guardrails de **reuse-first**, **one canonical flow**, **reuse audit**,
+**reference fidelity** y **viewport contract**; y la **001.2** corrigió la **composición del ticket**: no
+comprime la lista de líneas, tiene **un solo scroll** (líneas + checkout en la misma superficie) y el **total
+en el pie** junto al CTA. La spec canónica vive en
+[`../design/screens/pos-quick-sale.md`](../design/screens/pos-quick-sale.md); el deploy
+(`build-20260927-193653` sobre `4f69a24`), la **QA autenticada de producción a los cuatro viewports**
+(`1366×768`, `1280×720`, `768×1024`, `375×812`) y los dos smokes están en [`../CURRENT.md`](../CURRENT.md) §1
+y §4. **La Fase 2 NO se inició.**
 
 **`SCREEN-ORDERS-001 — Órdenes` cerrada y desplegada** (2026-09-26): es la **primera sección rediseñada de
 punta a punta** con el proceso completo —discovery, arquitectura/IA, spec de pantalla, prototipo y capturas,

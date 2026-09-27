@@ -2,11 +2,10 @@
 
 > **Plantilla**: [`TEMPLATE.md`](TEMPLATE.md).
 >
-> **Estado: `SCREEN-POS-QUICK-SALE-001.2` desplegada** (2026-09-26): la 001.1 quedó en
-> `build-20260926-202551` sobre `3c6951a` con QA autenticada de producción a los cuatro viewports del
-> contrato, y la **001.2** corrigió la composición del ticket (las líneas ya no se comprimen) y limpió las
-> contradicciones de esta spec y de la referencia. La Venta rápida de la Fase 1 queda **completa**; la Fase 2
-> **no** se inició.
+> **Estado: `SCREEN-POS-QUICK-SALE-001.2` desplegada y con QA autenticada de producción cerrada** (2026-09-27):
+> `main` = `4f69a24`, sirviendo `build-20260927-193653`, con la QA en navegador real contra producción a los
+> cuatro viewports del contrato (`1366×768`, `1280×720`, `768×1024`, `375×812`). **POS Fase 1 — Venta rápida
+> queda CERRADA DEFINITIVAMENTE**; la Fase 2 **no** se inició.
 >
 > **Corrección visual y contractual**: la referencia anterior queda **reemplazada** para composición, densidad y
 > comportamiento responsive.
