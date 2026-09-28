@@ -1,0 +1,556 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>One Burger — Pedidos / Escritorio</title>
+<style>
+:root{
+  --bg-canvas:#000f21;
+  --bg-surface:#031427;
+  --bg-surface-low:#0b1c30;
+  --bg-surface-card:#132438;
+  --bg-surface-elevated:#1a2d46;
+  --bg-surface-input:#06182b;
+  --border-subtle:rgba(255,255,255,.08);
+  --border-medium:rgba(255,255,255,.14);
+  --border-control:rgba(255,255,255,.4);
+  --text-primary:#f8fafc;
+  --text-secondary:#94a3b8;
+  --text-muted:#8296ad;
+  --brand:#38bdf8;
+  --brand-hover:#0ea5e9;
+  --brand-muted:rgba(56,189,248,.12);
+  --amber:#f59e0b;
+  --amber-soft:rgba(245,158,11,.12);
+  --ready:#34d399;
+  --ready-soft:rgba(16,185,129,.12);
+  --danger:#f87171;
+  --danger-soft:rgba(239,68,68,.14);
+  --inactive:#94a3b8;
+  --radius:12px;
+  --shadow:0 1px 2px rgba(0,0,0,.25),0 0 0 1px rgba(255,255,255,.04);
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg-canvas);color:var(--text-primary);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+button,input,select{font:inherit}
+body{overflow:hidden}
+.app{display:grid;grid-template-columns:216px minmax(0,1fr);height:100vh}
+.sidebar{border-right:1px solid var(--border-subtle);background:#021126;padding:18px 14px;display:flex;flex-direction:column;gap:18px}
+.brand{display:flex;align-items:center;gap:10px;padding:4px 8px 14px;border-bottom:1px solid var(--border-subtle)}
+.brandmark{width:30px;height:30px;border-radius:9px;background:linear-gradient(145deg,var(--brand),#2563eb);box-shadow:0 0 0 1px rgba(255,255,255,.1)}
+.brand strong{font-size:14px;letter-spacing:.02em}
+.navgroup{display:grid;gap:5px}
+.navlabel{font-size:10px;text-transform:uppercase;letter-spacing:.14em;color:var(--text-muted);padding:0 10px 4px}
+.navitem{display:flex;align-items:center;gap:10px;min-height:38px;border-radius:9px;padding:0 10px;color:var(--text-secondary);font-size:13px;font-weight:650}
+.navitem.active{background:var(--brand-muted);color:var(--brand);box-shadow:inset 0 0 0 1px rgba(56,189,248,.18)}
+.dot{width:7px;height:7px;border-radius:99px;background:currentColor;opacity:.9}
+.sidefoot{margin-top:auto;padding:10px;border-top:1px solid var(--border-subtle);font-size:11px;color:var(--text-muted)}
+.main{min-width:0;display:flex;flex-direction:column;height:100vh}
+.top{border-bottom:1px solid var(--border-subtle);background:rgba(0,15,33,.96)}
+.compact-top{padding:8px 18px}
+.compact-line{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:16px;min-height:34px}
+.titleblock{display:flex;align-items:baseline;gap:8px;min-width:0}
+h1{font-size:21px;line-height:1.05;margin:0;letter-spacing:-.02em}
+.context{font-size:11px;color:var(--text-secondary)}
+.kpis{justify-self:center;display:flex;align-items:center;gap:7px;color:var(--text-secondary);font-size:11px;white-space:nowrap}
+.kpis strong{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--text-primary);font-size:12px}
+.kpi-link{appearance:none;border:0;background:transparent;color:var(--text-secondary);padding:0;font:inherit;font-weight:750;cursor:pointer}
+.kpi-link:hover{color:var(--brand)}
+.refresh{height:32px;width:34px;border:1px solid var(--border-medium);border-radius:8px;background:var(--bg-surface-card);color:var(--text-primary);padding:0;font-weight:800;cursor:pointer}
+.compact-filters{display:grid;grid-template-columns:minmax(260px,1fr) 92px 142px 124px 118px auto;gap:7px;margin-top:7px;align-items:center}
+.search{height:36px;border:1px solid var(--border-control);background:var(--bg-surface-input);border-radius:9px;color:var(--text-primary);padding:0 12px;outline:none;font-size:12px}
+.search:focus{border-color:var(--brand);box-shadow:0 0 0 3px rgba(56,189,248,.12)}
+.control{height:36px;border:1px solid var(--border-medium);background:var(--bg-surface-card);color:var(--text-primary);border-radius:9px;padding:0 9px;min-width:0;outline:none;font-size:11px}
+.sort-inline{font-size:11px;color:var(--text-secondary);white-space:nowrap;padding-left:4px}
+.list{flex:1;overflow:auto;padding:0 18px 20px}
+.headerrow,.orderrow{display:grid;grid-template-columns:120px minmax(210px,1.25fr) minmax(180px,1fr) 150px 120px 34px;align-items:center;column-gap:14px}
+.headerrow{position:sticky;top:0;z-index:3;height:36px;background:var(--bg-canvas);color:var(--text-muted);font-size:10px;text-transform:uppercase;letter-spacing:.11em;border-bottom:1px solid var(--border-subtle)}
+.orderrow{min-height:84px;border-bottom:1px solid var(--border-subtle);transition:background .15s ease;cursor:pointer}
+.orderrow:hover{background:rgba(255,255,255,.025)}
+.orderid{display:grid;gap:5px}
+.orderno{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--brand);font-weight:800;font-size:14px}
+.origin{display:inline-flex;width:max-content;align-items:center;border-radius:6px;padding:2px 6px;background:var(--brand-muted);color:var(--brand);font-size:9px;letter-spacing:.09em;font-weight:800;text-transform:uppercase}
+.origin.pos{background:var(--amber-soft);color:var(--amber)}
+.customer{min-width:0}
+.customer strong{display:block;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.meta{margin-top:4px;color:var(--text-secondary);font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.when{display:grid;gap:6px}
+.when-top{font-size:12px;font-weight:750}
+.scheduled{display:inline-flex;width:max-content;border-radius:999px;padding:2px 7px;background:var(--amber-soft);color:var(--amber);font-size:10px;font-weight:800}
+.asap{font-size:10px;color:var(--text-secondary);font-weight:750}
+.status{display:inline-flex;width:max-content;align-items:center;gap:6px;border-radius:999px;padding:5px 9px;font-size:11px;font-weight:800}
+.status.new{background:var(--brand-muted);color:var(--brand)}
+.status.prep{background:var(--amber-soft);color:var(--amber)}
+.status.ready{background:var(--ready-soft);color:var(--ready)}
+.status.closed{background:rgba(148,163,184,.10);color:var(--inactive)}
+.status.cancel{background:var(--danger-soft);color:var(--danger)}
+.money{text-align:right}
+.total{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;font-weight:800}
+.pay{margin-top:5px;font-size:10px;font-weight:850;letter-spacing:.06em}
+.pay.paid{color:var(--ready)}
+.pay.pending{color:var(--amber)}
+.arrow{font-size:21px;color:var(--text-muted);text-align:right}
+.empty{display:none;padding:60px 20px;text-align:center;color:var(--text-secondary)}
+.note{position:fixed;right:18px;bottom:14px;max-width:440px;background:#06182b;border:1px solid var(--border-medium);border-radius:10px;padding:9px 11px;font-size:10px;color:var(--text-muted);box-shadow:var(--shadow)}
+
+.detail-view{display:none;flex:1;overflow:auto;padding:10px 18px 20px}
+.detail-top{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:10px}
+.back{height:34px;border:1px solid var(--border-medium);background:var(--bg-surface-card);color:var(--text-primary);border-radius:8px;padding:0 11px;font-weight:750;cursor:pointer}
+.detail-head{display:flex;align-items:center;gap:10px;min-width:0}
+.detail-title{font-size:19px;font-weight:850}
+.detail-sub{font-size:11px;color:var(--text-secondary);margin-top:2px}
+.head-badges{display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+.detail-grid{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(300px,.85fr);gap:10px}
+.panel{background:var(--bg-surface-card);border:1px solid var(--border-subtle);border-radius:12px;padding:12px;box-shadow:var(--shadow)}
+.panel h2{margin:0 0 9px;font-size:11px;letter-spacing:.11em;text-transform:uppercase;color:var(--text-muted)}
+.items{display:grid;gap:8px}
+.item{display:grid;grid-template-columns:42px minmax(0,1fr) auto;gap:8px;align-items:start;padding:8px 0;border-bottom:1px solid var(--border-subtle)}
+.item:last-child{border-bottom:0}
+.qty{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--amber);font-weight:850}
+.item-name{font-size:12px;font-weight:800}
+.item-mod{font-size:10px;color:var(--text-secondary);margin-top:3px}
+.item-note{display:inline-block;margin-top:4px;padding:3px 6px;border-radius:6px;background:var(--amber-soft);color:var(--amber);font-size:10px}
+.item-price{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;color:var(--text-secondary);white-space:nowrap}
+.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+.info-row{display:flex;justify-content:space-between;gap:10px;font-size:11px;padding:4px 0}
+.info-row span:first-child{color:var(--text-secondary)}
+.info-row strong{font-weight:800;text-align:right}
+.financial{display:grid;gap:5px}
+.financial .info-row.total{padding-top:8px;margin-top:3px;border-top:1px solid var(--border-medium);font-size:13px}
+.timeline{display:grid;gap:0}
+.event{display:grid;grid-template-columns:58px 12px minmax(0,1fr);gap:7px;align-items:start;font-size:10.5px;padding:4px 0}
+.event-time{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--text-secondary)}
+.event-dot{width:7px;height:7px;border-radius:50%;background:var(--brand);margin-top:4px}
+.docs{display:grid;gap:8px}
+.doc{border:1px solid var(--border-subtle);border-radius:10px;padding:9px;background:var(--bg-surface-low)}
+.doc-head{display:flex;justify-content:space-between;gap:10px;align-items:start}
+.doc-name{font-size:11px;font-weight:850}
+.doc-meta{font-size:10px;color:var(--text-secondary);margin-top:2px}
+.doc-actions{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+.smallbtn{height:30px;border-radius:7px;border:1px solid var(--border-medium);background:var(--bg-surface-card);color:var(--text-primary);padding:0 9px;font-size:10px;font-weight:800;cursor:pointer}
+.smallbtn.primary{background:var(--brand);color:#000f21;border-color:var(--brand)}
+.order-summaryline{display:flex;gap:10px;flex-wrap:wrap;color:var(--text-secondary);font-size:10.5px}
+.metric{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--text-primary);font-weight:800}
+.right-stack{display:grid;gap:10px;align-content:start}
+
+@media(max-width:1000px){
+  .app{grid-template-columns:72px minmax(0,1fr)}
+  .brand span,.navlabel,.navitem span,.sidefoot{display:none}
+  .brand{justify-content:center}.navitem{justify-content:center}
+  .compact-line{grid-template-columns:auto 1fr auto}
+  .kpis{justify-self:start;overflow:hidden}
+  .compact-filters{grid-template-columns:1fr 92px 124px}
+  .compact-filters .optional,.sort-inline{display:none}
+  .headerrow,.orderrow{grid-template-columns:105px minmax(180px,1.2fr) minmax(150px,1fr) 120px 100px 28px}
+  .detail-grid{grid-template-columns:1fr}.info-grid{grid-template-columns:1fr 1fr}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand"><div class="brandmark"></div><span><strong>ONE BURGER</strong></span></div>
+    <div class="navgroup">
+      <div class="navlabel">Operación</div>
+      <div class="navitem active"><i class="dot"></i><span>Pedidos</span></div>
+      <div class="navitem"><i class="dot"></i><span>Cocina</span></div>
+      <div class="navitem"><i class="dot"></i><span>POS</span></div>
+    </div>
+    <div class="navgroup">
+      <div class="navlabel">Control</div>
+      <div class="navitem"><i class="dot"></i><span>Caja</span></div>
+      <div class="navitem"><i class="dot"></i><span>Cierres</span></div>
+      <div class="navitem"><i class="dot"></i><span>Facturas</span></div>
+    </div>
+    <div class="sidefoot">Mockup de referencia · no runtime</div>
+  </aside>
+
+  <main class="main">
+    <section class="top compact-top">
+      <div class="compact-line">
+        <div class="titleblock">
+          <h1>Pedidos</h1>
+          <span class="context">Todas las sucursales</span>
+        </div>
+
+        <div class="kpis" aria-label="Resumen de pedidos">
+          <strong id="count">8 órdenes</strong>
+          <span>·</span>
+          <button class="kpi-link" id="activeKpi">4 activas</button>
+          <span>·</span>
+          <button class="kpi-link" id="pendingKpi"><span id="pendingCount">3 pendientes de pago</span></button>
+          <span>·</span>
+          <button class="kpi-link" id="scheduledKpi">2 programadas</button>
+        </div>
+
+        <button class="refresh" id="refresh">↻</button>
+      </div>
+
+      <div class="compact-filters">
+        <input class="search" id="search" placeholder="Número, cliente, teléfono o PIN" />
+        <select class="control" id="dateFilter">
+          <option value="today">Hoy</option>
+          <option value="yesterday">Ayer</option>
+          <option value="7d">7 días</option>
+          <option value="30d">30 días</option>
+        </select>
+        <select class="control optional" id="locationFilter">
+          <option value="all">Todas sucursales</option>
+          <option value="camino">Camino de Oriente</option>
+          <option value="masaya">Carretera Masaya</option>
+          <option value="casa">Casa Antigua</option>
+        </select>
+        <select class="control" id="statusFilter">
+          <option value="all">Estado: todos</option>
+          <option value="new">Nuevos</option>
+          <option value="process">En proceso</option>
+          <option value="ready">Listos</option>
+          <option value="closed">Completados</option>
+          <option value="cancelled">Cancelados</option>
+        </select>
+        <select class="control optional" id="paymentFilter">
+          <option value="all">Pago: todos</option>
+          <option value="pending">Pendientes</option>
+          <option value="paid">Pagados</option>
+        </select>
+        <div class="sort-inline">Más recientes ▾</div>
+      </div>
+    </section>
+
+    <div id="listView" style="display:flex;flex-direction:column;flex:1;min-height:0">
+    <section class="list" id="list">
+      <div class="headerrow">
+        <div>Pedido</div><div>Cliente</div><div>Cuándo / estado</div><div>Operación</div><div style="text-align:right">Total / pago</div><div></div>
+      </div>
+
+      <div class="orderrow" data-search="p-1061 jose martinez 88881122 4821" data-status="new" data-payment="pending" data-location="camino">
+        <div class="orderid"><span class="orderno">P-1061</span><span class="origin">MENÚ</span></div>
+        <div class="customer"><strong>José Martínez</strong><div class="meta">8888-1122 · Camino de Oriente</div></div>
+        <div class="when"><span class="when-top">18:30</span><span class="scheduled">PROGRAMADO</span></div>
+        <div><span class="status new">● Confirmado</span></div>
+        <div class="money"><div class="total">C$ 680.00</div><div class="pay pending">PENDIENTE</div></div>
+        <div class="arrow">›</div>
+      </div>
+
+      <div class="orderrow" data-search="p-1060 ana lopez 77774433 6190" data-status="process" data-payment="pending" data-location="masaya">
+        <div class="orderid"><span class="orderno">P-1060</span><span class="origin">MENÚ</span></div>
+        <div class="customer"><strong>Ana López</strong><div class="meta">7777-4433 · Carretera Masaya</div></div>
+        <div class="when"><span class="when-top">Retiro ~17:47</span><span class="asap">ASAP</span></div>
+        <div><span class="status prep">● Preparando · 08m</span></div>
+        <div class="money"><div class="total">C$ 420.00</div><div class="pay pending">PENDIENTE</div></div>
+        <div class="arrow">›</div>
+      </div>
+
+      <div class="orderrow" data-search="p-1059 mostrador" data-status="ready" data-payment="paid" data-location="camino">
+        <div class="orderid"><span class="orderno">P-1059</span><span class="origin pos">POS</span></div>
+        <div class="customer"><strong>Mostrador</strong><div class="meta">Camino de Oriente</div></div>
+        <div class="when"><span class="when-top">Retiro ~17:45</span><span class="asap">ASAP</span></div>
+        <div><span class="status ready">● Listo</span></div>
+        <div class="money"><div class="total">C$ 350.00</div><div class="pay paid">PAGADO</div></div>
+        <div class="arrow">›</div>
+      </div>
+
+      <div class="orderrow" data-search="p-1058 carlos ruiz 88553311 2274" data-status="closed" data-payment="paid" data-location="casa">
+        <div class="orderid"><span class="orderno">P-1058</span><span class="origin">MENÚ</span></div>
+        <div class="customer"><strong>Carlos Ruiz</strong><div class="meta">8855-3311 · Casa Antigua</div></div>
+        <div class="when"><span class="when-top">17:20</span><span class="asap">Retiro</span></div>
+        <div><span class="status closed">● Retirado</span></div>
+        <div class="money"><div class="total">C$ 910.00</div><div class="pay paid">PAGADO</div></div>
+        <div class="arrow">›</div>
+      </div>
+
+      <div class="orderrow" data-search="p-1057 maria fernanda 84447711 8302" data-status="process" data-payment="pending" data-location="camino">
+        <div class="orderid"><span class="orderno">P-1057</span><span class="origin">MENÚ</span></div>
+        <div class="customer"><strong>María Fernanda</strong><div class="meta">8444-7711 · Camino de Oriente</div></div>
+        <div class="when"><span class="when-top">18:00</span><span class="scheduled">PROGRAMADO</span></div>
+        <div><span class="status new">● Aceptado</span></div>
+        <div class="money"><div class="total">C$ 525.00</div><div class="pay pending">PENDIENTE</div></div>
+        <div class="arrow">›</div>
+      </div>
+
+      <div class="orderrow" data-search="p-1056 roberto diaz 89991122 3901" data-status="ready" data-payment="paid" data-location="masaya">
+        <div class="orderid"><span class="orderno">P-1056</span><span class="origin pos">POS</span></div>
+        <div class="customer"><strong>Roberto Díaz</strong><div class="meta">Carretera Masaya</div></div>
+        <div class="when"><span class="when-top">17:36</span><span class="asap">ASAP</span></div>
+        <div><span class="status ready">● Listo</span></div>
+        <div class="money"><div class="total">C$ 285.00</div><div class="pay paid">PAGADO</div></div>
+        <div class="arrow">›</div>
+      </div>
+
+      <div class="orderrow" data-search="p-1055 lucia flores 86662211 5544" data-status="cancelled" data-payment="pending" data-location="casa">
+        <div class="orderid"><span class="orderno">P-1055</span><span class="origin">MENÚ</span></div>
+        <div class="customer"><strong>Lucía Flores</strong><div class="meta">8666-2211 · Casa Antigua</div></div>
+        <div class="when"><span class="when-top">17:10</span><span class="asap">ASAP</span></div>
+        <div><span class="status cancel">● Cancelado</span></div>
+        <div class="money"><div class="total">C$ 610.00</div><div class="pay pending">SIN COBRO</div></div>
+        <div class="arrow">›</div>
+      </div>
+
+      <div class="orderrow" data-search="p-1054 david mendoza 87770014 1120" data-status="closed" data-payment="paid" data-location="camino">
+        <div class="orderid"><span class="orderno">P-1054</span><span class="origin">MENÚ</span></div>
+        <div class="customer"><strong>David Mendoza</strong><div class="meta">8777-0014 · Camino de Oriente</div></div>
+        <div class="when"><span class="when-top">16:55</span><span class="asap">Retiro</span></div>
+        <div><span class="status closed">● Cerrado</span></div>
+        <div class="money"><div class="total">C$ 745.00</div><div class="pay paid">PAGADO</div></div>
+        <div class="arrow">›</div>
+      </div>
+
+      <div class="empty" id="empty">No hay pedidos que coincidan con estos filtros.</div>
+    </section>
+    </div>
+
+    <section class="detail-view" id="detailView">
+      <div class="detail-top">
+        <div class="detail-head">
+          <button class="back" id="backToList">← Pedidos</button>
+          <div>
+            <div class="detail-title" id="detailOrderNumber">P-1059 · Mostrador</div>
+            <div class="detail-sub" id="detailContext">POS · ASAP · Camino de Oriente</div>
+          </div>
+        </div>
+        <div class="head-badges">
+          <span class="status ready" id="detailStatus">● Listo</span>
+          <span class="status ready" id="detailPayment">● Pagado</span>
+        </div>
+      </div>
+
+      <div class="order-summaryline">
+        <span>Total <b class="metric" id="detailTotal">C$ 350.00</b></span>
+        <span>Preparación <b class="metric">13 min</b></span>
+        <span>Listo desde <b class="metric">4 min</b></span>
+        <span>Retiro <b class="metric" id="detailPickup">~17:45</b></span>
+      </div>
+
+      <div class="detail-grid" style="margin-top:10px">
+        <div>
+          <section class="panel">
+            <h2>Pedido</h2>
+            <div class="items">
+              <div class="item">
+                <div class="qty">2×</div>
+                <div>
+                  <div class="item-name">Doble Bacon</div>
+                  <div class="item-mod">+ queso extra · sin cebolla</div>
+                  <div class="item-note">Extra salsa</div>
+                </div>
+                <div class="item-price">C$ 250</div>
+              </div>
+              <div class="item">
+                <div class="qty">1×</div>
+                <div>
+                  <div class="item-name">Papas</div>
+                  <div class="item-mod">Sin sal</div>
+                </div>
+                <div class="item-price">C$ 120</div>
+              </div>
+            </div>
+          </section>
+
+          <div class="info-grid">
+            <section class="panel">
+              <h2>Cliente</h2>
+              <div class="info-row"><span>Nombre</span><strong id="detailCustomer">Mostrador</strong></div>
+              <div class="info-row"><span>WhatsApp</span><strong id="detailPhone">—</strong></div>
+              <div class="info-row"><span>PIN retiro</span><strong>4821</strong></div>
+            </section>
+
+            <section class="panel">
+              <h2>Retiro</h2>
+              <div class="info-row"><span>Modalidad</span><strong id="detailMode">ASAP</strong></div>
+              <div class="info-row"><span>Hora</span><strong id="detailPickup2">~17:45</strong></div>
+              <div class="info-row"><span>Local</span><strong id="detailLocation">Camino de Oriente</strong></div>
+            </section>
+          </div>
+
+          <section class="panel" style="margin-top:10px">
+            <h2>Historial real</h2>
+            <div class="timeline">
+              <div class="event"><span class="event-time">17:10</span><i class="event-dot"></i><span>Pedido creado desde POS</span></div>
+              <div class="event"><span class="event-time">17:10</span><i class="event-dot"></i><span>Pago registrado · Efectivo C$350</span></div>
+              <div class="event"><span class="event-time">17:10</span><i class="event-dot"></i><span>Pedido confirmado</span></div>
+              <div class="event"><span class="event-time">17:12</span><i class="event-dot"></i><span>Preparación iniciada</span></div>
+              <div class="event"><span class="event-time">17:25</span><i class="event-dot"></i><span>Marcado como listo</span></div>
+            </div>
+          </section>
+        </div>
+
+        <div class="right-stack">
+          <section class="panel">
+            <h2>Pago</h2>
+            <div class="financial">
+              <div class="info-row"><span>Subtotal</span><strong>C$ 320.00</strong></div>
+              <div class="info-row"><span>Empaque</span><strong>C$ 20.00</strong></div>
+              <div class="info-row"><span>Descuento</span><strong>-C$ 0.00</strong></div>
+              <div class="info-row total"><span>Total</span><strong id="detailTotal2">C$ 350.00</strong></div>
+              <div class="info-row"><span>Pagado</span><strong id="detailPaid">C$ 350.00</strong></div>
+              <div class="info-row"><span>Pendiente</span><strong id="detailPending">C$ 0.00</strong></div>
+              <div class="info-row"><span>Medio</span><strong>Efectivo</strong></div>
+            </div>
+          </section>
+
+          <section class="panel">
+            <h2>Operación</h2>
+            <div class="info-row"><span>Creado</span><strong>17:10</strong></div>
+            <div class="info-row"><span>Confirmado</span><strong>17:10</strong></div>
+            <div class="info-row"><span>Inicio prep.</span><strong>17:12</strong></div>
+            <div class="info-row"><span>Terminado</span><strong>17:25</strong></div>
+            <div class="info-row"><span>Tiempo prep.</span><strong>13 min</strong></div>
+            <div class="info-row"><span>Listo desde</span><strong>4 min</strong></div>
+          </section>
+
+          <section class="panel">
+            <h2>Documentos</h2>
+            <div class="docs">
+              <div class="doc" id="invoiceDoc">
+                <div class="doc-head">
+                  <div>
+                    <div class="doc-name">Factura F-001284</div>
+                    <div class="doc-meta">Emitida 27 Sep 2026 · 17:10</div>
+                  </div>
+                  <span class="pay paid">EMITIDA</span>
+                </div>
+                <div class="doc-actions">
+                  <button class="smallbtn primary" onclick="alert('Mockup: imprimir factura en 80 mm')">Imprimir 80 mm</button>
+                  <button class="smallbtn" onclick="alert('Mockup: abrir PDF inmutable')">PDF</button>
+                </div>
+              </div>
+
+              <div class="doc">
+                <div class="doc-head">
+                  <div>
+                    <div class="doc-name">Ticket de cliente</div>
+                    <div class="doc-meta">Documento reimprimible</div>
+                  </div>
+                  <span class="pay paid">DISPONIBLE</span>
+                </div>
+                <div class="doc-actions">
+                  <button class="smallbtn" onclick="alert('Mockup: reimprimir ticket')">Reimprimir</button>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div class="note">Referencia UX. Las etiquetas MENÚ / POS son parte del diseño deseado; el modelo Order actual todavía no guarda un origen canónico.</div>
+
+<script>
+const rows=[...document.querySelectorAll('.orderrow')];
+const search=document.getElementById('search');
+const status=document.getElementById('statusFilter');
+const payment=document.getElementById('paymentFilter');
+const locationSel=document.getElementById('locationFilter');
+const count=document.getElementById('count');
+const pendingCount=document.getElementById('pendingCount');
+const empty=document.getElementById('empty');
+
+function filterRows(){
+  const q=(search.value||'').trim().toLowerCase();
+  const sv=status.value;
+  const pv=payment.value;
+  const lv=locationSel ? locationSel.value : 'all';
+  let visible=0, pending=0;
+  rows.forEach(row=>{
+    const okQ=!q || row.dataset.search.includes(q);
+    const okS=sv==='all' || row.dataset.status===sv;
+    const okP=pv==='all' || row.dataset.payment===pv;
+    const okL=lv==='all' || row.dataset.location===lv;
+    const show=okQ&&okS&&okP&&okL;
+    row.style.display=show?'grid':'none';
+    if(show){visible++; if(row.dataset.payment==='pending') pending++;}
+  });
+  count.textContent=`${visible} ${visible===1?'orden':'órdenes'}`;
+  pendingCount.textContent=`${pending} ${pending===1?'pendiente':'pendientes'} de pago`;
+  const activeVisible = rows.filter(r => r.style.display !== 'none' && ['new','process','ready'].includes(r.dataset.status)).length;
+  const scheduledVisible = rows.filter(r => r.style.display !== 'none' && r.querySelector('.scheduled')).length;
+  document.getElementById('activeKpi').textContent = `${activeVisible} ${activeVisible===1?'activa':'activas'}`;
+  document.getElementById('scheduledKpi').textContent = `${scheduledVisible} ${scheduledVisible===1?'programada':'programadas'}`;
+  empty.style.display=visible?'none':'block';
+}
+[search,status,payment,locationSel].forEach(el=>el&&el.addEventListener('input',filterRows));
+document.getElementById('refresh').addEventListener('click',e=>{
+  const b=e.currentTarget, original=b.textContent;
+  b.textContent='↻ Actualizado';
+  setTimeout(()=>b.textContent=original,900);
+});
+document.getElementById('activeKpi').addEventListener('click',()=>{
+  status.value='process'; filterRows();
+});
+document.getElementById('pendingKpi').addEventListener('click',()=>{
+  payment.value='pending'; filterRows();
+});
+document.getElementById('scheduledKpi').addEventListener('click',()=>{
+  search.value=''; status.value='all'; payment.value='all';
+  rows.forEach(row=>{
+    row.style.display = row.querySelector('.scheduled') ? 'grid' : 'none';
+  });
+  const visible=rows.filter(r=>r.style.display!=='none').length;
+  count.textContent=`${visible} ${visible===1?'orden':'órdenes'}`;
+  pendingCount.textContent=`${rows.filter(r=>r.style.display!=='none'&&r.dataset.payment==='pending').length} pendientes de pago`;
+  document.getElementById('activeKpi').textContent=`${rows.filter(r=>r.style.display!=='none'&&['new','process','ready'].includes(r.dataset.status)).length} activas`;
+  document.getElementById('scheduledKpi').textContent=`${visible} programadas`;
+  empty.style.display=visible?'none':'block';
+});
+
+const listView=document.getElementById('listView');
+const detailView=document.getElementById('detailView');
+
+function moneyText(row){
+  return row.querySelector('.total')?.textContent?.trim() || 'C$ 0.00';
+}
+function openDetail(row){
+  const number=row.querySelector('.orderno')?.textContent?.trim() || 'Pedido';
+  const customer=row.querySelector('.customer strong')?.textContent?.trim() || 'Cliente';
+  const meta=row.querySelector('.meta')?.textContent?.trim() || '';
+  const origin=row.querySelector('.origin')?.textContent?.trim() || '';
+  const whenTop=row.querySelector('.when-top')?.textContent?.trim() || '';
+  const scheduled=Boolean(row.querySelector('.scheduled'));
+  const st=row.querySelector('.status')?.textContent?.replace('●','').trim() || '';
+  const paid=row.dataset.payment==='paid';
+  const total=moneyText(row);
+
+  document.getElementById('detailOrderNumber').textContent=`${number} · ${customer}`;
+  document.getElementById('detailContext').textContent=`${origin} · ${scheduled?'Programado':'ASAP'} · ${meta.split('·').slice(-1)[0].trim()}`;
+  document.getElementById('detailCustomer').textContent=customer;
+  document.getElementById('detailPhone').textContent=(meta.split('·')[0]||'—').trim();
+  document.getElementById('detailLocation').textContent=(meta.split('·').slice(-1)[0]||'—').trim();
+  document.getElementById('detailMode').textContent=scheduled?'Programado':'ASAP';
+  document.getElementById('detailPickup').textContent=whenTop;
+  document.getElementById('detailPickup2').textContent=whenTop;
+  document.getElementById('detailTotal').textContent=total;
+  document.getElementById('detailTotal2').textContent=total;
+  document.getElementById('detailPaid').textContent=paid?total:'C$ 0.00';
+  document.getElementById('detailPending').textContent=paid?'C$ 0.00':total;
+
+  const statusEl=document.getElementById('detailStatus');
+  statusEl.textContent=`● ${st}`;
+  statusEl.className='status '+(row.dataset.status==='ready'?'ready':row.dataset.status==='process'?'prep':row.dataset.status==='closed'?'closed':row.dataset.status==='cancelled'?'cancel':'new');
+
+  const payEl=document.getElementById('detailPayment');
+  payEl.textContent=paid?'● Pagado':'● Pendiente';
+  payEl.className='status '+(paid?'ready':'prep');
+
+  const invoice=document.getElementById('invoiceDoc');
+  invoice.style.opacity=paid?'1':'.45';
+  invoice.querySelector('.doc-name').textContent=paid?'Factura F-001284':'Factura —';
+  invoice.querySelector('.doc-meta').textContent=paid?'Emitida 27 Sep 2026 · 17:10':'Se genera al completar el cobro';
+  invoice.querySelector('.pay').textContent=paid?'EMITIDA':'NO EMITIDA';
+  invoice.querySelectorAll('button').forEach(b=>b.disabled=!paid);
+
+  listView.style.display='none';
+  detailView.style.display='block';
+}
+rows.forEach(row=>row.addEventListener('click',()=>openDetail(row)));
+document.getElementById('backToList').addEventListener('click',()=>{
+  detailView.style.display='none';
+  listView.style.display='flex';
+});
+filterRows();
+
+</script>
+</body>
+</html>

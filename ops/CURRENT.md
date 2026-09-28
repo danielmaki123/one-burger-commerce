@@ -8,21 +8,20 @@ en qué estado está el sistema en pocos minutos.
 [`.agents/CONTEXT.md`](../.agents/CONTEXT.md)). Este archivo se **actualiza seguido** y se mantiene
 corto: si crece como un diario, dejó de servir.
 
-> **Última actualización**: 2026-09-27, por **`TASK-GOV-001`** (gobierno, leyes, arquitectura objetivo y
-> roadmap, `docs-only`: **cerrada y mergeada**, sin deploy) además del release de
-> **`SCREEN-POS-QUICK-SALE-001.2`** (corrección final del ticket, **desplegado**; ver §1 y §4). **POS Fase 1 —
-> Venta rápida queda CERRADA DEFINITIVAMENTE**: la pantalla tiene un solo scroll, no comprime la lista de
-> líneas y la **QA autenticada de producción** corrió a los cuatro viewports del contrato (`1366×768`,
-> `1280×720`, `768×1024`, `375×812`). **«POS Fase 2» dejó de existir como fase**: su contenido se reparte en el
-> [roadmap maestro](roadmap/PRODUCT-UX-ROADMAP.md) §2 órdenes 4 a 7 y 10, y **lo que sigue es la auditoría y el
-> diseño de `Pedidos / Cocina`** (orden 3), que **no se inició**. **Vigente: el Default E2E Delivery Contract**
-> ([`.agents/skills/delivery-e2e/SKILL.md`](../.agents/skills/delivery-e2e/SKILL.md)): una TASK aprobada declara
-> su **Delivery Mode** y se ejecuta hasta el estado final **sin pedir permisos intermedios**, y el **backup se
-> decide por riesgo del release**, no por frecuencia (`A-57` sigue abierto como problema del **scheduler** de
-> backups). **La fase de estabilización técnica sigue cerrada**: ningún P0 conocido y ningún P1 de dinero
-> abierto. Lo que sigue abierto es **operativo** (`A-57`) o **decisión del owner** (`A-66`, el `cashier` en
-> Órdenes). La secuencia la manda el [roadmap maestro](roadmap/PRODUCT-UX-ROADMAP.md): **16 pasos, no una
-> pantalla suelta**.
+> **Última actualización**: 2026-09-27, por **`TASK-ORDERS-KITCHEN-FOUNDATIONS-001`** (fundaciones de
+> `Pedidos / Cocina`: auditoría real, ownership, reuse audit, specs y Design Freeze, `docs-only`: **cerrada y
+> mergeada, sin deploy**), después del release de **`SCREEN-POS-QUICK-SALE-001.2`** (corrección final del
+> ticket, **desplegado**; ver §1 y §4). **POS Fase 1 queda CERRADA DEFINITIVAMENTE** y **«POS Fase 2» dejó de
+> existir como fase**: su contenido se reparte en el [roadmap maestro](roadmap/PRODUCT-UX-ROADMAP.md) §2
+> órdenes 4 a 7 y 10. **`Pedidos / Cocina` ya no es una incógnita**: quedó auditado y con **dos specs
+> congeladas** ([`design/screens/orders.md`](design/screens/orders.md) y
+> [`design/screens/kitchen.md`](design/screens/kitchen.md)) y sus **referencias aprobadas por el owner el
+> 2026-09-27**. **Vigente: el Default E2E Delivery Contract**
+> ([`.agents/skills/delivery-e2e/SKILL.md`](../.agents/skills/delivery-e2e/SKILL.md)). **La fase de
+> estabilización técnica sigue cerrada**, con una excepción nueva y acotada en dinero: **`A-68`** (el cobro de
+> un pedido existente compara montos sin la conversión canónica) es la razón declarada para consolidar
+> Money/Payments **antes** de conectar el estado financiero definitivo de Pedidos. Lo que sigue es
+> **Cocina runtime** (orden **3b**), y **no se abre sin autorización del owner**.
 
 ---
 
@@ -111,14 +110,18 @@ filtra datos) · **P2** (función rota, fuga o deuda estructural con impacto).
 
 > **No hay ningún P0 abierto conocido.**
 >
-> **No hay ningún P1 de dinero abierto**: `A-15` (con su remanente `A-59`) quedó **cerrado** el
-> 2026-09-25 y `A-58` antes. El único P1 abierto es **operativo** (`A-57`, el backup programado), que
-> por decisión del owner **no** bloquea el trabajo de producto.
+> **Hay un P1 de dinero abierto y acotado**: `A-68` (el cobro de un pedido que ya existe compara
+> `Payment.amount` **sin** la conversión a moneda del negocio, mientras la venta del POS **sí** convierte).
+> **No hay superficie** que lo dispare hoy (`A-67`): se llega sólo por API. Es la razón declarada para
+> consolidar **Money/Payments antes** de conectar el estado financiero definitivo de Pedidos. `A-15` (con su
+> remanente `A-59`) quedó **cerrado** el 2026-09-25 y `A-58` antes. El otro P1 abierto es **operativo**
+> (`A-57`, el backup programado), que por decisión del owner **no** bloquea el trabajo de producto.
 
 **P1**
 
 | Riesgo | Detalle | Dónde |
 |---|---|---|
+| **El cobro de un pedido que ya existe compara montos sin convertir** | `register-order-payment.ts:124-140` compara la **suma cruda** de `Payment.amount` contra `Order.total` (y recibe `businessCurrencyCode`/`usdExchangeRate` que **no usa**), mientras la venta del POS **sí** convierte (`pos-sale.ts:50-74`). Con un cobro en dólares, un pedido de `C$365` acepta `US$10` como «10 pagados» y deja cobrar otros `C$355`: se cobra de más. **Hoy no hay superficie** que lo dispare (`A-67`): se llega sólo por API. Es la **razón declarada** para consolidar Money/Payments **antes** de conectar el estado financiero de Pedidos | `A-68` en [`audit-backlog.md`](audit-backlog.md) |
 | **El backup programado no genera archivos** | La config del servicio `oneburguer-postgres` está `enabled: true` (cron `0 0 * * *`) pero el respaldo programado **nunca** produjo un archivo: las únicas acciones de backup son las dos del drill (2026-09-12) y la manual del release anterior (2026-09-25 12:27), y **no hay retención declarada**. Es **materia de infraestructura/operación**: requiere revisar la sección Backups del panel y decidir retención — no es código y **no bloquea** el trabajo de producto. Mientras tanto: el **backup se decide por riesgo del release**, no por frecuencia ([`delivery-e2e`](../.agents/skills/delivery-e2e/SKILL.md) §4) | `A-57` en [`audit-backlog.md`](audit-backlog.md) |
 
 **P2**
@@ -141,31 +144,37 @@ solo lectura) · `A-12` (filtro «solo sin aceptar») · `A-13` (módulos cascar
 `table-ordering`) · `A-14` (mapeo de errores repetido) · `A-16` y `A-18` (**revisar: pueden estar
 obsoletos**, ver §5) · `A-19` (movimientos de caja) · `A-20`/`A-34` (fiscal y RUC) · `A-22` (deuda de UI
 sin guardrail) · `A-23` (cuenta de prueba con rol `owner` en producción) · `A-25` · `A-27` · `A-28` ·
-`A-30` · `A-33`.
+`A-30` · `A-33` · `A-69` (reglas de dinero duplicadas: `shift-refund` y el `"NIO"` hardcodeado) ·
+`A-70` (la factura sin puerta de rol ni alcance por sucursal; la anulación no se imprime) · `A-71` (el cobro
+de un pedido existente sin clave de idempotencia).
 
 ## 4. Trabajo actual
 
-**`TASK-GOV-001` — consolidación de arquitectura, reglas y roadmap (CERRADA, `docs-only`, sin deploy)**: el repo
-quedó con **una sola arquitectura vigente, un solo roadmap y un solo proceso**. Las **leyes** se enuncian una vez
-en [`../AGENTS.md`](../AGENTS.md) § *Leyes del repo*; la **arquitectura objetivo** y la clasificación
-`ACTIVE`/`FROZEN`/`LEGACY`/`FUTURE`, en `ops/product/MODULE_ARCHITECTURE.md` §4; el **orden del trabajo**, en el
-[roadmap maestro](roadmap/PRODUCT-UX-ROADMAP.md) (16 pasos); y el **flujo obligatorio**, en
-[`delivery-e2e`](../.agents/skills/delivery-e2e/SKILL.md). **No tocó runtime, POS, DB, migraciones, navegación
-ni pantallas.**
+**`TASK-ORDERS-KITCHEN-FOUNDATIONS-001` — fundaciones de `Pedidos / Cocina` (CERRADA, `docs-only`, sin
+deploy)**: sacó del chat y **versionó** la auditoría real de las dos superficies contra el código, el
+**ownership** —quién posee el pedido, su canal de origen, sus tiempos, el dinero, el documento y la
+autorización, registrado en `ops/product/MODULE_ARCHITECTURE.md` §5—, la matriz
+`REUSE / ADAPT / CONSOLIDATE / NEW / MISSING / OUT` y las **dependencias** entre `orders`, `locations`,
+`money`, `payments`, `invoices` y `auth`. Dejó **dos specs congeladas**
+([`design/screens/orders.md`](design/screens/orders.md) —Pedidos: listado + detalle— y
+[`design/screens/kitchen.md`](design/screens/kitchen.md) —Cocina—) con sus **referencias aprobadas por el
+owner el 2026-09-27**, y registró **cuatro hallazgos nuevos** (`A-68` a `A-71`). Corrigió premisas obsoletas:
+la spec de Órdenes afirmaba que «no se pide ningún dato nuevo / no hay `FALTA`» y **hay seis**. **No tocó
+runtime, DB, migraciones, APIs, navegación ni pantallas.**
 
-**Lo que sigue es la auditoría y el diseño de `Pedidos / Cocina`** (orden 3 del roadmap), que **no se inició**;
-`Resumen` pasó al orden 16 y **«POS Fase 2» dejó de existir como fase**. **`DS-001`** (ley visual v4, en
-[`ops/design/`](design/)) está **aprobado y desplegado**; **`IA-001`** (navegación del panel) también;
-**`SCREEN-ORDERS-001`** fue la **primera sección rediseñada de punta a punta**
-([`design/screens/orders.md`](design/screens/orders.md)) y **`SCREEN-POS-QUICK-SALE-001`** la segunda
-([`design/screens/pos-quick-sale.md`](design/screens/pos-quick-sale.md)).
+**Lo que sigue es `Cocina runtime`** (orden **3b** del roadmap): `/admin/kitchen` como **proyección de
+`orders`**, con el carril de `confirmed` corregido, el canal de origen y la puerta que impide que el dinero
+llegue a cocina. `Resumen` sigue en el orden 16 y **«POS Fase 2» dejó de existir como fase**. **`DS-001`** (ley
+visual v4, en [`ops/design/`](design/)) está **aprobado y desplegado**; **`IA-001`** (navegación del panel)
+también; **`SCREEN-ORDERS-001`** fue la **primera sección rediseñada de punta a punta** y
+**`SCREEN-POS-QUICK-SALE-001`** la segunda ([`design/screens/pos-quick-sale.md`](design/screens/pos-quick-sale.md)).
 
 **Los cierres anteriores ya no viven acá**: el detalle —reproducción, límite atómico, mutaciones y evidencia—
 se movió a [`history/cierres-2026-09.md`](history/cierres-2026-09.md) cuando este archivo llegó a su techo de
 **250 líneas**. Ahí están `AUD-003..008`, `A-54`/`A-55`/`A-58`/`A-59`, `SCREEN-POS-QUICK-SALE-001.x`,
-`SCREEN-ORDERS-001`, `ARCH-001`, `TASK-AUD-004` y los baselines superados; acá queda la **línea de estado**:
-el bloque financiero está cerrado y desplegado, y con él la fase de estabilización técnica (2026-09-25:
-ningún P0 y ningún P1 de dinero abierto).
+`SCREEN-ORDERS-001`, `ARCH-001`, `TASK-GOV-001`, `TASK-AUD-004` y los baselines superados; acá queda la
+**línea de estado**: el bloque financiero está cerrado y desplegado, y la estabilización técnica sigue cerrada
+salvo el P1 acotado `A-68` (§3).
 
 ## 5. Siguiente trabajo
 
@@ -182,13 +191,17 @@ para el defecto del ticket; **sin migraciones, sin dominio y sin backup**.
 
 Lo que sigue, en orden:
 
-1. **`Pedidos / Cocina`** (orden 3 del roadmap): **no iniciado**. Empieza con la auditoría real de las dos
-   necesidades, el **reuse audit** y la decisión de ownership; después spec aprobada, design freeze e
-   implementación, como en Órdenes. **No se inicia automáticamente desde `TASK-GOV-001`.**
-2. **Money / Payments / Cash ownership** (órdenes 4, 5 y 7): el dueño del dinero se separa de `orders` y de
-   `pos`, con **snapshots** de lo firmado. **No se inicia sola.**
-3. **Deuda de Órdenes (`A-60` a `A-67`)** y después `AUD-009`/`AUD-010`, `AUD-012`/`AUD-013`/`AUD-014`.
-4. `A-57` (backup programado) es **infraestructura**: el owner decide y no bloquea el producto. Y **higiene
+1. **`Cocina runtime`** (orden **3b** del roadmap): **no iniciado**. `/admin/kitchen` como proyección de
+   `orders` —mapa canónico de carriles, sellos por etapa, `Order.source` (migración aditiva), `canOperateKitchen`
+   y el recorte financiero del servidor—. **`high-risk-e2e`**. El alcance exacto, el runtime que puede tocar y
+   lo que tiene prohibido duplicar están en [`roadmap/NEXT.md`](roadmap/NEXT.md). **No se inicia sola.**
+2. **Money / Payments ownership** (órdenes 4 y 5) y después **`Pedidos runtime`** (orden **5b**): el estado
+   financiero canónico (`pending` / `partial` / `paid`) tiene dueño propio **antes** de que el listado y el
+   detalle lo muestren. **No se inician solas.**
+3. **Pedido existente → Cobrar en POS** (orden 6): **compone** el backend que ya existe
+   (`POST /api/admin/orders/[id]/payment`); no lo reconstruye. Cierra `A-67`. Después **Cash ownership** (7).
+4. **Deuda de Pedidos/Cocina (`A-60` a `A-71`)** y después `AUD-009`/`AUD-010`, `AUD-012`/`AUD-013`/`AUD-014`.
+5. `A-57` (backup programado) es **infraestructura**: el owner decide y no bloquea el producto. Y **higiene
    pendiente del owner**: revocar la cuenta de QA anterior y **rotar el `EASYPANEL_TOKEN`**.
 
 > ⚠️ **Dos correcciones al brief de la auditoría, verificadas en el repo**: **A-45 ya está cerrado**

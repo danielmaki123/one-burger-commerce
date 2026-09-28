@@ -26,4 +26,6 @@ de producto y UX** —con el orden autoritativo de 16 pasos, las leyes que aplic
 ([`../product/MODULE_ARCHITECTURE.md`](../product/MODULE_ARCHITECTURE.md)) · `DS-001` **aprobada y desplegada**
 ([`../design/DESIGN_SYSTEM.md`](../design/DESIGN_SYSTEM.md)) · `IA-001` **cerrada y desplegada** ·
 `SCREEN-ORDERS-001` y `SCREEN-POS-QUICK-SALE-001.2` **cerradas y desplegadas** · `TASK-GOV-001`
-(**gobierno y reglas**, `docs-only`) **cerrada** · lo que sigue es **`Pedidos / Cocina`** (orden 3).
+(**gobierno y reglas**, `docs-only`) **cerrada** · `TASK-ORDERS-KITCHEN-FOUNDATIONS-001`
+(**fundaciones de `Pedidos / Cocina`**: auditoría, ownership, specs y Design Freeze, `docs-only`) **cerrada** ·
+lo que sigue es **`Cocina runtime`** (orden **3b**): `/admin/kitchen` como proyección de `orders`.

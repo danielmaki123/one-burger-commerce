@@ -1,183 +1,307 @@
-# Spec de pantalla — Órdenes (`/admin/orders`)
+# Spec de pantalla — Pedidos (`/admin/orders`)
 
-> **Plantilla**: [`TEMPLATE.md`](TEMPLATE.md). **Estado**: discovery + arquitectura + IA definidos en
-> `TASK-ORDERS-001` (2026-09-26). La **composición nueva** (toolbar, carriles y detalle) queda especificada y
-> prototipada en [`orders-prototype.html`](orders-prototype.html); su implementación se hace por partes, con la
-> revisión del owner, sin romper las reglas del dominio.
+> **Plantilla**: [`TEMPLATE.md`](TEMPLATE.md).
 >
-> **Prohibiciones que esta spec respeta**: no inventa estados ni métricas, no toca dinero, no mueve reglas del
-> dominio a React, no hardcodea sucursales y **no mezcla Caja, Analytics ni configuración** dentro de Órdenes.
+> **Estado: spec corregida por `TASK-ORDERS-KITCHEN-FOUNDATIONS-001`** (docs-only, 2026-09-27) sobre el
+> discovery de `TASK-ORDERS-001` (2026-09-26). **Nada de esta corrección está implementado**: lo entregado
+> por `SCREEN-ORDERS-001` sigue siendo lo que corre en producción.
+>
+> **Qué cambió y por qué**:
+>
+> 1. **El tablero de comandas deja de vivir acá.** Cocina es una **superficie distinta** y tiene su propia
+>    spec: [`kitchen.md`](kitchen.md). `/admin/orders` queda como el **read model denso y paginado** para
+>    **localizar y revisar** pedidos.
+> 2. **Se corrigen las premisas obsoletas del discovery**, incluida la afirmación de que «no se pide ningún
+>    dato nuevo / no hay `FALTA`»: la auditoría de la TASK de fundaciones encontró **seis** datos que el
+>    backend todavía no tiene (§ *Datos disponibles*).
+> 3. **Referencia nueva aprobada por el owner el 2026-09-27**:
+>    [`orders-desktop-reference.html`](orders-desktop-reference.html) (vistas de **listado** y **detalle**),
+>    que **reemplaza** a `orders-prototype.html` como contrato de composición.
+>
+> **Prohibiciones que esta spec respeta**: no inventa estados ni métricas, **no calcula dinero**, no mueve
+> reglas del dominio a React, no hardcodea sucursales y **no mezcla Caja, Cocina, Analytics ni configuración**
+> dentro de Pedidos.
+
+---
+
+## Reuse audit
+
+**Objetivo**: localizar un pedido (del turno o viejo) y revisarlo con su historia, sus items y su estado de
+cobro, sin depender de la memoria del turno.
+
+**Capacidad existente**: el listado y su saneamiento de filtros (`readAdminOrders`, `sanitizeOrderQuery`), la
+búsqueda (`order-search.ts`), el alcance por sucursal (`order-visibility.ts`, `order-scope.ts`), el detalle y
+su composición (`getOrder`, `get-order.ts`), los totales (`order-totals.ts`), el recorrido de estados
+(`order-workflows.ts`), la factura (`invoices`) y **Cocina** para operar las comandas.
+
+**Se reutiliza**: los filtros en la URL, el alcance, la búsqueda, el detalle y su `GET`, los totales del
+pedido y el documento de factura. **No** se reutiliza la forma de la query actual como solución final (ver
+*Fuera de scope*).
+
+**Realmente nuevo**: los tres contratos de lectura (`OrderListProjection`, `OrderDetailProjection`,
+`KitchenOrderProjection`) **sin dominios nuevos**; la paginación con KPI calculados sobre el **filtro
+completo**; y el **canal de origen** (`Order.source`), que la referencia muestra y el modelo no tiene.
 
 ---
 
 ## Ruta
 
-`/admin/orders` (pantalla) y `/admin/orders/[id]` (detalle), más `/admin/orders/[id]/invoice/print` (hoja de
-80 mm, fuera de pantalla).
+`/admin/orders` (listado denso y paginado), `/admin/orders/[id]` (detalle) y
+`/admin/orders/[id]/invoice/print` (hoja de 80 mm, fuera de pantalla). Sin rutas nuevas.
 
 ## Módulo
 
-**`orders`** es el dueño: estados, transiciones, SLA de etapas, totales y acciones sobre el pedido
-([`../../product/MODULE_ARCHITECTURE.md`](../../product/MODULE_ARCHITECTURE.md) §5). Órdenes **consume**
-`locations` (umbrales por local y punto de retiro), `business-settings` (zona horaria, moneda) e `invoices`
-(factura). **No es dueña** de cobros ni de arqueos: cobrar vive en el POS y devolver en Caja/Aprobaciones.
+**`orders`** es el dueño: `Order`, items, ciclo de vida, **scheduling y tiempos de etapa**
+([`../../product/MODULE_ARCHITECTURE.md`](../../product/MODULE_ARCHITECTURE.md) §5). La pantalla **consume**
+`locations` (umbrales y punto de retiro), **`payments`** (estado financiero: `pending` / `partial` / `paid`,
+`paidAmount`, `outstandingAmount`), `money` (moneda y conversión), `invoices` (documento) y `auth` (puertas).
+**Pedidos no es dueño de ninguna de esas reglas** y no las reimplementa.
 
 ## Usuario / roles
 
-| Rol | Qué hace acá | Hoy |
+Modelo objetivo del owner (`D-014`); **el contrato de permisos se implementa en la TASK de esta superficie**,
+no acá.
+
+| Rol | Qué hace acá | Qué **no** ve |
 |---|---|---|
-| `owner` | todo | ✓ |
-| `manager` | opera y audita el turno | ✓ |
-| `kitchen` | acepta y avanza comandas; **no** maneja plata | ✓ (pero el detalle le muestra montos, PIN y factura) |
-| `cashier` | **no opera órdenes** (`canManageOrderOperations` no lo incluye) | ⚠️ la entrada le aparece y la API le responde 403 (§ *Fuera de scope*, decisión del owner) |
+| `owner` | todo | — |
+| `manager` | localiza, revisa y opera, según su alcance por sucursal | — |
+| `cashier` | **localiza el pedido que tiene que cobrar** y lo cobra desde el flujo canónico | no opera Cocina, no administra ni anula el pedido, no ve la cola de cocina |
+| `kitchen` | **no entra**: su superficie es [`kitchen.md`](kitchen.md) | nada de esta pantalla |
+
+Hoy esto **no** se cumple: la entrada se le ofrece a los cuatro roles (`admin-layout-helpers.ts:97`), la API
+le responde **403** al `cashier` (`api/admin/orders/route.ts:59`) y la pantalla lo muestra como «Sesión de
+administrador requerida», que es falso (`A-66`). La puerta objetivo `canViewOrders` cierra esa contradicción;
+la financiera (`canViewOrderFinancials`) es la que hoy falta y deja que `kitchen` lea montos, PIN, cobros y
+factura (`A-60`).
 
 ## Propósito
 
-Una frase: **mover los pedidos del turno de hoy de "entró" a "entregado", sin perder ninguno y viendo primero
-lo que está por vencerse.** Todo lo demás (buscar un pedido viejo, revisar la factura, el historial de cierres)
-es secundario y vive en su propia pantalla.
+Una frase: **encontrar un pedido y entender qué le pasó** —con su historia, su plata y su documento— sin
+depender del turno. Operar la comanda es de Cocina (`kitchen.md`) y cobrar es del POS.
 
 ## Preguntas
 
-1. **¿Qué tengo que hacer ahora?** ( nuevos sin confirmar, atrasados, listos para entregar)
-2. **¿Cuánto falta para que algo se venza?** (tiempo en la etapa actual vs umbral del local)
-3. **¿Este pedido es el que busco?** (número, cliente, WhatsApp, PIN, local, tipo, forma de pago)
-4. **¿Qué le pasó a este pedido?** (detalle: recorrido, ítems, totales, cobros, factura)
+1. **¿Cuál es el pedido que busco?** (número, cliente, WhatsApp, PIN, local, fecha, estado, pago)
+2. **¿Cómo viene el conjunto?** (cuántos, cuántos activos, cuántos sin cobrar, cuántos programados)
+3. **¿Qué le pasó a este pedido?** (recorrido con horas, quién lo movió, items, totales, cobros, factura)
+4. **¿Qué puedo hacer con él?** (avanzar la etapa que no es de cocina, cobrar en el POS, emitir la factura)
 
 ## Decisiones
 
-- Se decide **aceptar o rechazar** un pedido nuevo, **avanzar de etapa** y **cerrar**.
-- Se decide **emitir la factura** (si el rol puede cobrar) e **imprimir** el ticket del cliente.
-- **No** se decide acá: cobrar (POS), devolver (Caja), anular un cobro (Aprobaciones), editar el menú, ni tocar
-  la configuración del local.
+- Se decide **localizar y filtrar** (búsqueda, fecha, local, estado, pago, programados) y **revisar**.
+- Se decide **cerrar la etapa del mostrador**: **Retirado** (`ready_for_pickup → picked_up`) y **Cerrar**
+  (`picked_up → closed`) — la retirada **no** es de cocina.
+- Se decide **rechazar** un pedido (`→ cancelled`, motivo obligatorio).
+- Se decide **emitir la factura** e **imprimir** el ticket (sólo quien puede cobrar).
+- **No** se decide acá: cocinar (Cocina), cobrar ni devolver (POS / Caja), anular un cobro (Aprobaciones),
+  editar el menú ni tocar la configuración del local.
+
+## Contratos de lectura (declarados, **no** implementados acá)
+
+Tres proyecciones de `orders`, sin crear dominios. Ninguna reimplementa una regla de otro dueño.
+
+### `OrderListProjection` (listado denso y paginado)
+
+| Campo | Fuente |
+|---|---|
+| `id`, `orderNumber`, `status`, `createdAt` | `orders` |
+| `source` (canal: menú / POS) | `orders` — **FALTA** el campo |
+| `customerName`, `customerWhatsapp`, `locationName` | `orders` + `locations` |
+| `pickupTime`, `pickupScheduled` | `orders` |
+| `total` | `orders` (`calculateOrderTotals`) |
+| `financialState`: `state` (`pending` \| `partial` \| `paid`), `paidAmount`, `outstandingAmount` | **`payments`** — **FALTA** |
+| `elapsedInStage` (chip de la etapa en curso) | `orders` (`stageChangedAt`) |
+
+- **Paginación**: `page`, `pageSize` y `total`. Entra en la implementación.
+- **KPI del header** (`N pedidos · N activas · N pendientes de pago · N programadas`): se calculan sobre el
+  **filtro completo**, **no** sobre la página visible: vienen del servidor en `meta`, como un agregado
+  separado de la página.
+- **Nunca** viajan: `orderLookupTokenHash`, `customerLat`/`customerLng`/`geoAccuracy`/`geoCapturedAt`, los
+  items completos ni el historial de estados (`A-61`).
+
+### `OrderDetailProjection` (detalle)
+
+Todo lo del listado **más**: items con modificadores, notas y precio por línea; punto de retiro; recorrido
+completo de estados con **hora y actor** (`OrderStatusHistory.changedByUserId`, hoy guardado y no mostrado:
+`A-09`); los sellos de etapa (`confirmedAt`, `preparingAt`, `readyAt`, `pickedUpAt`, `closedAt`, derivados en
+**un** lugar de `orders`); los cobros y el **estado financiero** de `payments`; el `pickupPin` y la factura de
+`invoices`. **Prohibido** que el detalle derive el saldo comparando `Order.total` contra los pagos en React.
+
+### `KitchenOrderProjection`
+
+Contrato de Cocina, **sin un solo campo de dinero**: [`kitchen.md`](kitchen.md) § *Datos disponibles*.
 
 ## Datos disponibles
 
-Todo lo que la spec necesita **ya existe** (`GET /api/admin/orders` y `GET /api/admin/orders/:id`): estado,
-`stageChangedAt`, `readyAt`, `pickupTime`, `pickupScheduled`, ítems con modificadores y notas, totales, medio de
-pago, PIN, `locationName`, `payments[]` (detalle) y `averagePrepMinutes` (meta). **No se pide ningún dato
-nuevo** y **no hay `FALTA`** para esta sección.
+> **Corrección expresa de una premisa obsoleta.** El discovery de `TASK-ORDERS-001` afirmaba: «No se pide
+> ningún dato nuevo y **no hay `FALTA`** para esta sección». **Es falso.** La auditoría de
+> `TASK-ORDERS-KITCHEN-FOUNDATIONS-001` encontró **seis** datos que el backend no tiene, y todos tienen dueño
+> y dependencia:
 
-**No se muestra** (no existe o no corresponde): tiempo por etapa de cada pedido (solo el último cambio y el
-primer `ready`), quién cambió el estado, e historial crudo de estados.
+| # | `FALTA` | Dueño | Depende de |
+|---|---|---|---|
+| 1 | **Canal de origen** (`Order.source`): la etiqueta `MENÚ` / `POS` del listado y del detalle | `orders` | migración aditiva + escritura en las **dos** puertas de creación (checkout público y venta del POS). **Prohibido** inferirlo |
+| 2 | **Estado financiero del pedido** (`pending` / `partial` / `paid`, `paidAmount`, `outstandingAmount`) | `payments` | la consolidación de Money/Payments; **no** se calcula en React |
+| 3 | **Sellos por etapa** (`confirmedAt`, `preparingAt`, `readyAt`, `pickedUpAt`, `closedAt`) | `orders` | derivación desde `OrderStatusHistory` en una sola función |
+| 4 | **Inicio recomendado** del programado (`pickupTime − Location.pickupLeadMinutes`) | `orders` + `locations` | la función que lo deriva, una sola vez |
+| 5 | **Paginar y agregar**: `page`/`pageSize`/`total` y los cuatro KPI del header | `orders` | el read model del listado |
+| 6 | **Hora prometida en los pedidos del POS**: hoy `pickupTime` es `null` | `orders` | decisión de producto si el POS debe prometer una hora; hasta entonces el copy dice «lo antes posible» |
+
+Lo que **sí** existe hoy (y se reutiliza): estado, `stageChangedAt`, `readyAt`, `pickupTime`,
+`pickupScheduled`, items con modificadores y notas, totales, medio de pago declarado, PIN, `locationName`,
+`payments[]` (detalle) y `averagePrepMinutes` (meta).
+
+**No se muestra** (no existe o no corresponde): quién cambió el estado (el dato **existe** y esta spec lo
+suma al detalle: `A-09`), y el historial crudo como tabla (se muestra como recorrido).
 
 ## Jerarquía
 
 ```text
-1. QUÉ HACER AHORA      → carriles por etapa + contadores + señales de atraso
-2. EL PEDIDO             → número, cliente, hora prometida, urgencia, ítems
-3. LA ACCIÓN             → una sola acción primaria por pedido
-4. ENCONTRARLO           → búsqueda, local, tipo, pago, atrasados
-5. CONTEXTO DEL TURNO    → preparación promedio, frescura de los datos, aviso sonoro
+1. ENCONTRARLO         → búsqueda + filtros en la URL
+2. CÓMO VIENE EL DÍA   → los cuatro KPI del filtro completo
+3. EL PEDIDO           → número, canal, cliente, cuándo, estado, total y si está cobrado
+4. EL DETALLE          → recorrido, items, retiro, cobros, documentos
+5. LA ACCIÓN           → una sola acción primaria por contexto
 ```
 
-Lo que **se elimina** de la pantalla actual (clasificación del discovery):
+## Listado (composición)
 
-| Elemento actual | Clase | Por qué |
-|---|---|---|
-| Carriles por etapa + contadores + acción primaria por tarjeta | **MANTENER** | Es el corazón de la sección y ya está bien resuelto |
-| Búsqueda con debounce + filtros en URL + «Limpiar filtros» | **MANTENER** | Resuelve "encontrarlo" sin ruido |
-| Umbrales **por local** (`acceptAlertMinutes`/`prepAlertMinutes`) | **MANTENER** | Es la única fuente correcta del semáforo |
-| Modo cocina (una columna, tipografía grande) | **MANTENER** | Es el uso real en cocina |
-| Cabecera `AdminPageHeader` con descripción larga | **SIMPLIFICAR** | En modo cocina no se dibuja y en móvil come alto: la pantalla es una bandeja, no una landing |
-| Dos contadores del mismo dato (`comandaCounters` en la página **y** en el tablero) | **SIMPLIFICAR** | Un solo cálculo, una sola fuente |
-| Cinco mapas estado→etapa (`comandaLane`, `orderBucket`, `getAdminOrderSolidStatus`, `ORDER_JOURNEY`, `DISPATCHED_STATUSES`) | **SIMPLIFICAR** | Un mapa canónico por intención (carril, grupo, chip, recorrido) |
-| Cuatro formateadores de tiempo | **SIMPLIFICAR** | Un formateador de "hace cuánto" y el semáforo de retiro |
-| Tarjeta resumen «Órdenes en vista» (solo tab Cerradas) | **ELIMINAR** | Repite los contadores de los tabs |
-| Chip «Esperando solicitudes» con `animate-pulse` | **CORREGIR** | El pulso está reservado a SLA vencido/desincronización (`MOTION.md`) |
-| Punto de «Nuevas» con `animate-pulse` en la toolbar | **CORREGIR** | Ídem: el número ya comunica |
-| Copy «hoja A4» | **CORREGIR** | La hoja es de **80 mm** (`invoice-print-sheet.tsx`) |
-| `text-st-*` (alias histórico) en 9 archivos | **CORREGIR (por sección)** | DS v4 pide `text-panel-*`; se migra acá, no en bloque |
-| `rounded-md` en bloques de estado/error | **CORREGIR** | El radio del panel es `rounded-stitch-md` |
-| Alias viejos de color (`bg-danger`, `bg-warning`, `border-border`, `--accent` en sombra) | **CORREGIR** | DS v4: intención semántica (`status-sla-*`, `line-control`, `elevation`) |
-| Anuncio accesible de atraso con umbrales **por defecto** | **CORREGIR** | El tablero usa los del local: el anuncio tiene que usar los mismos |
-| Detalle que reimplementa la acción primaria y el rechazo | **SIMPLIFICAR** | Tiene que usar la misma pieza que la tarjeta |
-| Detalle que muestra montos, PIN, cobros y factura a `kitchen` | **CORREGIR** | Cocina no maneja plata |
-| Precios/PIN ausentes en la tarjeta de comanda | **MANTENER** | Es una decisión explícita del KDS (no filtrar dinero al salón) |
-| Fechas del detalle con `toLocaleString()` del navegador | **CORREGIR** | La lista usa la zona del negocio |
-| `/api/admin/orders/[id]/delivery-fee` sin llamador | **MOVER (al backlog)** | Fuera del MVP: no se toca |
-| `cashier` viendo la entrada Órdenes y recibiendo 403 | **CORREGIR (decisión del owner)** | Va en *Fuera de scope* |
+| Columna | Contenido |
+|---|---|
+| **Pedido** | número en `font-mono` + etiqueta de **canal** (`MENÚ` / `POS`) |
+| **Cliente** | nombre + WhatsApp · local |
+| **Cuándo** | hora prometida + `ASAP` / `PROGRAMADO` |
+| **Estado** | chip del estado, con el tiempo en la etapa cuando está en preparación |
+| **Total / pago** | total en `font-mono` + `PAGADO` / `PENDIENTE` / `SIN COBRO` |
+| — | flecha de apertura del detalle |
 
-## Acciones
+Fila **densa** (≈84 px), encabezado fijo, scroll **del listado** (no de la página), orden por más recientes.
+Filtros en la **URL**: búsqueda, fecha (hoy · ayer · 7 días · 30 días), local, estado, pago y programadas
+(hoy el de estado es estado de React: `A-62`).
 
-| Acción | Label | Dónde |
-|---|---|---|
-| Primaria del pedido | **Aceptar · Preparando · Terminado · Entregada · Servida · Cerrar** (según la etapa) | Tarjeta (KDS) y detalle |
-| Rechazar | **Rechazar** → **Confirmar rechazo** (motivo obligatorio) | Detalle (y tarjeta de pedido nuevo) |
-| Factura | **Emitir factura** · **Imprimir o guardar PDF** | Detalle (solo quien puede cobrar) |
-| Ticket del cliente | **Reimprimir ticket** | Detalle |
-| Navegación | **Volver a órdenes** | Detalle |
+## Detalle (composición)
 
-**Una sola acción primaria por contexto visual** (ya es la ley del `OrderActions` actual y se conserva).
+`Pedido` (items con modificadores y notas) · `Cliente` (nombre, WhatsApp, PIN de retiro) · `Retiro`
+(modalidad, hora, local) · `Historial real` (línea de tiempo con hora y actor) · `Pago` (subtotal, empaque,
+descuento, total, **pagado**, **pendiente**, medio) · `Operación` (creado, confirmado, inicio de preparación,
+terminado, tiempo de preparación, listo desde) · `Documentos` (factura + ticket del cliente).
+
+Los paneles **Pago**, **Documentos** y el **PIN** se dibujan sólo con la capacidad financiera; el recorte se
+aplica **en el servidor** (`A-60`), no escondiendo el bloque en React.
 
 ## Estados
 
 Cargando · con datos · sin pedidos en el rango · sin coincidencias (con el término buscado) · error sin datos ·
-error con datos (bandeja vieja) · sin permiso · carril vacío (copy propio por carril).
+error con datos (bandeja vieja: «No se pudo actualizar. Última actualización hace N min.» + reintentar) · sin
+permiso (mensaje de permiso, **no** de sesión) · página fuera de rango.
 
 ## Empty / error / loading
 
-- **Vacío**: "Sin órdenes en este rango" + "No hay órdenes para los filtros seleccionados."
-- **Sin coincidencias**: "Sin coincidencias" + «Ninguna comanda coincide con «{término}».» (hoy existe **solo**
-  en el tablero: la spec lo lleva también a la vista de lista).
-- **Error con datos**: "No se pudo actualizar la bandeja. Última actualización hace N min." + Reintentar.
-- **Sin permiso**: mensaje propio de permiso (hoy dice "Sesión de administrador requerida", que **miente**
-  cuando hay sesión y falta el permiso).
+- **Vacío**: «Sin pedidos en este rango» + «No hay pedidos para los filtros seleccionados.»
+- **Sin coincidencias**: «Sin coincidencias» + «Ningún pedido coincide con «{término}».»
+- **Sin permiso**: mensaje propio de permiso. Prohibido «Sesión de administrador requerida» con sesión válida
+  (`A-66`).
+- **Error con datos**: se conserva lo último leído y se dice **cuándo** se leyó.
 
 ## Desktop
 
-A 1280: tres carriles en columnas con scroll propio, toolbar pegada arriba, cabecera en una fila; el 80 % del
-alto es bandeja.
+A 1280 y 1366: cabecera compacta en una línea (título + contexto de sucursal + KPIs + actualizar), filtros en
+una línea, encabezado de tabla fijo y el resto del alto para el listado. El detalle en dos columnas
+(izquierda: pedido, cliente, retiro, historial; derecha: pago, operación, documentos). Scroll de página **0**.
 
 ## Tablet
 
-A 768: **un carril por vez** con el conmutador (el corte de tres columnas es `lg` = 1024) y la toolbar envuelta
-en dos filas.
+A 768: los filtros envuelven en dos filas y el detalle pasa a **una** columna.
 
 ## Mobile
 
-A 375: un carril por vez, conmutador visible, toolbar en tres filas que envuelven sin scroll horizontal,
-buscador a todo el ancho y barra inferior de navegación respetada (`pb-24`).
+A 375: buscador a todo el ancho, filtros plegados, filas en dos líneas sin scroll horizontal, barra inferior
+del panel respetada (`pb-24`); el detalle en una columna con los documentos al final.
+
+## Viewport contract
+
+| Viewport | Listado | Detalle |
+|---|---|---|
+| `1366×768` | cabecera, filtros, encabezado de tabla y ≥6 filas | los paneles principales en el primer viewport |
+| `1280×720` | ídem | ídem |
+| `768×1024` | cabecera, filtros en dos filas y ≥5 filas | una columna, sin scroll horizontal |
+| `375×812` | cabecera, buscador, el KPI del filtro y la primera fila | estado + acción principal arriba |
+
+En todos: scrollea el **listado** (o el detalle), nunca la página.
+
+## Referencia aprobada
+
+[`orders-desktop-reference.html`](orders-desktop-reference.html) — **aprobada por el owner el 2026-09-27**,
+versionada acá sin modificarla. Contiene las dos vistas (**listado** y **detalle**) y `Reference Fidelity`
+la trata como contrato de composición, jerarquía, densidad y responsive: se traduce a los componentes reales
+(**no** se copia el HTML).
+
+**Reemplaza** a [`orders-prototype.html`](orders-prototype.html), que queda como **prototipo histórico** de
+`TASK-ORDERS-001` (no es contrato y no se cita como autoridad).
+
+**Divergencias declaradas de entrada** (las decide el owner, no el código):
+
+| Elemento de la referencia | Qué se hace | Por qué |
+|---|---|---|
+| Etiqueta `MENÚ` / `POS` | se implementa, **depende de `Order.source`** | el dato no existe hoy; en un pedido histórico sin declarar la fila sale **sin** etiqueta |
+| `PENDIENTE` / `PAGADO` y el KPI «N pendientes de pago» | se implementan, **dependen de `payments`** | no existe un estado financiero canónico; hasta entonces el pago no se muestra |
+| `PIN retiro` en el detalle | sólo con la capacidad financiera | cocina no lo ve (`A-60`) |
+| Historial con «Pedido creado desde POS» | se implementa, depende de `Order.source` | el texto del evento no se puede afirmar sin el dato |
+| «Factura — se genera al completar el cobro» | **no** se implementa | hoy la factura **no** se automatiza al cobrar; el copy miente |
 
 ## Qué se elimina
 
-La tarjeta resumen «Órdenes en vista», el pulso de "Esperando solicitudes" y del punto de "Nuevas", la
-descripción larga de la cabecera en modo bandeja, los contadores duplicados y los mapas/formateadores
-repetidos. **Nada de eso cambia lo que el usuario puede hacer**: son ruido o duplicación.
+- El **tablero de comandas** de esta pantalla (carriles, conmutador, modo cocina, «Esperando solicitudes»):
+  vive en [`kitchen.md`](kitchen.md).
+- La **tarjeta resumen «Órdenes en vista»** y los contadores duplicados: los KPI son del filtro completo.
+- La **descripción larga** de la cabecera: la pantalla es una bandeja, no una landing.
+- El pulso en reposo (queda sólo el SLA vencido, y en Cocina).
+- El copy «hoja A4» (la hoja es de **80 mm**).
+- Los **cinco mapas estado→etapa** y los cuatro formateadores de tiempo: un mapa canónico en
+  `orders/domain` y un formateador de «hace cuánto».
+- El enlace a `/api/admin/orders/[id]/delivery-fee` sin llamador (**al backlog**, no se toca).
 
-## Estado de implementación (`TASK-ORDERS-001`)
+## Fuera de scope
 
-Entregado en la rama de la TASK, con test y capturas ([`orders-after-1280.png`](orders-after-1280.png),
+- **Cocina** (`/admin/kitchen`): otra superficie, otra spec.
+- **Cobrar** (POS), **devolver** (Caja) y **anular un cobro** (Aprobaciones).
+- **Reformar `Invoice`**, su snapshot o su puerta de emisión.
+- **Cambiar el esquema**: `Order.source` se declara acá y lo implementa la TASK de Cocina runtime.
+- **Reescribir el módulo `orders`**: la spec no cambia dominio, puertos ni endpoints.
+- **La forma actual de la query como solución final**: hoy trae `items` + `modifiers` + el historial completo
+  de **todas** las filas y **no** pagina (`prisma-order-repository.ts:503-518`): es una premisa a **corregir**
+  por el read model, no la base de la pantalla nueva.
+
+## Estado de implementación (`SCREEN-ORDERS-001`, ya en producción)
+
+Entregado con test y capturas ([`orders-after-1280.png`](orders-after-1280.png),
 [`orders-after-375.png`](orders-after-375.png), detalle incluido):
 
 | Cambio | Evidencia |
 |---|---|
-| Pulso fuera de reposo: chip «Esperando solicitudes» y punto de «Nuevas» (queda solo el SLA vencido) | Test de la toolbar y del carril + QA de navegador |
-| Copy de la factura: hoja de **80 mm** (impresora térmica), no A4 | `order-invoice-panel.test.tsx` |
+| Pulso fuera de reposo: chip «Esperando solicitudes» y punto de «Nuevas» | Test de la toolbar y del carril + QA de navegador |
+| Copy de la factura: hoja de **80 mm**, no A4 | `order-invoice-panel.test.tsx` |
 | Radio del panel (`rounded-stitch-md`) en bloques de estado y error | Contrato de UI |
-| Anuncio accesible de atraso con el **umbral del local** (antes, el de por defecto) | Test que discrimina por umbral del local |
-| Barra compacta en celular: contadores solo en escritorio, «Atrasados» y los controles del turno como íconos, tipo de pedido sin ancho fijo | QA 375/768/1280, sin scroll horizontal |
+| Anuncio accesible de atraso con el **umbral del local** | Test que discrimina por umbral del local |
+| Barra compacta en celular | QA 375/768/1280, sin scroll horizontal |
 
-**Queda como deuda documentada** (hallazgos del discovery de la TASK, registrados en
-[`ops/audit-backlog.md`](../../audit-backlog.md), no corregidos de paso):
+## Design Freeze
 
-- El detalle muestra montos, PIN, cobros y factura al rol `kitchen` (cocina no maneja plata).
-- `GET /api/admin/orders` devuelve `orderLookupTokenHash` y campos de GPS que la pantalla no usa, ignora
-  `lateOnly`/`limit` y no pagina.
-- El filtro de **estado** no vive en la URL como los demás filtros.
-- Fechas del detalle con `toLocaleString()` del navegador, no con la zona del negocio.
-- Cinco mapas estado→etapa y cuatro formateadores de tiempo duplicados; `scheduledForAnotherDay` con
-  `includes` dentro de un bucle.
-- Alias históricos (`text-st-*`) y colores semánticos viejos en la sección, con techo de deuda propio.
+Aprobadas esta spec y [`orders-desktop-reference.html`](orders-desktop-reference.html) (owner, **2026-09-27**),
+quedan **congeladas** la composición, la information architecture y el comportamiento principal del listado y
+del detalle. Una desviación **material** modifica **primero** la spec y la decide el owner; si aparece durante
+la implementación, es **Stop Condition**.
 
-## Fuera de scope
+## Deuda registrada (no corregida acá)
 
-- **Cobrar** (POS), **devolver** (Caja) y **anular un cobro** (Aprobaciones): siguen en su sección dueña.
-- **Decisión del owner (bloqueante para una parte)**: qué pasa con `cashier`. Hoy la entrada Órdenes le
-  aparece, la API le responde **403** y la pantalla le dice "Sesión de administrador requerida". Las dos
-  salidas posibles —(a) sacarle la entrada y hacer que su pantalla de inicio sea el POS, (b) darle un modo
-  acotado de Órdenes— son **producto**, no inferibles: la spec no las decide.
-- **Precios y PIN en la tarjeta del KDS**: se mantiene la decisión (no se filtra dinero al salón).
-- **Historial (Cierres y Facturas)**: otra sección.
-- **Delivery y mesas**: fuera del MVP.
-- Reescribir el módulo `orders`: la spec **no** cambia dominio, puertos ni endpoints.
+- `kitchen` lee montos, PIN, cobros y factura en el detalle (`A-60`).
+- `GET /api/admin/orders` proyecta de más y filtra de menos, sin paginar (`A-61`).
+- El filtro de estado no vive en la URL (`A-62`).
+- Las fechas del detalle usan la zona del navegador (`A-63`).
+- Cinco mapas estado→etapa y cuatro formateadores duplicados (`A-64`).
+- Alias históricos (`text-st-*`) y colores semánticos viejos, con techo propio (`A-65`).
+- El `cashier` ve la entrada y recibe 403, con un mensaje que miente (`A-66`).
+- El actor del cambio de estado se guarda y no se muestra (`A-09`).
+- **Nuevos de la auditoría de fundaciones**: la ruta de la factura sin puerta de rol ni alcance por sucursal,
+  y el cobro de un pedido existente sin clave de idempotencia (`A-70` y `A-71`).

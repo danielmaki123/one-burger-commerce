@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="es" class="dark">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>One Burger — Cocina / KDS — Mockup</title>
+<style>
+:root{
+  --bg-canvas:#000f21;--bg-surface:#031427;--bg-surface-low:#0b1c30;--bg-surface-card:#132438;--bg-surface-elevated:#1a2d46;--bg-surface-input:#06182b;
+  --border-subtle:rgba(255,255,255,.08);--border-medium:rgba(255,255,255,.14);--border-control:rgba(255,255,255,.4);
+  --text-primary:#f8fafc;--text-secondary:#94a3b8;--text-muted:#8296ad;--text-inverse:#000f21;
+  --brand-primary:#38bdf8;--brand-primary-hover:#0ea5e9;--brand-primary-muted:rgba(56,189,248,.12);
+  --brand-amber:#f59e0b;--brand-amber-soft:rgba(245,158,11,.2);
+  --status-pending-bg:rgba(56,189,248,.12);--status-pending-border:rgba(56,189,248,.35);--status-pending-text:#38bdf8;
+  --status-prep-bg:rgba(245,158,11,.12);--status-prep-border:rgba(245,158,11,.4);--status-prep-text:#f59e0b;
+  --status-ready-bg:rgba(16,185,129,.12);--status-ready-border:rgba(16,185,129,.4);--status-ready-text:#34d399;
+  --status-sla-bg:rgba(239,68,68,.2);--status-sla-border:#ef4444;--status-sla-text:#f87171;--status-sla-pulse:#dc2626;
+  --radius-sm:8px;--radius-md:12px;--radius-lg:16px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg-canvas);color:var(--text-primary);font-family:Inter,"Plus Jakarta Sans",system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+body{overflow:hidden}
+button,input{font:inherit}
+button{cursor:pointer}
+.kds{height:100vh;min-width:1060px;display:grid;grid-template-rows:74px 48px minmax(0,1fr);background:linear-gradient(180deg,#000f21,#02152a)}
+.top{padding:10px 16px 8px;border-bottom:1px solid var(--border-subtle);display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-rows:auto auto;align-items:center;column-gap:18px}
+.titleline{display:flex;align-items:baseline;gap:8px;min-width:0}.title{font-size:20px;font-weight:800;letter-spacing:.01em}.location{font-size:13px;color:var(--text-secondary);font-weight:650}.clockwrap{grid-row:1/3;grid-column:2;display:flex;align-items:center;gap:12px}.clock{font:800 30px/1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;letter-spacing:-.04em;font-variant-numeric:tabular-nums}.iconbtn{width:38px;height:38px;border-radius:10px;border:1px solid var(--border-medium);color:var(--text-primary);background:var(--bg-surface-low);display:grid;place-items:center}.iconbtn:hover{background:var(--bg-surface-elevated)}
+.metrics{display:flex;align-items:center;gap:9px;color:var(--text-secondary);font-size:12px;font-weight:650;white-space:nowrap}.metric b{color:var(--text-primary);font-weight:800;font-variant-numeric:tabular-nums}.metric.bad b{color:var(--status-sla-text)}.dotsep{opacity:.45}
+.tools{display:grid;grid-template-columns:minmax(280px,460px) 1fr auto;align-items:center;gap:10px;padding:6px 16px;border-bottom:1px solid var(--border-subtle);background:var(--bg-surface)}
+.search{height:36px;border:1px solid var(--border-control);border-radius:10px;background:var(--bg-surface-input);display:flex;align-items:center;gap:8px;padding:0 11px}.search svg{width:16px;color:var(--text-secondary)}.search input{width:100%;border:0;outline:0;background:transparent;color:var(--text-primary);font-size:13px}.search input::placeholder{color:var(--text-muted)}.filter{height:36px;border:1px solid var(--border-medium);border-radius:10px;background:var(--bg-surface-low);color:var(--text-secondary);padding:0 12px;font-size:12px;font-weight:750}.filter.active{border-color:var(--status-sla-border);background:var(--status-sla-bg);color:var(--status-sla-text)}
+.board{min-height:0;display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;padding:8px}.lane{min-width:0;min-height:0;border:1px solid var(--border-subtle);border-radius:14px;background:rgba(3,20,39,.82);display:grid;grid-template-rows:38px minmax(0,1fr);overflow:hidden}.lanehead{height:38px;padding:0 11px;border-bottom:1px solid var(--border-subtle);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--bg-surface);z-index:5}.lanetitle{font-size:12px;font-weight:850;letter-spacing:.075em}.count{display:inline-flex;min-width:24px;height:23px;padding:0 7px;border-radius:99px;align-items:center;justify-content:center;background:var(--bg-surface-elevated);font:800 12px/1 ui-monospace,SFMono-Regular,Menlo,monospace}.lanebody{min-height:0;overflow:auto;padding:8px;scrollbar-width:thin;scrollbar-color:#34516f transparent}.sectionlabel{display:flex;align-items:center;justify-content:space-between;margin:2px 2px 7px;color:var(--text-secondary);font-size:10px;font-weight:850;letter-spacing:.1em;text-transform:uppercase}.sectionlabel.programados{margin-top:10px;padding-top:8px;border-top:1px solid var(--border-subtle)}
+.card{border:1px solid var(--border-subtle);border-radius:12px;background:var(--bg-surface-card);padding:10px;margin-bottom:8px;box-shadow:0 1px 2px rgba(0,0,0,.25)}.card.warning{border-color:var(--status-prep-border);background:linear-gradient(180deg,var(--status-prep-bg),var(--bg-surface-card) 62%)}.card.late{border-color:var(--status-sla-border);background:linear-gradient(180deg,var(--status-sla-bg),var(--bg-surface-card) 62%);box-shadow:0 0 16px -7px rgba(239,68,68,.8)}.card.ready{border-color:var(--status-ready-border);background:linear-gradient(180deg,var(--status-ready-bg),var(--bg-surface-card) 58%)}.card.program{border-color:var(--status-pending-border);background:linear-gradient(180deg,var(--status-pending-bg),var(--bg-surface-card) 55%)}
+.cardtop{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}.ordermain{min-width:0}.badges{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:3px}.badge{display:inline-flex;align-items:center;height:19px;padding:0 6px;border-radius:6px;background:var(--brand-primary-muted);color:var(--brand-primary);font-size:9px;font-weight:850;letter-spacing:.065em;text-transform:uppercase}.badge.pos{background:var(--brand-amber-soft);color:var(--brand-amber)}.badge.programado{background:var(--status-pending-bg);color:var(--status-pending-text)}.badge.confirmado{background:var(--status-ready-bg);color:var(--status-ready-text)}.badge.alert{background:var(--status-sla-bg);color:var(--status-sla-text)}
+.orderline{font:800 16px/1.1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:var(--brand-primary);font-variant-numeric:tabular-nums}.customer{margin-top:2px;font-size:13px;font-weight:750;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.timer{font:800 12px/1 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--text-secondary);white-space:nowrap;padding:5px 7px;border-radius:999px;background:rgba(0,15,33,.45);font-variant-numeric:tabular-nums}.timer.warn{color:var(--status-prep-text);background:var(--status-prep-bg)}.timer.late{color:var(--status-sla-text);background:var(--status-sla-bg)}
+.when{display:flex;justify-content:space-between;gap:8px;margin-top:7px;padding:6px 8px;border-radius:8px;background:rgba(0,15,33,.35);font-size:11px;color:var(--text-secondary)}.when strong{color:var(--text-primary);font-weight:750}.when .recommended{color:var(--status-pending-text)}
+.items{list-style:none;padding:0;margin:8px 0 0;display:grid;gap:5px}.item{display:grid;grid-template-columns:27px 1fr;gap:6px;align-items:start}.qty{display:inline-flex;align-items:center;justify-content:center;min-height:20px;padding:0 4px;border-radius:6px;background:var(--brand-amber-soft);color:var(--brand-amber);font:800 10px/1 ui-monospace,SFMono-Regular,Menlo,monospace}.food{font-size:12px;font-weight:750;line-height:1.25}.mods{margin-top:2px;color:var(--brand-amber);font-size:10px;font-weight:650}.note{margin-top:4px;padding:4px 6px;border-radius:6px;background:var(--status-prep-bg);color:var(--status-prep-text);font-size:10px;font-style:italic}
+.actions{display:flex;gap:7px;margin-top:9px}.btn{min-height:36px;border-radius:9px;border:1px solid transparent;padding:0 10px;font-size:11px;font-weight:850}.btn.primary{flex:1;background:var(--brand-primary);color:var(--text-inverse)}.btn.primary:hover{background:var(--brand-primary-hover)}.btn.outline{background:transparent;border-color:var(--border-control);color:var(--text-primary)}.btn.ghost{background:transparent;border-color:var(--border-subtle);color:var(--text-secondary)}.btn.danger{background:transparent;border-color:rgba(239,68,68,.45);color:var(--status-sla-text)}.btn:focus-visible{outline:2px solid var(--brand-primary);outline-offset:2px}
+.accepted{margin-top:8px;display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:10px;color:var(--status-ready-text);font-weight:750}.prepdone{margin-top:8px;color:var(--status-ready-text);font-size:11px;font-weight:800}.waiting{margin-top:4px;color:var(--text-secondary);font-size:10px}.empty{display:grid;place-items:center;height:120px;color:var(--text-muted);font-size:12px;text-align:center;padding:16px}
+.toast{position:fixed;left:50%;bottom:16px;transform:translateX(-50%) translateY(12px);opacity:0;pointer-events:none;background:#f8fafc;color:#000f21;padding:9px 14px;border-radius:10px;font-size:12px;font-weight:750;transition:.2s;z-index:20;box-shadow:0 14px 40px rgba(0,0,0,.4)}.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+/* Fuente del origen: visual de diseño. El modelo actual no guarda source=menu|pos canónico. */
+@media(max-width:1120px){.kds{min-width:900px}.metrics{gap:6px}.metric.optional{display:none}.card{padding:9px}.food{font-size:11px}.board{gap:6px;padding:6px}}
+</style>
+</head>
+<body>
+<main class="kds">
+  <header class="top">
+    <div class="titleline"><span class="title">COCINA</span><span class="location">· Camino de Oriente</span></div>
+    <div class="metrics">
+      <span class="metric">Prep. promedio <b>14 min</b></span><span class="dotsep">·</span>
+      <span class="metric">Objetivo <b>18 min</b></span><span class="dotsep">·</span>
+      <span class="metric bad">Más larga <b>24 min</b></span>
+    </div>
+    <div class="clockwrap">
+      <div id="clock" class="clock">17:22</div>
+      <button class="iconbtn" title="Sonido activado" aria-label="Sonido activado">🔊</button>
+      <button class="iconbtn" title="Actualizar" aria-label="Actualizar" onclick="notify('Comandas actualizadas')">↻</button>
+    </div>
+  </header>
+
+  <section class="tools">
+    <label class="search" aria-label="Buscar comanda">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.7-3.7"/></svg>
+      <input id="search" placeholder="Buscar número o cliente..." oninput="applyFilters()" />
+    </label>
+    <div></div>
+    <button id="lateFilter" class="filter" onclick="toggleLate()">Solo atrasadas</button>
+  </section>
+
+  <section class="board">
+    <section class="lane" data-lane="entry">
+      <header class="lanehead"><span class="lanetitle">ENTRADA</span><span class="count" id="entryCount">4</span></header>
+      <div class="lanebody" id="entryBody">
+        <div class="sectionlabel"><span>Ahora</span><span>requiere atención</span></div>
+
+        <article class="card" data-card data-id="P-1054" data-customer="Ana López" data-late="false" data-status="new">
+          <div class="cardtop">
+            <div class="ordermain"><div class="badges"><span class="badge">Menú</span><span class="badge">ASAP</span></div><div class="orderline">P-1054</div><div class="customer">Ana López</div></div>
+            <span class="timer">hace 3m</span>
+          </div>
+          <div class="when"><span>Retiro estimado</span><strong>~17:47</strong></div>
+          <ul class="items"><li class="item"><span class="qty">2x</span><div><div class="food">Doble Bacon</div><div class="mods">• extra queso</div></div></li><li class="item"><span class="qty">1x</span><div><div class="food">Papas</div><div class="note">«sin tomate»</div></div></li></ul>
+          <div class="actions"><button class="btn primary" onclick="acceptCard(this)">ACEPTAR</button><button class="btn danger" onclick="rejectCard(this)">Rechazar</button></div>
+        </article>
+
+        <article class="card" data-card data-id="P-1055" data-customer="Mostrador" data-late="false" data-status="accepted">
+          <div class="cardtop">
+            <div class="ordermain"><div class="badges"><span class="badge pos">POS</span></div><div class="orderline">P-1055</div><div class="customer">Mostrador</div></div>
+            <span class="timer">hace 1m</span>
+          </div>
+          <div class="when"><span>Retiro estimado</span><strong>~17:46</strong></div>
+          <ul class="items"><li class="item"><span class="qty">1x</span><div><div class="food">Smash Doble</div></div></li><li class="item"><span class="qty">2x</span><div><div class="food">Papas</div></div></li></ul>
+          <div class="accepted"><span>✓ Aceptado</span><span>espera inicio</span></div>
+          <div class="actions"><button class="btn primary" onclick="startPrep(this)">INICIAR PREPARACIÓN</button></div>
+        </article>
+
+        <div class="sectionlabel programados"><span>Programados</span><span>2</span></div>
+
+        <article class="card program" data-card data-id="P-1058" data-customer="Laura Pérez" data-late="false" data-status="accepted-programmed">
+          <div class="cardtop">
+            <div class="ordermain"><div class="badges"><span class="badge">Menú</span><span class="badge programado">Programado</span><span class="badge confirmado">Confirmado</span></div><div class="orderline">P-1058</div><div class="customer">Laura Pérez</div></div>
+            <span class="timer warn">en 13m</span>
+          </div>
+          <div class="when"><span>Retiro <strong>18:00</strong></span><span class="recommended">Inicio recomendado <strong>17:35</strong></span></div>
+          <ul class="items"><li class="item"><span class="qty">2x</span><div><div class="food">Doble</div></div></li><li class="item"><span class="qty">1x</span><div><div class="food">Papas</div></div></li></ul>
+          <div class="accepted"><span>✓ Aceptado</span><span>el horario orienta, no bloquea</span></div>
+          <div class="actions"><button class="btn primary" onclick="startPrep(this)">INICIAR PREPARACIÓN</button></div>
+        </article>
+
+        <article class="card program" data-card data-id="P-1061" data-customer="José Martínez" data-late="false" data-status="new-programmed">
+          <div class="cardtop">
+            <div class="ordermain"><div class="badges"><span class="badge">Menú</span><span class="badge programado">Programado</span></div><div class="orderline">P-1061</div><div class="customer">José Martínez</div></div>
+            <span class="timer">18:30</span>
+          </div>
+          <div class="when"><span>Retiro <strong>18:30</strong></span><span class="recommended">Inicio recomendado <strong>18:05</strong></span></div>
+          <ul class="items"><li class="item"><span class="qty">1x</span><div><div class="food">Clásica</div><div class="mods">• sin cebolla</div></div></li></ul>
+          <div class="actions"><button class="btn primary" onclick="acceptCard(this)">ACEPTAR</button><button class="btn danger" onclick="rejectCard(this)">Rechazar</button></div>
+        </article>
+      </div>
+    </section>
+
+    <section class="lane" data-lane="preparing">
+      <header class="lanehead"><span class="lanetitle">PREPARANDO</span><span class="count" id="prepCount">3</span></header>
+      <div class="lanebody" id="prepBody">
+        <article class="card warning" data-card data-id="P-1051" data-customer="Pedro Ruiz" data-late="false" data-status="preparing">
+          <div class="cardtop"><div class="ordermain"><div class="badges"><span class="badge">Menú</span></div><div class="orderline">P-1051</div><div class="customer">Pedro Ruiz</div></div><span class="timer warn">PREP 08m</span></div>
+          <div class="when"><span>Retiro estimado</span><strong>~17:38</strong></div>
+          <ul class="items"><li class="item"><span class="qty">1x</span><div><div class="food">Clásica</div><div class="mods">• sin cebolla</div><div class="note">«bien cocida»</div></div></li></ul>
+          <div class="actions"><button class="btn primary" onclick="finishPrep(this)">TERMINADO</button></div>
+        </article>
+
+        <article class="card" data-card data-id="P-1052" data-customer="Mostrador" data-late="false" data-status="preparing">
+          <div class="cardtop"><div class="ordermain"><div class="badges"><span class="badge pos">POS</span></div><div class="orderline">P-1052</div><div class="customer">Mostrador</div></div><span class="timer">PREP 05m</span></div>
+          <div class="when"><span>Retiro estimado</span><strong>~17:39</strong></div>
+          <ul class="items"><li class="item"><span class="qty">3x</span><div><div class="food">Cheeseburger</div></div></li><li class="item"><span class="qty">2x</span><div><div class="food">Papas</div></div></li></ul>
+          <div class="actions"><button class="btn primary" onclick="finishPrep(this)">TERMINADO</button></div>
+        </article>
+
+        <article class="card late" data-card data-id="P-1049" data-customer="Laura Gómez" data-late="true" data-status="preparing">
+          <div class="cardtop"><div class="ordermain"><div class="badges"><span class="badge">Menú</span><span class="badge alert">Atrasada</span></div><div class="orderline">P-1049</div><div class="customer">Laura Gómez</div></div><span class="timer late">PREP 24m</span></div>
+          <div class="when"><span>Retiro</span><strong>17:15</strong></div>
+          <ul class="items"><li class="item"><span class="qty">2x</span><div><div class="food">Doble Bacon</div></div></li><li class="item"><span class="qty">1x</span><div><div class="food">Papas</div></div></li></ul>
+          <div class="actions"><button class="btn primary" onclick="finishPrep(this)">TERMINADO</button></div>
+        </article>
+      </div>
+    </section>
+
+    <section class="lane" data-lane="ready">
+      <header class="lanehead"><span class="lanetitle">LISTOS</span><span class="count" id="readyCount">2</span></header>
+      <div class="lanebody" id="readyBody">
+        <article class="card ready" data-card data-id="P-1047" data-customer="María López" data-late="false" data-status="ready">
+          <div class="cardtop"><div class="ordermain"><div class="badges"><span class="badge">Menú</span></div><div class="orderline">P-1047</div><div class="customer">María López</div></div><span class="timer">hace 4m</span></div>
+          <div class="when"><span>Retiro</span><strong>17:30</strong></div>
+          <ul class="items"><li class="item"><span class="qty">2x</span><div><div class="food">Pollo Crispy</div></div></li><li class="item"><span class="qty">1x</span><div><div class="food">Papas</div></div></li></ul>
+          <div class="prepdone">✓ LISTO · Preparación 16 min</div><div class="waiting">Espera mostrador / Caja</div>
+        </article>
+
+        <article class="card ready" data-card data-id="P-1045" data-customer="Carlos M." data-late="false" data-status="ready">
+          <div class="cardtop"><div class="ordermain"><div class="badges"><span class="badge">Menú</span></div><div class="orderline">P-1045</div><div class="customer">Carlos M.</div></div><span class="timer">hace 9m</span></div>
+          <div class="when"><span>Retiro</span><strong>17:25</strong></div>
+          <ul class="items"><li class="item"><span class="qty">1x</span><div><div class="food">Doble</div></div></li></ul>
+          <div class="prepdone">✓ LISTO · Preparación 13 min</div><div class="waiting">Espera mostrador / Caja</div>
+        </article>
+      </div>
+    </section>
+  </section>
+</main>
+<div class="toast" id="toast"></div>
+<script>
+let lateOnly=false;
+function notify(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1400)}
+function cardFrom(el){return el.closest('[data-card]')}
+function updateCounts(){
+  document.getElementById('entryCount').textContent=document.querySelectorAll('[data-lane="entry"] [data-card]').length;
+  document.getElementById('prepCount').textContent=document.querySelectorAll('[data-lane="preparing"] [data-card]').length;
+  document.getElementById('readyCount').textContent=document.querySelectorAll('[data-lane="ready"] [data-card]').length;
+}
+function acceptCard(btn){
+  const c=cardFrom(btn); c.dataset.status=c.dataset.status.includes('programmed')?'accepted-programmed':'accepted';
+  c.querySelector('.actions').innerHTML='<button class="btn primary" onclick="startPrep(this)">INICIAR PREPARACIÓN</button>';
+  const accepted=document.createElement('div');accepted.className='accepted';accepted.innerHTML='<span>✓ Aceptado</span><span>espera inicio</span>';
+  c.querySelector('.actions').before(accepted);
+  const badges=c.querySelector('.badges'); if(!badges.querySelector('.confirmado')){const b=document.createElement('span');b.className='badge confirmado';b.textContent='Confirmado';badges.appendChild(b)}
+  notify(`${c.dataset.id} aceptado`);
+}
+function rejectCard(btn){const c=cardFrom(btn);notify(`${c.dataset.id} rechazado · motivo obligatorio en runtime`);c.style.opacity='.45'}
+function startPrep(btn){
+  const c=cardFrom(btn);c.dataset.status='preparing';c.classList.remove('program','late','ready');c.classList.add('warning');
+  const timer=c.querySelector('.timer');timer.className='timer warn';timer.textContent='PREP 00m';
+  c.querySelectorAll('.accepted').forEach(x=>x.remove());
+  const b=c.querySelector('.badges .programado');if(b)b.remove();const conf=c.querySelector('.badges .confirmado');if(conf)conf.remove();
+  c.querySelector('.actions').innerHTML='<button class="btn primary" onclick="finishPrep(this)">TERMINADO</button>';
+  document.getElementById('prepBody').prepend(c);updateCounts();applyFilters();notify(`${c.dataset.id} · preparación iniciada`)
+}
+function finishPrep(btn){
+  const c=cardFrom(btn);c.dataset.status='ready';c.classList.remove('warning','late','program');c.classList.add('ready');
+  c.querySelector('.timer').className='timer';c.querySelector('.timer').textContent='ahora';
+  c.querySelector('.actions').outerHTML='<div class="prepdone">✓ LISTO · Preparación registrada</div><div class="waiting">Espera mostrador / Caja</div>';
+  document.getElementById('readyBody').prepend(c);updateCounts();applyFilters();notify(`${c.dataset.id} listo · pasa a mostrador`)
+}
+function toggleLate(){lateOnly=!lateOnly;document.getElementById('lateFilter').classList.toggle('active',lateOnly);applyFilters()}
+function applyFilters(){const q=document.getElementById('search').value.trim().toLowerCase();document.querySelectorAll('[data-card]').forEach(c=>{const match=(!q||`${c.dataset.id} ${c.dataset.customer}`.toLowerCase().includes(q))&&(!lateOnly||c.dataset.late==='true');c.style.display=match?'':'none'})}
+</script>
+</body>
+</html>

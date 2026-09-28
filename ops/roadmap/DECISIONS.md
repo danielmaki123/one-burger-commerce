@@ -43,3 +43,21 @@ No borrar historia financiera. Refund y Void/Reversal son explícitos y auditabl
 
 ## D-013 — Nueva deuda visual prohibida
 Legacy puede permanecer temporalmente; pantalla nueva o rediseñada debe cumplir DS v4.
+
+## D-014 — Capacidades nominales del pedido y el `cashier` en Pedidos
+El pedido deja de depender de una sola puerta gruesa. Se separan cinco capacidades nominales: **ver/localizar
+pedidos** · **operar Cocina** · **ver los datos financieros del pedido** · **cobrar** · **administrar/anular
+operaciones**. Reparto decidido por el owner (2026-09-27): `owner` todo; `manager` Pedidos + Cocina según su
+alcance; `kitchen` **sólo Cocina, sin dinero ni documentos financieros**; `cashier` **puede localizar el pedido
+que necesita cobrar** desde el flujo canónico (queda resuelta la contradicción `A-66`), pero **no** opera Cocina
+ni administra Pedidos. El contrato vive en
+[`../tasks/TASK-ORDERS-KITCHEN-FOUNDATIONS-001.md`](../tasks/TASK-ORDERS-KITCHEN-FOUNDATIONS-001.md) y **lo
+implementa cada TASK de su superficie** (Cocina → `canOperateKitchen` + el recorte financiero del servidor;
+Pedidos → `canViewOrders` + `canViewOrderFinancials`).
+
+## D-015 — `Order.source`: el canal de origen se escribe, no se adivina
+El canal (menú público / POS) es una **propiedad de `orders`** que se escribe **al crear** el pedido. Prohibido
+inferirlo desde `Payment`, el nombre «Mostrador», el turno, el medio de pago o cualquier heurística. La
+migración es **aditiva y nullable**: `null` = «no declarado» en los pedidos anteriores a la columna y **no se
+reconstruye** el pasado (ley 7). Aprobada por el owner el 2026-09-27 en
+[`../tasks/TASK-ORDERS-KITCHEN-FOUNDATIONS-001.md`](../tasks/TASK-ORDERS-KITCHEN-FOUNDATIONS-001.md).
