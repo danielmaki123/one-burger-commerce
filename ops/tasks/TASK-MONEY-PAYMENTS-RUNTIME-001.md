@@ -36,7 +36,7 @@
 | **Auditoría independiente** (implementación vs SPEC/reference) | **Hecho** (PR #87, `5082ea5`): encontró **un crash**, **un desborde** y una **desviación material** de composición, y los corrigió. Ver § *Visual QA de Finanzas* |
 | **Deploy** | **Hecho por el owner** el 2026-09-28: `build-20260928-200305`, con las tres superficies en `ok` |
 | Health / readiness / smokes | **Hecho**: `/api/health` `build-20260928-200305`, `/api/readiness` `ready`, smokes **menú 7/7** y **hosts 6/6** |
-| QA **autenticada** de `/admin/finance` en producción | **Pendiente**: necesita las credenciales del owner (no están en el repo). Equivalente local: `tests/e2e/admin-finance.spec.ts` (6/6, cuatro viewports). Evidencia sustituta: `scripts/qa-prod-build-probe.ts` comprueba que el build servido tiene el código nuevo |
+| QA **autenticada** de `/admin/finance` en producción | **Hecha** (`tests/e2e/admin-finance.spec.ts`, **6/6** con sesión real sobre `admin.oneburgernic.com`): los cuatro viewports del contrato sin scroll horizontal, las tres vistas y que `mixed` no se ofrece como tipo (`D-017`). *Monedas y tasas* —donde la QA local había encontrado el crash— se dibuja con los datos reales (`USD` a `36.7`) |
 | `CURRENT.md` / `NEXT.md` / backlog | **Hecho** |
 
 **Lo que el CI encontró y el local no**: el chequeo de idempotencia del cobro corría **antes** del lock, así
