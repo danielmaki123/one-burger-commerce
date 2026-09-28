@@ -622,16 +622,48 @@ consumen. Va a [`.agents/MEMORY.md`](../../.agents/MEMORY.md) con el puntero a `
 
 ## DEFINITION OF DONE
 
-- [ ] Tests verdes (unitarios + PostgreSQL real + contratos + E2E), con el **rojo observado** de los cinco
-      tests de la § *TEST ROJO* y la **mutación** verificada.
-- [ ] `security:secrets`, `lint`, `typecheck`, `test`, `test:contracts`, `build`, `build:webpack` y
-      `prisma generate` verdes.
-- [ ] Verificación en **navegador real** en los cuatro viewports del Viewport Contract, con captura
-      antes/después.
-- [ ] Ningún techo de deuda subió (y los que bajaron, bajaron acá).
-- [ ] `CURRENT.md`, `START-HERE.md`, `NEXT.md`, la spec y `MEMORY.md` actualizados; `A-60`/`A-64` anotados
-      con su estado real.
-- [ ] Commit + push a la rama, **PR abierto**, **CI verde** (los cuatro checks), merge `--squash`.
-- [ ] **Deploy** desde `main` (una sola llamada a `deployService`), migración aplicada, health/readiness,
-      los dos smokes y **QA de producción** con sesión en los cuatro viewports.
-- [ ] Auditoría independiente (implementación real vs SPEC/reference) con evidencia.
+- [x] Tests verdes (unitarios + contratos + E2E locales), con el **rojo observado** de los cinco tests de la
+      § *TEST ROJO*.
+- [x] `security:secrets`, `lint`, `typecheck`, `test`, `test:contracts`, `build`, `build:webpack` y
+      `prisma generate` verdes (`migrate deploy` aplicado en local).
+- [x] Verificación en **navegador real** en los cuatro viewports del Viewport Contract, con capturas
+      (`ops/design/screens/kitchen-{1366x768,1280x720,768x1024,375x812}.png`).
+- [x] Ningún techo de deuda subió (y `A-64`, `order-comanda-board.tsx` y la spec vieja de comandas bajaron).
+- [x] `CURRENT.md`, `START-HERE.md` y `NEXT.md` actualizados; el backlog **no** cierra `A-60` (queda con su
+      remanente, que es de Pedidos 5b).
+- [x] Commit + push a la rama, **PR #79**, **CI verde** (los cuatro checks), merge `--squash`.
+- [ ] **Deploy: BLOQUEADO.** La llamada a `deployService` responde **401 Unauthorized** con el
+      `EASYPANEL_TOKEN` del entorno (el panel rechaza el mismo token en `listProjects`). Es la **Stop
+      Condition 6** (secreto o permiso externo inexistente): **no se forzó ninguna alternativa**.
+      Producción sigue sirviendo el build anterior y la migración `20260928120000_add_order_source`
+      **todavía no se aplicó** (la aplica el contenedor al arrancar). **Se retoma cuando el owner rote el
+      token**, sin un segundo OK.
+- [ ] QA de producción y auditoría independiente: **pendientes del release**.
+
+## RESULTADO (cierre del tramo de código)
+
+| Qué | Estado |
+|---|---|
+| Commit en `main` | `aec184bd74581212e27560b415b974f5f5592d9f` (PR #79, squash) |
+| Unitarios | 3.592 verdes (497 archivos) |
+| Contratos | `route`, `module`, `tdd`, `test-integrity`, `design-guardrails`, `ui` verdes |
+| CI | `verify`, `contracts`, `migrations`, `container` verdes (`publish` corre en push a `main`) |
+| E2E locales | Cocina **7/7** (cuatro viewports) · POS **11/11** · Órdenes, acciones y alcance adaptados |
+| Migración | `20260928120000_add_order_source`, aditiva, sin BOM y sin backfill — **aplicada en local**, pendiente en producción (la corre el contenedor) |
+| **Deploy** | **401 del panel con el token del entorno → bloqueado (Stop Condition 6)** |
+| Producción | Sigue con `build-20260927-193653` sobre `4f69a24`: **el código de esta TASK todavía no corre ahí** |
+
+Desviaciones declaradas, ninguna material contra la referencia aprobada:
+
+1. **El cronómetro de PREPARANDO** dice `PREP N m` y cuenta desde `preparingAt`, como la referencia; la
+   spec lo describía como «tiempo en la etapa» en genérico (es la misma cuenta, con el rótulo de la
+   referencia).
+2. **«Más larga»** se implementó (la spec lo listaba como `FALTA`): sale de `preparingAt → readyAt` de los
+   pedidos listos, la misma medición que el promedio.
+3. **La vuelta al panel** es un enlace «Volver al panel» en la cabecera, no la navegación del modo
+   inmersivo viejo: `useComandaView`/`kitchen-mode` se conserva **sin uso** (deuda anotada en el PR) porque
+   su eliminación no era necesaria para completar la separación, y **no se reintrodujo como control nuevo**
+   sin decisión del owner.
+
+La spec [`kitchen.md`](../design/screens/kitchen.md) se corrige con (1) y (2) en el cierre, cuando el
+release termine.
