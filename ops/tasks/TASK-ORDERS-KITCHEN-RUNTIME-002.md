@@ -632,26 +632,34 @@ consumen. Va a [`.agents/MEMORY.md`](../../.agents/MEMORY.md) con el puntero a `
 - [x] `CURRENT.md`, `START-HERE.md` y `NEXT.md` actualizados; el backlog **no** cierra `A-60` (queda con su
       remanente, que es de Pedidos 5b).
 - [x] Commit + push a la rama, **PR #79**, **CI verde** (los cuatro checks), merge `--squash`.
-- [ ] **Deploy: BLOQUEADO.** La llamada a `deployService` responde **401 Unauthorized** con el
-      `EASYPANEL_TOKEN` del entorno (el panel rechaza el mismo token en `listProjects`). Es la **Stop
-      Condition 6** (secreto o permiso externo inexistente): **no se forzó ninguna alternativa**.
-      Producción sigue sirviendo el build anterior y la migración `20260928120000_add_order_source`
-      **todavía no se aplicó** (la aplica el contenedor al arrancar). **Se retoma cuando el owner rote el
-      token**, sin un segundo OK.
-- [ ] QA de producción y auditoría independiente: **pendientes del release**.
+- [x] **Deploy.** El primer intento desde acá dio **401** (el `EASYPANEL_TOKEN` del entorno estaba vacío →
+      Stop Condition 6, y **no se forzó ninguna alternativa**); lo disparó el **owner** con un token válido:
+      `build-20260928-035241` sobre `72b22b5`, con la migración `20260928120000_add_order_source` aplicada por
+      el arranque del contenedor. `/api/health` = `build-20260928-035241`, `/api/readiness` `ready`
+      (DB 1 ms), smokes **menú 7/7** y **hosts 6/6**, y `GET /admin/kitchen` responde **200**.
+- [x] **QA autenticado de producción** (credenciales **solo por entorno**): los cuatro viewports del
+      contrato; tres carriles en escritorio y uno por vez con conmutador en tablet/celular; **cero importes**
+      en la pantalla; **scroll de página 0** y sin scroll horizontal; y el pedido real del POS
+      (`P-MUIW4IS4`) dibujado en **LISTOS** sin cobros ni saldo, con «Retiro: lo antes posible». En Órdenes,
+      el botón «Modo cocina» ya no existe y la entrada del panel lleva a la superficie propia.
+- [x] **Auditoría independiente**: la pantalla real, comparada contra la SPEC y la
+      `kitchen-reference.html` aprobada, coincide en composición (tres carriles, cabecera y toolbar de una
+      línea), información (número, canal, cliente, hora, urgencia, items) y comportamiento (una acción
+      primaria por tarjeta, **ninguna** en Listos). Capturas: `test-results/qa-kitchen-prod-*.png`
+      (producción) y `ops/design/screens/kitchen-*.png` (local).
 
-## RESULTADO (cierre del tramo de código)
+## RESULTADO (cierre)
 
 | Qué | Estado |
 |---|---|
-| Commit en `main` | `aec184bd74581212e27560b415b974f5f5592d9f` (PR #79, squash) |
+| Commits en `main` | `aec184b` (PR #79, la implementación) + `72b22b5` (PR #80, el estado) |
 | Unitarios | 3.592 verdes (497 archivos) |
 | Contratos | `route`, `module`, `tdd`, `test-integrity`, `design-guardrails`, `ui` verdes |
-| CI | `verify`, `contracts`, `migrations`, `container` verdes (`publish` corre en push a `main`) |
+| CI | `verify`, `contracts`, `migrations`, `container` verdes en los dos PR |
 | E2E locales | Cocina **7/7** (cuatro viewports) · POS **11/11** · Órdenes, acciones y alcance adaptados |
-| Migración | `20260928120000_add_order_source`, aditiva, sin BOM y sin backfill — **aplicada en local**, pendiente en producción (la corre el contenedor) |
-| **Deploy** | **401 del panel con el token del entorno → bloqueado (Stop Condition 6)** |
-| Producción | Sigue con `build-20260927-193653` sobre `4f69a24`: **el código de esta TASK todavía no corre ahí** |
+| Migración | `20260928120000_add_order_source`, aditiva, sin BOM y sin backfill — **aplicada en producción** por el arranque del contenedor |
+| **Deploy** | `build-20260928-035241` sobre `72b22b5` (lo disparó el owner tras un intento con **401**) |
+| **Producción** | **El código de esta TASK está corriendo**: `/admin/kitchen` responde 200 y la comanda real del POS se ve sin dinero |
 
 Desviaciones declaradas, ninguna material contra la referencia aprobada:
 
@@ -665,5 +673,4 @@ Desviaciones declaradas, ninguna material contra la referencia aprobada:
    su eliminación no era necesaria para completar la separación, y **no se reintrodujo como control nuevo**
    sin decisión del owner.
 
-La spec [`kitchen.md`](../design/screens/kitchen.md) se corrige con (1) y (2) en el cierre, cuando el
-release termine.
+La spec [`kitchen.md`](../design/screens/kitchen.md) quedó corregida con (1) y (2) en el cierre.

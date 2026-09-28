@@ -9,14 +9,13 @@ en qué estado está el sistema en pocos minutos.
 corto: si crece como un diario, dejó de servir.
 
 > **Última actualización**: 2026-09-28, por **`TASK-ORDERS-KITCHEN-RUNTIME-002`** (Cocina runtime,
-> `high-risk-e2e`): **mergeada en `main` (PR #79) y pendiente de release** — el `deployService` responde
-> **401** con el `EASYPANEL_TOKEN` del entorno (§4 y §6), así que producción sigue con el build anterior y la
-> migración `add_order_source` todavía **no** se aplicó. Antes: `TASK-ORDERS-KITCHEN-FOUNDATIONS-001`
-> (fundaciones de `Pedidos / Cocina`, `docs-only`, **cerrada y mergeada**) y el release de
-> **`SCREEN-POS-QUICK-SALE-001.2`** (**desplegado**; ver §1 y §4). **POS Fase 1 queda CERRADA
+> `high-risk-e2e`): **cerrada y DESPLEGADA** — `build-20260928-035241` sobre `72b22b5`, con health/readiness,
+> los dos smokes y el **QA autenticado de producción** en los cuatro viewports (§1 y §4). Antes:
+> `TASK-ORDERS-KITCHEN-FOUNDATIONS-001` (fundaciones de `Pedidos / Cocina`, `docs-only`, **cerrada y
+> mergeada**) y el release de **`SCREEN-POS-QUICK-SALE-001.2`** (**desplegado**). **POS Fase 1 queda CERRADA
 > DEFINITIVAMENTE** y **«POS Fase 2» dejó de existir como fase**. **`Pedidos / Cocina` ya no es una
-> incógnita**: quedó auditado, con **dos specs congeladas** y sus **referencias aprobadas por el owner el
-> 2026-09-27**. **Vigente: el Default E2E Delivery Contract**
+> incógnita**: auditado, con **dos specs congeladas** y sus **referencias aprobadas por el owner el
+> 2026-09-27**, y **Cocina corriendo como superficie propia**. **Vigente: el Default E2E Delivery Contract**
 > ([`.agents/skills/delivery-e2e/SKILL.md`](../.agents/skills/delivery-e2e/SKILL.md)). **La estabilización
 > técnica sigue cerrada**, con una excepción acotada en dinero: **`A-68`** es la razón declarada para
 > consolidar Money/Payments **antes** del estado financiero definitivo de Pedidos. **Lo que sigue es `Money /
@@ -28,23 +27,33 @@ corto: si crece como un diario, dejó de servir.
 
 | Qué | Estado |
 |---|---|
-| **Último deploy (producción)** | `build-20260927-193653`, sobre `4f69a24` (el `main` de ese momento: cierre definitivo de POS Fase 1, PR #69, #70 y #71), 2026-09-27 19:37 UTC. `/api/health` = `build-20260927-193653`, `/api/readiness` `ready` (DB 2 ms), smokes **menú 7/7** y **hosts 6/6**, y **QA autenticada en producción** a `1366×768`, `1280×720`, `768×1024` y `375×812` (§4). **Sin backup manual**: no hay migración ni cambio de datos |
-| **Commit desplegado en producción** | `4f69a24` (PR #71, squash) — es lo que corre hoy, bajo el build de la fila anterior. **No** es el `main` actual: ver la fila siguiente |
-| **`main` en GitHub** | **Avanza con cada merge, los `docs-only` incluidos**, así que acá no se copia un «valor actual» que quedaría viejo al minuto: el vigente se lee con `gh api repos/danielmaki123/one-burger-commerce/git/ref/heads/main`. **Verificado el 2026-09-28**: `76c4ba0b04e576865dacab7f2038753bdde04225` (PR #76) y, tras el merge de la corrección de este estado, `fe96362f7a5367c210a11c4d86fff4a39fbaf7ed` (PR #77). CI verde en los cuatro checks en cada push a `main` (`publish` corre sólo en push a `main`) |
-| **Deriva `main` / producción (esperada)** | **Todos** los commits posteriores al desplegado (seis al 2026-09-28) son **`docs-only`** —documentos de `ops/` y `.agents/`, más tres archivos de contrato (`src/shared/contracts/*.test.ts`, de `TASK-GOV-001`)—: **sin runtime, sin `prisma/`, sin migraciones y sin APIs**. **Ninguno se desplegó**, así que producción sigue sirviendo `build-20260927-193653` sobre `4f69a24` hasta que una TASK de runtime lo reemplace |
-| **Migración aplicada en este deploy** | **Ninguna**: el release es de pantalla. La última sigue siendo `20260925120000_add_payment_void`, aplicada el 2026-09-25 |
-| **Rollback target** | `build-20260926-170322` sobre `be4c051` (Venta rápida, `SCREEN-POS-QUICK-SALE-001`) — la aplicación se revierte revirtiendo el commit en `main` y volviendo a disparar `deployService`; la base no se toca (ninguno de los dos releases migró) |
+| **Último deploy (producción)** | `build-20260928-035241`, sobre `72b22b5` (**Cocina runtime**: PR #79 + cierre #80; lo disparó el owner el 2026-09-28 03:52 UTC). `/api/health` = `build-20260928-035241`, `/api/readiness` `ready` (DB 1 ms), smokes **menú 7/7** y **hosts 6/6**, y **QA autenticada en producción** de `/admin/kitchen` a `1366×768`, `1280×720`, `768×1024` y `375×812` (§4). **Sin backup manual**: migración aditiva y sin backfill |
+| **Commit desplegado en producción** | `72b22b5179bcff876983f742b2a6457339fc0b00` — es lo que corre hoy, bajo el build de la fila anterior |
+| **`main` en GitHub** | **Avanza con cada merge, los `docs-only` incluidos**, así que acá no se copia un «valor actual» que quedaría viejo al minuto: el vigente se lee con `gh api repos/danielmaki123/one-burger-commerce/git/ref/heads/main`. **Verificado el 2026-09-28**: `72b22b5` (PR #80) |
+| **Deriva `main` / producción** | **Ninguna al 2026-09-28**: `main` y lo desplegado son el **mismo** commit (`72b22b5`) |
+| **Migración aplicada en este deploy** | `20260928120000_add_order_source` (`Order.source`: enum `menu` \| `pos`, **aditiva, nullable, sin backfill**), aplicada por el arranque del contenedor. La anterior fue `20260925120000_add_payment_void` (2026-09-25) |
+| **Rollback target** | `build-20260927-193653` sobre `4f69a24` (POS Fase 1) — la aplicación se revierte revirtiendo el commit en `main` y volviendo a disparar `deployService`; la base no se toca (`Order.source` puede quedarse: la app vieja la ignora) |
 | **Modelo de deploy** | Easypanel, proyecto `brunobot`, servicio `oneburguerweb`; build **desde GitHub `main`** con `forceRebuild`. Una sola llamada a `deployService` (la llamada puede cortar por timeout y el build sigue en segundo plano: comportamiento conocido) |
-| **Migraciones** | Este release no trae ninguna. La última es `20260925120000_add_payment_void` (A-59), aditiva y sin backfill, aplicada por el arranque |
+| **Migraciones** | La última es `20260928120000_add_order_source` (Cocina runtime): aditiva, nullable y **sin backfill**, aplicada por el arranque |
 | **Réplicas** | `1` |
-| **Backup pre-deploy** | **El owner generó un backup manual de la base** (confirmado el 2026-09-26) aunque el release no lo exigía —no hay migración ni cambio de datos—. El hallazgo `A-57` (el backup **programado** no genera archivos y no hay retención declarada) **sigue abierto** y es del owner; el archivo **no se pudo verificar** desde acá (el panel de Easypanel responde **401** sin token) |
+| **Backup pre-deploy** | Este release **no lo exigía** (migración aditiva segura: [`delivery-e2e`](../.agents/skills/delivery-e2e/SKILL.md) §4). El hallazgo `A-57` (el backup **programado** no genera archivos y no hay retención declarada) **sigue abierto** y es del owner |
 | **Hosts activos** | `oneburgernic.com` y `www` (landing + redirects 307) · `menu.oneburgernic.com` (app de pedidos) · `admin.oneburgernic.com` (panel) |
 | **Health / readiness** | `GET /api/health` (versión del build) · `GET /api/readiness` (`SELECT 1`, 503 si la base no responde) |
 | **Base de datos** | PostgreSQL 17 en `oneburguer-postgres` (sin puerto expuesto: `exposedPort=0`) |
 | **Datos de negocio** | 3 sucursales reales (Camino de Oriente, Carretera Masaya, Casa Antigua). La carta la sigue cargando el owner |
 | **Caja en producción** | Sin terminales de caja cargadas al momento del último QA: es el estado real del negocio, no un defecto |
 
-✅ **QA autenticada de producción del POS (2026-09-27, hecha sobre el build final `build-20260927-193653`)**:
+✅ **QA autenticada de producción de Cocina (2026-09-28, sobre `build-20260928-035241`)**: `/admin/kitchen` se
+abrió **en producción con sesión** a los cuatro viewports del contrato (`1366×768`, `1280×720`, `768×1024`,
+`375×812`). Medido en el navegador: los **tres carriles** con su cuenta en escritorio y **uno por vez con su
+conmutador** en tablet y celular; **cero importes** en toda la pantalla (`C$`, `US$` y `NIO` ausentes);
+**scroll de página 0 y sin scroll horizontal** en los cuatro; y el pedido real del POS (`P-MUIW4IS4`, el de la
+venta de QA) dibujado en **LISTOS** sin cobros ni saldo, con `Retiro: lo antes posible` —el POS no promete
+hora—. En Órdenes, el botón **«Modo cocina» ya no existe** y la entrada del panel lleva a la superficie propia.
+Capturas en `test-results/qa-kitchen-prod-*.png`. Las credenciales se usaron **solo por entorno** y **no** se
+guardan en el repo.
+
+✅ **QA autenticada de producción del POS (2026-09-27, hecha sobre `build-20260927-193653`)**:
 la pantalla se abrió **en producción con sesión** a los cuatro viewports del contrato (`1366×768`, `1280×720`,
 `768×1024`, `375×812`), con la **carta real del local** (2 productos sin modificadores). Medido en el
 navegador: **una sola** superficie con scroll dentro del ticket en los cuatro; **ninguna fila cortada**;
@@ -151,10 +160,10 @@ de un pedido existente sin clave de idempotencia).
 
 ## 4. Trabajo actual
 
-**`TASK-ORDERS-KITCHEN-RUNTIME-002` — Cocina runtime (`high-risk-e2e`): MERGEADA, PENDIENTE DE RELEASE.**
+**`TASK-ORDERS-KITCHEN-RUNTIME-002` — Cocina runtime (`high-risk-e2e`): CERRADA Y DESPLEGADA.**
 
-El código está en `main` (PR #79, squash; `aec184bd74581212e27560b415b974f5f5592d9f`) y **todavía no corre en
-producción**. Lo que quedó, en una línea cada uno (el detalle y las decisiones están en el brief
+Está en `main` (PR #79, squash; `aec184b`) y **corriendo en producción** bajo `build-20260928-035241` sobre
+`72b22b5`. Lo que quedó, en una línea cada uno (el detalle y las decisiones están en el brief
 [`tasks/TASK-ORDERS-KITCHEN-RUNTIME-002.md`](tasks/TASK-ORDERS-KITCHEN-RUNTIME-002.md); el **ownership**,
 en `ops/product/MODULE_ARCHITECTURE.md` §5):
 
@@ -172,14 +181,8 @@ en `ops/product/MODULE_ARCHITECTURE.md` §5):
 - **`/admin/orders` perdió el modo cocina** y su tablero consume el carril del dominio.
 
 Evidencia: 3.592 unitarios verdes, CI verde en los cuatro checks, E2E locales de Cocina (7/7 en los cuatro
-viewports) y de POS (11/11), capturas en [`design/screens/kitchen-*.png`](design/screens/).
-
-⚠️ **El release quedó bloqueado por credencial**: `deployService` responde **401 Unauthorized** con el
-`EASYPANEL_TOKEN` del entorno —el panel rechaza el mismo token en `listProjects`—. Es la **Stop Condition 6**
-(permiso externo inexistente): producción sigue con el build anterior y **la migración
-`20260928120000_add_order_source` no se aplicó** (la corre el contenedor al arrancar). Lo desbloquea el owner
-**rotando el token**; después: una llamada a `deployService`, health/readiness, los dos smokes y el QA de
-producción.
+viewports) y de POS (11/11), **QA autenticado de producción** en los cuatro viewports (§1) y capturas en
+[`design/screens/kitchen-*.png`](design/screens/) y `test-results/qa-kitchen-prod-*.png`.
 
 **`A-60` no se declara cerrado**: el recorte financiero del **detalle compartido**
 (`api/admin/orders/[id]` → `getOrder` con `payments`) es de **Pedidos runtime (5b)**. Lo que esta TASK
@@ -205,17 +208,13 @@ duplican**.
 
 Lo que sigue, en orden:
 
-1. **Completar el release de `Cocina runtime`**: **el owner rota el `EASYPANEL_TOKEN`** (el actual responde
-   401) y con eso se dispara el deploy, la migración aditiva se aplica al arrancar, y se corren health,
-   readiness, los dos smokes y el **QA de producción** de `/admin/kitchen` en los cuatro viewports. **No hace
-   falta un segundo OK**: la TASK ya está aprobada y mergeada.
-2. **`Money / Payments ownership`** (órdenes 4 y 5) y después **`Pedidos runtime`** (orden **5b**): el estado
+1. **`Money / Payments ownership`** (órdenes 4 y 5) y después **`Pedidos runtime`** (orden **5b**): el estado
    financiero canónico (`pending` / `partial` / `paid`) tiene dueño propio **antes** de que el listado y el
    detalle lo muestren, y es donde vive el remanente de `A-60` (el recorte del detalle). **No se inician
    solas.**
-3. **Pedido existente → Cobrar en POS** (orden 6): **compone** el backend que ya existe
+2. **Pedido existente → Cobrar en POS** (orden 6): **compone** el backend que ya existe
    (`POST /api/admin/orders/[id]/payment`); no lo reconstruye. Cierra `A-67`. Después **Cash ownership** (7).
-4. **Deuda de Pedidos/Cocina (`A-60` a `A-71`)** y después `AUD-009`/`AUD-010`, `AUD-012`/`AUD-013`/`AUD-014`.
+3. **Deuda de Pedidos/Cocina (`A-60` a `A-71`)** y después `AUD-009`/`AUD-010`, `AUD-012`/`AUD-013`/`AUD-014`.
    `A-57` (backup programado) es **infraestructura**: el owner decide y no bloquea el producto.
 
 ## 6. Bloqueos
@@ -224,7 +223,7 @@ Solo bloqueos **reales**. Todo lo demás es trabajo pendiente.
 
 | Bloqueo | Qué lo desbloquea |
 |---|---|
-| **El release de `Cocina runtime` no puede dispararse: el `EASYPANEL_TOKEN` responde 401** | El owner **rota/regenera el token** del panel; con el token válido se dispara la única llamada a `deployService` y se completa el QA. Es la **Stop Condition 6** del release pendiente (§4) |
+| **Higiene de secretos pendiente del owner** | **Rotar el `EASYPANEL_TOKEN`**: el vigente viajó por chat y por la línea de comandos del arranque del deploy, así que corresponde regenerarlo (es además el punto que ya estaba en la lista desde el 2026-09-27). No bloquea nada hoy: el release quedó completo |
 | **Carta incompleta en producción** | El owner carga categorías, productos, precios y fotos desde `/admin/menu` |
 | **Dos datos mal cargados en los locales** | El owner corrige en `/admin/locations` (el slug de Camino de Oriente y la ciudad de Casa Antigua) |
 | **Monitoreo externo inexistente** | El owner elige el servicio; la receta está en el runbook §8.5 |
