@@ -452,6 +452,14 @@ export type ShiftRecord = {
    */
   refundsAmount?: number | null;
   /**
+   * `TASK-MONEY-PAYMENTS-RUNTIME-001` (`A-72`, `D-020`) — **la tasa que produjo este cierre**.
+   *
+   * El arqueo congela su esperado en ambas monedas desde siempre; esto congela **con qué tasa** se convirtió,
+   * que es lo que hace demostrable la equivalencia de un cobro legacy contra el esperado del turno (`D-020`).
+   * `null` en los cierres anteriores a la columna: no declarada, y no se re-firma.
+   */
+  exchangeRate?: number | null;
+  /**
    * Fase 3 del rediseño de Caja (2026-09-23) — la diferencia del **cuadre por banco** (lo declarado
    * menos lo cobrado con tarjeta y transferencia), en la moneda del negocio. Congelada al cerrar: el
    * lote de una terminal no se recalcula después.
