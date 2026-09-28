@@ -8,21 +8,19 @@ en qué estado está el sistema en pocos minutos.
 [`.agents/CONTEXT.md`](../.agents/CONTEXT.md)). Este archivo se **actualiza seguido** y se mantiene
 corto: si crece como un diario, dejó de servir.
 
-> **Última actualización**: 2026-09-27, por **`TASK-ORDERS-KITCHEN-FOUNDATIONS-001`** (fundaciones de
-> `Pedidos / Cocina`: auditoría real, ownership, reuse audit, specs y Design Freeze, `docs-only`: **cerrada y
-> mergeada, sin deploy**), **con el estado factual de `main` corregido después del cierre** —`main` de GitHub
-> ≠ commit desplegado, §1—, después del release de **`SCREEN-POS-QUICK-SALE-001.2`** (corrección final del
-> ticket, **desplegado**; ver §1 y §4). **POS Fase 1 queda CERRADA DEFINITIVAMENTE** y **«POS Fase 2» dejó de
-> existir como fase**: su contenido se reparte en el [roadmap maestro](roadmap/PRODUCT-UX-ROADMAP.md) §2
-> órdenes 4 a 7 y 10. **`Pedidos / Cocina` ya no es una incógnita**: quedó auditado y con **dos specs
-> congeladas** ([`design/screens/orders.md`](design/screens/orders.md) y
-> [`design/screens/kitchen.md`](design/screens/kitchen.md)) y sus **referencias aprobadas por el owner el
+> **Última actualización**: 2026-09-28, por **`TASK-ORDERS-KITCHEN-RUNTIME-002`** (Cocina runtime,
+> `high-risk-e2e`): **mergeada en `main` (PR #79) y pendiente de release** — el `deployService` responde
+> **401** con el `EASYPANEL_TOKEN` del entorno (§4 y §6), así que producción sigue con el build anterior y la
+> migración `add_order_source` todavía **no** se aplicó. Antes: `TASK-ORDERS-KITCHEN-FOUNDATIONS-001`
+> (fundaciones de `Pedidos / Cocina`, `docs-only`, **cerrada y mergeada**) y el release de
+> **`SCREEN-POS-QUICK-SALE-001.2`** (**desplegado**; ver §1 y §4). **POS Fase 1 queda CERRADA
+> DEFINITIVAMENTE** y **«POS Fase 2» dejó de existir como fase**. **`Pedidos / Cocina` ya no es una
+> incógnita**: quedó auditado, con **dos specs congeladas** y sus **referencias aprobadas por el owner el
 > 2026-09-27**. **Vigente: el Default E2E Delivery Contract**
-> ([`.agents/skills/delivery-e2e/SKILL.md`](../.agents/skills/delivery-e2e/SKILL.md)). **La fase de
-> estabilización técnica sigue cerrada**, con una excepción nueva y acotada en dinero: **`A-68`** (el cobro de
-> un pedido existente compara montos sin la conversión canónica) es la razón declarada para consolidar
-> Money/Payments **antes** de conectar el estado financiero definitivo de Pedidos. Lo que sigue es
-> **Cocina runtime** (orden **3b**), y **no se abre sin autorización del owner**.
+> ([`.agents/skills/delivery-e2e/SKILL.md`](../.agents/skills/delivery-e2e/SKILL.md)). **La estabilización
+> técnica sigue cerrada**, con una excepción acotada en dinero: **`A-68`** es la razón declarada para
+> consolidar Money/Payments **antes** del estado financiero definitivo de Pedidos. **Lo que sigue es `Money /
+> Payments ownership`** (órdenes 4 y 5), y **no se abre sin autorización del owner**.
 
 ---
 
@@ -153,31 +151,49 @@ de un pedido existente sin clave de idempotencia).
 
 ## 4. Trabajo actual
 
-**`TASK-ORDERS-KITCHEN-FOUNDATIONS-001` — fundaciones de `Pedidos / Cocina` (CERRADA, `docs-only`, sin
-deploy)**: sacó del chat y **versionó** la auditoría real de las dos superficies contra el código, el
-**ownership** —quién posee el pedido, su canal de origen, sus tiempos, el dinero, el documento y la
-autorización, registrado en `ops/product/MODULE_ARCHITECTURE.md` §5—, la matriz
-`REUSE / ADAPT / CONSOLIDATE / NEW / MISSING / OUT` y las **dependencias** entre `orders`, `locations`,
-`money`, `payments`, `invoices` y `auth`. Dejó **dos specs congeladas**
-([`design/screens/orders.md`](design/screens/orders.md) —Pedidos: listado + detalle— y
-[`design/screens/kitchen.md`](design/screens/kitchen.md) —Cocina—) con sus **referencias aprobadas por el
-owner el 2026-09-27**, y registró **cuatro hallazgos nuevos** (`A-68` a `A-71`). Corrigió premisas obsoletas:
-la spec de Órdenes afirmaba que «no se pide ningún dato nuevo / no hay `FALTA`» y **hay seis**. **No tocó
-runtime, DB, migraciones, APIs, navegación ni pantallas.**
+**`TASK-ORDERS-KITCHEN-RUNTIME-002` — Cocina runtime (`high-risk-e2e`): MERGEADA, PENDIENTE DE RELEASE.**
 
-**Lo que sigue es `Cocina runtime`** (orden **3b** del roadmap): `/admin/kitchen` como **proyección de
-`orders`**, con el carril de `confirmed` corregido, el canal de origen y la puerta que impide que el dinero
-llegue a cocina. `Resumen` sigue en el orden 16 y **«POS Fase 2» dejó de existir como fase**. **`DS-001`** (ley
-visual v4, en [`ops/design/`](design/)) está **aprobado y desplegado**; **`IA-001`** (navegación del panel)
-también; **`SCREEN-ORDERS-001`** fue la **primera sección rediseñada de punta a punta** y
-**`SCREEN-POS-QUICK-SALE-001`** la segunda ([`design/screens/pos-quick-sale.md`](design/screens/pos-quick-sale.md)).
+El código está en `main` (PR #79, squash; `aec184bd74581212e27560b415b974f5f5592d9f`) y **todavía no corre en
+producción**. Lo que quedó, en una línea cada uno (el detalle y las decisiones están en el brief
+[`tasks/TASK-ORDERS-KITCHEN-RUNTIME-002.md`](tasks/TASK-ORDERS-KITCHEN-RUNTIME-002.md); el **ownership**,
+en `ops/product/MODULE_ARCHITECTURE.md` §5):
 
-**Los cierres anteriores ya no viven acá**: el detalle —reproducción, límite atómico, mutaciones y evidencia—
-se movió a [`history/cierres-2026-09.md`](history/cierres-2026-09.md) cuando este archivo llegó a su techo de
-**250 líneas**. Ahí están `AUD-003..008`, `A-54`/`A-55`/`A-58`/`A-59`, `SCREEN-POS-QUICK-SALE-001.x`,
+- **`/admin/kitchen`** es una superficie propia: tres carriles (**ENTRADA** con sus grupos *Ahora* /
+  *Programados* · **PREPARANDO** · **LISTOS**, sin acción), con entrada en Operación.
+- **`confirmed` está en ENTRADA** en las dos superficies: el mapa estado→carril vive **una sola vez** en
+  `orders/domain` (`A-64` deja de duplicarse).
+- **La preparación real es `preparingAt → readyAt`** (antes se medía desde `createdAt`); los sellos por etapa
+  salen de `OrderStatusHistory` y el inicio recomendado del programado también vive en el dominio.
+- **`Order.source`** (`menu` | `pos`), migración aditiva nullable y **sin backfill**: lo declara cada puerta
+  (menú y POS) y **no se infiere**.
+- **`KitchenOrderProjection`** y `GET /api/admin/kitchen/orders`: la proyección **no tiene un solo campo
+  financiero**, así que el recorte es del servidor. **`canOperateKitchen`** (sin el cajero) y
+  `assertKitchenStatusTransition`: el rol de cocina no retira ni cierra.
+- **`/admin/orders` perdió el modo cocina** y su tablero consume el carril del dominio.
+
+Evidencia: 3.592 unitarios verdes, CI verde en los cuatro checks, E2E locales de Cocina (7/7 en los cuatro
+viewports) y de POS (11/11), capturas en [`design/screens/kitchen-*.png`](design/screens/).
+
+⚠️ **El release quedó bloqueado por credencial**: `deployService` responde **401 Unauthorized** con el
+`EASYPANEL_TOKEN` del entorno —el panel rechaza el mismo token en `listProjects`—. Es la **Stop Condition 6**
+(permiso externo inexistente): producción sigue con el build anterior y **la migración
+`20260928120000_add_order_source` no se aplicó** (la corre el contenedor al arrancar). Lo desbloquea el owner
+**rotando el token**; después: una llamada a `deployService`, health/readiness, los dos smokes y el QA de
+producción.
+
+**`A-60` no se declara cerrado**: el recorte financiero del **detalle compartido**
+(`api/admin/orders/[id]` → `getOrder` con `payments`) es de **Pedidos runtime (5b)**. Lo que esta TASK
+garantiza es que **Cocina** no reciba dinero: su proyección y su API no lo tienen.
+
+**Lo que sigue es `Money / Payments ownership`** (órdenes 4 y 5) y después **`Pedidos runtime`** (orden
+**5b**). **`DS-001`** (ley visual v4) está **aprobado y desplegado**; **`IA-001`** (navegación del panel)
+también.
+
+**Los cierres anteriores ya no viven acá**: el detalle se movió a
+[`history/cierres-2026-09.md`](history/cierres-2026-09.md) cuando este archivo llegó a su techo de **250
+líneas**. Ahí están `AUD-003..008`, `A-54`/`A-55`/`A-58`/`A-59`, `SCREEN-POS-QUICK-SALE-001.x`,
 `SCREEN-ORDERS-001`, `ARCH-001`, `TASK-GOV-001`, `TASK-AUD-004` y los baselines superados; acá queda la
-**línea de estado**: el bloque financiero está cerrado y desplegado, y la estabilización técnica sigue cerrada
-salvo el P1 acotado `A-68` (§3).
+**línea de estado**.
 
 ## 5. Siguiente trabajo
 
@@ -187,36 +203,20 @@ con objetivo, prioridad, riesgo y dependencia— sigue en
 [`tasks/AUDIT-REMEDIATION-ROADMAP.md`](tasks/AUDIT-REMEDIATION-ROADMAP.md): son dos cosas distintas y **no se
 duplican**.
 
-**Release de `SCREEN-POS-QUICK-SALE-001.2` (2026-09-27, cerrado — POS Fase 1 cerrada definitivamente)**:
-el commit **desplegado** `4f69a24` sirviendo `build-20260927-193653`, con el ticket de **un solo scroll**, el
-total en el pie y la QA autenticada de producción en los cuatro viewports (§1). Reabrió POS Fase 1 **solo**
-para el defecto del ticket; **sin migraciones, sin dominio y sin backup**. (`main` avanzó después con cinco
-merges `docs-only`, ninguno desplegado: §1, fila *Deriva `main` / producción*.)
-
 Lo que sigue, en orden:
 
-1. **`Cocina runtime`** (orden **3b** del roadmap): **no iniciado**. `/admin/kitchen` como proyección de
-   `orders` —mapa canónico de carriles, sellos por etapa, `Order.source` (migración aditiva), `canOperateKitchen`
-   y el recorte financiero del servidor—. **`high-risk-e2e`**. El alcance exacto, el runtime que puede tocar y
-   lo que tiene prohibido duplicar están en [`roadmap/NEXT.md`](roadmap/NEXT.md). **No se inicia sola.**
-2. **Money / Payments ownership** (órdenes 4 y 5) y después **`Pedidos runtime`** (orden **5b**): el estado
+1. **Completar el release de `Cocina runtime`**: **el owner rota el `EASYPANEL_TOKEN`** (el actual responde
+   401) y con eso se dispara el deploy, la migración aditiva se aplica al arrancar, y se corren health,
+   readiness, los dos smokes y el **QA de producción** de `/admin/kitchen` en los cuatro viewports. **No hace
+   falta un segundo OK**: la TASK ya está aprobada y mergeada.
+2. **`Money / Payments ownership`** (órdenes 4 y 5) y después **`Pedidos runtime`** (orden **5b**): el estado
    financiero canónico (`pending` / `partial` / `paid`) tiene dueño propio **antes** de que el listado y el
-   detalle lo muestren. **No se inician solas.**
+   detalle lo muestren, y es donde vive el remanente de `A-60` (el recorte del detalle). **No se inician
+   solas.**
 3. **Pedido existente → Cobrar en POS** (orden 6): **compone** el backend que ya existe
    (`POST /api/admin/orders/[id]/payment`); no lo reconstruye. Cierra `A-67`. Después **Cash ownership** (7).
 4. **Deuda de Pedidos/Cocina (`A-60` a `A-71`)** y después `AUD-009`/`AUD-010`, `AUD-012`/`AUD-013`/`AUD-014`.
-5. `A-57` (backup programado) es **infraestructura**: el owner decide y no bloquea el producto. Y **higiene
-   pendiente del owner**: revocar la cuenta de QA anterior y **rotar el `EASYPANEL_TOKEN`**.
-
-> ⚠️ **Dos correcciones al brief de la auditoría, verificadas en el repo**: **A-45 ya está cerrado**
-> (2026-09-23, el arqueo ciego es regla de servidor: `src/app/api/admin/pos/shift/shift-arqueo-role-filter.ts`),
-> así que TASK-AUD-003 debe **verificar** que no queden caminos que filtren el esperado, no reimplementarlo; y
-> **el informe de auditoría que originó este roadmap no está versionado**: los títulos de `TASK-AUD-004` a
-> `TASK-AUD-017` vienen del brief del owner y su evidencia se reproduce al abrir cada TASK.
-
-> **Dos entradas del backlog a revisar antes de agarrarlas**: `A-16` («no hay historial de cajas») y la segunda
-> mitad de `A-18` («`Payment` no tiene `shiftId`») parecen **obsoletas** —el historial existe en
-> `/admin/history/cierres` y la Fase 6 de Caja agregó `shiftId`—. Se confirman al abrir su TASK, no acá.
+   `A-57` (backup programado) es **infraestructura**: el owner decide y no bloquea el producto.
 
 ## 6. Bloqueos
 
@@ -224,6 +224,7 @@ Solo bloqueos **reales**. Todo lo demás es trabajo pendiente.
 
 | Bloqueo | Qué lo desbloquea |
 |---|---|
+| **El release de `Cocina runtime` no puede dispararse: el `EASYPANEL_TOKEN` responde 401** | El owner **rota/regenera el token** del panel; con el token válido se dispara la única llamada a `deployService` y se completa el QA. Es la **Stop Condition 6** del release pendiente (§4) |
 | **Carta incompleta en producción** | El owner carga categorías, productos, precios y fotos desde `/admin/menu` |
 | **Dos datos mal cargados en los locales** | El owner corrige en `/admin/locations` (el slug de Camino de Oriente y la ciudad de Casa Antigua) |
 | **Monitoreo externo inexistente** | El owner elige el servicio; la receta está en el runbook §8.5 |

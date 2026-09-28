@@ -234,6 +234,19 @@ material la decide el owner **antes** de implementar.
 | `Retiro estimado ~HH:MM` en un pedido de POS | para un pedido del POS dice **«Retiro: lo antes posible»** | el POS crea el pedido sin hora prometida: mostrar una hora sería inventarla |
 | `Objetivo 18 min` | el «objetivo» es el **umbral del local** (`prepAlertMinutes`) | no existe un objetivo de negocio separado; el copy tiene que decir de dónde sale |
 
+**Correcciones de esta spec al implementar la TASK de runtime** (`TASK-ORDERS-KITCHEN-RUNTIME-002`): dos
+detalles quedaban descriptos de forma genérica y la **referencia aprobada** los fija. Se corrige **la spec**,
+no el código, porque la referencia es contrato de composición y comportamiento:
+
+| Punto | Antes decía | Queda |
+|---|---|---|
+| Cronómetro del carril PREPARANDO | «tiempo en la etapa actual» (`hace N min`) | **`PREP N m`** (el rótulo de la referencia), con la **misma** cuenta: desde `preparingAt`, el sello que deriva `orders/domain` |
+| **Más larga** (cabecera) | dato **FALTA** en el carril LISTOS | se deriva de **`preparingAt → readyAt`** de los pedidos listos del turno, con la misma medición que el promedio; sin preparaciones medidas dice «sin datos», no `0` |
+
+Dos datos del inventario original ya **existen** y la TASK los consume sin inventar nada: los **sellos por
+etapa** (`confirmedAt`, `preparingAt`, `readyAt`, `pickedUpAt`, `closedAt` desde `OrderStatusHistory`) y el
+**inicio recomendado** (`pickupTime − Location.pickupLeadMinutes`), los dos en `orders/domain`.
+
 ## Qué se elimina
 
 El **modo cocina de `/admin/orders`** (el tablero de tres carriles con su conmutador, su toolbar y su punto
