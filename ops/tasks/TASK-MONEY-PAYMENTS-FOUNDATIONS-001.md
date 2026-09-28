@@ -37,7 +37,7 @@ El pedido del owner trae datos que **no se toman como fuente de verdad**. Verifi
 | «`money` será dueño de catálogo de monedas, moneda base, FX, conversión e historial de tasas» | **Nada de eso existe hoy** | No hay **ningún** modelo de moneda ni de tasa en los 47 modelos de `prisma/schema.prisma`; `usdExchangeRate` es un `Float?` en `BusinessSettings` (`prisma/schema.prisma:833`) y `grep` de `rateHistory`/`exchangeRateHistory` en `src/` → **0 coincidencias** |
 | «No asumir que solo existen NIO/USD» | **El código sí lo asume, en cinco lugares** | `money-conversion.ts:13` (`SUPPORTED_FOREIGN_CURRENCY = "USD"`), `cash-config-defaults.ts:16,30`, `cash-count-config.ts:34`, `shift-cash.ts:118`, `cash-config-client.tsx:26,85` + la UI de cobro (`pos-payment.tsx:169`) |
 | «`mixed` no debe ser un medio real» | **Ya es la regla del POS, pero sigue en el enum** | `POS_PAYMENT_METHODS` **no** incluye `mixed` (`pos-sale.ts:17`) y el comentario de `:14-15` lo declara derivado; el enum `PaymentMethodType` **sí** lo tiene (`prisma/schema.prisma:433-439`) |
-| «Auditar si `canEmitInvoiceFor()` usa `hasPayments` en vez de saldo liquidado» | **CONFIRMADO**: usa `hasPayments` | `emit-invoice.ts:161-164` pasa `hasPayments: (await deps.countPayments(orderId)) > 0`; `production-invoice.ts:29` cuenta filas. Un pedido con **un cobro parcial** factura |
+| «Auditar si `canEmitInvoiceFor()` usa `hasPayments` en vez de saldo liquidado» | **CONFIRMADO**: usa `hasPayments` | `emit-invoice.ts:161-164` pasa `hasPayments: (await deps.countPayments(orderId)) > 0`; `production-invoice.ts:29` cuenta filas. Un pedido con **un cobro parcial** factura. **Decisión posterior del owner (`D-021`)**: la puerta objetivo es **`paid` estricto**, sin excepción por autorización |
 | «Reproducir `A-68`» | **REPRODUCIDO**, con número | § *Reproducción de hallazgos* |
 | «Reproducir `A-69`» | **REPRODUCIDO** en sus tres partes | § *Reproducción de hallazgos* |
 | «Reproducir `A-71`» | **REPRODUCIDO**, request-level | § *Reproducción de hallazgos* |
@@ -450,10 +450,14 @@ moneda base** a `payments`/`money` en vez de convertir por su cuenta.
 la definición de un conteo. Consecuencia reproducida: un pedido de `total = 365` con **un solo cobro de 100**
 **factura** (y la factura congela `total: 365`).
 
-**Contrato objetivo**: `Invoices consume Payments`. La puerta pasa a ser el **estado financiero canónico**
-(`paid`), no `hasPayments`. `Invoice` **mantiene** su snapshot completo (`currencyCode`, `subtotal`,
-`discount`, `packagingAmount`, `deliveryFeeAmount`, `tipAmount`, `total`, datos del negocio, del cliente y de
-la sucursal), y **no** se rehace. La reforma fiscal queda **fuera** (`A-34`, decisión del owner).
+**Contrato objetivo (`D-021`)**: `Invoices consume Payments`. La puerta pasa a ser el **estado financiero
+canónico** y exige **`status === "paid"`, estricto**: `pending` y `partial` **no** habilitan factura. **No
+existe excepción por autorización** —ni la firma del owner convierte un saldo pendiente en documento—:
+documentar un abono, si algún día hace falta, es **otro tipo de documento**, no una factura parcial. Un pedido
+cuyo saldo **no se pueda demostrar** (legacy sin snapshot, § *Legacy*) tampoco factura, porque nunca alcanza
+`paid`. `Invoice` **mantiene** su snapshot completo (`currencyCode`, `subtotal`, `discount`,
+`packagingAmount`, `deliveryFeeAmount`, `tipAmount`, `total`, datos del negocio, del cliente y de la
+sucursal), y **no** se rehace. La reforma fiscal queda **fuera** (`A-34`, decisión del owner).
 
 ### Entidades de cobro — se reutiliza `banks`
 
@@ -506,12 +510,12 @@ relación con el arqueo (`ShiftBankClose.bankId`, `@@unique([shiftId, bankId, cu
 | `cash-close-modal.tsx:390-411` (`formatByList`, `signedCurrency`) | **MOVE** | Helpers de dinero viviendo en un modal |
 | `admin-overview-formatters.ts:1,6,10` (`"es-NI"` × 3) | **CONSOLIDATE** | Sobre `settings.locale` |
 | `pos/pos-quick-cash.tsx:13` (`POS_QUICK_CASH_AMOUNTS`) | **ADAPT** | Decisión del owner: no se configura; pero hoy está atado a NIO |
-| Modelo `Payment` | **ADAPT** | Gana `exchangeRate`/`baseAmount`/`baseCurrency` e `idempotencyKey` (aditivo, nullable) |
-| Modelo `Refund` | **ADAPT** | Ya congela `currency`; gana tasa/base e idempotencia |
+| Modelo `Payment` | **ADAPT** | Gana `exchangeRate`/`baseAmount`/`baseCurrency` (nullable en la columna, **obligatorias al escribir un cobro nuevo**) e `idempotencyKey` |
+| Modelo `Refund` | **ADAPT** | Ya congela `currency`; gana tasa/base (obligatorias al escribir) e idempotencia |
 | `PaymentMethodType`, `RefundKind`, `RefundStatus` | **REUSE** | Enums correctos; se mueven con el modelo |
 | `PaymentMethod` (`Order.paymentMethod`) | **OUT** | Es la declaración del cliente en Pedidos, no un hecho de cobro |
 | `PaymentRepository` (puerto) + adaptador Prisma + in-memory | **MOVE** | Contrato completo y correcto; pasa a `payments` |
-| `PaymentSummary` | **ADAPT** | `totalAmount` crudo pasa a **total en moneda base** (o por moneda) |
+| `PaymentSummary` | **ADAPT** | `totalAmount` crudo pasa a **total demostrable en moneda base**, con la porción no demostrable declarada aparte |
 | `getPaymentSummary` | **ADAPT** | Cierra `A-68` |
 | `registerOrderPayment` + composición + ruta | **ADAPT** | Cierra `A-68` y `A-71`; pasa a `payments` |
 | `recordSalePayments` (`commit-sale.ts:202-236`) | **ADAPT** | Sigue escribiendo el monto **recibido**, pero **con** la tasa del momento |
@@ -630,23 +634,29 @@ ExchangeRate                 (historial: cada tasa es un HECHO con fecha)
 
 ## Modelo conceptual del snapshot de `Payment`
 
-Un `Payment` **nuevo** debe poder responder **para siempre** (ley 7) sin consultar la configuración de hoy:
+Un `Payment` **nuevo** debe poder responder **para siempre** (ley 7) sin consultar la configuración de hoy.
+Los **cinco primeros campos** —monto original, moneda, moneda base, tasa aplicada y equivalente base— son
+**obligatorios**: sin ellos el cobro **no se firma** (`D-020`).
 
-| Pregunta | Campo objetivo | Existe hoy |
-|---|---|---|
-| ¿Cuánto se recibió? | `amount` | **SÍ** |
-| ¿En qué moneda entró? | `currency` (nunca `null` en un cobro nuevo) | **PARCIAL**: `String?` |
-| ¿Cuál era la moneda base? | `baseCurrencyCode` | **NO** |
-| ¿Qué tasa se aplicó? | `exchangeRate` (decimal, no `Float`) | **NO** |
-| ¿Cuánto equivale en moneda base? | `baseAmount` | **NO** |
-| ¿Con qué medio se pagó? | `paymentMethodId` (catálogo) **+** `methodKind` (el tipo canónico del momento) | **NO**: sólo el enum `method` |
-| ¿Cuál era el tipo semántico? | `methodKind` (`cash`/`card`/`bank_transfer`/`wallet`/`other`) | **NO** |
-| ¿Contra qué entidad/proveedor? | `entityId` (nullable: efectivo no tiene entidad) | **NO** |
-| ¿Con qué referencia externa? | `reference` | **SÍ** |
-| ¿En qué turno entró? | `shiftId` | **SÍ** |
-| ¿Cuándo? | `createdAt` | **SÍ** |
-| ¿Se anuló o se devolvió? | `voidedAt`/`voidedByUserId`/`voidReason` + `Refund` | **SÍ** |
-| ¿Cuánto vale un reintento de la misma request? | `idempotencyKey` (único por cobro) | **NO** |
+| Pregunta | Campo objetivo | Obligatorio en un cobro nuevo | Existe hoy |
+|---|---|---|---|
+| ¿Cuánto se recibió? | `amount` | **Sí** | **SÍ** |
+| ¿En qué moneda entró? | `currency` (nunca `null` en un cobro nuevo) | **Sí** | **PARCIAL**: `String?` |
+| ¿Cuál era la moneda base? | `baseCurrencyCode` | **Sí** | **NO** |
+| ¿Qué tasa se aplicó? | `exchangeRate` (decimal, no `Float`) | **Sí** | **NO** |
+| ¿Cuánto equivale en moneda base? | `baseAmount` | **Sí** | **NO** |
+| ¿Con qué medio se pagó? | `paymentMethodId` (catálogo) **+** `methodKind` (el tipo canónico del momento) | **Sí** | **NO**: sólo el enum `method` |
+| ¿Cuál era el tipo semántico? | `methodKind` (`cash`/`card`/`bank_transfer`/`wallet`/`other`) | **Sí** | **NO** |
+| ¿Contra qué entidad/proveedor? | `entityId` (nullable: efectivo no tiene entidad) | No aplica | **NO** |
+| ¿Con qué referencia externa? | `reference` | No aplica | **SÍ** |
+| ¿En qué turno entró? | `shiftId` | No aplica | **SÍ** |
+| ¿Cuándo? | `createdAt` | Sí | **SÍ** |
+| ¿Se anuló o se devolvió? | `voidedAt`/`voidedByUserId`/`voidReason` + `Refund` | No aplica | **SÍ** |
+| ¿Cuánto vale un reintento de la misma request? | `idempotencyKey` (único por cobro) | **Sí** | **NO** |
+
+**Un cobro legacy** que no tenga los cinco campos obligatorios **no se reinterpreta**: no se completa, no se
+convierte con la tasa vigente y no se le inventa un equivalente. Su porción no demostrable queda
+`unresolvedAmount` y **no** produce `paid` ni factura (§ *Legacy*).
 
 **Congelar los dos campos del medio** (`paymentMethodId` **y** `methodKind`) es deliberado: el medio
 comercial se configura y puede cambiar de nombre, de monedas o de tipo; el **hecho** tiene que seguir
@@ -656,7 +666,8 @@ nombre del negocio y el `Shift` congela su `expectedByCurrency`.
 **Snapshots que también hay que cerrar** (mismo problema, fuera de `Payment`): `Shift` congela sus montos
 pero **no** la tasa que los produjo; `Refund` congela `currency` y **no** la tasa; el reintento idempotente
 del POS re-suma los `Payment` guardados con la **tasa vigente** (`pos-sale.ts:84-102` ←
-`register-pos-sale.ts:173`), no con la del cobro.
+`register-pos-sale.ts:173`), no con la del cobro. Los tres se cierran **hacia adelante**: los cierres y las
+devoluciones ya firmados no se re-firman ni se recalculan.
 
 ---
 
@@ -668,32 +679,40 @@ del POS re-suma los `Payment` guardados con la **tasa vigente** (`pos-sale.ts:84
 OrderPaymentStatus                        (proyección de payments, NO un campo de Order)
   orderId            text
   status             "pending" | "partial" | "paid"
-  paidAmount         decimal     ← suma de los cobros NO anulados, convertidos a moneda base
-  outstandingAmount  decimal     ← max(0, orderTotal − paidAmount)
-  baseCurrencyCode   text        ← la moneda en la que están expresados los dos montos
+  paidAmount         decimal     ← suma DEMOSTRABLE de los cobros NO anulados, en moneda base
+  outstandingAmount  decimal     ← max(0, orderTotal − paidAmount), sin contar lo no demostrable
+  unresolvedAmount   decimal     ← plata cobrada cuyo equivalente NO se puede demostrar (legacy sin
+                                   snapshot). NO es 0 por conveniencia: es «no se sabe»
+  baseCurrencyCode   text        ← la moneda en la que están expresados los tres montos
   paymentCount       int         ← cobros activos (el detalle que necesitan los consumidores)
   hasMixedMethods    bool        ← DERIVADO: >1 medio distinto. `mixed` NO es un medio real
 ```
 
 **Reglas del contrato**:
 
-1. **`status` se deriva del saldo, no del conteo**: `paid` ⇔ `outstandingAmount == 0`;
-   `partial` ⇔ `0 < paidAmount < orderTotal`; `pending` ⇔ `paidAmount == 0`. **Prohibido** derivarlo de
-   `payments.length > 0`.
-2. **`paidAmount` se calcula en moneda base**, convirtiendo cada cobro con **su** tasa snapshot (o la
-   vigente si el cobro es legacy sin tasa — § *Legacy*). **Prohibido** sumar montos de monedas distintas.
-3. **La proyección es de `payments`**, no de `orders` ni de `invoices`: `orders` la **consume** y **no** la
+1. **`paidAmount` sólo suma lo demostrable**, en moneda base: cada cobro aporta con **su** `baseAmount`
+   snapshot. Un cobro **legacy** sin snapshot **no se convierte con la tasa vigente** (ley 7 + `D-020`): su
+   monto va a `unresolvedAmount`, **no** a `paidAmount`.
+2. **`status` se deriva del saldo demostrable, no del conteo**, con esta precedencia exacta:
+   `paid` ⇔ `outstandingAmount == 0` **y** `unresolvedAmount == 0`; si no, `partial` ⇔ `paidAmount > 0`
+   **o** `unresolvedAmount > 0`; si no, `pending`. **Prohibido** derivarlo de `payments.length > 0`, y
+   **prohibido** afirmar `paid` sobre un saldo no demostrado.
+3. **Lo no demostrable no se convierte en `paid`**: con un solo cobro legacy sin snapshot, el pedido **no**
+   puede alcanzar `paid` **ni** habilitar una factura, aunque su monto nominal cubra el total. La salida es de
+   **producto** (decisión del owner, o reparación explícita del caso concreto con datos persistidos), **no**
+   una regla general de conversión hacia atrás.
+4. **La proyección es de `payments`**, no de `orders` ni de `invoices`: `orders` la **consume** y **no** la
    recalcula.
-4. **Un cobro anulado no cuenta** (invariante ya resuelta, `A-59`): `voidedAt IS NULL` en la base.
-5. **Una devolución aprobada no cambia `paidAmount`**: el cobro existió. La devolución es un hecho propio
+5. **Un cobro anulado no cuenta** (invariante ya resuelta, `A-59`): `voidedAt IS NULL` en la base.
+6. **Una devolución aprobada no cambia `paidAmount`**: el cobro existió. La devolución es un hecho propio
    (`Refund`) y se informa aparte. Lo que cambia «pagado» es la **anulación**, no la devolución.
-6. **Los consumidores**:
+7. **Los consumidores**:
    - **`orders`** (listado y detalle): muestra `status` y saldo; **no** lo calcula. El detalle deja de mostrar
      «Cobrado en el mostrador» con `payments.length > 0` (`orders/[id]/page.tsx:345`).
-   - **`invoices`**: `canEmitInvoiceFor` **deja de usar `hasPayments`** y pasa a exigir el **estado
-     liquidado**. Qué estado exacto (¿`paid` estricto, o `partial` con autorización?) lo decide el owner en la
-     TASK de runtime: esta fundación deja el **cambio** como dependencia declarada, **no** adelanta la reforma
-     fiscal.
+   - **`invoices`**: `canEmitInvoiceFor` **deja de usar `hasPayments`** y exige **`status === "paid"`**,
+     estricto (§ *Boundary `Payments` ↔ `Invoices`*). **No hay excepción por autorización**: `partial` no
+     habilita factura, ni con firma del owner. Documentar un abono, si algún día hace falta, es **otro tipo de
+     documento**, no una factura parcial.
    - **React**: **prohibido** calcular `pending`/`partial`/`paid`. Hoy hay un caso (`pos-payment.tsx:104-107`)
      que suma crudo y **desaparece** consumiendo la proyección.
    - **Cocina**: sigue **sin** dinero: la proyección de cocina **no** gana estos campos (los tests negativos
@@ -776,33 +795,54 @@ Snapshots monetarios del cobro           Snapshots de cierre (expectedByCurrency
 | | |
 |---|---|
 | **Hoy** | `emit-invoice.ts:161-164` decide con `hasPayments` = `countPayments(...) > 0`; `production-invoice.ts:29` cuenta filas. Un pedido de C$365 con un cobro de C$100 **factura** |
-| **Objetivo** | `Invoices consume Payments`: la puerta es el **estado financiero canónico**, y `Invoice` **no** define «pagado» |
+| **Objetivo** | `Invoices consume Payments`: la puerta es el **estado financiero canónico** con **`paid` estricto** (`D-021`), y `Invoice` **no** define «pagado» |
 | **Lo que no cambia** | El snapshot completo de `Invoice` (`currencyCode`, montos, datos del negocio, del cliente y de la sucursal), su correlativo con concurrencia real (`TASK-AUD-006`), su anulación con motivo de lista cerrada y su `orderId @unique` |
+| **La regla, exacta** | `pending` y `partial` **no** facturan. **Sin excepción por autorización**: ningún rol, ni el owner, habilita una factura sobre un saldo pendiente. Un abono, si algún día se documenta, es **otro tipo de documento** |
+| **Legacy** | Un pedido con un cobro legacy **no demostrable** queda `partial` con `unresolvedAmount > 0` y **no** factura: no es un caso de excepción, es un caso de dato faltante (§ *Legacy*) |
 | **Dependencia declarada** | El cambio de la puerta es **runtime de Payments** (la TASK siguiente), **no** de esta fundación. La **reforma fiscal** (`A-34`: RUC del negocio, numeración autorizada) es **decisión del owner** y **no** se adelanta |
-| **Riesgo de la transición** | Facturar un pedido con saldo pendiente es una decisión de producto, no técnica: **Stop Condition** si el owner no la define antes del runtime (§ *Stop Conditions*) |
+| **Riesgo de la transición** | Ninguno de producto: **ya está decidido** (`D-021`). El riesgo es de **datos**: los pedidos existentes que hoy facturaron con un cobro parcial no se re-emiten ni se anulan retroactivamente; la puerta nueva rige **hacia adelante** |
 
 ---
 
 ## Estrategia legacy, sin backfill inventado
 
-**Principio**: el pasado no se reconstruye (`AGENTS.md` ley 7). Un dato legacy se **declara**, no se inventa.
+**Principio**: el pasado no se reconstruye (`AGENTS.md` ley 7). Un dato legacy se **declara**, no se inventa —
+y **tampoco se declara un equivalente histórico ficticio en lectura**. Convertir hoy un cobro viejo con la tasa
+de hoy no es documentar: es inventar un hecho con apariencia de dato (`D-020`).
+
+Tres reglas que ordenan todo lo de abajo:
+
+1. **Un `Payment` nuevo congela obligatoriamente** monto original, moneda, moneda base, tasa aplicada y
+   equivalente base. Sin esos cinco campos el cobro **no se firma**.
+2. **Un `Payment` legacy sin snapshot no se reinterpreta.** Su equivalente sólo se resuelve si **datos
+   persistidos existentes** lo demuestran (una fila de cierre que ya congeló el esperado en ambas monedas, un
+   `Payment` hermano del mismo hecho con su tasa, `Refund`/`ShiftBankClose` con su moneda y su monto). Se
+   resuelve **explícito y por caso**; **nunca** por una regla general de conversión hacia atrás.
+3. **Cuando no se puede demostrar, queda legacy/unresolved** y eso **no** produce `paid` ni habilita una
+   factura nueva. `unresolvedAmount` lo declara; el sistema dice «no se sabe», no «cero».
 
 | Dato legacy | Situación hoy | Trato objetivo |
 |---|---|---|
 | `Payment.currency IS NULL` | Cobros anteriores a `TASK-303b` | **Sigue significando «la moneda del negocio»**, y esa resolución la hace `money`. **No** se escribe la moneda hacia atrás con un `UPDATE` |
-| `Payment` sin `exchangeRate`/`baseAmount`/`baseCurrency` | Todos los cobros existentes | Las columnas nacen **nullable** y **no se rellenan**. Un consumidor que necesita el equivalente usa la **tasa vigente** y **lo declara** («tasa vigente, no la del cobro»), porque la del cobro **no existe** |
-| `Payment.baseAmount` nulo | ídem | `paidAmount` de la proyección se calcula **siempre** por conversión en lectura para los legacy; **nunca** se persiste un valor inventado |
-| `Shift` sin la tasa de su cierre | Todos los cierres existentes | Igual: se declara. Los cierres firmados **no se re-firman** |
-| `Refund` sin tasa | Todas las devoluciones | Igual |
+| `Payment` sin `exchangeRate`/`baseAmount`/`baseCurrency` | Todos los cobros existentes | Las columnas nacen **nullable** y **no se rellenan**. El equivalente **no se calcula con la tasa vigente**. Si un dato persistido lo demuestra, se resuelve explícito y por caso; si no, la porción va a **`unresolvedAmount`** |
+| `Payment.baseAmount` nulo y equivalente **demostrable** | Cierres firmados que congelaron su esperado en ambas monedas | **Se resuelve explícitamente**: se toma la equivalencia ya persistida, no una nueva conversión |
+| `Payment.baseAmount` nulo y equivalente **no demostrable** | La mayoría de los cobros viejos | **`unresolvedAmount`**: el pedido **no** alcanza `paid` **ni** factura. Se declara en la proyección y en el detalle; la salida es de producto (decisión del owner o reparación explícita del caso) |
+| `Shift` sin la tasa de su cierre | Todos los cierres existentes | Igual: se declara. Los cierres firmados **no se re-firman** y **no** se recalculan con la tasa de hoy. Sólo se usa lo que el propio snapshot ya congeló |
+| `Refund` sin tasa | Todas las devoluciones | Igual: la devolución resta en **su** moneda (`refundsTotalByCurrency`, correcto hoy); el equivalente en moneda base sólo si es demostrable |
 | `Bank.code` nulo | Bancos cargados sin código | **Sigue siendo válido** (`bank-catalog.ts:56`): la entidad no necesita código |
 | Tipo de entidad de un `Bank` existente | No existe | **`other`** por defecto (explícito), **no** una inferencia por nombre («BAC» **no** implica `acquirer`) |
-| `Payment.method = 'mixed'` | Puede existir en la base | **Se conserva y se muestra tal cual era**: no se reescribe el pasado. `mixed` deja de ser **elegible** hacia adelante |
+| `Payment.method = 'mixed'` | Puede existir en la base | **Se conserva y se muestra tal cual era**: no se reescribe el pasado. `mixed` deja de ser **elegible** hacia adelante. **En la proyección no cuenta para `hasMixedMethods`**: esa bandera se deriva de los medios **distintos** de los cobros activos, no de este valor histórico |
 | `BusinessSettings.currencyCode` | La autoridad actual | Se conserva como **compatibilidad** hasta que `money` tenga el catálogo; la migración **copia** el valor a la fila de moneda base (es una **migración de datos de configuración**, no una reinterpretación de hechos) |
 | Duplicados legacy (`A-50`: ventas con menos `Payment` que los declarados) | `A-50` sigue abierto | **No se reparan**. Un conteo de solo lectura es decisión del owner. Esta TASK **no** los toca |
 
 **Prohibiciones explícitas**: backfill de montos, de tasas o de monedas; `UPDATE` masivo sobre `Payment`/
-`Refund`/`Shift`; inferir el tipo de una entidad por su nombre; «arreglar» un cierre firmado; recalcular un
-cierre histórico con la tasa de hoy.
+`Refund`/`Shift`; **convertir en lectura un cobro legacy con la tasa vigente y presentarlo como equivalente
+histórico**; inferir el tipo de una entidad por su nombre; «arreglar» un cierre firmado; recalcular un cierre
+histórico con la tasa de hoy; y **dejar que un saldo no demostrado produzca `paid` o habilite una factura**.
+
+**Qué NO es esta política**: no es «el arqueo viejo está mal». El arqueo cerrado sigue siendo válido: congeló
+su esperado y su conteo, y nadie lo re-firma. Lo que no existe —y no se va a inventar— es el **equivalente en
+moneda base de cada cobro legacy** para poder afirmar un estado financiero nuevo.
 
 ---
 
@@ -816,18 +856,20 @@ Ninguna se crea en esta TASK.
 | 1 | `add_currency_catalog` — tabla `Currency` (`code` único, `name`, `symbol`, `decimals`, `isKnown`, `isActive`, `sortOrder`) | Sí | `isActive true`, `sortOrder 0` | **Semilla** con las monedas que el negocio ya usa (NIO desde `BusinessSettings`, USD desde `usdExchangeRate`), no con un catálogo mundial inventado |
 | 2 | `add_business_currency_settings` — fila de moneda base + locale | Sí | — | Copia `BusinessSettings.currencyCode`/`locale`; **no** borra las columnas viejas en esta migración |
 | 3 | `add_exchange_rate_history` — tabla `ExchangeRate` (`from`/`to`, `rate`, `effectiveFrom`, `effectiveTo?`, `createdByUserId?`, `@@unique([from,to,effectiveFrom])`) | Sí | `effectiveTo?` | **Semilla**: la `usdExchangeRate` vigente **si existe**, con `effectiveFrom = now()` **declarado** (no una fecha histórica inventada) |
-| 4 | `add_payment_snapshot` — `Payment.exchangeRate decimal?`, `Payment.baseAmount decimal?`, `Payment.baseCurrencyCode text?` | Sí | **nullable, sin backfill** | Los cobros existentes quedan con `null` = «no declarado» |
+| 4 | `add_payment_snapshot` — `Payment.exchangeRate decimal?`, `Payment.baseAmount decimal?`, `Payment.baseCurrencyCode text?` | Sí | **nullable en la columna, obligatorias en la escritura nueva** | Los cobros existentes quedan con `null` = **«equivalente no demostrable»** (`unresolved`), **no** «cero» ni «se convierte con la tasa de hoy». Un `Payment` nuevo **no se firma** sin los tres. **Sin backfill** |
 | 5 | `add_payment_idempotency_key` — `Payment.idempotencyKey text?` + **índice único parcial** (`WHERE "idempotencyKey" IS NOT NULL`) | Sí | `null` para los existentes | Índice **parcial**: el `NULL` no colisiona, y la unicidad la garantiza PostgreSQL |
 | 6 | `add_payment_method_catalog` — tabla `PaymentMethodConfig` (`name`, `kind` canónico, `entityId?` → `Bank`, `currencyCodes`, `requiresReference`, `isActive`, `scope` local) | Sí | `isActive true` | **Semilla** con los medios que el negocio ya usa (Efectivo, Tarjeta, Transferencia), **sin** inventar entidades |
 | 7 | `add_bank_entity_type` — `Bank.entityType` (enum `bank`\|`acquirer`\|`digital_provider`\|`other`) | Sí | **`other`** por defecto, con default en la columna | Los bancos existentes quedan en `other` **explícito**: no se infiere |
 | 8 | `add_refund_idempotency_key` — `Refund.idempotencyKey text?` + índice único parcial | Sí | `null` | Cierra el hueco de reintento de `request-refund` |
-| 9 | `add_refund_snapshot` — `Refund.exchangeRate decimal?`, `Refund.baseAmount decimal?` | Sí | nullable, sin backfill | Por simetría con `Payment` |
-| 10 | `add_shift_exchange_rate_snapshot` — `Shift` congela la tasa usada por el cierre | Sí | nullable, sin backfill | Cierra «la tasa que produjo el snapshot no está» |
+| 9 | `add_refund_snapshot` — `Refund.exchangeRate decimal?`, `Refund.baseAmount decimal?` | Sí | nullable en la columna, obligatorias en la escritura nueva; **sin backfill** | Por simetría con `Payment`: una devolución nueva congela su tasa y su equivalente; una vieja queda `unresolved` |
+| 10 | `add_shift_exchange_rate_snapshot` — `Shift` congela la tasa usada por el cierre | Sí | nullable, **sin backfill** | Cierra «la tasa que produjo el snapshot no está» **hacia adelante**. Los cierres existentes **no se re-firman** ni se recalculan: siguen valiendo como documento, pero no son fuente de equivalencia retroactiva salvo lo que su propio snapshot ya congeló |
 | 11 | `relax_currency_code_check` (si el runtime decide aceptar códigos internos >3 letras para monedas personalizadas) | Sí | — | **Decisión de runtime**: hoy el patrón `/^[A-Z]{3}$/` está en el dominio, no en la base |
 
 **Orden y seguridad**: 1→2→3 son la base de `money`; 4→5 cierran `A-68`/`A-71`; 6→7 son la configuración de
-medios/entidades; 8→9→10 son simetría y snapshot. **Ninguna es destructiva** y ninguna exige ventana de
-mantenimiento. El **backfill no existe** por decisión explícita (§ *Legacy*).
+medios/entidades; 8→9→10 son simetría y snapshot. **Ninguna es destructiva**, ninguna exige ventana de
+mantenimiento y **ninguna rellena datos**: el **backfill no existe** y la **conversión retroactiva tampoco**
+(§ *Legacy*, `D-020`). La obligatoriedad del snapshot en la escritura nueva es una regla de **dominio y de
+transacción**, no un `NOT NULL` de la columna: los cobros legacy tienen que poder seguir leyéndose.
 
 ---
 
@@ -887,7 +929,7 @@ in-memory-refund-repository.ts}` · `orders/domain/{payment-change.ts, payment-v
 | Puerta | Roles | Qué protege | Por qué propia |
 |---|---|---|---|
 | `canManageFinanceConfig` | **owner** | Monedas, tasas, medios de pago y entidades de cobro | Cambiar la moneda base, una tasa o qué medios se aceptan cambia el número que el sistema espera: es la misma razón por la que `canManageCashConfig` es del dueño y no una reutilización de `canManageBusinessSettings` |
-| `canViewOrderFinancials` | owner · manager · **cashier** (el del pedido que cobra, según `D-014`) | Ver `status`, `paidAmount` y `outstandingAmount` del pedido | Es capacidad **nominal** de `D-014`; hoy **no existe** y el detalle muestra dinero con la puerta gruesa de Pedidos (`A-60`) |
+| `canViewOrderFinancials` | owner · manager · **cashier** (el del pedido que cobra, según `D-014`) | Ver `status`, `paidAmount`, `outstandingAmount` y `unresolvedAmount` del pedido | Es capacidad **nominal** de `D-014`; hoy **no existe** y el detalle muestra dinero con la puerta gruesa de Pedidos (`A-60`) |
 | `canCollectPayment` | owner · manager · cashier | Registrar un cobro sobre un pedido existente | Hoy es `canUsePOS`. Separarla permite que un rol opere el mostrador sin cobrar deuda ajena, y es el sitio donde vive la idempotencia |
 | `canRequestRefund` | owner · manager | Pedir una devolución | **Hoy es `canRefund`**: se **renombra** a la capacidad nominal; `canRefund` queda como alias de compatibilidad y **no** se duplica la regla |
 | `canApproveRefund` | **owner** | Firmar una devolución | **Ya existe** y no cambia: nadie aprueba la propia |
@@ -971,16 +1013,22 @@ Lo que tiene que seguir siendo verdad:
 3. **`paidAmount` se expresa siempre en una sola moneda** (la base) y **nunca** es la suma de montos de
    monedas distintas. (hoy **falso** en `pos-payment.tsx:104-107`)
 4. **Un cobro nuevo puede explicarse para siempre sin la configuración de hoy**: monto, moneda, moneda base,
-   tasa aplicada y equivalente quedan escritos. (hoy **falso**)
+   tasa aplicada y equivalente quedan escritos **obligatoriamente** —sin ellos el cobro no se firma—.
+   (hoy **falso**)
 5. **Un cobro anulado no cuenta** en el arqueo, en el saldo ni en la conciliación. (hoy **verdadero**,
    `A-59`; se conserva)
 6. **Un turno cerrado no recibe cobros nuevos.** (hoy **verdadero**, `A-47`; se conserva)
 7. **No se devuelve más de lo cobrado**, y **nadie aprueba su propia devolución**. (hoy **verdadero** como
    `if`; pasa a ser verdadero **bajo concurrencia** con lock, `A-73`)
-8. **`Invoice` no define «pagado»**: lo consume. (hoy **falso**: usa `hasPayments`)
+8. **`Invoice` no define «pagado»**: lo consume, y **sólo `paid` estricto habilita factura** —`pending` y
+   `partial` no, y **ningún rol autoriza una excepción**—. (hoy **falso**: usa `hasPayments`)
 9. **Caja no recalcula una regla monetaria**: la pide. (hoy **falso** en cinco copias)
 10. **El hecho histórico no se reinterpreta con la configuración actual.** (hoy **falso**: falta la tasa en el
     hecho)
+11. **Un equivalente histórico no demostrable no se inventa ni se afirma**: el cobro legacy sin snapshot queda
+    **unresolved** y **no** produce `paid` ni habilita una factura. (hoy **falso**: la lectura usaría la tasa
+    vigente, y la factura decide por conteo)
+12. **Un pedido con `unresolvedAmount > 0` nunca está `paid`.** (nuevo, `D-020`/`D-021`)
 
 ---
 
@@ -1015,7 +1063,7 @@ que `money` y `payments` **no se pueden separar** —`payments` no puede cerrar 
 | `ops/product/MODULE_ARCHITECTURE.md` | §4, §4.1, §5, §12 y §13: ownership de Money/Payments **resuelto** y deuda re-apuntada |
 | `ops/roadmap/PRODUCT-UX-ROADMAP.md` | Estado de los órdenes 4 y 5: auditados con dueño definido, sin renumerar ni reordenar |
 | `ops/roadmap/NEXT.md` | `ACTIVE` / `NEXT` / `LATER`: la próxima TASK, una sola |
-| `ops/roadmap/DECISIONS.md` | `D-016`…`D-020`: las decisiones de producto que esta fundación congela |
+| `ops/roadmap/DECISIONS.md` | `D-016`…`D-021`: las decisiones de producto que esta fundación congela |
 | `ops/CURRENT.md` | Estado: TASK cerrada, riesgos re-apuntados, qué sigue |
 | `ops/audit-backlog.md` | Hallazgos nuevos `A-72`…`A-80` y actualización de `A-68`/`A-69`/`A-70`/`A-71` |
 | `ops/tasks/START-HERE.md` | La secuencia inmediata (una sola próxima TASK) |
@@ -1042,12 +1090,20 @@ que `money` y `payments` **no se pueden separar** —`payments` no puede cerrar 
 
 - **Ninguna TASK previa**: `TASK-ORDERS-KITCHEN-FOUNDATIONS-001` y `-RUNTIME-002` están cerradas y
   desplegadas.
-- **Decisión del owner**: las tres decisiones de producto que la SPEC necesita para el runtime están
-  **congeladas en `D-016`…`D-020`** de esta TASK (medios de pago con tipo canónico y `mixed` derivado;
-  moneda base como operación explícita; catálogo conocido como conveniencia; entidades de cobro reutilizando
-  `banks`; snapshot obligatorio). **Ninguna** queda abierta como bloqueo.
+- **Decisión del owner**: **todas** las decisiones de producto que el runtime necesita están **congeladas** en
+  `D-016`…`D-021` de esta TASK (medios de pago con tipo canónico y `mixed` derivado; moneda base como
+  operación explícita; catálogo conocido como conveniencia; entidades de cobro reutilizando `banks`; snapshot
+  obligatorio en el cobro nuevo, legacy `unresolved` sin conversión retroactiva; y **factura sólo con `paid`
+  estricto, sin excepción por autorización**). **Ninguna** queda abierta como bloqueo.
 - **Credencial**: ninguna.
 - **Migración**: ninguna creada (enumeradas).
+
+## STOP CONDITIONS específicas de esta TASK
+
+Además de las diez de la política ([`delivery-e2e`](../../.agents/skills/delivery-e2e/SKILL.md) §3), esta TASK
+no tiene condiciones propias: es `docs-only` y no toca runtime, datos ni producción. **N/A — sólo las de la
+política.** En particular, **ninguna** de las decisiones de producto del runtime (factura sólo con `paid`
+estricto, tratamiento del legacy) queda como condición de parada: **ya están decididas** (`D-020`, `D-021`).
 
 ## ARCHIVOS PROBABLES (del runtime)
 
@@ -1064,7 +1120,7 @@ campos de dinero) · `prisma/schema.prisma` + migraciones nuevas.
 **Consumidores del radio de impacto** (a revisar en la review adversarial del runtime): las **~50**
 superficies que importan `formatCurrency`, las **7** del formato de moneda extranjera, las **5** del
 traductor de error, `dashboard` (resta `Refund.amount` crudo), el CSV de conciliación, el ticket de cliente,
-la factura impresa y los **12** `*.postgres.test.ts` existentes.
+la factura impresa y los **7** `*.postgres.test.ts` existentes.
 
 ---
 
@@ -1080,23 +1136,40 @@ nombre de archivo y aserción:
 2. `src/modules/payments/features/get-order-payment-status/get-order-payment-status.test.ts` — **rojo**:
    `C$100` sobre `C$365` ⇒ `status: "partial"`, `outstandingAmount: 265`, **una sola moneda** en
    `paidAmount`.
-3. `src/modules/payments/features/register-order-payment/register-order-payment.postgres.test.ts` —
+3. `src/modules/payments/features/get-order-payment-status/get-order-payment-status.test.ts` — **rojo
+   (legacy no demostrable, `D-020`)**: un cobro con `baseAmount` nulo y **sin dato persistido** que demuestre
+   su equivalencia ⇒ `status` **no** es `paid`, `unresolvedAmount > 0`, y **no** se usa la tasa vigente para
+   calcular `paidAmount`. Hoy: la lectura lo convertiría con la tasa de hoy y el pedido quedaría `paid`.
+4. `src/modules/payments/features/get-order-payment-status/get-order-payment-status.test.ts` — **rojo
+   (legacy demostrable, `D-020`)**: un cobro legacy cuyo equivalente **sí** está en un `Shift` ya cerrado
+   (esperado congelado en ambas monedas) ⇒ se resuelve con **ese** dato, no con la tasa vigente.
+5. `src/modules/payments/features/register-order-payment/register-order-payment.postgres.test.ts` —
    **rojo (PostgreSQL real)**: dos POST **simultáneos** con la **misma** `idempotencyKey` sobre un pedido de
    `C$365` con cobro parcial ⇒ **una** fila `Payment` y una sola respuesta 201/200; el segundo devuelve el
    mismo cobro. Hoy: dos filas (`A-71`).
-4. `src/modules/payments/features/register-order-payment/register-order-payment.postgres.test.ts` —
+6. `src/modules/payments/features/register-order-payment/register-order-payment.postgres.test.ts` —
    **rojo (PostgreSQL real)**: un cobro de `US$10` a tasa 36.5 sobre un pedido de `C$365` **no** deja cobrar
    otros `C$355`. Hoy: sí (`A-68`).
-5. `src/modules/payments/features/refund/request-refund/request-refund.postgres.test.ts` — **rojo
+7. `src/modules/payments/features/refund/request-refund/request-refund.postgres.test.ts` — **rojo
    (PostgreSQL real)**: dos requests simultáneos del mismo cupo ⇒ la suma de devoluciones **nunca** supera el
    cupo del cobro. Hoy: no está probado y no hay lock (`A-73`).
-6. `src/modules/invoices/features/emit-invoice/emit-invoice.test.ts` — **rojo**: un pedido con **un cobro
-   parcial** **no** factura. Hoy: factura.
-7. `src/app/(admin)/admin/pos/quick-sale/pos-payment.test.tsx` — **rojo**: dos filas de cobro en monedas
-   distintas muestran el «Cobrado» **convertido** a moneda base. Hoy: suma cruda (`A-69c`).
-8. `src/modules/money/domain/convert-to-base-currency.test.ts` — **rojo**: `shift-refund` usa la conversión
-   canónica; una devolución en USD a tasa 36.5 resta `C$730`, no `US$20`. Hoy: la regla propia existe **al
-   lado** (`A-69a`).
+8. `src/modules/invoices/features/emit-invoice/emit-invoice.test.ts` — **rojo**: un pedido con **un cobro
+   parcial** (`C$100` sobre `C$365`) **no** factura; el error dice que el pedido no está cobrado. Hoy:
+   factura.
+9. `src/modules/invoices/features/emit-invoice/emit-invoice.test.ts` — **rojo (negativo, `D-021`)**: el mismo
+   pedido **tampoco** factura cuando quien emite es el **owner** y el pedido está `partial` o `pending`:
+   **no hay excepción por autorización**. Hoy la puerta ni siquiera mira el saldo.
+10. `src/modules/invoices/features/emit-invoice/emit-invoice.test.ts` — **rojo (legacy, `D-020`/`D-021`)**:
+    un pedido con un cobro legacy **no demostrable** **no** factura, aunque su monto nominal cubra el total.
+11. `src/app/(admin)/admin/pos/quick-sale/pos-payment.test.tsx` — **rojo**: dos filas de cobro en monedas
+    distintas muestran el «Cobrado» **convertido** a moneda base. Hoy: suma cruda (`A-69c`).
+12. `src/modules/money/domain/convert-to-base-currency.test.ts` — **rojo**: `shift-refund` usa la conversión
+    canónica; una devolución en USD a tasa 36.5 resta `C$730`, no `US$20`. Hoy: la regla propia existe **al
+    lado** (`A-69a`).
+
+**Regla del arnés**: los **tres** casos de PostgreSQL real (5, 6 y 7) corren en `npm run test:postgres`, que
+**es un paso del job `migrations` del CI**. Un test que se saltea solo no existe. Los casos de legacy (3 y 4)
+y el de la puerta de factura (8, 9 y 10) son unitarios: **no** necesitan la base.
 
 ## ESTRATEGIA
 
@@ -1105,10 +1178,13 @@ revertir el orden obliga a rehacer:
 
 1. **`money` primero**: catálogo, moneda base, tasa con historial, conversión/redondeo únicos y formato con
    el código de la moneda. Sin esto, `payments` no tiene con qué convertir ni con qué congelar.
-2. **Snapshot de `Payment`** (columnas nullable, aditivas, sin backfill): el hecho pasa a explicarse solo.
+2. **Snapshot de `Payment`** (columnas nullable, aditivas, sin backfill) y la **obligatoriedad en la escritura
+   nueva** como regla de dominio/transacción: el hecho pasa a explicarse solo y el legacy queda declarado
+   `unresolved` en vez de convertirse con la tasa de hoy.
 3. **`payments`**: mover el puerto y los adaptadores, cerrar `A-68` con la conversión de `money`, y agregar
    `idempotencyKey` + índice único.
-4. **Estado financiero canónico** y los consumidores: `orders` (detalle/listado) e `invoices` (la puerta).
+4. **Estado financiero canónico** y los consumidores: `orders` (detalle/listado) e `invoices` (la puerta, con
+   **`paid` estricto** y el caso legacy `unresolved` que no factura, `D-021`).
 5. **Void y refund**: mover con sus invariantes intactas y **agregar** el límite atómico que falta.
 6. **Cash y POS**: consumir `money` en vez de recalcular; el arqueo deja de tener cinco traductores.
 7. **Configuración**: `/admin/finance` según la SPEC, con las puertas nominales y el catálogo de medios.
@@ -1180,7 +1256,9 @@ permiso) y **aplicadas en el servidor**. Ninguna se implementa en esta TASK. Reg
 ## MIGRACIÓN
 
 `N/A — esta TASK no toca el esquema`. Las **diez** migraciones que el runtime necesita están **enumeradas y
-no creadas** (§ *Migraciones*), todas aditivas, nullable y **sin backfill**.
+no creadas** (§ *Migraciones*), todas aditivas, **nullable en la columna** para no romper el legacy y **sin
+backfill**; la **obligatoriedad del snapshot es de la escritura nueva** (dominio/transacción), no un
+`NOT NULL` de la columna.
 
 ## OBSERVABILIDAD
 
@@ -1190,8 +1268,10 @@ no creadas** (§ *Migraciones*), todas aditivas, nullable y **sin backfill**.
 - **Auditoría de cobro/void/refund**: hoy el rastro durable es la propia fila (`voidedAt`/`voidedByUserId`/
   `voidReason`, `Refund.status`/`requestedByUserId`/`approvedByUserId`/`approvedAt`) y el `AdminAuditLog` del
   void es best-effort. Se conserva y se **agrega el asiento de refund** en su transacción.
-- **Reconstrucción del pasado**: con el snapshot (§ *Modelo conceptual*) un cobro se explica **sin** la
-  configuración actual.
+- **Reconstrucción del pasado**: con el snapshot (§ *Modelo conceptual*) un **cobro nuevo** se explica **sin**
+  la configuración actual. Un **cobro legacy** sin snapshot queda `unresolvedAmount` y se **declara como no
+  demostrable** en la proyección y en el detalle: el sistema dice «no se sabe», no inventa una equivalencia ni
+  la presenta como histórica (`D-020`).
 
 ---
 
@@ -1218,8 +1298,11 @@ en esta TASK.
 
 Reintroducir la suma cruda en `getPaymentSummary` ⇒ el test del saldo multi-moneda tiene que fallar.
 Quitar el `idempotencyKey` del `createPayment` ⇒ el test de PostgreSQL de doble request tiene que fallar.
-Quitar el lock de `request-refund` ⇒ el test de concurrencia del cupo tiene que fallar. Ninguna mutación se
-commitea.
+Quitar el lock de `request-refund` ⇒ el test de concurrencia del cupo tiene que fallar.
+**Convertir el legacy con la tasa vigente** en la proyección ⇒ el test de `unresolvedAmount` tiene que fallar
+(es la mutación que reintroduce la política vieja, `D-020`).
+**Aflojar la puerta de la factura a `hasPayments`** ⇒ el test negativo de `emit-invoice` con un cobro parcial
+tiene que fallar (`D-021`). Ninguna mutación se commitea.
 
 ## VALIDACIÓN (de esta TASK)
 
@@ -1242,35 +1325,43 @@ leyes una sola vez) y `agent-system-contract.test.ts` (`MODULE_ARCHITECTURE.md` 
    la referencia como contrato.
 3. La SPEC marca **FALTA** todo dato que el backend no tiene, y **no** dibuja ningún campo inventado.
 4. `A-68`, `A-69` y `A-71` están **reproducidos** con evidencia `archivo:línea` y ejemplo numérico.
-5. `canEmitInvoiceFor` / `hasPayments` está **reproducido** y queda declarado como dependencia de runtime.
+5. `canEmitInvoiceFor` / `hasPayments` está **reproducido** y la puerta objetivo queda declarada como
+   dependencia de runtime: **`paid` estricto**, sin excepción por autorización (`D-021`).
 6. Las **dos matrices** existen: `REUSE/MOVE/ADAPT/CONSOLIDATE/NEW/MISSING/OUT` y la de **ownership**, sin
    contradicciones entre ellas ni con `MODULE_ARCHITECTURE.md`.
-7. Los **cinco contratos** están escritos: estado financiero canónico, snapshot de `Payment`, idempotencia y
-   concurrencia, boundary con Cash y boundary con Invoices. Más los modelos conceptuales de moneda/tasa e
-   historial.
-8. La **estrategia legacy** prohíbe explícitamente el backfill y enumera el trato de cada dato legacy.
-9. Las **migraciones** están enumeradas (aditivas, nullable, sin backfill) y **no creadas**:
-   `git status` no muestra ningún archivo nuevo bajo `prisma/`.
-10. Los **archivos prohibidos de duplicar** están listados.
-11. `MODULE_ARCHITECTURE.md` resuelve el ownership de `money` y `payments` **sin** subir su techo de líneas
+7. Los **cinco contratos** están escritos: estado financiero canónico (con `unresolvedAmount` y `paid`
+   estricto), snapshot de `Payment` (obligatorio en la escritura nueva), idempotencia y concurrencia, boundary
+   con Cash y boundary con Invoices. Más los modelos conceptuales de moneda/tasa e historial.
+8. La **estrategia legacy** prohíbe el backfill **y la conversión retroactiva con la tasa vigente**, y
+   enumera el trato de cada dato legacy, incluido el caso `unresolved` que **no** produce `paid` ni factura.
+9. **Ninguna sección del brief contradice `D-020`/`D-021`**: ni *Legacy*, ni *OrderPaymentStatus*, ni
+   *Invoices*, ni *TEST ROJO*, ni *Migraciones*, ni los criterios de aceptación. Es la pasada de consistencia
+   que pide el owner, y se verifica leyendo el documento entero, no por grep de una frase.
+10. Las **migraciones** están enumeradas (aditivas, nullable en la columna, sin backfill) y **no creadas**:
+    `git status` no muestra ningún archivo nuevo bajo `prisma/`.
+11. Los **archivos prohibidos de duplicar** están listados.
+12. `MODULE_ARCHITECTURE.md` resuelve el ownership de `money` y `payments` **sin** subir su techo de líneas
     (≤ 422) y sin crear módulos en el código.
-12. `NEXT.md` (≤ 60 líneas) declara **una sola** próxima TASK y `ACTIVE` sigue en **Ninguno**.
-13. `CURRENT.md` (≤ 250 líneas) registra la TASK cerrada y re-apunta los riesgos, **sin** copiar un SHA de
+13. `NEXT.md` (≤ 60 líneas) declara **una sola** próxima TASK y `ACTIVE` sigue en **Ninguno**.
+14. `CURRENT.md` (≤ 250 líneas) registra la TASK cerrada y re-apunta los riesgos, **sin** copiar un SHA de
     `main` que su propio merge invalida.
-14. Los hallazgos nuevos están en `ops/audit-backlog.md` con **ID, tipo, severidad y evidencia**.
-15. Los cuatro checks de CI verdes: `verify`, `contracts`, `migrations`, `container`.
-16. **Ninguna** línea de `src/**` ni de `prisma/**` cambió.
+15. Los hallazgos nuevos están en `ops/audit-backlog.md` con **ID, tipo, severidad y evidencia**.
+16. Los cuatro checks de CI verdes: `verify`, `contracts`, `migrations`, `container`.
+17. **Ninguna** línea de `src/**` ni de `prisma/**` cambió, y el roadmap, la navegación y la UI quedan como
+    estaban: esta corrección es **documental**.
 
 ## REGRESIÓN
 
 El test que demuestra que un hallazgo **vuelve** si alguien reintroduce el defecto está enumerado en
 § *Mutation Check* y lo escribe el runtime. En esta TASK, la regresión que se fija es **documental**: la SPEC
-prohíbe el campo de texto que reinterpreta el pasado y la matriz prohíbe la segunda lógica financiera.
+prohíbe el campo de texto que reinterpreta el pasado, la política legacy prohíbe convertir con la tasa vigente
+(`D-020`), la puerta de factura queda en `paid` estricto sin excepción (`D-021`) y la matriz prohíbe la segunda
+lógica financiera.
 
 ## ROLLBACK
 
-`docs-only`: el rollback es **revertir el commit** en `main` y volver a disparar nada (no hay deploy). Las
-migraciones **no** existen, así que no hay nada que revertir en la base.
+`docs-only`: el rollback es **revertir el commit** en `main`; no hay deploy que disparar ni migración que
+deshacer (las migraciones **no** existen, sólo están enumeradas).
 
 ## DOCUMENTACIÓN
 
@@ -1279,9 +1370,10 @@ Todos los archivos de § *Scope IN*. `MEMORY.md` sólo si la lección es reutili
 ## MEMORY
 
 Una sola lección reutilizable, si el owner la aprueba al cerrar: **«un hecho financiero sin la tasa que lo
-produjo no se puede explicar después: la configuración tiene un dueño y el hecho la congela»**. Es la
-aplicación de la ley 7 al caso concreto que la rompió, y sirve para cualquier hecho futuro (promociones,
-impuestos). El resto es específico de esta TASK y va al brief.
+produjo no se puede explicar después: la configuración tiene un dueño y el hecho la congela — y lo que no se
+puede demostrar se declara, no se inventa con la tasa de hoy»**. Es la aplicación de la ley 7 al caso concreto
+que la rompió, y sirve para cualquier hecho futuro (promociones, impuestos). El resto es específico de esta
+TASK y va al brief.
 
 ## DEFINITION OF DONE
 
@@ -1289,8 +1381,10 @@ impuestos). El resto es específico de esta TASK y va al brief.
 - [x] `A-68`, `A-69`, `A-71` reproducidos con ejemplo; `canEmitInvoiceFor` reproducido.
 - [x] Matriz de clasificación y matriz de ownership.
 - [x] SPEC congelada + referencia versionada (hash verificado).
-- [x] Contratos: estado financiero, snapshot, idempotencia/concurrencia, boundaries, moneda/tasa/historial.
-- [x] Legacy sin backfill; migraciones enumeradas y **no** creadas.
+- [x] Contratos: estado financiero (con `unresolvedAmount` y `paid` estricto), snapshot, idempotencia/
+      concurrencia, boundaries, moneda/tasa/historial.
+- [x] Legacy: sin backfill **y sin conversión retroactiva**; migraciones enumeradas y **no** creadas.
+- [x] `D-020`/`D-021`: snapshot obligatorio, legacy `unresolved` y factura sólo con `paid` estricto.
 - [x] Archivos a mover/reutilizar y prohibidos de duplicar.
 - [x] Permisos nominales propuestos, no implementados.
 - [x] Roadmap / `NEXT` / `CURRENT` / backlog consistentes; **una** próxima TASK.

@@ -94,7 +94,7 @@ server-side**: ocultar una entrada no autoriza nada.
 
 **Divergencia con la dirección conceptual del roadmap: resuelta.** `TASK-IA-001` alineó el código con esa
 dirección (Resumen arriba, POS en Operación) y corrigió la entrada de **Aprobaciones**, que se ofrecía al
-manager cuando su pantalla exige `canApproveRefund` (era el hallazgo §12.11).
+manager cuando su pantalla exige `canApproveRefund`.
 
 ---
 
@@ -125,13 +125,13 @@ Un módulo nace con las cuatro capas (`domain` · `features` · `ports` · `adap
 | `coupons` | — | LEGACY: cascarón sin código (el motor vive en `orders`) |
 | `table-ordering` | — | LEGACY: cascarón sin código |
 
-**Fuera del MVP no significa borrado**: significa que **no se ofrece** en navegación ni en APIs públicas y
-no se reactiva sin aprobación explícita del owner.
+**Fuera del MVP no significa borrado**: significa que **no se ofrece** en navegación ni en APIs públicas y no
+se reactiva sin aprobación explícita del owner.
 
 ### 4.1 Arquitectura objetivo de módulos (registrada, **no creada**)
 
 El objetivo es que cada responsabilidad tenga **un dueño**, en migración **incremental** —nada de big-bang—.
-Ninguno de estos módulos existe todavía y **crearlos no es parte de `TASK-GOV-001`**: la secuencia está en el
+Ninguno existe todavía: **crearlos es runtime**, y la secuencia está en el
 [roadmap maestro](../roadmap/PRODUCT-UX-ROADMAP.md).
 
 | Módulo objetivo | Qué posee |
@@ -151,26 +151,27 @@ explican la operación en vez de reconstruir el pasado con la configuración de 
 
 ### 4.2 `money` y `payments`: auditados, con dueño y contratos (`TASK-MONEY-PAYMENTS-FOUNDATIONS-001`)
 
-Los órdenes **4** y **5** quedaron **auditados contra el código** y su ownership **resuelto**; los módulos se
+Los órdenes **4** y **5** quedaron **auditados contra el código** y su ownership **resuelto**: los módulos se
 **crean en runtime**. Lo que queda escrito y no se vuelve a decidir:
 
 - **`money`**: catálogo de monedas (código, nombre, símbolo, **decimales**, activa, personalizada), moneda
   base, locale, **tasa por par con vigencia e historial**, conversión, redondeo y formato. Hoy está repartido
   entre `shared/lib`, `business-settings`, `pos` y `cash-config`, con la aritmética canónica en
   `src/shared/lib/money-conversion.ts` (se **reutiliza**, no se reescribe).
-- **`payments`**: `Payment`, estado financiero (`pending`/`partial`/`paid`, `paidAmount`, `outstandingAmount`),
-  cobro parcial, void, refund como hecho financiero, **idempotencia del cobro** y **snapshots monetarios**
-  (monto, moneda, moneda base, tasa aplicada, equivalente, medio y su tipo canónico, entidad, referencia,
-  turno, timestamp). Hoy vive en `orders` y `pos`.
+- **`payments`**: `Payment`, estado financiero (`pending`/`partial`/`paid`, `paidAmount`, `outstandingAmount`,
+  `unresolvedAmount`), cobro parcial, void, refund como hecho financiero, **idempotencia del cobro** y
+  **snapshots monetarios** (monto, moneda, moneda base, tasa aplicada, equivalente, medio y su tipo canónico,
+  entidad, referencia, turno, timestamp). Hoy vive en `orders` y `pos`.
 - **`banks` se amplía, no se duplica**: gana el **tipo de entidad** (banco / adquirente / proveedor digital /
   otro). `PosTerminal` sigue siendo una dimensión propia.
 - **`cash` no se mueve a `payments`**: turno, caja física, apertura/cierre, conteos, movimientos, arqueo,
   diferencias, terminales y snapshots de cierre siguen siendo de Caja (orden **7**). Caja **consume** los
-  hechos de cobro y deja de recalcular la conversión.
-- **`invoices` consume `payments`**: `canEmitInvoiceFor` deja de decidir con `hasPayments` y consume el estado
-  financiero. `orders` lo consume y **no** vuelve a ser dueño de `Payment`.
+  hechos de cobro y no recalcula la conversión.
+- **`invoices` consume `payments`**: `canEmitInvoiceFor` deja de usar `hasPayments` y exige `paid` **estricto**
+  (`D-021`: `partial` no factura, sin excepción por autorización). `orders` lo consume y **no** es dueño de
+  `Payment`.
 
-**Contratos y SPEC**: estado financiero canónico, modelo de snapshot, idempotencia y concurrencia, boundaries y
+**Contratos y SPEC**: estado financiero canónico, snapshot, idempotencia y concurrencia, boundaries y
 migraciones enumeradas, en [`../tasks/TASK-MONEY-PAYMENTS-FOUNDATIONS-001.md`](../tasks/TASK-MONEY-PAYMENTS-FOUNDATIONS-001.md);
 la superficie, en [`../design/screens/finance.md`](../design/screens/finance.md) con su
 [referencia aprobada](../design/screens/finance-reference.html). Ahí está también lo **prohibido duplicar**:
@@ -311,7 +312,7 @@ Cada operación de negocio tiene **un** flujo canónico, y las demás superficie
 | **Localizar / revisar un pedido** | **Órdenes** |
 | **Preparar un pedido** | Órdenes / Cocina |
 | **Cobrar** | **POS** |
-| **Factura** | la capacidad existente de **Invoices** |
+| **Factura** | la capacidad existente de **Invoices** (sólo con el pedido en `paid` estricto) |
 
 Corolario que esta ley ya aplicó (`SCREEN-POS-QUICK-SALE-001.1`): el POS **no** busca pedidos del menú para
 cobrarlos. Esa búsqueda se eliminó de la pantalla porque la localización pertenece a Órdenes y el cobro a POS:
@@ -329,7 +330,7 @@ Qué se reutiliza:
 Qué es realmente nuevo:
 ```
 
-Sin ese bloque no se sabe si el trabajo era una capacidad nueva o una copia. La plantilla
+Sin ese bloque no se sabe si el trabajo era una capacidad nueva o una copia; la plantilla
 ([`../tasks/TEMPLATE.md`](../tasks/TEMPLATE.md)) lo pide.
 
 ### 10.4 Gate estructural
@@ -354,10 +355,9 @@ Una **feature nueva** consulta este documento antes de decidir dónde vive
 ([`ui-change`](../../.agents/skills/ui-change/SKILL.md)). Crear una **sección o un módulo** es una **decisión
 explícita** con la justificación de §10, no un efecto colateral; un **bugfix normal** no atraviesa este proceso.
 
-**Automatizado** (solo propiedades objetivas, en `src/shared/contracts/`): que esta fuente exista una sola
-vez, que `AGENTS.md`, [`ops/CURRENT.md`](../CURRENT.md) y [`ops/tasks/START-HERE.md`](../tasks/START-HERE.md)
-la citen, que las skills que crean capacidades la referencien, que sus propias referencias no apunten al
-vacío y que no crezca como un manual.
+**Automatizado** (solo propiedades objetivas, en `src/shared/contracts/`): que esta fuente exista una sola vez,
+que `AGENTS.md`, [`ops/CURRENT.md`](../CURRENT.md) y [`ops/tasks/START-HERE.md`](../tasks/START-HERE.md) la
+citen, que las skills que crean capacidades la referencien y que sus referencias no apunten al vacío.
 
 **NO automatizado a propósito**: decidir si una feature «pertenece» a Caja o a Órdenes. Eso necesita
 criterio y lo resuelve §2 + §5 + §10, con revisión humana.
@@ -384,7 +384,7 @@ se consumen desde todos: una sola fuente por cálculo.
 | 8 | **`/admin` no existe para roles sin Resumen**: `manager` y `kitchen` aterrizan en Órdenes (decisión de producto) | `A-10` |
 | 9 | **Dinero repartido y sin dueño único** (lo cierra el runtime de Money/Payments, órdenes 4 y 5): la conversión escrita cinco veces, el cobro de un pedido existente sin convertir (`A-68`), sin idempotencia (`A-71`) y sin la tasa en el hecho (`A-72`), la factura por conteo (`A-70`), las devoluciones sin límite atómico (`A-73`) y la ausencia del estado financiero del pedido | `A-68` · `A-70` · `A-71` · `A-72` · `A-73` · `A-75` · `A-80` |
 
-**Corregido en `TASK-IA-001`** (queda como registro de la clase de bug): Aprobaciones dibujaba la entrada con
+**Corregido en `TASK-IA-001`** (registro de la clase de bug): Aprobaciones dibujaba la entrada con
 `canManageCash` cuando la pantalla exige `canApproveRefund`.
 
 ---

@@ -85,9 +85,29 @@ interno, sin enums comerciales cerrados a Nicaragua y sin lógica financiera har
 `USD` y los bancos nicaragüenses son **configuración inicial**, no leyes del producto. Aprobada por el owner el
 2026-09-28.
 
-## D-020 — El cobro congela la tasa; sin backfill inventado
-Un `Payment` nuevo conserva para siempre monto, moneda, moneda base, **tasa aplicada**, equivalente en moneda
-base, medio y su tipo canónico, entidad, referencia, turno y timestamp. Los cobros históricos **no se
-rellenan**: las columnas nacen nullable y un consumidor que necesite el equivalente usa la tasa vigente y **lo
-declara**. **Prohibido** el backfill de montos, tasas o monedas, y prohibido inferir el tipo de una entidad por
-su nombre. Aprobada por el owner el 2026-09-28.
+## D-020 — El cobro congela la tasa; el legacy no se reinterpreta
+Un `Payment` **nuevo** congela **obligatoriamente** su monto original, su moneda, la **moneda base** vigente,
+la **tasa aplicada** y su **equivalente en moneda base** —más medio y su tipo canónico, entidad, referencia,
+turno y timestamp—: sin esos cinco, el cobro **no se firma**.
+
+Un `Payment` **legacy** sin snapshot monetario **no se reinterpreta con la tasa vigente**: usar hoy la tasa de
+hoy para afirmar cuál fue el equivalente histórico es inventar un hecho, no documentarlo. **Prohibido** el
+backfill de montos, tasas o monedas, y prohibido inferir el tipo de una entidad por su nombre.
+
+**Cuándo sí se puede resolver la equivalencia**: sólo cuando los **datos persistidos existentes** la
+demuestren (p. ej. el snapshot de un `Shift` que congeló su esperado en ambas monedas). Se resuelve de forma
+**explícita**, moneda por moneda, y **no** por una regla general de conversión hacia atrás.
+
+**Cuándo no**: el cobro queda **legacy / unresolved** y eso **no** produce automáticamente un estado `paid`
+ni habilita una factura nueva. Un pedido cuyo saldo no pueda demostrarse **no está cobrado** para el sistema.
+
+Aprobada por el owner el 2026-09-28.
+
+## D-021 — La factura exige `paid` estricto: no hay excepción por autorización
+`Invoice` exige el **estado financiero `paid` estricto**. `pending` y `partial` **no** habilitan factura, y
+**no existe excepción por autorización**: ningún rol —tampoco el owner— convierte un saldo pendiente en
+documento. Si en el futuro hace falta documentar un **abono**, será **otro tipo de documento**, no una factura
+parcial. Un pedido cuyo saldo **no se pueda demostrar** (cobro legacy sin snapshot, `D-020`) tampoco factura,
+porque nunca alcanza `paid`. La puerta rige **hacia adelante**: las facturas ya emitidas bajo la regla vieja
+—un cobro parcial alcanzaba— **no** se re-emiten ni se anulan retroactivamente. Aprobada por el owner el
+2026-09-28.
