@@ -60,6 +60,8 @@ function mapShift(shift: {
   tipsAmount?: Decimal | null;
   cashMovementsAmount?: Decimal | null;
   refundsAmount?: Decimal | null;
+  /** `TASK-MONEY-PAYMENTS-RUNTIME-001` (`A-72`) — la tasa que produjo el cierre. `null` en los viejos. */
+  exchangeRate?: Decimal | null;
   difference: Decimal | null;
   bankDifferenceAmount?: Decimal | null;
   differenceNotifiedAt?: Date | null;
@@ -104,6 +106,13 @@ function mapShift(shift: {
     difference: decimalOrNull(shift.difference),
     // Fase 3 del rediseño de Caja: el cuadre por banco congelado y la firma del aviso.
     bankDifferenceAmount: decimalOrNull(shift.bankDifferenceAmount ?? null),
+    /**
+     * `TASK-MONEY-PAYMENTS-RUNTIME-001` (`A-72`, `D-020`) — la tasa que produjo este cierre, congelada.
+     *
+     * `null` en los cierres anteriores a la columna: «no declarada». Un cierre viejo **no** se re-firma ni se
+     * recalcula con la tasa de hoy.
+     */
+    exchangeRate: decimalOrNull(shift.exchangeRate ?? null),
     differenceNotifiedAt: shift.differenceNotifiedAt
       ? shift.differenceNotifiedAt.toISOString()
       : null,
@@ -293,6 +302,15 @@ export class PrismaShiftRepository implements ShiftRepository {
               : roundCurrency(input.closingAmount - input.expectedAmount),
           // Fase 3 del rediseño de Caja: la diferencia del cuadre por banco queda congelada con el arqueo.
           bankDifferenceAmount: input.bankDifferenceAmount ?? null,
+          /**
+           * `TASK-MONEY-PAYMENTS-RUNTIME-001` (`A-72`, `D-020`) — **la tasa que produjo este cierre**.
+           *
+           * Va con el resto del arqueo porque es lo que hace explicable el `expectedByCurrency`: sin ella no se
+           * puede demostrar la equivalencia de un cobro legacy contra el esperado del turno, que es el único
+           * dato persistido que `D-020` acepta como prueba. La columna existía desde la migración y **nadie la
+           * escribía**: el snapshot estaba a medias.
+           */
+          exchangeRate: input.exchangeRate ?? null,
           ...(input.notes !== undefined ? { notes: input.notes } : {}),
         },
       });

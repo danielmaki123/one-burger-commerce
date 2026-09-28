@@ -481,4 +481,44 @@ describe("TASK-AUD-005 · atomicidad del cierre de turno (PostgreSQL real)", () 
 
     expect(payment?.shiftId).toBe(SHIFT_ID);
   });
+
+  /**
+   * `TASK-MONEY-PAYMENTS-RUNTIME-001` (`A-72`, `D-020`) — **el cierre congela la tasa que lo produjo**.
+   *
+   * El arqueo guarda su esperado **en ambas monedas** desde siempre (`expectedByCurrency`), pero no la tasa
+   * con la que convirtió: sin ella, el `expectedByCurrency` no alcanza para demostrar la equivalencia de un
+   * cobro legacy —`US$10` sólo se explica contra los `C$365` del esperado si se sabe a qué tasa se hizo—, que
+   * es el único dato persistido que `D-020` acepta como prueba. Es la tercera de las tres simetrías que el
+   * brief pide cerrar **hacia adelante**.
+   *
+   * La columna existía desde la migración y **nadie la escribía**: el snapshot estaba a medias. Por eso el
+   * test mira la **base** y no sólo la respuesta del caso de uso.
+   */
+  it("al cerrar congela la tasa vigente, para que el esperado en dos monedas quede explicable", async () => {
+    const prisma = getPrismaClient();
+
+    // La tasa vigente del negocio: es la que el cierre tiene que firmar. El arnés vacía la base, así que la
+    // fila única de la configuración se crea acá.
+    await prisma.businessSettings.upsert({
+      where: { id: "default" },
+      create: {
+        id: "default",
+        businessHours: [],
+        currencyCode: "NIO",
+        currencySymbol: "C$",
+        locale: "es-NI",
+        usdExchangeRate: 36.5,
+      },
+      update: { usdExchangeRate: 36.5 },
+    });
+
+    const cierre = await closeShift({ shiftId: SHIFT_ID, closingAmount: 0 }, await closeDeps());
+
+    expect(cierre.data?.exchangeRate, "el cierre no firmó la tasa con la que convirtió").toBe(36.5);
+
+    // Y queda **persistida**: es lo que hace que un cierre viejo pueda explicar la equivalencia.
+    const persistido = await prisma.shift.findUnique({ where: { id: SHIFT_ID } });
+
+    expect(Number(persistido?.exchangeRate)).toBe(36.5);
+  });
 });

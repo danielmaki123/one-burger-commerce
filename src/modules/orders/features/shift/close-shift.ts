@@ -244,6 +244,19 @@ async function closeLockedShift({
     // calcula contra lo que el sistema cobró **fuera del cajón** en la ventana del turno.
     bankCloses,
     bankDifferenceAmount: bank.amount,
+    /**
+     * `TASK-MONEY-PAYMENTS-RUNTIME-001` (`A-72`, `D-020`) — **la tasa que produjo este cierre**.
+     *
+     * El arqueo congela su esperado en ambas monedas desde siempre, pero **no la tasa que lo convirtió**:
+     * sin ella, el `expectedByCurrency` no alcanza para demostrar la equivalencia de un cobro legacy —`US$10`
+     * sólo se explica contra los `C$365` del esperado si se sabe a qué tasa se hizo—, que es el único dato
+     * persistido que `D-020` acepta como prueba. Es la tercera de las tres simetrías que el brief pide cerrar
+     * **hacia adelante**: los cierres ya firmados no se re-firman y quedan en `null`.
+     *
+     * La columna existía desde la migración y **nadie la escribía**: el snapshot estaba a medias. Lo encontró
+     * la revisión de que cada columna nueva tenga quien la llene.
+     */
+    exchangeRate: usdExchangeRate,
     notes: input.notes ?? shift.notes,
   });
 

@@ -77,6 +77,16 @@ export type CloseShiftInput = {
    * cuadre por banco (el turno no declaró ningún lote).
    */
   bankDifferenceAmount?: number | null;
+  /**
+   * `TASK-MONEY-PAYMENTS-RUNTIME-001` (`A-72`, `D-020`) — **la tasa que produjo este cierre**, congelada con
+   * el resto del arqueo.
+   *
+   * El cierre ya congelaba `expectedByCurrency` —el esperado en ambas monedas— pero **no la tasa que lo
+   * convirtió**: sin ella, el único dato que demuestra la equivalencia de un cobro legacy quedaba a medias,
+   * porque `10 USD` sólo se explica contra los `C$365` del esperado si se sabe a qué tasa. `null` = no
+   * declarada (los cierres anteriores a la columna), y no se re-firman.
+   */
+  exchangeRate?: number | null;
   notes?: string | null;
 };
 
