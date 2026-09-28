@@ -9,7 +9,9 @@ en qué estado está el sistema en pocos minutos.
 corto: si crece como un diario, dejó de servir.
 
 > **Última actualización**: 2026-09-29, por **`TASK-MONEY-PAYMENTS-RUNTIME-001`** (Money / Payments runtime,
-> `high-risk-e2e`, **en PR [#85](https://github.com/danielmaki123/one-burger-commerce/pull/85)**): creó los
+> `high-risk-e2e`, **mergeada** en `main` = `5082ea5`, PRs
+> [#85](https://github.com/danielmaki123/one-burger-commerce/pull/85) y
+> [#87](https://github.com/danielmaki123/one-burger-commerce/pull/87)): creó los
 > módulos **`money`** (catálogo de monedas, moneda base, FX con vigencia e historial, conversión, redondeo y
 > formato) y **`payments`** (snapshot obligatorio del cobro, estado financiero canónico, idempotencia durable,
 > catálogo de medios con tipo canónico), las **nueve migraciones** aditivas y la superficie
@@ -160,7 +162,7 @@ de un pedido existente sin clave de idempotencia).
 
 ## 4. Trabajo actual
 
-**`TASK-MONEY-PAYMENTS-RUNTIME-001` — Money / Payments runtime (`high-risk-e2e`): IMPLEMENTADA, EN PR #85.**
+**`TASK-MONEY-PAYMENTS-RUNTIME-001` — Money / Payments runtime (`high-risk-e2e`): MERGEADA, DEPLOY PENDIENTE.**
 
 Los módulos `money` y `payments` existen con sus cuatro capas; las **nueve migraciones** están aplicadas y sin
 `drift` contra `schema.prisma` sobre PostgreSQL 17; `/admin/finance` tiene sus tres vistas; la factura exige
