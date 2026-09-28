@@ -31,9 +31,9 @@
 | Implementación con TDD, rojo observado, mutación y PostgreSQL real | **Hecho** |
 | PR + CI verde (los cuatro checks) | **Hecho**: PR #85 — `verify`, `contracts`, `migrations`, `container` |
 | Merge `--squash` a `main` | **Hecho**: `2cbda9b` |
+| **Auditoría independiente** (implementación vs SPEC/reference) | **Hecho** (PR #87, `5082ea5`): encontró **un crash**, **un desborde** y una **desviación material** de composición, y los corrigió. Ver § *Visual QA de Finanzas* |
 | **Deploy** (`deployService`, `forceRebuild`) | **BLOQUEADO**: `EASYPANEL_TOKEN` **vacío** en el entorno → **Stop Condition 6** («secreto o permiso externo inexistente») |
 | Health / readiness / smokes / QA de producción | **No ejecutado**: depende del deploy |
-| Auditoría independiente (implementación vs SPEC/reference) | **Parcial**: falta la comparación visual de `/admin/finance` contra `finance-reference.html` en los cuatro viewports |
 | `CURRENT.md` / `NEXT.md` / backlog | **Hecho** |
 
 **Lo que el CI encontró y el local no**: el chequeo de idempotencia del cobro corría **antes** del lock, así
@@ -41,6 +41,30 @@ que dos requests **simultáneos** con la misma clave lo pasaban los dos y el seg
 único. Se corrigió moviendo el chequeo **después** del lock y agregando la recuperación del `P2002` **fuera**
 de la transacción (`25P02`), con el procedimiento que fija `money-change` § CONCURRENCIA. Evidencia en el job
 `migrations` del PR y reproducido en local contra una base **limpia**.
+
+### Visual QA de Finanzas (navegador real, PR #87)
+
+La comparación de la implementación contra la SPEC y contra `finance-reference.html` **no la reemplaza el
+merge**, y encontró tres cosas que ningún test veía:
+
+1. **La vista de Monedas y tasas se caía** con `config.settings.activeRates.find is not a function`:
+   `activeRates` es el **mapa** `moneda → tasa` de la conversión (`{ USD: 36.5 }`) y el cliente lo trataba
+   como una lista. Con una tasa registrada —es decir, siempre— la pestaña moría; sólo la primera instalación,
+   con el mapa vacío, lo tapaba. La ruta se probaba con la configuración **mockeada** y el tipo del cliente
+   era una afirmación, no un contrato.
+2. **Scroll horizontal a 375 px**: medido, `scrollWidth` 380 contra `clientWidth` 375. Los tres rótulos con su
+   contador no entraban en una fila.
+3. **Desviación material de composición**: la referencia congela **tablas con columnas**
+   (`medio · tipo · entidad · monedas · estado · acciones`), el **KPI de cabecera**, el **buscador**, la
+   columna **«utilizada por N medios de pago»** y el **interruptor de estado**; la implementación tenía filas
+   en tarjetas, sin columnas ni buscador.
+
+Los tres se corrigieron en PR #87 (`5082ea5`), con `AdminTable` registrado en
+`src/shared/ui/registry.json` y `tests/e2e/admin-finance.spec.ts` (**6/6**) cubriendo los cuatro viewports del
+contrato, la conmutación de las tres vistas y que **`mixed` no se ofrece** como tipo (`D-017`).
+
+**Desviación declarada que queda**: el `···` abre el modal de edición existente en lugar de un menú
+desplegable —la referencia no congela el menú y un desplegable nuevo exigiría registrarlo y diseñarlo—.
 
 ---
 
