@@ -5,7 +5,8 @@
 > [`NEXT.md`](../roadmap/NEXT.md). **Mergeada** en `main` (PRs
 > [#85](https://github.com/danielmaki123/one-burger-commerce/pull/85),
 > [#87](https://github.com/danielmaki123/one-burger-commerce/pull/87) y
-> [#89](https://github.com/danielmaki123/one-burger-commerce/pull/89)) con los **cuatro checks del CI en
+> [#89](https://github.com/danielmaki123/one-burger-commerce/pull/89) y
+> [#91](https://github.com/danielmaki123/one-burger-commerce/pull/91)) con los **cuatro checks del CI en
 > verde**, y **desplegada por el owner** el 2026-09-28 (`build-20260928-200305`).
 >
 > **Base `main`**: `8f535d587c36bf6d63a3411e38b467dc093ff558` (`8f535d5`, 2026-09-28) · **Rama**:

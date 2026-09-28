@@ -15,12 +15,12 @@ corto: si crece como un diario, dejó de servir.
 > módulos **`money`** (catálogo de monedas, moneda base, FX con vigencia e historial, conversión, redondeo y
 > formato) y **`payments`** (snapshot obligatorio del cobro, estado financiero canónico, idempotencia durable,
 > catálogo de medios con tipo canónico), las **nueve migraciones** aditivas y la superficie
-> **`/admin/finance`**. Cerró **`A-68`**, **`A-71`**, **`A-72`**, **`A-73`**, **`A-74`** y **`A-75`**;
-> **`A-69`** quedó **parcial** (la suma cruda multi-moneda de `pos-payment.tsx` sigue abierta). La factura
-> exige **`paid` estricto** (`D-021`). **Sin deploy todavía**: el tramo de release cierra cuando el CI esté
-> verde. Antes: `TASK-MONEY-PAYMENTS-FOUNDATIONS-001` (`docs-only`, mergeada, sin deploy), que dejó la
-> auditoría, el ownership, los contratos y el Design Freeze de Finanzas. **Vigente: el Default E2E Delivery
-> Contract** ([`.agents/skills/delivery-e2e/SKILL.md`](../.agents/skills/delivery-e2e/SKILL.md)).
+> **`/admin/finance`**. Cerró **`A-68`**, **`A-69`**, **`A-71`**, **`A-72`**, **`A-73`**, **`A-74`** y
+> **`A-75`** —enteros, con test y mutación—. La factura exige **`paid` estricto** (`D-021`). **Desplegada por
+> el owner** el 2026-09-28 (`build-20260928-200305`). Antes: `TASK-MONEY-PAYMENTS-FOUNDATIONS-001`
+> (`docs-only`, mergeada, sin deploy), que dejó la auditoría, el ownership, los contratos y el Design Freeze
+> de Finanzas. **Vigente: el Default E2E Delivery Contract**
+> ([`.agents/skills/delivery-e2e/SKILL.md`](../.agents/skills/delivery-e2e/SKILL.md)).
 
 ---
 
@@ -165,7 +165,7 @@ autenticada de `/admin/finance` en producción, que necesita las credenciales de
 
 Los módulos `money` y `payments` existen con sus cuatro capas; las **nueve migraciones** están aplicadas y sin
 `drift` contra `schema.prisma` sobre PostgreSQL 17; `/admin/finance` tiene sus tres vistas; la factura exige
-`paid` estricto; y los hallazgos `A-68`, `A-71`, `A-72`, `A-73`, `A-74` y `A-75` están cerrados con test.
+`paid` estricto; y los hallazgos `A-68`, `A-69`, `A-71`, `A-72`, `A-73`, `A-74` y `A-75` están cerrados con test.
 La evidencia completa (rojos observados, mutaciones, PostgreSQL real y las excepciones) está en
 [`tasks/TASK-MONEY-PAYMENTS-RUNTIME-001.md`](tasks/TASK-MONEY-PAYMENTS-RUNTIME-001.md).
 
