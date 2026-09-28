@@ -10,8 +10,6 @@
  *
  * Es una sonda de **lectura**: no escribe nada ni necesita credenciales.
  */
-import { readFileSync } from "node:fs";
-
 const HOST = process.env.PROD_HOST ?? "admin.oneburgernic.com";
 
 async function get(path: string): Promise<string> {
