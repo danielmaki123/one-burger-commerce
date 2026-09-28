@@ -114,6 +114,15 @@ Estados: `reportado` · `a reproducir` · `en curso` · `cerrado` · `no-repro` 
 | A-70 | **La factura no tiene puerta de rol ni alcance por sucursal**: el `GET` de `api/admin/orders/[id]/invoice` sólo exige sesión (`route.ts:18`) y el `POST` agrega `canUsePOS` en la composición (`invoice-composition.ts:39-41`), pero **ninguna** de las dos aplica `requirePosLocation`: cualquier rol con sesión lee la factura de un pedido de **otra sucursal**, y `kitchen` además la imprime (`(admin)/admin/orders/[id]/invoice/print/page.tsx:29` pasa con `canManageOrderOperations`). Sumado: una factura **anulada se imprime sin marca** (`invoice-print-sheet.tsx` no referencia `voided`; sí se marca en el Historial) | bug (autorización / documento) | P2 | `reportado` (auditoría de `TASK-ORDERS-KITCHEN-FOUNDATIONS-001`) | — |
 | A-71 | **El cobro de un pedido existente no tiene clave de idempotencia**: `Payment` no tiene `idempotencyKey` (`schema.prisma:836-874`) y el cuerpo de `POST /api/admin/orders/[id]/payment` tampoco (`payment-composition.ts:33-42`). El único tope es el saldo (`register-order-payment.ts:127,133`), así que el reintento de un cobro **parcial** registra la misma plata dos veces mientras la suma no alcance el total. El alta del pedido **sí** tiene clave (`Order.idempotencyKey`); el cobro no | bug (dinero / idempotencia) | P2 | `reportado` (auditoría de `TASK-ORDERS-KITCHEN-FOUNDATIONS-001`) | — |
 | A-67 | **Cobrar un pedido del menú quedó sin superficie ni cobertura E2E**: `SCREEN-POS-QUICK-SALE-001.1` eliminó del POS la búsqueda y el cobro de un pedido del menú (`pos-order-charge-panel` + `pos-order-charge-action` + su caso E2E N3) porque localizar pedidos pertenece a **Órdenes** (*one canonical flow*). El flujo canónico futuro —Órdenes → Pedido → Cobrar en POS— es **Fase 2** y no se inició: hoy esa venta se cobra por API/detalle, sin pantalla propia. Es deuda **de producto**, no un bug: se cierra con la TASK que resuelva el cobro desde Órdenes | producto / cobertura | P2 | `reportado` (`SCREEN-POS-QUICK-SALE-001.1`) | — |
+| A-72 | **El hecho financiero no congela la tasa de cambio**: `usdExchangeRate` aparece **una sola vez** en `prisma/schema.prisma` (`:833`, en `BusinessSettings`): `Payment`, `Refund` y `Shift` congelan sus **montos** convertidos pero **no la tasa que los produjo**. Efecto verificado en código: el reintento idempotente de una venta re-suma los `Payment` guardados con la **tasa vigente** (`pos-sale.ts:84-102` ← `register-pos-sale.ts:173`), no con la del cobro. Viola la ley 7 (`AGENTS.md`): reconstruir el pasado con la configuración de hoy es un bug de dinero | deuda / dato (dinero) | P2 | `reportado` (auditoría de `TASK-MONEY-PAYMENTS-FOUNDATIONS-001`) | — |
+| A-73 | **Pedir y resolver una devolución no tienen límite atómico ni lock**: `request-refund.ts:62-134` y `review-refund.ts:53-88` corren con adaptadores de **cliente raíz**, sin `$transaction` (`refund-request-composition.ts:34-36`). Dos POST simultáneos del mismo cobro leen el mismo cupo (`:79-85`) y los dos insertan: «no se devolver más de lo cobrado» queda como un `if` sobre una lectura. `review-refund` sí está protegido por el `WHERE status:'pending'`. **No existe ningún `*.postgres.test.ts` de devoluciones**: la atomicidad no está probada contra la base | bug (dinero / concurrencia) | P1 | `reportado` (auditoría de `TASK-MONEY-PAYMENTS-FOUNDATIONS-001`) | — |
+| A-74 | **El dashboard resta devoluciones crudas ignorando su moneda**: `get-admin-overview-performance.ts:98-101` lee `Refund.amount` (filtra `status:"approved"` en `:83`) y lo resta de `Order.total` sin mirar `refund.currency`. Una devolución de US$20 sobre un pedido en córdobas resta 20 al neto en vez de su equivalente. Es la contracara de `A-58` (que ya cerró el *qué* se descuenta) y un caso de `A-69` que quedó fuera de su lista | bug (dinero / KPI) | P2 | `reportado` (auditoría de `TASK-MONEY-PAYMENTS-FOUNDATIONS-001`) | — |
+| A-75 | **El saldo del pedido se compara contra el total leído fuera del lock**: `register-order-payment.ts:87` lee el pedido **antes** de la transacción y compara el tope contra ese `total` (`:127,133`), mientras el `total` que devuelve `lockOrderRow` (`prisma-order-repository.ts:209-211`) se **descarta** (`:116` sólo comprueba verdad). Si el total cambia entre la lectura y el lock, el tope usa el número viejo. Es de la misma familia que `A-68` y se cierra en la misma TASK de runtime | bug (dinero / concurrencia) | P2 | `reportado` (auditoría de `TASK-MONEY-PAYMENTS-FOUNDATIONS-001`) | — |
+| A-76 | **`void` no mira el turno ni la factura**: `void-payment.ts:86-116` sólo comprueba existencia, `voidedAt` y devoluciones vivas. Se puede anular un cobro de un turno **ya cerrado**: el snapshot congelado del `Shift` (`expectedAmount`, `paymentMix`, `refundsAmount`) **no cambia** pero el detalle (`listPaymentsByShift`, `listUnattributedPaymentsInRange`) y la conciliación por ventana **sí** — el histórico se reescribe por un lado y no por el otro. Y un `Invoice` en `emitted` sigue afirmando que ese cobro existió. Tampoco aplica alcance por sucursal (sólo el rol owner) | bug (dinero / auditoría) | P2 | `reportado` (auditoría de `TASK-MONEY-PAYMENTS-FOUNDATIONS-001`) | — |
+| A-77 | **`Payment.tip` es siempre 0 en producción**: ningún `createPayment` productivo lo pasa (`commit-sale.ts:219-233`, `register-order-payment.ts:162-172`) y el POS fuerza `tipOptIn: false` (`commit-sale.ts:189`). La propina real vive en `Order.tipAmount`. `getPaymentSummary.totalTip` y las ramas de propina de `shift-payment-mix.ts:85-91` **sólo se ejercitan desde tests**: `Payment.tip` es un campo muerto que parece vivo | deuda / dato | P3 | `reportado` (auditoría de `TASK-MONEY-PAYMENTS-FOUNDATIONS-001`) | — |
+| A-78 | **`canPrintCashDocuments` no es frontera de autorización de servidor**: su único call site es `(admin)/admin/cash/page.tsx:146`, que decide si se **dibuja** el botón. No hay ruta ni composición que la aplique, contra la regla dura de `AGENTS.md` («una UI nunca es por sí sola una frontera de autorización»). (Corrige la deuda §12.6 de `MODULE_ARCHITECTURE.md`, que la daba por usada «sólo en la pantalla» como si alcanzara) | bug (autorización) | P2 | `reportado` (auditoría de `TASK-MONEY-PAYMENTS-FOUNDATIONS-001`) | — |
+| A-79 | **Los cuatro `runIn*Transaction` están escritos cuatro veces**: `runInSaleTransaction` (`production-pos-sale.ts:74-131`), `runInOrderPaymentTransaction` (`payment-composition.ts:123-136`), `runInVoidPaymentTransaction` (`void-payment-composition.ts:45-56`) y `runInShiftTransaction` (`production-pos-shift.ts:68-91`) repiten la misma forma con el mismo `{ timeout: 15_000, maxWait: 10_000 }`. Un cambio de timeout, de aislamiento o de forma de inyectar el alcance hay que hacerlo en cuatro lugares | deuda | P3 | `reportado` (auditoría de `TASK-MONEY-PAYMENTS-FOUNDATIONS-001`) | — |
+| A-80 | **No queda asiento de auditoría por cambio de tasa ni de moneda base**: `AdminAuditLog` existe y el cierre de caja firma sus operaciones, pero registrar una tasa (`usdExchangeRate`) o cambiar la moneda base se guardan como un `UPDATE` común sobre `BusinessSettings` (`update-business-settings.ts:24-57`). Es la operación que cambia el significado de la plata y no dice quién la hizo ni cuándo | deuda / auditoría (dinero) | P3 | `reportado` (auditoría de `TASK-MONEY-PAYMENTS-FOUNDATIONS-001`) | — |
 | **AUD-007** (TASK del roadmap) | **El arranque de produccion no era fail-closed con `APP_ENV`**: con un valor distinto de `production` el contenedor arrancaba igual (solo un aviso por consola) y los endpoints internos de staging (`/api/internal/staging/**`, que crean administradores y corren seeds) dejaban de estar cerrados. Ahora el entrypoint **no arranca** con `APP_ENV` distinto de `production` y hay un contrato que lo fija corriendo el entrypoint real | auth/datos | P1 | `cerrado` (2026-09-25) | rama `fix/task-aud-007-production-fail-closed` |
 | **AUD-008** (TASK del roadmap) | **Aislamiento de endpoints internos**: las 6 rutas de `/api/internal/**` ya cerraban por entorno (las 5 de staging con `APP_ENV === "staging"`) y por secreto con `timingSafeEqual`. Se verifico en produccion (GET -> 405, nada se ejecuta) y se **congelo como guardrail**: el contrato recorre todas las rutas y falla si una nueva nace sin gate por entorno o sin comparacion de secreto segura | auth/datos | P1 | `cerrado` (2026-09-25) | rama `fix/task-aud-008-internal-endpoint-isolation` |
 | A-58 | **CERRADO** (2026-09-25, TASK-AUD-015): el KPI comercial no descontaba los reembolsos: `get-admin-overview-performance` trae los pedidos con `status IN COMPLETED_ORDER_STATUSES` y suma `Order.total` mas los `lineTotal` de sus items; un pedido **cancelado** queda fuera (no es estado terminal), pero un pedido **reembolsado** conserva su estado terminal y su total completo, asi que **infla ventas, ingresos, ticket promedio y el ranking por producto/sucursal/cajero** con plata que se devolvio. La decision del owner (2026-09-25) prohibe exactamente eso: «una venta anulada/reembolsada no puede inflar ventas, ingresos, ticket promedio ni ventas por producto/sucursal/cajero», y los refunds/voids solo pueden aparecer en metricas propias de devoluciones/anulaciones. Evidencia del fixture actual: `get-admin-overview-performance.test.ts` incluye un pedido `cancelled` (excluido) y **ningun caso con reembolso**. Punto exacto: `src/modules/dashboard/features/get-admin-overview-performance/get-admin-overview-performance.ts` (seleccion de pedidos y suma de `total`/`lineTotal`) | dinero / KPI | P1 | `cerrado` (2026-09-25) | rama `fix/task-aud-015-net-revenue` |
@@ -849,6 +858,62 @@ si los documentos pasan su tope de líneas o si el catálogo deja de tener la li
 
 **Criterio de bajada**: el archivo que recibe su test borra su fila de `EXCEPTIONS` (si sobra, el
 contrato falla). **Ninguna fila nueva se agrega**: eso es lo que el gate impide.
+
+## 2c. Hallazgos de la auditoría de Money / Payments (`TASK-MONEY-PAYMENTS-FOUNDATIONS-001`, 2026-09-28)
+
+Auditoría **read-only** sobre `main` `9104808`. Registra lo que apareció al consolidar Money/Payments; **nada
+se corrige acá** (regla del repo: lo que aparece durante una auditoría se documenta). El brief con la
+evidencia completa, las matrices y los contratos objetivo es
+[`tasks/TASK-MONEY-PAYMENTS-FOUNDATIONS-001.md`](tasks/TASK-MONEY-PAYMENTS-FOUNDATIONS-001.md).
+
+### A-72 · El hecho financiero no congela la tasa — `reportado`
+`grep` de `usdExchangeRate` en `prisma/schema.prisma` → **sólo `:833`** (fila única de `BusinessSettings`).
+`Payment` y `Refund` no tienen `exchangeRate`/`baseAmount`/`baseCurrency`; `Shift` congela `expectedAmount`,
+`expectedByCurrency`, `cashSalesAmount`, `refundsAmount` y `paymentMix` pero **no la tasa** que los produjo. La
+consecuencia medida: `recordedPaymentsTotalInBusinessCurrency` (`pos-sale.ts:84-102`) re-suma los cobros
+guardados con la tasa **vigente** que le pasa `register-pos-sale.ts:173`. Es la ley 7 rota en el lugar exacto
+donde importa. **Lo cierra la TASK de runtime de Money/Payments** (migraciones 4, 9 y 10 del brief).
+
+### A-73 · Devoluciones sin límite atómico — `reportado`
+`request-refund.ts:79-94` calcula el cupo leyendo las devoluciones del cobro y **después** inserta, sin
+transacción ni lock (`refund-request-composition.ts:34-36` usa adaptadores raíz). Dos requests simultáneos leen
+el mismo cupo y los dos pasan el `if`. `review-refund` está protegido por el `WHERE status:'pending'`
+(`prisma-refund-repository.ts:153-164`), así que el hueco es sólo el pedido. **Test que lo probaría** (contra
+PostgreSQL real, hoy inexistente): dos POST simultáneos del mismo cupo ⇒ la suma de devoluciones nunca supera
+el cupo del cobro.
+
+### A-74 · El dashboard resta devoluciones crudas — `reportado`
+`get-admin-overview-performance.ts:98-101` filtra `status:"approved"` (`:83`) y resta `Refund.amount` de
+`Order.total` sin mirar `refund.currency`, que es **NOT NULL** en el modelo (`prisma/schema.prisma:1221`)
+justamente para que una devolución en dólares no se reste como córdobas. `A-58` cerró *qué* se descuenta;
+esto es *en qué moneda*.
+
+### A-75 · El tope del saldo usa el total leído fuera del lock — `reportado`
+`register-order-payment.ts:87` lee el pedido antes de abrir la transacción; `:127` y `:133` comparan contra
+ese `total`; y el `total` que devuelve `lockOrderRow` (`prisma-order-repository.ts:209-211`) se descarta en
+`:116`. La ventana entre la lectura y el lock usa un número que puede haber cambiado.
+
+### A-76 · `void` no mira el turno ni la factura — `reportado`
+`void-payment.ts:86-116` verifica existencia, `voidedAt` y devoluciones vivas. Un cobro de un turno **cerrado**
+se puede anular: el snapshot del `Shift` no cambia pero las lecturas por ventana sí, así que el arqueo
+congelado y el detalle dejan de coincidir. Una factura emitida tampoco se marca.
+
+### A-77 · `Payment.tip` es un campo muerto que parece vivo — `reportado`
+Ningún camino de producción escribe `tip ≠ 0` (`commit-sale.ts:219-233`, `register-order-payment.ts:162-172`)
+y el POS fuerza `tipOptIn: false` (`:189`). La propina real es `Order.tipAmount`. Las ramas de propina del
+resumen del turno sólo se ejercitan desde tests: quien lea `totalTip` va a creer que mide algo.
+
+### A-78 · `canPrintCashDocuments` no tiene puerta de servidor — `reportado`
+Único call site `(admin)/admin/cash/page.tsx:146` (dibuja o no el botón). No hay ruta ni composición que la
+aplique.
+
+### A-79 · Cuatro runners de transacción casi idénticos — `reportado`
+`runInSaleTransaction`, `runInOrderPaymentTransaction`, `runInVoidPaymentTransaction` y
+`runInShiftTransaction`, con el mismo `{ timeout: 15_000, maxWait: 10_000 }` en los cuatro.
+
+### A-80 · Sin asiento de auditoría para el cambio de tasa o de moneda base — `reportado`
+`update-business-settings.ts:24-57` guarda los cuatro campos de dinero como un `UPDATE` común. La operación
+que cambia el significado de la plata no deja rastro de actor ni de momento.
 
 ## 3. Registro de lo cerrado
 

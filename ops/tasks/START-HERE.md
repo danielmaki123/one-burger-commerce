@@ -72,15 +72,18 @@ falta reconstruir por qué algo es como es. Es lo que evita leer 3.000 líneas p
   Ese archivo dice qué sigue, con su objetivo, prioridad, riesgo y dependencia.
 - **Arquitectura de producto (hoy y objetivo)**: [`../product/MODULE_ARCHITECTURE.md`](../product/MODULE_ARCHITECTURE.md).
 - **Plantilla obligatoria de TASK**: [`TEMPLATE.md`](TEMPLATE.md).
-- **Lo que sigue**: **`Money / Payments ownership`** (órdenes 4 y 5 del roadmap maestro) y después
-  **`Pedidos runtime`** (5b), que es donde vive el recorte financiero del detalle. **`Cocina runtime`**
-  (orden 3b) **ya está cerrada y desplegada** (`build-20260928-035241` sobre `72b22b5`, con QA autenticado de
-  producción en los cuatro viewports). El alcance exacto y lo que está **prohibido duplicar** están en
-  [`../roadmap/NEXT.md`](../roadmap/NEXT.md); las specs congeladas, en
-  [`../design/screens/orders.md`](../design/screens/orders.md) (Pedidos) y
-  [`../design/screens/kitchen.md`](../design/screens/kitchen.md) (Cocina), con sus referencias aprobadas por
-  el owner el 2026-09-27. **No se arranca `Resumen`** (pasó al orden 16) ni una «POS Fase 2» (esa fase ya no
-  existe).
+- **Lo que sigue**: **una sola próxima TASK**, `Money / Payments runtime` (órdenes **4 y 5** del roadmap
+  maestro, **una sola entrega**). Sus **fundaciones ya están cerradas** (`TASK-MONEY-PAYMENTS-FOUNDATIONS-001`,
+  `docs-only`): auditoría real de los dos subsistemas, ownership resuelto, contratos (estado financiero
+  canónico, snapshot de `Payment`, idempotencia, boundaries), legacy sin backfill, migraciones enumeradas y
+  **Design Freeze de Finanzas** (`ops/design/screens/finance.md` + `finance-reference.html`, referencia
+  aprobada por el owner el 2026-09-27). Después **`Pedidos runtime`** (5b), que es donde vive el recorte
+  financiero del detalle. **`Cocina runtime`** (orden 3b) **ya está cerrada y desplegada**. El alcance exacto y
+  lo que está **prohibido duplicar** están en `ops/roadmap/NEXT.md` y en el brief de fundaciones; las specs
+  congeladas, en [`../design/screens/orders.md`](../design/screens/orders.md),
+  [`../design/screens/kitchen.md`](../design/screens/kitchen.md) y
+  [`../design/screens/finance.md`](../design/screens/finance.md). **No se arranca `Resumen`** (pasó al orden
+  16) ni una «POS Fase 2» (esa fase ya no existe).
 - **Lo que está pausado**: el **rediseño del menú público** (9 pantallas del mock archivado) espera
   confirmación explícita del owner, y antes de tocar el sistema de diseño hay que revisar la rama
   `feat/design-system` del otro dev (`A-36`).

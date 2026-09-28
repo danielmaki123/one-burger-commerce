@@ -7,17 +7,22 @@
 
 ## ACTIVE
 
-**Ninguno.** `TASK-ORDERS-KITCHEN-RUNTIME-002` (Cocina runtime) **cerró entera**: mergeada (`main`, PR #79 +
-#80), **desplegada** (`build-20260928-035241` sobre `72b22b5`), con health/readiness, los dos smokes y el
-**QA autenticado de producción** en los cuatro viewports. Estado y evidencia:
-[`../CURRENT.md`](../CURRENT.md) §1 y §4. **Una sola TASK activa por vez**: la próxima no se abre sin
+**Ninguno.** `TASK-MONEY-PAYMENTS-FOUNDATIONS-001` (fundaciones de Money / Payments) **cerró entera**:
+mergeada (`main`), `docs-only`, **sin deploy** — no tocó runtime, Prisma, migraciones, APIs ni navegación.
+Dejó la auditoría real, el ownership, los contratos, el snapshot, la idempotencia, los boundaries y el **Design
+Freeze de Finanzas** ([`../design/screens/finance.md`](../design/screens/finance.md) + su
+[referencia aprobada](../design/screens/finance-reference.html), aprobada por el owner el 2026-09-27). Estado y
+evidencia: [`../CURRENT.md`](../CURRENT.md). **Una sola TASK activa por vez**: la próxima no se abre sin
 **autorización explícita del owner**.
 
 ## NEXT
 
-**`Money / Payments ownership`** (órdenes **4 y 5** del roadmap maestro) y después **`Pedidos runtime`**
-(orden **5b**), que es donde vive el recorte financiero del detalle (el remanente de `A-60`). Cada una
-necesita su brief y su aprobación. **No se abre ninguna por iniciativa propia.**
+**`Money / Payments runtime`** (órdenes **4 y 5** del roadmap maestro, **una sola TASK**): crear los módulos
+`money` y `payments`, implementar el catálogo de monedas y el historial de tasas, cerrar `A-68` (el cobro sin
+convertir), `A-71` (idempotencia) y `A-72` (la tasa en el hecho), proyectar el estado financiero canónico
+(`pending` / `partial` / `paid`) y ampliar `banks` con el tipo de entidad. Después **`Pedidos runtime`**
+(orden **5b**), que es donde vive el recorte financiero del detalle (el remanente de `A-60`). Cada una necesita
+su brief y su aprobación. **No se abre ninguna por iniciativa propia.**
 
 ## LATER
 
@@ -25,4 +30,3 @@ Los órdenes **6 a 16** del [roadmap maestro](PRODUCT-UX-ROADMAP.md) § 2, en es
 Cobrar en POS», Cash ownership, Configuración separada, Cierres / Facturas, Promotions ownership,
 consolidación de la historia del pedido, saneamiento `FROZEN`/`LEGACY`, Table Service/Mesas, refinamiento de
 Catálogo y —al final— `Resumen`.
-
