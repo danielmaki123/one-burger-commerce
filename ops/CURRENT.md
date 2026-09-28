@@ -27,11 +27,11 @@ corto: si crece como un diario, dejó de servir.
 
 | Qué | Estado |
 |---|---|
-| **Último deploy (producción)** | `build-20260928-035241`, sobre `72b22b5` (**Cocina runtime**: PR #79 + cierre #80; lo disparó el owner el 2026-09-28 03:52 UTC). `/api/health` = `build-20260928-035241`, `/api/readiness` `ready` (DB 1 ms), smokes **menú 7/7** y **hosts 6/6**, y **QA autenticada en producción** de `/admin/kitchen` a `1366×768`, `1280×720`, `768×1024` y `375×812` (§4). **Sin backup manual**: migración aditiva y sin backfill |
-| **Commit desplegado en producción** | `72b22b5179bcff876983f742b2a6457339fc0b00` — es lo que corre hoy, bajo el build de la fila anterior |
-| **`main` en GitHub** | **Avanza con cada merge, los `docs-only` incluidos**, así que acá no se copia un «valor actual» que quedaría viejo al minuto: el vigente se lee con `gh api repos/danielmaki123/one-burger-commerce/git/ref/heads/main`. **Verificado el 2026-09-28**: `72b22b5` (PR #80) |
-| **Deriva `main` / producción** | **Ninguna al 2026-09-28**: `main` y lo desplegado son el **mismo** commit (`72b22b5`) |
-| **Migración aplicada en este deploy** | `20260928120000_add_order_source` (`Order.source`: enum `menu` \| `pos`, **aditiva, nullable, sin backfill**), aplicada por el arranque del contenedor. La anterior fue `20260925120000_add_payment_void` (2026-09-25) |
+| **Último deploy (producción)** | `build-20260928-043111`, sobre `2bb551a9` (el `main` que incluye **Cocina runtime**: PR #79 y #80, más el cierre de estado #81). `/api/health` = `build-20260928-043111`, `/api/readiness` `ready`, smokes **menú 7/7** y **hosts 6/6**, y **QA autenticada de producción** de `/admin/kitchen` a `1366×768`, `1280×720`, `768×1024` y `375×812` (§4). **Sin backup manual**: migración aditiva y sin backfill |
+| **Commit desplegado en producción** | `2bb551a96eb8142226274fdfb377e1128cda0fef` — es lo que corre hoy, bajo el build de la fila anterior |
+| **`main` en GitHub** | **Avanza con cada merge, los `docs-only` incluidos**, así que acá no se copia un «valor actual» que quedaría viejo al minuto: el vigente se lee con `gh api repos/danielmaki123/one-burger-commerce/git/ref/heads/main`. **Verificado el 2026-09-28**: `2bb551a9` (PR #81) |
+| **Deriva `main` / producción** | **Ninguna al 2026-09-28**: `main` y lo desplegado son el **mismo** commit (`2bb551a9`) |
+| **Migración aplicada en este deploy** | `20260928120000_add_order_source` (`Order.source`: enum `menu` \| `pos`, **aditiva, nullable, sin backfill**), aplicada por el arranque del contenedor en el release de Cocina. La anterior fue `20260925120000_add_payment_void` (2026-09-25) |
 | **Rollback target** | `build-20260927-193653` sobre `4f69a24` (POS Fase 1) — la aplicación se revierte revirtiendo el commit en `main` y volviendo a disparar `deployService`; la base no se toca (`Order.source` puede quedarse: la app vieja la ignora) |
 | **Modelo de deploy** | Easypanel, proyecto `brunobot`, servicio `oneburguerweb`; build **desde GitHub `main`** con `forceRebuild`. Una sola llamada a `deployService` (la llamada puede cortar por timeout y el build sigue en segundo plano: comportamiento conocido) |
 | **Migraciones** | La última es `20260928120000_add_order_source` (Cocina runtime): aditiva, nullable y **sin backfill**, aplicada por el arranque |
