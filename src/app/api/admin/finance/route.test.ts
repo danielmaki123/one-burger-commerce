@@ -42,8 +42,32 @@ vi.mock("./finance-actions", () => ({
   saveEntityForRoute: (payload: unknown) => saveEntityForRouteMock(payload),
 }));
 
+/**
+ * La forma **real** de lo que la API devuelve, y eso importa más de lo que parece.
+ *
+ * `activeRates` es el **mapa** `moneda → tasa` de la conversión (`{ USD: 36.5 }`), no una lista: la vista
+ * de Monedas y tasas lo trataba como un arreglo y se caía con `activeRates.find is not a function` apenas
+ * hubiera una tasa —lo encontró la QA en navegador real—. Acá va con una entrada, que es el caso que
+ * rompía; el contrato de la fila que la tabla dibuja es `rateHistory`.
+ */
 const config = {
-  settings: { baseCurrencyCode: "NIO", locale: "es-NI", currencies: [], activeRates: [] },
+  settings: {
+    baseCurrencyCode: "NIO",
+    locale: "es-NI",
+    currencies: [
+      { code: "NIO", name: "Córdoba nicaragüense", symbol: "C$", decimals: 2, isKnown: true, isActive: true, sortOrder: 0 },
+      { code: "USD", name: "Dólar estadounidense", symbol: "US$", decimals: 2, isKnown: true, isActive: true, sortOrder: 1 },
+    ],
+    activeRates: { USD: 36.5 },
+    rateHistory: [
+      {
+        fromCurrencyCode: "USD",
+        toCurrencyCode: "NIO",
+        rate: 36.5,
+        effectiveFrom: "2026-09-01T00:00:00.000Z",
+      },
+    ],
+  },
   knownCurrencies: [{ code: "NIO", name: "Córdoba nicaragüense", symbol: "C$", decimals: 2 }],
   knownLocales: [{ value: "es-NI", label: "Español (Nicaragua)" }],
   entities: [],

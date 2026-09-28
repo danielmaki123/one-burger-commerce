@@ -8,37 +8,34 @@ import { Card } from "@/shared/ui/card";
 import { Input } from "@/shared/ui/input";
 import { Modal } from "@/shared/ui/modal";
 import { Select } from "@/shared/ui/select";
+import { Toggle } from "@/shared/ui/toggle";
 
 import { AdminEmptyState } from "../_components/admin-operational-ui";
-import { createFinanceApi, type FinanceConfig } from "./finance-client-helpers";
+import { AdminTable, AdminTableCell, AdminTableRow } from "./finance-table";
+import type { FinanceViewProps } from "./finance-view-types";
 
 /**
  * `TASK-MONEY-PAYMENTS-RUNTIME-001` (`D-018`, `D-019`, `A-72`) — la vista **Monedas y tasas**.
  *
- * Las dos tarjetas de resumen que la referencia aprobada congela (moneda base y formato regional) más la
- * tabla del catálogo con su tasa vigente. Cuatro reglas de la pantalla, y las cuatro son de dinero:
+ * Composición congelada por la referencia: **dos tarjetas de resumen** (moneda base y formato regional, cada
+ * una con su operación) y la tabla **código · moneda · símbolo · tasa vigente · estado · acciones**.
+ *
+ * Cuatro reglas de la pantalla, y las cuatro son de dinero:
  *
  * 1. **La moneda base no se edita en el formulario de la moneda**: tiene su propia operación («Cambiar moneda
  *    base»), con su confirmación y su alcance informado. Cambiarla abre un período nuevo y **no recalcula**
  *    nada: los hechos históricos conservan su moneda, su tasa y su equivalente (`D-018`).
- * 2. **Registrar una tasa crea historia**: cierra la vigente y agrega una fila. No reescribe cobros
- *    anteriores, y la pantalla lo dice en vez de que el dueño lo suponga.
+ * 2. **Registrar una tasa crea historia**: cierra la vigente y agrega una fila, y la pantalla lo dice en vez
+ *    de que el dueño lo suponga.
  * 3. **El catálogo conocido es conveniencia, no una restricción**: una moneda personalizada con código
- *    interno es válida (`D-019`), y por eso el formulario acepta un código que no esté en la lista.
+ *    interno es válida (`D-019`), así que el formulario acepta un código que no esté en la lista.
  * 4. **Los números van en `font-mono` con `tabular-nums`**: una tasa que cambia de ancho mueve la tabla.
+ *
+ * La tasa vigente sale de `rateHistory` (las **filas**), no de `activeRates` (el **mapa** de la conversión):
+ * confundir las dos formas rompía esta vista con un `activeRates.find is not a function` apenas hubiera una
+ * tasa registrada.
  */
-export default function FinanceRateCard({
-  config,
-  api,
-  run,
-}: {
-  config: FinanceConfig;
-  api: ReturnType<typeof createFinanceApi>;
-  run: (
-    work: () => Promise<{ ok: true } | { ok: false; message: string }>,
-    done: string,
-  ) => Promise<void>;
-}) {
+export default function FinanceCurrenciesView({ config, api, run }: FinanceViewProps) {
   const [currencyDraft, setCurrencyDraft] = React.useState<null | {
     code: string;
     name: string;
@@ -48,36 +45,43 @@ export default function FinanceRateCard({
     existing: boolean;
   }>(null);
   const [rateDraft, setRateDraft] = React.useState<null | { fromCurrencyCode: string; rate: string }>(null);
-  const [baseDraft, setBaseDraft] = React.useState<null | { code: string; locale: string }>(null);
+  const [baseDraft, setBaseDraft] = React.useState<null | { code: string }>(null);
   const [localeDraft, setLocaleDraft] = React.useState<null | { locale: string }>(null);
 
   const base = config.settings.baseCurrencyCode;
   const baseCurrency = config.settings.currencies.find((currency) => currency.code === base);
+
+  const rateFor = (code: string) =>
+    config.settings.rateHistory.find((candidate) => candidate.fromCurrencyCode === code) ?? null;
 
   return (
     <div className="space-y-4">
       <div className="grid gap-3 sm:grid-cols-2">
         <Card className="space-y-2">
           <p className="text-st-overline font-bold uppercase tracking-wider text-ink-muted">Moneda base</p>
-          <p className="font-mono text-st-h2 tabular-nums text-ink">{base}</p>
+          <p className="font-mono text-st-h2 tabular-nums text-ink">
+            {baseCurrency ? `${baseCurrency.code} · ${baseCurrency.name}` : base}
+          </p>
           <p className="text-st-caption text-ink-muted">
-            {baseCurrency ? `${baseCurrency.name} · ${baseCurrency.symbol}` : "Sin nombre en el catálogo"}
+            Los hechos históricos conservan su moneda y equivalencia original.
           </p>
           <Button
             type="button"
             variant="outline"
             className="min-h-11"
-            onClick={() => setBaseDraft({ code: base, locale: config.settings.locale })}
+            onClick={() => setBaseDraft({ code: base })}
           >
             Cambiar moneda base
           </Button>
         </Card>
 
         <Card className="space-y-2">
-          <p className="text-st-overline font-bold uppercase tracking-wider text-ink-muted">Formato regional</p>
+          <p className="text-st-overline font-bold uppercase tracking-wider text-ink-muted">
+            Formato regional
+          </p>
           <p className="font-mono text-st-h2 tabular-nums text-ink">{config.settings.locale}</p>
           <p className="text-st-caption text-ink-muted">
-            Cambia cómo se ve la plata, no su valor: ningún monto guardado se altera.
+            Editable independientemente de la moneda: cambia cómo se ve la plata, no su valor.
           </p>
           <Button
             type="button"
@@ -90,23 +94,35 @@ export default function FinanceRateCard({
         </Card>
       </div>
 
-      <Card className="space-y-4">
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h2 className="text-st-h2 text-ink">Monedas y tasas</h2>
+      <div className="space-y-4 rounded-stitch-lg border border-line-subtle bg-surface-card p-4">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="min-w-0">
+            <h2 className="text-st-h2 text-ink">Monedas y tasas</h2>
+            <p className="text-st-body text-ink-secondary">
+              Moneda base, monedas aceptadas y tipos de cambio vigentes.
+            </p>
+          </div>
           <Button
             type="button"
             className="min-h-11"
             onClick={() =>
-              setCurrencyDraft({ code: "", name: "", symbol: "", decimals: 2, isActive: true, existing: false })
+              setCurrencyDraft({
+                code: "",
+                name: "",
+                symbol: "",
+                decimals: 2,
+                isActive: true,
+                existing: false,
+              })
             }
           >
             + Agregar moneda
           </Button>
         </div>
 
-        <p className="text-st-body text-ink-secondary">
+        <p className="text-st-caption text-ink-muted">
           El catálogo conocido es conveniencia, no una restricción. Una moneda personalizada puede usar un
-          código interno. Guardar una tasa nueva crea historia: no reescribe cobros anteriores.
+          código interno. En runtime, guardar una tasa nueva crea historia; no reescribe cobros anteriores.
         </p>
 
         {config.settings.currencies.length === 0 ? (
@@ -115,75 +131,109 @@ export default function FinanceRateCard({
             description="Sin monedas, el sistema no sabe en qué cobrar."
           />
         ) : (
-          <ul className="space-y-2">
+          <AdminTable
+            label="Monedas y tasas"
+            columns={["Código", "Moneda", "Símbolo", "Tasa vigente", "Estado", ""]}
+            gridClassName="md:grid-cols-[70px_minmax(160px,1.1fr)_80px_minmax(150px,1fr)_100px_34px]"
+          >
             {config.settings.currencies.map((currency) => {
-              const rate = config.settings.activeRates.find(
-                (candidate) => candidate.fromCurrencyCode === currency.code,
-              );
+              const rate = rateFor(currency.code);
 
               return (
-                <li
+                <AdminTableRow
                   key={currency.code}
-                  className="flex flex-wrap items-center justify-between gap-3 rounded-stitch-md border border-line-subtle p-3"
+                  gridClassName="md:grid-cols-[70px_minmax(160px,1.1fr)_80px_minmax(150px,1fr)_100px_34px]"
                 >
-                  <div className="min-w-0 space-y-1">
-                    <p className="text-st-body font-semibold text-ink">
-                      <span className="font-mono tabular-nums">{currency.code}</span>
-                      {currency.code === base ? " · moneda base" : ""}
-                    </p>
-                    <p className="text-st-caption text-ink-muted">
-                      {currency.name} · {currency.symbol} · {currency.decimals} decimales
-                    </p>
-                  </div>
+                  <AdminTableCell label="Código" mono>
+                    <strong>{currency.code}</strong>
+                  </AdminTableCell>
 
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-mono text-st-body tabular-nums text-ink-secondary">
-                      {currency.code === base ? "—" : rate ? rate.rate.toFixed(4) : "sin tasa"}
+                  <AdminTableCell label="Moneda">
+                    <strong className="block text-st-body font-semibold">{currency.name}</strong>
+                    <span className="mt-1 block text-st-caption text-ink-muted">
+                      {currency.code === base ? "Moneda base" : currency.isActive ? "Aceptada" : "Disponible"}
                     </span>
-                    <Badge variant={currency.isActive ? "success" : "secondary"}>
-                      {currency.isActive ? "Activa" : "Apagada"}
-                    </Badge>
+                  </AdminTableCell>
 
-                    {currency.code !== base ? (
+                  <AdminTableCell label="Símbolo">{currency.symbol}</AdminTableCell>
+
+                  <AdminTableCell label="Tasa vigente" mono>
+                    {currency.code === base
+                      ? "Moneda base"
+                      : rate
+                        ? `1 ${currency.code} = ${rate.rate} ${base}`
+                        : "Sin tasa"}
+                  </AdminTableCell>
+
+                  <AdminTableCell label="Estado">
+                    {currency.code === base ? (
+                      <Badge variant="default">BASE</Badge>
+                    ) : (
+                      <Toggle
+                        label={`${currency.code}: ${currency.isActive ? "activa" : "apagada"}`}
+                        checked={currency.isActive}
+                        onChange={(next) =>
+                          void run(
+                            () =>
+                              api.saveCurrency({
+                                code: currency.code,
+                                name: currency.name,
+                                symbol: currency.symbol,
+                                decimals: currency.decimals,
+                                isActive: next,
+                                mode: "update",
+                              }),
+                            `${currency.code}: ${next ? "activa" : "apagada"}.`,
+                          )
+                        }
+                      />
+                    )}
+                  </AdminTableCell>
+
+                  <AdminTableCell label="Acciones">
+                    <div className="flex items-center gap-1">
+                      {currency.code !== base ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="min-h-11 md:min-h-9 md:px-2"
+                          aria-label={`Guardar tasa de ${currency.code}`}
+                          onClick={() => setRateDraft({ fromCurrencyCode: currency.code, rate: "" })}
+                        >
+                          Tasa
+                        </Button>
+                      ) : null}
                       <Button
                         type="button"
                         variant="outline"
-                        className="min-h-11"
-                        onClick={() => setRateDraft({ fromCurrencyCode: currency.code, rate: "" })}
+                        className="min-h-11 md:min-h-9 md:px-2"
+                        aria-label={`Editar ${currency.code}`}
+                        onClick={() =>
+                          setCurrencyDraft({
+                            code: currency.code,
+                            name: currency.name,
+                            symbol: currency.symbol,
+                            decimals: currency.decimals,
+                            isActive: currency.isActive,
+                            existing: true,
+                          })
+                        }
                       >
-                        Guardar tasa
+                        ···
                       </Button>
-                    ) : null}
-
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="min-h-11"
-                      onClick={() =>
-                        setCurrencyDraft({
-                          code: currency.code,
-                          name: currency.name,
-                          symbol: currency.symbol,
-                          decimals: currency.decimals,
-                          isActive: currency.isActive,
-                          existing: true,
-                        })
-                      }
-                    >
-                      Editar
-                    </Button>
-                  </div>
-                </li>
+                    </div>
+                  </AdminTableCell>
+                </AdminTableRow>
               );
             })}
-          </ul>
+          </AdminTable>
         )}
 
         <p className="text-st-caption text-ink-muted">
-          Historia protegida. Los movimientos anteriores conservan moneda, tasa y equivalente con los que
+          Historia protegida. Los movimientos anteriores conservarán moneda, tasa y equivalente con los que
           fueron registrados.
         </p>
-      </Card>
+      </div>
 
       <Modal
         open={currencyDraft !== null}
@@ -194,16 +244,26 @@ export default function FinanceRateCard({
           <div className="space-y-3">
             {!currencyDraft.existing ? (
               <Select
-                label="Moneda conocida"
+                label="Buscar conocida"
                 value=""
                 placeholder="Buscar conocida…"
                 options={config.knownCurrencies.map((currency) => ({
                   value: currency.code,
                   label: `${currency.code} — ${currency.name}`,
                 }))}
-                onChange={(event) =>
-                  applyKnownCurrency(event.target.value, config, setCurrencyDraft)
-                }
+                onChange={(event) => {
+                  const known = config.knownCurrencies.find(
+                    (candidate) => candidate.code === event.target.value,
+                  );
+
+                  setCurrencyDraft({
+                    ...currencyDraft,
+                    code: known?.code ?? "",
+                    name: known?.name ?? "",
+                    symbol: known?.symbol ?? "",
+                    decimals: known?.decimals ?? 2,
+                  });
+                }}
               />
             ) : null}
 
@@ -253,7 +313,9 @@ export default function FinanceRateCard({
                         mode: currencyDraft.existing ? "update" : "create",
                       }),
                     "Moneda guardada.",
-                  ).then(() => setCurrencyDraft(null))
+                  ).then((ok) => {
+                    if (ok) setCurrencyDraft(null);
+                  })
                 }
               >
                 Guardar moneda
@@ -298,7 +360,9 @@ export default function FinanceRateCard({
                         rate: Number(rateDraft.rate),
                       }),
                     "Tasa registrada.",
-                  ).then(() => setRateDraft(null))
+                  ).then((ok) => {
+                    if (ok) setRateDraft(null);
+                  })
                 }
               >
                 Guardar tasa
@@ -311,11 +375,7 @@ export default function FinanceRateCard({
         ) : null}
       </Modal>
 
-      <Modal
-        open={baseDraft !== null}
-        title="Cambiar moneda base"
-        onClose={() => setBaseDraft(null)}
-      >
+      <Modal open={baseDraft !== null} title="Cambiar moneda base" onClose={() => setBaseDraft(null)}>
         {baseDraft ? (
           <div className="space-y-3">
             <p className="text-st-body text-ink-secondary">
@@ -331,7 +391,7 @@ export default function FinanceRateCard({
                   value: currency.code,
                   label: `${currency.code} — ${currency.name}`,
                 }))}
-              onChange={(event) => setBaseDraft({ ...baseDraft, code: event.target.value })}
+              onChange={(event) => setBaseDraft({ code: event.target.value })}
             />
 
             <div className="flex flex-wrap items-center gap-2">
@@ -343,7 +403,9 @@ export default function FinanceRateCard({
                   void run(
                     () => api.changeBaseCurrency({ code: baseDraft.code }),
                     "Moneda base cambiada.",
-                  ).then(() => setBaseDraft(null))
+                  ).then((ok) => {
+                    if (ok) setBaseDraft(null);
+                  })
                 }
               >
                 Cambiar moneda base
@@ -377,7 +439,9 @@ export default function FinanceRateCard({
                   void run(
                     () => api.changeBaseCurrency({ code: base, locale: localeDraft.locale }),
                     "Formato actualizado.",
-                  ).then(() => setLocaleDraft(null))
+                  ).then((ok) => {
+                    if (ok) setLocaleDraft(null);
+                  })
                 }
               >
                 Guardar formato
@@ -389,32 +453,6 @@ export default function FinanceRateCard({
           </div>
         ) : null}
       </Modal>
-
     </div>
   );
-}
-
-/** Completar el formulario desde el catálogo conocido: es conveniencia, no una restricción (`D-019`). */
-function applyKnownCurrency(
-  code: string,
-  config: FinanceConfig,
-  setDraft: (draft: {
-    code: string;
-    name: string;
-    symbol: string;
-    decimals: number;
-    isActive: boolean;
-    existing: boolean;
-  }) => void,
-) {
-  const known = config.knownCurrencies.find((currency) => currency.code === code);
-
-  setDraft({
-    code: known?.code ?? code,
-    name: known?.name ?? "",
-    symbol: known?.symbol ?? "",
-    decimals: known?.decimals ?? 2,
-    isActive: true,
-    existing: false,
-  });
 }
