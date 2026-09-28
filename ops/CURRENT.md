@@ -8,20 +8,17 @@ en qué estado está el sistema en pocos minutos.
 [`.agents/CONTEXT.md`](../.agents/CONTEXT.md)). Este archivo se **actualiza seguido** y se mantiene
 corto: si crece como un diario, dejó de servir.
 
-> **Última actualización**: 2026-09-28, por **`TASK-MONEY-PAYMENTS-FOUNDATIONS-001`** (fundaciones de
-> `Money / Payments`, `docs-only`): **cerrada y mergeada, sin deploy** — no tocó runtime, Prisma, migraciones,
-> APIs ni navegación. Dejó la **auditoría real** de Money y Payments, el **ownership** resuelto, los
-> **contratos** (estado financiero canónico, snapshot de `Payment`, idempotencia, boundaries), la **estrategia
-> legacy sin backfill**, las **migraciones enumeradas y no creadas** y el **Design Freeze de Finanzas**
-> ([`design/screens/finance.md`](design/screens/finance.md) + su
-> [referencia aprobada](design/screens/finance-reference.html) del 2026-09-27). `A-68` (P1), `A-69` y `A-71`
-> quedaron **reproducidos con evidencia**, y aparecieron **nueve** hallazgos nuevos (`A-72`…`A-80`) que
-> **no se corrigen acá**. Antes: `TASK-ORDERS-KITCHEN-RUNTIME-002` (Cocina runtime, `high-risk-e2e`,
-> **desplegada**) y `TASK-ORDERS-KITCHEN-FOUNDATIONS-001`. **POS Fase 1 queda CERRADA DEFINITIVAMENTE** y
-> **«POS Fase 2» dejó de existir como fase**. **Vigente: el Default E2E Delivery Contract**
-> ([`.agents/skills/delivery-e2e/SKILL.md`](../.agents/skills/delivery-e2e/SKILL.md)). **Lo que sigue es el
-> runtime de `Money / Payments`** (órdenes 4 y 5, **una sola TASK**), y **no se abre sin autorización del
-> owner**.
+> **Última actualización**: 2026-09-29, por **`TASK-MONEY-PAYMENTS-RUNTIME-001`** (Money / Payments runtime,
+> `high-risk-e2e`, **en PR [#85](https://github.com/danielmaki123/one-burger-commerce/pull/85)**): creó los
+> módulos **`money`** (catálogo de monedas, moneda base, FX con vigencia e historial, conversión, redondeo y
+> formato) y **`payments`** (snapshot obligatorio del cobro, estado financiero canónico, idempotencia durable,
+> catálogo de medios con tipo canónico), las **nueve migraciones** aditivas y la superficie
+> **`/admin/finance`**. Cerró **`A-68`**, **`A-71`**, **`A-72`**, **`A-73`**, **`A-74`** y **`A-75`**;
+> **`A-69`** quedó **parcial** (la suma cruda multi-moneda de `pos-payment.tsx` sigue abierta). La factura
+> exige **`paid` estricto** (`D-021`). **Sin deploy todavía**: el tramo de release cierra cuando el CI esté
+> verde. Antes: `TASK-MONEY-PAYMENTS-FOUNDATIONS-001` (`docs-only`, mergeada, sin deploy), que dejó la
+> auditoría, el ownership, los contratos y el Design Freeze de Finanzas. **Vigente: el Default E2E Delivery
+> Contract** ([`.agents/skills/delivery-e2e/SKILL.md`](../.agents/skills/delivery-e2e/SKILL.md)).
 
 ---
 
@@ -163,6 +160,14 @@ de un pedido existente sin clave de idempotencia).
 
 ## 4. Trabajo actual
 
+**`TASK-MONEY-PAYMENTS-RUNTIME-001` — Money / Payments runtime (`high-risk-e2e`): IMPLEMENTADA, EN PR #85.**
+
+Los módulos `money` y `payments` existen con sus cuatro capas; las **nueve migraciones** están aplicadas y sin
+`drift` contra `schema.prisma` sobre PostgreSQL 17; `/admin/finance` tiene sus tres vistas; la factura exige
+`paid` estricto; y los hallazgos `A-68`, `A-71`, `A-72`, `A-73`, `A-74` y `A-75` están cerrados con test.
+La evidencia completa (rojos observados, mutaciones, PostgreSQL real y las excepciones) está en
+[`tasks/TASK-MONEY-PAYMENTS-RUNTIME-001.md`](tasks/TASK-MONEY-PAYMENTS-RUNTIME-001.md).
+
 **`TASK-MONEY-PAYMENTS-FOUNDATIONS-001` — fundaciones de Money / Payments (`docs-only`): CERRADA Y MERGEADA.**
 
 Sin deploy: no tocó runtime, Prisma, migraciones, APIs ni navegación. Entregó la **auditoría real** de los dos
@@ -174,9 +179,8 @@ migraciones enumeradas y no creadas**, los **archivos prohibidos de duplicar** y
 Finanzas**. Todo el detalle y la evidencia, en
 [`tasks/TASK-MONEY-PAYMENTS-FOUNDATIONS-001.md`](tasks/TASK-MONEY-PAYMENTS-FOUNDATIONS-001.md).
 
-**Lo que sigue es el runtime de `Money / Payments`** (órdenes 4 y 5, **una sola TASK**) y después **`Pedidos
-runtime`** (orden **5b**). **`DS-001`** (ley visual v4) está **aprobado y desplegado**; **`IA-001`**
-(navegación del panel) también.
+**Lo que sigue es `Pedidos runtime`** (orden **5b**), con el remanente de `A-60` y `A-67`. **`DS-001`** (ley
+visual v4) está **aprobado y desplegado**; **`IA-001`** (navegación del panel) también.
 
 **Cocina runtime** (`TASK-ORDERS-KITCHEN-RUNTIME-002`, `high-risk-e2e`) está **desplegada** bajo
 `build-20260928-035241` sobre `72b22b5` (detalle en §1 y §5). **`A-60` no se declara cerrado**: el recorte
