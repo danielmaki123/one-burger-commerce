@@ -28,14 +28,14 @@ corto: si crece como un diario, dejó de servir.
 
 | Qué | Estado |
 |---|---|
-| **Último deploy (producción)** | `build-20260928-043111`, sobre `2bb551a9` (el `main` que incluye **Cocina runtime**: PR #79 y #80, más el cierre de estado #81). `/api/health` = `build-20260928-043111`, `/api/readiness` `ready`, smokes **menú 7/7** y **hosts 6/6**, y **QA autenticada de producción** de `/admin/kitchen` a `1366×768`, `1280×720`, `768×1024` y `375×812` (§4). **Sin backup manual**: migración aditiva y sin backfill |
-| **Commit desplegado en producción** | `2bb551a96eb8142226274fdfb377e1128cda0fef` — es lo que corre hoy, bajo el build de la fila anterior |
-| **`main` en GitHub** | **Avanza con cada merge, los `docs-only` incluidos**, así que acá no se copia un «valor actual» que quedaría viejo al minuto: el vigente se lee con `gh api repos/danielmaki123/one-burger-commerce/git/ref/heads/main`. **Verificado el 2026-09-28**: `2bb551a9` (PR #81) |
-| **Deriva `main` / producción** | **Ninguna al 2026-09-28**: `main` y lo desplegado son el **mismo** commit (`2bb551a9`) |
-| **Migración aplicada en este deploy** | `20260928120000_add_order_source` (`Order.source`: enum `menu` \| `pos`, **aditiva, nullable, sin backfill**), aplicada por el arranque del contenedor en el release de Cocina. La anterior fue `20260925120000_add_payment_void` (2026-09-25) |
-| **Rollback target** | `build-20260927-193653` sobre `4f69a24` (POS Fase 1) — la aplicación se revierte revirtiendo el commit en `main` y volviendo a disparar `deployService`; la base no se toca (`Order.source` puede quedarse: la app vieja la ignora) |
+| **Último deploy (producción)** | `build-20260928-200305`, desplegado por el **owner** el 2026-09-28 con el **Money / Payments runtime** (`main` = `9be0e10`, PRs #85, #87 y #89). Las **tres** superficies responden `/api/health` = `build-20260928-200305` y `/api/readiness` `ready`; smokes **menú 7/7** y **hosts 6/6**; y el build servido **contiene** la entrada de navegación nueva (`Finanzas`) con su descripción, comprobado con `scripts/qa-prod-build-probe.ts` sobre los chunks del login del panel. **Sin backup manual**: migraciones aditivas y sin backfill. **Falta** la QA autenticada de `/admin/finance` (necesita credenciales del owner, que no están en el repo); su equivalente local está en `tests/e2e/admin-finance.spec.ts` (6/6 en los cuatro viewports) |
+| **Commit desplegado en producción** | `9be0e10` — es el `main` que corre hoy bajo el build de la fila anterior (la fecha del build es anterior al último merge de documentación, así que lo desplegado es el código de #85 y #87; #89 son scripts de QA que no entran al bundle) |
+| **`main` en GitHub** | **Avanza con cada merge, los `docs-only` incluidos**, así que acá no se copia un «valor actual» que quedaría viejo al minuto: el vigente se lee con `gh api repos/danielmaki123/one-burger-commerce/git/ref/heads/main`. **Verificado el 2026-09-28**: `9be0e10` (PR #89) |
+| **Deriva `main` / producción** | **Ninguna de código al 2026-09-28**: lo desplegado y `main` son el mismo código. La diferencia es sólo de documentación y de los scripts de QA de #89 |
+| **Migración aplicada en este deploy** | Las **nueve** del Money / Payments runtime (`20260929120000`…`20260929120600`: catálogo de monedas, fila de moneda base, historial de tasas, snapshot e idempotencia de `Payment`, catálogo de medios + asignación por local, `Bank.entityType`, idempotencia y snapshot de `Refund`, y la tasa del cierre en `Shift`), aplicadas por el arranque del contenedor. La ruta de upgrade sobre una base **con datos** está probada con `scripts/qa-upgrade-pre.sql` + `qa-upgrade-post.sql` + `qa-upgrade-write.ts` (ver PR #89) |
+| **Rollback target** | `build-20260928-043111` sobre `2bb551a9` (Cocina runtime) — la aplicación se revierte revirtiendo el commit en `main` y volviendo a disparar `deployService`; la base no se toca (las columnas nuevas son nullable y la app vieja las ignora) |
 | **Modelo de deploy** | Easypanel, proyecto `brunobot`, servicio `oneburguerweb`; build **desde GitHub `main`** con `forceRebuild`. Una sola llamada a `deployService` (la llamada puede cortar por timeout y el build sigue en segundo plano: comportamiento conocido) |
-| **Migraciones** | La última es `20260928120000_add_order_source` (Cocina runtime): aditiva, nullable y **sin backfill**, aplicada por el arranque |
+| **Migraciones** | La última es `20260929120600_add_refund_shift_rate_snapshot` (Money / Payments runtime): aditiva, nullable y **sin backfill**, aplicada por el arranque |
 | **Réplicas** | `1` |
 | **Backup pre-deploy** | Este release **no lo exigía** (migración aditiva segura: [`delivery-e2e`](../.agents/skills/delivery-e2e/SKILL.md) §4). El hallazgo `A-57` (el backup **programado** no genera archivos y no hay retención declarada) **sigue abierto** y es del owner |
 | **Hosts activos** | `oneburgernic.com` y `www` (landing + redirects 307) · `menu.oneburgernic.com` (app de pedidos) · `admin.oneburgernic.com` (panel) |
@@ -54,16 +54,11 @@ hora—. En Órdenes, el botón **«Modo cocina» ya no existe** y la entrada de
 Capturas en `test-results/qa-kitchen-prod-*.png`. Las credenciales se usaron **solo por entorno** y **no** se
 guardan en el repo.
 
-✅ **QA autenticada de producción del POS (2026-09-27, hecha sobre `build-20260927-193653`)**:
-la pantalla se abrió **en producción con sesión** a los cuatro viewports del contrato (`1366×768`, `1280×720`,
-`768×1024`, `375×812`), con la **carta real del local** (2 productos sin modificadores). Medido en el
-navegador: **una sola** superficie con scroll dentro del ticket en los cuatro; **ninguna fila cortada**;
-**cero scroll horizontal**; `Cobrar C$…` siempre visible; y a `1366×768` y `1280×720` la **forma de pago entra
-sin scrollear** (`pagoOffset 0`) y el **scroll de página es 0**.
-
-⚠️ **`375×812` es el único con scroll de página (155 px)**: es el comportamiento de la referencia aprobada —la
-vista primaria es el catálogo y el ticket vive en el sheet—. Health, readiness y los dos smokes **7/7** y
-**6/6** en §1. Las credenciales se usaron solo por entorno y **no** se guardan en el repo.
+✅ **QA autenticada de producción del POS (2026-09-27, sobre `build-20260927-193653`)**: los cuatro viewports
+del contrato con la carta real, una sola superficie con scroll dentro del ticket, cero scroll horizontal y
+`Cobrar C$…` siempre visible. **A `375×812` la página sí scrollea (155 px)**: es la referencia aprobada —la
+vista primaria es el catálogo y el ticket vive en el sheet—. Las credenciales se usaron **solo por entorno** y
+**no** se guardan en el repo.
 
 ✅ **Venta real cobrada en producción (2026-09-26)**: además del contrato de viewport se ejercitó el flujo
 completo con una venta de mostrador de verdad —`COCA COLA` (el primer producto **sin** modificadores de la
@@ -162,7 +157,11 @@ de un pedido existente sin clave de idempotencia).
 
 ## 4. Trabajo actual
 
-**`TASK-MONEY-PAYMENTS-RUNTIME-001` — Money / Payments runtime (`high-risk-e2e`): MERGEADA, DEPLOY PENDIENTE.**
+**`TASK-MONEY-PAYMENTS-RUNTIME-001` — Money / Payments runtime (`high-risk-e2e`): CERRADA Y DESPLEGADA.**
+
+El release está en producción (`build-20260928-200305`): health y readiness `ok`, los dos smokes en verde y el
+build servido con la entrada de navegación nueva. Lo que queda de la TASK es **una sola cosa**: la QA
+autenticada de `/admin/finance` en producción, que necesita las credenciales del owner (no están en el repo).
 
 Los módulos `money` y `payments` existen con sus cuatro capas; las **nueve migraciones** están aplicadas y sin
 `drift` contra `schema.prisma` sobre PostgreSQL 17; `/admin/finance` tiene sus tres vistas; la factura exige
@@ -222,7 +221,7 @@ Solo bloqueos **reales**. Todo lo demás es trabajo pendiente.
 
 | Bloqueo | Qué lo desbloquea |
 |---|---|
-| **`EASYPANEL_TOKEN` vacío: el release de Money / Payments no se pudo desplegar** | El owner carga un token válido del panel (*Settings* → *API tokens*) en el entorno del agente. El código está **mergeado en `main`** (`2cbda9b`) con los cuatro checks del CI en verde; falta la **única** llamada a `deployService` y, después, health/readiness, los dos smokes y la QA de producción. Es la **Stop Condition 6** de [`delivery-e2e`](../.agents/skills/delivery-e2e/SKILL.md) §3 («secreto o permiso externo inexistente»): no se puede completar desde el repo |
+| **QA autenticada de producción de `/admin/finance`** | Las credenciales de un admin de producción, que administra el owner y **no** están en el repo: con `E2E_ADMIN_EMAIL`/`E2E_ADMIN_PASSWORD` por entorno corre `npx playwright test tests/e2e/admin-finance.spec.ts` contra la URL productiva y quedan las capturas de los cuatro viewports. **No bloquea el release** (ya está desplegado): es la última evidencia de la TASK |
 | **Higiene de secretos pendiente del owner** | **Rotar el `EASYPANEL_TOKEN`**: el vigente viajó por chat y por la línea de comandos del arranque del deploy, así que corresponde regenerarlo (es además el punto que ya estaba en la lista desde el 2026-09-27). No bloquea nada hoy: el release quedó completo |
 | **Carta incompleta en producción** | El owner carga categorías, productos, precios y fotos desde `/admin/menu` |
 | **Dos datos mal cargados en los locales** | El owner corrige en `/admin/locations` (el slug de Camino de Oriente y la ciudad de Casa Antigua) |
