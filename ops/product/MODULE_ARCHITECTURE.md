@@ -17,7 +17,11 @@ cree `DS-001` → la spec de pantalla → el registro de componentes → la impl
 
 **Estado**: escrito en `ARCH-001` (2026-09-25) a partir del **código real**, no de documentos previos. Lo
 que hoy no coincide con la dirección conceptual del roadmap queda **registrado** en §12 en vez de
-corregirse por decreto: este documento no rediseña nada.
+corregirse por decreto: este documento no rediseña nada. **Actualizado el 2026-09-28** por
+`TASK-MONEY-PAYMENTS-FOUNDATIONS-001` **sólo donde corresponda**: `money` y `payments` pasan de «objetivo» a
+**auditados con dueño, contratos y snapshot definidos** (§4.1, §5, §13), y la deuda de dinero de §12 se
+re-apunta a los hallazgos `A-68`…`A-80`. **Ningún módulo se creó**: el runtime los implementa la TASK
+siguiente del [roadmap](../roadmap/PRODUCT-UX-ROADMAP.md).
 
 ---
 
@@ -42,9 +46,8 @@ pantalla puede consumir varios módulos; y un módulo puede no tener sección pr
 
 Crear un **módulo**, una **sección** o una **entrada nueva de navegación principal** es la **excepción**, y
 se justifica porque apareció una **responsabilidad estable del negocio**, nunca porque apareció una pantalla
-nueva. La justificación se escribe antes de codear (ver §10) y, si se aprueba, queda anotada acá.
-
-Corolario: **una pantalla nueva no crea un módulo**, y **una ruta nueva no crea una sección**.
+nueva. La justificación se escribe antes de codear (ver §10) y, si se aprueba, queda anotada acá. Corolario:
+**una pantalla nueva no crea un módulo**, y **una ruta nueva no crea una sección**.
 
 ---
 
@@ -146,13 +149,41 @@ Ninguno de estos módulos existe todavía y **crearlos no es parte de `TASK-GOV-
 mutable tiene un solo dueño **actual**; `Payment`, `Invoice`, `Shift` y `Order` **congelan los valores** que
 explican la operación en vez de reconstruir el pasado con la configuración de hoy.
 
-### 4.2 Capacidades fuera del MVP: clasificación explícita
+### 4.2 `money` y `payments`: auditados, con dueño y contratos (`TASK-MONEY-PAYMENTS-FOUNDATIONS-001`)
 
-Estado real, verificado en el código (hay página y API, pero **no** entrada de navegación ni oferta pública):
+Los órdenes **4** y **5** quedaron **auditados contra el código** y su ownership **resuelto**; los módulos se
+**crean en runtime**. Lo que queda escrito y no se vuelve a decidir:
+
+- **`money`**: catálogo de monedas (código, nombre, símbolo, **decimales**, activa, personalizada), moneda
+  base, locale, **tasa por par con vigencia e historial**, conversión, redondeo y formato. Hoy está repartido
+  entre `shared/lib`, `business-settings`, `pos` y `cash-config`, con la aritmética canónica en
+  `src/shared/lib/money-conversion.ts` (se **reutiliza**, no se reescribe).
+- **`payments`**: `Payment`, estado financiero (`pending`/`partial`/`paid`, `paidAmount`, `outstandingAmount`),
+  cobro parcial, void, refund como hecho financiero, **idempotencia del cobro** y **snapshots monetarios**
+  (monto, moneda, moneda base, tasa aplicada, equivalente, medio y su tipo canónico, entidad, referencia,
+  turno, timestamp). Hoy vive en `orders` y `pos`.
+- **`banks` se amplía, no se duplica**: gana el **tipo de entidad** (banco / adquirente / proveedor digital /
+  otro). `PosTerminal` sigue siendo una dimensión propia.
+- **`cash` no se mueve a `payments`**: turno, caja física, apertura/cierre, conteos, movimientos, arqueo,
+  diferencias, terminales y snapshots de cierre siguen siendo de Caja (orden **7**). Caja **consume** los
+  hechos de cobro y deja de recalcular la conversión.
+- **`invoices` consume `payments`**: `canEmitInvoiceFor` deja de decidir con `hasPayments` y consume el estado
+  financiero. `orders` lo consume y **no** vuelve a ser dueño de `Payment`.
+
+**Contratos y SPEC**: estado financiero canónico, modelo de snapshot, idempotencia y concurrencia, boundaries y
+migraciones enumeradas, en [`../tasks/TASK-MONEY-PAYMENTS-FOUNDATIONS-001.md`](../tasks/TASK-MONEY-PAYMENTS-FOUNDATIONS-001.md);
+la superficie, en [`../design/screens/finance.md`](../design/screens/finance.md) con su
+[referencia aprobada](../design/screens/finance-reference.html). Ahí está también lo **prohibido duplicar**:
+una sola conversión, un solo redondeo, un solo catálogo de entidades, uno solo de medios y **una sola
+definición de «pagado»**.
+
+### 4.3 Capacidades fuera del MVP: clasificación explícita
+
+Estado real, verificado en el código: los módulos de §4 están **ACTIVE** (ofrecidos hoy en la UI o en una API
+pública); lo de abajo tiene página y API propias pero **no** entrada de navegación ni oferta pública.
 
 | Capacidad | Estado | Evidencia |
 |---|---|---|
-| **ACTIVE** | ofrecida hoy | Órdenes, POS, Caja, Cierres, Facturas, Aprobaciones, Menú (productos, categorías, modificadores, contenido), Promociones, Locales, Usuarios, Personalización, Alertas |
 | **Inventario** | FROZEN | `src/app/(admin)/admin/inventory/**` + `src/app/api/admin/inventory/**`; sin entrada en `admin-layout-helpers.ts` |
 | **Reservas** | FROZEN | `src/app/(admin)/admin/reservations/**` + `src/app/api/admin/reservations/**`; sin entrada |
 | **Delivery Zones** | FROZEN | `src/app/(admin)/admin/delivery-zones/**` + `src/app/api/admin/delivery-zones/**`; el motor vive en `orders`; sin entrada |
@@ -161,10 +192,9 @@ Estado real, verificado en el código (hay página y API, pero **no** entrada de
 | **coupons** | LEGACY | `src/modules/coupons/` — solo `README.md`; el motor real de promociones vive en `orders` (`A-13`) |
 | **Mesas / Table Service** | FUTURE | orden 14 del roadmap; `tables` no se reactiva como servicio de mesa sin decisión del owner |
 
-Los cuatro significados, para que la etiqueta no sea una opinión: **ACTIVE** = **ofrecida hoy** en la UI o en
-una API pública · **FROZEN** = el código está, **código presente, no ofrecida** y no se reactiva sin pedido
-del owner · **LEGACY** = **huérfana** o cascarón, se conserva solo por compatibilidad · **FUTURE** =
-**arquitectura objetivo**, todavía no existe.
+**FROZEN** = código presente, no ofrecida, y no se reactiva sin pedido del owner · **LEGACY** = huérfana o
+cascarón, se conserva por compatibilidad · **FUTURE** = arquitectura objetivo, todavía no existe · **ACTIVE** =
+ofrecida hoy.
 
 ---
 
@@ -219,10 +249,8 @@ ninguno**: muestra **señales**; las secciones propietarias muestran y **resuelv
 
 ```text
 Resumen:  2 pedidos atrasados        → Ver Órdenes
-Órdenes:  posee el ciclo de vida del pedido.
-
 Resumen:  1 cierre con diferencia    → Ver Cierres
-Caja/Cierres: poseen la investigación y la resolución.
+Órdenes y Caja/Cierres poseen el ciclo de vida y la investigación; el Resumen solo señala.
 ```
 
 Un dato del Resumen **no** crea un módulo: «top de productos» es una señal comercial del catálogo, no un
@@ -232,49 +260,33 @@ módulo *Productos*; «ventas del día» es una métrica de pedidos, no un módu
 
 ## 7. Navegación
 
-**El sidebar no es un sitemap.** No toda ruta merece una entrada principal.
-
-```text
-Sección
-  ↓
-Pantalla
-  ↓
-Detalle
-```
-
-Una ruta como `/admin/orders/[id]` o `/admin/cash/history/[id]` **existe sin entrada propia**. Hoy tampoco
-tienen entrada: `/admin/menu/*` (se entra por el hub de Menú), `/admin/promotions` (se entra por el hub de
-Menú), `/admin/history/facturas` (es la segunda tab de la sección *Cierres*, que cubre la sección con su
-`matchPath`) y `/admin/cash/report`.
-
-Si una feature necesita una jerarquía muy profunda, **primero se revisa la arquitectura**, después se
-agrega la ruta.
+**El sidebar no es un sitemap.** No toda ruta merece una entrada principal: los niveles son **Sección →
+Pantalla → Detalle**, y una ruta como `/admin/orders/[id]` o `/admin/cash/history/[id]` **existe sin entrada
+propia**. Hoy tampoco tienen entrada `/admin/menu/*` y `/admin/promotions` (se entra por el hub de Menú),
+`/admin/history/facturas` (es la segunda tab de *Cierres*, que cubre la sección con su `matchPath`) ni
+`/admin/cash/report`. Si una feature necesita una jerarquía muy profunda, **primero se revisa la
+arquitectura**, después se agrega la ruta.
 
 ---
 
 ## 8. Roles
 
 **Los roles cambian permisos, acciones, alcance y qué información se ve. No crean arquitecturas paralelas.**
-
-Prohibido el patrón `/owner/orders`, `/manager/orders`, `/cashier/orders`. Preferido: **una misma
-capacidad** con autorización **server-side** (la puerta de dominio de
-`src/modules/auth/domain/admin-permissions.ts`), y como mucho entradas de navegación **filtradas** por rol
-sobre esa misma capacidad.
-
-Límites de rol que ya son regla del repo y no se negocian acá: `kitchen` no maneja plata; `cashier` cobra y
-cierra su turno, no administra caja, no devuelve, no descuenta a mano y no ve el esperado del arqueo.
+Prohibido el patrón `/owner/orders`, `/manager/orders`, `/cashier/orders`. Preferido: **una misma capacidad**
+con autorización **server-side** (la puerta de dominio de
+`src/modules/auth/domain/admin-permissions.ts`) y, como mucho, entradas de navegación **filtradas** por rol
+sobre esa misma capacidad. Límites que no se negocian acá: `kitchen` no maneja plata; `cashier` cobra y cierra
+su turno, no administra caja, no devuelve, no descuenta a mano y no ve el esperado del arqueo.
 
 ---
 
 ## 9. Datos dinámicos (invariante)
 
 **Las entidades administrables del negocio no se hardcodean como estructura cerrada de la UI.** Aplica a
-sucursales, productos, categorías, usuarios, modificadores y cualquier otra dimensión configurable.
-
-Si se crea una sucursal nueva, las superficies que consumen locales (filtros, comparaciones, gráficos,
-selects, POS) **se adaptan por datos**. No debería hacer falta agregar su nombre a mano en un componente.
-
-Corolario de UI: un componente recibe **colecciones**; no conoce la lista de sucursales reales.
+sucursales, productos, categorías, usuarios, modificadores y cualquier otra dimensión configurable. Si se crea
+una sucursal nueva, las superficies que consumen locales (filtros, comparaciones, gráficos, selects, POS) **se
+adaptan por datos**: no debería hacer falta agregar su nombre a mano en un componente. Corolario de UI: un
+componente recibe **colecciones**; no conoce la lista de sucursales reales.
 
 ---
 
@@ -322,14 +334,10 @@ Sin ese bloque no se sabe si el trabajo era una capacidad nueva o una copia. La 
 
 ### 10.4 Gate estructural
 
-Antes de crear una **ruta o sección importante**, el agente contesta por escrito:
-
-1. ¿Es un **módulo**, una **sección**, una **pantalla** o una **feature**?
-2. ¿Existe un módulo que **ya sea dueño** de esta capacidad?
-3. ¿Quién posee las **reglas y los datos**?
-4. ¿Necesita **navegación principal**?
-5. ¿Es una **tarea recurrente**?
-6. ¿Está **duplicando** una capacidad existente?
+Antes de crear una **ruta o sección importante**, el agente contesta por escrito: (1) ¿es un **módulo**, una
+**sección**, una **pantalla** o una **feature**?; (2) ¿existe un módulo que **ya sea dueño** de esta
+capacidad?; (3) ¿quién posee las **reglas y los datos**?; (4) ¿necesita **navegación principal**?; (5) ¿es una
+**tarea recurrente**?; (6) ¿está **duplicando** una capacidad existente?
 
 Si la respuesta a (2) es «sí», la capacidad **va ahí** y no se abre nada nuevo. Solo si la capacidad es una
 **responsabilidad estable nueva** se propone módulo, sección o entrada —y eso lo aprueba el owner.
@@ -341,13 +349,10 @@ una corrección de estilo. La burocracia es para lo estructural, no para el trab
 
 ## 11. Integración con agentes y enforcement
 
-- Una **feature nueva** consulta este documento antes de decidir dónde vive (skill
-  [`new-task`](../../.agents/skills/new-task/SKILL.md)).
-- Una **pantalla nueva** identifica primero **su módulo** (skill
-  [`ui-change`](../../.agents/skills/ui-change/SKILL.md)).
-- Crear una **sección o un módulo** es una **decisión explícita** con la justificación de §10, no un efecto
-  colateral.
-- Un **bugfix normal** no atraviesa este proceso.
+Una **feature nueva** consulta este documento antes de decidir dónde vive
+([`new-task`](../../.agents/skills/new-task/SKILL.md)) y una **pantalla nueva** identifica primero **su módulo**
+([`ui-change`](../../.agents/skills/ui-change/SKILL.md)). Crear una **sección o un módulo** es una **decisión
+explícita** con la justificación de §10, no un efecto colateral; un **bugfix normal** no atraviesa este proceso.
 
 **Automatizado** (solo propiedades objetivas, en `src/shared/contracts/`): que esta fuente exista una sola
 vez, que `AGENTS.md`, [`ops/CURRENT.md`](../CURRENT.md) y [`ops/tasks/START-HERE.md`](../tasks/START-HERE.md)
@@ -369,16 +374,15 @@ se consumen desde todos: una sola fuente por cálculo.
 
 | # | Deuda | Evidencia |
 |---|---|---|
-| 1 | **Caja repartida**: el turno vive en `orders` + `pos` y no existe un módulo `cash` | `src/modules/orders/domain/shift-*.ts` · `pos/domain/shift-close-policy.ts` |
-| 2 | **Promociones** con entidad y motor en `orders` y pantalla en Catálogo | `src/modules/orders/**` · `/admin/promotions` |
-| 3 | **`dashboard` lee Prisma directo** en sus cinco features, sin puertos: riesgo de reimplementar una regla de `orders` | `src/modules/dashboard/features/**` |
-| 4 | **Cascarones** `coupons` y `table-ordering`: solo `README.md` (borrarlos o completarlos lo decide el owner) | `A-13` |
-| 5 | **`/admin/menu`** no verifica sesión ni permiso y lee la base con el adaptador de `menu` | `src/app/(admin)/admin/menu/page.tsx` |
-| 6 | **Puertas sin uso**: `canRefund` sin call site; `canPrintCashDocuments` solo en la pantalla; `/api/admin/users` no la aplica en la ruta (sí en los casos de uso) | `auth/domain/admin-permissions.ts` |
-| 7 | **Locales sin puerta propia**: `/api/admin/locations/**` se autoriza con `canManageBusinessSettings` | `src/app/api/admin/locations/**` |
-| 8 | **Entrada muerta «Mesas»** en la barra móvil y **Prisma en route handlers** de `tables` (deuda congelada) | `A-62` · `route-contract.test.ts` |
-| 9 | **`/admin` no existe para roles sin Resumen**: `manager` y `kitchen` aterrizan en Órdenes (decisión de producto) | `A-10` |
-| 10 | **Pedidos / Cocina**: reglas de dinero duplicadas (el POS convierte y el cobro de un pedido existente no), `Order.source` ausente, la ruta de la factura sin puerta de rol ni alcance por sucursal y el cobro sin clave de idempotencia | `A-68` · `A-69` · `A-70` · `A-71` |
+| 1 | **Caja y Promociones repartidas**: el turno vive en `orders` + `pos` (falta `cash`) y las promociones tienen motor en `orders` con pantalla en Catálogo | `src/modules/orders/domain/shift-*.ts` · `pos/domain/shift-close-policy.ts` · `/admin/promotions` |
+| 2 | **`dashboard` lee Prisma directo** en sus cinco features, sin puertos: riesgo de reimplementar una regla de `orders` | `src/modules/dashboard/features/**` |
+| 3 | **Cascarones** `coupons` y `table-ordering`: solo `README.md` (borrarlos o completarlos lo decide el owner) | `A-13` |
+| 4 | **`/admin/menu`** no verifica sesión ni permiso y lee la base con el adaptador de `menu` | `src/app/(admin)/admin/menu/page.tsx` |
+| 5 | **Puertas sin uso**: `canRefund` sin call site; `canPrintCashDocuments` solo en la pantalla (**y sin puerta de servidor: `A-78`**); `/api/admin/users` no la aplica en la ruta (sí en los casos de uso) | `auth/domain/admin-permissions.ts` |
+| 6 | **Locales sin puerta propia**: `/api/admin/locations/**` se autoriza con `canManageBusinessSettings` | `src/app/api/admin/locations/**` |
+| 7 | **Entrada muerta «Mesas»** en la barra móvil y **Prisma en route handlers** de `tables` (deuda congelada) | `A-62` · `route-contract.test.ts` |
+| 8 | **`/admin` no existe para roles sin Resumen**: `manager` y `kitchen` aterrizan en Órdenes (decisión de producto) | `A-10` |
+| 9 | **Dinero repartido y sin dueño único** (lo cierra el runtime de Money/Payments, órdenes 4 y 5): la conversión escrita cinco veces, el cobro de un pedido existente sin convertir (`A-68`), sin idempotencia (`A-71`) y sin la tasa en el hecho (`A-72`), la factura por conteo (`A-70`), las devoluciones sin límite atómico (`A-73`) y la ausencia del estado financiero del pedido | `A-68` · `A-70` · `A-71` · `A-72` · `A-73` · `A-75` · `A-80` |
 
 **Corregido en `TASK-IA-001`** (queda como registro de la clase de bug): Aprobaciones dibujaba la entrada con
 `canManageCash` cuando la pantalla exige `canApproveRefund`.

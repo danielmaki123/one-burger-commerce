@@ -61,3 +61,33 @@ inferirlo desde `Payment`, el nombre «Mostrador», el turno, el medio de pago o
 migración es **aditiva y nullable**: `null` = «no declarado» en los pedidos anteriores a la columna y **no se
 reconstruye** el pasado (ley 7). Aprobada por el owner el 2026-09-27 en
 [`../tasks/TASK-ORDERS-KITCHEN-FOUNDATIONS-001.md`](../tasks/TASK-ORDERS-KITCHEN-FOUNDATIONS-001.md).
+
+## D-016 — Una regla financiera tiene un solo dueño; las superficies la consumen
+`money` es dueño de moneda, tasa, conversión, redondeo y formato; `payments` es dueño del cobro, del saldo y
+del estado financiero; `banks` es dueño de las entidades de cobro. **Prohibido** que una superficie (POS, Caja,
+Pedidos, Facturas, React) recalcule una regla financiera: la consume. Aprobada por el owner el 2026-09-28 en
+[`../tasks/TASK-MONEY-PAYMENTS-FOUNDATIONS-001.md`](../tasks/TASK-MONEY-PAYMENTS-FOUNDATIONS-001.md).
+
+## D-017 — El medio de pago tiene tipo canónico y medio comercial; `mixed` no es un medio
+Se separan la **semántica contable** (`cash` · `card` · `bank_transfer` · `wallet` · `other`) del **medio
+comercial configurable** («Tarjeta BAC», «PayPal», «Zelle»). `mixed` **no** es un medio elegible: se **deriva**
+cuando una venta tiene más de un `Payment`. Qué pasa con el enum actual y sus consumidores lo decide la TASK de
+runtime. Aprobada por el owner el 2026-09-28.
+
+## D-018 — La moneda base se cambia con una operación explícita, no con un input
+Cambiar la moneda base abre un **período de vigencia** desde el momento elegido y **no recalcula** nada
+existente: los hechos históricos conservan su moneda, su tasa y su equivalente. **Prohibido** implementarlo
+como un campo de texto que reinterpreta hacia atrás lo guardado. Aprobada por el owner el 2026-09-28.
+
+## D-019 — El catálogo de monedas es conveniencia; NIO/USD/BAC son configuración inicial
+El sistema opera internacionalmente: catálogo de monedas conocidas, **monedas personalizadas** con código
+interno, sin enums comerciales cerrados a Nicaragua y sin lógica financiera hardcodeada a un país. `NIO`,
+`USD` y los bancos nicaragüenses son **configuración inicial**, no leyes del producto. Aprobada por el owner el
+2026-09-28.
+
+## D-020 — El cobro congela la tasa; sin backfill inventado
+Un `Payment` nuevo conserva para siempre monto, moneda, moneda base, **tasa aplicada**, equivalente en moneda
+base, medio y su tipo canónico, entidad, referencia, turno y timestamp. Los cobros históricos **no se
+rellenan**: las columnas nacen nullable y un consumidor que necesite el equivalente usa la tasa vigente y **lo
+declara**. **Prohibido** el backfill de montos, tasas o monedas, y prohibido inferir el tipo de una entidad por
+su nombre. Aprobada por el owner el 2026-09-28.

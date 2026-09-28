@@ -8,18 +8,20 @@ en qué estado está el sistema en pocos minutos.
 [`.agents/CONTEXT.md`](../.agents/CONTEXT.md)). Este archivo se **actualiza seguido** y se mantiene
 corto: si crece como un diario, dejó de servir.
 
-> **Última actualización**: 2026-09-28, por **`TASK-ORDERS-KITCHEN-RUNTIME-002`** (Cocina runtime,
-> `high-risk-e2e`): **cerrada y DESPLEGADA** — `build-20260928-035241` sobre `72b22b5`, con health/readiness,
-> los dos smokes y el **QA autenticado de producción** en los cuatro viewports (§1 y §4). Antes:
-> `TASK-ORDERS-KITCHEN-FOUNDATIONS-001` (fundaciones de `Pedidos / Cocina`, `docs-only`, **cerrada y
-> mergeada**) y el release de **`SCREEN-POS-QUICK-SALE-001.2`** (**desplegado**). **POS Fase 1 queda CERRADA
-> DEFINITIVAMENTE** y **«POS Fase 2» dejó de existir como fase**. **`Pedidos / Cocina` ya no es una
-> incógnita**: auditado, con **dos specs congeladas** y sus **referencias aprobadas por el owner el
-> 2026-09-27**, y **Cocina corriendo como superficie propia**. **Vigente: el Default E2E Delivery Contract**
-> ([`.agents/skills/delivery-e2e/SKILL.md`](../.agents/skills/delivery-e2e/SKILL.md)). **La estabilización
-> técnica sigue cerrada**, con una excepción acotada en dinero: **`A-68`** es la razón declarada para
-> consolidar Money/Payments **antes** del estado financiero definitivo de Pedidos. **Lo que sigue es `Money /
-> Payments ownership`** (órdenes 4 y 5), y **no se abre sin autorización del owner**.
+> **Última actualización**: 2026-09-28, por **`TASK-MONEY-PAYMENTS-FOUNDATIONS-001`** (fundaciones de
+> `Money / Payments`, `docs-only`): **cerrada y mergeada, sin deploy** — no tocó runtime, Prisma, migraciones,
+> APIs ni navegación. Dejó la **auditoría real** de Money y Payments, el **ownership** resuelto, los
+> **contratos** (estado financiero canónico, snapshot de `Payment`, idempotencia, boundaries), la **estrategia
+> legacy sin backfill**, las **migraciones enumeradas y no creadas** y el **Design Freeze de Finanzas**
+> ([`design/screens/finance.md`](design/screens/finance.md) + su
+> [referencia aprobada](design/screens/finance-reference.html) del 2026-09-27). `A-68` (P1), `A-69` y `A-71`
+> quedaron **reproducidos con evidencia**, y aparecieron **nueve** hallazgos nuevos (`A-72`…`A-80`) que
+> **no se corrigen acá**. Antes: `TASK-ORDERS-KITCHEN-RUNTIME-002` (Cocina runtime, `high-risk-e2e`,
+> **desplegada**) y `TASK-ORDERS-KITCHEN-FOUNDATIONS-001`. **POS Fase 1 queda CERRADA DEFINITIVAMENTE** y
+> **«POS Fase 2» dejó de existir como fase**. **Vigente: el Default E2E Delivery Contract**
+> ([`.agents/skills/delivery-e2e/SKILL.md`](../.agents/skills/delivery-e2e/SKILL.md)). **Lo que sigue es el
+> runtime de `Money / Payments`** (órdenes 4 y 5, **una sola TASK**), y **no se abre sin autorización del
+> owner**.
 
 ---
 
@@ -120,18 +122,19 @@ filtra datos) · **P2** (función rota, fuga o deuda estructural con impacto).
 
 > **No hay ningún P0 abierto conocido.**
 >
-> **Hay un P1 de dinero abierto y acotado**: `A-68` (el cobro de un pedido que ya existe compara
-> `Payment.amount` **sin** la conversión a moneda del negocio, mientras la venta del POS **sí** convierte).
-> **No hay superficie** que lo dispare hoy (`A-67`): se llega sólo por API. Es la razón declarada para
-> consolidar **Money/Payments antes** de conectar el estado financiero definitivo de Pedidos. `A-15` (con su
-> remanente `A-59`) quedó **cerrado** el 2026-09-25 y `A-58` antes. El otro P1 abierto es **operativo**
-> (`A-57`, el backup programado), que por decisión del owner **no** bloquea el trabajo de producto.
+> **P1 de dinero**: `A-68` (el cobro de un pedido que ya existe compara `Payment.amount` **sin** convertir,
+> mientras la venta del POS **sí** convierte) y **`A-73`** (pedir una devolución no tiene límite atómico ni
+> lock). **No hay superficie** que dispare `A-68` hoy (`A-67`): se llega sólo por API. Los dos son la razón
+> declarada para llevar **Money/Payments a runtime**. El otro P1 abierto es **operativo** (`A-57`, el backup
+> programado), que por decisión del owner **no** bloquea el trabajo de producto. `A-15` (con `A-59`) y `A-58`
+> quedaron **cerrados** el 2026-09-25.
 
 **P1**
 
 | Riesgo | Detalle | Dónde |
 |---|---|---|
-| **El cobro de un pedido que ya existe compara montos sin convertir** | `register-order-payment.ts:124-140` compara la **suma cruda** de `Payment.amount` contra `Order.total` (y recibe `businessCurrencyCode`/`usdExchangeRate` que **no usa**), mientras la venta del POS **sí** convierte (`pos-sale.ts:50-74`). Con un cobro en dólares, un pedido de `C$365` acepta `US$10` como «10 pagados» y deja cobrar otros `C$355`: se cobra de más. **Hoy no hay superficie** que lo dispare (`A-67`): se llega sólo por API. Es la **razón declarada** para consolidar Money/Payments **antes** de conectar el estado financiero de Pedidos | `A-68` en [`audit-backlog.md`](audit-backlog.md) |
+| **El cobro de un pedido que ya existe compara montos sin convertir** | `register-order-payment.ts:124-140` compara la **suma cruda** de `Payment.amount` contra `Order.total` (y recibe `businessCurrencyCode`/`usdExchangeRate` que **no usa**), mientras el POS **sí** convierte (`pos-sale.ts:50-74`). Un pedido de `C$365` acepta `US$10` como «10 pagados» y deja cobrar otros `C$355`. **Hoy no hay superficie** que lo dispare (`A-67`). **Reproducido** en `TASK-MONEY-PAYMENTS-FOUNDATIONS-001` | `A-68` en [`audit-backlog.md`](audit-backlog.md) |
+| **Pedir o resolver una devolución no tiene límite atómico** | `request-refund.ts:62-134` y `review-refund.ts:53-88` corren con adaptadores de cliente **raíz**, sin `$transaction`: dos POST simultáneos del mismo cobro leen el mismo cupo y los dos insertan. **No hay ningún `*.postgres.test.ts` de devoluciones.** Lo cierra la TASK de runtime de Money/Payments | `A-73` en [`audit-backlog.md`](audit-backlog.md) |
 | **El backup programado no genera archivos** | La config del servicio `oneburguer-postgres` está `enabled: true` (cron `0 0 * * *`) pero el respaldo programado **nunca** produjo un archivo: las únicas acciones de backup son las dos del drill (2026-09-12) y la manual del release anterior (2026-09-25 12:27), y **no hay retención declarada**. Es **materia de infraestructura/operación**: requiere revisar la sección Backups del panel y decidir retención — no es código y **no bloquea** el trabajo de producto. Mientras tanto: el **backup se decide por riesgo del release**, no por frecuencia ([`delivery-e2e`](../.agents/skills/delivery-e2e/SKILL.md) §4) | `A-57` en [`audit-backlog.md`](audit-backlog.md) |
 
 **P2**
@@ -160,37 +163,24 @@ de un pedido existente sin clave de idempotencia).
 
 ## 4. Trabajo actual
 
-**`TASK-ORDERS-KITCHEN-RUNTIME-002` — Cocina runtime (`high-risk-e2e`): CERRADA Y DESPLEGADA.**
+**`TASK-MONEY-PAYMENTS-FOUNDATIONS-001` — fundaciones de Money / Payments (`docs-only`): CERRADA Y MERGEADA.**
 
-Está en `main` (PR #79, squash; `aec184b`) y **corriendo en producción** bajo `build-20260928-035241` sobre
-`72b22b5`. Lo que quedó, en una línea cada uno (el detalle y las decisiones están en el brief
-[`tasks/TASK-ORDERS-KITCHEN-RUNTIME-002.md`](tasks/TASK-ORDERS-KITCHEN-RUNTIME-002.md); el **ownership**,
-en `ops/product/MODULE_ARCHITECTURE.md` §5):
+Sin deploy: no tocó runtime, Prisma, migraciones, APIs ni navegación. Entregó la **auditoría real** de los dos
+subsistemas contra el código, la **matriz de clasificación** (`REUSE`/`MOVE`/`ADAPT`/`CONSOLIDATE`/`NEW`/
+`MISSING`/`OUT`), la **matriz de ownership definitiva**, los **contratos** (estado financiero canónico,
+snapshot de `Payment`, idempotencia y concurrencia, boundaries con Caja y Facturas), los **modelos
+conceptuales** de moneda/tasa/historial y de snapshot, la **estrategia legacy sin backfill**, las **diez
+migraciones enumeradas y no creadas**, los **archivos prohibidos de duplicar** y el **Design Freeze de
+Finanzas**. Todo el detalle y la evidencia, en
+[`tasks/TASK-MONEY-PAYMENTS-FOUNDATIONS-001.md`](tasks/TASK-MONEY-PAYMENTS-FOUNDATIONS-001.md).
 
-- **`/admin/kitchen`** es una superficie propia: tres carriles (**ENTRADA** con sus grupos *Ahora* /
-  *Programados* · **PREPARANDO** · **LISTOS**, sin acción), con entrada en Operación.
-- **`confirmed` está en ENTRADA** en las dos superficies: el mapa estado→carril vive **una sola vez** en
-  `orders/domain` (`A-64` deja de duplicarse).
-- **La preparación real es `preparingAt → readyAt`** (antes se medía desde `createdAt`); los sellos por etapa
-  salen de `OrderStatusHistory` y el inicio recomendado del programado también vive en el dominio.
-- **`Order.source`** (`menu` | `pos`), migración aditiva nullable y **sin backfill**: lo declara cada puerta
-  (menú y POS) y **no se infiere**.
-- **`KitchenOrderProjection`** y `GET /api/admin/kitchen/orders`: la proyección **no tiene un solo campo
-  financiero**, así que el recorte es del servidor. **`canOperateKitchen`** (sin el cajero) y
-  `assertKitchenStatusTransition`: el rol de cocina no retira ni cierra.
-- **`/admin/orders` perdió el modo cocina** y su tablero consume el carril del dominio.
+**Lo que sigue es el runtime de `Money / Payments`** (órdenes 4 y 5, **una sola TASK**) y después **`Pedidos
+runtime`** (orden **5b**). **`DS-001`** (ley visual v4) está **aprobado y desplegado**; **`IA-001`**
+(navegación del panel) también.
 
-Evidencia: 3.592 unitarios verdes, CI verde en los cuatro checks, E2E locales de Cocina (7/7 en los cuatro
-viewports) y de POS (11/11), **QA autenticado de producción** en los cuatro viewports (§1) y capturas en
-[`design/screens/kitchen-*.png`](design/screens/) y `test-results/qa-kitchen-prod-*.png`.
-
-**`A-60` no se declara cerrado**: el recorte financiero del **detalle compartido**
-(`api/admin/orders/[id]` → `getOrder` con `payments`) es de **Pedidos runtime (5b)**. Lo que esta TASK
-garantiza es que **Cocina** no reciba dinero: su proyección y su API no lo tienen.
-
-**Lo que sigue es `Money / Payments ownership`** (órdenes 4 y 5) y después **`Pedidos runtime`** (orden
-**5b**). **`DS-001`** (ley visual v4) está **aprobado y desplegado**; **`IA-001`** (navegación del panel)
-también.
+**Cocina runtime** (`TASK-ORDERS-KITCHEN-RUNTIME-002`, `high-risk-e2e`) está **desplegada** bajo
+`build-20260928-035241` sobre `72b22b5` (detalle en §1 y §5). **`A-60` no se declara cerrado**: el recorte
+financiero del detalle compartido es de **Pedidos runtime (5b)**.
 
 **Los cierres anteriores ya no viven acá**: el detalle se movió a
 [`history/cierres-2026-09.md`](history/cierres-2026-09.md) cuando este archivo llegó a su techo de **250
@@ -208,14 +198,17 @@ duplican**.
 
 Lo que sigue, en orden:
 
-1. **`Money / Payments ownership`** (órdenes 4 y 5) y después **`Pedidos runtime`** (orden **5b**): el estado
-   financiero canónico (`pending` / `partial` / `paid`) tiene dueño propio **antes** de que el listado y el
-   detalle lo muestren, y es donde vive el remanente de `A-60` (el recorte del detalle). **No se inician
+1. **`Money / Payments runtime`** (órdenes 4 y 5, **una sola TASK**): crear los módulos `money` y `payments`
+   —dónde vive cada uno: `ops/product/MODULE_ARCHITECTURE.md` §4.1–§4.2—, el catálogo de monedas con historial
+   de tasas, el estado financiero canónico, la idempotencia del cobro y el snapshot monetario; cerrar `A-68`,
+   `A-71`, `A-72` y `A-73`; ampliar `banks` con el tipo de entidad; y la pantalla de Finanzas según su SPEC
+   congelada. Después **`Pedidos runtime`** (orden **5b**), donde vive el remanente de `A-60`. **No se inician
    solas.**
 2. **Pedido existente → Cobrar en POS** (orden 6): **compone** el backend que ya existe
    (`POST /api/admin/orders/[id]/payment`); no lo reconstruye. Cierra `A-67`. Después **Cash ownership** (7).
-3. **Deuda de Pedidos/Cocina (`A-60` a `A-71`)** y después `AUD-009`/`AUD-010`, `AUD-012`/`AUD-013`/`AUD-014`.
-   `A-57` (backup programado) es **infraestructura**: el owner decide y no bloquea el producto.
+3. **Deuda de Pedidos/Cocina y de dinero (`A-60` a `A-80`)** y después `AUD-009`/`AUD-010`,
+   `AUD-012`/`AUD-013`/`AUD-014`. `A-57` (backup programado) es **infraestructura**: el owner decide y no
+   bloquea el producto.
 
 ## 6. Bloqueos
 

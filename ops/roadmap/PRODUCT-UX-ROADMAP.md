@@ -11,8 +11,9 @@ visual (eso es [`../design/DESIGN_SYSTEM.md`](../design/DESIGN_SYSTEM.md)). **No
 que no esté en el orden de §2 no está planificado, y si aparece la necesidad se discute con el owner y se
 anota acá **antes** de empezar.
 
-**Última actualización**: 2026-09-27, por **`TASK-ORDERS-KITCHEN-FOUNDATIONS-001`** (fundaciones de
-Pedidos / Cocina: auditoría, ownership, secuencia y Design Freeze).
+**Última actualización**: 2026-09-28, por **`TASK-MONEY-PAYMENTS-FOUNDATIONS-001`** (fundaciones de Money /
+Payments: auditoría real, ownership, contratos, snapshot, idempotencia, boundaries y Design Freeze de
+Finanzas). Antes: 2026-09-27, por **`TASK-ORDERS-KITCHEN-FOUNDATIONS-001`** (fundaciones de Pedidos / Cocina).
 
 ---
 
@@ -59,8 +60,8 @@ Cada paso se abre como **una TASK**, con su brief en `ops/tasks/` y su Delivery 
 2.  Consolidación arquitectónica ..... TASK-GOV-001 · docs-only · CERRADA (arquitectura objetivo + orden)
 3.  Separar Pedidos / Cocina ......... CERRADA (TASK-ORDERS-KITCHEN-FOUNDATIONS-001 · docs-only)
 3b. Cocina runtime ................... /admin/kitchen como proyección de orders · SIGUIENTE TASK
-4.  Money ownership .................. moneda, locale, FX y conversión en un dueño explícito
-5.  Payments ownership ............... Payment, saldo, parcial, refund, void, banco y snapshots monetarios
+4.  Money ownership .................. auditado, con dueño y contratos (TASK-MONEY-PAYMENTS-FOUNDATIONS-001) · SIGUIENTE: runtime
+5.  Payments ownership ............... auditado, con dueño y contratos (misma TASK) · SIGUIENTE: runtime
 5b. Pedidos runtime .................. /admin/orders denso y paginado + detalle con su historia y su cobro
 6.  Pedido existente → Cobrar en POS . Órdenes localiza el pedido y el POS lo cobra (cierra `A-67`)
 7.  Cash ownership ................... Shift, apertura, movimientos, conteo, cierre, handover y conciliación
@@ -75,13 +76,19 @@ Cada paso se abre como **una TASK**, con su brief en `ops/tasks/` y su Delivery 
 16. Resumen, cuando las fuentes estén maduras ... `/admin`, al final, cuando las fuentes estén maduras
 ```
 
-**Dependencias que no se saltean** (verificadas contra el código en `TASK-ORDERS-KITCHEN-FOUNDATIONS-001`):
+**Dependencias que no se saltean** (verificadas contra el código en `TASK-ORDERS-KITCHEN-FOUNDATIONS-001` y
+revalidadas en `TASK-MONEY-PAYMENTS-FOUNDATIONS-001`):
 
 - **3b antes de 5b, y 3b no depende de 4, 5 ni 6**: la cocina **no toca dinero** —su proyección no incluye un
   solo campo financiero— así que puede ir primero; lo que sí trae es la puerta que impide que el dinero llegue
-  a cocina.
+  a cocina. **3b está cerrado y desplegado.**
+- **4 y 5 son una sola entrega de runtime, no dos**: la auditoría de la fundación mostró que `payments` no
+  puede cerrar la comparación sin convertir (`A-68`) sin la tasa que sólo `money` define, y `money` no tiene
+  hecho histórico que congelar sin `payments`. Van juntos, en una TASK, con dueño, contratos y snapshot ya
+  definidos; la SPEC de la superficie, en [`../design/screens/finance.md`](../design/screens/finance.md) con
+  su [referencia aprobada](../design/screens/finance-reference.html).
 - **4 y 5 antes de 5b**: el listado y el detalle muestran si el pedido está cobrado, y esa regla no se calcula
-  en React.
+  en React. El estado financiero canónico **no existe hoy** en ninguna capa.
 - **4 y 5 antes de 6** (no se cobra un pedido existente sin dueño del dinero) y **5b antes de 6**: alguien
   tiene que **localizar** el pedido antes de que el POS lo cobre, y hoy no hay superficie (`A-67`).
 - **16 al final**, porque un overview solo es honesto cuando las fuentes que resume ya están ordenadas.
