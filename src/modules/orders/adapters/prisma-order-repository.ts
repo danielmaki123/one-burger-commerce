@@ -23,6 +23,7 @@ import {
   searchDigits,
 } from "@/modules/orders/domain/order-search";
 import {
+  resolvePreparingAt,
   resolveReadyAt,
   resolveStageChangedAt,
 } from "@/modules/orders/domain/order-stage-times";
@@ -112,6 +113,9 @@ function mapOrder(order: any): OrderRecord {
     orderNumber: order.orderNumber,
     type: order.type as OrderRecord["type"],
     status: order.status as OrderRecord["status"],
+    // TASK-ORDERS-KITCHEN-RUNTIME-002: el canal se lee tal como se guardó. `null` = no declarado
+    // (pedidos anteriores a la columna) y **no** se completa con ninguna deducción.
+    source: (order.source ?? null) as OrderRecord["source"],
     customerName: order.customerName,
     customerWhatsapp: order.customerWhatsapp,
     customerEmail: order.customerEmail,
@@ -176,6 +180,9 @@ function mapQueueOrder(order: any): OrderQueueRecord {
     ...mapped,
     stageChangedAt: resolveStageChangedAt(history, mapped.createdAt),
     readyAt: resolveReadyAt(history),
+    // `TASK-ORDERS-KITCHEN-RUNTIME-002` — el sello del que sale la preparación real. Misma regla de
+    // dominio que aplica el adaptador de memoria: la derivación no se copia.
+    preparingAt: resolvePreparingAt(history),
   };
 }
 
@@ -343,6 +350,9 @@ export class PrismaOrderRepository implements OrderRepository {
         pickupPin: input.pickupPin ?? null,
         // T8: el local es obligatorio en la base; el caso de uso lo resuelve antes.
         locationId: input.locationId,
+        // TASK-ORDERS-KITCHEN-RUNTIME-002: el canal lo declara la puerta de creación. Sin valor queda
+        // `NULL`, que significa «no declarado» — nunca se completa por heurística.
+        source: input.source ?? null,
         tableId: input.tableId ?? null,
         couponCode: input.couponCode ?? null,
         subtotal: input.subtotal,
@@ -455,7 +465,7 @@ export class PrismaOrderRepository implements OrderRepository {
 
     const where: {
       type?: OrderRecord["type"];
-      status?: OrderRecord["status"];
+      status?: OrderRecord["status"] | { in: OrderStatus[] };
       locationId?: { in: string[] };
       createdAt?: { gte?: Date; lte?: Date };
       paymentMethod?: OrderRecord["paymentMethod"];
@@ -467,6 +477,14 @@ export class PrismaOrderRepository implements OrderRepository {
     }
     if (filter.status) {
       where.status = filter.status as OrderStatus;
+    }
+    // TASK-ORDERS-KITCHEN-RUNTIME-002: la cola de Cocina pide sus estados en **una** consulta. El filtro
+    // de Prisma es `status: { in: [...] }`, no `statusIn`: ese nombre es el del puerto, y confundirlos
+    // hacía que Prisma rechazara la consulta (lo cazó el E2E de Cocina, no el test unitario —que usa un
+    // doble—: por eso hay un test de contrato del filtro en `prisma-order-repository.test.ts`).
+    // Un filtro vacío no se aplica: no es «ningún estado», es «sin filtro».
+    if (filter.statusIn?.length) {
+      where.status = { in: filter.statusIn as OrderStatus[] };
     }
     // Sucursales del alcance (A): una lista vacía no filtra nada (sin asignar = ve todas).
     if (filter.locationIds?.length) {

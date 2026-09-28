@@ -472,9 +472,24 @@ test.describe("punto de venta", () => {
     await expect(page.getByText(numero!)).toBeVisible();
 
     // ...y **avanza con las mismas reglas** que uno del checkout (TASK-304): se acepta desde la fila.
+    // La acción se llama por lo que hace (`Iniciar preparación`), y el pedido aceptado sigue en ENTRADA
+    // hasta que alguien empieza a cocinarlo (`A-64`).
     const acciones = page.getByRole("group", { name: `Acciones de la orden ${numero}` });
     await acciones.getByRole("button", { name: "Aceptar" }).click();
-    await expect(acciones.getByRole("button", { name: "Preparando" })).toBeVisible();
+    await expect(acciones.getByRole("button", { name: "Iniciar preparación" })).toBeVisible();
+
+    // `TASK-ORDERS-KITCHEN-RUNTIME-002` — la venta del mostrador **declara su canal**: en el tablero de
+    // Cocina la comanda lleva la etiqueta `POS`, y como no tiene hora prometida dice «lo antes posible».
+    await page.goto("/admin/kitchen");
+    const comanda = page
+      .getByRole("region", { name: "Entrada" })
+      .locator("article")
+      .filter({ hasText: numero! });
+    await expect(comanda).toBeVisible();
+    await expect(comanda).toContainText("POS");
+    await expect(comanda).toContainText("Retiro: lo antes posible");
+
+    await page.goto("/admin/orders");
 
     // Y la caja ve lo que cobró, con el medio y la moneda (TASK-304). Se abre por **número**: el
     // nombre del cliente se repite entre corridas y el locator tiene que ser uno solo.

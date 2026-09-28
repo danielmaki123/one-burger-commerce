@@ -190,12 +190,22 @@ describe("listAdminOrders · el promedio de preparación (B5)", () => {
     return repo;
   }
 
-  it("promedia lo que tardaron los pedidos que ya están listos", async () => {
+  /**
+   * La preparación real es **`preparingAt` → `readyAt`** (`TASK-ORDERS-KITCHEN-RUNTIME-002`).
+   *
+   * Antes se medía desde `createdAt`, que mezcla la espera del cliente con el trabajo de la cocina. Estos
+   * dos casos tienen a propósito un `preparingAt` distinto de la creación: si alguien volviera a medir
+   * desde `createdAt`, el promedio daría otro número y el test falla.
+   */
+  it("promedia lo que tardó la cocina (`preparingAt` → `readyAt`)", async () => {
     const result = await listAdminOrders(
       {},
       {
         repository: repoWith([
+          // Los dos entraron a las 18:00 y la cocina tardó 10 y 20 minutos.
+          { orderId: "ord_1", status: "preparing", createdAt: "2026-09-12T18:00:00.000Z" },
           { orderId: "ord_1", status: "ready_for_pickup", createdAt: "2026-09-12T18:10:00.000Z" },
+          { orderId: "ord_2", status: "preparing", createdAt: "2026-09-12T18:00:00.000Z" },
           { orderId: "ord_2", status: "ready_for_pickup", createdAt: "2026-09-12T18:20:00.000Z" },
         ]),
         locationRepository: locations(),
@@ -204,6 +214,7 @@ describe("listAdminOrders · el promedio de preparación (B5)", () => {
 
     expect(result.meta.averagePrepMinutes).toBe(15);
     expect(result.data[0].readyAt).toBe("2026-09-12T18:10:00.000Z");
+    expect(result.data[0].preparingAt).toBe("2026-09-12T18:00:00.000Z");
   });
 
   it("los que todavía están en el fuego no entran en el promedio", async () => {
@@ -211,6 +222,7 @@ describe("listAdminOrders · el promedio de preparación (B5)", () => {
       {},
       {
         repository: repoWith([
+          { orderId: "ord_1", status: "preparing", createdAt: "2026-09-12T18:00:00.000Z" },
           { orderId: "ord_1", status: "ready_for_pickup", createdAt: "2026-09-12T18:08:00.000Z" },
           { orderId: "ord_2", status: "preparing", createdAt: "2026-09-12T18:30:00.000Z" },
         ]),
@@ -220,6 +232,22 @@ describe("listAdminOrders · el promedio de preparación (B5)", () => {
 
     expect(result.meta.averagePrepMinutes).toBe(8);
     expect(result.data.find((entry) => entry.id === "ord_2")?.readyAt).toBeNull();
+  });
+
+  it("un pedido listo **sin** sello de preparación no entra: no se le inventa un inicio", async () => {
+    const result = await listAdminOrders(
+      {},
+      {
+        repository: repoWith([
+          { orderId: "ord_1", status: "ready_for_pickup", createdAt: "2026-09-12T18:20:00.000Z" },
+        ]),
+        locationRepository: locations(),
+      },
+    );
+
+    // El historial no tiene `preparing`: medir desde la creación daría 20 minutos inventados.
+    expect(result.meta.averagePrepMinutes).toBeNull();
+    expect(result.data[0].preparingAt).toBeNull();
   });
 
   it("sin ningún pedido listo todavía, no hay promedio (y eso no es cero)", async () => {

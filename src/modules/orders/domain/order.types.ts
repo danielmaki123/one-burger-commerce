@@ -3,6 +3,27 @@ import type { PickupLocation } from "@/modules/locations/domain/location-rules";
 export type OrderType = "delivery" | "pickup" | "table";
 
 /**
+ * Canal por el que **entró** el pedido (`TASK-ORDERS-KITCHEN-RUNTIME-002`).
+ *
+ * Lo declara la puerta de creación —el menú público pone `menu` y la venta del mostrador pone `pos`— y
+ * **no se infiere** de ninguna otra señal. `null` significa «no declarado»: los pedidos anteriores a la
+ * columna. No hay un tercer canal.
+ */
+export const ORDER_SOURCES = ["menu", "pos"] as const;
+
+export type OrderSource = (typeof ORDER_SOURCES)[number];
+
+/** Cómo se etiqueta el canal en el panel. Sin valor, no se dibuja etiqueta (nunca una adivinada). */
+export const ORDER_SOURCE_LABELS: Record<OrderSource, string> = {
+  menu: "Menú",
+  pos: "POS",
+};
+
+export function isOrderSource(value: unknown): value is OrderSource {
+  return typeof value === "string" && (ORDER_SOURCES as readonly string[]).includes(value);
+}
+
+/**
  * Forma de pago declarada por el cliente (T11).
  *
  * El cobro es **en el local**: esto es informativo, para que la caja sepa si
@@ -98,6 +119,12 @@ export type OrderRecord = {
    * que pueda reusarse.
    */
   idempotencyKey?: string | null;
+  /**
+   * `TASK-ORDERS-KITCHEN-RUNTIME-002` — canal de origen. `null`/ausente = **no declarado** (pedidos
+   * anteriores a la columna). Es el dato que la tarjeta de Cocina dibuja como `MENÚ` / `POS`; sin
+   * valor, no dibuja etiqueta.
+   */
+  source?: OrderSource | null;
   customerName: string;
   customerWhatsapp: string;
   /** TASK-303b — correo del cliente, si lo dejó (la venta de mostrador lo pide opcional). */

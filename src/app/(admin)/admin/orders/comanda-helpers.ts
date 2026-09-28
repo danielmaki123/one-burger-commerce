@@ -1,83 +1,32 @@
-import type { OrderStatus } from "@/modules/orders/domain/order.types";
+import {
+  COMANDA_LANES,
+  comandaCounters,
+  groupComandasByLane,
+  resolveOrderLane,
+  type OrderLane,
+} from "@/modules/orders/domain/order-lanes";
 
 /**
- * B3 — el tablero de comandas: carriles y urgencia.
+ * El tablero de comandas: de dónde salen los carriles y la urgencia de una comanda.
  *
- * Dos decisiones del owner viven acá, y por eso están en un helper puro y probado:
+ * **Dónde vive cada regla** (A-64, cerrado por `TASK-ORDERS-KITCHEN-RUNTIME-002`):
  *
- * 1. **Cada etapa de cocina tiene su carril.** Por aceptar es solo lo que nadie tomó todavía; en
- *    preparación incluye lo aceptado (ya es trabajo de cocina) y lo que se está cocinando; listas es
- *    lo que espera al mostrador. Un pedido cerrado o cancelado **no está en el tablero**: sigue
- *    existiendo en el historial.
- * 2. **La urgencia se mide dentro de la etapa**, no desde que entró el pedido (§4.3). Los umbrales
- *    entran por parámetro porque en B5 salen de la configuración de cada local.
+ * - **El carril de un estado** vive en `orders/domain/order-lanes.ts`, **una sola vez**, y lo consumen
+ *   Cocina y Pedidos. Antes vivía acá y en otras cuatro copias, y no todas decían lo mismo: `confirmed`
+ *   caía «en preparación» en dos de ellas. `COMANDA_LANES`, `comandaLane`, `groupComandasByLane` y
+ *   `comandaCounters` se reexportan desde el dominio para no romper a quien ya los importaba de acá.
+ * - **La urgencia y los umbrales** siguen acá: son **presentación** del local (cuántos minutos avisan),
+ *   no una regla de negocio del pedido. Los umbrales entran por parámetro porque salen de la
+ *   configuración de cada local (`Location.acceptAlertMinutes` / `prepAlertMinutes`).
  */
 
-export type ComandaLane = "pending" | "preparing" | "ready";
+export type { OrderLane };
+export type ComandaLane = OrderLane;
+export { COMANDA_LANES, comandaCounters, groupComandasByLane };
+export type ComandaLaneMeta = (typeof COMANDA_LANES)[number];
 
-export type ComandaLaneMeta = { id: ComandaLane; label: string; empty: string };
-
-/** Los carriles, en el orden en que la cocina los mira. */
-export const COMANDA_LANES: readonly ComandaLaneMeta[] = [
-  {
-    id: "pending",
-    label: "Por aceptar",
-    empty: "No hay comandas nuevas. Cuando entre un pedido, aparece acá.",
-  },
-  {
-    id: "preparing",
-    label: "En preparación",
-    empty: "Nada en el fuego. Aceptá una comanda para empezar.",
-  },
-  {
-    id: "ready",
-    label: "Listas",
-    empty: "Todavía no hay nada listo para entregar.",
-  },
-];
-
-/** El carril de un estado, o `null` si el pedido ya salió del tablero. */
-export function comandaLane(status: OrderStatus): ComandaLane | null {
-  if (status === "new") return "pending";
-  if (status === "confirmed" || status === "accepted" || status === "preparing") return "preparing";
-  if (status === "ready" || status === "ready_for_pickup") return "ready";
-
-  return null;
-}
-
-/**
- * Reparte los pedidos en sus carriles conservando el orden que trae la lista (que ya viene con la
- * hora prometida primero, B0) y sin inventar carriles vacíos: los tres existen siempre.
- */
-export function groupComandasByLane<T extends { status: OrderStatus }>(
-  orders: readonly T[],
-): Record<ComandaLane, T[]> {
-  const grouped: Record<ComandaLane, T[]> = { pending: [], preparing: [], ready: [] };
-
-  for (const order of orders) {
-    const lane = comandaLane(order.status);
-    if (lane) grouped[lane].push(order);
-  }
-
-  return grouped;
-}
-
-/** Los contadores de la barra superior. `total` cuenta solo lo que está en el tablero. */
-export function comandaCounters(orders: readonly { status: OrderStatus }[]): {
-  pending: number;
-  preparing: number;
-  ready: number;
-  total: number;
-} {
-  const grouped = groupComandasByLane(orders);
-
-  return {
-    pending: grouped.pending.length,
-    preparing: grouped.preparing.length,
-    ready: grouped.ready.length,
-    total: grouped.pending.length + grouped.preparing.length + grouped.ready.length,
-  };
-}
+/** El carril de un estado, o `null` si el pedido ya salió del tablero. Delegado al dominio. */
+export const comandaLane = resolveOrderLane;
 
 /** "hace 6 min" · "hace 1 h 5 min". Negativo (reloj que va para atrás) se lee "recién". */
 export function formatStageElapsed(minutes: number): string {
@@ -95,56 +44,56 @@ export function formatStageElapsed(minutes: number): string {
 /**
  * B5 — los umbrales del local, por familia de etapas.
  *
- * `acceptAlertMinutes` es de la cola «Por aceptar» (un pedido que nadie tomó es lo más urgente que hay)
- * y `prepAlertMinutes` de la cocina, que incluye lo que espera en «Listas»: la comida lista también se
- * enfría. El local los configura en `/admin/locations`; sin configuración rigen los valores por
- * defecto, y un valor inservible no puede dejar la pantalla sin umbral.
+ * La **regla** (cuántos minutos avisa y cuántos considera atraso, con sus valores por defecto y el
+ * respaldo de un valor inservible) vive en `orders/domain/order-location-thresholds.ts`: es del pedido y
+ * la consumen también la proyección de Cocina y, a futuro, Pedidos. Acá sólo se reexporta para quien ya
+ * la importaba de este archivo.
  */
-export const LATE_EXTRA_MINUTES = 5;
+import {
+  DEFAULT_LATE_MINUTES,
+  DEFAULT_WARNING_MINUTES,
+} from "@/modules/orders/domain/order-location-thresholds";
+import type {
+  LocationThresholds as ComandaThresholds,
+  LocationThresholdsByFamily as ComandaThresholdsByLane,
+} from "@/modules/orders/domain/order-location-thresholds";
 
-export type ComandaThresholds = { warningMinutes: number; lateMinutes: number };
+export {
+  DEFAULT_LATE_MINUTES,
+  DEFAULT_WARNING_MINUTES,
+  LATE_EXTRA_MINUTES,
+  resolveLocationThresholds as comandaThresholds,
+} from "@/modules/orders/domain/order-location-thresholds";
+export type {
+  LocationThresholds as ComandaThresholds,
+  LocationThresholdsByFamily as ComandaThresholdsByLane,
+} from "@/modules/orders/domain/order-location-thresholds";
 
-export type ComandaThresholdsByLane = {
-  pending: ComandaThresholds;
-  kitchen: ComandaThresholds;
-};
-
-function usableMinutes(value: number | null | undefined, fallback: number): number {
-  return typeof value === "number" && Number.isFinite(value) && value >= 1 ? Math.trunc(value) : fallback;
-}
-
-export function comandaThresholds(input: {
-  acceptAlertMinutes?: number | null;
-  prepAlertMinutes?: number | null;
-}): ComandaThresholdsByLane {
-  const accept = usableMinutes(input.acceptAlertMinutes, DEFAULT_WARNING_MINUTES);
-  const prep = usableMinutes(input.prepAlertMinutes, DEFAULT_LATE_MINUTES);
-
-  return {
-    pending: { warningMinutes: accept, lateMinutes: accept + LATE_EXTRA_MINUTES },
-    kitchen: { warningMinutes: prep, lateMinutes: prep + LATE_EXTRA_MINUTES },
-  };
-}
-
-/** Los umbrales que le tocan a un carril: «Por aceptar» tiene los suyos, el resto los de cocina. */
+/**
+ * Los umbrales que le tocan a un carril.
+ *
+ * El carril de **entrada** incluye `confirmed` (A-64): un pedido aceptado espera que alguien empiece a
+ * cocinarlo, así que sigue midiéndose con el umbral de aceptación y no con el de cocina.
+ */
 export function thresholdsForLane(
   thresholds: ComandaThresholdsByLane,
-  lane: ComandaLane,
+  lane: OrderLane,
 ): ComandaThresholds {
-  return lane === "pending" ? thresholds.pending : thresholds.kitchen;
+  return lane === "entry" ? thresholds.entry : thresholds.kitchen;
 }
-
-/** Umbrales por defecto, en minutos: a los 10 avisa y a los 15 ya está atrasada (§4.3). */
-export const DEFAULT_WARNING_MINUTES = 10;
-export const DEFAULT_LATE_MINUTES = 15;
 
 export type ComandaUrgencyLevel = "normal" | "warning" | "late";
 
 export type ComandaUrgency = {
   level: ComandaUrgencyLevel;
   minutes: number;
-  /** Lo que se muestra en el chip: el color nunca va solo (§4.5). */
+  /** Lo que se muestra en el chip: el color nunca va solo. */
   label: string;
+  /**
+   * El texto del cronómetro de **cocina** (`PREP 8m`): lo que la referencia aprobada muestra mientras
+   * el pedido está en el fuego. `null` en los otros carriles, donde el chip dice `hace N min`.
+   */
+  kitchenTimer: string | null;
 };
 
 /**
@@ -158,16 +107,19 @@ export function resolveComandaUrgency({
   nowMs,
   warningMinutes = DEFAULT_WARNING_MINUTES,
   lateMinutes = DEFAULT_LATE_MINUTES,
+  lane,
 }: {
   stageChangedAt: string;
   nowMs: number;
   warningMinutes?: number;
   lateMinutes?: number;
+  /** En **preparando**, el chip se rotula `PREP N m` como en la referencia aprobada. */
+  lane?: OrderLane;
 }): ComandaUrgency {
   const startedAt = Date.parse(stageChangedAt);
 
   if (Number.isNaN(startedAt)) {
-    return { level: "normal", minutes: 0, label: formatStageElapsed(0) };
+    return { level: "normal", minutes: 0, label: formatStageElapsed(0), kitchenTimer: null };
   }
 
   const minutes = Math.max(0, Math.floor((nowMs - startedAt) / 60_000));
@@ -179,5 +131,6 @@ export function resolveComandaUrgency({
     level,
     minutes,
     label: level === "late" ? `Atrasado ${elapsed}` : elapsed,
+    kitchenTimer: lane === "preparing" ? `PREP ${String(minutes).padStart(2, "0")}m` : null,
   };
 }

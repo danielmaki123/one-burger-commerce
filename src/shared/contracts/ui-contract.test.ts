@@ -68,7 +68,8 @@ const LEGACY_RAW_CONTROLS: Record<string, number> = {
   "src/app/(admin)/admin/inventory/items/page.tsx": 1,
   "src/app/(admin)/admin/menu/products/product-dish-card.tsx": 1,
   // `order-actions.tsx` bajó a 0: su motivo de rechazo pasó al primitivo `Textarea` (Fase 2, KDS).
-  "src/app/(admin)/admin/orders/order-comanda-board.tsx": 1,
+  // `orders/order-comanda-board.tsx` bajó a 0 en `TASK-ORDERS-KITCHEN-RUNTIME-002`: su botón de carril
+  // pasó al primitivo `Button` (el que usan los dos tableros), así que la fila se borró.
   // Fila de lista multilínea de `/admin/promotions`: no es un botón de acción y `Button` no cubre su
   // anatomía (ver el comentario en la página y el registro de componentes). Es el único control crudo que
   // queda ahí tras TASK-206, que bajó el archivo de 6 a 1.

@@ -65,23 +65,20 @@ test.describe("admin operations", () => {
     await expect(page.getByRole("heading", { name: "Órdenes", exact: true })).toBeVisible();
 
     /**
-     * B6 · Punto 3 — el modo cocina y su salida, con la cuenta que encontró el problema.
+     * `TASK-ORDERS-KITCHEN-RUNTIME-002` — el rol de cocina **opera su superficie**, y el modo cocina de
+     * Órdenes ya no existe.
      *
-     * El owner entró con una cuenta de sucursal, tocó «Volver al panel» y volvió a la misma pantalla:
-     * el tablero se abría sin la barra lateral y no había manera de recuperarla. Desde el layout
-     * unificado (2026-09-18) el chrome se ve siempre y esconderlo es el **modo cocina**, que se sale
-     * con «Salir» —sin cerrar sesión, porque la sesión vive en esa barra.
+     * Antes esta cuenta entraba al tablero con el *modo cocina* de `/admin/orders` (que escondía el
+     * chrome). Ahora Cocina es una sección propia: la cuenta entra a Órdenes como cualquier rol y su
+     * tablero es `/admin/kitchen`, con su entrada en la navegación.
      */
     await expect(page.locator(".admin-sidebar-shell")).toBeVisible();
     await expect(page.getByRole("button", { name: "Cerrar sesión" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Modo cocina" })).toHaveCount(0);
 
-    await page.getByRole("button", { name: "Modo cocina" }).click();
-    await expect(page.locator(".admin-sidebar-shell")).toBeHidden();
-
-    await page.getByRole("button", { name: "Salir" }).click();
-
+    await page.goto("/admin/kitchen");
+    await expect(page.getByTestId("kitchen-toolbar")).toBeVisible();
     await expect(page.locator(".admin-sidebar-shell")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Cerrar sesión" })).toBeVisible();
 
     await page.goto("/admin/users");
     await expect(page).toHaveURL(/\/admin\/orders$/);

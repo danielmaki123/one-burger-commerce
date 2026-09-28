@@ -13,6 +13,7 @@ import {
   canManagePromotions,
   canManageUsers,
   canApproveRefund,
+  canOperateKitchen,
   canRefund,
   canUsePOS,
   canViewCashHistory,
@@ -21,7 +22,7 @@ import {
   canViewOutboxEvents,
   canVoidPayment,
 } from "@/modules/auth/domain/admin-permissions";
-import { ADMIN_ROLES } from "@/modules/auth/domain/admin-role";
+import { ADMIN_ROLES, type AdminRole } from "@/modules/auth/domain/admin-role";
 
 describe("admin permissions", () => {
   /**
@@ -73,6 +74,46 @@ describe("admin permissions", () => {
     expect(canManageOrderOperations(ADMIN_ROLES.owner)).toBe(true);
     expect(canManageOrderOperations(ADMIN_ROLES.manager)).toBe(true);
     expect(canManageOrderOperations(ADMIN_ROLES.kitchen)).toBe(true);
+  });
+
+  /**
+   * `TASK-ORDERS-KITCHEN-RUNTIME-002` — **operar Cocina** es una capacidad propia.
+   *
+   * `canManageOrderOperations` es una puerta **gruesa** (owner, manager y kitchen) que dice «puede
+   * trabajar con pedidos». Avanzar la comanda es otra cosa y tiene su propia puerta, por dos motivos
+   * medidos:
+   *
+   * - **El cajero no cocina** (`D-014`): localiza y cobra el pedido que tiene que cobrar, pero no
+   *   acepta, ni inicia preparación, ni marca listo. Su superficie es el POS y `/admin/orders` para
+   *   localizar; Cocina no es suya.
+   * - **El rol llega por cliente, la autorización por servidor**: la entrada de navegación filtra lo que
+   *   se ofrece, y esta puerta es la que **rechaza** en el servidor cuando alguien entra por URL.
+   */
+  it("opera Cocina el owner, el manager y el rol de cocina — no el cajero", () => {
+    expect(canOperateKitchen(ADMIN_ROLES.owner)).toBe(true);
+    expect(canOperateKitchen(ADMIN_ROLES.manager)).toBe(true);
+    expect(canOperateKitchen(ADMIN_ROLES.kitchen)).toBe(true);
+    expect(canOperateKitchen(ADMIN_ROLES.cashier)).toBe(false);
+  });
+
+  it("la puerta de Cocina no es la gruesa: el cajero no está adentro", () => {
+    // La puerta gruesa de pedidos no tiene al cajero (hoy), pero Cocina **sí** podría haberlo heredado
+    // si se hubiera reutilizado una sola función para las dos cosas: es exactamente lo que se prueba.
+    const allRoles: AdminRole[] = [
+      ADMIN_ROLES.owner,
+      ADMIN_ROLES.manager,
+      ADMIN_ROLES.kitchen,
+      ADMIN_ROLES.cashier,
+    ];
+
+    expect(allRoles.filter(canOperateKitchen)).toEqual([
+      ADMIN_ROLES.owner,
+      ADMIN_ROLES.manager,
+      ADMIN_ROLES.kitchen,
+    ]);
+    expect(canOperateKitchen(ADMIN_ROLES.cashier)).toBe(false);
+    // Y el cajero sigue pudiendo lo suyo: cobrar. Cocina y caja son capacidades distintas.
+    expect(canUsePOS(ADMIN_ROLES.cashier)).toBe(true);
   });
 
   it("lets only owner manage users and critical config", () => {

@@ -65,13 +65,14 @@ test.describe("comandas: acciones en la bandeja (B2)", () => {
 
     // La pantalla dice qué pasó y la comanda queda en la etapa siguiente, en su lugar.
     await expect(page.getByTestId("orders-action-notice")).toContainText(/confirmada/i);
-    await expect(actions.getByRole("button", { name: "Preparando" })).toBeVisible();
+    await expect(actions.getByRole("button", { name: "Iniciar preparación" })).toBeVisible();
     await expect(actions.getByRole("button", { name: "Aceptar" })).toHaveCount(0);
 
-    // Y sigue avanzando: la cocina termina el pedido.
-    await actions.getByRole("button", { name: "Preparando" }).click();
-    await expect(page.getByTestId("orders-action-notice")).toContainText(/preparando/i);
-    await expect(actions.getByRole("button", { name: "Terminado" })).toBeVisible();
+      // Y sigue avanzando: la cocina termina el pedido. El aviso del **estado** dice el estado
+      // (`Preparando`), que es lo que cambió en el pedido.
+      await actions.getByRole("button", { name: "Iniciar preparación" }).click();
+      await expect(page.getByTestId("orders-action-notice")).toContainText(/preparando/i);
+      await expect(actions.getByRole("button", { name: "Terminado" })).toBeVisible();
   });
 
   test("el rechazo pide el motivo y el pedido queda cancelado", async ({ page }) => {
@@ -116,21 +117,26 @@ test.describe("comandas: acciones en la bandeja (B2)", () => {
       await accept.click();
       await expect(page.getByTestId("orders-action-notice")).toContainText(/confirmada/i);
 
-      // En celular se ve **un carril por vez**: la comanda aceptada se va del carril de nuevas, así que
-      // deja de estar en pantalla hasta que se cambia de carril con el conmutador.
+      // La comanda aceptada **sigue en ENTRADA**: aceptado todavía no es «en el fuego» (`A-64`,
+      // `TASK-ORDERS-KITCHEN-RUNTIME-002`). Lo que cambia es la acción que ofrece: iniciar preparación.
       await expect(
-        page.getByRole("region", { name: "Por aceptar" }).locator("article").filter({ hasText: customer }),
-      ).toHaveCount(0);
+        page.getByRole("region", { name: "Entrada" }).locator("article").filter({ hasText: customer }),
+      ).toHaveCount(1);
+      await expect(actions.getByRole("button", { name: "Iniciar preparación" })).toBeVisible();
+
+      // Y con la preparación iniciada sí se va al carril del fuego.
+      await actions.getByRole("button", { name: "Iniciar preparación" }).click();
 
       const switcher = page.getByRole("group", { name: "Carril de comandas" });
-      await switcher.getByRole("button", { name: /^En preparación \d+$/ }).click();
+      await switcher.getByRole("button", { name: /^Preparando \d+$/ }).click();
 
       const moved = page
-        .getByRole("region", { name: "En preparación" })
+        .getByRole("region", { name: "Preparando" })
         .locator("article")
         .filter({ hasText: customer });
       await expect(moved).toBeVisible();
-      await expect(moved.getByRole("button", { name: "Preparando" })).toBeVisible();
+      // Ya en el fuego, la acción de la tarjeta es **terminar** el pedido.
+      await expect(moved.getByRole("button", { name: "Terminado" })).toBeVisible();
     });
   });
 });

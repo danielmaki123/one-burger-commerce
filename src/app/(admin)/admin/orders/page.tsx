@@ -36,9 +36,7 @@ import {
   type ComandaLane,
 } from "./comanda-helpers";
 import { OrderComandaBoard } from "./order-comanda-board";
-import type { ComandaItem } from "./order-comanda-card";
-import { useComandaView } from "./use-comanda-view";
-import { filterOrdersForBoardView } from "./orders-board-view";
+import type { ComandaCardOrder } from "./order-comanda-card";
 import { readOrderUrlFilters, writeOrderUrlFilters, type OrderPaymentFilter } from "./comanda-url";
 import { readAdminOrders, sanitizeOrderQuery, type OrderListFailure } from "./order-list-api";
 import {
@@ -53,6 +51,18 @@ import {
   describeAdminPickup,
   resolveAdminPickupTiming,
 } from "../_components/admin-pickup-timing";
+
+/**
+ * `/admin/orders` — la **bandeja del turno**.
+ *
+ * `TASK-ORDERS-KITCHEN-RUNTIME-002` — de acá se fue el **modo cocina** (el tablero inmersivo con sus cinco
+ * tabs y su «Salir»): Cocina es la superficie propia `/admin/kitchen`, con su propia puerta y su propia
+ * API sin dinero. Lo que queda es lo de esta pantalla: la bandeja del turno —carriles para lo activo,
+ * lista para lo cerrado— con el semáforo del retiro, los filtros y las acciones del mostrador.
+ *
+ * El **carril de cada pedido** ya no se decide acá: sale de `orders/domain/order-lanes`, la misma regla
+ * que usa Cocina, y por eso `confirmed` está en ENTRADA en las dos superficies (`A-64`).
+ */
 
 type OrderType = "delivery" | "pickup" | "table";
 type OrderStatus =
@@ -78,10 +88,13 @@ type OrderSummary = {
   customerWhatsapp: string;
   total: number;
   createdAt: string;
-  /** Cuándo empezó la etapa actual (B3a): la comanda mide su urgencia con esto. */
+  /** Cuándo empezó la etapa actual: la comanda mide su urgencia con esto. */
   stageChangedAt: string;
-  /** Lo que hay que cocinar, con modificadores y notas (B3). */
-  items: ComandaItem[];
+  /**
+   * Lo que hay que cocinar, con modificadores y notas. La bandeja ya lo recibe de la API y el tablero
+   * del turno lo dibuja en la tarjeta: sin esto, la comanda mostraría un pedido sin renglones.
+   */
+  items: ComandaCardOrder["items"];
   pickupTime?: string | null;
   /** Si el cliente programó el retiro; si no, es "lo antes posible". */
   pickupScheduled?: boolean;
@@ -108,14 +121,13 @@ type AdminOrdersResponse = {
 /**
  * B1 — cada cuánto se pide la lista sola, y cada cuánto late el reloj del turno.
  *
- * El poll va con la pestaña visible: una tablet de cocina encendida toda la noche no puede estar
- * pidiendo datos. El reloj late más seguido que el poll porque la frescura se muestra en segundos
- * («actualizado hace 20 s»), y el costo de repintar la lista del día es despreciable.
+ * El poll va con la pestaña visible: una pantalla encendida toda la noche no puede estar pidiendo datos.
+ * El reloj late más seguido que el poll porque la frescura se muestra en segundos.
  */
 const POLL_INTERVAL_MS = 15_000;
 const CLOCK_TICK_MS = 5_000;
 
-/** Cuánto dura el resaltado de una comanda recién llegada (B3): lo suficiente para encontrarla. */
+/** Cuánto dura el resaltado de una comanda recién llegada (B1): lo suficiente para encontrarla. */
 const HIGHLIGHT_MS = 1_200;
 
 /** B4: la demora del buscador. Con 300 ms, escribir «Ana» hace un viaje en vez de tres. */
@@ -147,11 +159,11 @@ export default function AdminOrdersPage() {
   /** Para saber qué apareció hay que recordar qué había: no alcanza con la lista actual del render. */
   const previousOrderIdsRef = useRef<string[] | null>(null);
   const previousQueryRef = useRef<string | null>(null);
-  /** B3: qué carril se ve en celular (en escritorio se ven los tres). */
-  const [activeLane, setActiveLane] = useState<ComandaLane>("pending");
-  /** B3: las comandas que se acaban de resaltar por llegar solas (el aviso dura ~1,2 s). */
+  /** Qué carril se ve en celular (en escritorio se ven los tres). */
+  const [activeLane, setActiveLane] = useState<ComandaLane>("entry");
+  /** Las comandas que se acaban de resaltar por llegar solas (el aviso dura ~1,2 s). */
   const [highlightIds, setHighlightIds] = useState<string[]>([]);
-  /** B3: lo que se anuncia por lector de pantalla cuando una comanda se pasa de tiempo. */
+  /** Lo que se anuncia por lector de pantalla cuando una comanda se pasa de tiempo. */
   const [lateAnnouncement, setLateAnnouncement] = useState<string | null>(null);
   const announcedLateIdsRef = useRef<Set<string>>(new Set());
   /** B5: cuánto tarda la cocina hoy, tal como lo resolvió el servidor en la última lectura. */
@@ -173,16 +185,6 @@ export default function AdminOrdersPage() {
     initialFilters.paymentMethod,
   );
   const [lateOnly, setLateOnly] = useState(initialFilters.lateOnly);
-
-  // Punto 3: el modo cocina —el del dispositivo— esconde el chrome y deja los carriles.
-  const { immersive: kitchenMode, setImmersive: setKitchenMode } = useComandaView();
-
-  /**
-   * El tab del modo cocina (Punto 3). Vive solo en memoria: es «qué estoy mirando ahora», no un filtro
-   * que se comparta por enlace. El modo sí es del dispositivo, pero la pestaña con la que se entra a
-   * un turno es una pregunta del momento.
-   */
-  const [kitchenTab, setKitchenTab] = useState("all");
 
   // La preferencia del aviso sonoro vive en el dispositivo (el navegador exige un toque para sonar).
   useEffect(() => {
@@ -232,8 +234,7 @@ export default function AdminOrdersPage() {
    * sus rangos vive en `/admin/history` (sección Historial), que es donde se pregunta por meses.
    *
    * El rango incluye **mañana**, no solo hoy: el aviso de «comandas programadas para otro día» y el
-   * grupo «Programados» del listado salen de pedidos que hoy no son del turno, y con el rango de un
-   * día esos dos lugares quedaban siempre vacíos (`businessTurnRange`).
+   * grupo «Programados» del listado salen de pedidos que hoy no son del turno.
    */
   const range = useMemo<{ from?: string; to?: string }>(
     () => businessTurnRange(today, timeZone),
@@ -244,10 +245,8 @@ export default function AdminOrdersPage() {
    * Los tabs de estado son el filtro **y** el contenido: los activos se miran como tablero de
    * comandas —los carriles son el filtro— y las cerradas se miran como lista, porque el tablero no
    * tiene carril de cerradas (opción (a) del owner, 2026-09-18).
-   *
-   * En **modo cocina** (Punto 3) el tablero es la única vista: no hay lista de cerradas a la que ir.
    */
-  const showBoard = kitchenMode || statusFilter !== "closed";
+  const showBoard = statusFilter !== "closed";
 
   const queryString = useMemo(() => {
     // Los filtros se sanean acá (bug de producción, 2026-09-18): un valor que la API rechaza se descarta
@@ -300,9 +299,8 @@ export default function AdminOrdersPage() {
         const result = await readAdminOrders({ queryString });
 
         if (!result.ok) {
-          // B0: **no** se borra la lista. Un fallo de red en una cocina no puede dejar la pantalla sin
-          // pedidos; se conserva lo último que se leyó y se dice qué pasó, con el motivo real (bug de
-          // producción, 2026-09-18: antes cualquier fallo decía «no se pudieron cargar»).
+          // B0: **no** se borra la lista. Un fallo de red en el mostrador no puede dejar la pantalla sin
+          // pedidos; se conserva lo último que se leyó y se dice qué pasó, con el motivo real.
           if (result.failure.kind === "auth") {
             setAuthRequired(true);
             setOrders([]);
@@ -430,13 +428,12 @@ export default function AdminOrdersPage() {
 
   /**
    * La lista se agrupa por etapa cuando no hay un filtro de estado puesto. Es la forma en que el
-   * listado sigue distinguiendo lo programado para otro día de lo que es trabajo del turno, incluso
-   * cuando se llega desde el tablero con "Ver en el listado".
+   * listado sigue distinguiendo lo programado para otro día de lo que es trabajo del turno.
    */
   const groupByBucket = statusFilter === "all";
 
   /**
-   * B3 — el resaltado de lo que llega solo dura un momento: si se quedara, a la media hora de turno
+   * B1 — el resaltado de lo que llega solo dura un momento: si se quedara, a la media hora de turno
    * todas las comandas estarían "nuevas" y el resaltado no diría nada.
    */
   useEffect(() => {
@@ -458,7 +455,7 @@ export default function AdminOrdersPage() {
    * del único local del alcance. Con varias sucursales a la vista y sin filtro no hay un ritmo único que
    * valga, así que rigen los valores por defecto: inventar un promedio sería mentir sobre las dos.
    *
-   * Vive acá arriba porque lo usan **el tablero y el anuncio accesible de atraso**: los dos tienen que medir
+   * Vive acá porque lo usan **el tablero y el anuncio accesible de atraso**: los dos tienen que medir
    * con el mismo número.
    */
   const boardThresholds = useMemo(() => {
@@ -479,15 +476,13 @@ export default function AdminOrdersPage() {
    * B3 — aviso para quien no está mirando la pantalla: cuando una comanda cruza el umbral de atraso se
    * anuncia **una vez** (no en cada refresco de 15 segundos, que sería ruido puro).
    *
-   * El umbral es el **del local** (el mismo que usa el tablero, `boardThresholds`): antes el anuncio medía
-   * con los valores por defecto, así que en una sucursal con otro ritmo decía un número que la pantalla no
-   * estaba usando.
+   * El umbral es el **del local** (el mismo que usa el tablero, `boardThresholds`).
    */
   useEffect(() => {
     if (!showBoard) return;
 
     const lateOf = (status: OrderStatus) =>
-      comandaLane(status) === "pending" ? boardThresholds.pending : boardThresholds.kitchen;
+      comandaLane(status) === "entry" ? boardThresholds.entry : boardThresholds.kitchen;
 
     const justLate = orders.filter((order) => {
       if (!comandaLane(order.status)) return false;
@@ -518,9 +513,8 @@ export default function AdminOrdersPage() {
   const boardCounters = useMemo(() => comandaCounters(orders), [orders]);
 
   /**
-   * B3 — un pedido programado para **otro día** no es trabajo de este turno: no entra en los carriles
+   * Un pedido programado para **otro día** no es trabajo de este turno: no entra en los carriles
    * (la cocina lo empezaría hoy) y se anuncia aparte, con la salida al listado donde tiene su grupo.
-   * Es la separación de la fase 4 del checkout, que el tablero tiene que respetar igual que la lista.
    */
   const scheduledForAnotherDay = useMemo(
     () =>
@@ -543,17 +537,13 @@ export default function AdminOrdersPage() {
 
     // "Atrasados" se filtra en el cliente a propósito: la urgencia es el tiempo en la etapa **ahora**,
     // y eso cambia entre lecturas; pedirlo al servidor devolvería una foto que ya venció.
-    const visible = !lateOnly
+    return !lateOnly
       ? queue
       : queue.filter(
           (order) =>
             resolveComandaUrgency({ stageChangedAt: order.stageChangedAt, nowMs }).level === "late",
         );
-
-    // Punto 3: en modo cocina el tab elegido manda (y trae lo despachado hace poco, que ya no está
-    // en los carriles).
-    return filterOrdersForBoardView(visible, { kitchenMode, kitchenTab, nowMs });
-  }, [orders, scheduledForAnotherDay, lateOnly, nowMs, kitchenMode, kitchenTab]);
+  }, [orders, scheduledForAnotherDay, lateOnly, nowMs]);
   const bucketedOrders = useMemo(() => {
     const buckets = new Map<OrderBucket, OrderSummary[]>();
     for (const bucket of BUCKET_ORDER) buckets.set(bucket, []);
@@ -569,8 +559,7 @@ export default function AdminOrdersPage() {
 
   /**
    * Dejar la bandeja sin filtros. Lo usan el botón de la barra de trabajo y el error de filtros: la
-   * acción que arregla un 400 por un filtro inválido es exactamente la misma, y antes estaba escrita
-   * dos veces.
+   * acción que arregla un 400 por un filtro inválido es exactamente la misma.
    */
   function clearAllFilters() {
     setStatusFilter("all");
@@ -710,15 +699,10 @@ export default function AdminOrdersPage() {
 
   return (
     <div className="min-w-0 space-y-6" aria-busy={loading}>
-      {/* Punto 3 — en modo cocina **el encabezado también se va**: la regla del 20% de cabecera del
-          sistema no aplica cuando la pantalla entera es el tablero, y el título («Órdenes», que la
-          cocina ya sabe) le robaba alto a los carriles. */}
-      {kitchenMode ? null : (
-        <AdminPageHeader
-          title="Órdenes"
-          description="Bandeja de turno: prioriza ingresos nuevos y sigue cada pedido hasta su cierre."
-        />
-      )}
+      <AdminPageHeader
+        title="Órdenes"
+        description="Bandeja de turno: prioriza ingresos nuevos y sigue cada pedido hasta su cierre."
+      />
 
       {/* Una sola barra de trabajo para todo el shell (layout unificado, 2026-09-18): los tabs
           de estado son el filtro —carriles para los activos, lista para las cerradas—, y el
@@ -750,10 +734,6 @@ export default function AdminOrdersPage() {
           setSoundEnabled(next);
           setAlertSoundEnabled(next);
         }}
-        kitchenMode={kitchenMode}
-        kitchenTab={kitchenTab}
-        onKitchenTabChange={setKitchenTab}
-        onToggleKitchenMode={() => setKitchenMode(!kitchenMode)}
         onRefresh={() => setRefreshToken((token) => token + 1)}
         showClearFilters={
           statusFilter !== "all" ||
@@ -824,35 +804,31 @@ export default function AdminOrdersPage() {
         </div>
       ) : null}
 
-      {/* La vista del turno es el tablero de comandas (B3): la lista con chips, resumen y barra de
-          filtros queda para el historial, donde sí hace falta. */}
+      {/* La vista de cerradas es la lista con chips, resumen y barra de filtros. */}
       {!showBoard ? (
-      <>
-      <section
-        aria-label="Resumen de órdenes"
-        className="flex flex-col gap-3 rounded-stitch-lg border border-line-subtle bg-surface-card px-4 py-3 shadow-elevation-1 sm:flex-row sm:items-center sm:justify-between"
-      >
-        <div className="flex min-w-0 items-center gap-3">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-stitch-md bg-surface-elevated text-brand">
-            <ClipboardList aria-hidden="true" className="h-5 w-5" />
-          </span>
-          <div className="min-w-0">
-            <p className="text-st-caption font-semibold uppercase tracking-wide text-ink-secondary">Órdenes en vista</p>
-            <p className="mt-0.5 text-st-body font-semibold text-ink">
-              <span className="text-2xl leading-none">{ordersStatusCounts.total}</span>
-              <span className="ml-2 text-ink-secondary">historial</span>
-            </p>
+        <section
+          aria-label="Resumen de órdenes"
+          className="flex flex-col gap-3 rounded-stitch-lg border border-line-subtle bg-surface-card px-4 py-3 shadow-elevation-1 sm:flex-row sm:items-center sm:justify-between"
+        >
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-stitch-md bg-surface-elevated text-brand">
+              <ClipboardList aria-hidden="true" className="h-5 w-5" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-st-caption font-semibold uppercase tracking-wide text-ink-secondary">Órdenes en vista</p>
+              <p className="mt-0.5 text-st-body font-semibold text-ink">
+                <span className="text-2xl leading-none">{ordersStatusCounts.total}</span>
+                <span className="ml-2 text-ink-secondary">historial</span>
+              </p>
+            </div>
           </div>
-        </div>
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-st-body text-ink-secondary" aria-label="Estados en la vista actual">
-          <span><strong className="text-ink">{ordersStatusCounts.new}</strong> nuevas</span>
-          <span><strong className="text-ink">{ordersStatusCounts.preparing}</strong> preparando</span>
-          <span><strong className="text-ink">{ordersStatusCounts.ready}</strong> listas</span>
-          <span><strong className="text-ink">{ordersStatusCounts.closed}</strong> cerradas</span>
-        </div>
-      </section>
-
-      </>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-st-body text-ink-secondary" aria-label="Estados en la vista actual">
+            <span><strong className="text-ink">{ordersStatusCounts.new}</strong> nuevas</span>
+            <span><strong className="text-ink">{ordersStatusCounts.preparing}</strong> preparando</span>
+            <span><strong className="text-ink">{ordersStatusCounts.ready}</strong> listas</span>
+            <span><strong className="text-ink">{ordersStatusCounts.closed}</strong> cerradas</span>
+          </div>
+        </section>
       ) : null}
 
       {/* B0: el spinner solo cuando todavía no hay nada que mostrar. Si la lista ya está, un
@@ -929,7 +905,7 @@ export default function AdminOrdersPage() {
           aparecer: un tablero en blanco no dice si no hay pedidos o si algo se rompió. */}
       {showBoard && !authRequired && (!error || orders.length > 0) ? (
         <OrderComandaBoard
-          orders={boardOrders}
+          orders={boardOrders as ComandaCardOrder[]}
           nowMs={nowMs}
           timeZone={timeZone}
           newOrderIds={highlightIds}
@@ -979,4 +955,3 @@ export default function AdminOrdersPage() {
     </div>
   );
 }
-

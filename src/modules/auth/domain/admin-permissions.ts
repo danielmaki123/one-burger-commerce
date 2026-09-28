@@ -45,6 +45,30 @@ export function canManageOrderOperations(role: AdminRole) {
 }
 
 /**
+ * `TASK-ORDERS-KITCHEN-RUNTIME-002` — **operar Cocina**: aceptar la comanda, iniciar la preparación y
+ * marcarla lista.
+ *
+ * `canManageOrderOperations` es una puerta **gruesa** que dice «puede trabajar con pedidos». Avanzar la
+ * comanda es una capacidad **nominal** y tiene su puerta propia, aunque hoy coincida en tres de los
+ * cuatro roles, por lo que el contrato de autorización de Pedidos/Cocina dejó escrito:
+ *
+ * - **El cajero no cocina** (`D-014`): localiza el pedido que tiene que cobrar y lo cobra, pero no
+ *   acepta, ni inicia preparación, ni marca listo.
+ * - **La entrada de navegación no es la puerta**: el rol llega por cliente y esta función es la que
+ *   **rechaza en el servidor** (una UI nunca es frontera de autorización).
+ *
+ * Es también la puerta de la superficie `/admin/kitchen` y de su API (que además no proyecta un solo
+ * campo de dinero: el recorte no depende de esconder nada en React).
+ */
+export function canOperateKitchen(role: AdminRole) {
+  return (
+    role === ADMIN_ROLES.owner ||
+    role === ADMIN_ROLES.manager ||
+    role === ADMIN_ROLES.kitchen
+  );
+}
+
+/**
  * TASK-105 — usar el punto de venta (abrir la caja, cobrar, cerrar el turno).
  *
  * `kitchen` **no** entra: cocina opera órdenes, no maneja plata. Y `cashier` entra solo acá: no es

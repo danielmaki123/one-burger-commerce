@@ -14,7 +14,9 @@ import type { OrderStatus, OrderType } from "@/modules/orders/domain/order.types
 const ACTION_LABELS: Partial<Record<OrderStatus, string>> = {
   confirmed: "Aceptar",
   accepted: "Aceptar",
-  preparing: "Preparando",
+  // La spec de Cocina nombra las acciones, no los estados (§ *Acciones*): `INICIAR PREPARACIÓN` y
+  // `TERMINADO`. La acción es una instrucción; el estado es un hecho.
+  preparing: "Iniciar preparación",
   ready: "Terminado",
   ready_for_pickup: "Terminado",
   out_for_delivery: "En camino",

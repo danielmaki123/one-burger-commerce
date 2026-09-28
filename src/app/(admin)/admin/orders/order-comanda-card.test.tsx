@@ -4,20 +4,22 @@ import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { OrderComandaCard, type ComandaOrder } from "./order-comanda-card";
+import { OrderComandaCard, type ComandaCardOrder } from "./order-comanda-card";
 
 /**
- * B3 — la comanda que la cocina lee a un brazo de distancia.
+ * La comanda que la cocina lee a un brazo de distancia — **una sola tarjeta** para las dos superficies.
  *
- * Lo que se prueba acá es lo que la distingue de un ticket de caja: items con sus modificadores y la
- * nota del cliente (lo que hay que cocinar), **sin precios ni PIN** (eso es del mostrador), y una
- * urgencia que se ve sin depender del color: el chip dice el tiempo en palabras y lleva ícono.
+ * Lo que se prueba acá es lo que la distingue de un ticket de caja: items con sus modificadores y la nota
+ * del cliente (lo que hay que cocinar), **sin precios ni PIN**, y una urgencia que se ve sin depender del
+ * color. Y lo que `TASK-ORDERS-KITCHEN-RUNTIME-002` sumó desde la referencia aprobada: la etiqueta de
+ * **canal** (`MENÚ`/`POS`) —o nada, si el pedido no la declara—, el cronómetro **`PREP N m`** que cuenta
+ * desde `preparingAt`, el **inicio recomendado** de un programado y la preparación real en Listos.
  */
 /** 20:30 en Managua (UTC−6): las horas del test se leen como las ve la cocina. */
 const NOW = Date.parse("2026-09-12T02:30:00.000Z");
 const TIME_ZONE = "America/Managua";
 
-function order(overrides: Partial<ComandaOrder> = {}): ComandaOrder {
+function order(overrides: Partial<ComandaCardOrder> = {}): ComandaCardOrder {
   return {
     id: "ord_1",
     orderNumber: "P-123",
@@ -42,13 +44,14 @@ function order(overrides: Partial<ComandaOrder> = {}): ComandaOrder {
   };
 }
 
-function renderCard(overrides: Partial<ComandaOrder> = {}, props: Record<string, unknown> = {}) {
+function renderCard(overrides: Partial<ComandaCardOrder> = {}, props: Record<string, unknown> = {}) {
   const onUpdateStatus = vi.fn().mockResolvedValue(undefined);
   const view = render(
     <OrderComandaCard
       order={order(overrides)}
       nowMs={NOW}
       timeZone={TIME_ZONE}
+      detailHref={`/admin/orders/${overrides.id ?? "ord_1"}`}
       onUpdateStatus={onUpdateStatus}
       {...props}
     />,
@@ -61,7 +64,7 @@ afterEach(() => {
   cleanup();
 });
 
-describe("comanda: lo que la cocina necesita leer (B3)", () => {
+describe("comanda: lo que la cocina necesita leer", () => {
   it("dice el número, cuándo entró y hace cuánto está en la etapa", () => {
     renderCard();
 
@@ -70,7 +73,7 @@ describe("comanda: lo que la cocina necesita leer (B3)", () => {
     expect(screen.getByText("hace 2 min")).toBeTruthy();
   });
 
-  it("deja abrir el detalle: el mostrador lo necesita para cobrar", () => {
+  it("deja abrir el detalle cuando la superficie lo tiene (el mostrador lo necesita para cobrar)", () => {
     renderCard();
 
     const link = screen.getByRole("link", { name: "Abrir orden P-123" });
@@ -81,9 +84,10 @@ describe("comanda: lo que la cocina necesita leer (B3)", () => {
     expect(link.textContent).not.toContain("Aceptar");
   });
 
-  it("nombra al cliente: es lo primero que se canta", () => {
-    renderCard();
+  it("en Cocina **no** enlaza a ninguna parte: el detalle del pedido no es de esa superficie", () => {
+    renderCard({}, { detailHref: undefined });
 
+    expect(screen.queryByRole("link")).toBeNull();
     expect(screen.getByText("Ana Pérez")).toBeTruthy();
   });
 
@@ -125,7 +129,108 @@ describe("comanda: lo que la cocina necesita leer (B3)", () => {
   });
 });
 
-describe("comanda: la urgencia se ve y se lee (B3)", () => {
+describe("comanda: el canal de origen (TASK-ORDERS-KITCHEN-RUNTIME-002)", () => {
+  it("etiqueta el canal del pedido del menú", () => {
+    renderCard({ source: "menu" });
+
+    expect(screen.getByText("Menú")).toBeTruthy();
+  });
+
+  it("etiqueta el canal del pedido del mostrador", () => {
+    renderCard({ source: "pos" });
+
+    expect(screen.getByText("POS")).toBeTruthy();
+  });
+
+  it("un pedido sin canal declarado sale **sin** etiqueta: no se adivina de dónde vino", () => {
+    renderCard({ source: null });
+
+    expect(screen.queryByText("Menú")).toBeNull();
+    expect(screen.queryByText("POS")).toBeNull();
+  });
+});
+
+describe("comanda: el cronómetro de preparación", () => {
+  it("en preparando se rotula `PREP N m` y cuenta desde `preparingAt`, no desde que entró", () => {
+    // Entró 18 minutos antes y lleva 8 en el fuego: lo que importa es lo segundo.
+    renderCard({
+      status: "preparing",
+      stageChangedAt: "2026-09-12T02:22:00.000Z",
+      preparingAt: "2026-09-12T02:22:00.000Z",
+    });
+
+    expect(screen.getByTestId("kitchen-prep-timer").textContent).toBe("PREP 08m");
+  });
+
+  it("fuera de preparando no hay cronómetro de cocina", () => {
+    renderCard({ status: "confirmed" });
+
+    expect(screen.queryByTestId("kitchen-prep-timer")).toBeNull();
+  });
+
+  it("un pedido aceptado y sin empezar dice que espera, en vez de mostrar un cronómetro", () => {
+    renderCard({ status: "confirmed", preparingAt: null });
+
+    expect(screen.getByTestId("kitchen-waiting-start")).toBeTruthy();
+    expect(screen.queryByTestId("kitchen-prep-timer")).toBeNull();
+  });
+});
+
+describe("comanda: el programado y el inicio recomendado", () => {
+  it("muestra el inicio recomendado: la hora prometida menos el lead del local", () => {
+    renderCard({
+      pickupTime: "2026-09-12T03:00:00.000Z", // 9:00 p. m. en Managua
+      pickupScheduled: true,
+      pickupLeadMinutes: 25, // 8:35 p. m.
+    });
+
+    expect(screen.getByText(/Inicio recomendado/)).toBeTruthy();
+    expect(screen.getByText("8:35 p. m.")).toBeTruthy();
+  });
+
+  it("un pedido del POS no tiene hora prometida y dice «lo antes posible», sin inventar una hora", () => {
+    renderCard({ pickupTime: null, pickupScheduled: false, pickupLeadMinutes: 25 });
+
+    expect(screen.getByText("Retiro: lo antes posible")).toBeTruthy();
+    expect(screen.queryByText(/Inicio recomendado/)).toBeNull();
+  });
+
+  it("sin hora prometida no hay inicio recomendado aunque haya lead", () => {
+    renderCard({ pickupTime: null, pickupScheduled: true, pickupLeadMinutes: 25 });
+
+    expect(screen.queryByText(/Inicio recomendado/)).toBeNull();
+  });
+});
+
+describe("comanda: la preparación real en Listos", () => {
+  it("muestra la preparación `preparingAt → readyAt`, no desde que entró el pedido", () => {
+    renderCard({
+      status: "ready_for_pickup",
+      // Entró 30 minutos antes, pero la cocina tardó 14.
+      preparingAt: "2026-09-12T02:06:00.000Z",
+      readyAt: "2026-09-12T02:20:00.000Z",
+    });
+
+    expect(screen.getByText(/✓ LISTO · Preparación 14 min/)).toBeTruthy();
+    expect(screen.getByText("Espera mostrador / Caja")).toBeTruthy();
+  });
+
+  it("sin sello de preparación lo dice sin inventar un tiempo", () => {
+    renderCard({ status: "ready_for_pickup", preparingAt: null, readyAt: null });
+
+    expect(screen.getByText("✓ LISTO")).toBeTruthy();
+    expect(screen.queryByText(/Preparación \d+ min/)).toBeNull();
+  });
+
+  it("en Listos **no** hay acción: el pedido ya salió de cocina", () => {
+    renderCard({ status: "ready_for_pickup" });
+
+    expect(screen.queryByRole("button", { name: "Aceptar" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Aceptar" })).toBeNull();
+  });
+});
+
+describe("comanda: la urgencia se ve y se lee", () => {
   it("recién entrada es una comanda normal", () => {
     const { container } = renderCard({ stageChangedAt: "2026-09-12T02:25:00.000Z" });
 
@@ -149,7 +254,7 @@ describe("comanda: la urgencia se ve y se lee (B3)", () => {
     expect(chip.querySelector("svg")).toBeTruthy();
   });
 
-  it("el umbral sale de la configuración del local cuando la hay (B5)", () => {
+  it("el umbral sale de la configuración del local cuando la hay", () => {
     const { container } = renderCard(
       { stageChangedAt: "2026-09-12T02:23:00.000Z" },
       { warningMinutes: 5, lateMinutes: 8 },
@@ -164,4 +269,3 @@ describe("comanda: la urgencia se ve y se lee (B3)", () => {
     expect(container.querySelector("[data-new-order]")).toBeTruthy();
   });
 });
-
