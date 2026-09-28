@@ -115,4 +115,24 @@ export class InMemoryExchangeRateRepository implements ExchangeRateRepository {
 
     return closed;
   }
+
+  /**
+   * `TASK-MONEY-PAYMENTS-RUNTIME-001` — **una foto del historial y su restauración**.
+   *
+   * `closeRatesTo` lo usa el **cambio de moneda base**, que escribe en tres lugares (la fila única, este
+   * historial y el asiento). El puerto devuelve un número —cuántos períodos cerró—, que no alcanza para
+   * deshacer el cierre si el asiento falla: sin esto, el doble dejaba la base en `NIO` y **las tasas
+   * cerradas**, o sea un estado que la base real nunca tendría. Lo encontró el test de atomicidad del
+   * cambio de base.
+   *
+   * Son métodos del **doble**, no del puerto: reproducen lo que en Postgres hace la transacción (volver al
+   * estado anterior), y una transacción no se agrega a una interfaz.
+   */
+  snapshot(): ExchangeRateRecord[] {
+    return this.rates.map((rate) => ({ ...rate }));
+  }
+
+  restore(snapshot: ExchangeRateRecord[]): void {
+    this.rates = snapshot.map((rate) => ({ ...rate }));
+  }
 }

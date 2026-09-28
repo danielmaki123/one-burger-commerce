@@ -6,7 +6,7 @@ import type {
   BusinessCurrencySettingsRepository,
   ChangeBaseCurrencyRepositoryInput,
 } from "@/modules/money/ports/business-currency-settings-repository";
-import type { ExchangeRateRepository } from "@/modules/money/ports/exchange-rate-repository";
+import type { InMemoryExchangeRateRepository } from "@/modules/money/adapters/in-memory-exchange-rate-repository";
 
 /**
  * `TASK-MONEY-PAYMENTS-RUNTIME-001` — el doble en memoria de la autoridad monetaria.
@@ -27,11 +27,17 @@ export class InMemoryBusinessCurrencySettingsRepository
   /** El sink del asiento. Un test puede pasarlo y leer lo que se firmó. */
   readonly auditLog: AuditLogRepository;
 
-  private readonly exchangeRateRepository: Pick<ExchangeRateRepository, "closeRatesTo">;
+  /**
+   * El historial de tasas, **completo** y no sólo `closeRatesTo`: el cambio de base lo cierra y, si el
+   * asiento falla, hay que **volver a abrirlo**. Un número de filas cerradas no alcanza para deshacer el
+   * cierre, así que el doble necesita poder sacar una foto y restaurarla —lo que en Postgres hace la
+   * transacción—.
+   */
+  private readonly exchangeRateRepository: InMemoryExchangeRateRepository;
 
   constructor(seed: {
     settings?: BusinessCurrencySettingsRecord | null;
-    exchangeRateRepository: Pick<ExchangeRateRepository, "closeRatesTo">;
+    exchangeRateRepository: InMemoryExchangeRateRepository;
     auditLog?: AuditLogRepository;
   }) {
     this.settings = seed.settings ? { ...seed.settings } : null;
@@ -49,6 +55,7 @@ export class InMemoryBusinessCurrencySettingsRepository
     const baseCurrencyCode = currencyKey(input.baseCurrencyCode);
     const previousBaseCurrencyCode = currencyKey(input.previousBaseCurrencyCode);
     const snapshot = this.settings ? { ...this.settings } : null;
+    const ratesSnapshot = this.exchangeRateRepository.snapshot();
 
     try {
       if (previousBaseCurrencyCode !== baseCurrencyCode) {
@@ -68,7 +75,13 @@ export class InMemoryBusinessCurrencySettingsRepository
 
       return { ...this.settings };
     } catch (error) {
+      /**
+       * Todo o nada: se revierte **también el cierre de las tasas**. Dejar la base vieja con sus tasas ya
+       * cerradas es un estado que la base real no puede tener (ahí lo impide la transacción) y que haría
+       * que el doble mintiera justo en el caso que el test tiene que atrapar.
+       */
       this.settings = snapshot;
+      this.exchangeRateRepository.restore(ratesSnapshot);
       throw error;
     }
   }

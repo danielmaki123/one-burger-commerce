@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { InMemoryAuditLogRepository } from "@/modules/audit/adapters/in-memory-audit-log-repository";
+import type { AuditLogRepository } from "@/modules/audit/ports/audit-log-repository";
 import { InMemoryPaymentRepository } from "@/modules/orders/adapters/in-memory-payment-repository";
 import { InMemoryBusinessCurrencySettingsRepository } from "@/modules/money/adapters/in-memory-business-currency-settings-repository";
 import { InMemoryCurrencyRepository } from "@/modules/money/adapters/in-memory-currency-repository";
@@ -27,8 +28,10 @@ function dependencies(input: {
   baseCurrencyCode?: string;
   currencies?: ReturnType<typeof currencyRecord>[];
   rates?: ReturnType<typeof exchangeRateRecord>[];
+  /** Un log que falla, para probar que la fila y el asiento son **una sola unidad**. */
+  auditLog?: AuditLogRepository;
 }) {
-  const auditLog = new InMemoryAuditLogRepository();
+  const auditLog = input.auditLog ?? new InMemoryAuditLogRepository();
   const currencyRepository = new InMemoryCurrencyRepository({
     currencies: input.currencies ?? [],
   });
@@ -115,7 +118,7 @@ describe("changeBaseCurrency", () => {
       { currencyRepository, settingsRepository, actorUserId: "user_owner", now },
     );
 
-    expect(auditLog.listByAction("finance.baseCurrency.changed")).toEqual([
+    expect((auditLog as InMemoryAuditLogRepository).listByAction("finance.baseCurrency.changed")).toEqual([
       {
         action: "finance.baseCurrency.changed",
         actorUserId: "user_owner",
@@ -128,6 +131,43 @@ describe("changeBaseCurrency", () => {
         },
       },
     ]);
+  });
+
+  /**
+   * `TASK-MONEY-PAYMENTS-RUNTIME-001` (`A-80`, `money-change` § AUDITORÍA) — **la fila y el asiento son
+   * una sola unidad**, igual que en el registro de una tasa.
+   *
+   * Cambiar la base es la otra operación que cambia el **significado** de la plata: escribe la fila única,
+   * cierra los períodos de tasa abiertos contra la base anterior y firma el asiento. Si el asiento falla, no
+   * puede quedar una base nueva sin el cierre de sus tasas —el cierre siguiente saldría convertido contra
+   * otra moneda— ni un cierre sin asiento. Es el espejo del test que ya existía para la tasa.
+   */
+  it("si el asiento falla, ni la base cambia ni se cierran sus tasas: la fila y el asiento son una unidad", async () => {
+    const usdToNio = exchangeRateRecord({
+      fromCurrencyCode: "USD",
+      toCurrencyCode: "NIO",
+      rate: 36.5,
+      effectiveFrom: "2026-09-01T00:00:00.000Z",
+    });
+    const { currencyRepository, settingsRepository, exchangeRateRepository } = dependencies({
+      currencies: [currencyRecord({ code: "NIO" }), currencyRecord({ code: "USD" })],
+      rates: [usdToNio],
+      auditLog: {
+        async record() {
+          throw new Error("la base no responde");
+        },
+      },
+    });
+
+    await expect(
+      changeBaseCurrency(
+        { code: "USD" },
+        { currencyRepository, settingsRepository, actorUserId: "user_owner", now },
+      ),
+    ).rejects.toThrow("la base no responde");
+
+    expect(await settingsRepository.getSettings()).toMatchObject({ baseCurrencyCode: "NIO" });
+    expect(await exchangeRateRepository.listRatesForPair("USD", "NIO")).toEqual([usdToNio]);
   });
 
   it("no toca ningún cobro: el hecho histórico conserva su equivalencia", async () => {
