@@ -72,11 +72,11 @@ falta reconstruir por qué algo es como es. Es lo que evita leer 3.000 líneas p
   Ese archivo dice qué sigue, con su objetivo, prioridad, riesgo y dependencia.
 - **Arquitectura de producto (hoy y objetivo)**: [`../product/MODULE_ARCHITECTURE.md`](../product/MODULE_ARCHITECTURE.md).
 - **Plantilla obligatoria de TASK**: [`TEMPLATE.md`](TEMPLATE.md).
-- **Lo que sigue**: **`Cocina runtime`** (orden **3b**) está **mergeada** (`main`, PR #79) y **pendiente de
-  release**: el deploy quedó **bloqueado por el `EASYPANEL_TOKEN`** (401, Stop Condition 6), así que lo
-  primero es rotar el token y disparar el release con su QA de producción. Después siguen **`Money /
-  Payments ownership`** (órdenes 4 y 5) y **`Pedidos runtime`** (5b). El alcance exacto y lo que está
-  **prohibido duplicar** están en [`../roadmap/NEXT.md`](../roadmap/NEXT.md); las specs congeladas, en
+- **Lo que sigue**: **`Money / Payments ownership`** (órdenes 4 y 5 del roadmap maestro) y después
+  **`Pedidos runtime`** (5b), que es donde vive el recorte financiero del detalle. **`Cocina runtime`**
+  (orden 3b) **ya está cerrada y desplegada** (`build-20260928-035241` sobre `72b22b5`, con QA autenticado de
+  producción en los cuatro viewports). El alcance exacto y lo que está **prohibido duplicar** están en
+  [`../roadmap/NEXT.md`](../roadmap/NEXT.md); las specs congeladas, en
   [`../design/screens/orders.md`](../design/screens/orders.md) (Pedidos) y
   [`../design/screens/kitchen.md`](../design/screens/kitchen.md) (Cocina), con sus referencias aprobadas por
   el owner el 2026-09-27. **No se arranca `Resumen`** (pasó al orden 16) ni una «POS Fase 2» (esa fase ya no

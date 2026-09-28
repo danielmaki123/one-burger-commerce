@@ -7,11 +7,11 @@
 
 ## ACTIVE
 
-**Ninguno.** `TASK-ORDERS-KITCHEN-RUNTIME-002` (Cocina runtime) está **mergeada** en `main` (PR #79) y
-**falta su release**: la llamada a `deployService` devuelve **401** con el `EASYPANEL_TOKEN` del entorno,
-así que el deploy está **bloqueado por credencial** (Stop Condition 6) y lo desbloquea el owner rotando el
-token. Sin un segundo OK: con el token válido se dispara el release, se corre el QA de producción y se
-cierra. **Una sola TASK activa por vez**: la próxima no se abre sin autorización explícita del owner.
+**Ninguno.** `TASK-ORDERS-KITCHEN-RUNTIME-002` (Cocina runtime) **cerró entera**: mergeada (`main`, PR #79 +
+#80), **desplegada** (`build-20260928-035241` sobre `72b22b5`), con health/readiness, los dos smokes y el
+**QA autenticado de producción** en los cuatro viewports. Estado y evidencia:
+[`../CURRENT.md`](../CURRENT.md) §1 y §4. **Una sola TASK activa por vez**: la próxima no se abre sin
+**autorización explícita del owner**.
 
 ## NEXT
 
