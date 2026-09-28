@@ -92,14 +92,31 @@ async function requireFinanceSession() {
 export async function readFinanceConfig() {
   await requireFinanceSession();
 
+  const exchangeRateRepository = new PrismaExchangeRateRepository();
+
   const [settings, bankCatalog] = await Promise.all([
     getMoneySettings({
       currencyRepository: new PrismaCurrencyRepository(),
-      exchangeRateRepository: new PrismaExchangeRateRepository(),
+      exchangeRateRepository,
       settingsRepository: new PrismaBusinessCurrencySettingsRepository(),
     }),
     getBankCatalog({ repository: new PrismaBankRepository() }),
   ]);
+
+  /**
+   * `TASK-MONEY-PAYMENTS-RUNTIME-001` — **la tasa vigente que la pantalla dibuja, como filas**.
+   *
+   * `MoneySettingsView.activeRates` es el **mapa** `moneda → tasa` que consume la conversión
+   * (`{ USD: 36.5 }`), no una lista: la pantalla necesita, además del número, contra qué moneda base se
+   * registró y desde cuándo. Confundir las dos formas **rompía la vista de Monedas y tasas con un
+   * `activeRates.find is not a function`** apenas el mapa tuviera una entrada —es decir, siempre, salvo en
+   * la primera instalación, donde el mapa vacío lo tapaba—. Lo encontró la QA en navegador real, no los
+   * tests: la ruta se probaba con la configuración mockeada y el tipo del cliente era una afirmación.
+   *
+   * Por eso la API devuelve las **filas** (`rateHistory`) para dibujar, y deja el mapa donde corresponde:
+   * en el dominio que convierte.
+   */
+  const rateHistory = await exchangeRateRepository.listActiveRatesTo(settings.baseCurrencyCode);
 
   const prisma = getPrismaClient();
   const paymentMethods = await prisma.paymentMethodConfig.findMany({
@@ -108,7 +125,7 @@ export async function readFinanceConfig() {
   });
 
   return {
-    settings,
+    settings: { ...settings, rateHistory },
     /** El catálogo conocido es conveniencia del formulario, no una restricción (`D-019`). */
     knownCurrencies: KNOWN_CURRENCIES,
     knownLocales: KNOWN_LOCALES,

@@ -681,6 +681,23 @@
       "sizes": [],
       "use_when": "Fila de producto del carrito.",
       "dont_use_when": "No para filas del panel."
+    },
+    {
+      "name": "AdminTable",
+      "file": "src/app/(admin)/admin/finance/finance-table.tsx",
+      "layer": "admin",
+      "kind": "layout",
+      "status": "in-use",
+      "exports": [
+        "AdminTable",
+        "AdminTableRow",
+        "AdminTableCell"
+      ],
+      "variants": [],
+      "sizes": [],
+      "use_when": "Listados de administración de Finanzas (medios de pago, monedas y tasas, entidades de cobro): la referencia aprobada congela una grilla de columnas por vista y la SPEC pide que en el teléfono cada fila se vuelva una tarjeta compacta con la misma jerarquía. En escritorio respeta las columnas; en móvil se apila con el rótulo de cada columna.",
+      "dont_use_when": "Para una lista de tarjetas sin columnas congeladas (ahí va una lista de Card) o para datos tabulares fuera de Finanzas: cada superficie nueva estrena su composición con su propia referencia aprobada, no se reusa esta grilla por parecido.",
+      "notes": "TASK-MONEY-PAYMENTS-RUNTIME-001. El scroll horizontal vive en el contenedor de la tabla (`overflow-x-auto` con ancho mínimo), nunca en la página: es la regla de la SPEC y del Viewport Contract."
     }
   ]
 }

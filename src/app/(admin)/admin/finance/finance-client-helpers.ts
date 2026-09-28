@@ -29,11 +29,27 @@ export type FinanceCurrency = {
   sortOrder: number;
 };
 
+/**
+ * `TASK-MONEY-PAYMENTS-RUNTIME-001` — lo que la pantalla dibuja de la configuración monetaria.
+ *
+ * Las dos formas de la tasa son **cosas distintas** y confundirlas rompía la vista:
+ * `activeRates` es el **mapa** `moneda → tasa` que consume la conversión (`{ USD: 36.5 }`) y `rateHistory`
+ * son las **filas** vigentes (par, valor y desde cuándo rige), que es lo que una tabla puede dibujar.
+ */
 export type FinanceCurrencySettings = {
   baseCurrencyCode: string;
   locale: string;
   currencies: FinanceCurrency[];
-  activeRates: { fromCurrencyCode: string; toCurrencyCode: string; rate: number; effectiveFrom: string }[];
+  /** El mapa de la conversión, tal como lo sirve `money`. */
+  activeRates: Record<string, number>;
+  /** Las filas vigentes de la tasa, para la tabla. */
+  rateHistory: {
+    id?: string;
+    fromCurrencyCode: string;
+    toCurrencyCode: string;
+    rate: number;
+    effectiveFrom: string;
+  }[];
 };
 
 export type FinancePaymentMethod = {
