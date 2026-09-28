@@ -31,6 +31,10 @@ function mapRefund(row: {
   approvedByUserId: string | null;
   approvedAt: Date | null;
   createdAt: Date;
+  idempotencyKey?: string | null;
+  baseCurrencyCode?: string | null;
+  exchangeRate?: Decimal | null;
+  baseAmount?: Decimal | null;
 }): RefundRecord {
   return {
     id: row.id,
@@ -47,6 +51,12 @@ function mapRefund(row: {
     approvedByUserId: row.approvedByUserId,
     approvedAt: row.approvedAt ? row.approvedAt.toISOString() : null,
     createdAt: row.createdAt.toISOString(),
+    // `TASK-MONEY-PAYMENTS-RUNTIME-001` (`A-73`, `D-020`) — `null` en una devolución vieja significa
+    // «equivalente no demostrable», no «cero».
+    idempotencyKey: row.idempotencyKey ?? null,
+    baseCurrencyCode: row.baseCurrencyCode ?? null,
+    exchangeRate: row.exchangeRate ? decimalToNumber(row.exchangeRate) : null,
+    baseAmount: row.baseAmount ? decimalToNumber(row.baseAmount) : null,
   };
 }
 
@@ -83,6 +93,10 @@ export class PrismaRefundRepository implements RefundRepository {
         requestedByUserId: input.requestedByUserId,
         approvedByUserId: input.approvedByUserId,
         approvedAt: input.approvedAt ? new Date(input.approvedAt) : null,
+        idempotencyKey: input.idempotencyKey ?? null,
+        baseCurrencyCode: input.baseCurrencyCode ?? null,
+        exchangeRate: input.exchangeRate ?? null,
+        baseAmount: input.baseAmount ?? null,
       },
     });
 
@@ -94,6 +108,16 @@ export class PrismaRefundRepository implements RefundRepository {
     const prisma = this.client;
 
     const row = await prisma.refund.findUnique({ where: { id } });
+
+    return row ? mapRefund(row) : null;
+  }
+
+  /** `A-73` — la devolución que ya existe con esta clave, para no consumir el cupo dos veces. */
+  async findByIdempotencyKey(key: string): Promise<RefundRecord | null> {
+    const normalized = key.trim();
+    if (normalized.length === 0) return null;
+
+    const row = await this.client.refund.findFirst({ where: { idempotencyKey: normalized } });
 
     return row ? mapRefund(row) : null;
   }

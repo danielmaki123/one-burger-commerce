@@ -81,7 +81,7 @@ const validBody = {
   paymentId: "pay_01",
   kind: "partial",
   amount: 200,
-  reason: "Faltaba una bebida",
+  reason: "Faltaba una bebida", idempotencyKey: "key_refund_route",
 };
 
 describe("POST /api/admin/cash/shifts/[id]/refunds", () => {

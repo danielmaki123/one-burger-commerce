@@ -69,6 +69,26 @@ function mapPayment(payment: {
 const NOT_VOIDED = { voidedAt: null } as const;
 
 /**
+ * `TASK-MONEY-PAYMENTS-RUNTIME-001` (`A-73`) — **bloquea la fila del cobro** hasta que la transacción
+ * termine.
+ *
+ * Es lo que serializa dos **devoluciones simultáneas del mismo cobro**: el segundo espera a que el primero
+ * commitee y recién ahí lee el cupo, así que «no se devuelve más de lo cobrado» deja de ser un `if` sobre una
+ * lectura que puede quedar vieja. Es la misma primitiva que el lock del pedido (`lockOrderRow`) y el del
+ * turno (`lockShiftRow`): `SELECT … FOR UPDATE`, no un bloqueo de UI.
+ */
+export async function lockPaymentRow(
+  client: DatabaseClient,
+  paymentId: string,
+): Promise<{ id: string } | null> {
+  const rows = await client.$queryRaw<Array<{ id: string }>>`
+    SELECT "id" FROM "Payment" WHERE "id" = ${paymentId} FOR UPDATE
+  `;
+
+  return rows[0] ?? null;
+}
+
+/**
  * Ventana de tiempo traducida al `where` de Prisma. Sin extremos no filtra por fecha, así que una
  * llamada sin rango se comporta como antes.
  */

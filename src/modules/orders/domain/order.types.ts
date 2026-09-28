@@ -370,6 +370,15 @@ export type RefundRecord = {
   approvedByUserId: string | null;
   approvedAt: string | null;
   createdAt: string;
+  /**
+   * `TASK-MONEY-PAYMENTS-RUNTIME-001` (`A-73`, `D-020`) — **la clave de idempotencia del pedido** y el
+   * snapshot monetario de la devolución. `null` en las devoluciones anteriores a estas columnas: no se
+   * rellenan y **no** se convierten con la tasa vigente.
+   */
+  idempotencyKey?: string | null;
+  baseCurrencyCode?: string | null;
+  exchangeRate?: number | null;
+  baseAmount?: number | null;
 };
 
 /** Un movimiento de caja del turno (Bloque 2 del POS, Fase 2). */

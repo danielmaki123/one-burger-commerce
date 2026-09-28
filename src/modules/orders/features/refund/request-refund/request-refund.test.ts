@@ -57,44 +57,75 @@ function buildDeps(
   const created: CreateRefundInput[] = [];
   const existing = options.refunds ?? [];
 
+  const paymentRepository = {
+    async findPaymentById() {
+      return options.payment === undefined ? payment : options.payment;
+    },
+  };
+  const refundRepository = {
+    async create(input: CreateRefundInput) {
+      created.push(input);
+      return refund({ id: `ref_${created.length}`, ...input } as RefundRecord);
+    },
+    async findById() {
+      return null;
+    },
+    async findByIdempotencyKey() {
+      return null;
+    },
+    async listByPayment() {
+      return existing;
+    },
+    async listByShift() {
+      return existing;
+    },
+    async listPending() {
+      return [];
+    },
+    async resolve() {
+      return null;
+    },
+  };
+  const shiftRepository = {
+    async findOpenShiftByLocation() {
+      if (options.shiftId === null) return null;
+
+      return {
+        id: options.shiftId ?? "shift_01",
+      } as unknown as import("@/modules/orders/domain/order.types").ShiftRecord;
+    },
+  };
+
   return {
     created,
     deps: {
-      paymentRepository: {
-        async findPaymentById() {
-          return options.payment === undefined ? payment : options.payment;
-        },
-      },
-      refundRepository: {
-        async create(input: CreateRefundInput) {
-          created.push(input);
-          return refund({ id: `ref_${created.length}`, ...input } as RefundRecord);
-        },
-        async findById() {
-          return null;
-        },
-        async listByPayment() {
-          return existing;
-        },
-        async listByShift() {
-          return existing;
-        },
-        async listPending() {
-          return [];
-        },
-        async resolve() {
-          return null;
-        },
-      },
-      shiftRepository: {
-        async findOpenShiftByLocation() {
-          if (options.shiftId === null) return null;
-
-          return {
-            id: options.shiftId ?? "shift_01",
-          } as unknown as import("@/modules/orders/domain/order.types").ShiftRecord;
-        },
-      },
+      paymentRepository,
+      refundRepository,
+      shiftRepository,
+      /**
+       * `TASK-MONEY-PAYMENTS-RUNTIME-001` (`A-73`) — el doble del límite atómico: corre el trabajo con los
+       * mismos dobles. La serialización real (`SELECT … FOR UPDATE`) se prueba contra PostgreSQL, en
+       * `request-refund.postgres.test.ts`: un doble en memoria no puede demostrar un lock.
+       */
+      runInRefundRequestTransaction: <T,>(work: (scope: {
+        findPaymentById: typeof paymentRepository.findPaymentById;
+        listRefundsByPayment: typeof refundRepository.listByPayment;
+        createRefund: typeof refundRepository.create;
+        findRefundByIdempotencyKey: typeof refundRepository.findByIdempotencyKey;
+        lockPayment: (paymentId: string) => Promise<{ id: string } | null>;
+      }) => Promise<T>) =>
+        Promise.resolve(
+          work({
+            findPaymentById: () => paymentRepository.findPaymentById(),
+            listRefundsByPayment: () => refundRepository.listByPayment(),
+            createRefund: (input) => refundRepository.create(input),
+            findRefundByIdempotencyKey: () => refundRepository.findByIdempotencyKey(),
+            lockPayment: async (paymentId: string) =>
+              (await paymentRepository.findPaymentById()) ? { id: paymentId } : null,
+          }),
+        ),
+      /** `A-69` — la moneda del negocio entra como dato; el caso de uso no escribe un `"NIO"`. */
+      businessCurrencyCode: "NIO",
     },
   };
 }
@@ -107,6 +138,7 @@ const baseInput = {
   requestedByUserId: "user_cashier",
   canApprove: false,
   locationId: "loc_principal",
+  idempotencyKey: "key_refund_01",
 };
 
 describe("requestRefund", () => {
@@ -176,13 +208,15 @@ describe("requestRefund", () => {
   });
 
   it("una devolución sin cobro no existe: 404", async () => {
-    const { deps } = buildDeps();
-    const sinCobro = {
-      ...deps,
-      paymentRepository: { async findPaymentById() { return null; } },
-    };
+    /**
+     * `TASK-MONEY-PAYMENTS-RUNTIME-001` (`A-73`) — el 404 lo decide el **lock** de la fila del cobro, que es
+     * lo primero que pasa dentro de la transacción: si la fila no existe, no hay cupo que leer. El doble del
+     * alcance devuelve `null` en `lockPayment` cuando el cobro no está (igual que el `SELECT … FOR UPDATE`
+     * sobre una fila inexistente).
+     */
+    const { deps } = buildDeps({ payment: null });
 
-    await expect(requestRefund(baseInput, sinCobro)).rejects.toMatchObject({ status: 404 });
+    await expect(requestRefund(baseInput, deps)).rejects.toMatchObject({ status: 404 });
   });
 
   it("exige motivo: una devolución sin razón no se audita", async () => {

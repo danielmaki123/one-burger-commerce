@@ -76,7 +76,12 @@ describe("PrismaRefundRepository", () => {
     expect(refund.approvedAt).toBeNull();
     expect(refund.status).toBe("pending");
     expect(createMock).toHaveBeenCalledWith({
-      data: {
+      /**
+       * `TASK-MONEY-PAYMENTS-RUNTIME-001` (`A-73`, `D-020`) — el adaptador escribe **además** la clave de
+       * idempotencia y el snapshot monetario. El contrato de la escritura cambió con las columnas; lo que
+       * este test fija es que no escriba **menos** que esto.
+       */
+      data: expect.objectContaining({
         paymentId: "pay_01",
         orderId: "order_01",
         shiftId: "shift_01",
@@ -89,7 +94,7 @@ describe("PrismaRefundRepository", () => {
         requestedByUserId: "user_01",
         approvedByUserId: null,
         approvedAt: null,
-      },
+      }),
     });
   });
 
