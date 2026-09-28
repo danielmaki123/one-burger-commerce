@@ -89,17 +89,12 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       existing.locationId,
     );
 
-    // B5: quién lo cambió, para el historial. Con cuentas compartidas, "quién aceptó esto" es la
-    // pregunta que se hace después, cuando algo sale mal.
+    // B5: quién lo cambió, para el historial: con cuentas compartidas, "quién aceptó esto" es la pregunta
+    // que se hace después, cuando algo sale mal.
     //
-    // Bloque 3.5 del POS: la composición vive en `order-status-composition` (el tope de 50 líneas del
-    // handler) y es la que deja la devolución pendiente al cancelar un pedido cobrado.
-    const result = await applyOrderStatusChange({
-      orderId: id,
-      status: parsed.data.status,
-      note: parsed.data.note ?? null,
-      changedByUserId: session.user.id,
-    });
+    // Bloque 3.5: la composición deja la devolución pendiente al cancelar un pedido cobrado (A-15). Con el
+    // rol que firma y el pedido ya leído, esa misma composición aplica la capacidad de Cocina.
+    const result = await applyOrderStatusChange({ orderId: id, status: parsed.data.status, note: parsed.data.note ?? null, changedByUserId: session.user.id, actorRole: session.user.role, order: existing });
     return NextResponse.json(result);
   } catch (error) {
     return createErrorResponse(error);

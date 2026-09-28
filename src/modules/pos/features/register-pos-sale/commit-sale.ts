@@ -145,6 +145,10 @@ function saleOrderRequest(
 ): CreateOrderRequest {
   return {
     type: "pickup",
+    // `TASK-ORDERS-KITCHEN-RUNTIME-002` — el canal de origen lo declara la puerta: esta es la venta
+    // del **mostrador**, así que el pedido entra como `pos`. Es un dato, no una deducción: la cocina lo
+    // dibuja como etiqueta y no se infiere de ningún otro campo.
+    source: "pos",
     customerName: input.customer.name,
     customerWhatsapp: input.customer.whatsapp,
     customerEmail: input.customer.email ?? null,

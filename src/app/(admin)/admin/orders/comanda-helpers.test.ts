@@ -25,9 +25,10 @@ function minutesAgo(minutes: number): string {
 
 describe("carriles del tablero", () => {
   it("cada etapa de cocina tiene su carril, y lo que ya terminó no va a ninguno", () => {
-    expect(comandaLane("new")).toBe("pending");
-    expect(comandaLane("confirmed")).toBe("preparing");
-    expect(comandaLane("accepted")).toBe("preparing");
+    expect(comandaLane("new")).toBe("entry");
+    // A-64: aceptado todavía no es «en el fuego». El carril canónico vive en `orders/domain`.
+    expect(comandaLane("confirmed")).toBe("entry");
+    expect(comandaLane("accepted")).toBe("entry");
     expect(comandaLane("preparing")).toBe("preparing");
     expect(comandaLane("ready_for_pickup")).toBe("ready");
     expect(comandaLane("ready")).toBe("ready");
@@ -43,8 +44,8 @@ describe("carriles del tablero", () => {
   it("los tres carriles existen siempre, aunque estén vacíos", () => {
     const grouped = groupComandasByLane([]);
 
-    expect(COMANDA_LANES.map((lane) => lane.id)).toEqual(["pending", "preparing", "ready"]);
-    expect(grouped.pending).toEqual([]);
+    expect(COMANDA_LANES.map((lane) => lane.id)).toEqual(["entry", "preparing", "ready"]);
+    expect(grouped.entry).toEqual([]);
     expect(grouped.preparing).toEqual([]);
     expect(grouped.ready).toEqual([]);
   });
@@ -58,7 +59,7 @@ describe("carriles del tablero", () => {
       { id: "e", status: "ready_for_pickup" as const },
     ]);
 
-    expect(grouped.pending.map((order) => order.id)).toEqual(["a", "c"]);
+    expect(grouped.entry.map((order) => order.id)).toEqual(["a", "c"]);
     expect(grouped.preparing.map((order) => order.id)).toEqual(["b"]);
     expect(grouped.ready.map((order) => order.id)).toEqual(["e"]);
   });
@@ -73,7 +74,8 @@ describe("carriles del tablero", () => {
         { status: "ready_for_pickup" as const },
         { status: "closed" as const },
       ]),
-    ).toEqual({ pending: 2, preparing: 2, ready: 1, total: 5 });
+      // El aceptado y los dos nuevos son la **entrada**: 3 en el carril de lo que espera trabajo.
+    ).toEqual({ entry: 3, preparing: 1, ready: 1, total: 5 });
   });
 });
 
@@ -106,7 +108,12 @@ describe("urgencia de una comanda", () => {
   }
 
   it("menos de 10 minutos es una comanda normal", () => {
-    expect(urgency(6)).toEqual({ level: "normal", minutes: 6, label: "hace 6 min" });
+    expect(urgency(6)).toEqual({
+      level: "normal",
+      minutes: 6,
+      label: "hace 6 min",
+      kitchenTimer: null,
+    });
   });
 
   it("de 10 a 15 minutos avisa que se está demorando", () => {
@@ -115,8 +122,49 @@ describe("urgencia de una comanda", () => {
   });
 
   it("a los 15 minutos está atrasada y lo dice con todas las letras", () => {
-    expect(urgency(15)).toEqual({ level: "late", minutes: 15, label: "Atrasado hace 15 min" });
+    expect(urgency(15)).toEqual({
+      level: "late",
+      minutes: 15,
+      label: "Atrasado hace 15 min",
+      kitchenTimer: null,
+    });
     expect(urgency(17)).toMatchObject({ level: "late", label: "Atrasado hace 17 min" });
+  });
+
+  /**
+   * La referencia aprobada muestra `PREP 08m` / `PREP 24m` en el carril de preparando, y ahí el número
+   * es lo que pasó **desde `preparingAt`** (el sello que deriva `orders/domain`), no desde que entró el
+   * pedido. Fuera de preparando el chip dice `hace N min`.
+   */
+  it("en preparando el cronómetro se rotula PREP y sale de la misma cuenta", () => {
+    const preparing = resolveComandaUrgency({
+      stageChangedAt: minutesAgo(8),
+      nowMs: NOW,
+      lane: "preparing",
+    });
+
+    expect(preparing.kitchenTimer).toBe("PREP 08m");
+    expect(preparing.minutes).toBe(8);
+
+    expect(
+      resolveComandaUrgency({ stageChangedAt: minutesAgo(24), nowMs: NOW, lane: "preparing" })
+        .kitchenTimer,
+    ).toBe("PREP 24m");
+    expect(urgency(8).kitchenTimer).toBeNull();
+    expect(
+      resolveComandaUrgency({ stageChangedAt: minutesAgo(3), nowMs: NOW, lane: "entry" })
+        .kitchenTimer,
+    ).toBeNull();
+  });
+
+  it("una fecha ilegible tampoco inventa un cronómetro de cocina", () => {
+    const result = resolveComandaUrgency({
+      stageChangedAt: "no es una fecha",
+      nowMs: NOW,
+      lane: "preparing",
+    });
+
+    expect(result.kitchenTimer).toBeNull();
   });
 
   it("pasada la hora, el atraso se lee igual de claro", () => {
@@ -146,9 +194,9 @@ describe("urgencia de una comanda", () => {
  * `LATE_EXTRA_MINUTES` es la regla de producto que separa "aviso" de "atrasado".
  */
 describe("umbrales por local (B5)", () => {
-  it("sin configuración rigen los valores por defecto: 10 sin aceptar, 15 en cocina", () => {
+  it("sin configuración rigen los valores por defecto: 10 en la entrada, 15 en cocina", () => {
     expect(comandaThresholds({})).toEqual({
-      pending: { warningMinutes: 10, lateMinutes: 15 },
+      entry: { warningMinutes: 10, lateMinutes: 15 },
       kitchen: { warningMinutes: 15, lateMinutes: 20 },
     });
   });
@@ -157,7 +205,7 @@ describe("umbrales por local (B5)", () => {
     expect(
       comandaThresholds({ acceptAlertMinutes: 5, prepAlertMinutes: 25 }),
     ).toEqual({
-      pending: { warningMinutes: 5, lateMinutes: 10 },
+      entry: { warningMinutes: 5, lateMinutes: 10 },
       kitchen: { warningMinutes: 25, lateMinutes: 30 },
     });
   });
@@ -166,7 +214,7 @@ describe("umbrales por local (B5)", () => {
     expect(
       comandaThresholds({ acceptAlertMinutes: null, prepAlertMinutes: 0 }),
     ).toEqual({
-      pending: { warningMinutes: 10, lateMinutes: 15 },
+      entry: { warningMinutes: 10, lateMinutes: 15 },
       kitchen: { warningMinutes: 15, lateMinutes: 20 },
     });
   });

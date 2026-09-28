@@ -4,6 +4,7 @@ import type {
   DeliveryZoneRecord,
   OrderPaymentMethod,
   OrderRecord,
+  OrderSource,
   OrderStatusHistoryRecord,
   TableRecord,
 } from "@/modules/orders/domain/order.types";
@@ -16,20 +17,23 @@ export type OrderItemInput = {
 };
 
 /**
- * Un pedido leído para la **cola de trabajo**, con el instante en que empezó su etapa actual (B3).
+ * Un pedido leído para la **cola de trabajo**, con los sellos de sus etapas.
  *
- * No va en `OrderRecord` porque solo la lectura de la lista lo resuelve —y lo resuelve para todos los
+ * No van en `OrderRecord` porque sólo la lectura de la lista los resuelve —y los resuelve para todos los
  * pedidos de una sola consulta—: la urgencia de la comanda se mide dentro de la etapa (aceptado hace
  * 20 minutos y en preparación hace 2 no está atrasado), y con `updatedAt` mentiría, porque también
  * cambia cuando alguien edita el pedido por otro motivo. Sin historial, la etapa empezó con el pedido.
+ *
+ * `TASK-ORDERS-KITCHEN-RUNTIME-002` agregó **`preparingAt`**: es el sello con el que se mide la
+ * preparación real (`preparingAt → readyAt`). Un pedido que nadie empezó a preparar no tiene sello y la
+ * pantalla lo dice («espera inicio»), en vez de contar el tiempo desde que entró el pedido.
  */
 export type OrderQueueRecord = OrderRecord & {
   stageChangedAt: string;
-  /**
-   * B5 — cuándo quedó listo (`null` si todavía no lo estuvo). Es lo que permite decir cuánto tarda la
-   * cocina hoy sin pedir el historial de cada pedido por separado.
-   */
+  /** Cuándo quedó listo (`null` si todavía no lo estuvo). */
   readyAt: string | null;
+  /** Cuándo empezó la preparación (`null` si nunca se empezó). Es la base del `PREP N m` de Cocina. */
+  preparingAt: string | null;
 };
 
 /** Datos editables de una promo (T9c). El `id` y el uso acumulado los maneja el repositorio. */
@@ -50,6 +54,12 @@ export type CreateOrderInput = {
   type: "delivery" | "pickup" | "table";
   /** Local al que va el pedido (T8); el caso de uso lo resuelve antes de guardar. */
   locationId: string;
+  /**
+   * `TASK-ORDERS-KITCHEN-RUNTIME-002` — canal de origen, **declarado por la puerta de creación**: el
+   * menú público manda `menu` y la venta del mostrador manda `pos`. Sin valor queda `null` (no
+   * declarado) y **no** se completa con ninguna heurística.
+   */
+  source?: OrderSource | null;
   customerName: string;
   customerWhatsapp: string;
   /** TASK-303b — correo del cliente (opcional; hoy lo pide el POS, no el checkout). */
@@ -89,6 +99,12 @@ export type CreateOrderInput = {
 export type ListOrdersFilter = {
   type?: string;
   status?: string;
+  /**
+   * `TASK-ORDERS-KITCHEN-RUNTIME-002` — varios estados a la vez. La cola de Cocina mira **los cuatro**
+   * estados del tablero (`new`, `confirmed`, `preparing`, `ready_for_pickup`) en **una** consulta: pedir
+   * el turno entero y descartar en memoria sería traer de más.
+   */
+  statusIn?: string[];
   dateFrom?: string;
   dateTo?: string;
   /**

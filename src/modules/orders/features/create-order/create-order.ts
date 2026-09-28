@@ -20,6 +20,7 @@ import {
   type DeliveryZoneRecord,
   type OrderPaymentMethod,
   type OrderRecord,
+  type OrderSource,
 } from "@/modules/orders/domain/order.types";
 import { getInitialStatus } from "@/modules/orders/domain/order-workflows";
 import { resolveLocation } from "@/modules/locations/domain/location-rules";
@@ -59,6 +60,14 @@ export type OrderItemRequest = {
 
 export type CreateOrderRequest = {
   type: "delivery" | "pickup" | "table";
+  /**
+   * `TASK-ORDERS-KITCHEN-RUNTIME-002` — **canal de origen**, declarado por la puerta que crea el
+   * pedido: `menu` en el checkout público y `pos` en la venta del mostrador.
+   *
+   * El alta **no** lo deduce de nada (ni del medio de pago, ni del nombre del cliente, ni del turno):
+   * lo persiste tal como llega. Sin valor queda `null`, que significa «no declarado».
+   */
+  source?: OrderSource | null;
   customerName: string;
   customerWhatsapp: string;
   /** TASK-303b — correo opcional (la venta de mostrador lo pide y el cliente puede dejarlo vacío). */
@@ -566,6 +575,8 @@ export async function createOrder(
       {
         type: input.type,
         locationId,
+        // TASK-ORDERS-KITCHEN-RUNTIME-002: el canal viaja tal como lo declaró la puerta de creación.
+        source: input.source ?? null,
         customerName,
         customerWhatsapp: normalizedWhatsapp,
         customerEmail: normalizedCustomerEmail,

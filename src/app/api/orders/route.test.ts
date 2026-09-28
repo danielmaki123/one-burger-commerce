@@ -104,6 +104,65 @@ describe("POST /api/orders", () => {
     );
   });
 
+  /**
+   * `TASK-ORDERS-KITCHEN-RUNTIME-002` — el canal de origen del pedido del **menú público**.
+   *
+   * Lo declara la **puerta**, no el cliente: el canal viaja en el alta y nunca se deduce. El checkout
+   * público es una de las dos únicas puertas de creación, así que dice `menu` siempre.
+   */
+  it("declara el canal `menu` en el alta del checkout público", async () => {
+    createOrderMock.mockResolvedValueOnce({
+      data: { id: "order_01", type: "pickup" },
+      meta: { sourceOfTruth: "backend", reused: false },
+    });
+
+    const { POST } = await import("./route");
+    const response = await POST(
+      new Request("http://localhost/api/orders", {
+        method: "POST",
+        body: JSON.stringify({
+          type: "pickup",
+          customerName: "Daniel",
+          customerWhatsapp: "+50588887777",
+          items: [{ productId: "prod_01", quantity: 1 }],
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(201);
+    expect(createOrderMock).toHaveBeenCalledWith(
+      expect.objectContaining({ source: "menu" }),
+      expect.any(Object),
+    );
+  });
+
+  it("el cliente no puede **elegir** el canal: lo que mande en el cuerpo no lo cambia", async () => {
+    createOrderMock.mockResolvedValueOnce({
+      data: { id: "order_01", type: "pickup" },
+      meta: { sourceOfTruth: "backend", reused: false },
+    });
+
+    const { POST } = await import("./route");
+    await POST(
+      new Request("http://localhost/api/orders", {
+        method: "POST",
+        body: JSON.stringify({
+          type: "pickup",
+          customerName: "Daniel",
+          customerWhatsapp: "+50588887777",
+          items: [{ productId: "prod_01", quantity: 1 }],
+          // Un cuerpo hostil: el canal es del servidor, no del request.
+          source: "pos",
+        }),
+      }),
+    );
+
+    expect(createOrderMock).toHaveBeenCalledWith(
+      expect.objectContaining({ source: "menu" }),
+      expect.any(Object),
+    );
+  });
+
   it("deja pasar el local de retiro que eligió el cliente (T8)", async () => {
     createOrderMock.mockResolvedValueOnce({
       data: { id: "order_01", type: "pickup" },

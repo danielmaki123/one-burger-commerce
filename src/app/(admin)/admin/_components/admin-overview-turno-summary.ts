@@ -66,7 +66,7 @@ export function summarizeTurno(
     if (isPreparing) resumen.enPreparacion += 1;
     if (isReady) resumen.listas += 1;
 
-    const thresholds = isPending ? TURNO_THRESHOLDS.pending : TURNO_THRESHOLDS.kitchen;
+    const thresholds = isPending ? TURNO_THRESHOLDS.entry : TURNO_THRESHOLDS.kitchen;
     const urgency = resolveComandaUrgency({
       stageChangedAt: order.createdAt,
       nowMs,

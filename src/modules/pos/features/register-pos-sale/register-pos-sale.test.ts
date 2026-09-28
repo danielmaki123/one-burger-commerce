@@ -178,6 +178,24 @@ describe("venta de mostrador", () => {
   });
 
   /**
+   * `TASK-ORDERS-KITCHEN-RUNTIME-002` — el canal de origen del pedido del **mostrador**.
+   *
+   * La venta del POS es la otra puerta de creación, y la única que puede declarar `pos`. Sin esto, la
+   * tarjeta de Cocina no tendría de dónde sacar la etiqueta y habría que adivinarla —que es justo lo que
+   * está prohibido.
+   */
+  it("declara el canal `pos` en el alta de la venta de mostrador", async () => {
+    const { createPosOrder, deps } = setup();
+
+    await registerPosSale(
+      { draft: draftWithTaco(), customer, payments: [{ method: "cash", currency: "NIO", amount: 80 }] },
+      deps,
+    );
+
+    expect(createPosOrder.mock.calls[0][0]).toMatchObject({ source: "pos" });
+  });
+
+  /**
    * Los modificadores que el cajero eligió son parte de la venta: el alta los valida y **cotiza** la
    * línea (`basePrice + Σ priceDelta`). Antes viajaba `[]` fijo, así que cualquier producto con un grupo
    * obligatorio —la mitad de la carta real— no se podía cobrar desde el mostrador (422 del alta).

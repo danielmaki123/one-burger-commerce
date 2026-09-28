@@ -8,6 +8,7 @@ import type {
 } from "@/modules/orders/domain/order.types";
 import { orderMatchesSearch } from "@/modules/orders/domain/order-search";
 import {
+  resolvePreparingAt,
   resolveReadyAt,
   resolveStageChangedAt,
 } from "@/modules/orders/domain/order-stage-times";
@@ -92,6 +93,9 @@ export class InMemoryOrderRepository implements OrderRepository {
       type: input.type,
       status: input.status as OrderRecord["status"],
       locationId: input.locationId,
+      // `TASK-ORDERS-KITCHEN-RUNTIME-002`: el canal llega declarado por la puerta de creación; sin
+      // valor queda `null` (no declarado) y no se deduce de nada.
+      source: input.source ?? null,
       customerName: input.customerName,
       customerWhatsapp: input.customerWhatsapp,
       customerEmail: input.customerEmail ?? null,
@@ -174,6 +178,9 @@ export class InMemoryOrderRepository implements OrderRepository {
       .filter((o) => {
         if (filter.type && o.type !== filter.type) return false;
         if (filter.status && o.status !== filter.status) return false;
+        // TASK-ORDERS-KITCHEN-RUNTIME-002: varios estados a la vez (la cola de Cocina), con la misma
+        // semántica que el adaptador de Prisma.
+        if (filter.statusIn?.length && !filter.statusIn.includes(o.status)) return false;
         if (filter.locationIds?.length && !filter.locationIds.includes(o.locationId)) return false;
         if (filter.dateFrom && o.createdAt < filter.dateFrom) return false;
         if (filter.dateTo && o.createdAt > filter.dateTo) return false;
@@ -191,6 +198,8 @@ export class InMemoryOrderRepository implements OrderRepository {
           ...order,
           stageChangedAt: resolveStageChangedAt(history, order.createdAt),
           readyAt: resolveReadyAt(history),
+          // `TASK-ORDERS-KITCHEN-RUNTIME-002`: el mismo sello que deriva el adaptador de Prisma.
+          preparingAt: resolvePreparingAt(history),
         };
       });
   }

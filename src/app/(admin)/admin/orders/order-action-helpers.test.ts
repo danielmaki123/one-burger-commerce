@@ -27,7 +27,8 @@ describe("acción primaria de una comanda", () => {
   it("uno confirmado pasa a preparación", () => {
     expect(resolvePrimaryOrderAction({ type: "pickup", status: "confirmed" })).toEqual({
       status: "preparing",
-      label: "Preparando",
+      // La spec de Cocina nombra la **acción** (`INICIAR PREPARACIÓN`), no el estado al que lleva.
+      label: "Iniciar preparación",
     });
   });
 

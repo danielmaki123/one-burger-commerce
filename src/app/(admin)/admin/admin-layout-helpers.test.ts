@@ -53,9 +53,27 @@ describe("admin layout helpers", () => {
     expect(ADMIN_PRIMARY_NAV_ITEMS.map((item) => item.href)).toEqual(["/admin"]);
   });
 
-  it("Operación tiene Órdenes y POS, en ese orden, y el POS ya no está en Control", () => {
-    expect(groupHrefs("owner", "Operación")).toEqual(["/admin/orders", "/admin/pos"]);
+  it("Operación tiene Órdenes, Cocina y POS, en ese orden, y el POS ya no está en Control", () => {
+    expect(groupHrefs("owner", "Operación")).toEqual([
+      "/admin/orders",
+      "/admin/kitchen",
+      "/admin/pos",
+    ]);
     expect(groupHrefs("owner", "Control")).not.toContain("/admin/pos");
+  });
+
+  /**
+   * `TASK-ORDERS-KITCHEN-RUNTIME-002` — **Cocina** es una sección propia.
+   *
+   * Antes era un *modo* de Órdenes. La entrada usa la **misma** puerta que su API
+   * (`canOperateKitchen`): el cajero no la ve —no cocina (`D-014`)— y el dueño, el manager y el rol de
+   * cocina sí.
+   */
+  it("Cocina se ofrece a quien puede operarla, y no al cajero", () => {
+    for (const role of ["owner", "manager", "kitchen"] as const) {
+      expect(visibleHrefs(role, true), role).toContain("/admin/kitchen");
+    }
+    expect(visibleHrefs("cashier", true)).not.toContain("/admin/kitchen");
   });
 
   it("Control mantiene Caja, Cierres, Aprobaciones y Config de Caja", () => {
@@ -136,8 +154,8 @@ describe("admin layout helpers", () => {
     },
   );
 
-  it("lets kitchen see only orders", () => {
-    expect(visibleHrefs("kitchen", true)).toEqual(["/admin/orders"]);
+  it("lets kitchen see only orders and its own board", () => {
+    expect(visibleHrefs("kitchen", true)).toEqual(["/admin/orders", "/admin/kitchen"]);
     expect(groupLabels("kitchen")).toEqual(["Operación"]);
   });
 

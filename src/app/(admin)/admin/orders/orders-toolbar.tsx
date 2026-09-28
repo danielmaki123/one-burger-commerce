@@ -1,29 +1,24 @@
 "use client";
 
-import { AlarmClock, Bell, BellOff, ChefHat, RefreshCw } from "lucide-react";
+import { AlarmClock, Bell, BellOff, RefreshCw } from "lucide-react";
 
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Select } from "@/shared/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/shared/ui/tabs";
-import { KitchenToolbar } from "./kitchen-toolbar";
 import { formatUpdatedAgo } from "./orders-page-helpers";
 import type { OrderPaymentFilter } from "./comanda-url";
 
 /**
- * La barra de trabajo de Órdenes (layout unificado, 2026-09-18).
+ * La barra de trabajo de **Órdenes**.
  *
- * Antes había dos: el tablero traía la suya —con "Comandas", los tabs Hoy/Historial y sus controles—
- * y la lista traía otra con los filtros. Mirar el mismo turno cambiaba la pantalla de forma. Ahora el
- * shell es uno (barra lateral + encabezado "Órdenes") y esta barra es la única: los **tabs de estado
- * son el filtro** (carriles para los activos, lista para cerradas), más el local, los contadores, la
- * preparación promedio, la frescura y los controles del turno.
+ * Los **tabs de estado son el filtro** (carriles para los activos, lista para las cerradas), más el local,
+ * los contadores, la preparación promedio, la frescura y los controles del turno.
  *
- * Es de presentación: no lee ni escribe nada por su cuenta, todo entra y sale por props.
- *
- * **Punto 3 (2026-09-18)**: la barra tiene dos formas. En **modo cocina** queda solo lo que la cocina
- * necesita —los cinco tabs de cocina, el buscador, el aviso sonoro, actualizar y **Salir**— sin los
- * controles de administración del panel: el tablero ocupa la pantalla y el modo se sale desde acá.
+ * `TASK-ORDERS-KITCHEN-RUNTIME-002`: **ya no hay modo cocina acá**. Cocina es una sección propia
+ * (`/admin/kitchen`, entrada en Operación) y esta barra dejó de tener dos formas: el botón «Modo cocina»,
+ * los tabs de cocina y «Salir» se fueron con la superficie, que es donde tenían sentido. Los contadores
+ * siguen saliendo del carril canónico (`entry` incluye `confirmed`: A-64), no de una copia.
  */
 
 const CHIP_LIST_CLASS = "flex flex-wrap gap-2 bg-transparent p-0";
@@ -69,27 +64,18 @@ export type OrdersToolbarProps = {
   scopedLocations: Array<{ id: string; name: string }>;
   locationFilter: string;
   onLocationChange: (value: string) => void;
-  counters: { pending: number; preparing: number; ready: number };
+  counters: { entry: number; preparing: number; ready: number };
   averagePrepMinutes: number | null;
   lastUpdatedAt: number | null;
   nowMs: number;
   offline: boolean;
   soundEnabled: boolean;
   onToggleSound: () => void;
-  /** Modo cocina: solo los carriles, con los tabs de la cocina y su salida. */
-  kitchenMode: boolean;
-  kitchenTab: string;
-  onKitchenTabChange: (value: string) => void;
-  onToggleKitchenMode: () => void;
   onRefresh: () => void;
   showClearFilters: boolean;
   onClearFilters: () => void;
 };
 
-/**
- * La barra de trabajo del panel. El modo cocina tiene la suya (`kitchen-toolbar.tsx`): son otro juego
- * de controles, no una variante de esta.
- */
 export function OrdersToolbar({
   statusFilter,
   onStatusChange,
@@ -113,32 +99,10 @@ export function OrdersToolbar({
   offline,
   soundEnabled,
   onToggleSound,
-  kitchenMode,
-  kitchenTab,
-  onKitchenTabChange,
-  onToggleKitchenMode,
   onRefresh,
   showClearFilters,
   onClearFilters,
 }: OrdersToolbarProps) {
-  if (kitchenMode) {
-    return (
-      <KitchenToolbar
-        kitchenTab={kitchenTab}
-        onKitchenTabChange={onKitchenTabChange}
-        searchTerm={searchTerm}
-        onSearchTermChange={onSearchTermChange}
-        lastUpdatedAt={lastUpdatedAt}
-        nowMs={nowMs}
-        soundEnabled={soundEnabled}
-        onToggleSound={onToggleSound}
-        offline={offline}
-        onRefresh={onRefresh}
-        onToggleKitchenMode={onToggleKitchenMode}
-      />
-    );
-  }
-
   return (
     <div
       data-testid="comandas-topbar"
@@ -179,7 +143,7 @@ export function OrdersToolbar({
               aria-hidden="true"
               className="h-1.5 w-1.5 rounded-full bg-status-pending-dot"
             />
-            Nuevas: {counters.pending}
+            Entrada: {counters.entry}
           </span>
           <span className="inline-flex items-center gap-1.5 rounded-full bg-status-prep-bg px-2.5 py-1 font-mono text-st-caption font-semibold tabular-nums text-status-prep-text">
             <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-status-prep-dot" />
@@ -313,23 +277,6 @@ export function OrdersToolbar({
             <BellOff aria-hidden="true" className="h-4 w-4" />
           )}
           <span className={MOBILE_ICON_LABEL_CLASS}>Aviso sonoro</span>
-        </Button>
-
-        {/*
-          B6 · Punto 3 — el modo cocina. Antes este control entraba al *Fullscreen API* y escondía
-          la barra lateral; ahora que el chrome se ve siempre, lo que hace es cambiar de modo: la
-          barra lateral y el encabezado se van, quedan los carriles, y la vuelta es «Salir» (que se
-          ve en el modo). La elección queda guardada en el dispositivo, así que la tablet de pared
-          vuelve a entrar en modo cocina sola.
-        */}
-        <Button
-          variant="outline"
-          className="min-h-11 gap-1.5 px-3"
-          aria-label="Modo cocina"
-          onClick={onToggleKitchenMode}
-        >
-          <ChefHat aria-hidden="true" className="h-4 w-4" />
-          <span className={MOBILE_ICON_LABEL_CLASS}>Modo cocina</span>
         </Button>
 
         <Button

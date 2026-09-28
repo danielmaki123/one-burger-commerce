@@ -2,6 +2,7 @@ import {
   BadgePercent,
   Bell,
   Calculator,
+  ChefHat,
   ClipboardList,
   Coins,
   History,
@@ -25,6 +26,7 @@ import {
   canManageMenu,
   canManagePromotions,
   canManageUsers,
+  canOperateKitchen,
   canUsePOS,
   canViewAdminOverview,
   canViewHistory,
@@ -95,6 +97,21 @@ export const ADMIN_PRIMARY_NAV_ITEMS: AdminNavItem[] = [
  */
 export const ADMIN_OPERATION_NAV_ITEMS: AdminNavItem[] = [
   { href: "/admin/orders", label: "Órdenes", description: "Cocina y servicio", icon: ClipboardList, canSee: everyRole },
+  {
+    /**
+     * `TASK-ORDERS-KITCHEN-RUNTIME-002` — **Cocina** es una sección propia.
+     *
+     * Antes era un *modo* de Órdenes (`useComandaView` + `html.comandas-view`): una sola pantalla con dos
+     * usos, que dejaba el detalle con dinero a un clic de la cocina (`A-60`). La entrada usa la **misma**
+     * puerta que su API —`canOperateKitchen`—, así que el cajero no la ve y el servidor tampoco se la
+     * serviría si llegara por URL: una entrada nunca se ofrece a un rol que la pantalla rechaza.
+     */
+    href: "/admin/kitchen",
+    label: "Cocina",
+    description: "Comandas del turno",
+    icon: ChefHat,
+    canSee: ({ role }) => Boolean(role && canOperateKitchen(role)),
+  },
   {
     href: "/admin/pos",
     label: "POS",

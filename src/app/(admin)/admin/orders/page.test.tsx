@@ -246,8 +246,8 @@ describe("bandeja de órdenes: hora de retiro y semáforo", () => {
       ],
     );
 
-    // El pedido dice de qué local es.
-    expect(screen.getByText(/· Norte/)).toBeTruthy();
+    // El pedido dice de qué local es: en la comanda del tablero, porque es donde se dibuja.
+    expect(screen.getAllByText("Norte").length).toBeGreaterThan(0);
 
     await goToHistory();
     await user.selectOptions(screen.getByLabelText("Local de las comandas"), "loc_norte");
@@ -955,70 +955,38 @@ describe("bandeja de órdenes: tablero de comandas (B3)", () => {
       order({ id: "ord_4", orderNumber: "OB-4", status: "closed" }),
     ]);
 
-    expect(screen.getByRole("heading", { name: /Por aceptar \(1\)/ })).toBeTruthy();
-    expect(screen.getByRole("heading", { name: /En preparación \(1\)/ })).toBeTruthy();
-    expect(screen.getByRole("heading", { name: /Listas \(1\)/ })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: /Entrada \(1\)/ })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: /Preparando \(1\)/ })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: /Listos \(1\)/ })).toBeTruthy();
     // Lo cerrado no está en el tablero del turno.
     expect(screen.queryByText("OB-4")).toBeNull();
 
     const topbar = screen.getByTestId("comandas-topbar");
-    expect(topbar.textContent).toMatch(/Nuevas: 1/);
+    expect(topbar.textContent).toMatch(/Entrada: 1/);
     expect(topbar.textContent).toMatch(/Preparando: 1/);
     expect(topbar.textContent).toMatch(/Listas: 1/);
   });
 
   /**
-   * B6 · Punto 3 — el modo cocina se prende y se sale desde la barra del turno.
+   * `TASK-ORDERS-KITCHEN-RUNTIME-002` — el **modo cocina ya no vive acá**.
    *
-   * El owner lo pidió así: la barra lateral y el encabezado se **esconden** y quedan solo los carriles,
-   * con «Salir» arriba a la derecha para volver al panel **sin cerrar sesión** (la sesión y la
-   * navegación viven en esa barra). Es un modo, no un permiso: cualquiera que entre a Órdenes puede
-   * prenderlo.
+   * Era una sola pantalla con dos usos (cocina y mostrador) y dejaba el detalle con dinero a un clic de
+   * la cocina (`A-60`). Cocina es ahora la superficie propia `/admin/kitchen`, con su entrada en la
+   * navegación y su API sin campos financieros. En Órdenes no queda rastro del modo: ni el botón, ni los
+   * tabs de cocina, ni la clase que escondía el chrome.
    */
-  it("el modo cocina esconde el chrome y «Salir» lo devuelve (Punto 3)", async () => {
-    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+  it("Órdenes ya no tiene el modo cocina: ni el botón, ni los tabs, ni la clase del chrome", async () => {
     await renderBoardWith([order({ status: "new" })]);
 
-    // Órdenes entra con el chrome del panel: la barra lateral no se esconde.
-    expect(document.documentElement.classList.contains("comandas-view")).toBe(false);
-
-    const enter = screen.getByRole("button", { name: "Modo cocina" });
-    expect(within(screen.getByTestId("comandas-topbar")).getByRole("button", { name: "Modo cocina" })).toBe(enter);
-
-    await user.click(enter);
-    expect(document.documentElement.classList.contains("comandas-view")).toBe(true);
-
-    // En modo cocina la barra de trabajo es la de la cocina: cinco tabs y la salida, sin «Cerradas».
-    expect(screen.queryByTestId("kitchen-tab-closed")).toBeNull();
-    expect(screen.getByTestId("kitchen-tab-dispatched")).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Cerrar sesión" })).toBeNull();
-
-    // Y se sale: vuelve el chrome del panel, sin cerrar sesión.
-    await user.click(screen.getByRole("button", { name: "Salir" }));
-
-    expect(document.documentElement.classList.contains("comandas-view")).toBe(false);
-    expect(screen.getByRole("button", { name: "Modo cocina" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Modo cocina" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Salir" })).toBeNull();
+    expect(screen.queryByTestId("kitchen-tab-all")).toBeNull();
     expect(screen.queryByTestId("kitchen-tab-dispatched")).toBeNull();
-    expect(screen.queryByRole("button", { name: "Cerrar sesión" })).toBeNull();
-  });
+    // La clase que escondía la barra lateral ya no la pone esta pantalla.
+    expect(document.documentElement.classList.contains("comandas-view")).toBe(false);
 
-  /**
-   * El modo cocina es **del dispositivo**: una tablet de pared vuelve a entrar en modo cocina al
-   * recargar y el mostrador no. Es la diferencia entre una preferencia y un permiso.
-   */
-  it("la tablet que quedó en modo cocina vuelve a entrar así (Punto 3)", async () => {
-    window.localStorage.setItem("one-burger:comanda-view", "1");
-
-    await renderBoardWith([order({ status: "new" })]);
-    // El modo se restaura después de montar (leer el almacenamiento en el render rompería la
-    // hidratación), así que la pantalla necesita un ciclo más para quedar en modo cocina.
-    await flush();
-
-    expect(document.documentElement.classList.contains("comandas-view")).toBe(true);
-    expect(screen.getByRole("button", { name: "Salir" })).toBeTruthy();
-    expect(screen.queryByTestId("comandas-topbar")).toBeNull();
-
-    window.localStorage.clear();
+    // Y lo propio de la bandeja sigue: los cinco tabs de estado del panel.
+    expect(screen.getByRole("button", { name: "Cerradas" })).toBeTruthy();
   });
 
   it("el conmutador de celular ofrece un carril por vez, con su cuenta", async () => {
@@ -1027,8 +995,8 @@ describe("bandeja de órdenes: tablero de comandas (B3)", () => {
       order({ id: "ord_2", orderNumber: "OB-2", status: "ready_for_pickup" }),
     ]);
 
-    expect(screen.getByRole("button", { name: "Por aceptar 1" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Listas 1" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Entrada 1" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Listos 1" })).toBeTruthy();
   });
 
   it("sin comandas el tablero enseña qué va a aparecer en cada carril", async () => {
@@ -1082,7 +1050,7 @@ describe("bandeja de órdenes: tablero de comandas (B3)", () => {
       }),
     ]);
 
-    const pending = screen.getByRole("region", { name: "Por aceptar" });
+    const pending = screen.getByRole("region", { name: "Entrada" });
     expect(within(pending).getByText("OB-1")).toBeTruthy();
     expect(within(pending).queryByText("OB-2")).toBeNull();
 
@@ -1104,7 +1072,7 @@ describe("bandeja de órdenes: tablero de comandas (B3)", () => {
     await flush();
 
     expect(screen.getByRole("heading", { name: "Órdenes" })).toBeTruthy();
-    expect(screen.queryByRole("region", { name: "Por aceptar" })).toBeNull();
+    expect(screen.queryByRole("region", { name: "Entrada" })).toBeNull();
     expect(screen.getByLabelText("Resumen de órdenes")).toBeTruthy();
     expect(screen.getByText("OB-1")).toBeTruthy();
   });

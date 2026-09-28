@@ -1409,3 +1409,62 @@ describe("createOrder · el local del pedido (T8)", () => {
     ).rejects.toMatchObject({ status: 409, fields: { locationId: expect.any(String) } });
   });
 });
+
+/**
+ * `TASK-ORDERS-KITCHEN-RUNTIME-002` — el **canal de origen**.
+ *
+ * El alta es la única puerta del pedido, así que es donde se guarda el canal: el menú público manda
+ * `menu` y la venta del mostrador manda `pos`. El caso de uso **no lo deduce**: lo persiste tal como
+ * llega. Sin canal queda `null`, que es «no declarado» — el pasado no se reconstruye (ley 7).
+ */
+describe("createOrder · el canal de origen (TASK-ORDERS-KITCHEN-RUNTIME-002)", () => {
+  function input(source?: "menu" | "pos" | null) {
+    return {
+      type: "pickup" as const,
+      customerName: "Ana Lopez",
+      customerWhatsapp: "+50588887777",
+      items: [{ productId: "prod_01", quantity: 1, modifierOptionIds: [] }],
+      ...(source === undefined ? {} : { source }),
+    };
+  }
+
+  it("guarda el canal que declara la puerta de creación", async () => {
+    const repository = createRepository();
+    seedProduct(repository);
+
+    const conMenu = await createOrder(input("menu"), { repository });
+    const conPos = await createOrder(input("pos"), { repository });
+
+    expect(conMenu.data.source).toBe("menu");
+    expect(conPos.data.source).toBe("pos");
+  });
+
+  it("sin canal declarado queda `null`: no se inventa de dónde vino el pedido", async () => {
+    const repository = createRepository();
+    seedProduct(repository);
+
+    const result = await createOrder(input(), { repository });
+
+    expect(result.data.source ?? null).toBeNull();
+  });
+
+  it("un reintento idempotente devuelve el canal del pedido que ya existía", async () => {
+    // La clave de operación hace que el segundo intento devuelva el pedido original: el canal es un
+    // hecho del alta, no algo que el reintento pueda reescribir.
+    const repository = createRepository();
+    seedProduct(repository);
+
+    const first = await createOrder(
+      { ...input("menu"), idempotencyKey: "op-canal-1" },
+      { repository },
+    );
+    const retry = await createOrder(
+      { ...input("pos"), idempotencyKey: "op-canal-1" },
+      { repository },
+    );
+
+    expect(retry.meta.reused).toBe(true);
+    expect(retry.data.id).toBe(first.data.id);
+    expect(retry.data.source).toBe("menu");
+  });
+});

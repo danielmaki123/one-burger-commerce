@@ -10,6 +10,7 @@ import { resolveLocation } from "@/modules/locations/domain/location-rules";
 import { PrismaOrderRepository } from "@/modules/orders/adapters/prisma-order-repository";
 import { OrderError } from "@/modules/orders/domain/order-errors";
 import { createOrder } from "@/modules/orders/features/create-order/create-order";
+import { buildPublicOrderInput } from "./public-order-composition";
 import { createErrorResponse } from "@/shared/lib/http/error-response";
 import {
   enforceRateLimit,
@@ -175,17 +176,14 @@ export async function POST(request: Request) {
     }
 
     const result = await createOrder(
-      {
-        ...parsed.data,
-        // El servidor guarda siempre una hora concreta: la que eligió el cliente o
-        // "ahora + preparación" con el reloj del servidor. `pickupScheduled` lo deriva
-        // el servidor de si vino una hora, así el cliente no puede declararse programado
-        // sin haber elegido nada.
-        pickupTime: acceptance.pickupTime.toISOString(),
-        pickupScheduled: pickupTime !== null,
-        // TASK-101: la clave viaja al caso de uso, que es quien decide si el alta reusa un pedido.
+      // TASK-ORDERS-KITCHEN-RUNTIME-002: la composición declara el **canal de origen** (`menu`) y fija la
+      // hora con el reloj del servidor. El cuerpo del request no puede elegir ninguno de los dos.
+      buildPublicOrderInput({
+        parsed: parsed.data,
+        acceptancePickupTime: acceptance.pickupTime,
+        requestedPickupTime: pickupTime !== null,
         idempotencyKey: resolveIdempotencyKey(request),
-      },
+      }),
       {
         repository,
         locationRepository,

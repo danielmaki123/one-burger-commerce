@@ -44,6 +44,15 @@ async function patchStatus(id: string, body: unknown) {
 }
 
 /**
+ * El pedido que devuelve el repositorio, con los dos campos que la **capacidad de Cocina** necesita para
+ * decidir (`TASK-ORDERS-KITCHEN-RUNTIME-002`): el tipo y el estado actual. El adaptador real siempre los
+ * trae; un doble que los omita haría fallar la puerta por un dato que en producción existe.
+ */
+function existingOrder(over: Record<string, unknown>) {
+  return { type: "pickup", status: "new", ...over };
+}
+
+/**
  * A — el cambio de estado respeta el alcance del usuario.
  *
  * Lo que importa acá es que **no se mute**: un usuario de otra sucursal no puede avanzar un pedido
@@ -60,7 +69,7 @@ describe("PATCH /api/admin/orders/[id]/status · alcance por sucursal (A)", () =
     requireAdminSessionMock.mockResolvedValueOnce({
       user: { id: "admin_2", role: "kitchen", locationIds: ["loc_norte"] },
     });
-    findOrderByIdMock.mockResolvedValueOnce({ id: "ord_1", locationId: "loc_sur" });
+    findOrderByIdMock.mockResolvedValueOnce(existingOrder({ id: "ord_1", locationId: "loc_sur" }));
 
     const { status, body } = await patchStatus("ord_1", { status: "confirmed" });
 
@@ -73,7 +82,7 @@ describe("PATCH /api/admin/orders/[id]/status · alcance por sucursal (A)", () =
     requireAdminSessionMock.mockResolvedValueOnce({
       user: { id: "admin_2", role: "kitchen", locationIds: ["loc_norte"] },
     });
-    findOrderByIdMock.mockResolvedValueOnce({ id: "ord_2", locationId: "loc_norte" });
+    findOrderByIdMock.mockResolvedValueOnce(existingOrder({ id: "ord_2", locationId: "loc_norte" }));
 
     const { status } = await patchStatus("ord_2", { status: "confirmed" });
 
@@ -94,7 +103,7 @@ describe("PATCH /api/admin/orders/[id]/status · alcance por sucursal (A)", () =
     requireAdminSessionMock.mockResolvedValueOnce({
       user: { id: "admin_1", role: "owner", locationIds: [] },
     });
-    findOrderByIdMock.mockResolvedValueOnce({ id: "ord_3", locationId: "loc_sur" });
+    findOrderByIdMock.mockResolvedValueOnce(existingOrder({ id: "ord_3", locationId: "loc_sur" }));
 
     const { status } = await patchStatus("ord_3", { status: "confirmed" });
 

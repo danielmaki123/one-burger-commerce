@@ -411,6 +411,16 @@ enum OrderType {
   table
 }
 
+/// Canal por el que **entró** el pedido (`TASK-ORDERS-KITCHEN-RUNTIME-002`).
+///
+/// `menu` es el menú público (checkout del cliente) y `pos` es la venta del mostrador. El canal lo
+/// declara la puerta de creación, no se deduce. Si el pedido es anterior a esta columna, no tiene canal
+/// (`null`): es «no declarado», no un tercer canal.
+enum OrderSource {
+  menu
+  pos
+}
+
 /// Cómo piensa pagar el cliente (T11). El cobro sigue siendo en el local.
 enum PaymentMethod {
   cash
@@ -519,6 +529,16 @@ model Order {
   /// Local al que va el pedido (T8). Obligatorio: la migración backfillea los pedidos
   /// que ya existían al local primario.
   locationId           String
+  /// Canal de origen del pedido (`TASK-ORDERS-KITCHEN-RUNTIME-002`): por dónde **entró**.
+  ///
+  /// Lo escribe **explícitamente** cada puerta de creación: el menú público (`api/orders`) pone `menu`
+  /// y la venta del mostrador (`commit-sale`) pone `pos`. Es un dato, no una deducción: **prohibido**
+  /// inferirlo del medio de pago, del nombre del cliente, del turno o de cualquier otra señal.
+  ///
+  /// Nullable y **sin default**: los pedidos que existieron antes de la columna no tienen canal —el
+  /// pasado no se reconstruye con heurísticas (ley 7)—, y `null` se muestra **sin etiqueta**, nunca con
+  /// una adivinada.
+  source               OrderSource?
   orderLookupTokenHash String?
   /// TASK-101: clave de operación del cliente. El alta pública no tiene sesión, así que un
   /// reintento del mismo request (doble tap, red que se corta) creaba **otro pedido**. Nullable

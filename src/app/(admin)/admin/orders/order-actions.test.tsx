@@ -38,7 +38,9 @@ describe("acciones de una comanda (B2)", () => {
     const { unmount } = render(
       <OrderActions order={pickup("confirmed")} onUpdateStatus={vi.fn()} />,
     );
-    expect(screen.getByRole("button", { name: "Preparando" })).toBeTruthy();
+    // La acción se llama por lo que **hace** (`INICIAR PREPARACIÓN`), no por el estado al que lleva:
+    // la spec de Cocina nombra acciones (§ *Acciones*).
+    expect(screen.getByRole("button", { name: "Iniciar preparación" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Aceptar" })).toBeNull();
     unmount();
 

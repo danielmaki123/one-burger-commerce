@@ -30,7 +30,12 @@ vi.mock("@/app/api/admin/audit-action-helpers", () => ({
   paidOrderCancelledAudit: (input: unknown) => paidOrderCancelledAuditMock(input),
 }));
 
-async function apply(input: { status: string; note?: string | null }) {
+async function apply(input: {
+  status: string;
+  note?: string | null;
+  role?: "owner" | "manager" | "kitchen" | "cashier";
+  order?: { type: "pickup" | "table" | "delivery"; status: string };
+}) {
   const { applyOrderStatusChange } = await import("./order-status-composition");
 
   return applyOrderStatusChange({
@@ -38,6 +43,8 @@ async function apply(input: { status: string; note?: string | null }) {
     status: input.status,
     note: input.note ?? null,
     changedByUserId: "user_manager",
+    actorRole: input.role ?? "manager",
+    order: (input.order ?? { type: "pickup", status: "new" }) as never,
   });
 }
 
@@ -88,5 +95,69 @@ describe("applyOrderStatusChange", () => {
     await expect(apply({ status: "cancelled", note: "Cliente canceló" })).rejects.toThrow();
 
     expect(paidOrderCancelledAuditMock).not.toHaveBeenCalled();
+  });
+
+  /**
+   * `TASK-ORDERS-KITCHEN-RUNTIME-002` — la **capacidad de Cocina** en el servidor.
+   *
+   * El rol de cocina **termina en Listo**: retirar (`ready_for_pickup → picked_up`) y cerrar son del
+   * mostrador. La puerta gruesa `canManageOrderOperations` lo deja entrar a esta ruta, así que el recorte
+   * tiene que estar acá. Y no aplica a los otros roles: el dueño y el manager siguen cerrando pedidos.
+   */
+  it("el rol de cocina no puede retirar ni cerrar un pedido: 403 y no se escribe nada", async () => {
+    await expect(
+      apply({
+        status: "picked_up",
+        role: "kitchen",
+        order: { type: "pickup", status: "ready_for_pickup" },
+      }),
+    ).rejects.toMatchObject({ status: 403, code: "FORBIDDEN" });
+
+    expect(updateOrderStatusMock).not.toHaveBeenCalled();
+    expect(paidOrderCancelledAuditMock).not.toHaveBeenCalled();
+  });
+
+  it("el rol de cocina sí avanza la comanda: aceptar, empezar y terminar", async () => {
+    updateOrderStatusMock.mockResolvedValue({
+      data: { id: "ord_01", status: "confirmed" },
+      meta: { refundsRequested: 0 },
+    });
+
+    await expect(
+      apply({ status: "confirmed", role: "kitchen", order: { type: "pickup", status: "new" } }),
+    ).resolves.toBeDefined();
+    await expect(
+      apply({
+        status: "preparing",
+        role: "kitchen",
+        order: { type: "pickup", status: "confirmed" },
+      }),
+    ).resolves.toBeDefined();
+    await expect(
+      apply({
+        status: "ready_for_pickup",
+        role: "kitchen",
+        order: { type: "pickup", status: "preparing" },
+      }),
+    ).resolves.toBeDefined();
+  });
+
+  it("el dueño y el manager no se recortan: retirar y cerrar es de Pedidos", async () => {
+    updateOrderStatusMock.mockResolvedValue({
+      data: { id: "ord_01", status: "picked_up" },
+      meta: { refundsRequested: 0 },
+    });
+
+    for (const role of ["owner", "manager"] as const) {
+      await expect(
+        apply({
+          status: "picked_up",
+          role,
+          order: { type: "pickup", status: "ready_for_pickup" },
+        }),
+      ).resolves.toBeDefined();
+    }
+
+    expect(updateOrderStatusMock).toHaveBeenCalledTimes(2);
   });
 });

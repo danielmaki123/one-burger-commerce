@@ -1,24 +1,27 @@
 // @vitest-environment jsdom
 
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { ComandaOrder } from "./order-comanda-card";
+import type { ComandaCardOrder } from "./order-comanda-card";
 import { comandaThresholds } from "./comanda-helpers";
 import { OrderComandaBoard } from "./order-comanda-board";
 
 /**
  * B3 — el tablero: tres carriles en escritorio, uno por vez en celular.
  *
- * jsdom no aplica CSS, así que acá se prueba lo que el tablero **contiene** (cada comanda en su
- * carril, contadores, vacíos que enseñan, y las acciones cableadas al pedido correcto). Que en
- * celular se vea un carril por vez lo verifica el E2E, que sí tiene layout.
+ * jsdom no aplica CSS, así que acá se prueba lo que el tablero **contiene** (cada comanda en su carril,
+ * contadores, vacíos que enseñan, y las acciones cableadas al pedido correcto). Que en celular se vea un
+ * carril por vez lo verifica el E2E, que sí tiene layout.
+ *
+ * `TASK-ORDERS-KITCHEN-RUNTIME-002`: el tablero consume el carril **canónico** del dominio, así que
+ * `confirmed` está en el carril de ENTRADA —«Por aceptar» en esta superficie— y no en preparación.
  */
 const NOW = Date.parse("2026-09-12T02:30:00.000Z");
 const TIME_ZONE = "America/Managua";
 
-function comanda(overrides: Partial<ComandaOrder> = {}): ComandaOrder {
+function comanda(overrides: Partial<ComandaCardOrder> = {}): ComandaCardOrder {
   return {
     id: "ord_1",
     orderNumber: "P-123",
@@ -32,7 +35,7 @@ function comanda(overrides: Partial<ComandaOrder> = {}): ComandaOrder {
   };
 }
 
-function renderBoard(orders: ComandaOrder[], props: Record<string, unknown> = {}) {
+function renderBoard(orders: ComandaCardOrder[], props: Record<string, unknown> = {}) {
   const onUpdateStatus = vi.fn().mockResolvedValue(undefined);
   const onActiveLaneChange = vi.fn();
   const view = render(
@@ -40,7 +43,7 @@ function renderBoard(orders: ComandaOrder[], props: Record<string, unknown> = {}
       orders={orders}
       nowMs={NOW}
       timeZone={TIME_ZONE}
-      activeLane="pending"
+      activeLane="entry"
       onActiveLaneChange={onActiveLaneChange}
       onUpdateStatus={onUpdateStatus}
       thresholds={comandaThresholds({})}
@@ -56,7 +59,7 @@ afterEach(() => {
 });
 
 describe("tablero de comandas (B3)", () => {
-  it("cada comanda aparece en el carril de su etapa", () => {
+  it("cada comanda aparece en el carril de su etapa, y `confirmed` está en la entrada", () => {
     renderBoard([
       comanda({ id: "a", orderNumber: "P-1", status: "new", customerName: "Nueva" }),
       comanda({ id: "b", orderNumber: "P-2", status: "confirmed", customerName: "Aceptada" }),
@@ -64,15 +67,16 @@ describe("tablero de comandas (B3)", () => {
       comanda({ id: "d", orderNumber: "P-4", status: "ready_for_pickup", customerName: "Lista" }),
     ]);
 
-    expect(screen.getByRole("heading", { name: /Por aceptar/ })).toBeTruthy();
-    expect(screen.getByRole("heading", { name: /En preparación/ })).toBeTruthy();
-    expect(screen.getByRole("heading", { name: /Listas/ })).toBeTruthy();
+    // La regla canónica: aceptado todavía no está en el fuego (`A-64`).
+    const entry = screen.getByRole("region", { name: "Entrada" });
+    expect(within(entry).getByText("Nueva")).toBeTruthy();
+    expect(within(entry).getByText("Aceptada")).toBeTruthy();
 
-    // Dos en preparación (aceptada y cocinándose), una por aceptar, una lista.
-    expect(screen.getByText("Nueva")).toBeTruthy();
-    expect(screen.getByText("Aceptada")).toBeTruthy();
-    expect(screen.getByText("Cocinando")).toBeTruthy();
-    expect(screen.getByText("Lista")).toBeTruthy();
+    const preparing = screen.getByRole("region", { name: "Preparando" });
+    expect(within(preparing).getByText("Cocinando")).toBeTruthy();
+    expect(within(preparing).queryByText("Aceptada")).toBeNull();
+
+    expect(within(screen.getByRole("region", { name: "Listos" })).getByText("Lista")).toBeTruthy();
   });
 
   it("lo cerrado o cancelado no está en el tablero", () => {
@@ -105,13 +109,14 @@ describe("tablero de comandas (B3)", () => {
   it("los contadores de cada carril salen de lo que hay", () => {
     renderBoard([
       comanda({ id: "a", orderNumber: "P-1", status: "new" }),
-      comanda({ id: "b", orderNumber: "P-2", status: "new" }),
+      comanda({ id: "b", orderNumber: "P-2", status: "confirmed" }),
       comanda({ id: "c", orderNumber: "P-3", status: "ready_for_pickup" }),
     ]);
 
-    expect(screen.getAllByRole("heading", { name: /Por aceptar \(2\)/ }).length).toBeGreaterThan(0);
-    expect(screen.getAllByRole("heading", { name: /Listas \(1\)/ }).length).toBeGreaterThan(0);
-    expect(screen.getAllByRole("heading", { name: /En preparación \(0\)/ }).length).toBeGreaterThan(0);
+    // Los dos primeros son la **entrada**: el aceptado también espera trabajo.
+    expect(screen.getAllByRole("heading", { name: /Entrada \(2\)/ }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("heading", { name: /Listos \(1\)/ }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("heading", { name: /Preparando \(0\)/ }).length).toBeGreaterThan(0);
   });
 
   it("en celular se cambia de carril con el conmutador, que dice cuántas hay en cada uno", async () => {
@@ -121,7 +126,7 @@ describe("tablero de comandas (B3)", () => {
       comanda({ id: "c", orderNumber: "P-3", status: "ready_for_pickup" }),
     ]);
 
-    const ready = screen.getByRole("button", { name: /^Listas 1$/ });
+    const ready = screen.getByRole("button", { name: /^Listos 1$/ });
     await user.click(ready);
 
     expect(onActiveLaneChange).toHaveBeenCalledWith("ready");
@@ -136,6 +141,14 @@ describe("tablero de comandas (B3)", () => {
     await user.click(screen.getByRole("button", { name: "Aceptar" }));
 
     expect(onUpdateStatus).toHaveBeenCalledWith("ord_9", "confirmed", null);
+  });
+
+  it("en Pedidos la comanda abre el detalle del pedido (es su superficie)", () => {
+    renderBoard([comanda({ id: "ord_9", orderNumber: "P-9", status: "new" })]);
+
+    expect(
+      screen.getByRole("link", { name: "Abrir orden P-9" }).getAttribute("href"),
+    ).toBe("/admin/orders/ord_9");
   });
 
   it("una comanda recién llegada se marca para que el ojo la encuentre", () => {
