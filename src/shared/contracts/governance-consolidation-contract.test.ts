@@ -355,7 +355,16 @@ describe("contrato · consolidación de arquitectura, reglas y roadmap (TASK-GOV
     expect(claimants, "el flujo se escribe una vez y se enlaza").toEqual([DELIVERY_SKILL]);
   });
 
-  it("NEXT.md es pequeño, declara que no hay TASK activa y apunta a la próxima TASK y al roadmap maestro", () => {
+  /**
+   * `TASK-MONEY-PAYMENTS-RUNTIME-001` — el contrato cambió **a propósito**.
+   *
+   * Antes exigía que `NEXT.md` declarara «Ninguno» en `ACTIVE`. Eso describía el estado del repo cuando se
+   * escribió el contrato (entre TASKs), no la regla: la regla es **una TASK activa por vez**, y una TASK
+   * abierta y en curso **tiene** que poder declararse en `ACTIVE`. Lo que el contrato tiene que cuidar es
+   * que nunca haya **dos**, que la próxima siga necesitando autorización del owner, y que `NEXT.md` siga
+   * siendo la secuencia y no un segundo roadmap.
+   */
+  it("NEXT.md es pequeño, declara a lo sumo UNA TASK activa y apunta a la próxima TASK y al roadmap maestro", () => {
     expect(countLines(NEXT_DOC)).toBeLessThanOrEqual(60);
 
     const next = readRepoFile(NEXT_DOC);
@@ -364,7 +373,6 @@ describe("contrato · consolidación de arquitectura, reglas y roadmap (TASK-GOV
       ["## ACTIVE", "lo que se está haciendo ahora"],
       ["## NEXT", "lo que sigue"],
       ["## LATER", "lo que queda lejos"],
-      ["**Ninguno.**", "que no hay ninguna TASK en curso"],
       ["autorización explícita del owner", "que la próxima TASK no se abre sola"],
       ["Pedidos", "la próxima TASK"],
       ["roadmap maestro", "el roadmap maestro"],
@@ -374,14 +382,21 @@ describe("contrato · consolidación de arquitectura, reglas y roadmap (TASK-GOV
 
     expect(missing, "NEXT.md es la secuencia inmediata, no un segundo roadmap").toEqual([]);
 
-    // La TASK cerrada puede **nombrarse** como cerrada, pero no puede quedar declarada como lo que se está
-    // haciendo: `ACTIVE` es lo único que autoriza a trabajar (una TASK por vez).
+    /**
+     * `ACTIVE` dice la verdad: o no hay nada en curso (`**Ninguno.**`) o hay **una** TASK nombrada. Dos
+     * TASKs activas a la vez es exactamente lo que la regla prohíbe.
+     */
     const activeBody = next.split("## NEXT")[0].replace("## ACTIVE", "");
+    const activeTaskIds = [...new Set(activeBody.match(/TASK-[A-Z0-9-]+/g) ?? [])];
 
-    expect(
-      activeBody,
-      "una TASK cerrada no puede declararse activa: `ACTIVE` es lo que está en curso hoy",
-    ).not.toMatch(/TASK-GOV-001[^\n]*(en curso|activa|ACTIVE)/i);
+    if (activeBody.includes("**Ninguno.**")) {
+      expect(activeTaskIds, "sin TASK activa no puede haber ids sueltos en ACTIVE").toEqual([]);
+    } else {
+      expect(
+        activeTaskIds,
+        "una sola TASK activa por vez: `ACTIVE` nombra exactamente una",
+      ).toHaveLength(1);
+    }
 
     expect(
       next,

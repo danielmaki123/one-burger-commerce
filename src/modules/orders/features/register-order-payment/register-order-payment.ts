@@ -1,5 +1,6 @@
 import type { OrderRecord, PaymentMethodKind, PaymentMethodType, PaymentRecord } from "@/modules/orders/domain/order.types";
 import { OrderError } from "@/modules/orders/domain/order-errors";
+import { PrismaPaymentRepository } from "@/modules/orders/adapters/prisma-payment-repository";
 import type { PaymentRepository } from "@/modules/orders/ports/payment-repository";
 import { sumPaymentTotals, type PaymentMetric } from "@/modules/payments/domain/payment-totals";
 import {
@@ -157,33 +158,33 @@ export async function registerOrderPayment(
     ? await deps.findOpenShift(order.locationId, input.terminalId ?? null)
     : null;
 
-  const payment = await deps.runInOrderPaymentTransaction(async (scope) => {
-    /**
-     * `A-71` — **el reintento devuelve el cobro que ya existe**, con la misma clave. Se consulta primero y
-     * dentro de la transacción: es lo que hace que un doble click o un retry de red no registren la misma
-     * plata dos veces. Dos requests **simultáneos** con la misma clave se resuelven con el índice único
-     * parcial de la base, no con esta lectura (por eso la transacción se rehace desde afuera en el choque:
-     * un `P2002` adentro aborta con `25P02`).
-     */
-    const replayed = await scope.findPaymentByIdempotencyKey(idempotencyKey);
-    if (replayed) return replayed;
+  const payment = await runWithIdempotencyRecovery(
+    () =>
+      deps.runInOrderPaymentTransaction(async (scope) => {
+        /**
+         * TASK-AUD-055 — **primero el lock del pedido**, y recién después el cupo y la clave.
+         *
+         * `A-75`: el total contra el que se compara el tope es el que devuelve **este** lock, no el que se
+         * leyó fuera de la transacción.
+         *
+         * `A-71`: **el orden importa y es parte de la corrección.** El chequeo de la clave va **después** del
+         * lock, no antes: dos requests simultáneos con la misma clave pasaban los dos el chequeo previo
+         * porque ninguno había commiteado, y el segundo terminaba chocando con el índice único. Lo encontró
+         * el CI, no el doble en memoria: es una carrera real. Con el lock adelante, el segundo espera a que
+         * el primero commitee y **encuentra** su cobro.
+         */
+        const lockedOrder = await scope.lockOrder(order.id);
 
-    /**
-     * TASK-AUD-055 — **primero el lock del pedido**, y recién después el saldo pendiente.
-     *
-     * `A-75`: el total contra el que se compara el tope es el que devuelve **este** lock, no el que se leyó
-     * fuera de la transacción. Si el total cambió entre las dos lecturas, el número viejo autorizaba un
-     * cobro que ya no correspondía.
-     */
-    const lockedOrder = await scope.lockOrder(order.id);
+        if (!lockedOrder) {
+          throw new OrderError(404, "NOT_FOUND", "Ese pedido no existe.", {
+            order: "Ese pedido no existe.",
+          });
+        }
 
-    if (!lockedOrder) {
-      throw new OrderError(404, "NOT_FOUND", "Ese pedido no existe.", {
-        order: "Ese pedido no existe.",
-      });
-    }
+        const replayed = await scope.findPaymentByIdempotencyKey(idempotencyKey);
+        if (replayed) return replayed;
 
-    const existing = await scope.paymentRepository.listPaymentsByOrder(order.id);
+        const existing = await scope.paymentRepository.listPaymentsByOrder(order.id);
     const balance = sumPaymentTotals({
       payments: existing.map(toMetric),
       baseCurrencyCode,
@@ -245,9 +246,60 @@ export async function registerOrderPayment(
       ...(input.reference ? { reference: input.reference } : {}),
       shiftId: openShift?.id ?? null,
     });
-  });
+      }),
+    idempotencyKey,
+  );
 
   return { data: payment, order };
+}
+
+/**
+ * `A-71` — **la red de seguridad del choque de índice único**.
+ *
+ * Aun con el chequeo después del lock, dos cobros **simultáneos** con la misma clave pueden llegar los dos
+ * al `INSERT` (el lock serializa, pero el chequeo del segundo puede haber corrido en una transacción que
+ * empezó antes del commit del primero bajo `READ COMMITTED`). Ahí el que gana es el **índice único parcial**
+ * de la base, y el perdedor recibe `P2002`.
+ *
+ * La recuperación **no puede correr adentro de la transacción** (un `P2002` la aborta con `25P02`): se
+ * devuelve el conflicto, se **rehace** la transacción desde afuera y en el intento nuevo la lectura encuentra
+ * la fila antes de escribir. Es exactamente el procedimiento que fija
+ * `.agents/skills/money-change/SKILL.md` § CONCURRENCIA, y el mismo que usa la venta del mostrador
+ * (`TASK-AUD-004`).
+ *
+ * El reintento es **uno solo**: si el segundo intento también choca, algo más está mal y devolver el error es
+ * más honesto que insistir. El `find` de la recuperación es la consulta por clave del adaptador raíz —no la
+ * del alcance transaccional—, porque la transacción que chocó ya no existe.
+ */
+async function runWithIdempotencyRecovery(
+  work: () => Promise<PaymentRecord>,
+  idempotencyKey: string,
+): Promise<PaymentRecord> {
+  try {
+    return await work();
+  } catch (error) {
+    if (!isUniqueConstraintViolation(error)) throw error;
+
+    const existing = await new PrismaPaymentRepository().findPaymentByIdempotencyKey(idempotencyKey);
+
+    if (!existing) throw error;
+
+    return existing;
+  }
+}
+
+/**
+ * ¿Es el choque con el índice único de la clave? Se reconoce por el `code` de Prisma **y** por el nombre del
+ * índice: un choque por otra restricción tiene que seguir subiendo como error, no devolver un cobro ajeno.
+ */
+function isUniqueConstraintViolation(error: unknown): boolean {
+  const candidate = error as { code?: string; meta?: { target?: unknown } } | null;
+
+  if (candidate?.code !== "P2002") return false;
+
+  const target = candidate.meta?.target;
+
+  return Array.isArray(target) && target.includes("idempotencyKey");
 }
 
 /** La clave de idempotencia, con el error de la ruta si falta: sin ella, un reintento cobra dos veces. */
