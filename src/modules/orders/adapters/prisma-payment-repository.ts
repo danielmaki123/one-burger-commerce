@@ -26,6 +26,13 @@ function mapPayment(payment: {
   voidedAt: Date | null;
   voidedByUserId: string | null;
   voidReason: string | null;
+  baseCurrencyCode?: string | null;
+  exchangeRate?: Decimal | null;
+  baseAmount?: Decimal | null;
+  paymentMethodId?: string | null;
+  methodKind?: string | null;
+  entityId?: string | null;
+  idempotencyKey?: string | null;
 }): PaymentRecord {
   return {
     id: payment.id,
@@ -40,6 +47,17 @@ function mapPayment(payment: {
     voidedAt: payment.voidedAt ? payment.voidedAt.toISOString() : null,
     voidedByUserId: payment.voidedByUserId,
     voidReason: payment.voidReason,
+    /**
+     * `TASK-MONEY-PAYMENTS-RUNTIME-001` (`D-020`) — el snapshot. Un cobro viejo los trae en `null`, y `null`
+     * significa «equivalente **no demostrable**», no «cero».
+     */
+    baseCurrencyCode: payment.baseCurrencyCode ?? null,
+    exchangeRate: payment.exchangeRate ? decimalToNumber(payment.exchangeRate) : null,
+    baseAmount: payment.baseAmount ? decimalToNumber(payment.baseAmount) : null,
+    paymentMethodId: payment.paymentMethodId ?? null,
+    methodKind: (payment.methodKind as PaymentRecord["methodKind"]) ?? null,
+    entityId: payment.entityId ?? null,
+    idempotencyKey: payment.idempotencyKey ?? null,
   };
 }
 
@@ -49,6 +67,26 @@ function mapPayment(payment: {
  * sola: un cobro anulado no existió nunca para la plata.
  */
 const NOT_VOIDED = { voidedAt: null } as const;
+
+/**
+ * `TASK-MONEY-PAYMENTS-RUNTIME-001` (`A-73`) — **bloquea la fila del cobro** hasta que la transacción
+ * termine.
+ *
+ * Es lo que serializa dos **devoluciones simultáneas del mismo cobro**: el segundo espera a que el primero
+ * commitee y recién ahí lee el cupo, así que «no se devuelve más de lo cobrado» deja de ser un `if` sobre una
+ * lectura que puede quedar vieja. Es la misma primitiva que el lock del pedido (`lockOrderRow`) y el del
+ * turno (`lockShiftRow`): `SELECT … FOR UPDATE`, no un bloqueo de UI.
+ */
+export async function lockPaymentRow(
+  client: DatabaseClient,
+  paymentId: string,
+): Promise<{ id: string } | null> {
+  const rows = await client.$queryRaw<Array<{ id: string }>>`
+    SELECT "id" FROM "Payment" WHERE "id" = ${paymentId} FOR UPDATE
+  `;
+
+  return rows[0] ?? null;
+}
 
 /**
  * Ventana de tiempo traducida al `where` de Prisma. Sin extremos no filtra por fecha, así que una
@@ -95,10 +133,39 @@ export class PrismaPaymentRepository implements PaymentRepository {
         reference: input.reference ?? null,
         // Fase 6 del rediseño de Caja: el turno al que entra el cobro (la caja de la terminal).
         shiftId: input.shiftId ?? null,
+        /**
+         * `TASK-MONEY-PAYMENTS-RUNTIME-001` (`D-020`, `D-017`, `A-71`) — el snapshot y la clave. Un cobro
+         * **nuevo** los trae obligatoriamente (lo garantiza el dominio); estos `?? null` existen para que un
+         * `createPayment` de test con forma vieja siga compilando, no para habilitar un cobro sin snapshot
+         * desde la API.
+         */
+        baseCurrencyCode: input.baseCurrencyCode ?? null,
+        exchangeRate: input.exchangeRate ?? null,
+        baseAmount: input.baseAmount ?? null,
+        paymentMethodId: input.paymentMethodId ?? null,
+        methodKind: input.methodKind ?? null,
+        entityId: input.entityId ?? null,
+        idempotencyKey: input.idempotencyKey ?? null,
       },
     });
 
     return mapPayment(payment);
+  }
+
+  /**
+   * `A-71` — **la recuperación de un reintento**: el cobro que ya existe con esta clave.
+   *
+   * La unicidad la garantiza el índice único parcial de la base (`WHERE "idempotencyKey" IS NOT NULL`); esta
+   * consulta es la que hace que el segundo request devuelva el cobro en vez de chocar. Por eso está en el
+   * adaptador y no en el caso de uso: es una lectura de la base, no una regla.
+   */
+  async findPaymentByIdempotencyKey(key: string): Promise<PaymentRecord | null> {
+    const normalized = key.trim();
+    if (normalized.length === 0) return null;
+
+    const payment = await this.client.payment.findFirst({ where: { idempotencyKey: normalized } });
+
+    return payment ? mapPayment(payment) : null;
   }
 
   /**

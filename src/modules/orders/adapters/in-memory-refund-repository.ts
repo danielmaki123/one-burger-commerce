@@ -40,6 +40,12 @@ export class InMemoryRefundRepository implements RefundRepository {
       approvedByUserId: input.approvedByUserId,
       approvedAt: input.approvedAt,
       createdAt: new Date().toISOString(),
+      // `TASK-MONEY-PAYMENTS-RUNTIME-001` — la clave y el snapshot, igual que el adaptador de Prisma: si el
+      // doble no guardara lo mismo, los tests de los dos adaptadores mentirían distinto.
+      idempotencyKey: input.idempotencyKey ?? null,
+      baseCurrencyCode: input.baseCurrencyCode ?? null,
+      exchangeRate: input.exchangeRate ?? null,
+      baseAmount: input.baseAmount ?? null,
     };
 
     this.refunds.push(refund);
@@ -49,6 +55,17 @@ export class InMemoryRefundRepository implements RefundRepository {
   /** Una devolución por su id, para resolverla. */
   async findById(id: string): Promise<RefundRecord | null> {
     return this.refunds.find((refund) => refund.id === id) ?? null;
+  }
+
+  /**
+   * `TASK-MONEY-PAYMENTS-RUNTIME-001` (`A-73`) — la devolución que ya existe con esta clave. Mismo criterio
+   * que el índice único parcial de la base: sin clave (o en blanco) no hay nada que buscar.
+   */
+  async findByIdempotencyKey(key: string): Promise<RefundRecord | null> {
+    const normalized = key.trim();
+    if (normalized.length === 0) return null;
+
+    return this.refunds.find((refund) => refund.idempotencyKey === normalized) ?? null;
   }
 
   /** Del más viejo al más nuevo, igual que en la base. */

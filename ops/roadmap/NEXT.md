@@ -7,22 +7,19 @@
 
 ## ACTIVE
 
-**Ninguno.** `TASK-MONEY-PAYMENTS-FOUNDATIONS-001` (fundaciones de Money / Payments) **cerró entera**:
-mergeada (`main`), `docs-only`, **sin deploy** — no tocó runtime, Prisma, migraciones, APIs ni navegación.
-Dejó la auditoría real, el ownership, los contratos, el snapshot, la idempotencia, los boundaries y el **Design
-Freeze de Finanzas** ([`../design/screens/finance.md`](../design/screens/finance.md) + su
-[referencia aprobada](../design/screens/finance-reference.html), aprobada por el owner el 2026-09-27). Estado y
-evidencia: [`../CURRENT.md`](../CURRENT.md). **Una sola TASK activa por vez**: la próxima no se abre sin
-**autorización explícita del owner**.
+**`TASK-MONEY-PAYMENTS-RUNTIME-001`** (Money / Payments runtime, órdenes **4 y 5** en **una sola TASK**,
+`high-risk-e2e`): **implementada y en PR** ([#85](https://github.com/danielmaki123/one-burger-commerce/pull/85)),
+esperando el CI. Creó los módulos `money` y `payments`, las **nueve migraciones** del catálogo, las tasas, el
+snapshot y la idempotencia, la puerta de la factura con **`paid` estricto** (`D-021`) y la superficie
+`/admin/finance`. Cerró `A-68`, `A-71`, `A-72`, `A-73`, `A-74` y `A-75`; `A-69` quedó **parcial** (la suma
+cruda multi-moneda de `pos-payment.tsx` sigue abierta). Estado y evidencia: [`../CURRENT.md`](../CURRENT.md).
+**Una sola TASK activa por vez**: la próxima no se abre sin **autorización explícita del owner**.
 
 ## NEXT
 
-**`Money / Payments runtime`** (órdenes **4 y 5** del roadmap maestro, **una sola TASK**): crear los módulos
-`money` y `payments`, implementar el catálogo de monedas y el historial de tasas, cerrar `A-68` (el cobro sin
-convertir), `A-71` (idempotencia) y `A-72` (la tasa en el hecho), proyectar el estado financiero canónico
-(`pending` / `partial` / `paid`) y ampliar `banks` con el tipo de entidad. Después **`Pedidos runtime`**
-(orden **5b**), que es donde vive el recorte financiero del detalle (el remanente de `A-60`). Cada una necesita
-su brief y su aprobación. **No se abre ninguna por iniciativa propia.**
+**`Pedidos runtime`** (orden **5b** del roadmap maestro): el recorte financiero del detalle compartido
+(el remanente de `A-60`), el cobro de un pedido existente desde Órdenes (`A-67`) y la clasificación de los
+read models. Necesita su brief y su aprobación. **No se abre por iniciativa propia.**
 
 ## LATER
 

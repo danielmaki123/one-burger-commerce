@@ -1,6 +1,10 @@
 import { PrismaAuditLogRepository } from "@/modules/audit/adapters/prisma-audit-log-repository";
 import type { AuditAction } from "@/modules/audit/domain/audit-actions";
 import { recordAuditAction } from "@/modules/audit/features/record-audit-action/record-audit-action";
+import {
+  baseCurrencyChangedAuditEntry,
+  rateRegisteredAuditEntry,
+} from "@/modules/money/domain/money-audit-entries";
 
 /**
  * Bloque 13.1 del roadmap del POS (Fase 2) — el cableado del log a las acciones sensibles.
@@ -345,4 +349,31 @@ export function paymentVoidAudit(input: {
       reason: input.reason,
     },
   });
+}
+
+/**
+ * `TASK-MONEY-PAYMENTS-RUNTIME-001` (`A-80`) — **la tasa registrada** en Finanzas.
+ *
+ * La forma del asiento vive en `money` (`rateRegisteredAuditEntry`) porque el camino que importa —el que
+ * la escribe **dentro** de la transacción de la tasa— la necesita como dato, no como llamada. Este atajo
+ * existe para que una ruta pueda firmarla igual que las demás, sin inventar el detalle dos veces.
+ */
+export function financeRateRegisteredAudit(input: {
+  actorUserId: string;
+  fromCurrencyCode: string;
+  toCurrencyCode: string;
+  rate: number;
+  effectiveFrom: string;
+}) {
+  return recordAdminAudit(rateRegisteredAuditEntry(input));
+}
+
+/** `TASK-MONEY-PAYMENTS-RUNTIME-001` (`A-80`) — **el cambio de moneda base**, con de/para. */
+export function financeBaseCurrencyChangedAudit(input: {
+  actorUserId: string;
+  previousBaseCurrencyCode: string;
+  baseCurrencyCode: string;
+  locale: string;
+}) {
+  return recordAdminAudit(baseCurrencyChangedAuditEntry(input));
 }

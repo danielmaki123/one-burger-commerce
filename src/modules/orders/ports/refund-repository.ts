@@ -16,12 +16,26 @@ export type CreateRefundInput = {
   requestedByUserId: string | null;
   approvedByUserId: string | null;
   approvedAt: string | null;
+  /**
+   * `TASK-MONEY-PAYMENTS-RUNTIME-001` (`A-73`) — clave de idempotencia del pedido de devolución. La manda el
+   * cliente; la unicidad la garantiza un índice único **parcial** de la base.
+   */
+  idempotencyKey?: string | null;
+  /** `D-020` — el snapshot monetario de la devolución, por simetría con el cobro. */
+  baseCurrencyCode?: string | null;
+  exchangeRate?: number | null;
+  baseAmount?: number | null;
 };
 
 export interface RefundRepository {
   create(input: CreateRefundInput): Promise<RefundRecord>;
   /** Una devolución por su id, para resolverla. */
   findById(id: string): Promise<RefundRecord | null>;
+  /**
+   * `A-73` — la devolución que ya existe con esta clave de idempotencia, para que un reintento **no** consuma
+   * el cupo dos veces.
+   */
+  findByIdempotencyKey(key: string): Promise<RefundRecord | null>;
   /** Todas las devoluciones de un cobro, para no devolver más de lo que se cobró. */
   listByPayment(paymentId: string): Promise<RefundRecord[]>;
   /** Las devoluciones de un turno (las aprobadas entran al arqueo). */

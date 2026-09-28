@@ -69,12 +69,12 @@ describe("nextInvoiceNumber", () => {
 });
 
 describe("canEmitInvoiceFor", () => {
-  it("un pedido cobrado se factura", () => {
-    expect(canEmitInvoiceFor({ status: "picked_up", hasPayments: true })).toEqual({ ok: true });
+  it("un pedido `paid` se factura", () => {
+    expect(canEmitInvoiceFor({ status: "picked_up", paymentStatus: "paid" })).toEqual({ ok: true });
   });
 
-  it("un pedido sin cobros no se factura: primero se cobra", () => {
-    const result = canEmitInvoiceFor({ status: "new", hasPayments: false });
+  it("un pedido sin cobros (`pending`) no se factura: primero se cobra", () => {
+    const result = canEmitInvoiceFor({ status: "new", paymentStatus: "pending" });
 
     expect(result).toEqual({
       ok: false,
@@ -83,8 +83,33 @@ describe("canEmitInvoiceFor", () => {
     });
   });
 
-  it("un pedido cancelado no se factura", () => {
-    const result = canEmitInvoiceFor({ status: "cancelled", hasPayments: true });
+  /**
+   * `TASK-MONEY-PAYMENTS-RUNTIME-001` (`D-021`) — el caso que la regla vieja dejaba pasar.
+   *
+   * La puerta era `hasPayments` (un conteo de filas): un pedido de C$365 con un cobro de C$100 **facturaba**
+   * y el documento congelaba el total como si estuviera pagado. `partial` **no** factura.
+   */
+  it("un pedido con cobro PARCIAL no se factura", () => {
+    const result = canEmitInvoiceFor({ status: "picked_up", paymentStatus: "partial" });
+
+    expect(result.ok).toBe(false);
+    expect(result).toMatchObject({ reason: "not-paid" });
+  });
+
+  /**
+   * `D-021` — **no hay excepción por autorización**. La puerta no recibe el rol: no existe una firma que
+   * convierta un saldo pendiente en documento. Este test fija que la función **no** tiene por dónde
+   * recibirla: si mañana alguien agrega un `role` para habilitar el caso, esto deja de compilar.
+   */
+  it("la puerta no acepta ningún rol que habilite una excepción", () => {
+    const result = canEmitInvoiceFor({ status: "picked_up", paymentStatus: "partial" } as never);
+
+    expect(Object.keys(result)).not.toContain("role");
+    expect(result.ok).toBe(false);
+  });
+
+  it("un pedido cancelado no se factura, ni siquiera `paid`", () => {
+    const result = canEmitInvoiceFor({ status: "cancelled", paymentStatus: "paid" });
 
     expect(result).toEqual({
       ok: false,

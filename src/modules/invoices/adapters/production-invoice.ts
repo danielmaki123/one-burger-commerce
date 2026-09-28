@@ -4,6 +4,7 @@ import { PrismaCustomerAuthRepository } from "@/modules/customers/adapters/prism
 import { PrismaLocationRepository } from "@/modules/locations/adapters/prisma-location-repository";
 import { PrismaOrderRepository } from "@/modules/orders/adapters/prisma-order-repository";
 import { PrismaPaymentRepository } from "@/modules/orders/adapters/prisma-payment-repository";
+import { getOrderPaymentStatus } from "@/modules/payments/features/get-order-payment-status/get-order-payment-status";
 
 import type { EmitInvoiceDependencies } from "../features/emit-invoice/emit-invoice";
 import { PrismaInvoiceRepository } from "./prisma-invoice-repository";
@@ -26,7 +27,46 @@ export async function createProductionInvoiceDependencies(): Promise<EmitInvoice
   return {
     invoiceRepository: new PrismaInvoiceRepository(),
     findOrder: (orderId) => orderRepository.findOrderById(orderId),
-    countPayments: async (orderId) => (await paymentRepository.listPaymentsByOrder(orderId)).length,
+    /**
+     * `TASK-MONEY-PAYMENTS-RUNTIME-001` (`D-021`) — **el estado financiero lo proyecta `payments`**.
+     *
+     * Antes acá se contaban filas (`listPaymentsByOrder(orderId).length`) y ese conteo era la puerta de la
+     * factura: un pedido con un cobro parcial facturaba. El módulo de facturas **consume** el estado
+     * canónico —con su `unresolvedAmount`— y no decide «pagado».
+     *
+     * El estado se arma con la **moneda base configurada** y con el **snapshot** de cada cobro: el equivalente
+     * de un cobro nuevo ya está escrito, así que no se vuelve a convertir. Un cobro legacy sin snapshot queda
+     * como no demostrable y el pedido no alcanza `paid`, que es exactamente lo que `D-020`/`D-021` piden.
+     */
+    getOrderPaymentStatus: async (orderId) => {
+      const [payments, order] = await Promise.all([
+        paymentRepository.listPaymentsByOrder(orderId),
+        orderRepository.findOrderById(orderId),
+      ]);
+      const status = await getOrderPaymentStatus({
+        orderId,
+        total: order?.total ?? 0,
+        baseCurrencyCode: settings.currencyCode,
+        payments: payments.map((payment) => ({
+          id: payment.id,
+          amount: payment.amount,
+          currency: payment.currency,
+          baseCurrencyCode: payment.baseCurrencyCode ?? null,
+          exchangeRate: payment.exchangeRate ?? null,
+          baseAmount: payment.baseAmount ?? null,
+          method: payment.method,
+          createdAt: payment.createdAt,
+          voidedAt: payment.voidedAt,
+        })),
+      });
+
+      return {
+        status: status.status,
+        paidAmount: status.paidAmount,
+        outstandingAmount: status.outstandingAmount,
+        unresolvedAmount: status.unresolvedAmount,
+      };
+    },
     /**
      * Punto 4 del roadmap (2026-09-18) — el cliente del pedido, para el respaldo de los datos fiscales: el
      * RUC que el cajero cargó en el POS quedó guardado en el cliente, no en el pedido.

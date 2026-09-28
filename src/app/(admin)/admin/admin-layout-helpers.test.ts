@@ -76,13 +76,29 @@ describe("admin layout helpers", () => {
     expect(visibleHrefs("cashier", true)).not.toContain("/admin/kitchen");
   });
 
-  it("Control mantiene Caja, Cierres, Aprobaciones y Config de Caja", () => {
+  /**
+   * `TASK-MONEY-PAYMENTS-RUNTIME-001` (`D-016`, `D-018`) — **Control suma Finanzas**.
+   *
+   * Finanzas es una entrada **propia** y no una sección de Config de Caja: son dos autoridades distintas
+   * (`money` define qué vale un monto; `cash` cuenta el cajón) y cada una tiene su puerta. El test cambia
+   * porque **cambió el contrato de la navegación**, no para que pase: la entrada nueva se agrega con su
+   * motivo y su lugar en el orden.
+   */
+  it("Control mantiene Caja, Cierres, Aprobaciones, Config de Caja y suma Finanzas", () => {
     expect(groupHrefs("owner", "Control")).toEqual([
       "/admin/cash",
       "/admin/history/cierres",
       "/admin/approvals",
       "/admin/cash/config",
+      "/admin/finance",
     ]);
+  });
+
+  it("Finanzas es del dueño: un manager o un cajero no la ven", () => {
+    expect(visibleHrefs("owner", true)).toContain("/admin/finance");
+    expect(visibleHrefs("manager", true)).not.toContain("/admin/finance");
+    expect(visibleHrefs("cashier", true)).not.toContain("/admin/finance");
+    expect(visibleHrefs("kitchen", true)).not.toContain("/admin/finance");
   });
 
   it("Catálogo expone las cinco entradas hermanas, en el orden aprobado", () => {

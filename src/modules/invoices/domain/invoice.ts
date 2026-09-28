@@ -83,10 +83,32 @@ export type InvoiceEmissionCheck =
   | { ok: true }
   | { ok: false; reason: "not-paid" | "cancelled"; message: string };
 
-/** ¿Se le puede emitir una factura a este pedido? El motivo se muestra tal cual en pantalla. */
+/** El estado financiero canónico del pedido, tal como lo proyecta `payments` (`D-016`). */
+export type InvoicePaymentStatus = "pending" | "partial" | "paid";
+
+/**
+ * `TASK-MONEY-PAYMENTS-RUNTIME-001` (`D-021`) — **la factura exige `paid` estricto**.
+ *
+ * Antes la puerta era `hasPayments` (`countPayments(...) > 0`, un **conteo de filas**): un pedido de C$365
+ * con un solo cobro de C$100 **facturaba**, y el documento congelaba `total: 365` como si estuviera pagado.
+ * Contar cobros no es saber si el pedido está cobrado.
+ *
+ * La definición de «pagado» es de `payments`, no de este módulo: acá se **consume** el estado canónico y se
+ * exige el valor exacto. Tres consecuencias, y las tres son deliberadas:
+ *
+ * 1. **`pending` y `partial` no facturan.** Un abono, si algún día hay que documentarlo, es **otro tipo de
+ *    documento**, no una factura parcial.
+ * 2. **No hay excepción por autorización.** El `owner` que emite sigue pasando por acá: ningún rol convierte
+ *    un saldo pendiente en un documento. Es la regla que `D-021` congeló.
+ * 3. **Un saldo que no se puede demostrar no factura.** Un cobro legacy sin snapshot deja
+ *    `unresolvedAmount > 0`, el pedido **nunca** alcanza `paid`, y por lo tanto no hay factura: no es una
+ *    excepción, es un dato que falta (`D-020`).
+ *
+ * Rige **hacia adelante**: las facturas ya emitidas bajo la regla vieja no se re-emiten ni se anulan.
+ */
 export function canEmitInvoiceFor(input: {
   status: string;
-  hasPayments: boolean;
+  paymentStatus: InvoicePaymentStatus;
 }): InvoiceEmissionCheck {
   if (input.status === "cancelled") {
     return {
@@ -96,11 +118,19 @@ export function canEmitInvoiceFor(input: {
     };
   }
 
-  if (!input.hasPayments) {
+  if (input.paymentStatus === "pending") {
     return {
       ok: false,
       reason: "not-paid",
       message: "Ese pedido todavía no tiene ningún cobro: cobralo y volvé a intentar.",
+    };
+  }
+
+  if (input.paymentStatus === "partial") {
+    return {
+      ok: false,
+      reason: "not-paid",
+      message: "Ese pedido tiene un cobro parcial: la factura sale cuando el saldo esté en cero.",
     };
   }
 

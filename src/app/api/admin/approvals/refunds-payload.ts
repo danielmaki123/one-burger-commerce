@@ -15,6 +15,18 @@ const requestSchema = z.object({
   kind: z.enum(["full", "partial"], { message: "Elegí devolución total o parcial" }),
   amount: z.number().positive("El monto tiene que ser mayor que cero"),
   reason: z.string().trim().min(1, "Escribí por qué devolvés la plata").max(300),
+  /**
+   * `TASK-MONEY-PAYMENTS-RUNTIME-001` (`A-73`) — **clave de idempotencia del pedido de devolución**.
+   *
+   * La manda la pantalla, igual que la del cobro (`A-71`): un reintento —doble click, retry de red— no puede
+   * consumir el cupo del cobro dos veces. Sin clave, el reintento es indistinguible de una segunda
+   * devolución legítima, y el sistema no tiene forma de saber cuál es cuál.
+   */
+  idempotencyKey: z
+    .string()
+    .trim()
+    .min(1, "Falta la clave de idempotencia de la devolución.")
+    .max(80, "La clave de idempotencia es muy larga."),
 });
 
 const reviewSchema = z.object({

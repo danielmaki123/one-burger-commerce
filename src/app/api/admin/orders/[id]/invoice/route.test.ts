@@ -20,6 +20,11 @@ vi.mock("@/modules/auth/features/require-admin-session/require-admin-session", (
 
 let invoices: InvoiceRecord[] = [];
 let payments = 1;
+/**
+ * `TASK-MONEY-PAYMENTS-RUNTIME-001` (`D-021`) — el pedido con un cobro **parcial**: la regla vieja
+ * (`hasPayments`) lo facturaba, la nueva (`paid` estricto) no.
+ */
+let partialPayments = false;
 let orderStatus = "picked_up";
 let orderExists = true;
 
@@ -78,7 +83,18 @@ vi.mock("@/modules/invoices/adapters/production-invoice", () => ({
             total: 110,
           }
         : null,
-    countPayments: async () => payments,
+    /**
+     * `TASK-MONEY-PAYMENTS-RUNTIME-001` (`D-021`) — la puerta de la factura es el **estado financiero
+     * canónico**, no un conteo de cobros. El test siembra `payments` como «hay cobros / no hay»: acá se
+     * traduce al estado que `payments` proyectaría (`paid` cuando el saldo está cubierto, `pending` cuando
+     * no hay ninguno). El caso `partial` tiene su propio test, más abajo.
+     */
+    getOrderPaymentStatus: async () => ({
+      status: partialPayments ? "partial" : payments > 0 ? "paid" : "pending",
+      paidAmount: partialPayments ? 40 : payments > 0 ? 110 : 0,
+      outstandingAmount: partialPayments ? 70 : payments > 0 ? 0 : 110,
+      unresolvedAmount: 0,
+    }),
     business: {
       name: "One Burger",
       legalName: null,
@@ -191,6 +207,24 @@ describe("admin order invoice route", () => {
 
     expect(response.status).toBe(409);
     expect(body.error.message).toContain("cobro");
+    expect(invoices).toHaveLength(0);
+  });
+
+  /**
+   * `TASK-MONEY-PAYMENTS-RUNTIME-001` (`D-021`) — **el caso que la regla vieja facturaba**.
+   *
+   * `canEmitInvoiceFor` decidía con `hasPayments` (un conteo de filas): un pedido de C$110 con un cobro de
+   * C$40 emitía la factura y el documento congelaba el total como si estuviera pagado. Ahora la puerta exige
+   * `paid` estricto y el pedido queda sin factura.
+   */
+  it("un pedido con cobro PARCIAL no se factura: 409 (D-021)", async () => {
+    partialPayments = true;
+
+    const response = await callPost();
+    const body = await response.json();
+
+    expect(response.status).toBe(409);
+    expect(body.error.message).toContain("parcial");
     expect(invoices).toHaveLength(0);
   });
 

@@ -1,13 +1,22 @@
 import { refundRequestAudit } from "@/app/api/admin/audit-action-helpers";
 import type { RefundRequestPayload } from "@/app/api/admin/approvals/refunds-payload";
+import { getPrismaClient } from "@/infrastructure/database/prisma";
+import { PrismaBusinessSettingsRepository } from "@/modules/business-settings/adapters/prisma-business-settings-repository";
+import { loadBusinessSettings } from "@/modules/business-settings/features/get-public-business-settings/get-public-business-settings";
 import { PrismaNotificationSettingsRepository } from "@/modules/notifications/adapters/prisma-notification-settings-repository";
 import { PrismaOutboxRepository } from "@/modules/notifications/adapters/prisma-outbox-repository";
 import { registerRefundAlert } from "@/modules/notifications/features/register-alert-event/register-alert-event";
 import { PrismaOrderRepository } from "@/modules/orders/adapters/prisma-order-repository";
-import { PrismaPaymentRepository } from "@/modules/orders/adapters/prisma-payment-repository";
+import {
+  lockPaymentRow,
+  PrismaPaymentRepository,
+} from "@/modules/orders/adapters/prisma-payment-repository";
 import { PrismaRefundRepository } from "@/modules/orders/adapters/prisma-refund-repository";
 import { PrismaShiftRepository } from "@/modules/orders/adapters/prisma-shift-repository";
-import { requestRefund } from "@/modules/orders/features/refund/request-refund/request-refund";
+import {
+  requestRefund,
+  type RefundRequestScope,
+} from "@/modules/orders/features/refund/request-refund/request-refund";
 
 /**
  * Bloque 3.3 + 13.1 + tarea 8 del brief (alertas Telegram) — pedir una devolución, firmarla y avisar.
@@ -18,6 +27,10 @@ import { requestRefund } from "@/modules/orders/features/refund/request-refund/r
  * Además, si el monto supera el umbral que el owner configuró, queda **registrado el aviso** para su grupo
  * de Telegram. El aviso es **best-effort**: si el registro falla, la devolución ya está pedida y la
  * respuesta no se cae. Vive acá y no en el `route.ts` porque el handler tiene un tope de 50 líneas.
+ *
+ * `TASK-MONEY-PAYMENTS-RUNTIME-001` (`A-73`) — la operación ahora tiene **límite atómico**: el cupo se lee y
+ * la devolución se escribe dentro de una transacción que bloquea primero la fila del cobro. El aviso, en
+ * cambio, va **después** del commit: una llamada externa adentro de la transacción la alargaría sin razón.
  */
 export async function requestShiftRefund(input: {
   payload: RefundRequestPayload;
@@ -30,11 +43,7 @@ export async function requestShiftRefund(input: {
       requestedByUserId: input.actorUserId,
       locationId: input.locationId,
     },
-    {
-      paymentRepository: new PrismaPaymentRepository(),
-      refundRepository: new PrismaRefundRepository(),
-      shiftRepository: new PrismaShiftRepository(),
-    },
+    await refundRequestDependenciesForRoute({ runInRefundRequestTransaction }),
   );
 
   await refundRequestAudit({
@@ -70,4 +79,47 @@ export async function requestShiftRefund(input: {
   }
 
   return result.data;
+}
+
+/**
+ * `A-73` — **el límite atómico de la devolución**: cupo leído y devolución escrita en la misma transacción,
+ * con la fila del cobro bloqueada primero.
+ *
+ * Se exporta para que el test de PostgreSQL use **esta** composición y no una copia: un test que se arma su
+ * propio runner no prueba el que corre en producción.
+ */
+export function runInRefundRequestTransaction<T>(
+  work: (scope: RefundRequestScope) => Promise<T>,
+): Promise<T> {
+  return getPrismaClient().$transaction(
+    async (tx) =>
+      work({
+        findPaymentById: (id) => new PrismaPaymentRepository(tx).findPaymentById(id),
+        listRefundsByPayment: (paymentId) => new PrismaRefundRepository(tx).listByPayment(paymentId),
+        createRefund: (input) => new PrismaRefundRepository(tx).create(input),
+        findRefundByIdempotencyKey: (key) => new PrismaRefundRepository(tx).findByIdempotencyKey(key),
+        lockPayment: (paymentId) => lockPaymentRow(tx, paymentId),
+      }),
+    { timeout: 15_000, maxWait: 10_000 },
+  );
+}
+
+/**
+ * Las dependencias del caso de uso, armadas una sola vez para la ruta **y** para su test.
+ *
+ * La moneda del negocio entra por acá (`money` es su dueño): el caso de uso resuelve el `null` de
+ * `Payment.currency` con **este** dato, no con un `"NIO"` escrito en el camino del dinero (`A-69`).
+ */
+export async function refundRequestDependenciesForRoute(input: {
+  runInRefundRequestTransaction: <T>(work: (scope: RefundRequestScope) => Promise<T>) => Promise<T>;
+}) {
+  const settings = await loadBusinessSettings({
+    repository: new PrismaBusinessSettingsRepository(),
+  });
+
+  return {
+    shiftRepository: new PrismaShiftRepository(),
+    runInRefundRequestTransaction: input.runInRefundRequestTransaction,
+    businessCurrencyCode: settings.currencyCode,
+  };
 }
