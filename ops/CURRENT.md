@@ -220,6 +220,7 @@ Solo bloqueos **reales**. Todo lo demás es trabajo pendiente.
 
 | Bloqueo | Qué lo desbloquea |
 |---|---|
+| **`EASYPANEL_TOKEN` vacío: el release de Money / Payments no se pudo desplegar** | El owner carga un token válido del panel (*Settings* → *API tokens*) en el entorno del agente. El código está **mergeado en `main`** (`2cbda9b`) con los cuatro checks del CI en verde; falta la **única** llamada a `deployService` y, después, health/readiness, los dos smokes y la QA de producción. Es la **Stop Condition 6** de [`delivery-e2e`](../.agents/skills/delivery-e2e/SKILL.md) §3 («secreto o permiso externo inexistente»): no se puede completar desde el repo |
 | **Higiene de secretos pendiente del owner** | **Rotar el `EASYPANEL_TOKEN`**: el vigente viajó por chat y por la línea de comandos del arranque del deploy, así que corresponde regenerarlo (es además el punto que ya estaba en la lista desde el 2026-09-27). No bloquea nada hoy: el release quedó completo |
 | **Carta incompleta en producción** | El owner carga categorías, productos, precios y fotos desde `/admin/menu` |
 | **Dos datos mal cargados en los locales** | El owner corrige en `/admin/locations` (el slug de Camino de Oriente y la ciudad de Casa Antigua) |

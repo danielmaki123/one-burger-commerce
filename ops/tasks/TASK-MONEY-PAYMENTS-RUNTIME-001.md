@@ -1,12 +1,15 @@
 # TASK-MONEY-PAYMENTS-RUNTIME-001 — Money / Payments runtime
 
-> **Estado**: brief de la TASK, **en ejecución**. Órdenes **4 y 5** del
+> **Estado**: brief de la TASK, **implementada y mergeada**. Órdenes **4 y 5** del
 > [roadmap maestro](../roadmap/PRODUCT-UX-ROADMAP.md) en **una sola TASK**, como decidió
-> [`NEXT.md`](../roadmap/NEXT.md).
+> [`NEXT.md`](../roadmap/NEXT.md). **Mergeada en `main` = `2cbda9b`** (PR
+> [#85](https://github.com/danielmaki123/one-burger-commerce/pull/85), squash) con los **cuatro checks del CI
+> en verde** el 2026-09-29. **Deploy pendiente por Stop Condition**: el `EASYPANEL_TOKEN` del entorno está
+> **vacío**, así que no se pudo disparar `deployService`.
 >
 > **Base `main`**: `8f535d587c36bf6d63a3411e38b467dc093ff558` (`8f535d5`, 2026-09-28) · **Rama**:
-> `feature/money-payments-runtime` · **Delivery Mode**: **`high-risk-e2e`** (dinero + auth + esquema:
-> PR → CI verde → squash merge → deploy → QA de producción).
+> `feature/money-payments-runtime` (mergeada y borrada) · **Delivery Mode**: **`high-risk-e2e`** (dinero +
+> auth + esquema: PR → CI verde → squash merge → deploy → QA de producción).
 >
 > **Preflight verificado** (no se toma el pedido como fuente de verdad):
 > `git status --porcelain` **sin archivos rastreados modificados** (sólo residuos locales sin trackear, que
@@ -17,6 +20,27 @@
 > **Qué NO se toca** (§ *SCOPE OUT*): Pedidos runtime 5b · Cash ownership (orden 7) · la reforma completa de
 > Configuración (orden 8) fuera de lo necesario para la pantalla de Finanzas · la reforma fiscal de Invoice
 > (`A-34`) · Cierres/Facturas (orden 9) · Promotions · Resumen.
+
+---
+
+## Estado de la entrega (2026-09-29)
+
+| Paso del flujo (`delivery-e2e` §1) | Estado |
+|---|---|
+| Auditoría real, reuse audit, ownership, SPEC/reference congelados | **Hecho** (fundaciones, `docs-only`, `8f535d5`) |
+| Implementación con TDD, rojo observado, mutación y PostgreSQL real | **Hecho** |
+| PR + CI verde (los cuatro checks) | **Hecho**: PR #85 — `verify`, `contracts`, `migrations`, `container` |
+| Merge `--squash` a `main` | **Hecho**: `2cbda9b` |
+| **Deploy** (`deployService`, `forceRebuild`) | **BLOQUEADO**: `EASYPANEL_TOKEN` **vacío** en el entorno → **Stop Condition 6** («secreto o permiso externo inexistente») |
+| Health / readiness / smokes / QA de producción | **No ejecutado**: depende del deploy |
+| Auditoría independiente (implementación vs SPEC/reference) | **Parcial**: falta la comparación visual de `/admin/finance` contra `finance-reference.html` en los cuatro viewports |
+| `CURRENT.md` / `NEXT.md` / backlog | **Hecho** |
+
+**Lo que el CI encontró y el local no**: el chequeo de idempotencia del cobro corría **antes** del lock, así
+que dos requests **simultáneos** con la misma clave lo pasaban los dos y el segundo chocaba con el índice
+único. Se corrigió moviendo el chequeo **después** del lock y agregando la recuperación del `P2002` **fuera**
+de la transacción (`25P02`), con el procedimiento que fija `money-change` § CONCURRENCIA. Evidencia en el job
+`migrations` del PR y reproducido en local contra una base **limpia**.
 
 ---
 
