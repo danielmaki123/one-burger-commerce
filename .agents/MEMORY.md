@@ -72,6 +72,19 @@ va al historial o al PR. Si cambia semana a semana, va a `CURRENT.md`.
 
 - **Un BOM en una migración Prisma rompe `migrate deploy`** en cualquier base nueva (P3018). Hay un
   test que lo verifica.
+- **Una capacidad que todavía no tiene dueño se inventa donde hace falta, y así nacen dos reglas**: la
+  conversión de un cobro a la moneda del negocio se aplicó en el camino que la necesitaba en ese momento
+  (la **venta del mostrador**, `pos/domain/pos-sale.ts`) y quedó ausente en el otro camino que cobra el mismo
+  hecho (el **cobro de un pedido que ya existe**, `register-order-payment.ts`), que compara `Payment.amount`
+  crudo contra `Order.total` y recibe la moneda y la tasa **sin usarlas**. Lección: cuando una operación de
+  negocio tiene **dos puertas**, la regla se declara **antes** de la primera y se comparte; y la puerta nueva
+  hereda la regla, no la reinterpreta. La anomalía sigue **abierta** (`A-68`, P1) y es la razón declarada para
+  consolidar `money`/`payments` antes de conectar el estado financiero de Pedidos.
+- **Una regla de UI no es una regla de datos**: `confirmed` significa «aceptado, todavía sin empezar» en el
+  dominio (`order-workflows.ts`) y estaba dibujado en el carril de **preparación** (`comanda-helpers.ts`
+  `:42`); el mismo estado tenía tres significados visuales según la pantalla. Cuando un estado se mapea para
+  mostrarlo, ese mapeo es **una** función con dueño, no una expresión por pantalla (cinco mapas convivían:
+  `A-64`).
 - **La imagen podía construir y no arrancar**: la etapa runner no copiaba `scripts/` ni `src/`. Por eso
   el CI construye la imagen, la levanta contra Postgres, exige readiness y prueba el bootstrap del
   admin.

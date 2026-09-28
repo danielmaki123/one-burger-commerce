@@ -72,8 +72,13 @@ falta reconstruir por qué algo es como es. Es lo que evita leer 3.000 líneas p
   Ese archivo dice qué sigue, con su objetivo, prioridad, riesgo y dependencia.
 - **Arquitectura de producto (hoy y objetivo)**: [`../product/MODULE_ARCHITECTURE.md`](../product/MODULE_ARCHITECTURE.md).
 - **Plantilla obligatoria de TASK**: [`TEMPLATE.md`](TEMPLATE.md).
-- **Lo que sigue**: la auditoría y el diseño de **`Pedidos / Cocina`** (orden 3 del roadmap maestro), que **no
-  se inició**. **No se arranca `Resumen`** (pasó al orden 16) ni una «POS Fase 2» (esa fase ya no existe).
+- **Lo que sigue**: **`Cocina runtime`** (orden **3b** del roadmap maestro) — `/admin/kitchen` como
+  **proyección de `orders`**. El alcance exacto, el runtime que puede tocar y lo que tiene **prohibido
+  duplicar** están en [`../roadmap/NEXT.md`](../roadmap/NEXT.md); las specs congeladas, en
+  [`../design/screens/orders.md`](../design/screens/orders.md) (Pedidos) y
+  [`../design/screens/kitchen.md`](../design/screens/kitchen.md) (Cocina), con sus referencias aprobadas por el
+  owner el 2026-09-27. **No se arranca `Resumen`** (pasó al orden 16) ni una «POS Fase 2» (esa fase ya no
+  existe).
 - **Lo que está pausado**: el **rediseño del menú público** (9 pantallas del mock archivado) espera
   confirmación explícita del owner, y antes de tocar el sistema de diseño hay que revisar la rama
   `feat/design-system` del otro dev (`A-36`).

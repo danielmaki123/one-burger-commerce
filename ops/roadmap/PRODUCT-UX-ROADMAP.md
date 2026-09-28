@@ -11,8 +11,8 @@ visual (eso es [`../design/DESIGN_SYSTEM.md`](../design/DESIGN_SYSTEM.md)). **No
 que no esté en el orden de §2 no está planificado, y si aparece la necesidad se discute con el owner y se
 anota acá **antes** de empezar.
 
-**Última actualización**: 2026-09-27, por **`TASK-GOV-001`** (gobierno y reglas: leyes consolidadas,
-arquitectura objetivo, este roadmap y el flujo de trabajo).
+**Última actualización**: 2026-09-27, por **`TASK-ORDERS-KITCHEN-FOUNDATIONS-001`** (fundaciones de
+Pedidos / Cocina: auditoría, ownership, secuencia y Design Freeze).
 
 ---
 
@@ -54,12 +54,14 @@ Cada paso se abre como **una TASK**, con su brief en `ops/tasks/` y su Delivery 
 «cerrado» se deja escrito para que nadie lo reabra por accidente.
 
 ```text
-0.  Gobierno y reglas ................ TASK-GOV-001 · ESTA TASK · docs-only
+0.  Gobierno y reglas ................ TASK-GOV-001 · docs-only · CERRADA
 1.  POS Fase 1 (venta rápida) ........ CERRADA (SCREEN-POS-QUICK-SALE-001.2, desplegada)
-2.  Consolidación arquitectónica ..... TASK-GOV-001 · ESTA TASK · arquitectura objetivo + reordenamiento
-3.  Separar Pedidos / Cocina ......... PRÓXIMA TASK: Órdenes deja de ser una sola superficie (bandeja vs cocina)
+2.  Consolidación arquitectónica ..... TASK-GOV-001 · docs-only · CERRADA (arquitectura objetivo + orden)
+3.  Separar Pedidos / Cocina ......... CERRADA (TASK-ORDERS-KITCHEN-FOUNDATIONS-001 · docs-only)
+3b. Cocina runtime ................... /admin/kitchen como proyección de orders · SIGUIENTE TASK
 4.  Money ownership .................. moneda, locale, FX y conversión en un dueño explícito
 5.  Payments ownership ............... Payment, saldo, parcial, refund, void, banco y snapshots monetarios
+5b. Pedidos runtime .................. /admin/orders denso y paginado + detalle con su historia y su cobro
 6.  Pedido existente → Cobrar en POS . Órdenes localiza el pedido y el POS lo cobra (cierra `A-67`)
 7.  Cash ownership ................... Shift, apertura, movimientos, conteo, cierre, handover y conciliación
 8.  Separar Configuración: Negocio / Finanzas / Personalización / Locales ... cada una con su entrada
@@ -73,9 +75,22 @@ Cada paso se abre como **una TASK**, con su brief en `ops/tasks/` y su Delivery 
 16. Resumen, cuando las fuentes estén maduras ... `/admin`, al final, cuando las fuentes estén maduras
 ```
 
-**Dependencias que no se saltean**: 4 y 5 antes de 6 y 7 (no se cobra un pedido existente sin dueño del
-dinero ni del turno); 3 antes de 6 (Órdenes tiene que saber localizar y mostrar el pedido antes de delegar el
-cobro); 16 **al final**, porque un overview solo es honesto cuando las fuentes que resume ya están ordenadas.
+**Dependencias que no se saltean** (verificadas contra el código en `TASK-ORDERS-KITCHEN-FOUNDATIONS-001`):
+
+- **3b antes de 5b, y 3b no depende de 4, 5 ni 6**: la cocina **no toca dinero** —su proyección no incluye un
+  solo campo financiero— así que puede ir primero; lo que sí trae es la puerta que impide que el dinero llegue
+  a cocina.
+- **4 y 5 antes de 5b**: el listado y el detalle muestran si el pedido está cobrado, y esa regla no se calcula
+  en React.
+- **4 y 5 antes de 6** (no se cobra un pedido existente sin dueño del dinero) y **5b antes de 6**: alguien
+  tiene que **localizar** el pedido antes de que el POS lo cobre, y hoy no hay superficie (`A-67`).
+- **16 al final**, porque un overview solo es honesto cuando las fuentes que resume ya están ordenadas.
+
+**Por qué hay un `3b` y un `5b`**: la auditoría de fundaciones mostró que «Separar Pedidos / Cocina» son **dos**
+entregas de runtime con dependencias **distintas** (Cocina no necesita al dueño del dinero; Pedidos sí, porque
+muestra el estado de cobro). Se **intercalan sin renumerar el resto** para no romper las referencias cruzadas
+de `CURRENT.md`, `START-HERE.md` y `MODULE_ARCHITECTURE.md` a los órdenes 4 a 16: los ítems autoritativos
+siguen siendo los mismos 17.
 
 **Lo que este roadmap retira**: la secuencia anterior mandaba a `Resumen` o a una «POS Fase 2» genérica
 inmediatamente después del POS. `Resumen` pasa al orden 16 y «POS Fase 2» **deja de existir como fase**: su
@@ -112,7 +127,8 @@ nombre que un agente cita. Acá solo se dice cómo las usa el roadmap:
 
 - **Reuse Audit** es el **gate obligatorio** de cada TASK antes de implementar (plantilla:
   [`../tasks/TEMPLATE.md`](../tasks/TEMPLATE.md)).
-- **One Canonical Flow** es la razón de los órdenes 3, 6 y 11: una operación, una superficie que la resuelve.
+- **One Canonical Flow** es la razón de los órdenes 3b, 5b, 6 y 11: una operación, una superficie que la
+  resuelve —**localizar** en Pedidos, **cocinar** en Cocina, **cobrar** en POS—.
 - **Single Owner** es la razón de los órdenes 4, 5, 7, 8, 9 y 10: separar dueños que hoy comparten módulo.
 - **Viewport Contract** y **Design Freeze** son las condiciones de cierre de cualquier TASK de UI.
 - La ley de **configuración y snapshots** es la razón de los órdenes 4, 5, 7 y 9: lo que se firma **congela**

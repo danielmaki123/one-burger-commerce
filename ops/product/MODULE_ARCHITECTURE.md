@@ -42,8 +42,7 @@ pantalla puede consumir varios módulos; y un módulo puede no tener sección pr
 
 Crear un **módulo**, una **sección** o una **entrada nueva de navegación principal** es la **excepción**, y
 se justifica porque apareció una **responsabilidad estable del negocio**, nunca porque apareció una pantalla
-nueva. La justificación se escribe antes de codear (ver §10) y, si se aprueba, queda anotada acá en el mismo
-commit.
+nueva. La justificación se escribe antes de codear (ver §10) y, si se aprueba, queda anotada acá.
 
 Corolario: **una pantalla nueva no crea un módulo**, y **una ruta nueva no crea una sección**.
 
@@ -86,16 +85,13 @@ server-side**: ocultar una entrada no autoriza nada.
 - **Subcategorías pertenece a Categorías** y no tiene entrada propia.
 - **`/admin/menu` deja de ser un hub requerido**: la ruta se conserva por compatibilidad y hace `redirect` a
   `/admin/menu/products`. Ninguna ruta profunda se borró y ningún bookmark se rompió.
-- **Contenido** es el nombre de navegación de la capacidad de bloques comerciales (antes nombrada con jerga
-  técnica, como «hero comercial» o «marketing blocks»).
+- **Contenido** es el nombre de navegación de los bloques comerciales (antes, jerga técnica).
 - **Desktop y mobile salen de la misma fuente**: la barra inferior elige `href`s (`ADMIN_MOBILE_TAB_HREFS`) y
-  el resto —label, icono, permiso y orden— lo aporta la navegación única. No hay arrays paralelos.
+  el resto —label, icono, permiso y orden— lo aporta la navegación única.
 
-**Divergencia con la dirección conceptual del roadmap: resuelta.** El roadmap dibujaba `RESUMEN` como
-overview separado y `POS` dentro de `OPERACIÓN`; el código ponía Resumen como primer ítem de Operación y POS
-dentro de Control. `TASK-IA-001` alineó el código con esa dirección (Resumen arriba, POS en Operación) y
-corrigió la entrada de **Aprobaciones**, que se ofrecía al manager cuando su pantalla exige
-`canApproveRefund` (era el hallazgo §12.11: una entrada nunca se ofrece a un rol que la pantalla rechaza).
+**Divergencia con la dirección conceptual del roadmap: resuelta.** `TASK-IA-001` alineó el código con esa
+dirección (Resumen arriba, POS en Operación) y corrigió la entrada de **Aprobaciones**, que se ofrecía al
+manager cuando su pantalla exige `canApproveRefund` (era el hallazgo §12.11).
 
 ---
 
@@ -179,7 +175,10 @@ conceptual es el módulo donde vive su significado, sus invariantes y sus transi
 
 | Agregado / capacidad | Módulo dueño | Puerta de autorización (hoy) |
 |---|---|---|
-| Order, OrderItem, estado del pedido | `orders` | `canManageOrderOperations` |
+| Order, OrderItem, estado, **scheduling** (retiro programado) y **tiempos de etapa** | `orders` | `canManageOrderOperations` |
+| **Canal de origen del pedido** (`Order.source`) — se escribe al crear, nunca se infiere | `orders` — **falta la propiedad** (`TASK-ORDERS-KITCHEN-FOUNDATIONS-001`) | la misma del listado |
+| **Estado financiero del pedido**: `pending` / `partial` / `paid`, `paidAmount`, `outstandingAmount` | **`payments` (objetivo)** — hoy **no existe**: se calcula ad-hoc en dos casos de uso | `canUsePOS` (cobrar) · `canViewOrderFinancials` (objetivo) |
+| Moneda, locale, FX y **conversión** | **`money` (objetivo)** — hoy repartido entre `shared/lib` y `pos` | — |
 | Cobro de un pedido y **anulación** de un cobro | `orders` | `canUsePOS` (cobrar) · `canVoidPayment` (anular) |
 | Devolución (pedido y revisión) | `orders` | `canRefund` (pedir) · `canApproveRefund` (firmar) |
 | Turno de caja, conteos, traspaso, cierre de banco, movimientos | **dueño conceptual: Caja** · implementación repartida entre `orders` (`domain`/`adapters`) y `pos` (casos de uso del mostrador) | `canUsePOS` (abrir/cobrar/cerrar) · `canManageCash` (administrar) |
@@ -190,9 +189,11 @@ conceptual es el módulo donde vive su significado, sus invariantes y sus transi
 | Location, catálogo por local | `locations` | `canManageBusinessSettings` |
 | User, Role, sesión del admin | `auth` | `canManageUsers` |
 | BusinessSettings (marca, moneda, horarios, propina) | `business-settings` | `canManageBusinessSettings` |
-| Invoice (emisión, anulación) | `invoices` | `canUsePOS` (emitir) · owner (anular) |
+| Invoice (emisión, anulación) — **consume** el estado financiero de `payments`, no define «pagado» | `invoices` | `canUsePOS` (emitir) · owner (anular) |
 | Refund (registro financiero) | `orders` | `canApproveRefund` |
-| Payment (registro financiero) | `orders` | `canUsePOS` · `canVoidPayment` |
+| Payment (registro financiero) | `orders` → **`payments`** (objetivo) | `canUsePOS` · `canVoidPayment` |
+| **Proyección de Cocina** (`KitchenOrderProjection`: comandas sin un solo campo de dinero) | `orders` — **no es un módulo**: cocina es una proyección | `canOperateKitchen` (objetivo) |
+| **Read models de Pedidos** (`OrderListProjection`, `OrderDetailProjection`) | `orders` — **no son un dominio** | `canViewOrders` · `canViewOrderFinancials` (objetivos) |
 | AdminAuditLog | `audit` | se escribe desde las operaciones sensibles |
 | OutboxEvent, NotificationSettings | `notifications` | `canManageBusinessSettings` |
 | Customer | `customers` | sesión del cliente |
@@ -202,22 +203,19 @@ conceptual es el módulo donde vive su significado, sus invariantes y sus transi
 sus datos; **no** reimplementa su regla. Una regla duplicada en un dashboard es una regla que va a
 divergir.
 
+**Superficies vs dueños** (`TASK-ORDERS-KITCHEN-FOUNDATIONS-001`): **Pedidos** y **Cocina** son **dos
+superficies** del mismo dueño (`orders`) —una localiza y revisa, la otra opera la comanda— con **una sola**
+regla declarada por intención. Cocina **no** es un módulo y **no expone dinero**: su proyección no incluye
+totales, cobros, PIN financiero ni factura. Specs: [`../design/screens/orders.md`](../design/screens/orders.md)
+y [`../design/screens/kitchen.md`](../design/screens/kitchen.md).
+
 ---
 
 ## 6. Regla especial de Resumen
 
-`/admin` — **Resumen** es un **overview transversal**. Puede leer:
-
-- pedidos y su estado;
-- caja y turnos;
-- cierres;
-- locales;
-- catálogo (por ejemplo, top de productos);
-- métricas comerciales;
-- futuras projections / read models.
-
-Y **no absorbe el ownership de ninguno**. Muestra **señales**; las secciones propietarias muestran y
-**resuelven** el detalle:
+`/admin` — **Resumen** es un **overview transversal**: pedidos y su estado, caja y turnos, cierres, locales,
+catálogo (top de productos), métricas comerciales y read models futuros. Y **no absorbe el ownership de
+ninguno**: muestra **señales**; las secciones propietarias muestran y **resuelven** el detalle.
 
 ```text
 Resumen:  2 pedidos atrasados        → Ver Órdenes
@@ -284,13 +282,10 @@ Corolario de UI: un componente recibe **colecciones**; no conoce la lista de suc
 
 ### 10.1 Reuse-first (ley general)
 
-Antes de crear una **pantalla, ruta, feature, caso de uso, componente o flujo**, el agente:
-
-1. identifica el **objetivo de usuario**;
-2. **busca** si la capacidad ya existe (módulo, caso de uso, ruta, componente en
-   [`registry.json`](../../src/shared/ui/registry.json));
-3. si existe, **reutiliza, compone o enlaza**;
-4. crea algo nuevo **solo** cuando hay una **responsabilidad distinta y estable**.
+Antes de crear una **pantalla, ruta, feature, caso de uso, componente o flujo**, el agente: (1) identifica el
+**objetivo de usuario**; (2) **busca** si la capacidad ya existe (módulo, caso de uso, ruta, componente en
+[`registry.json`](../../src/shared/ui/registry.json)); (3) si existe, **reutiliza, compone o enlaza**; y
+(4) crea algo nuevo **solo** con una **responsabilidad distinta y estable**.
 
 **Prohibido**: una implementación paralela de una capacidad que ya existe sin justificar el ownership. Una
 segunda superficie puede **enlazar o cargar contexto**; no reconstruir el flujo.
@@ -368,9 +363,9 @@ criterio y lo resuelve §2 + §5 + §10, con revisión humana.
 
 Nada de esta lista se tocó: son hallazgos de la verificación previa, **registrados** para que la próxima TASK
 no los herede por accidente. Cada uno se cierra con la TASK que le toca (orden en el
-[roadmap maestro](../roadmap/PRODUCT-UX-ROADMAP.md)), nunca de paso. Las **reglas transversales** que no
-pertenecen a un módulo —los totales de `src/shared/lib/order-totals.ts` y el estado del pedido de
-`src/modules/orders/domain/order-workflows.ts`— se consumen desde todos: una sola fuente por cálculo.
+[roadmap maestro](../roadmap/PRODUCT-UX-ROADMAP.md)), nunca de paso. Las **reglas transversales** —los totales
+de `src/shared/lib/order-totals.ts` y el estado del pedido de `src/modules/orders/domain/order-workflows.ts`—
+se consumen desde todos: una sola fuente por cálculo.
 
 | # | Deuda | Evidencia |
 |---|---|---|
@@ -383,6 +378,7 @@ pertenecen a un módulo —los totales de `src/shared/lib/order-totals.ts` y el 
 | 7 | **Locales sin puerta propia**: `/api/admin/locations/**` se autoriza con `canManageBusinessSettings` | `src/app/api/admin/locations/**` |
 | 8 | **Entrada muerta «Mesas»** en la barra móvil y **Prisma en route handlers** de `tables` (deuda congelada) | `A-62` · `route-contract.test.ts` |
 | 9 | **`/admin` no existe para roles sin Resumen**: `manager` y `kitchen` aterrizan en Órdenes (decisión de producto) | `A-10` |
+| 10 | **Pedidos / Cocina**: reglas de dinero duplicadas (el POS convierte y el cobro de un pedido existente no), `Order.source` ausente, la ruta de la factura sin puerta de rol ni alcance por sucursal y el cobro sin clave de idempotencia | `A-68` · `A-69` · `A-70` · `A-71` |
 
 **Corregido en `TASK-IA-001`** (queda como registro de la clase de bug): Aprobaciones dibujaba la entrada con
 `canManageCash` cuando la pantalla exige `canApproveRefund`.
@@ -399,9 +395,9 @@ Catálogo:       Productos · Categorías · Modificadores · Promociones · Con
 Configuración:  Locales · Negocio · Finanzas · Personalización · Usuarios · Alertas
 ```
 
-Es **arquitectura objetivo**: el sidebar vigente es el de §3 y **no se toca en esta TASK**. Las diferencias
+Es **arquitectura objetivo**: el sidebar vigente es el de §3 y **no se toca acá**. Las diferencias
 —`Pedidos`/`Cocina` como entradas separadas, `Facturas` con entrada propia, `Negocio`/`Finanzas` separadas de
-`Personalización`— son los órdenes 3, 8 y 9 del [roadmap maestro](../roadmap/PRODUCT-UX-ROADMAP.md).
+`Personalización`— son los órdenes 3, 3b y 5b, 8 y 9 del [roadmap maestro](../roadmap/PRODUCT-UX-ROADMAP.md).
 
 Secciones que **podrían** existir y que este documento **no** crea: `Ventas`, `Analytics`, `Productos` o
 `Inventario` como sección. Si alguna aparece, se gana su lugar con el gate de §10 y con una responsabilidad
