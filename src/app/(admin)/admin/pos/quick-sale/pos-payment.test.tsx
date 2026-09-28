@@ -175,6 +175,40 @@ describe("PosPaymentFields", () => {
     expect(screen.getByText(money(20))).toBeTruthy();
   });
 
+  /**
+   * `TASK-MONEY-PAYMENTS-RUNTIME-001` (`A-69c`, invariante 3) — **el cobro partido se muestra en una sola
+   * moneda**.
+   *
+   * El caso del hallazgo: `US$10 + C$355` sobre un pedido de C$720 a tasa 36.5. Sumando crudo, el ticket
+   * decía «Cobrado C$365» (10 + 355) sobre un pedido de C$720: el cajero veía cubierto un pedido que no lo
+   * estaba. El equivalente real es `10 × 36.5 = 365`, así que el cobrado es **C$720**.
+   */
+  it("convierte la fila en dólares antes de mostrar el cobrado (A-69c)", () => {
+    render(
+      <PosPaymentFields
+        payments={[
+          { id: "pay_1", method: "cash", currency: "USD", amount: "10" },
+          { id: "pay_2", method: "transfer", currency: "NIO", amount: "355" },
+        ]}
+        setPayments={() => {}}
+        fieldErrors={{}}
+        currencyCode="NIO"
+        currency={currency}
+        total={720}
+        usdExchangeRate={36.5}
+      />,
+    );
+
+    /*
+     * El cobrado convertido: 365 + 355 = 720. Se busca dentro de la línea del cobro partido —el total de la
+     * venta muestra el mismo número— y se afirma que el **crudo** (365) no aparece como cobrado.
+     */
+    const cobrado = screen.getByText(/Cobrado/);
+
+    expect(cobrado.textContent).toContain("720");
+    expect(cobrado.textContent).not.toContain("365");
+  });
+
   it("muestra el error de monto que devuelve el servidor", () => {
     render(
       <PosPaymentFields

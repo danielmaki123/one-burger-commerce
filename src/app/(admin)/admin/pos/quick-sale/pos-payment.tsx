@@ -4,6 +4,7 @@ import * as React from "react";
 
 import { PAYMENT_METHOD_TYPE_LABELS } from "@/modules/orders/domain/order.types";
 import { calculateOrderChange } from "@/modules/orders/domain/payment-change";
+import { paidTotalInBaseCurrency } from "@/modules/money/domain/paid-total";
 import { POS_PAYMENT_METHODS } from "@/modules/pos/domain/pos-sale";
 import { formatCurrency, type CurrencyFormat } from "@/shared/lib/format-currency";
 import { roundCurrency } from "@/shared/lib/order-totals";
@@ -101,10 +102,18 @@ export default function PosPaymentFields({
   /** Agrega una fila de cobro con otro medio (partir el pago). */
   onAddPayment?: () => void;
 }) {
-  const paidTotal = payments.reduce(
-    (sum, payment) => sum + (Number.isFinite(Number(payment.amount)) ? Number(payment.amount) : 0),
-    0,
-  );
+  /**
+   * `TASK-MONEY-PAYMENTS-RUNTIME-001` (`A-69c`) — **la suma de un cobro partido, en una sola moneda**.
+   *
+   * Antes se sumaba `amount` de cada fila **crudo** y se formateaba con el símbolo de la moneda del negocio:
+   * con `10 USD + 355 NIO` a tasa 36.5 el ticket decía «Cobrado C$365» sobre un pedido de C$720. La regla la
+   * tiene `money`, que es su dueño; el mostrador la **consume**.
+   */
+  const paidTotal = paidTotalInBaseCurrency({
+    payments,
+    baseCurrencyCode: currencyCode,
+    usdExchangeRate,
+  });
 
   return (
     <div className="space-y-2">
