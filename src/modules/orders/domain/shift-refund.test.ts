@@ -67,10 +67,38 @@ describe("devoluciones del turno", () => {
         refund({ id: "r2", amount: 10, currency: "USD" }),
       ],
       businessCurrencyCode: "NIO",
-      usdExchangeRate: 36.5,
+      rates: { USD: 36.5 },
     });
 
     // 200 + 10 × 36.5 = 565, en negativo (sale del cajón).
     expect(total).toBe(-565);
+  });
+
+  it("convierte una devolución que no es en dólares (A-69a: el `\"USD\"` hardcodeado murió)", () => {
+    // Antes esta rama no existía: `shift-refund.ts` sólo sabía de `"USD"` y tiraba un `Error` genérico
+    // para cualquier otra moneda. La regla vive en `money`, y la tasa es un dato de configuración (D-019).
+    const total = refundsTotalInBusinessCurrency({
+      refunds: [
+        refund({ id: "r1", amount: 100, currency: "EUR" }),
+        refund({ id: "r2", amount: 5, currency: "USD" }),
+      ],
+      businessCurrencyCode: "NIO",
+      rates: { USD: 36.5, EUR: 39.42 },
+    });
+
+    // 100 × 39.42 + 5 × 36.5 = 3942 + 182.5 = 4124.5, en negativo.
+    expect(total).toBe(-4124.5);
+  });
+
+  it("no inventa un equivalente cuando falta la tasa: falla en vez de restar un número distinto", () => {
+    // Un arqueo que resta 20 dólares como si fueran 20 córdobas «cierra» con un faltante que nadie puede
+    // explicar. Sin tasa, el cierre tiene que fallar y decirlo.
+    expect(() =>
+      refundsTotalInBusinessCurrency({
+        refunds: [refund({ id: "r1", amount: 20, currency: "USD" })],
+        businessCurrencyCode: "NIO",
+        rates: {},
+      }),
+    ).toThrowError(/tasa/i);
   });
 });

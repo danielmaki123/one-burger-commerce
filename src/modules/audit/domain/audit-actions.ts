@@ -39,6 +39,20 @@ export const AUDIT_ACTIONS = [
    * arqueo, así que se firma quién la cambió (misma familia que `settings.update`).
    */
   "cash_config.update",
+  /**
+   * `TASK-MONEY-PAYMENTS-RUNTIME-001` (`A-80`, `D-018`) — **registrar una tasa**: qué moneda, contra qué
+   * moneda base, con qué valor y **desde cuándo** rige. La tasa es un hecho con fecha y es el número con
+   * el que se explica cada conversión posterior; sin el asiento no se puede responder quién la movió ni
+   * de qué a qué.
+   */
+  "finance.rate.registered",
+  /**
+   * `TASK-MONEY-PAYMENTS-RUNTIME-001` (`A-80`, `D-018`) — **cambiar la moneda base**: una operación
+   * explícita que no recalcula ningún hecho anterior. El asiento guarda **de** qué moneda **a** cuál y con
+   * qué formato regional queda, que es lo que explica por qué dos cobros de la misma semana tienen
+   * equivalentes en monedas distintas.
+   */
+  "finance.baseCurrency.changed",
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
@@ -58,6 +72,8 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   "payment.void": "Cobro anulado",
   "settings.update": "Configuración actualizada",
   "cash_config.update": "Configuración de caja actualizada",
+  "finance.rate.registered": "Tasa de cambio registrada",
+  "finance.baseCurrency.changed": "Moneda base cambiada",
 };
 
 export function describeAction(action: AuditAction): string {

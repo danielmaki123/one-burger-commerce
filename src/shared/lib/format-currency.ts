@@ -1,11 +1,15 @@
 import { DEFAULT_BUSINESS_SETTINGS } from "@/modules/business-settings/domain/business-settings-defaults";
+import { formatMoney, type MoneyFormat } from "@/modules/money/domain/format-money";
 
-export type CurrencyFormat = {
-  /** Símbolo que se antepone al monto, por ejemplo `C$`. */
-  symbol: string;
-  /** Locale de `Intl.NumberFormat` para separadores y decimales. */
-  locale: string;
-};
+/**
+ * `TASK-MONEY-PAYMENTS-RUNTIME-001` (`A-69`) — el formato de la plata, con **el dueño nuevo**.
+ *
+ * El formato estaba escrito «a mano» acá y en otros seis lugares, siempre con dos decimales fijos
+ * (`A-69`). Ahora el dueño es `money`: `decimals` y `code` son **opcionales** y, sin ellos, el
+ * comportamiento es el histórico (símbolo + locale + dos decimales), así que todos los usos que ya
+ * existían siguen mostrando exactamente el mismo texto.
+ */
+export type CurrencyFormat = MoneyFormat;
 
 /**
  * Formato por defecto: sale del módulo de defaults, que es la única fuente de
@@ -16,21 +20,6 @@ export const DEFAULT_CURRENCY_FORMAT: CurrencyFormat = {
   locale: DEFAULT_BUSINESS_SETTINGS.locale,
 };
 
-const FORMATTERS = new Map<string, Intl.NumberFormat>();
-
-function formatterFor(locale: string): Intl.NumberFormat {
-  const cached = FORMATTERS.get(locale);
-  if (cached) return cached;
-
-  const formatter = new Intl.NumberFormat(locale, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-
-  FORMATTERS.set(locale, formatter);
-  return formatter;
-}
-
 /**
  * Formatea un monto con la moneda configurada.
  *
@@ -40,7 +29,5 @@ export function formatCurrency(
   amount: number,
   format: CurrencyFormat = DEFAULT_CURRENCY_FORMAT,
 ): string {
-  const safeAmount = Number.isFinite(amount) ? amount : 0;
-
-  return `${format.symbol}${formatterFor(format.locale).format(safeAmount)}`;
+  return formatMoney(amount, format);
 }

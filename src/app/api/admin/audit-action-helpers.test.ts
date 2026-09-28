@@ -5,6 +5,8 @@ import { AUDIT_ACTIONS } from "@/modules/audit/domain/audit-actions";
 import {
   cashConfigUpdateAudit,
   cashMovementAudit,
+  financeBaseCurrencyChangedAudit,
+  financeRateRegisteredAudit,
   invoiceVoidAudit,
   manualDiscountAudit,
   paidOrderCancelledAudit,
@@ -361,6 +363,58 @@ const shortcuts: Array<[string, () => Promise<void>, Record<string, unknown>]> =
       targetType: "LocationCashConfig",
       targetId: "loc_principal",
       detail: { usdEnabled: true, blindCount: false },
+    },
+  ],
+  /**
+   * `TASK-MONEY-PAYMENTS-RUNTIME-001` (`A-80`) — registrar una tasa: qué moneda, contra qué base, con qué
+   * valor y desde cuándo rige. La tasa es un hecho con fecha, y sin el asiento no se puede explicar quién
+   * la movió ni con qué número se convirtió cada cobro posterior.
+   */
+  [
+    "finance.rate.registered",
+    () =>
+      financeRateRegisteredAudit({
+        actorUserId: "user_owner",
+        fromCurrencyCode: "USD",
+        toCurrencyCode: "NIO",
+        rate: 36.5,
+        effectiveFrom: "2026-09-28T12:00:00.000Z",
+      }),
+    {
+      action: "finance.rate.registered",
+      targetType: "ExchangeRate",
+      targetId: "USD:NIO",
+      detail: {
+        fromCurrencyCode: "USD",
+        toCurrencyCode: "NIO",
+        rate: 36.5,
+        effectiveFrom: "2026-09-28T12:00:00.000Z",
+      },
+    },
+  ],
+  /**
+   * `TASK-MONEY-PAYMENTS-RUNTIME-001` (`A-80`, `D-018`) — cambiar la moneda base: **de** cuál **a** cuál y
+   * con qué formato regional queda. La operación no recalcula hechos anteriores, y este asiento es lo que
+   * permite leer por qué dos cobros de la misma semana tienen equivalentes en monedas distintas.
+   */
+  [
+    "finance.baseCurrency.changed",
+    () =>
+      financeBaseCurrencyChangedAudit({
+        actorUserId: "user_owner",
+        previousBaseCurrencyCode: "NIO",
+        baseCurrencyCode: "USD",
+        locale: "en-US",
+      }),
+    {
+      action: "finance.baseCurrency.changed",
+      targetType: "BusinessCurrencySettings",
+      targetId: "default",
+      detail: {
+        fromBaseCurrencyCode: "NIO",
+        toBaseCurrencyCode: "USD",
+        locale: "en-US",
+      },
     },
   ],
 ];

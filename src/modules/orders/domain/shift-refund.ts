@@ -1,3 +1,5 @@
+import { convertAmountToBase } from "@/modules/money/domain/convert-to-base-currency";
+import { roundCurrency } from "@/modules/money/domain/round-currency";
 import type { RefundRecord } from "@/modules/orders/domain/order.types";
 
 export type { RefundRecord } from "@/modules/orders/domain/order.types";
@@ -27,30 +29,44 @@ export function refundsTotalByCurrency(refunds: RefundRecord[]): Record<string, 
   return totals;
 }
 
-/** El neto de las devoluciones en la moneda del negocio (siempre negativo o 0). */
+/**
+ * El neto de las devoluciones en la moneda del negocio (siempre negativo o 0).
+ *
+ * `TASK-MONEY-PAYMENTS-RUNTIME-001` (`A-69a`, `D-019`) — la regla propia murió: el `"USD"` hardcodeado y
+ * el `toFixed(2)` de este archivo eran la copia que redondeaba distinto que el resto del sistema. Ahora el
+ * equivalente sale de `money` (`convertToBaseCurrency`, `monto × tasa`) y el redondeo de `roundCurrency`,
+ * con la tasa que llega como **dato** —una por moneda— porque cuál es y cuánto vale es configuración del
+ * negocio, no estructura del código.
+ *
+ * Sin la tasa de una moneda **no se inventa un equivalente**: un arqueo que resta 20 dólares como si
+ * fueran 20 córdobas «cierra» con un faltante que nadie puede explicar. Falla y lo dice.
+ */
 export function refundsTotalInBusinessCurrency(input: {
   refunds: RefundRecord[];
   businessCurrencyCode: string;
-  usdExchangeRate: number | null;
+  /** Tasa vigente por moneda (`{ USD: 36.5 }`): cuántas unidades de la base vale una de la moneda. */
+  rates: Record<string, number | null | undefined>;
 }): number {
   const byCurrency = refundsTotalByCurrency(input.refunds);
 
-  return Number(
-    Object.entries(byCurrency)
-      .reduce((sum, [currency, amount]) => {
-        const rate =
-          currency === input.businessCurrencyCode.trim().toUpperCase()
-            ? 1
-            : currency === "USD"
-              ? input.usdExchangeRate
-              : null;
+  let total = 0;
 
-        if (rate === null) {
-          throw new Error(`No hay tasa de cambio para ${currency}.`);
-        }
+  for (const [currency, amount] of Object.entries(byCurrency)) {
+    const converted = convertAmountToBase({
+      amount,
+      currency,
+      baseCurrencyCode: input.businessCurrencyCode,
+      rates: input.rates,
+    });
 
-        return sum + amount * rate;
-      }, 0)
-      .toFixed(2),
-  );
+    if (converted === null) {
+      throw new Error(
+        `No hay tasa de cambio para ${currency}: el arqueo no puede restar un monto en otra moneda.`,
+      );
+    }
+
+    total += converted;
+  }
+
+  return roundCurrency(total);
 }

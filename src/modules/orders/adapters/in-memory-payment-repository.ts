@@ -56,6 +56,17 @@ export class InMemoryPaymentRepository implements PaymentRepository {
     return this.payments.find((payment) => payment.id === id) ?? null;
   }
 
+  /**
+   * `TASK-MONEY-PAYMENTS-RUNTIME-001` (`A-71`) — el cobro que ya existe con esta clave. Mismo criterio que
+   * el índice único parcial de la base: sin clave (o en blanco) no hay nada que buscar.
+   */
+  async findPaymentByIdempotencyKey(key: string): Promise<PaymentRecord | null> {
+    const normalized = key.trim();
+    if (normalized.length === 0) return null;
+
+    return this.payments.find((payment) => payment.idempotencyKey === normalized) ?? null;
+  }
+
   async createPayment(input: CreatePaymentInput): Promise<PaymentRecord> {
     const payment: PaymentRecord = {
       id: this.nextId(),
@@ -72,6 +83,17 @@ export class InMemoryPaymentRepository implements PaymentRepository {
       voidedAt: null,
       voidedByUserId: null,
       voidReason: null,
+      // `TASK-MONEY-PAYMENTS-RUNTIME-001` — el snapshot y la clave, igual que el adaptador de Prisma: los
+      // dos adaptadores tienen que guardar lo mismo o el doble miente y los tests no prueban nada.
+      baseCurrencyCode: input.baseCurrencyCode ?? null,
+      exchangeRate: input.exchangeRate ?? null,
+      baseAmount: input.baseAmount === null || input.baseAmount === undefined
+        ? null
+        : roundCurrency(input.baseAmount),
+      paymentMethodId: input.paymentMethodId ?? null,
+      methodKind: input.methodKind ?? null,
+      entityId: input.entityId ?? null,
+      idempotencyKey: input.idempotencyKey ?? null,
     };
 
     this.payments.push(payment);

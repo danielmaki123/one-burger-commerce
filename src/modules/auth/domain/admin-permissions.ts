@@ -96,6 +96,55 @@ export function canManageCash(role: AdminRole) {
 }
 
 /**
+ * `TASK-MONEY-PAYMENTS-RUNTIME-001` (`D-014`) — **registrar un cobro sobre un pedido que ya existe**.
+ *
+ * Es una capacidad **nominal** propia y no una reutilización de `canUsePOS`: operar el mostrador y cobrar la
+ * deuda de un pedido son dos decisiones distintas, y hoy coinciden en los tres roles por casualidad del
+ * producto, no por diseño. Tenerla separada permite que un rol opere el POS sin cobrar deuda ajena —que es
+ * el escenario que `D-014` dejó declarado— y es el sitio donde vive la idempotencia del cobro (`A-71`).
+ *
+ * `kitchen` no entra: cocina no maneja plata.
+ */
+export function canCollectPayment(role: AdminRole) {
+  return (
+    role === ADMIN_ROLES.owner ||
+    role === ADMIN_ROLES.manager ||
+    role === ADMIN_ROLES.cashier
+  );
+}
+
+/**
+ * `TASK-MONEY-PAYMENTS-RUNTIME-001` (`D-014`, `D-016`) — **ver los datos financieros de un pedido**:
+ * `status`, `paidAmount`, `outstandingAmount` y `unresolvedAmount`.
+ *
+ * Es capacidad nominal de `D-014` («ver los datos financieros del pedido»), y hoy no existía: el detalle
+ * mostraba dinero con la puerta gruesa de Pedidos, así que `kitchen` podía leer el saldo. La proyección la
+ * produce `payments`; esta puerta decide quién puede recibirla.
+ *
+ * El `cashier` entra —cobra y necesita ver el saldo para saber cuánto falta— y `kitchen` no.
+ */
+export function canViewOrderFinancials(role: AdminRole) {
+  return (
+    role === ADMIN_ROLES.owner ||
+    role === ADMIN_ROLES.manager ||
+    role === ADMIN_ROLES.cashier
+  );
+}
+
+/**
+ * `TASK-MONEY-PAYMENTS-RUNTIME-001` (`D-016`) — **administrar la configuración financiera**: monedas, tasas,
+ * moneda base, medios de pago y entidades de cobro.
+ *
+ * Es del **dueño** por la misma razón que `canManageCashConfig`: cambiar la moneda base, una tasa o qué
+ * medios se aceptan cambia el número que el sistema espera. No es una reutilización de
+ * `canManageBusinessSettings` (marca y contacto) ni de `canManageCashConfig` (reglas del arqueo): son tres
+ * decisiones distintas y el día que se separen, cada una ya tiene su puerta.
+ */
+export function canManageFinanceConfig(role: AdminRole) {
+  return role === ADMIN_ROLES.owner;
+}
+
+/**
  * Bloque 7.1 del roadmap del POS (Fase 2) — **devolver plata**.
  *
  * Es la puerta de las devoluciones y de la bandeja de aprobaciones: firmar una devolución es decidir

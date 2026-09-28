@@ -1,4 +1,5 @@
 import { DEFAULT_BUSINESS_SETTINGS } from "@/modules/business-settings/domain/business-settings-defaults";
+import { roundCurrency } from "@/modules/money/domain/round-currency";
 
 /**
  * Respaldo del porcentaje de propina. Sale del módulo de defaults del negocio,
@@ -7,9 +8,15 @@ import { DEFAULT_BUSINESS_SETTINGS } from "@/modules/business-settings/domain/bu
  */
 export const DEFAULT_TIP_RATE = DEFAULT_BUSINESS_SETTINGS.tipRate;
 
-export function roundCurrency(amount: number): number {
-  return Math.round((amount + Number.EPSILON) * 100) / 100;
-}
+/**
+ * `TASK-MONEY-PAYMENTS-RUNTIME-001` (`A-69`) — **el redondeo de dinero dejó de vivir acá**.
+ *
+ * El algoritmo es el mismo y la firma también; lo que cambió es el dueño: el redondeo es una regla de
+ * dinero y vive en `money` (`@/modules/money/domain/round-currency`), junto a la conversión y al formato.
+ * Este archivo lo **re-exporta** para no romper los ~109 usos que ya lo importaban de acá: una segunda
+ * copia de la multiplicación por 100 es exactamente lo que la auditoría midió (`A-69`).
+ */
+export { roundCurrency };
 
 export function calculatePackagingAmount(
   items: Array<{ packagingTotalAmount: number }>,

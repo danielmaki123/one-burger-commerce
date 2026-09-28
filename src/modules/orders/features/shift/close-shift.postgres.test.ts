@@ -284,14 +284,15 @@ describe("TASK-AUD-005 · atomicidad del cierre de turno (PostgreSQL real)", () 
 
     await expect(
       registerOrderPayment(
-        { orderId: order.id, method: "cash", amount: 100, currency: "NIO" },
+        { orderId: order.id, method: "cash", amount: 100, currency: "NIO", idempotencyKey: `k_${Math.random().toString(36).slice(2)}` },
         {
           orderRepository: new PrismaOrderRepository(),
           paymentRepository: new PrismaPaymentRepository(),
           findOpenShift: async () => ({ id: SHIFT_ID }),
           runInOrderPaymentTransaction,
-          businessCurrencyCode: "NIO",
-          usdExchangeRate: null,
+          baseCurrencyCode: "NIO",
+          rates: {},
+      paymentMethodKind: "cash",
         },
       ),
     ).rejects.toThrow(/se cerró/i);
@@ -323,7 +324,7 @@ describe("TASK-AUD-005 · atomicidad del cierre de turno (PostgreSQL real)", () 
     let cierre: ReturnType<typeof closeShift> | null = null;
 
     await registerOrderPayment(
-      { orderId: order.id, method: "cash", amount: 100, currency: "NIO" },
+      { orderId: order.id, method: "cash", amount: 100, currency: "NIO", idempotencyKey: `k_${Math.random().toString(36).slice(2)}` },
       {
         orderRepository: new PrismaOrderRepository(),
         paymentRepository: new PrismaPaymentRepository(),
@@ -339,8 +340,9 @@ describe("TASK-AUD-005 · atomicidad del cierre de turno (PostgreSQL real)", () 
 
             return result;
           }),
-        businessCurrencyCode: "NIO",
-        usdExchangeRate: null,
+        baseCurrencyCode: "NIO",
+        rates: {},
+      paymentMethodKind: "cash",
       },
     );
 

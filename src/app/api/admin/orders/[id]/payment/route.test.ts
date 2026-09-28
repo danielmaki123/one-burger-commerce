@@ -89,7 +89,10 @@ describe("POST /api/admin/orders/[id]/payment", () => {
   it("registra el cobro del pedido y lo atribuye al turno", async () => {
     const { POST } = await import("./route");
 
-    const response = await POST(post({ method: "cash", amount: 280, currency: "nio" }), context);
+    const response = await POST(
+      post({ method: "cash", amount: 280, currency: "nio", idempotencyKey: "key_route_1" }),
+      context,
+    );
     const body = await response.json();
 
     expect(response.status).toBe(201);
@@ -110,7 +113,7 @@ describe("POST /api/admin/orders/[id]/payment", () => {
     });
 
     const { POST } = await import("./route");
-    const response = await POST(post({ method: "cash", amount: 280, currency: "NIO" }), context);
+    const response = await POST(post({ method: "cash", amount: 280, currency: "NIO", idempotencyKey: "key_route_1" }), context);
 
     expect(response.status).toBe(403);
     expect(registerOrderPaymentMock).not.toHaveBeenCalled();
@@ -122,7 +125,7 @@ describe("POST /api/admin/orders/[id]/payment", () => {
     );
 
     const { POST } = await import("./route");
-    const response = await POST(post({ method: "cash", amount: 280, currency: "NIO" }), context);
+    const response = await POST(post({ method: "cash", amount: 280, currency: "NIO", idempotencyKey: "key_route_1" }), context);
 
     expect(response.status).toBe(403);
     expect(registerOrderPaymentMock).not.toHaveBeenCalled();
@@ -130,7 +133,7 @@ describe("POST /api/admin/orders/[id]/payment", () => {
 
   it("un monto que no es positivo se rechaza con el campo señalado (422)", async () => {
     const { POST } = await import("./route");
-    const response = await POST(post({ method: "cash", amount: 0, currency: "NIO" }), context);
+    const response = await POST(post({ method: "cash", amount: 0, currency: "NIO", idempotencyKey: "key_route_1" }), context);
     const body = await response.json();
 
     expect(response.status).toBe(422);
@@ -140,7 +143,7 @@ describe("POST /api/admin/orders/[id]/payment", () => {
 
   it("un medio que no existe (o «mixed») se rechaza: es un resultado, no algo que se elija", async () => {
     const { POST } = await import("./route");
-    const response = await POST(post({ method: "mixed", amount: 280, currency: "NIO" }), context);
+    const response = await POST(post({ method: "mixed", amount: 280, currency: "NIO", idempotencyKey: "key_route_1" }), context);
 
     expect(response.status).toBe(422);
   });
@@ -149,7 +152,7 @@ describe("POST /api/admin/orders/[id]/payment", () => {
     findOrderByIdMock.mockResolvedValue(null);
 
     const { POST } = await import("./route");
-    const response = await POST(post({ method: "cash", amount: 280, currency: "NIO" }), context);
+    const response = await POST(post({ method: "cash", amount: 280, currency: "NIO", idempotencyKey: "key_route_1" }), context);
 
     expect(response.status).toBe(404);
   });
@@ -162,7 +165,7 @@ describe("POST /api/admin/orders/[id]/payment", () => {
     );
 
     const { POST } = await import("./route");
-    const response = await POST(post({ method: "cash", amount: 280, currency: "NIO" }), context);
+    const response = await POST(post({ method: "cash", amount: 280, currency: "NIO", idempotencyKey: "key_route_1" }), context);
     const body = await response.json();
 
     expect(response.status).toBe(409);

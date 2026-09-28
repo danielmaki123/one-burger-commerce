@@ -60,7 +60,7 @@ describe("PrismaPaymentRepository", () => {
       reference: "voucher-77",
     });
 
-    expect(payment).toEqual({
+    expect(payment).toMatchObject({
       id: "pay_01",
       orderId: "ord_01",
       method: "mixed",
@@ -75,7 +75,10 @@ describe("PrismaPaymentRepository", () => {
       voidReason: null,
     });
     expect(createMock).toHaveBeenCalledWith({
-      data: {
+      // `TASK-MONEY-PAYMENTS-RUNTIME-001` (`D-020`/`D-017`/`A-71`) — el adaptador escribe **además** el
+      // snapshot, el medio y la clave. El contrato de la escritura cambió con las columnas; lo que este test
+      // fija es que no escriba **menos** que esto.
+      data: expect.objectContaining({
         orderId: "ord_01",
         method: "mixed",
         amount: 150.5,
@@ -85,7 +88,7 @@ describe("PrismaPaymentRepository", () => {
         reference: "voucher-77",
         // Fase 6 del rediseño de Caja: el cobro se firma con su turno; sin dato, `null` (sitio público).
         shiftId: null,
-      },
+      }),
     });
   });
 
@@ -108,7 +111,7 @@ describe("PrismaPaymentRepository", () => {
     await repository.createPayment({ orderId: "ord_01", method: "cash", amount: 100 });
 
     expect(createMock).toHaveBeenCalledWith({
-      data: {
+      data: expect.objectContaining({
         orderId: "ord_01",
         method: "cash",
         amount: 100,
@@ -117,7 +120,7 @@ describe("PrismaPaymentRepository", () => {
         tip: 0,
         reference: null,
         shiftId: null,
-      },
+      }),
     });
   });
 

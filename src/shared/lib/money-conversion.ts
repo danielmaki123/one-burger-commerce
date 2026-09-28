@@ -1,44 +1,33 @@
-import { roundCurrency } from "@/shared/lib/order-totals";
+import {
+  convertToBusinessCurrency,
+  SUPPORTED_FOREIGN_CURRENCY as MONEY_SUPPORTED_FOREIGN_CURRENCY,
+} from "@/modules/money/domain/convert-to-business-currency";
+import type {
+  ConversionFailure,
+  ConversionResult,
+} from "@/modules/money/domain/convert-to-base-currency";
 
 /**
- * TASK-305 — cuánto vale un monto en la moneda del negocio.
+ * `TASK-305` → `TASK-MONEY-PAYMENTS-RUNTIME-001` (`A-69`) — **el camino viejo, hacia el dueño nuevo**.
  *
- * La regla (una sola tasa configurable para el dólar) la necesitan **dos** módulos: el POS, para
- * saber cuánto cubre un cobro, y el arqueo, para saber cuánto entró al cajón. Vive acá, sin errores
- * de dominio ni I/O, y cada módulo traduce el fallo a **su** error: el POS a `PosError` y la caja a
- * `ShiftError`. Si cada uno tuviera su aritmética, un día dirían números distintos.
+ * La regla monetaria vivía acá y estaba escrita **cinco veces** en el repo (`A-69`). Ahora la aritmética
+ * está una sola vez, en `@/modules/money/domain/convert-to-base-currency`, y este archivo queda como
+ * **cáscara delgada** para los call sites que todavía no migraron (el POS y el arqueo pasan una única
+ * tasa, la del dólar, leída de la configuración vieja): reexporta las formas de siempre y delega en
+ * `money`.
+ *
+ * Lo que **no** puede volver acá: la multiplicación. Si alguien la reimplementa, el mismo cobro se
+ * convierte distinto según quién lo mire.
  */
+export { convertToBusinessCurrency };
 
-/** La única moneda extranjera que el negocio toma hoy (decisión del owner, 2026-09-14). */
-export const SUPPORTED_FOREIGN_CURRENCY = "USD";
+/**
+ * La única moneda extranjera que el negocio tomaba cuando se escribió esta regla.
+ *
+ * @deprecated `D-019`: el catálogo de monedas es un dato del negocio y no una lista cerrada. Sobrevive
+ * **sólo** para los call sites viejos que siguen pasando la tasa del dólar; el código nuevo usa
+ * `convertToBaseCurrency` con la tasa de la moneda que corresponda.
+ */
+export const SUPPORTED_FOREIGN_CURRENCY = MONEY_SUPPORTED_FOREIGN_CURRENCY;
 
-export type ConversionFailure =
-  | { ok: false; reason: "missing-rate"; currency: string }
-  | { ok: false; reason: "unsupported-currency"; currency: string };
-
-export type ConversionResult = { ok: true; amount: number } | ConversionFailure;
-
-export function convertToBusinessCurrency(input: {
-  amount: number;
-  currency: string;
-  businessCurrencyCode: string;
-  usdExchangeRate: number | null;
-}): ConversionResult {
-  const currency = input.currency.trim().toUpperCase();
-  const businessCurrency = input.businessCurrencyCode.trim().toUpperCase();
-
-  if (currency === businessCurrency) {
-    return { ok: true, amount: roundCurrency(input.amount) };
-  }
-
-  if (currency !== SUPPORTED_FOREIGN_CURRENCY) {
-    return { ok: false, reason: "unsupported-currency", currency };
-  }
-
-  const rate = input.usdExchangeRate;
-  if (rate === null || !Number.isFinite(rate) || rate <= 0) {
-    return { ok: false, reason: "missing-rate", currency };
-  }
-
-  return { ok: true, amount: roundCurrency(input.amount * rate) };
-}
+export type { ConversionFailure, ConversionResult };

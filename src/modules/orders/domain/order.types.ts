@@ -269,9 +269,22 @@ export function isPaymentMethodType(value: string): value is PaymentMethodType {
   return Object.values(PAYMENT_METHOD_TYPES).includes(value as PaymentMethodType);
 }
 
+/**
+ * `TASK-MONEY-PAYMENTS-RUNTIME-001` (`D-017`) — **el tipo canónico** del medio, congelado en el hecho.
+ *
+ * Es distinto de `PaymentMethodType`: ése es el enum histórico del cobro —con `mixed`, que se conserva
+ * porque puede existir en la base— y éste es la semántica contable que el dueño configura. `mixed` **no**
+ * existe acá: se deriva de más de un `Payment`.
+ *
+ * El **tipo** vive acá porque `PaymentRecord` tiene que poder nombrarlo sin que el dominio de `orders`
+ * dependa del de `payments`; la **validación** y la lista de valores viven en `payments`
+ * (`payment-snapshot.ts`), que es el dueño de la regla. Los dos conjuntos son el mismo y hay un test que lo
+ * fija (`payment-method-kind-source-of-truth.test.ts`).
+ */
+export type PaymentMethodKind = "cash" | "card" | "bank_transfer" | "wallet" | "other";
+
 /** Un cobro registrado sobre un pedido. Un pago mixto son varias filas. */
-export type PaymentRecord = {
-  id: string;
+export type PaymentRecord = {  id: string;
   orderId: string;
   method: PaymentMethodType;
   amount: number;
@@ -294,6 +307,25 @@ export type PaymentRecord = {
   voidedAt: string | null;
   voidedByUserId: string | null;
   voidReason: string | null;
+  /**
+   * `TASK-MONEY-PAYMENTS-RUNTIME-001` (`D-020`) — **el snapshot monetario del cobro**.
+   *
+   * Un cobro **nuevo** los trae obligatoriamente (el dominio no lo firma sin ellos): la moneda base contra
+   * la que se convirtió, la tasa que se aplicó y el equivalente que produjo. Un cobro **legacy** los tiene
+   * en `null`, que significa «equivalente **no demostrable**» — no «cero» y no «se convierte con la tasa de
+   * hoy». El saldo del pedido suma `baseAmount` y declara el resto en `unresolvedAmount`.
+   */
+  baseCurrencyCode?: string | null;
+  exchangeRate?: number | null;
+  baseAmount?: number | null;
+  /** `D-017` — el medio comercial configurable del momento. `null` en los cobros viejos. */
+  paymentMethodId?: string | null;
+  /** `D-017` — el **tipo canónico** del momento, congelado junto al medio. `null` en los cobros viejos. */
+  methodKind?: PaymentMethodKind | null;
+  /** `D-017` — la entidad de cobro contra la que se concilió. `null` = no aplica (efectivo). */
+  entityId?: string | null;
+  /** `A-71` — la clave de idempotencia del cobro. `null` en los cobros anteriores a la columna. */
+  idempotencyKey?: string | null;
 };
 
 /** TASK-104 — estado de un turno de caja. */

@@ -179,12 +179,12 @@ model Product {
 /// minutos de preparación y si acepta pedidos. La marca, la moneda y las promos siguen
 /// siendo del negocio entero y viven en `BusinessSettings`.
 model Location {
-  id                 String              @id @default(cuid())
+  id                 String                  @id @default(cuid())
   name               String
-  slug               String              @unique
-  isActive           Boolean             @default(true)
+  slug               String                  @unique
+  isActive           Boolean                 @default(true)
   /// Orden manual; el primero activo es el local por defecto.
-  sortOrder          Int                 @default(0)
+  sortOrder          Int                     @default(0)
   addressLine        String?
   city               String?
   addressReference   String?
@@ -194,24 +194,24 @@ model Location {
   phone              String?
   whatsapp           String?
   businessHours      Json
-  pickupLeadMinutes  Int                 @default(25)
+  pickupLeadMinutes  Int                     @default(25)
   /// Máximo del rango de preparación (`null` = se promete un instante, no una franja).
   pickupMaxMinutes   Int?
   /// B5: minutos que puede esperar un pedido **sin aceptar** antes de avisar en el tablero de comandas.
-  acceptAlertMinutes Int                 @default(10)
+  acceptAlertMinutes Int                     @default(10)
   /// B5: minutos que puede estar un pedido **en cocina** (aceptado, preparando o listo) antes de avisar.
-  prepAlertMinutes   Int                 @default(15)
-  isAcceptingOrders  Boolean             @default(true)
+  prepAlertMinutes   Int                     @default(15)
+  isAcceptingOrders  Boolean                 @default(true)
   /// TASK-308 — si este local usa el punto de venta (mostrador). Nace prendido para no cambiarle
   /// nada al negocio de un solo local; apagado, la API del POS responde 403 en ese local.
-  posEnabled         Boolean             @default(true)
+  posEnabled         Boolean                 @default(true)
   /// Tarea 3 del brief (2026-09-17) — cierre **obligatorio** de caja en este local: la caja no puede
   /// quedar abierta de un día para el otro. Nace apagado (cada sucursal lo decide desde su ficha); si
   /// está prendido y la caja sigue abierta con fecha de otro día, el POS no deja cobrar hasta cerrarla.
-  requireShiftClose  Boolean             @default(false)
+  requireShiftClose  Boolean                 @default(false)
   closedMessage      String?
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt
+  createdAt          DateTime                @default(now())
+  updatedAt          DateTime                @updatedAt
   products           LocationProduct[]
   orders             Order[]
   adminUsers         AdminUserLocation[]
@@ -225,6 +225,8 @@ model Location {
   banks              LocationBank[]
   /// Fase 6 del rediseño de Caja (2026-09-23) — las terminales del POS de esta sucursal.
   posTerminals       PosTerminal[]
+  /// `TASK-MONEY-PAYMENTS-RUNTIME-001` — dónde se ofrece cada medio de pago (patrón `LocationBank`).
+  paymentMethods     PaymentMethodLocation[]
 
   @@index([isActive, sortOrder])
 }
@@ -436,6 +438,151 @@ enum PaymentMethodType {
   transfer
   mixed
   other
+}
+
+/// `TASK-MONEY-PAYMENTS-RUNTIME-001` (`D-017`) — **la semántica contable** de un medio de pago.
+///
+/// Es distinto de `PaymentMethodType`, que es el enum histórico del **cobro** y que se conserva tal como
+/// está (incluido `mixed`, que puede existir en la base y no se reescribe). Acá vive el **tipo canónico**
+/// configurable: `bank_transfer` y `wallet` existen, `mixed` **no** (se deriva de más de un `Payment`), y
+/// cada medio comercial («Tarjeta BAC», «Zelle») declara cuál es el suyo.
+enum PaymentMethodKind {
+  cash
+  card
+  bank_transfer
+  wallet
+  other
+}
+
+/// `TASK-MONEY-PAYMENTS-RUNTIME-001` (`D-017`) — qué clase de entidad de cobro es una `Bank`.
+///
+/// Las tres primeras son las configurables y `other` es el escape. Los bancos que ya existían quedan en
+/// `other` **explícito**: **no** se infiere el tipo por el nombre (`D-020`).
+enum BankEntityType {
+  bank
+  acquirer
+  digital_provider
+  other
+}
+
+/// `TASK-MONEY-PAYMENTS-RUNTIME-001` — **el catálogo de monedas**: lo que el sistema *conoce*.
+///
+/// Una moneda **no se borra**: se apaga (`isActive`), porque un `Payment` de ayer sigue nombrándola. El
+/// código puede ser un ISO conocido o un **código interno** de una moneda personalizada (`D-019`): por eso
+/// el catálogo es *conveniencia* y no una restricción, y por eso `decimals` es del catálogo y no del
+/// formateador (formatear con 2 decimales una moneda de 0 es un bug de presentación).
+model Currency {
+  id        String   @id @default(cuid())
+  /// Código con el que la moneda se nombra en todo el sistema. Se normaliza a mayúsculas.
+  code      String   @unique
+  name      String
+  symbol    String
+  /// Decimales con los que se muestra y se redondea. `0..4`.
+  decimals  Int      @default(2)
+  /// `true` = está en el catálogo conocido (conveniencia del admin); `false` = la cargó el negocio.
+  isKnown   Boolean  @default(false)
+  isActive  Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  ratesFrom ExchangeRate[]             @relation("ExchangeRateFrom")
+  ratesTo   ExchangeRate[]             @relation("ExchangeRateTo")
+  baseOf    BusinessCurrencySettings[] @relation("BusinessBaseCurrency")
+
+  @@index([isActive, sortOrder])
+}
+
+/// `TASK-MONEY-PAYMENTS-RUNTIME-001` (`D-018`) — **la autoridad monetaria actual**: una sola fila.
+///
+/// Cuál es la moneda base **no** es una columna editable de `Currency`: es esta fila, y cambiarla es una
+/// **operación explícita y auditada** que abre un período de vigencia y **no** recalcula nada existente.
+/// Las columnas de dinero de `BusinessSettings` se conservan como compatibilidad mientras el resto del
+/// código migra a esta autoridad.
+model BusinessCurrencySettings {
+  id               String   @id @default("default")
+  baseCurrencyCode String
+  /// Cómo se muestra la plata (`es-NI`). Cambiarlo cambia la vista, no ningún monto guardado.
+  locale           String   @default("es-NI")
+  updatedAt        DateTime @updatedAt
+  updatedByUserId  String?
+
+  baseCurrency Currency @relation("BusinessBaseCurrency", fields: [baseCurrencyCode], references: [code], onDelete: Restrict)
+
+  @@index([baseCurrencyCode])
+}
+
+/// `TASK-MONEY-PAYMENTS-RUNTIME-001` (`D-018`, `D-020`) — **la tasa es un hecho con fecha**, no un valor
+/// mutable.
+///
+/// Registrar una tasa nueva **cierra** la vigente (`effectiveTo`) y agrega una fila: nunca se actualiza in
+/// place. Sin fecha no se puede explicar el pasado, y por eso `toCurrencyCode` guarda **contra qué moneda
+/// base** se registró cada tasa: un cambio de moneda base no reinterpreta las tasas anteriores.
+model ExchangeRate {
+  id               String    @id @default(cuid())
+  fromCurrencyCode String
+  toCurrencyCode   String
+  /// Precisión explícita (no `Float`): cuántas unidades de `to` vale una de `from`.
+  rate             Decimal   @db.Decimal(18, 8)
+  effectiveFrom    DateTime
+  /// `null` = vigente. Registra una tasa nueva cierra la anterior.
+  effectiveTo      DateTime?
+  createdByUserId  String?
+  createdAt        DateTime  @default(now())
+
+  fromCurrency Currency @relation("ExchangeRateFrom", fields: [fromCurrencyCode], references: [code], onDelete: Restrict)
+  toCurrency   Currency @relation("ExchangeRateTo", fields: [toCurrencyCode], references: [code], onDelete: Restrict)
+
+  @@unique([fromCurrencyCode, toCurrencyCode, effectiveFrom])
+  @@index([fromCurrencyCode, toCurrencyCode, effectiveTo])
+}
+
+/// `TASK-MONEY-PAYMENTS-RUNTIME-001` (`D-017`) — **el medio de pago comercial configurable**.
+///
+/// Separa el **nombre comercial** («Tarjeta BAC», «Zelle») del **tipo canónico** (`kind`). `mixed` no es un
+/// valor posible: se deriva. Cada medio declara qué monedas admite y, si liquida contra una entidad de
+/// cobro, cuál (`entityId` → `Bank`, que es el catálogo que ya existe: **no** hay un segundo catálogo).
+///
+/// El hecho histórico **no** depende de esta fila: `Payment` congela `paymentMethodId` **y** `methodKind`,
+/// así que renombrar o apagar un medio no reescribe ningún cobro.
+model PaymentMethodConfig {
+  id                String            @id @default(cuid())
+  name              String            @unique
+  kind              PaymentMethodKind
+  /// Entidad de cobro asociada (banco, adquirente, proveedor digital). `null` = no aplica (efectivo).
+  entityId          String?
+  /// Monedas que este medio admite. Vacío = todas.
+  currencyCodes     String[]
+  /// Si el cobro con este medio exige una referencia externa (voucher, id de transferencia).
+  requiresReference Boolean           @default(false)
+  isActive          Boolean           @default(true)
+  sortOrder         Int               @default(0)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  entity    Bank?                   @relation(fields: [entityId], references: [id], onDelete: SetNull)
+  locations PaymentMethodLocation[]
+
+  @@index([isActive, sortOrder])
+  @@index([entityId])
+}
+
+/// Patrón `LocationBank`: dónde se ofrece cada medio de pago. Sin filas, el medio se ofrece en todas las
+/// sucursales; el vínculo permite apagarlo en una sola.
+model PaymentMethodLocation {
+  id                    String   @id @default(cuid())
+  locationId            String
+  paymentMethodConfigId String
+  isActive              Boolean  @default(true)
+  sortOrder             Int      @default(0)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  location            Location            @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  paymentMethodConfig PaymentMethodConfig @relation(fields: [paymentMethodConfigId], references: [id], onDelete: Cascade)
+
+  @@unique([locationId, paymentMethodConfigId])
+  @@index([locationId, isActive])
 }
 
 /// TASK-104 — un turno de caja, abierto y cerrado.
@@ -854,43 +1001,66 @@ model BusinessSettings {
 /// devolución, ni un pago repartido entre efectivo y tarjeta. Por eso una tabla aparte, y por eso
 /// `Order.paymentMethod` se mantiene: la declaración del cliente y el cobro real son dos cosas.
 model Payment {
-  id             String            @id @default(cuid())
-  orderId        String
-  method         PaymentMethodType
-  amount         Decimal           @db.Decimal(10, 2)
+  id               String             @id @default(cuid())
+  orderId          String
+  method           PaymentMethodType
+  amount           Decimal            @db.Decimal(10, 2)
   /// TASK-303b — moneda en la que entró **este** cobro (el cliente puede pagar en dólares).
   /// `null` = la moneda del negocio: un cobro viejo no declara moneda y se cuenta como tal.
-  currency       String?
+  currency         String?
   /// Propina cobrada en este pago. Va aparte del monto porque en un pago mixto puede pagarse sola.
-  tip            Decimal           @default(0) @db.Decimal(10, 2)
+  tip              Decimal            @default(0) @db.Decimal(10, 2)
   /// TASK-305 — vuelto que salió del cajón con este cobro, en la **moneda del negocio**. Es un hecho
   /// del momento (lo que se le devolvió al cliente), y el arqueo lo necesita: sin él, un día con
   /// vueltos parecería que falta plata. El detalle del pedido sigue **derivando** el cambio (T12).
-  changeAmount   Decimal           @default(0) @db.Decimal(10, 2)
+  changeAmount     Decimal            @default(0) @db.Decimal(10, 2)
   /// Referencia externa del cobro (número de voucher, id de transferencia). Vacío si no aplica.
-  reference      String?
+  reference        String?
   /// Fase 6 del rediseño de Caja (2026-09-23) — el **turno** al que entró este cobro (la caja de la
   /// terminal donde se cobró). `null` en los cobros de antes de la Fase 6 y en los del sitio público (que
   /// no pasan por una caja): el arqueo de un turno sin cobros atribuidos sigue leyendo por ventana.
-  shiftId        String?
-  createdAt      DateTime          @default(now())
+  shiftId          String?
+  /// `TASK-MONEY-PAYMENTS-RUNTIME-001` (`D-020`) — **la moneda base** contra la que se convirtió este
+  /// cobro. Obligatoria al escribir un cobro nuevo; `null` en los cobros anteriores a esta columna, que
+  /// quedan **no demostrables** (`unresolvedAmount`) y **no** se rellenan (ni con la tasa de hoy).
+  baseCurrencyCode String?
+  /// `D-020` — **la tasa que se aplicó** a este cobro. Obligatoria al escribir uno nuevo.
+  exchangeRate     Decimal?           @db.Decimal(18, 8)
+  /// `D-020` — **el equivalente en moneda base** que produjo esa tasa. Obligatorio al escribir uno nuevo.
+  /// Es lo que se suma para saber cuánto cubrió el cobro: nunca se recalcula con la tasa vigente.
+  baseAmount       Decimal?           @db.Decimal(10, 2)
+  /// `D-017` — el medio comercial configurable con el que entró el cobro. `null` en los cobros viejos.
+  paymentMethodId  String?
+  /// `D-017` — **el tipo canónico del momento**. Se congela junto al medio comercial a propósito: el medio
+  /// se puede renombrar o cambiar de tipo, y el hecho tiene que seguir explicando con qué semántica
+  /// contable entró esa plata (mismo criterio que el nombre del negocio congelado en la factura).
+  methodKind       PaymentMethodKind?
+  /// `D-017` — la entidad de cobro contra la que se concilió (banco, adquirente). `null` = no aplica.
+  entityId         String?
+  /// `A-71` — **clave de idempotencia del cobro**. La manda el cliente y la unicidad la garantiza la base
+  /// (índice único **parcial**: el `NULL` de los cobros viejos no colisiona). Su alcance es el cobro, no el
+  /// pedido: dos cobros parciales legítimos conviven con claves distintas y el mismo request repetido
+  /// produce uno solo.
+  idempotencyKey   String?
+  createdAt        DateTime           @default(now())
   /// TASK-AUD-059 — **cobro anulado** (soft delete; alcance remanente de A-15): el cobro se registró mal y
   /// se invalida. La fila **no** se borra ni se edita —queda con cuándo, quién y por qué— y deja de contar
   /// para todo lo que sume plata: arqueo, saldo del pedido, conciliación y documentos impresos. `null` = el
   /// cobro vale. Es distinto de una devolución (`Refund`): eso es plata que **salió** del cajón, con medio,
   /// moneda y turno; acá no hay plata que mover, hay un registro que no debía existir.
-  voidedAt       DateTime?
-  voidedByUserId String?
-  voidReason     String?
-  order          Order             @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  shift          Shift?            @relation(fields: [shiftId], references: [id], onDelete: SetNull)
+  voidedAt         DateTime?
+  voidedByUserId   String?
+  voidReason       String?
+  order            Order              @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  shift            Shift?             @relation(fields: [shiftId], references: [id], onDelete: SetNull)
   /// Bloque 3 del POS — las devoluciones de este cobro. Se guardan para no devolver dos veces la
   /// misma plata: el cupo disponible es `amount` menos las devoluciones no rechazadas.
-  refunds        Refund[]
+  refunds          Refund[]
 
   @@index([orderId])
   @@index([shiftId])
   @@index([createdAt])
+  @@index([idempotencyKey])
 }
 
 /// Fase 6 del rediseño de Caja (2026-09-23) — la **terminal del POS** de una sucursal: la estación física
@@ -967,6 +1137,11 @@ model Shift {
   /// Bloque 3 del POS (Fase 2) — el neto de las devoluciones en efectivo aprobadas del turno, en la
   /// moneda del negocio (negativo o 0). Congelado al cerrar, igual que el resto del arqueo.
   refundsAmount        Decimal?         @db.Decimal(10, 2)
+  /// `TASK-MONEY-PAYMENTS-RUNTIME-001` (`D-020`) — **la tasa que produjo este cierre**. El arqueo congela
+  /// sus montos desde siempre, pero no la tasa que los convirtió: sin ella, `expectedByCurrency` no se puede
+  /// explicar después sin volver a la configuración de hoy. `null` en los cierres anteriores (no se
+  /// re-firman ni se recalculan: siguen valiendo como documento).
+  exchangeRate         Decimal?         @db.Decimal(18, 8)
   /// `closingAmount - expectedAmount`. Negativo = faltó plata.
   difference           Decimal?         @db.Decimal(10, 2)
   /// Fase 3 del rediseño de Caja (2026-09-23) — la diferencia **del cuadre por banco** (lo declarado
@@ -1073,19 +1248,27 @@ model ShiftHandover {
 /// nacen vacías y las carga el owner desde Config de Caja. `code` es el nombre corto del papel
 /// (`BAC`, `BANPRO`): sin él, el cierre imprime el nombre largo.
 model Bank {
-  id        String   @id @default(cuid())
-  name      String   @unique
-  code      String?  @unique
+  id         String         @id @default(cuid())
+  name       String         @unique
+  code       String?        @unique
+  /// `TASK-MONEY-PAYMENTS-RUNTIME-001` (`D-019`) — **qué clase de entidad de cobro es**. `bank` ·
+  /// `acquirer` · `digital_provider` · `other`. Los bancos que ya existían quedan en `other` **explícito**:
+  /// el tipo **no** se infiere del nombre.
+  entityType BankEntityType @default(other)
   /// Apagado deja de ofrecerse en el cierre; las filas viejas lo siguen mostrando (es un documento).
-  isActive  Boolean  @default(true)
-  sortOrder Int      @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  isActive   Boolean        @default(true)
+  sortOrder  Int            @default(0)
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
 
-  locations  LocationBank[]
-  bankCloses ShiftBankClose[]
+  locations      LocationBank[]
+  bankCloses     ShiftBankClose[]
+  /// `TASK-MONEY-PAYMENTS-RUNTIME-001` — los medios de pago que liquidan contra esta entidad. El catálogo
+  /// de entidades es **este**, no uno paralelo.
+  paymentMethods PaymentMethodConfig[]
 
   @@index([isActive, sortOrder])
+  @@index([entityType, isActive])
 }
 
 /// Fase 3 del rediseño de Caja (2026-09-23) — **qué bancos liquida una sucursal**.
@@ -1225,6 +1408,15 @@ model Refund {
   requestedByUserId String?
   approvedByUserId  String?
   approvedAt        DateTime?
+  /// `TASK-MONEY-PAYMENTS-RUNTIME-001` — **el snapshot monetario de la devolución**, por simetría con el
+  /// cobro: una devolución nueva congela la moneda base, la tasa que se aplicó y su equivalente. `null` en
+  /// las anteriores (no se rellenan y **no** se convierten con la tasa vigente).
+  baseCurrencyCode  String?
+  exchangeRate      Decimal?          @db.Decimal(18, 8)
+  baseAmount        Decimal?          @db.Decimal(10, 2)
+  /// `A-73` — clave de idempotencia del **pedido** de devolución: reintentar la misma request no puede
+  /// consumir el cupo dos veces. La unicidad la garantiza la base (índice único **parcial**).
+  idempotencyKey    String?
   createdAt         DateTime          @default(now())
   payment           Payment           @relation(fields: [paymentId], references: [id], onDelete: Cascade)
   order             Order             @relation(fields: [orderId], references: [id], onDelete: Cascade)
@@ -1238,6 +1430,7 @@ model Refund {
   @@index([shiftId, status])
   /// La cola de la bandeja de aprobaciones: lo que está sin resolver, lo más viejo primero.
   @@index([status, createdAt])
+  @@index([idempotencyKey])
 }
 
 /// Bloque 3 del POS — si la devolución cubre todo el cobro o solo una parte.

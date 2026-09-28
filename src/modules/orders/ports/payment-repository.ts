@@ -1,4 +1,4 @@
-import type { PaymentMethodType, PaymentRecord } from "@/modules/orders/domain/order.types";
+import type { PaymentMethodKind, PaymentMethodType, PaymentRecord } from "@/modules/orders/domain/order.types";
 
 export type CreatePaymentInput = {
   orderId: string;
@@ -25,6 +25,23 @@ export type CreatePaymentInput = {
    * tienen turno, y el arqueo los lee por ventana de tiempo.
    */
   shiftId?: string | null;
+  /**
+   * `TASK-MONEY-PAYMENTS-RUNTIME-001` (`D-020`) — **el snapshot monetario**, obligatorio en un cobro nuevo.
+   *
+   * El dominio lo construye (`buildPaymentSnapshot`) y sin él el cobro **no se firma**: son los cinco
+   * campos que explican el hecho para siempre. Acá son opcionales **en el tipo** porque los cobros legacy
+   * tienen que poder seguir escribiéndose desde los dobles de test; la obligatoriedad la aplica el caso de
+   * uso, no la firma del puerto.
+   */
+  baseCurrencyCode?: string | null;
+  exchangeRate?: number | null;
+  baseAmount?: number | null;
+  /** `D-017` — el medio comercial configurable y su tipo canónico del momento. */
+  paymentMethodId?: string | null;
+  methodKind?: PaymentMethodKind | null;
+  entityId?: string | null;
+  /** `A-71` — la clave de idempotencia del cobro. La unicidad la garantiza la base. */
+  idempotencyKey?: string | null;
 };
 
 export type PaymentSummary = {
@@ -52,6 +69,19 @@ export type VoidPaymentInput = {
  */
 export interface PaymentRepository {
   createPayment(input: CreatePaymentInput): Promise<PaymentRecord>;
+  /**
+   * `TASK-MONEY-PAYMENTS-RUNTIME-001` (`A-71`) — **el cobro que ya existe con esta clave de idempotencia**.
+   *
+   * Es la recuperación de un reintento: el mismo request repetido no puede registrar la misma plata dos
+   * veces. La unicidad la garantiza un índice único **parcial** de la base; esta consulta es la que hace que
+   * el segundo request devuelva el cobro en vez de chocar.
+   *
+   * Es **opcional a propósito**: el adaptador de Prisma y el doble en memoria lo implementan (y el caso de
+   * uso lo exige por su propio alcance transaccional), pero hay consumidores del puerto que no cobran y no
+   * tienen por qué conocer la idempotencia. Hacerlo obligatorio obligaba a tocar siete dobles de test que no
+   * tienen nada que ver con `A-71`.
+   */
+  findPaymentByIdempotencyKey?(key: string): Promise<PaymentRecord | null>;
   /**
    * Bloque 3 del POS (Fase 2) — un cobro por su id, para devolverlo.
    *

@@ -24,7 +24,7 @@ import type { CashMovementRepository } from "@/modules/orders/ports/cash-movemen
 import type { PaymentRepository } from "@/modules/orders/ports/payment-repository";
 import type { RefundRepository } from "@/modules/orders/ports/refund-repository";
 import type { ShiftRepository } from "@/modules/orders/ports/shift-repository";
-import { convertToBusinessCurrency } from "@/shared/lib/money-conversion";
+import { convertToBusinessCurrency, SUPPORTED_FOREIGN_CURRENCY } from "@/shared/lib/money-conversion";
 import { roundCurrency } from "@/shared/lib/order-totals";
 
 /**
@@ -488,10 +488,11 @@ export async function calculateExpectedAmount(
   // cliente salió del cajón: sin esto, devolver con motivo parecía un faltante del cajero. Las
   // pendientes y las rechazadas no restan (no salieron) y las de tarjeta tampoco (no estaban acá).
   const refunds = refundRepository ? await refundRepository.listByShift(window.shiftId) : [];
+  // La tasa llega como dato, por moneda: el arqueo no sabe de dónde sale ni cuántas monedas hay.
   const refundsAmount = refundsTotalInBusinessCurrency({
     refunds,
     businessCurrencyCode: window.businessCurrencyCode,
-    usdExchangeRate: window.usdExchangeRate,
+    rates: { [SUPPORTED_FOREIGN_CURRENCY]: window.usdExchangeRate },
   });
   const refundsByCurrency = refundsTotalByCurrency(refunds);
 

@@ -64,8 +64,10 @@ async function deps(): Promise<RegisterOrderPaymentDependencies> {
     paymentRepository: new PrismaPaymentRepository(),
     findOpenShift: async () => null,
     runInOrderPaymentTransaction,
-    businessCurrencyCode: "NIO",
-    usdExchangeRate: null,
+    baseCurrencyCode: "NIO",
+    // `A-68` — el equivalente se mide con la tasa vigente, no con la suma cruda de los montos.
+    rates: { USD: 36.5 },
+    paymentMethodKind: "cash",
   };
 }
 
@@ -126,7 +128,7 @@ describe("TASK-AUD-055 · doble cobro concurrente del mismo pedido (PostgreSQL r
   it("dos cobros simultáneos que en suma pasan el total: uno solo entra", async () => {
     const prisma = getPrismaClient();
 
-    const cobro = { orderId: ORDER_ID, method: "cash" as const, amount: 100, currency: "NIO" };
+    const cobro = { orderId: ORDER_ID, method: "cash" as const, amount: 100, currency: "NIO", idempotencyKey: `k_${Math.random().toString(36).slice(2)}` };
     const results = await Promise.allSettled([
       registerOrderPayment(cobro, withReadBarrier(await deps())),
       registerOrderPayment(cobro, withReadBarrier(await deps())),
@@ -152,11 +154,11 @@ describe("TASK-AUD-055 · doble cobro concurrente del mismo pedido (PostgreSQL r
 
     const results = await Promise.allSettled([
       registerOrderPayment(
-        { orderId: ORDER_ID, method: "cash", amount: 60, currency: "NIO" },
+        { orderId: ORDER_ID, method: "cash", amount: 60, currency: "NIO", idempotencyKey: `k_${Math.random().toString(36).slice(2)}` },
         withReadBarrier(await deps()),
       ),
       registerOrderPayment(
-        { orderId: ORDER_ID, method: "card", amount: 40, currency: "NIO" },
+        { orderId: ORDER_ID, method: "card", amount: 40, currency: "NIO", idempotencyKey: `k_${Math.random().toString(36).slice(2)}` },
         withReadBarrier(await deps()),
       ),
     ]);
