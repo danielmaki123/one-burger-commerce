@@ -60,6 +60,32 @@ export function normalizeCurrencyCode(code: string): string {
   return currencyKey(code);
 }
 
+/**
+ * `TASK-MONEY-PAYMENTS-RUNTIME-001` (`D-019`) — los **locales** que el dueño puede elegir para el formato
+ * regional.
+ *
+ * Es la conveniencia del formulario, igual que `KNOWN_CURRENCIES`: un locale distinto es válido y se puede
+ * escribir a mano, pero tener los comunes a mano evita que el dueño tenga que saber de memoria que se
+ * escribe `es-NI` y no `es_NI`.
+ */
+export const KNOWN_LOCALES: readonly { value: string; label: string }[] = [
+  { value: "es-NI", label: "Español (Nicaragua)" },
+  { value: "es-MX", label: "Español (México)" },
+  { value: "es-CR", label: "Español (Costa Rica)" },
+  { value: "es-GT", label: "Español (Guatemala)" },
+  { value: "es-PA", label: "Español (Panamá)" },
+  { value: "es-CO", label: "Español (Colombia)" },
+  { value: "es-US", label: "Español (Estados Unidos)" },
+  { value: "en-US", label: "Inglés (Estados Unidos)" },
+];
+
+const LOCALE_PATTERN = /^[a-z]{2}-[A-Z]{2}$/;
+
+/** Un locale con forma de locale (`es-NI`). No valida que exista: eso es del navegador. */
+export function isLocaleShaped(locale: string): boolean {
+  return LOCALE_PATTERN.test(locale.trim());
+}
+
 /** Dos códigos nombran la misma moneda. */
 export function isSameCurrency(a: string, b: string): boolean {
   return currencyKey(a) === currencyKey(b);

@@ -23,6 +23,7 @@ import {
   canApproveRefund,
   canManageBusinessSettings,
   canManageCashConfig,
+  canManageFinanceConfig,
   canManageMenu,
   canManagePromotions,
   canManageUsers,
@@ -158,6 +159,25 @@ export const ADMIN_CONTROL_NAV_ITEMS: AdminNavItem[] = [
     description: "Monedas, denominaciones y arqueo",
     icon: Coins,
     canSee: ({ role }) => Boolean(role && canManageCashConfig(role)),
+  },
+  {
+    /**
+     * `TASK-MONEY-PAYMENTS-RUNTIME-001` (`D-016`, `D-018`, `A-80`) — **Finanzas**.
+     *
+     * Administra **cómo entra la plata**: monedas, tasas, moneda base, medios de pago y entidades de cobro.
+     * Es una entrada **propia** y no una sección de Config de Caja, porque la autoridad es otra: Config de
+     * Caja son las reglas del **arqueo** (`canManageCashConfig`) y Finanzas es la autoridad **monetaria**
+     * (`canManageFinanceConfig`). Son dos dueños distintos: `money` define qué vale un monto y `cash` cuenta
+     * el cajón.
+     *
+     * La entrada usa **la misma puerta** que la ruta (`canManageFinanceConfig`, owner): ocultarla no autoriza
+     * nada, pero mostrarla a quien no puede usarla sería mandarlo a un redirect.
+     */
+    href: "/admin/finance",
+    label: "Finanzas",
+    description: "Monedas, tasas y medios de pago",
+    icon: Coins,
+    canSee: ({ role }) => Boolean(role && canManageFinanceConfig(role)),
   },
 ];
 
