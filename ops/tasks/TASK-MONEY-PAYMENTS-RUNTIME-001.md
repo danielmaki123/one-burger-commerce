@@ -1,11 +1,12 @@
 # TASK-MONEY-PAYMENTS-RUNTIME-001 — Money / Payments runtime
 
-> **Estado**: brief de la TASK, **implementada y mergeada**. Órdenes **4 y 5** del
+> **Estado**: brief de la TASK, **cerrada y desplegada**. Órdenes **4 y 5** del
 > [roadmap maestro](../roadmap/PRODUCT-UX-ROADMAP.md) en **una sola TASK**, como decidió
-> [`NEXT.md`](../roadmap/NEXT.md). **Mergeada en `main` = `2cbda9b`** (PR
-> [#85](https://github.com/danielmaki123/one-burger-commerce/pull/85), squash) con los **cuatro checks del CI
-> en verde** el 2026-09-29. **Deploy pendiente por Stop Condition**: el `EASYPANEL_TOKEN` del entorno está
-> **vacío**, así que no se pudo disparar `deployService`.
+> [`NEXT.md`](../roadmap/NEXT.md). **Mergeada** en `main` (PRs
+> [#85](https://github.com/danielmaki123/one-burger-commerce/pull/85),
+> [#87](https://github.com/danielmaki123/one-burger-commerce/pull/87) y
+> [#89](https://github.com/danielmaki123/one-burger-commerce/pull/89)) con los **cuatro checks del CI en
+> verde**, y **desplegada por el owner** el 2026-09-28 (`build-20260928-200305`).
 >
 > **Base `main`**: `8f535d587c36bf6d63a3411e38b467dc093ff558` (`8f535d5`, 2026-09-28) · **Rama**:
 > `feature/money-payments-runtime` (mergeada y borrada) · **Delivery Mode**: **`high-risk-e2e`** (dinero +
@@ -32,8 +33,9 @@
 | PR + CI verde (los cuatro checks) | **Hecho**: PR #85 — `verify`, `contracts`, `migrations`, `container` |
 | Merge `--squash` a `main` | **Hecho**: `2cbda9b` |
 | **Auditoría independiente** (implementación vs SPEC/reference) | **Hecho** (PR #87, `5082ea5`): encontró **un crash**, **un desborde** y una **desviación material** de composición, y los corrigió. Ver § *Visual QA de Finanzas* |
-| **Deploy** (`deployService`, `forceRebuild`) | **BLOQUEADO**: `EASYPANEL_TOKEN` **vacío** en el entorno → **Stop Condition 6** («secreto o permiso externo inexistente») |
-| Health / readiness / smokes / QA de producción | **No ejecutado**: depende del deploy |
+| **Deploy** | **Hecho por el owner** el 2026-09-28: `build-20260928-200305`, con las tres superficies en `ok` |
+| Health / readiness / smokes | **Hecho**: `/api/health` `build-20260928-200305`, `/api/readiness` `ready`, smokes **menú 7/7** y **hosts 6/6** |
+| QA **autenticada** de `/admin/finance` en producción | **Pendiente**: necesita las credenciales del owner (no están en el repo). Equivalente local: `tests/e2e/admin-finance.spec.ts` (6/6, cuatro viewports). Evidencia sustituta: `scripts/qa-prod-build-probe.ts` comprueba que el build servido tiene el código nuevo |
 | `CURRENT.md` / `NEXT.md` / backlog | **Hecho** |
 
 **Lo que el CI encontró y el local no**: el chequeo de idempotencia del cobro corría **antes** del lock, así
