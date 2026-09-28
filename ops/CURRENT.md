@@ -10,7 +10,8 @@ corto: si crece como un diario, dejó de servir.
 
 > **Última actualización**: 2026-09-27, por **`TASK-ORDERS-KITCHEN-FOUNDATIONS-001`** (fundaciones de
 > `Pedidos / Cocina`: auditoría real, ownership, reuse audit, specs y Design Freeze, `docs-only`: **cerrada y
-> mergeada, sin deploy**), después del release de **`SCREEN-POS-QUICK-SALE-001.2`** (corrección final del
+> mergeada, sin deploy**), **con el estado factual de `main` corregido después del cierre** —`main` de GitHub
+> ≠ commit desplegado, §1—, después del release de **`SCREEN-POS-QUICK-SALE-001.2`** (corrección final del
 > ticket, **desplegado**; ver §1 y §4). **POS Fase 1 queda CERRADA DEFINITIVAMENTE** y **«POS Fase 2» dejó de
 > existir como fase**: su contenido se reparte en el [roadmap maestro](roadmap/PRODUCT-UX-ROADMAP.md) §2
 > órdenes 4 a 7 y 10. **`Pedidos / Cocina` ya no es una incógnita**: quedó auditado y con **dos specs
@@ -29,8 +30,10 @@ corto: si crece como un diario, dejó de servir.
 
 | Qué | Estado |
 |---|---|
-| **Último deploy** | `build-20260927-193653`, sobre `4f69a24` (`main` con el cierre definitivo de POS Fase 1: PR #69, #70 y #71), 2026-09-27 19:37 UTC. `/api/health` = `build-20260927-193653`, `/api/readiness` `ready` (DB 2 ms), smokes **menú 7/7** y **hosts 6/6**, y **QA autenticada en producción** a `1366×768`, `1280×720`, `768×1024` y `375×812` (§4). **Sin backup manual**: no hay migración ni cambio de datos |
-| **`main`** | `4f69a24` (PR #71, squash) — el commit que está en producción. CI verde en cada push a `main` (los cuatro checks + `publish`) |
+| **Último deploy (producción)** | `build-20260927-193653`, sobre `4f69a24` (el `main` de ese momento: cierre definitivo de POS Fase 1, PR #69, #70 y #71), 2026-09-27 19:37 UTC. `/api/health` = `build-20260927-193653`, `/api/readiness` `ready` (DB 2 ms), smokes **menú 7/7** y **hosts 6/6**, y **QA autenticada en producción** a `1366×768`, `1280×720`, `768×1024` y `375×812` (§4). **Sin backup manual**: no hay migración ni cambio de datos |
+| **Commit desplegado en producción** | `4f69a24` (PR #71, squash) — es lo que corre hoy, bajo el build de la fila anterior. **No** es el `main` actual: ver la fila siguiente |
+| **`main` en GitHub** | `76c4ba0b04e576865dacab7f2038753bdde04225` (PR #76, squash, 2026-09-28 01:29 UTC) — verificado contra la API de GitHub. CI verde en los cuatro checks en cada push a `main` (`publish` corre sólo en push a `main`) |
+| **Deriva `main` / producción (esperada)** | Entre el commit desplegado y `main` hay **5 commits**, todos **`docs-only`** —documentos de `ops/` y `.agents/`, más tres archivos de contrato (`src/shared/contracts/*.test.ts`, de `TASK-GOV-001`)—: **sin runtime, sin `prisma/`, sin migraciones y sin APIs**. **Ninguno se desplegó**, así que producción sigue sirviendo `build-20260927-193653` sobre `4f69a24` hasta que una TASK de runtime lo reemplace |
 | **Migración aplicada en este deploy** | **Ninguna**: el release es de pantalla. La última sigue siendo `20260925120000_add_payment_void`, aplicada el 2026-09-25 |
 | **Rollback target** | `build-20260926-170322` sobre `be4c051` (Venta rápida, `SCREEN-POS-QUICK-SALE-001`) — la aplicación se revierte revirtiendo el commit en `main` y volviendo a disparar `deployService`; la base no se toca (ninguno de los dos releases migró) |
 | **Modelo de deploy** | Easypanel, proyecto `brunobot`, servicio `oneburguerweb`; build **desde GitHub `main`** con `forceRebuild`. Una sola llamada a `deployService` (la llamada puede cortar por timeout y el build sigue en segundo plano: comportamiento conocido) |
@@ -185,9 +188,10 @@ con objetivo, prioridad, riesgo y dependencia— sigue en
 duplican**.
 
 **Release de `SCREEN-POS-QUICK-SALE-001.2` (2026-09-27, cerrado — POS Fase 1 cerrada definitivamente)**:
-`main` = `4f69a24` **desplegado** sirviendo `build-20260927-193653`, con el ticket de **un solo scroll**, el
+el commit **desplegado** `4f69a24` sirviendo `build-20260927-193653`, con el ticket de **un solo scroll**, el
 total en el pie y la QA autenticada de producción en los cuatro viewports (§1). Reabrió POS Fase 1 **solo**
-para el defecto del ticket; **sin migraciones, sin dominio y sin backup**.
+para el defecto del ticket; **sin migraciones, sin dominio y sin backup**. (`main` avanzó después con cinco
+merges `docs-only`, ninguno desplegado: §1, fila *Deriva `main` / producción*.)
 
 Lo que sigue, en orden:
 
