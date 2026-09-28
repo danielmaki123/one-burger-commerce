@@ -7,6 +7,22 @@ import { nextInvoiceNumber } from "../../domain/invoice";
 import { emitInvoice } from "./emit-invoice";
 
 /**
+ * `TASK-MONEY-PAYMENTS-RUNTIME-001` (`D-021`) — el estado financiero canónico que la factura **consume**.
+ *
+ * La puerta dejó de ser un conteo de cobros: el módulo de facturas no decide «pagado», lo recibe. Estos
+ * dobles devuelven el estado ya proyectado por `payments`, que es lo que la composición real le pasa.
+ */
+function financialStatus(status: "pending" | "partial" | "paid") {
+  return async () => ({
+    status,
+    paidAmount: status === "paid" ? 100 : status === "partial" ? 40 : 0,
+    outstandingAmount: status === "paid" ? 0 : status === "partial" ? 60 : 100,
+    unresolvedAmount: 0,
+  });
+}
+
+
+/**
  * Factura simple (2026-09-18) — emitir el documento de un pedido.
  *
  * Lo que se fija acá: se factura lo que **se cobró** (un pedido sin cobros o cancelado no se factura), una
@@ -109,7 +125,7 @@ describe("emitInvoice", () => {
 
     const result = await emitInvoice(
       { orderId: "ord_01", actorUserId: "admin_1", customer: { legalName: "Ana S.A.", taxId: "J0310000001" } },
-      { invoiceRepository, findOrder: async () => order, countPayments: async () => 1, business },
+      { invoiceRepository, findOrder: async () => order, getOrderPaymentStatus: financialStatus("paid"), business },
     );
 
     expect(result.reused).toBe(false);
@@ -139,7 +155,7 @@ describe("emitInvoice", () => {
 
     await emitInvoice(
       { orderId: "ord_01", actorUserId: "admin_1" },
-      { invoiceRepository, findOrder: async () => order, countPayments: async () => 1, business },
+      { invoiceRepository, findOrder: async () => order, getOrderPaymentStatus: financialStatus("paid"), business },
     );
 
     expect(create).toHaveBeenCalledWith(expect.objectContaining({ number: "F-000042" }));
@@ -152,7 +168,7 @@ describe("emitInvoice", () => {
 
     const result = await emitInvoice(
       { orderId: "ord_01", actorUserId: "admin_1" },
-      { invoiceRepository, findOrder: async () => order, countPayments: async () => 1, business },
+      { invoiceRepository, findOrder: async () => order, getOrderPaymentStatus: financialStatus("paid"), business },
     );
 
     expect(result.reused).toBe(true);
@@ -166,7 +182,7 @@ describe("emitInvoice", () => {
     await expect(
       emitInvoice(
         { orderId: "ord_99", actorUserId: "admin_1" },
-        { invoiceRepository, findOrder: async () => null, countPayments: async () => 0, business },
+        { invoiceRepository, findOrder: async () => null, getOrderPaymentStatus: financialStatus("pending"), business },
       ),
     ).rejects.toMatchObject({ status: 404 });
   });
@@ -177,7 +193,7 @@ describe("emitInvoice", () => {
     await expect(
       emitInvoice(
         { orderId: "ord_01", actorUserId: "admin_1" },
-        { invoiceRepository, findOrder: async () => order, countPayments: async () => 0, business },
+        { invoiceRepository, findOrder: async () => order, getOrderPaymentStatus: financialStatus("pending"), business },
       ),
     ).rejects.toMatchObject({ status: 409, message: expect.stringContaining("cobro") });
 
@@ -193,7 +209,7 @@ describe("emitInvoice", () => {
         {
           invoiceRepository,
           findOrder: async () => ({ ...order, status: "cancelled" }),
-          countPayments: async () => 1,
+          getOrderPaymentStatus: financialStatus("paid"),
           business,
         },
       ),
@@ -210,7 +226,7 @@ describe("emitInvoice", () => {
       {
         invoiceRepository,
         findOrder: async () => order,
-        countPayments: async () => 1,
+        getOrderPaymentStatus: financialStatus("paid"),
         business: { ...business, legalName: null, taxId: null, addressLine: null, city: null },
       },
     );
@@ -239,7 +255,7 @@ describe("emitInvoice", () => {
       {
         invoiceRepository,
         findOrder: async () => order,
-        countPayments: async () => 1,
+        getOrderPaymentStatus: financialStatus("paid"),
         business: {
           ...business,
           taxAddress: "  Km 5 Carretera Masaya, Managua  ",
@@ -264,7 +280,7 @@ describe("emitInvoice", () => {
       {
         invoiceRepository,
         findOrder: async () => order,
-        countPayments: async () => 1,
+        getOrderPaymentStatus: financialStatus("paid"),
         business: { ...business, taxAddress: null, taxPhone: "  " },
       },
     );
@@ -291,7 +307,7 @@ describe("emitInvoice", () => {
       {
         invoiceRepository,
         findOrder: async () => order,
-        countPayments: async () => 1,
+        getOrderPaymentStatus: financialStatus("paid"),
         business,
         findBranch: async (locationId) => ({
           name: "Camino de Oriente",
@@ -322,7 +338,7 @@ describe("emitInvoice", () => {
 
     await emitInvoice(
       { orderId: "ord_01", actorUserId: "admin_1" },
-      { invoiceRepository, findOrder: async () => order, countPayments: async () => 1, business },
+      { invoiceRepository, findOrder: async () => order, getOrderPaymentStatus: financialStatus("paid"), business },
     );
 
     expect(create).toHaveBeenCalledWith(
@@ -363,7 +379,7 @@ describe("emitInvoice", () => {
       {
         invoiceRepository,
         findOrder: async () => ({ ...order, customerId: "cus_01" }),
-        countPayments: async () => 1,
+        getOrderPaymentStatus: financialStatus("paid"),
         business,
         findCustomer,
       },
@@ -390,7 +406,7 @@ describe("emitInvoice", () => {
       {
         invoiceRepository,
         findOrder: async () => ({ ...order, customerId: "cus_01" }),
-        countPayments: async () => 1,
+        getOrderPaymentStatus: financialStatus("paid"),
         business,
         findCustomer: async () => ({
           id: "cus_01",
@@ -420,7 +436,7 @@ describe("emitInvoice", () => {
       {
         invoiceRepository,
         findOrder: async () => order,
-        countPayments: async () => 1,
+        getOrderPaymentStatus: financialStatus("paid"),
         business,
         findCustomer: async () => {
           throw new Error("no se llama sin customerId");

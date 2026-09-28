@@ -1,4 +1,6 @@
 import { getPrismaClient } from "@/infrastructure/database/prisma";
+import { PrismaBusinessSettingsRepository } from "@/modules/business-settings/adapters/prisma-business-settings-repository";
+import { loadBusinessSettings } from "@/modules/business-settings/features/get-public-business-settings/get-public-business-settings";
 import {
   aggregateOverviewPerformance,
   COMPLETED_ORDER_STATUSES,
@@ -13,6 +15,7 @@ import type {
   OverviewPeriod,
   OverviewRange,
 } from "@/modules/dashboard/domain/admin-overview.types";
+import { refundBaseAmount } from "@/modules/payments/domain/payment-totals";
 
 function serializeRange(range: OverviewRange) {
   return {
@@ -78,13 +81,33 @@ export async function getAdminOverviewPerformance(
       /**
        * TASK-AUD-015 (`A-58`) — el importe devuelto de cada pedido, para que la métrica use el **neto**.
        * Solo las devoluciones **aprobadas** son dinero que salio del negocio.
+       *
+       * `TASK-MONEY-PAYMENTS-RUNTIME-001` (`A-74`) — y con su **moneda y su snapshot**: `Refund.currency`
+       * dice en qué moneda salió la plata y `baseAmount` cuánto valía en la moneda base. Restar el monto
+       * crudo era restar 20 a un pedido en córdobas por una devolución de `US$20`.
        */
       refunds: {
         where: { status: "approved" },
-        select: { amount: true },
+        select: {
+          amount: true,
+          currency: true,
+          baseCurrencyCode: true,
+          exchangeRate: true,
+          baseAmount: true,
+        },
       },
     },
   });
+
+  /**
+   * `A-74` — la moneda en la que está expresado el neto. Sale de la configuración del negocio: convertir una
+   * devolución en dólares contra un neto en córdobas necesita saber cuál es la moneda base, y `money` es su
+   * dueño.
+   */
+  const businessSettings = await loadBusinessSettings({
+    repository: new PrismaBusinessSettingsRepository(),
+  });
+  const baseCurrencyCode = businessSettings.currencyCode;
 
   const data = aggregateOverviewPerformance({
     channel,
@@ -95,8 +118,24 @@ export async function getAdminOverviewPerformance(
       type: order.type,
       status: order.status,
       total: toNumber(order.total),
+      /**
+       * La devolución se convierte con **su** snapshot. Una devolución legacy cuyo equivalente no se puede
+       * demostrar devuelve `null` y **no** se resta: el neto no inventa una equivalencia (`D-020`). El
+       * hallazgo (`A-74`) queda cerrado; que esa devolución legacy no se pueda imputar es una decisión de
+       * producto declarada, no un número inventado.
+       */
       refundedAmount: (order.refunds ?? []).reduce(
-        (sum, refund) => sum + toNumber(refund.amount),
+        (sum, refund) =>
+          sum +
+          (refundBaseAmount({
+            refund: {
+              amount: toNumber(refund.amount),
+              currency: refund.currency,
+              baseCurrencyCode: refund.baseCurrencyCode,
+              baseAmount: refund.baseAmount === null ? null : toNumber(refund.baseAmount),
+            },
+            baseCurrencyCode,
+          }) ?? 0),
         0,
       ),
       statusHistory: order.statusHistory,

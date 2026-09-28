@@ -117,3 +117,47 @@ export function sumPaymentTotals(input: PaymentTotalsInput): PaymentTotals {
 export function hasMixedMethods(methods: readonly string[]): boolean {
   return new Set(methods).size > 1;
 }
+
+/**
+ * `TASK-MONEY-PAYMENTS-RUNTIME-001` (`A-74`, `D-020`) — **el equivalente en moneda base de una devolución**.
+ *
+ * El dashboard restaba `Refund.amount` **crudo** del total del pedido, ignorando `Refund.currency`: una
+ * devolución de `US$20` sobre un pedido en córdobas restaba 20 al neto en vez de su equivalente. Es la
+ * contracara de `A-58` (que ya había cerrado *qué* se descuenta) y un caso de `A-69` que quedó fuera de su
+ * lista.
+ *
+ * La regla es la misma que la del cobro, y por eso vive al lado:
+ *
+ * 1. si la devolución congeló su `baseAmount`, se usa **ese** hecho;
+ * 2. si su moneda **es** la moneda base, el equivalente es una **identidad** (`20 NIO` vale `20 NIO`), no
+ *    una conversión;
+ * 3. si no, se resuelve sólo con un dato persistido que lo demuestre —nunca con la tasa vigente (`D-020`)—;
+ * 4. y si no se puede demostrar, devuelve **`null`**: la devolución se declara, no se resta un número que
+ *    nadie puede explicar.
+ */
+export function refundBaseAmount(input: {
+  refund: {
+    amount: number;
+    currency: string;
+    baseCurrencyCode?: string | null;
+    baseAmount?: number | null;
+  };
+  baseCurrencyCode: string;
+  demonstratedBaseAmount?: number | null;
+}): number | null {
+  const base = currencyKey(input.baseCurrencyCode);
+  const refundBase = input.refund.baseCurrencyCode ? currencyKey(input.refund.baseCurrencyCode) : null;
+  const stored = input.refund.baseAmount ?? null;
+
+  if (stored !== null && refundBase !== null) {
+    // Una devolución convertida contra **otra** moneda base conserva su equivalente: cambiar la base no
+    // recalcula nada (`D-018`).
+    return refundBase === base ? roundCurrency(stored) : null;
+  }
+
+  if (currencyKey(input.refund.currency) === base) return roundCurrency(input.refund.amount);
+
+  const demonstrated = input.demonstratedBaseAmount ?? null;
+
+  return demonstrated === null ? null : roundCurrency(demonstrated);
+}

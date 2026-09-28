@@ -7,6 +7,19 @@ vi.mock("@/infrastructure/database/prisma", () => ({
     order: {
       findMany: orderFindManyMock,
     },
+    /**
+     * `TASK-MONEY-PAYMENTS-RUNTIME-001` (`A-74`) — la moneda base sale de la configuración del negocio. Sin
+     * este doble, el caso de uso caía a los valores por defecto y el test no probaba la conversión con la
+     * configuración **real**.
+     */
+    businessSettings: {
+      findUnique: async () => ({
+        currencyCode: "NIO",
+        currencySymbol: "C$",
+        locale: "es-NI",
+        usdExchangeRate: 36.5,
+      }),
+    },
   }),
 }));
 
@@ -179,12 +192,102 @@ describe("getAdminOverviewPerformance", () => {
         },
         // TASK-AUD-015 (`A-58`): la consulta también trae el importe devuelto de cada pedido, porque la
         // métrica comercial usa el **neto** (contrato de la consulta que cambió con la TASK).
+        //
+        // `TASK-MONEY-PAYMENTS-RUNTIME-001` (`A-74`): y trae la **moneda y el snapshot** de la devolución.
+        // Restar el monto crudo era restar 20 a un neto en córdobas por una devolución de US$20.
         refunds: {
           where: { status: "approved" },
-          select: { amount: true },
+          select: {
+            amount: true,
+            currency: true,
+            baseCurrencyCode: true,
+            exchangeRate: true,
+            baseAmount: true,
+          },
         },
       },
     });
+  });
+
+  /**
+   * `TASK-MONEY-PAYMENTS-RUNTIME-001` (`A-74`) — **el neto descuenta el equivalente, no el monto crudo**.
+   *
+   * Una devolución de `US$20` sobre un pedido en córdobas: el neto tiene que bajar 20 × 36.5 = `C$730`, no
+   * `20`. El `expected` sale de la regla del negocio (monto × tasa), no del helper bajo prueba.
+   */
+  it("descuenta la devolución en su equivalente cuando está en otra moneda (A-74)", async () => {
+    orderFindManyMock.mockResolvedValueOnce([
+      {
+        id: "order-refunded",
+        type: "pickup",
+        status: "picked_up",
+        total: decimal(1000),
+        statusHistory: [
+          { status: "picked_up", createdAt: new Date("2026-07-20T15:00:00.000Z") },
+        ],
+        items: [
+          { productId: "product-a", productName: "Tostada", quantity: 1, lineTotal: decimal(1000) },
+        ],
+        refunds: [
+          {
+            amount: decimal(20),
+            currency: "USD",
+            baseCurrencyCode: "NIO",
+            exchangeRate: decimal(36.5),
+            baseAmount: decimal(730),
+          },
+        ],
+      },
+    ]);
+
+    const result = await getAdminOverviewPerformance(
+      "7d",
+      "all",
+      "America/Managua",
+      new Date("2026-07-22T18:30:00.000Z"),
+    );
+
+    // 1000 − 730 = 270.
+    expect(result.data.metrics.completedOrderValue.current).toBe(270);
+  });
+
+  /**
+   * `A-74` + `D-020` — una devolución **legacy** cuyo equivalente no se puede demostrar no se resta: el neto
+   * no inventa una equivalencia con la tasa de hoy. Queda declarada como no imputable.
+   */
+  it("no resta una devolución legacy sin snapshot demostrable (D-020)", async () => {
+    orderFindManyMock.mockResolvedValueOnce([
+      {
+        id: "order-legacy-refund",
+        type: "pickup",
+        status: "picked_up",
+        total: decimal(1000),
+        statusHistory: [
+          { status: "picked_up", createdAt: new Date("2026-07-20T15:00:00.000Z") },
+        ],
+        items: [
+          { productId: "product-a", productName: "Tostada", quantity: 1, lineTotal: decimal(1000) },
+        ],
+        refunds: [
+          {
+            amount: decimal(20),
+            currency: "USD",
+            baseCurrencyCode: null,
+            exchangeRate: null,
+            baseAmount: null,
+          },
+        ],
+      },
+    ]);
+
+    const result = await getAdminOverviewPerformance(
+      "7d",
+      "all",
+      "America/Managua",
+      new Date("2026-07-22T18:30:00.000Z"),
+    );
+
+    expect(result.data.metrics.completedOrderValue.current).toBe(1000);
   });
 
   it("uses the selected permitted channel without broadening to table", async () => {

@@ -56,7 +56,20 @@ export type InvoiceBranchSnapshot = {
 export type EmitInvoiceDependencies = {
   invoiceRepository: InvoiceRepository;
   findOrder: (orderId: string) => Promise<InvoiceOrderLookup | null>;
-  countPayments: (orderId: string) => Promise<number>;
+  /**
+   * `TASK-MONEY-PAYMENTS-RUNTIME-001` (`D-021`) — **el estado financiero canónico del pedido**.
+   *
+   * Reemplaza al viejo `countPayments: (orderId) => Promise<number>`, que sólo sabía contar filas: contar
+   * cobros no es saber si el pedido está cobrado. La definición de «pagado» es de `payments`; acá se
+   * **consume**. Devuelve los tres montos porque el mensaje del rechazo tiene que poder decir **cuánto
+   * falta** —y cuánto no se puede demostrar— sin que este módulo lo recalcule.
+   */
+  getOrderPaymentStatus: (orderId: string) => Promise<{
+    status: "pending" | "partial" | "paid";
+    paidAmount: number;
+    outstandingAmount: number;
+    unresolvedAmount: number;
+  }>;
   /**
    * La sucursal del pedido. Se **congela** en el documento: una factura es un papel entregado y no puede
    * cambiar porque mañana se edite la dirección del local. Sin sucursal (o sin datos) el bloque no se
@@ -158,9 +171,15 @@ export async function emitInvoice(
     });
   }
 
+  /**
+   * `TASK-MONEY-PAYMENTS-RUNTIME-001` (`D-021`) — la puerta es el **estado financiero canónico**, no un
+   * conteo de cobros. `paid` estricto: `pending` y `partial` no facturan, y **ningún rol** autoriza una
+   * excepción (el owner que emite pasa por acá igual).
+   */
+  const financial = await deps.getOrderPaymentStatus(input.orderId);
   const check = canEmitInvoiceFor({
     status: order.status,
-    hasPayments: (await deps.countPayments(input.orderId)) > 0,
+    paymentStatus: financial.status,
   });
   if (!check.ok) {
     throw new InvoiceError(409, "CONFLICT", check.message, { invoice: check.message });
