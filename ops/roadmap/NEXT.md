@@ -7,19 +7,21 @@
 
 ## ACTIVE
 
-**`TASK-MONEY-PAYMENTS-RUNTIME-001`** (Money / Payments runtime, órdenes **4 y 5** en **una sola TASK**,
-`high-risk-e2e`): **implementada y en PR** ([#85](https://github.com/danielmaki123/one-burger-commerce/pull/85)),
-esperando el CI. Creó los módulos `money` y `payments`, las **nueve migraciones** del catálogo, las tasas, el
-snapshot y la idempotencia, la puerta de la factura con **`paid` estricto** (`D-021`) y la superficie
-`/admin/finance`. Cerró `A-68`, `A-71`, `A-72`, `A-73`, `A-74` y `A-75`; `A-69` quedó **parcial** (la suma
-cruda multi-moneda de `pos-payment.tsx` sigue abierta). Estado y evidencia: [`../CURRENT.md`](../CURRENT.md).
+**Ninguno.** Money / Payments runtime (órdenes **4 y 5** del roadmap maestro, en **una sola TASK**,
+`high-risk-e2e`) quedó **cerrada, mergeada y desplegada**: creó los módulos `money` y `payments`, las
+**nueve migraciones** del catálogo, las tasas, el snapshot y la idempotencia, la puerta de la factura con
+**`paid` estricto** (`D-021`) y la superficie `/admin/finance`; cerró `A-68`, `A-69`, `A-71`, `A-72`, `A-73`,
+`A-74` y `A-75` **enteros**. Producción sirve `build-20260928-235256` sobre `main` = `5a99185`, **sin deriva**.
+Estado y evidencia: [`../CURRENT.md`](../CURRENT.md).
 **Una sola TASK activa por vez**: la próxima no se abre sin **autorización explícita del owner**.
 
 ## NEXT
 
 **`Pedidos runtime`** (orden **5b** del roadmap maestro): el recorte financiero del detalle compartido
-(el remanente de `A-60`), el cobro de un pedido existente desde Órdenes (`A-67`) y la clasificación de los
-read models. Necesita su brief y su aprobación. **No se abre por iniciativa propia.**
+(el remanente de `A-60`) y la clasificación de los read models. **No incluye todavía el cobro real de un
+pedido existente ni su handoff al POS**: eso es el orden **6** («Pedido existente → Cobrar en POS»), que
+**compone** el backend que ya existe (`POST /api/admin/orders/[id]/payment`) y cierra `A-67`. Necesita su
+brief y su aprobación. **No se abre por iniciativa propia.**
 
 ## LATER
 

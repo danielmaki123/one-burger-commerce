@@ -72,15 +72,14 @@ falta reconstruir por qué algo es como es. Es lo que evita leer 3.000 líneas p
   Ese archivo dice qué sigue, con su objetivo, prioridad, riesgo y dependencia.
 - **Arquitectura de producto (hoy y objetivo)**: [`../product/MODULE_ARCHITECTURE.md`](../product/MODULE_ARCHITECTURE.md).
 - **Plantilla obligatoria de TASK**: [`TEMPLATE.md`](TEMPLATE.md).
-- **Lo que sigue**: **una sola próxima TASK**, `Money / Payments runtime` (órdenes **4 y 5** del roadmap
-  maestro, **una sola entrega**). Sus **fundaciones ya están cerradas** (`TASK-MONEY-PAYMENTS-FOUNDATIONS-001`,
-  `docs-only`): auditoría real de los dos subsistemas, ownership resuelto, contratos (estado financiero
-  canónico, snapshot de `Payment`, idempotencia, boundaries), legacy sin backfill, migraciones enumeradas y
-  **Design Freeze de Finanzas** (`ops/design/screens/finance.md` + `finance-reference.html`, referencia
-  aprobada por el owner el 2026-09-27). Después **`Pedidos runtime`** (5b), que es donde vive el recorte
-  financiero del detalle. **`Cocina runtime`** (orden 3b) **ya está cerrada y desplegada**. El alcance exacto y
-  lo que está **prohibido duplicar** están en `ops/roadmap/NEXT.md` y en el brief de fundaciones; las specs
-  congeladas, en [`../design/screens/orders.md`](../design/screens/orders.md),
+- **Lo que sigue**: **una sola próxima TASK**, **`Pedidos runtime`** (orden **5b** del roadmap maestro): el
+  recorte financiero del detalle compartido (remanente de `A-60`) y la clasificación de los read models.
+  **No incluye todavía el cobro real de un pedido existente ni su handoff al POS**: eso es el orden **6**
+  («Pedido existente → Cobrar en POS»), que **compone** el backend que ya existe
+  (`POST /api/admin/orders/[id]/payment`) y cierra `A-67`. **`Money / Payments runtime`** (órdenes 4 y 5) y
+  **`Cocina runtime`** (orden 3b) **ya están cerradas y desplegadas**: no se retoman sin pedido del owner.
+  El alcance exacto está en `ops/roadmap/NEXT.md`; las specs congeladas, en
+  [`../design/screens/orders.md`](../design/screens/orders.md),
   [`../design/screens/kitchen.md`](../design/screens/kitchen.md) y
   [`../design/screens/finance.md`](../design/screens/finance.md). **No se arranca `Resumen`** (pasó al orden
   16) ni una «POS Fase 2» (esa fase ya no existe).

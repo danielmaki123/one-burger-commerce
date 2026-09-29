@@ -4,10 +4,11 @@
 > [roadmap maestro](../roadmap/PRODUCT-UX-ROADMAP.md) en **una sola TASK**, como decidió
 > [`NEXT.md`](../roadmap/NEXT.md). **Mergeada** en `main` (PRs
 > [#85](https://github.com/danielmaki123/one-burger-commerce/pull/85),
-> [#87](https://github.com/danielmaki123/one-burger-commerce/pull/87) y
-> [#89](https://github.com/danielmaki123/one-burger-commerce/pull/89) y
-> [#91](https://github.com/danielmaki123/one-burger-commerce/pull/91)) con los **cuatro checks del CI en
-> verde**, y **desplegada por el owner** el 2026-09-28 (`build-20260928-200305`).
+> [#87](https://github.com/danielmaki123/one-burger-commerce/pull/87),
+> [#89](https://github.com/danielmaki123/one-burger-commerce/pull/89),
+> [#91](https://github.com/danielmaki123/one-burger-commerce/pull/91) y
+> [#96](https://github.com/danielmaki123/one-burger-commerce/pull/96)) con los **cuatro checks del CI en
+> verde**, y **desplegada por el owner**: último build, **`build-20260928-235256`**.
 >
 > **Base `main`**: `8f535d587c36bf6d63a3411e38b467dc093ff558` (`8f535d5`, 2026-09-28) · **Rama**:
 > `feature/money-payments-runtime` (mergeada y borrada) · **Delivery Mode**: **`high-risk-e2e`** (dinero +
@@ -34,9 +35,10 @@
 | PR + CI verde (los cuatro checks) | **Hecho**: PR #85 — `verify`, `contracts`, `migrations`, `container` |
 | Merge `--squash` a `main` | **Hecho**: `2cbda9b` |
 | **Auditoría independiente** (implementación vs SPEC/reference) | **Hecho** (PR #87, `5082ea5`): encontró **un crash**, **un desborde** y una **desviación material** de composición, y los corrigió. Ver § *Visual QA de Finanzas* |
-| **Deploy** | **Hecho por el owner** el 2026-09-28: `build-20260928-200305`, con las tres superficies en `ok` |
-| Health / readiness / smokes | **Hecho**: `/api/health` `build-20260928-200305`, `/api/readiness` `ready`, smokes **menú 7/7** y **hosts 6/6** |
+| **Deploy** | **Hecho por el owner**: `build-20260928-200305` primero y, tras los arreglos #91/#96, **`build-20260928-235256`** desde `main` = `5a99185`, con las tres superficies en `ok`. Ninguno de los dos trajo migraciones nuevas |
+| Health / readiness / smokes | **Hecho** sobre el build final: `/api/health` `build-20260928-235256` en los tres hosts, `/api/readiness` `ready`, smokes **menú 7/7** y **hosts 6/6** |
 | QA **autenticada** de `/admin/finance` en producción | **Hecha** (`tests/e2e/admin-finance.spec.ts`, **6/6** con sesión real sobre `admin.oneburgernic.com`): los cuatro viewports del contrato sin scroll horizontal, las tres vistas y que `mixed` no se ofrece como tipo (`D-017`). *Monedas y tasas* —donde la QA local había encontrado el crash— se dibuja con los datos reales (`USD` a `36.7`) |
+| Verificación de los **dos arreglos post-build** contra el build servido | **Hecho**: **#91** presente (marcadores de UI en los chunks del panel, con sesión real); **#96** desplegado (el detalle real de un turno trae la clave `exchangeRate`; el cierre inspeccionado la trae en `null` porque es anterior al arreglo, y **no hubo cierres nuevos** después del deploy, así que la **escritura** se prueba contra **PostgreSQL real**, no contra producción) |
 | `CURRENT.md` / `NEXT.md` / backlog | **Hecho** |
 
 **Lo que el CI encontró y el local no**: el chequeo de idempotencia del cobro corría **antes** del lock, así
