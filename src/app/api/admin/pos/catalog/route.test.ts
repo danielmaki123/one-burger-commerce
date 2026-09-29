@@ -41,6 +41,26 @@ vi.mock("@/modules/pos/adapters/production-pos-location", () => ({
   }),
 }));
 
+/**
+ * `TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002` (`A-85`) — la ruta publica el **contexto monetario** y las
+ * monedas aceptadas junto con el catálogo. El doble evita que el unitario dependa de una base: el job
+ * `verify` del CI no tiene `DATABASE_URL`.
+ */
+vi.mock("@/modules/money/adapters/production-money-context", () => ({
+  readProductionMoney: async () => ({
+    context: {
+      baseCurrencyCode: "NIO",
+      locale: "es-NI",
+      rates: { USD: 36.5 },
+      knownCurrencyCodes: ["NIO", "USD"],
+    },
+    currencies: [
+      { code: "NIO", name: "Córdoba", symbol: "C$", decimals: 2, isBase: true },
+      { code: "USD", name: "Dólar", symbol: "US$", decimals: 2, isBase: false },
+    ],
+  }),
+}));
+
 function product(over: Partial<ProductRecord> & { id: string; name: string }): ProductRecord {
   return {
     categoryId: "cat_tacos",

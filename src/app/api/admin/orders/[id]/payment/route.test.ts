@@ -49,6 +49,26 @@ vi.mock("@/app/api/admin/pos/pos-route-helpers", () => ({
   requirePosLocation: (input: unknown) => requirePosLocationMock(input),
 }));
 
+/**
+ * `TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002` (`A-83`) — la composición lee la moneda base y las tasas de
+ * **`money`**. El doble existe porque el job `verify` del CI corre los unitarios **sin** `DATABASE_URL`: un
+ * adaptador real que instancia Prisma haría fallar la ruta con 500 en vez de ejercitar la regla.
+ */
+vi.mock("@/modules/money/adapters/production-money-context", () => ({
+  readProductionMoney: async () => ({
+    context: {
+      baseCurrencyCode: "NIO",
+      locale: "es-NI",
+      rates: { USD: 36.5 },
+      knownCurrencyCodes: ["NIO", "USD"],
+    },
+    currencies: [
+      { code: "NIO", name: "Córdoba", symbol: "C$", decimals: 2, isBase: true },
+      { code: "USD", name: "Dólar", symbol: "US$", decimals: 2, isBase: false },
+    ],
+  }),
+}));
+
 vi.mock("@/modules/orders/features/register-order-payment/register-order-payment", () => ({
   registerOrderPayment: (input: unknown, deps: unknown) => registerOrderPaymentMock(input, deps),
 }));
