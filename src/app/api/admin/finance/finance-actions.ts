@@ -140,12 +140,23 @@ export async function readFinanceConfig() {
     include: { locations: { select: { locationId: true, isActive: true } } },
   });
 
+  /**
+   * `A-86` — **las sucursales**, para que la pantalla pueda editar la disponibilidad del medio: la referencia
+   * congelada pide «Todos los locales / Locales seleccionados» y sin la lista no hay entre qué elegir.
+   */
+  const locations = await prisma.location.findMany({
+    orderBy: { name: "asc" },
+    select: { id: true, name: true, isActive: true },
+  });
+
   return {
     settings: { ...settings, rateHistory },
     /** El catálogo conocido es conveniencia del formulario, no una restricción (`D-019`). */
     knownCurrencies: KNOWN_CURRENCIES,
     knownLocales: KNOWN_LOCALES,
     entities: bankCatalog.banks,
+    /** `A-86` — las sucursales donde un medio puede ofrecerse. */
+    locations,
     paymentMethods: paymentMethods.map((method) => ({
       id: method.id,
       name: method.name,

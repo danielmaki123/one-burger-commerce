@@ -27,6 +27,8 @@ export type FinanceCurrency = {
   isKnown: boolean;
   isActive: boolean;
   sortOrder: number;
+  /** `A-86` — los locales donde se ofrece el medio. Vacío = todos. */
+  locationIds: string[];
 };
 
 /**
@@ -61,6 +63,8 @@ export type FinancePaymentMethod = {
   requiresReference: boolean;
   isActive: boolean;
   sortOrder: number;
+  /** `A-86` — los locales donde se ofrece el medio. Vacío = todos. */
+  locationIds: string[];
 };
 
 export type FinanceEntity = {
@@ -70,6 +74,8 @@ export type FinanceEntity = {
   entityType?: string;
   isActive: boolean;
   sortOrder: number;
+  /** `A-86` — los locales donde se ofrece el medio. Vacío = todos. */
+  locationIds: string[];
 };
 
 export type FinanceConfig = {
@@ -78,6 +84,8 @@ export type FinanceConfig = {
   knownLocales: { value: string; label: string }[];
   entities: FinanceEntity[];
   paymentMethods: FinancePaymentMethod[];
+  /** `A-86` — las sucursales donde un medio puede ofrecerse. */
+  locations: { id: string; name: string; isActive: boolean }[];
 };
 
 type ApiResult<T> = { ok: true; data: T } | { ok: false; message: string; fields?: Record<string, string> };
@@ -108,6 +116,8 @@ type FinanceCommand =
         currencyCodes?: string[];
         requiresReference?: boolean;
         isActive?: boolean;
+        /** `A-86` — la disponibilidad por sucursal. Vacío = todos los locales. */
+        locationIds?: string[];
       };
     }
   | {
