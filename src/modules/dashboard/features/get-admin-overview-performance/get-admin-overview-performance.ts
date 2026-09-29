@@ -1,6 +1,4 @@
 import { getPrismaClient } from "@/infrastructure/database/prisma";
-import { PrismaBusinessSettingsRepository } from "@/modules/business-settings/adapters/prisma-business-settings-repository";
-import { loadBusinessSettings } from "@/modules/business-settings/features/get-public-business-settings/get-public-business-settings";
 import {
   aggregateOverviewPerformance,
   COMPLETED_ORDER_STATUSES,
@@ -15,6 +13,7 @@ import type {
   OverviewPeriod,
   OverviewRange,
 } from "@/modules/dashboard/domain/admin-overview.types";
+import { readProductionMoney } from "@/modules/money/adapters/production-money-context";
 import { refundBaseAmount } from "@/modules/payments/domain/payment-totals";
 
 function serializeRange(range: OverviewRange) {
@@ -103,11 +102,13 @@ export async function getAdminOverviewPerformance(
    * `A-74` — la moneda en la que está expresado el neto. Sale de la configuración del negocio: convertir una
    * devolución en dólares contra un neto en córdobas necesita saber cuál es la moneda base, y `money` es su
    * dueño.
+   *
+   * `TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002` (`A-83`) — y sale de **`money`**, no de
+   * `BusinessSettings.currencyCode`: la autoridad monetaria es una sola, y el dashboard **no** convierte
+   * (sólo consume el equivalente ya congelado de cada devolución).
    */
-  const businessSettings = await loadBusinessSettings({
-    repository: new PrismaBusinessSettingsRepository(),
-  });
-  const baseCurrencyCode = businessSettings.currencyCode;
+  const money = await readProductionMoney();
+  const baseCurrencyCode = money.context.baseCurrencyCode;
 
   const data = aggregateOverviewPerformance({
     channel,

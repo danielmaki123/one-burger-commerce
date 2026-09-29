@@ -18,7 +18,7 @@ describe("getCashConfig", () => {
 
     expect(config).toMatchObject({
       locationId: "loc_norte",
-      usdEnabled: false,
+      countedCurrencyCodes: [],
       blindCount: true,
       updatedAt: null,
       updatedByUserId: null,
@@ -35,13 +35,13 @@ describe("getCashConfig", () => {
 
   it("devuelve lo guardado cuando la sucursal ya tiene fila", async () => {
     const repository = new InMemoryCashConfigRepository();
-    await repository.saveLocationConfig("loc_norte", { usdEnabled: true, blindCount: false }, {
+    await repository.saveLocationConfig("loc_norte", { countedCurrencyCodes: ["USD"], blindCount: false }, {
       updatedByUserId: "user_owner",
     });
 
     const config = await getCashConfig({ locationId: "loc_norte" }, { repository });
 
-    expect(config.usdEnabled).toBe(true);
+    expect(config.countedCurrencyCodes).toEqual(["USD"]);
     expect(config.blindCount).toBe(false);
     expect(config.updatedByUserId).toBe("user_owner");
   });

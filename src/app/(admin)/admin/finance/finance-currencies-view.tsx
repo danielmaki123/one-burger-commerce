@@ -437,7 +437,12 @@ export default function FinanceCurrenciesView({ config, api, run }: FinanceViewP
                 className="min-h-11"
                 onClick={() =>
                   void run(
-                    () => api.changeBaseCurrency({ code: base, locale: localeDraft.locale }),
+                    /**
+                     * `A-87` — el formato se guarda **solo**: antes esto llamaba a `changeBaseCurrency` con la
+                     * base vigente, y el dominio lo rechaza con `409` («ya es la moneda base»), así que el
+                     * modal no guardaba nada.
+                     */
+                    () => api.updateLocale({ locale: localeDraft.locale }),
                     "Formato actualizado.",
                   ).then((ok) => {
                     if (ok) setLocaleDraft(null);

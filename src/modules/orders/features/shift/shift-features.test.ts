@@ -130,8 +130,7 @@ function buildDeps() {
     locationRepository,
     bankRepository,
     // TASK-305: el arqueo convierte los cobros en dólares con la tasa configurada.
-    businessCurrencyCode: "NIO",
-    usdExchangeRate: 36.5,
+    money: { baseCurrencyCode: "NIO", locale: "es-NI", rates: { USD: 36.5 }, knownCurrencyCodes: ["NIO", "USD"] },
     /**
      * TASK-AUD-005 — el cierre corre adentro de una unidad de trabajo: el doble entrega los mismos
      * repositorios y resuelve el bloqueo del turno contra el repositorio en memoria. La atomicidad real
@@ -447,7 +446,11 @@ describe("closeShift", () => {
   it("sin tasa cargada rechaza un cuadre en dólares en vez de inventar el número", async () => {
     // Un cuadre con un número inventado es peor que un cuadre que no se puede firmar: la diferencia se
     // convertiría con una tasa que el negocio nunca fijó.
-    const deps = { ...buildDeps(), usdExchangeRate: null };
+    const deps = {
+      ...buildDeps(),
+      // Sin tasa vigente para el dólar: el contexto monetario la trae vacía (`A-83`).
+      money: { baseCurrencyCode: "NIO", locale: "es-NI", rates: {}, knownCurrencyCodes: ["NIO", "USD"] },
+    };
     const opened = await openShift({ locationId: "loc_principal", userId: "user_01" }, deps);
 
     await expect(

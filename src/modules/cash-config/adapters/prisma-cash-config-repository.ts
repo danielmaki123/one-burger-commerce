@@ -27,7 +27,7 @@ import type {
 function mapLocationConfig(row: LocationCashConfig): LocationCashConfigRecord {
   return {
     locationId: row.locationId,
-    usdEnabled: row.usdEnabled,
+    countedCurrencyCodes: row.countedCurrencyCodes,
     blindCount: row.blindCount,
     updatedAt: row.updatedAt.toISOString(),
     updatedByUserId: row.updatedByUserId,
@@ -52,12 +52,14 @@ export class PrismaCashConfigRepository implements CashConfigRepository {
 
   async saveLocationConfig(
     locationId: string,
-    patch: Pick<CashConfigPatch, "usdEnabled" | "blindCount">,
+    patch: Pick<CashConfigPatch, "countedCurrencyCodes" | "blindCount">,
     meta: UpdateCashConfigMeta = {},
   ): Promise<LocationCashConfigRecord> {
     const updatedByUserId = meta.updatedByUserId ?? null;
     const data = {
-      ...(patch.usdEnabled !== undefined ? { usdEnabled: patch.usdEnabled } : {}),
+      ...(patch.countedCurrencyCodes !== undefined
+        ? { countedCurrencyCodes: patch.countedCurrencyCodes }
+        : {}),
       ...(patch.blindCount !== undefined ? { blindCount: patch.blindCount } : {}),
     };
 

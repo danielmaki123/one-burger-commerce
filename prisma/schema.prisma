@@ -247,7 +247,15 @@ model Location {
 model LocationCashConfig {
   id              String   @id @default(cuid())
   locationId      String   @unique
+  /// **Legacy** (`TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002`, `A-88`) — el interruptor booleano del
+  /// dólar. Se conserva mientras la app vieja pueda leer la fila y porque su valor es el **insumo
+  /// determinístico** de la migración que llenó `countedCurrencyCodes`. Ya **no** es la estructura: qué
+  /// monedas se cuentan en una sucursal es una **lista**, y una moneda nueva no necesita una columna nueva.
   usdEnabled      Boolean  @default(false)
+  /// `A-88` — **las monedas contables de la sucursal**, por código. La moneda base del negocio está
+  /// siempre (el arqueo no puede quedarse sin poder contar lo que más entra); el resto se elige. Vacío en
+  /// una fila nueva = sólo la base.
+  countedCurrencyCodes String[] @default([])
   blindCount      Boolean  @default(true)
   updatedAt       DateTime @updatedAt
   /// Auditoría de la config (decisión del owner, 2026-09-22).
@@ -724,6 +732,16 @@ model Order {
   tipAmount            Decimal              @default(0) @db.Decimal(10, 2)
   tipRate              Decimal?             @db.Decimal(5, 2)
   total                Decimal              @db.Decimal(10, 2)
+  /// `TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002` (`A-89`, `D-022`) — **la moneda en la que están
+  /// expresados los montos de arriba**, congelada al crear el pedido.
+  ///
+  /// Sin esto, `total = 365` no dice si son córdobas o dólares: lo único que lo explicaba era
+  /// `BusinessSettings.currencyCode`, que es configuración **mutable**. Cuando la moneda base cambie, todos
+  /// los pedidos viejos pasarían a significar otra cosa y su deuda quedaría **indemostrable** (ley 7).
+  ///
+  /// Nullable y **sin backfill**: los pedidos anteriores a esta columna no tienen moneda demostrable —no se
+  /// les inventa una con la configuración de hoy (`D-020`)— y quedan como legacy/`unresolved`.
+  currencyCode         String?
   deliveryZoneId       String?
   customerLat          Decimal?             @db.Decimal(10, 8)
   customerLng          Decimal?             @db.Decimal(10, 8)
@@ -1141,7 +1159,17 @@ model Shift {
   /// sus montos desde siempre, pero no la tasa que los convirtió: sin ella, `expectedByCurrency` no se puede
   /// explicar después sin volver a la configuración de hoy. `null` en los cierres anteriores (no se
   /// re-firman ni se recalculan: siguen valiendo como documento).
+  ///
+  /// Queda como **legacy** del caso de un solo par de monedas (`TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002`,
+  /// `A-90`): un cierre con tres monedas contables no se explica con un escalar.
   exchangeRate         Decimal?         @db.Decimal(18, 8)
+  /// `A-90` — **la moneda base contra la que se firmó este cierre**. `null` en los anteriores (no se
+  /// re-firman). Sin esto, `expectedByCurrency` no dice en qué unidad está el esperado.
+  baseCurrencyCode     String?
+  /// `A-90` — **la tasa aplicada a cada moneda contable** del cierre (`{"USD": 36.5}`). Es la forma general
+  /// del `exchangeRate` escalar: un cierre con N monedas se explica con N tasas, sin agregar una columna por
+  /// moneda (`eurRate`, `mxnRate`) cada vez que el negocio suma una.
+  exchangeRatesByCurrency Json?
   /// `closingAmount - expectedAmount`. Negativo = faltó plata.
   difference           Decimal?         @db.Decimal(10, 2)
   /// Fase 3 del rediseño de Caja (2026-09-23) — la diferencia **del cuadre por banco** (lo declarado

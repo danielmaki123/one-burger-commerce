@@ -7,19 +7,26 @@ vi.mock("@/infrastructure/database/prisma", () => ({
     order: {
       findMany: orderFindManyMock,
     },
-    /**
-     * `TASK-MONEY-PAYMENTS-RUNTIME-001` (`A-74`) — la moneda base sale de la configuración del negocio. Sin
-     * este doble, el caso de uso caía a los valores por defecto y el test no probaba la conversión con la
-     * configuración **real**.
-     */
-    businessSettings: {
-      findUnique: async () => ({
-        currencyCode: "NIO",
-        currencySymbol: "C$",
-        locale: "es-NI",
-        usdExchangeRate: 36.5,
-      }),
+  }),
+}));
+
+/**
+ * `TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002` (`A-83`) — la moneda en la que está expresado el neto la
+ * declara **`money`**, no la configuración de branding. El dashboard **no convierte**: sólo consume el
+ * equivalente ya congelado de cada devolución y necesita saber contra qué base está expresado.
+ */
+vi.mock("@/modules/money/adapters/production-money-context", () => ({
+  readProductionMoney: async () => ({
+    context: {
+      baseCurrencyCode: "NIO",
+      locale: "es-NI",
+      rates: { USD: 36.5 },
+      knownCurrencyCodes: ["NIO", "USD"],
     },
+    currencies: [
+      { code: "NIO", name: "Córdoba", symbol: "C$", decimals: 2, isBase: true },
+      { code: "USD", name: "Dólar", symbol: "US$", decimals: 2, isBase: false },
+    ],
   }),
 }));
 

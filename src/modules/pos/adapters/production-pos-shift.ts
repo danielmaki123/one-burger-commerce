@@ -1,10 +1,9 @@
 import { PrismaBankRepository } from "@/modules/banks/adapters/prisma-bank-repository";
-import { PrismaBusinessSettingsRepository } from "@/modules/business-settings/adapters/prisma-business-settings-repository";
-import { loadBusinessSettings } from "@/modules/business-settings/features/get-public-business-settings/get-public-business-settings";
 import { PrismaCashConfigRepository } from "@/modules/cash-config/adapters/prisma-cash-config-repository";
 import { getCashCountConfigs } from "@/modules/cash-config/features/get-cash-count-configs/get-cash-count-configs";
 import { getPrismaClient } from "@/infrastructure/database/prisma";
 import { PrismaLocationRepository } from "@/modules/locations/adapters/prisma-location-repository";
+import { readProductionMoney } from "@/modules/money/adapters/production-money-context";
 import { PrismaCashMovementRepository } from "@/modules/orders/adapters/prisma-cash-movement-repository";
 import { PrismaPaymentRepository } from "@/modules/orders/adapters/prisma-payment-repository";
 import { PrismaRefundRepository } from "@/modules/orders/adapters/prisma-refund-repository";
@@ -30,14 +29,19 @@ import {
  * bloqueo la ventana existía y la plata quedaba fuera de todo arqueo.
  */
 export async function createProductionPosShiftDependencies(input: { locationId?: string } = {}) {
-  const settings = await loadBusinessSettings({
-    repository: new PrismaBusinessSettingsRepository(),
-  });
+  /**
+   * `TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002` (`A-83`) — **la autoridad monetaria es `money`**.
+   *
+   * Antes el cierre leía `settings.currencyCode` + `settings.usdExchangeRate` de `BusinessSettings`,
+   * mientras `/admin/finance` escribe en `BusinessCurrencySettings` + `ExchangeRate`. Un cambio de tasa en
+   * Finanzas no llegaba al arqueo, que firmaba su esperado con el número viejo.
+   */
+  const { context: money } = await readProductionMoney();
 
   const cashCountConfig = input.locationId
     ? (
         await getCashCountConfigs(
-          { locationIds: [input.locationId], businessCurrencyCode: settings.currencyCode },
+          { locationIds: [input.locationId], businessCurrencyCode: money.baseCurrencyCode },
           { repository: new PrismaCashConfigRepository() },
         )
       )[input.locationId]
@@ -89,8 +93,7 @@ export async function createProductionPosShiftDependencies(input: { locationId?:
           }),
         { timeout: 15_000, maxWait: 10_000 },
       ),
-    businessCurrencyCode: settings.currencyCode,
-    usdExchangeRate: settings.usdExchangeRate,
+    money,
     cashCountConfig,
     cashTerminalIds,
   };

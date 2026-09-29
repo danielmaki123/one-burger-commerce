@@ -9,30 +9,39 @@ import { Input } from "@/shared/ui/input";
 import { Select } from "@/shared/ui/select";
 
 /**
- * Fase 2 del rediseño de Caja (2026-09-22) — la pantalla de **Config de Caja** (reemplaza el placeholder).
+ * Fase 2 del rediseño de Caja (2026-09-22) + `TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002` (`A-88`) — la
+ * pantalla de **Config de Caja**.
  *
  * Una sola sucursal por vez (arriba), porque la config es de la sucursal: qué monedas cuenta y si el cajero
  * ve el esperado. Los **billetes** son del negocio y valen para todos los locales —los de córdoba son los
  * mismos en las tres—, así que se editan una vez y se muestran siempre.
  *
- * Tres decisiones de la pantalla:
+ * Cuatro decisiones de la pantalla:
  *
+ * - Las **monedas contables son una lista**: se eligen de las monedas que `money` declara activas, no de un
+ *   interruptor que sólo existe para el dólar. Antes había un `BASE_CURRENCY = "NIO"` escrito a mano y un
+ *   booleano: sumar una tercera moneda exigía código nuevo.
  * - Un billete no se **borra**: se apaga. Los cierres viejos guardan con qué billetes se contó
  *   (`ShiftCashCount`), así que sacar la fila borraría la explicación de un arqueo ya firmado.
- * - El guardado manda **todo** lo que se está viendo (los dos flags y la lista completa de billetes): el
- *   servidor reemplaza la lista y apaga lo que no venga.
- * - La moneda del negocio no se puede apagar (no hay control para eso): se cuenta siempre.
+ * - El guardado manda **todo** lo que se está viendo (las monedas, el ciego y la lista completa de
+ *   billetes): el servidor reemplaza la lista y apaga lo que no venga.
+ * - La moneda **base** no se puede apagar (no tiene control): se cuenta siempre. La garantía la aplica el
+ *   dominio (`toCashCountConfig`), no la pantalla.
  */
-const BASE_CURRENCY = "NIO";
-
 type DenominationRow = CashConfigRecord["denominations"][number];
 
 export default function CashConfigClient({
   locations,
   initialConfig,
+  baseCurrencyCode,
+  acceptedCurrencies,
 }: {
   locations: { id: string; name: string }[];
   initialConfig: CashConfigRecord;
+  /** La moneda base vigente, de `money`: se cuenta siempre y no se elige. */
+  baseCurrencyCode: string;
+  /** Las monedas que el negocio acepta hoy: las candidatas a contarse en esta sucursal. */
+  acceptedCurrencies: string[];
 }) {
   const [locationId, setLocationId] = React.useState(initialConfig.locationId);
   const [config, setConfig] = React.useState<CashConfigRecord>(initialConfig);
@@ -80,12 +89,15 @@ export default function CashConfigClient({
     [applyConfig],
   );
 
+  /**
+   * Las monedas con grilla de billetes: la **base** siempre, las que la sucursal declaró contar y las que
+   * ya tengan filas cargadas. Antes esta lista tenía la base y `"USD"` escritos a mano (`A-88`).
+   */
   const currencies = React.useMemo(() => {
-    const fromDraft = [...new Set(draft.map((row) => row.currency))];
-    return [BASE_CURRENCY, ...fromDraft.filter((currency) => currency !== BASE_CURRENCY), "USD"].filter(
-      (currency, index, all) => all.indexOf(currency) === index,
-    );
-  }, [draft]);
+    const fromDraft = draft.map((row) => row.currency).filter((currency) => currency !== baseCurrencyCode);
+
+    return [...new Set([baseCurrencyCode, ...config.countedCurrencyCodes, ...fromDraft])];
+  }, [draft, config.countedCurrencyCodes, baseCurrencyCode]);
 
   const rowsFor = (currency: string) =>
     draft
@@ -130,7 +142,7 @@ export default function CashConfigClient({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           locationId,
-          usdEnabled: config.usdEnabled,
+          countedCurrencyCodes: config.countedCurrencyCodes,
           blindCount: config.blindCount,
           denominations: draft.map(({ currency, value, isActive }) => ({
             currency,
@@ -189,13 +201,34 @@ export default function CashConfigClient({
       >
         <h2 className="text-st-h2 text-ink">Monedas y arqueo</h2>
 
-        <Checkbox
-          label="Esta sucursal cuenta dólares"
-          checked={config.usdEnabled}
-          onChange={(event) =>
-            setConfig((current) => ({ ...current, usdEnabled: event.target.checked }))
-          }
-        />
+        <fieldset className="space-y-2">
+          <legend className="text-st-overline font-bold uppercase tracking-wider text-ink-muted">
+            Monedas que cuenta esta sucursal
+          </legend>
+          <p className="text-st-caption text-ink-secondary">
+            <span className="font-mono tabular-nums">{baseCurrencyCode}</span> se cuenta siempre. Las demás
+            se eligen de las monedas aceptadas en Finanzas.
+          </p>
+          <div className="flex flex-wrap gap-x-4 gap-y-2">
+            {acceptedCurrencies
+              .filter((code) => code !== baseCurrencyCode)
+              .map((code) => (
+                <Checkbox
+                  key={code}
+                  label={`Contar en ${code}`}
+                  checked={config.countedCurrencyCodes.includes(code)}
+                  onChange={(event) =>
+                    setConfig((current) => ({
+                      ...current,
+                      countedCurrencyCodes: event.target.checked
+                        ? [...new Set([...current.countedCurrencyCodes, code])]
+                        : current.countedCurrencyCodes.filter((candidate) => candidate !== code),
+                    }))
+                  }
+                />
+              ))}
+          </div>
+        </fieldset>
 
         <Checkbox
           label="Arqueo ciego: el cajero no ve el esperado ni la diferencia"
@@ -206,8 +239,8 @@ export default function CashConfigClient({
         />
 
         <p className="text-st-caption text-ink-secondary">
-          Los córdobas se cuentan siempre. El arqueo ciego se aplica en la pantalla del turno en la Fase 4
-          del rediseño.
+          La moneda base se cuenta siempre. Una moneda sin billetes cargados no recibe denominaciones
+          inventadas: se cargan abajo.
         </p>
       </section>
 

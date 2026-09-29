@@ -3,6 +3,11 @@ import { getPrismaClient } from "@/infrastructure/database/prisma";
 import { PrismaBusinessSettingsRepository } from "@/modules/business-settings/adapters/prisma-business-settings-repository";
 import { loadBusinessSettings } from "@/modules/business-settings/features/get-public-business-settings/get-public-business-settings";
 import { PrismaLocationRepository } from "@/modules/locations/adapters/prisma-location-repository";
+import {
+  assertPaymentMethodKind,
+} from "@/modules/payments/domain/payment-method-kind";
+import type { PaymentMethodConfigRecord } from "@/modules/payments/domain/payment-method-availability";
+import { readProductionMoney } from "@/modules/money/adapters/production-money-context";
 import { PrismaOrderRepository } from "@/modules/orders/adapters/prisma-order-repository";
 import { PrismaPaymentRepository } from "@/modules/orders/adapters/prisma-payment-repository";
 import { lockShiftRow } from "@/modules/orders/adapters/prisma-shift-repository";
@@ -55,12 +60,56 @@ function isUniqueConflict(error: unknown): boolean {
   );
 }
 
+/**
+ * `TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002` (`A-85`, `A-86`) — **los medios configurados que una
+ * sucursal ofrece**.
+ *
+ * Es la lectura que reemplaza a la lista fija del mostrador: el catálogo persistido con su disponibilidad por
+ * local (`PaymentMethodLocation`). Devuelve también los apagados y los de otras sucursales —el filtro lo hace
+ * el dominio (`listAvailablePaymentMethods`)—, porque el mismo catálogo sirve para rechazar un medio que la
+ * pantalla mandó mal y para decir **por qué** no se puede usar.
+ */
+async function listConfiguredPaymentMethods(): Promise<PaymentMethodConfigRecord[]> {
+  const rows = await getPrismaClient().paymentMethodConfig.findMany({
+    orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+    include: { locations: { select: { locationId: true, isActive: true } } },
+  });
+
+  return rows.map((row) => ({
+    id: row.id,
+    name: row.name,
+    kind: assertPaymentMethodKind(row.kind),
+    entityId: row.entityId,
+    currencyCodes: row.currencyCodes,
+    requiresReference: row.requiresReference,
+    isActive: row.isActive,
+    locations: row.locations.map((location) => ({
+      locationId: location.locationId,
+      isActive: location.isActive,
+    })),
+  }));
+}
+
 export async function createProductionPosSaleDependencies(): Promise<RegisterPosSaleDependencies> {
   const settings = await loadBusinessSettings({
     repository: new PrismaBusinessSettingsRepository(),
   });
   const locationRepository = new PrismaLocationRepository();
   const shiftRepository = new PrismaShiftRepository();
+
+  /**
+   * `TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002` (`A-83`) — **la autoridad monetaria es `money`**.
+   *
+   * Antes el POS cobraba con `settings.currencyCode` + `settings.usdExchangeRate`: la moneda base y la tasa
+   * salían de `BusinessSettings` mientras `/admin/finance` escribía en `BusinessCurrencySettings` +
+   * `ExchangeRate`. Con las dos autoridades vivas, un cambio de tasa en Finanzas no llegaba al mostrador y
+   * el cobro se convertía con el número viejo.
+   *
+   * La lectura es **una sola** y también alimenta las opciones de moneda que la pantalla ofrece
+   * (`readAcceptedCurrencies`), así que lo que se puede cobrar y la tasa con la que se convierte salen del
+   * mismo lugar.
+   */
+  const { context: money, currencies } = await readProductionMoney();
 
   return {
     /**
@@ -88,15 +137,23 @@ export async function createProductionPosSaleDependencies(): Promise<RegisterPos
                * reintento los cobros no se registran otra vez, así que la pantalla tiene que poder decirlo.
                */
               createPosOrder: async (input: CreateOrderRequest) => {
-                const result = await createOrder(input, {
-                  repository: orderRepository,
-                  locationRepository,
-                  tipPolicy: { enabled: settings.tipEnabled, rate: settings.tipRate },
-                  // El aviso de pedido creado no sale acá adentro: se junta y se publica después del commit.
-                  publishOrderCreated: (order) => {
-                    deferredPublishes.push(() => publish("OrderCreated", { order }));
+                const result = await createOrder(
+                  /**
+                   * `TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002` (`A-89`) — la venta del mostrador
+                   * congela la moneda base vigente con los montos del pedido. La sobreescribe acá (y no en
+                   * `saleOrderRequest`) porque el dato es de `money`, que el caso de uso del POS no lee.
+                   */
+                  { ...input, currencyCode: money.baseCurrencyCode },
+                  {
+                    repository: orderRepository,
+                    locationRepository,
+                    tipPolicy: { enabled: settings.tipEnabled, rate: settings.tipRate },
+                    // El aviso de pedido creado no sale acá adentro: se junta y se publica después del commit.
+                    publishOrderCreated: (order) => {
+                      deferredPublishes.push(() => publish("OrderCreated", { order }));
+                    },
                   },
-                });
+                );
 
                 return { order: result.data, reused: result.meta.reused === true };
               },
@@ -129,8 +186,20 @@ export async function createProductionPosSaleDependencies(): Promise<RegisterPos
         return attempt();
       });
     },
-    businessCurrencyCode: settings.currencyCode,
-    usdExchangeRate: settings.usdExchangeRate,
+    money,
+    /**
+     * Las monedas que el negocio acepta hoy, tal como las lee `money`. La ruta las publica para que la
+     * pantalla ofrezca **esas** y no una lista fija con la moneda base y el dólar (`A-85`).
+     */
+    currencies,
+    /**
+     * `TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002` (`A-85`, `A-86`) — **los medios configurados que ese
+     * local ofrece**, leídos del catálogo persistido con su disponibilidad por sucursal.
+     *
+     * Es lo que reemplaza a la lista fija del mostrador: el dueño configura los medios en Finanzas y el POS
+     * ofrece esos. Un medio que la pantalla mande sin estar habilitado para el local lo rechaza la escritura.
+     */
+    listPaymentMethodsForLocation: () => listConfiguredPaymentMethods(),
     // Bloque 9.2: sin caja abierta no se cobra (`registerPosSale` corta con 409).
     //
     // Fase 6 del rediseño de Caja (2026-09-23) — la terminal viaja desde el POS: el turno que se resuelve

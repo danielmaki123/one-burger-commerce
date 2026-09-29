@@ -6,10 +6,16 @@ import {
 } from "@/modules/orders/domain/sale-discount";
 import type { PaymentRepository } from "@/modules/orders/ports/payment-repository";
 import type { CreateOrderRequest } from "@/modules/orders/features/create-order/create-order";
+import type { MoneyContext } from "@/modules/money/domain/money-context";
+import type { PaymentMethodConfigRecord } from "@/modules/payments/domain/payment-method-availability";
 
 import { assertPosDraftReady, posDraftTotals, type PosDraft } from "../../domain/pos-draft";
 import { PosError } from "../../domain/pos-errors";
-import { paymentsTotalInBusinessCurrency, type PosSalePaymentInput } from "../../domain/pos-sale";
+import {
+  buildSalePaymentSnapshots,
+  paymentsTotalInBusinessCurrency,
+  type PosSalePaymentInput,
+} from "../../domain/pos-sale";
 import { commitSale } from "./commit-sale";
 
 /**
@@ -32,6 +38,20 @@ import { commitSale } from "./commit-sale";
  * TASK-AUD-004 — **todo lo que escribe** (el alta y sus cobros) vive en `commitSale` y corre adentro de
  * una sola transacción: este archivo decide, valida y cotiza; `commit-sale.ts` escribe.
  */
+
+/**
+ * Una moneda que el negocio acepta hoy, en la forma que la superficie necesita para dibujarla.
+ *
+ * `TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002` (`A-85`) — la pantalla ofrecía exactamente dos opciones
+ * (la moneda base y el dólar). Ahora ofrece las que `money` declara activas, con su símbolo y sus decimales.
+ */
+export type AcceptedCurrencyOption = {
+  code: string;
+  name: string;
+  symbol: string;
+  decimals: number;
+  isBase: boolean;
+};
 
 export type RegisterPosSaleInput = {
   draft: PosDraft;
@@ -105,8 +125,32 @@ export type RegisterPosSaleDependencies = {
    * transacción (eso es del adaptador); sabe que todo lo que escriba adentro se guarda junto.
    */
   runInSaleTransaction: <T>(work: (scope: PosSaleTransactionScope) => Promise<T>) => Promise<T>;
-  businessCurrencyCode: string;
-  usdExchangeRate: number | null;
+  /**
+   * `TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002` (`A-83`, `D-024`) — **el contexto monetario vigente**,
+   * leído de `money` por la composición.
+   *
+   * Reemplaza a los dos escalares que había antes (`businessCurrencyCode` + `usdExchangeRate`): con un solo
+   * número de dólar, cobrar en cualquier otra moneda que el negocio hubiera aceptado en Finanzas era
+   * imposible, y la moneda base se leía de la configuración vieja mientras Finanzas escribía en la nueva.
+   */
+  money: MoneyContext;
+  /**
+   * `TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002` (`A-85`, `A-86`) — **los medios configurados que esta
+   * sucursal ofrece**, resueltos contra el catálogo persistido.
+   *
+   * Opcional como el resto: sin esta dependencia el mostrador cobra por el enum histórico (el
+   * comportamiento de siempre) y un cobro que **nombre** un medio configurado se rechaza en vez de adivinar.
+   * La composición de producción la inyecta **siempre**, así que el camino real valida.
+   */
+  listPaymentMethodsForLocation?: (
+    locationId: string,
+  ) => Promise<PaymentMethodConfigRecord[]>;
+  /**
+   * Las monedas que el negocio acepta **hoy**, para que la superficie ofrezca esas y no una lista fija
+   * (`A-85`). Es la misma lectura que alimenta `money`: ofrecer una moneda y convertir con otra tasa es el
+   * bug que este campo evita.
+   */
+  currencies?: AcceptedCurrencyOption[];
   /**
    * Bloque 9.2 del roadmap del POS (Fase 2) — la caja abierta del local, si hay.
    *
@@ -169,8 +213,32 @@ export async function registerPosSale(
 
   const paidInBusinessCurrency = paymentsTotalInBusinessCurrency({
     payments: input.payments,
-    businessCurrencyCode: deps.businessCurrencyCode,
-    usdExchangeRate: deps.usdExchangeRate,
+    money: deps.money,
+  });
+
+  /**
+   * `A-81`/`D-024` — **los snapshots, construidos una sola vez y antes de escribir nada**.
+   *
+   * Se arman acá y no adentro de la transacción por dos motivos: la autoridad monetaria se lee una vez
+   * (`money`) y una moneda sin tasa vigente rechaza la venta con **su** error —no con el del total— antes de
+   * que exista el pedido. El total que se compara contra el pedido sale del mismo cálculo, así que no puede
+   * haber dos números: lo que se validó es exactamente lo que se persiste.
+   */
+  /**
+   * `A-85`/`A-86` — los medios que la sucursal ofrece, **leídos una sola vez y antes de la transacción**.
+   *
+   * Se leen acá, con las otras validaciones previas, por dos motivos: la lectura es del catálogo (no del hecho
+   * que se está por escribir) y así el mismo dato valida y se congela. Un medio apagado en el medio de la
+   * venta lo rechaza la próxima venta, que es el comportamiento correcto: el hecho ya se firmó con lo que
+   * regía cuando entró la plata.
+   */
+  const paymentMethods = await listPaymentMethodsForSale(deps, input.draft.locationId);
+
+  const snapshots = buildSalePaymentSnapshots({
+    payments: input.payments,
+    money: deps.money,
+    locationId: input.draft.locationId,
+    catalog: paymentMethods,
   });
 
   const couponCode = await resolveSalePricing({ input, deps, paidInBusinessCurrency });
@@ -182,10 +250,27 @@ export async function registerPosSale(
       paidInBusinessCurrency,
       openShift,
       scope,
-      businessCurrencyCode: deps.businessCurrencyCode,
-      usdExchangeRate: deps.usdExchangeRate,
+      money: deps.money,
+      paymentMethods,
+      snapshots,
     }),
   );
+}
+
+/**
+ * `A-85`/`A-86` — los medios que la sucursal ofrece, o una lista vacía cuando la dependencia no está.
+ *
+ * Sin la dependencia el mostrador cobra por el enum histórico (el comportamiento de siempre) y un cobro que
+ * **nombre** un medio configurado se rechaza en vez de adivinar. La composición de producción la inyecta
+ * siempre, así que el camino real valida contra el catálogo.
+ */
+async function listPaymentMethodsForSale(
+  deps: RegisterPosSaleDependencies,
+  locationId: string,
+): Promise<PaymentMethodConfigRecord[]> {
+  if (!deps.listPaymentMethodsForLocation) return [];
+
+  return deps.listPaymentMethodsForLocation(locationId);
 }
 
 /**

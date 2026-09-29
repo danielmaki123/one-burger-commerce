@@ -36,8 +36,16 @@ vi.mock("@/modules/pos/adapters/production-pos-shift", () => ({
     shiftRepository,
     locationRepository,
     paymentRepository,
-    businessCurrencyCode: "NIO",
-    usdExchangeRate: 36.5,
+    /**
+     * `TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002` (`A-83`) — el contexto monetario reemplaza a los dos
+     * escalares: abrir, el corte X y el cierre leen la misma autoridad (`money`).
+     */
+    money: {
+      baseCurrencyCode: "NIO",
+      locale: "es-NI",
+      rates: { USD: 36.5 },
+      knownCurrencyCodes: ["NIO", "USD"],
+    },
     // TASK-AUD-005: el doble de la unidad de trabajo del cierre corre el trabajo con los mismos dobles
     // (la transacción y el bloqueo reales se prueban contra PostgreSQL, en `close-shift.postgres.test.ts`).
     runInShiftTransaction: runInMemoryShiftTransaction({ shiftRepository, paymentRepository }),

@@ -63,11 +63,26 @@ describe("contrato · migración de la configuración de caja", () => {
 
     expect(table, "la migración crea la tabla de config").toBeTruthy();
 
+    /**
+     * `TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002` (`A-88`) — la tabla original trae `usdEnabled`
+     * como **legacy** (su valor es el insumo determinístico de la migración que llenó la lista) y
+     * `blindCount`. Las monedas contables ya no son una columna de la tabla original: son
+     * `countedCurrencyCodes`, que agrega la migración `20260930120000`.
+     */
     const usdDefault = /"usdEnabled"\s+BOOLEAN\s+NOT NULL\s+DEFAULT\s+(true|false)/.exec(table![0]);
     const blindDefault = /"blindCount"\s+BOOLEAN\s+NOT NULL\s+DEFAULT\s+(true|false)/.exec(table![0]);
 
-    expect(usdDefault?.[1]).toBe(String(DEFAULT_LOCATION_CASH_CONFIG.usdEnabled));
+    expect(usdDefault?.[1]).toBe("false");
     expect(blindDefault?.[1]).toBe(String(DEFAULT_LOCATION_CASH_CONFIG.blindCount));
+  });
+
+  it("la lista de monedas contables nace vacía en el esquema, no con un dólar inventado", () => {
+    const sql = readMigration();
+
+    // La tabla original no conoce `countedCurrencyCodes`; la agrega la migración de Money/Payments con
+    // DEFAULT vacío, y su valor para las filas existentes sale de `usdEnabled` (no de un `["USD"]` fijo).
+    expect(sql).not.toContain("countedCurrencyCodes");
+    expect(DEFAULT_LOCATION_CASH_CONFIG.countedCurrencyCodes).toEqual([]);
   });
 
   it("la migración no trae BOM (rompe `prisma migrate deploy` en una base nueva)", () => {

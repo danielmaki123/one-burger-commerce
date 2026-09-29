@@ -12,6 +12,7 @@ import type { PosHeldSale } from "@/modules/pos/domain/pos-holds";
 import type { PosPaymentMethod } from "@/modules/pos/domain/pos-sale";
 import type { PosCatalogProduct } from "@/modules/pos/ports/pos-catalog";
 import { hasSelectableModifiers } from "@/modules/menu/domain/modifier-selection";
+import type { MoneyContext } from "@/modules/money/domain/money-context";
 import { useBusinessSettings, useCurrencyFormat } from "@/shared/lib/business-settings";
 import {
   renderReceiptJpeg,
@@ -50,6 +51,8 @@ import { usePosHolds } from "./use-pos-holds";
 
 export default function PosClient({
   locations,
+  money: moneyProp,
+  acceptedCurrencies,
   canDiscount = false,
   cashTerminalsByLocation = {},
 }: {
@@ -66,14 +69,27 @@ export default function PosClient({
    * el mismo local, el turno de **esta** estación es el que recibe la plata.
    */
   cashTerminalsByLocation?: Record<string, { id: string; label: string }[]>;
+  /**
+   * `A-85` — el contexto monetario vigente (moneda base y tasas), resuelto en el **servidor** con `money`.
+   * Opcional: sin él la pantalla se arma con la configuración del cliente, que es como funcionaba antes.
+   */
+  money?: MoneyContext;
+  /** `A-85` — las monedas que el negocio acepta hoy: son las que la pantalla ofrece. */
+  acceptedCurrencies?: string[];
 }) {
   const currency = useCurrencyFormat();
   const settings = useBusinessSettings();
+  const money: MoneyContext = moneyProp ?? {
+    baseCurrencyCode: settings.currencyCode,
+    locale: settings.locale,
+    rates: { USD: settings.usdExchangeRate },
+  };
+  const currencyChoices = acceptedCurrencies ?? [money.baseCurrencyCode, "USD"];
 
   const catalog = usePosCatalog({
     locations,
     cashTerminalsByLocation,
-    currencyCode: settings.currencyCode,
+    currencyCode: money.baseCurrencyCode,
     currency,
   });
   const { locationId, terminalId } = catalog;
@@ -128,7 +144,7 @@ export default function PosClient({
   const sale = usePosSale({
     locationId,
     terminalId,
-    currencyCode: settings.currencyCode,
+    money,
     currency,
     fiscal: customer.fiscal,
     customer: { name: customer.name, whatsapp: customer.whatsapp, email: customer.email },
@@ -252,7 +268,7 @@ export default function PosClient({
         businessName: settings.name,
         addressLine: settings.addressLine,
         phone: settings.phone,
-        businessCurrencyCode: settings.currencyCode,
+        businessCurrencyCode: money.baseCurrencyCode,
         orderNumber: lastSale.orderNumber,
         createdAtLabel: new Date().toLocaleString(settings.locale, {
           dateStyle: "short",
@@ -390,8 +406,8 @@ export default function PosClient({
           payments: sale.payments,
           setPayments: sale.setPayments,
           fieldErrors: sale.fieldErrors,
-          currencyCode: settings.currencyCode,
-          usdExchangeRate: settings.usdExchangeRate,
+          money,
+          acceptedCurrencies: currencyChoices,
           addPaymentRow: sale.addPaymentRow,
           removePaymentRow: sale.removePaymentRow,
           canCharge: shiftState.canCharge,

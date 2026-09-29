@@ -29,14 +29,16 @@ export class InMemoryCashConfigRepository implements CashConfigRepository {
 
   async saveLocationConfig(
     locationId: string,
-    patch: Pick<CashConfigPatch, "usdEnabled" | "blindCount">,
+    patch: Pick<CashConfigPatch, "countedCurrencyCodes" | "blindCount">,
     meta: UpdateCashConfigMeta = {},
   ): Promise<LocationCashConfigRecord> {
     const base = this.locationConfigs.get(locationId) ?? defaultLocationCashConfig(locationId);
 
     const next: LocationCashConfigRecord = {
       ...base,
-      ...(patch.usdEnabled !== undefined ? { usdEnabled: patch.usdEnabled } : {}),
+      ...(patch.countedCurrencyCodes !== undefined
+        ? { countedCurrencyCodes: patch.countedCurrencyCodes }
+        : {}),
       ...(patch.blindCount !== undefined ? { blindCount: patch.blindCount } : {}),
       updatedAt: new Date().toISOString(),
       updatedByUserId: meta.updatedByUserId ?? base.updatedByUserId ?? null,

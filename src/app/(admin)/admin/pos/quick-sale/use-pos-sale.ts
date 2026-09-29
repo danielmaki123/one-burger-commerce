@@ -2,6 +2,7 @@
 
 import * as React from "react";
 
+import type { MoneyContext } from "@/modules/money/domain/money-context";
 import { PAYMENT_METHOD_TYPE_LABELS } from "@/modules/orders/domain/order.types";
 import type { PosDraftLine } from "@/modules/pos/domain/pos-draft";
 import { posDraftTotals } from "@/modules/pos/domain/pos-draft";
@@ -43,7 +44,8 @@ export type UsePosSaleParams = {
   locationId: string;
   /** Fase 6 — la terminal que firma el cobro (`Payment.shiftId`). */
   terminalId: string | null;
-  currencyCode: string;
+  /** `A-85` — el contexto monetario vigente: la moneda base de los borradores y sus tasas. */
+  money: MoneyContext;
   currency: CurrencyFormat;
   /** Punto 4 — la factura con RUC que el cajero cargó (la valida el dominio de la pantalla). */
   fiscal: PosFiscalDraft;
@@ -62,7 +64,7 @@ export type UsePosSaleParams = {
 export function usePosSale({
   locationId,
   terminalId,
-  currencyCode,
+  money,
   currency,
   fiscal,
   customer,
@@ -86,7 +88,7 @@ export function usePosSale({
   const [couponError, setCouponError] = React.useState<string | null>(null);
   const [manualDiscount, setManualDiscount] = React.useState<AppliedManualDiscount | null>(null);
   const [payments, setPayments] = React.useState<PosPaymentDraft[]>(() => [
-    { id: "pay_1", method: "cash", currency: currencyCode, amount: "" },
+    { id: "pay_1", method: "cash", currency: money.baseCurrencyCode, amount: "" },
   ]);
   const [charging, setCharging] = React.useState(false);
   const [saleError, setSaleError] = React.useState<string | null>(null);
@@ -133,13 +135,13 @@ export function usePosSale({
    * acaba de cobrar (y el orden de los `setState` en el mismo tick definiría la suerte del recibo).
    */
   const resetSale = React.useCallback(() => {
-    setPayments([{ id: "pay_1", method: "cash", currency: currencyCode, amount: "" }]);
+    setPayments([{ id: "pay_1", method: "cash", currency: money.baseCurrencyCode, amount: "" }]);
     setCoupon(null);
     setCouponError(null);
     setManualDiscount(null);
     setSaleError(null);
     setFieldErrors({});
-  }, [currencyCode]);
+  }, [money.baseCurrencyCode]);
 
   /** Arranca una venta nueva **y** suelta la confirmación anterior: es lo que hace cambiar de local. */
   const startNewSale = React.useCallback(() => {
@@ -218,11 +220,11 @@ export function usePosSale({
       {
         id: `pay_${current.length + 1}_${Date.now()}`,
         method: "transfer",
-        currency: currencyCode,
+        currency: money.baseCurrencyCode,
         amount: "",
       },
     ]);
-  }, [currencyCode]);
+  }, [money.baseCurrencyCode]);
 
   /** Saca una fila del cobro partido. La primera no se saca: es el medio de la venta. */
   const removePaymentRow = React.useCallback((paymentId: string) => {

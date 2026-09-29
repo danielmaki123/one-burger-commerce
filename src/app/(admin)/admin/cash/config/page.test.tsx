@@ -10,6 +10,7 @@ const {
   getCashConfigMock,
   getBankCatalogMock,
   getCashTerminalsMock,
+  readProductionMoneyMock,
 } = vi.hoisted(() => ({
   // Igual que Next de verdad: `redirect()` corta la ejecución de la página.
   redirectMock: vi.fn(() => {
@@ -20,6 +21,7 @@ const {
   getCashConfigMock: vi.fn(),
   getBankCatalogMock: vi.fn(),
   getCashTerminalsMock: vi.fn(),
+  readProductionMoneyMock: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -50,6 +52,14 @@ vi.mock("@/modules/cash-config/features/get-cash-terminals/get-cash-terminals", 
   getCashTerminals: (input: unknown, deps: unknown) => getCashTerminalsMock(input, deps),
 }));
 
+/**
+ * `TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002` (`A-88`) — la pantalla recibe de `money` la moneda base
+ * y las monedas aceptadas: antes tenía un `BASE_CURRENCY = "NIO"` y un `"USD"` escritos a mano.
+ */
+vi.mock("@/modules/money/adapters/production-money-context", () => ({
+  readProductionMoney: () => readProductionMoneyMock(),
+}));
+
 import AdminCashConfigPage from "./page";
 
 /**
@@ -66,13 +76,26 @@ const LOCATIONS = [
 
 const CONFIG = {
   locationId: "loc_principal",
-  usdEnabled: false,
+  countedCurrencyCodes: [] as string[],
   blindCount: true,
   updatedAt: null,
   updatedByUserId: null,
   denominations: [
     { currency: "NIO", value: 1000, isActive: true, sortOrder: 0 },
     { currency: "USD", value: 20, isActive: true, sortOrder: 0 },
+  ],
+};
+
+const MONEY = {
+  context: {
+    baseCurrencyCode: "NIO",
+    locale: "es-NI",
+    rates: { USD: 36.5 },
+    knownCurrencyCodes: ["NIO", "USD"],
+  },
+  currencies: [
+    { code: "NIO", name: "Córdoba", symbol: "C$", decimals: 2, isBase: true },
+    { code: "USD", name: "Dólar", symbol: "US$", decimals: 2, isBase: false },
   ],
 };
 
@@ -90,6 +113,7 @@ describe("AdminCashConfigPage", () => {
     requireAdminSessionMock.mockResolvedValue(sessionFor("owner"));
     listLocationsMock.mockResolvedValue(LOCATIONS);
     getCashConfigMock.mockResolvedValue(CONFIG);
+    readProductionMoneyMock.mockResolvedValue(MONEY);
     getBankCatalogMock.mockResolvedValue({
       banks: [
         {
@@ -117,7 +141,7 @@ describe("AdminCashConfigPage", () => {
     render(await AdminCashConfigPage());
 
     expect(screen.getByRole("heading", { name: "Config de Caja" })).toBeTruthy();
-    expect(screen.getByLabelText("Esta sucursal cuenta dólares")).toBeTruthy();
+    expect(screen.getByLabelText("Contar en USD")).toBeTruthy();
     expect(screen.getByLabelText(/Arqueo ciego/)).toBeTruthy();
     expect(screen.getByRole("button", { name: "Guardar configuración" })).toBeTruthy();
     // Fase 3 del rediseño de Caja: los bancos del cuadre bajan con la config y se editan acá.

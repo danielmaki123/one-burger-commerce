@@ -22,7 +22,7 @@ describe("paidTotalInBaseCurrency", () => {
         { amount: 165, currency: "NIO" },
       ],
       baseCurrencyCode: "NIO",
-      usdExchangeRate: 36.5,
+      rates: { USD: 36.5 },
     });
 
     expect(total).toBe(365);
@@ -35,7 +35,7 @@ describe("paidTotalInBaseCurrency", () => {
         { amount: 355, currency: "NIO" },
       ],
       baseCurrencyCode: "NIO",
-      usdExchangeRate: 36.5,
+      rates: { USD: 36.5 },
     });
 
     // 10 × 36.5 + 355 = 365 + 355 = 720.
@@ -43,18 +43,40 @@ describe("paidTotalInBaseCurrency", () => {
   });
 
   it("una moneda sin tasa no suma como si valiera uno: esa fila queda fuera", () => {
-    // El POS sólo ofrece la moneda del negocio y el dólar, así que hoy esto no se alcanza desde la pantalla;
-    // la regla existe para que un dato raro no se cuente como si fuera moneda base (ley 7: no se inventa).
+    // La pantalla ofrece las monedas aceptadas, así que una moneda **sin tasa vigente** puede llegar acá (el
+    // dueño la activó pero no registró la tasa). Queda fuera: el sistema dice «no se sabe», no inventa un
+    // equivalente (ley 7).
     const total = paidTotalInBaseCurrency({
       payments: [
         { amount: 100, currency: "EUR" },
         { amount: 265, currency: "NIO" },
       ],
       baseCurrencyCode: "NIO",
-      usdExchangeRate: 36.5,
+      rates: { USD: 36.5 },
     });
 
     expect(total).toBe(265);
+  });
+
+  /**
+   * `TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002` (`A-85`) — **una moneda que no es el dólar**.
+   *
+   * Antes la regla sólo sabía convertir `USD` (armaba el mapa `{ USD: … }` con el escalar heredado), así que
+   * el mostrador no podía ofrecer ninguna otra moneda. Con el mapa de tasas, sumar un cobro partido en euros
+   * es la misma aritmética. Si este caso necesitara un `if EUR`, la arquitectura seguiría mal.
+   */
+  it("suma un cobro en euros con su propia tasa", () => {
+    // 4 × 40 = 160, más 100 en la moneda base.
+    const total = paidTotalInBaseCurrency({
+      payments: [
+        { amount: 4, currency: "EUR" },
+        { amount: 100, currency: "NIO" },
+      ],
+      baseCurrencyCode: "NIO",
+      rates: { USD: 36.5, EUR: 40 },
+    });
+
+    expect(total).toBe(260);
   });
 
   it("una fila sin monto válido no rompe la suma", () => {
@@ -64,7 +86,7 @@ describe("paidTotalInBaseCurrency", () => {
         { amount: 100, currency: "USD" },
       ],
       baseCurrencyCode: "NIO",
-      usdExchangeRate: 36.5,
+      rates: { USD: 36.5 },
     });
 
     expect(total).toBe(3650);
@@ -72,7 +94,7 @@ describe("paidTotalInBaseCurrency", () => {
 
   it("sin filas el cobrado es cero", () => {
     expect(
-      paidTotalInBaseCurrency({ payments: [], baseCurrencyCode: "NIO", usdExchangeRate: 36.5 }),
+      paidTotalInBaseCurrency({ payments: [], baseCurrencyCode: "NIO", rates: { USD: 36.5 } }),
     ).toBe(0);
   });
 
@@ -80,7 +102,7 @@ describe("paidTotalInBaseCurrency", () => {
     const total = paidTotalInBaseCurrency({
       payments: [{ amount: 10, currency: "USD" }],
       baseCurrencyCode: "USD",
-      usdExchangeRate: 36.5,
+      rates: { USD: 36.5 },
     });
 
     // Si la moneda del negocio ES el dólar, la fila en dólares no se convierte: vale lo que dice.

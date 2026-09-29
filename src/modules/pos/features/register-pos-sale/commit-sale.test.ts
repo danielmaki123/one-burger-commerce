@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { InMemoryPaymentRepository } from "@/modules/orders/adapters/in-memory-payment-repository";
 import type { OrderRecord } from "@/modules/orders/domain/order.types";
+import type { MoneyContext } from "@/modules/money/domain/money-context";
 
 import { addPosLine, createPosDraft } from "../../domain/pos-draft";
 import { PosError } from "../../domain/pos-errors";
@@ -22,7 +23,18 @@ import type { PosSaleTransactionScope, RegisterPosSaleInput } from "./register-p
  *
  * La atomicidad en sí (que un fallo a mitad no deje nada) no se prueba acá: un doble en memoria no puede
  * fallar como falla la base. Está en `register-pos-sale.postgres.test.ts`, contra PostgreSQL real.
+ *
+ * `TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002` (`A-81`) — el contexto monetario reemplaza a los dos
+ * escalares que había antes (`businessCurrencyCode` + `usdExchangeRate`). El snapshot del cobro tiene su
+ * propia suite: `commit-sale-snapshot.test.ts`.
  */
+
+const moneyContext: MoneyContext = {
+  baseCurrencyCode: "NIO",
+  locale: "es-NI",
+  rates: { USD: 36.5 },
+  knownCurrencyCodes: ["NIO", "USD"],
+};
 
 function order(over: Partial<OrderRecord> = {}): OrderRecord {
   return {
@@ -94,8 +106,7 @@ describe("commitSale", () => {
         paidInBusinessCurrency: 80,
         openShift: { id: "shift_01" },
         scope,
-        businessCurrencyCode: "NIO",
-        usdExchangeRate: 36.5,
+        money: moneyContext,
       }),
     ).rejects.toMatchObject({ status: 409, code: "CONFLICT" });
 
@@ -112,8 +123,7 @@ describe("commitSale", () => {
       paidInBusinessCurrency: 100,
       openShift: { id: "shift_01" },
       scope,
-      businessCurrencyCode: "NIO",
-      usdExchangeRate: 36.5,
+      money: moneyContext,
     });
 
     expect(createPayment).toHaveBeenCalledTimes(1);
@@ -145,8 +155,7 @@ describe("commitSale", () => {
       paidInBusinessCurrency: 80,
       openShift: { id: "shift_01" },
       scope,
-      businessCurrencyCode: "NIO",
-      usdExchangeRate: 36.5,
+      money: moneyContext,
     });
 
     expect(result.payments.map((payment) => payment.changeAmount)).toEqual([0, 0]);
@@ -178,14 +187,19 @@ describe("commitSale", () => {
       paidInBusinessCurrency: 80,
       openShift: { id: "shift_01" },
       scope,
-      businessCurrencyCode: "NIO",
-      usdExchangeRate: 36.5,
+      money: moneyContext,
     });
 
     expect(createPayment).not.toHaveBeenCalled();
     expect(result.reused).toBe(true);
     expect(result.payments).toHaveLength(1);
-    expect(result.paidInBusinessCurrency).toBe(80);
+    /**
+     * `A-81`/`D-020` — este cobro de prueba **no tiene snapshot** (es una fila legacy a propósito), así que
+     * su equivalente vale `0` y el total del reintento también: el pasado no se reinterpreta con la tasa de
+     * hoy. El caso del reintento **con** snapshot —el que suma el equivalente persistido— está en
+     * `commit-sale-snapshot.test.ts`.
+     */
+    expect(result.paidInBusinessCurrency).toBe(0);
   });
 
   it("si el total real del alta ya no cubre el cobro, corta sin escribir ningún cobro", async () => {
@@ -201,8 +215,7 @@ describe("commitSale", () => {
         paidInBusinessCurrency: 80,
         openShift: { id: "shift_01" },
         scope,
-        businessCurrencyCode: "NIO",
-        usdExchangeRate: 36.5,
+        money: moneyContext,
       }),
     ).rejects.toMatchObject({
       status: 409,
@@ -233,8 +246,7 @@ describe("commitSale", () => {
       paidInBusinessCurrency: 80,
       openShift: { id: "shift_01" },
       scope,
-      businessCurrencyCode: "NIO",
-      usdExchangeRate: 36.5,
+      money: moneyContext,
     });
 
     expect(createPosOrder).toHaveBeenCalledWith(

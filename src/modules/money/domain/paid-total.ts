@@ -33,8 +33,15 @@ export type PaidRow = {
 export function paidTotalInBaseCurrency(input: {
   payments: readonly PaidRow[];
   baseCurrencyCode: string;
-  /** Cuántas unidades de la moneda del negocio vale un dólar. `null` = sin tasa cargada. */
-  usdExchangeRate: number | null;
+  /**
+   * `TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002` (`A-85`) — **la tasa por moneda**, no un escalar del dólar.
+   *
+   * Antes esto era `usdExchangeRate` y el mapa se armaba `{ USD: … }`: la pantalla ofrecía exactamente dos
+   * monedas (la base y el dólar) porque la regla sólo sabía convertir una. Con el mapa, el mostrador puede
+   * mostrar **todas** las monedas aceptadas y sumar el cobro partido con la tasa de cada una —la misma que el
+   * servidor usa para congelar el snapshot—.
+   */
+  rates: Record<string, number | null | undefined>;
 }): number {
   const baseCurrencyCode = input.baseCurrencyCode.trim().toUpperCase();
   let total = 0;
@@ -54,7 +61,7 @@ export function paidTotalInBaseCurrency(input: {
       amount,
       currency,
       baseCurrencyCode,
-      rates: { USD: input.usdExchangeRate },
+      rates: input.rates,
     });
 
     if (converted === null) continue;

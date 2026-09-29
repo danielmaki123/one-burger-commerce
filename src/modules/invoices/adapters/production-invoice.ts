@@ -1,6 +1,7 @@
 import { PrismaBusinessSettingsRepository } from "@/modules/business-settings/adapters/prisma-business-settings-repository";
 import { loadBusinessSettings } from "@/modules/business-settings/features/get-public-business-settings/get-public-business-settings";
 import { PrismaCustomerAuthRepository } from "@/modules/customers/adapters/prisma-customer-auth-repository";
+import { readProductionMoney } from "@/modules/money/adapters/production-money-context";
 import { PrismaLocationRepository } from "@/modules/locations/adapters/prisma-location-repository";
 import { PrismaOrderRepository } from "@/modules/orders/adapters/prisma-order-repository";
 import { PrismaPaymentRepository } from "@/modules/orders/adapters/prisma-payment-repository";
@@ -24,6 +25,15 @@ export async function createProductionInvoiceDependencies(): Promise<EmitInvoice
   const locationRepository = new PrismaLocationRepository();
   const customerRepository = new PrismaCustomerAuthRepository();
 
+  /**
+   * `TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002` (`A-83`) — **la moneda base sale de `money`**.
+   *
+   * La configuración de branding dejó de ser la autoridad monetaria: si la factura leyera
+   * `BusinessSettings.currencyCode` mientras Finanzas escribe en `BusinessCurrencySettings`, un cambio de base
+   * haría que el documento se formatee contra una moneda que no es la que el negocio usa hoy.
+   */
+  const money = await readProductionMoney();
+
   return {
     invoiceRepository: new PrismaInvoiceRepository(),
     findOrder: (orderId) => orderRepository.findOrderById(orderId),
@@ -46,7 +56,7 @@ export async function createProductionInvoiceDependencies(): Promise<EmitInvoice
       const status = await getOrderPaymentStatus({
         orderId,
         total: order?.total ?? 0,
-        baseCurrencyCode: settings.currencyCode,
+        baseCurrencyCode: money.context.baseCurrencyCode,
         payments: payments.map((payment) => ({
           id: payment.id,
           amount: payment.amount,
@@ -105,7 +115,11 @@ export async function createProductionInvoiceDependencies(): Promise<EmitInvoice
       addressLine: settings.addressLine,
       city: settings.city,
       phone: settings.phone,
-      currencyCode: settings.currencyCode,
+      /**
+       * `A-83` — la moneda base vigente, de `money`. Es el **default** de una factura nueva; una factura ya
+       * emitida se formatea con su propia moneda congelada (`Invoice.currencyCode`), no con esta.
+       */
+      currencyCode: money.context.baseCurrencyCode,
     },
   };
 }

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { requirePosLocation } from "@/app/api/admin/pos/pos-route-helpers";
 import { requireAdminSession } from "@/modules/auth/features/require-admin-session/require-admin-session";
+import { readProductionMoney } from "@/modules/money/adapters/production-money-context";
 import { createProductionPosCatalog } from "@/modules/pos/adapters/production-pos-catalog";
 import { createErrorResponse } from "@/shared/lib/http/error-response";
 
@@ -28,7 +29,14 @@ export async function GET(request: Request) {
       query: searchParams.get("query") ?? "",
     });
 
-    return NextResponse.json({ data: view }, { headers: { "Cache-Control": "no-store" } });
+    // `A-85` — el contexto monetario y las monedas aceptadas viajan con el catálogo: es la misma pantalla y
+    // el mismo momento. La autoridad es `money`; acá sólo se publica.
+    const money = await readProductionMoney();
+
+    return NextResponse.json(
+      { data: view, money: money.context, acceptedCurrencies: money.currencies.map((c) => c.code) },
+      { headers: { "Cache-Control": "no-store" } },
+    );
   } catch (error) {
     const response = createErrorResponse(error);
     response.headers.set("Cache-Control", "no-store");

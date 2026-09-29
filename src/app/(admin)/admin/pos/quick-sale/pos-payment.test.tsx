@@ -31,10 +31,10 @@ function Harness({ initial = [cash], total = 40 }: { initial?: PosPaymentDraft[]
       payments={payments}
       setPayments={setPayments}
       fieldErrors={{}}
-      currencyCode="NIO"
+      money={{ baseCurrencyCode: "NIO", locale: "es-NI", rates: { USD: 36.5 }, knownCurrencyCodes: ["NIO", "USD"] }}
+      acceptedCurrencies={["NIO", "USD"]}
       currency={currency}
       total={total}
-      usdExchangeRate={null}
     />
   );
 }
@@ -96,26 +96,51 @@ describe("PosPaymentFields", () => {
     expect((screen.getByLabelText("Con cuánto paga") as HTMLInputElement).value).toBe("500");
   });
 
-  it("sin tasa de cambio no se elige moneda", () => {
-    render(<Harness />);
-    expect(screen.queryByLabelText("Moneda del cobro")).toBeNull();
-  });
-
-  it("con tasa de cambio el cobro puede ir en dólares", () => {
+  /**
+   * `TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002` (`A-85`) — **el selector de moneda sale de las monedas
+   * aceptadas**, no de si hay una tasa del dólar cargada.
+   *
+   * Antes el control aparecía sólo con `usdExchangeRate` y ofrecía exactamente dos entradas (la base y el
+   * dólar). Ahora ofrece las monedas que `money` declara activas, y con una sola no hay nada que elegir.
+   */
+  it("con una sola moneda aceptada no hay nada que elegir", () => {
     render(
       <PosPaymentFields
         payments={[cash]}
         setPayments={() => {}}
         fieldErrors={{}}
-        currencyCode="NIO"
+        money={{ baseCurrencyCode: "NIO", locale: "es-NI", rates: {} }}
+        acceptedCurrencies={["NIO"]}
         currency={currency}
         total={40}
-        usdExchangeRate={36}
+      />,
+    );
+
+    expect(screen.queryByLabelText("Moneda del cobro")).toBeNull();
+  });
+
+  it("ofrece todas las monedas aceptadas, no sólo la base y el dólar", () => {
+    render(
+      <PosPaymentFields
+        payments={[cash]}
+        setPayments={() => {}}
+        fieldErrors={{}}
+        money={{
+          baseCurrencyCode: "NIO",
+          locale: "es-NI",
+          rates: { USD: 36.5, EUR: 40 },
+          knownCurrencyCodes: ["NIO", "USD", "EUR"],
+        }}
+        acceptedCurrencies={["NIO", "USD", "EUR"]}
+        currency={currency}
+        total={40}
       />,
     );
 
     expect(screen.getByLabelText("Moneda del cobro")).toBeTruthy();
     expect(screen.getByRole("option", { name: "USD" })).toBeTruthy();
+    // Si esto necesitara un `if EUR` en el componente, la arquitectura seguiría mal.
+    expect(screen.getByRole("option", { name: "EUR" })).toBeTruthy();
   });
 
   it("la transferencia pide su referencia y el efectivo no", async () => {
@@ -140,10 +165,10 @@ describe("PosPaymentFields", () => {
         ]}
         setPayments={() => {}}
         fieldErrors={{}}
-        currencyCode="NIO"
+        money={{ baseCurrencyCode: "NIO", locale: "es-NI", rates: { USD: 36.5 }, knownCurrencyCodes: ["NIO", "USD"] }}
+      acceptedCurrencies={["NIO", "USD"]}
         currency={currency}
         total={40}
-        usdExchangeRate={null}
         onRemovePayment={onRemovePayment}
       />,
     );
@@ -162,10 +187,10 @@ describe("PosPaymentFields", () => {
         ]}
         setPayments={() => {}}
         fieldErrors={{}}
-        currencyCode="NIO"
+        money={{ baseCurrencyCode: "NIO", locale: "es-NI", rates: { USD: 36.5 }, knownCurrencyCodes: ["NIO", "USD"] }}
+      acceptedCurrencies={["NIO", "USD"]}
         currency={currency}
         total={40}
-        usdExchangeRate={null}
       />,
     );
 
@@ -192,10 +217,10 @@ describe("PosPaymentFields", () => {
         ]}
         setPayments={() => {}}
         fieldErrors={{}}
-        currencyCode="NIO"
+        money={{ baseCurrencyCode: "NIO", locale: "es-NI", rates: { USD: 36.5 }, knownCurrencyCodes: ["NIO", "USD"] }}
+      acceptedCurrencies={["NIO", "USD"]}
         currency={currency}
         total={720}
-        usdExchangeRate={36.5}
       />,
     );
 
@@ -215,10 +240,10 @@ describe("PosPaymentFields", () => {
         payments={[cash]}
         setPayments={() => {}}
         fieldErrors={{ amount: "El cobro supera lo que falta." }}
-        currencyCode="NIO"
+        money={{ baseCurrencyCode: "NIO", locale: "es-NI", rates: { USD: 36.5 }, knownCurrencyCodes: ["NIO", "USD"] }}
+      acceptedCurrencies={["NIO", "USD"]}
         currency={currency}
         total={40}
-        usdExchangeRate={null}
       />,
     );
 

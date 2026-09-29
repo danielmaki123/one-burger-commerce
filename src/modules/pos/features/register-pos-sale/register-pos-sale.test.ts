@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { OrderRecord } from "@/modules/orders/domain/order.types";
 import type { CreateOrderRequest } from "@/modules/orders/features/create-order/create-order";
 import { InMemoryPaymentRepository } from "@/modules/orders/adapters/in-memory-payment-repository";
+import type { MoneyContext } from "@/modules/money/domain/money-context";
 
 import { addPosLine, createPosDraft, type PosDraft } from "../../domain/pos-draft";
 import { PosError } from "../../domain/pos-errors";
@@ -87,12 +88,23 @@ function setup(
            */
           lockShift: async (shiftId) => ({ id: shiftId, status: "open" }),
         }),
-      businessCurrencyCode: "NIO",
-      usdExchangeRate: 36.5,
+      money: moneyContext,
       findOpenShift,
     },
   };
 }
+
+/**
+ * `TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002` (`A-83`) — el contexto monetario del negocio de prueba:
+ * base `NIO`, con el dólar a 36.5 vigente. Es el reemplazo de los dos escalares
+ * (`businessCurrencyCode` + `usdExchangeRate`) que había antes.
+ */
+const moneyContext: MoneyContext = {
+  baseCurrencyCode: "NIO",
+  locale: "es-NI",
+  rates: { USD: 36.5 },
+  knownCurrencyCodes: ["NIO", "USD"],
+};
 
 const customer = { name: "Cliente Mostrador", whatsapp: "88887777", email: "cliente@ejemplo.com" };
 
@@ -361,13 +373,18 @@ describe("venta de mostrador", () => {
     const createPosOrder = vi.fn(async () => ({ order: order(), reused: true }));
     const { paymentRepository, deps } = setup(createPosOrder);
 
-    // El cobro del primer intento, que sí llegó al servidor.
+    // El cobro del primer intento, que sí llegó al servidor. Desde `A-81` un cobro productivo siempre lleva
+    // su snapshot, así que el fixture también lo lleva: el reintento suma el equivalente **persistido**.
     await paymentRepository.createPayment({
       orderId: "ord_01",
       method: "cash",
       amount: 80,
       currency: "NIO",
       changeAmount: 0,
+      baseCurrencyCode: "NIO",
+      exchangeRate: 1,
+      baseAmount: 80,
+      methodKind: "cash",
     });
 
     const result = await registerPosSale(

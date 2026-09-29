@@ -108,10 +108,12 @@ export function toSettingsPayload(draft: BusinessSettingsDraft) {
     longitude: draft.longitude,
     timezone: draft.timezone,
     businessHours: draft.businessHours,
-    currencyCode: draft.currencyCode,
-    currencySymbol: draft.currencySymbol,
-    locale: draft.locale,
-    usdExchangeRate: draft.usdExchangeRate,
+    /**
+     * `TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002` (`A-84`, `D-016`) — **la moneda, el símbolo, el locale y
+     * la tasa del dólar no viajan desde acá**: su dueño es `money` y su pantalla es `/admin/finance`. Con los
+     * dos formularios vivos, el dueño de la moneda base y de la tasa tenía dos dueños y ninguno avisaba del
+     * otro. El esquema del servidor los rechaza si igual llegaran.
+     */
     pickupLeadMinutes: draft.pickupLeadMinutes,
     pickupMaxMinutes: draft.pickupMaxMinutes,
     paymentInstructions: draft.paymentInstructions,
@@ -700,58 +702,6 @@ export default function AdminSettingsClientPage({
             pickupMaxMinutes={draft.pickupMaxMinutes}
           />
         </div>
-
-        <SettingsField
-          id="settings-currency-code"
-          label="Moneda (ISO)"
-          hint="Tres letras, por ejemplo NIO."
-          error={fieldErrors.currencyCode}
-          onReset={() => resetField("currencyCode")}
-        >
-          <Input
-            id="settings-currency-code"
-            value={draft.currencyCode}
-            maxLength={3}
-            onChange={(event) => setField("currencyCode", event.target.value.toUpperCase())}
-          />
-        </SettingsField>
-
-        <SettingsField
-          id="settings-currency-symbol"
-          label="Símbolo"
-          error={fieldErrors.currencySymbol}
-          onReset={() => resetField("currencySymbol")}
-        >
-          <Input
-            id="settings-currency-symbol"
-            value={draft.currencySymbol}
-            maxLength={8}
-            onChange={(event) => setField("currencySymbol", event.target.value)}
-          />
-        </SettingsField>
-
-        <SettingsField
-          id="settings-usd-exchange-rate"
-          label="Tipo de cambio del dólar"
-          hint="Cuánto vale US$1 en tu moneda. Vacío: los cobros en dólares se rechazan hasta cargarlo."
-          error={fieldErrors.usdExchangeRate}
-          onReset={() => resetField("usdExchangeRate")}
-        >
-          <Input
-            id="settings-usd-exchange-rate"
-            type="number"
-            inputMode="decimal"
-            min={0}
-            step="0.01"
-            value={draft.usdExchangeRate === null ? "" : String(draft.usdExchangeRate)}
-            onChange={(event) =>
-              setField(
-                "usdExchangeRate",
-                event.target.value === "" ? null : Number(event.target.value),
-              )
-            }
-          />
-        </SettingsField>
 
         <SettingsField
           id="settings-tip-rate"

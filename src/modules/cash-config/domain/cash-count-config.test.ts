@@ -25,7 +25,7 @@ describe("toCashCountConfig", () => {
   it("sin dólares habilitados, la sucursal cuenta solo en la moneda del negocio", () => {
     const config = toCashCountConfig({
       businessCurrencyCode: "NIO",
-      usdEnabled: false,
+      countedCurrencyCodes: [],
       denominations: denominaciones,
     });
 
@@ -37,7 +37,7 @@ describe("toCashCountConfig", () => {
   it("con dólares habilitados, la moneda del negocio va primero y el dólar suma", () => {
     const config = toCashCountConfig({
       businessCurrencyCode: "NIO",
-      usdEnabled: true,
+      countedCurrencyCodes: ["USD"],
       denominations: denominaciones,
     });
 
@@ -48,7 +48,7 @@ describe("toCashCountConfig", () => {
   it("solo las denominaciones activas, de mayor a menor", () => {
     const config = toCashCountConfig({
       businessCurrencyCode: "NIO",
-      usdEnabled: false,
+      countedCurrencyCodes: [],
       denominations: [
         { currency: "NIO", value: 100, isActive: true, sortOrder: 1 },
         { currency: "NIO", value: 500, isActive: false, sortOrder: 0 },
@@ -62,7 +62,7 @@ describe("toCashCountConfig", () => {
   it("una moneda sin filas de config cae a los defaults del módulo", () => {
     const config = toCashCountConfig({
       businessCurrencyCode: "NIO",
-      usdEnabled: false,
+      countedCurrencyCodes: [],
       denominations: [],
     });
 
@@ -73,7 +73,7 @@ describe("toCashCountConfig", () => {
   it("una moneda con todas sus filas apagadas no queda sin grilla: cae a los defaults", () => {
     const config = toCashCountConfig({
       businessCurrencyCode: "NIO",
-      usdEnabled: true,
+      countedCurrencyCodes: ["USD"],
       denominations: [
         { currency: "NIO", value: 1000, isActive: false, sortOrder: 0 },
         { currency: "USD", value: 100, isActive: false, sortOrder: 0 },

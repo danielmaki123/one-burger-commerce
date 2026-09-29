@@ -10,7 +10,7 @@ import { resolveLocation } from "@/modules/locations/domain/location-rules";
 import { PrismaOrderRepository } from "@/modules/orders/adapters/prisma-order-repository";
 import { OrderError } from "@/modules/orders/domain/order-errors";
 import { createOrder } from "@/modules/orders/features/create-order/create-order";
-import { buildPublicOrderInput } from "./public-order-composition";
+import { buildPublicOrderInput, readPublicOrderMoney } from "./public-order-composition";
 import { createErrorResponse } from "@/shared/lib/http/error-response";
 import {
   enforceRateLimit,
@@ -120,20 +120,19 @@ export async function POST(request: Request) {
     }
 
     const repository = new PrismaOrderRepository();
-    // Locales del negocio (T8): el pedido va al local elegido o al primario.
     const locationRepository = new PrismaLocationRepository();
-    // La propina es fuente de verdad del servidor: sale de la configuración del
-    // negocio, nunca del monto que manda el cliente. Si la configuración no se
-    // puede leer se usan los defaults en vez de tumbar el pedido.
+    // La propina es fuente de verdad del servidor: sale de la configuración del negocio, nunca del monto que
+    // manda el cliente. Si la configuración no se puede leer se usan los defaults en vez de tumbar el pedido.
     const settings = await loadBusinessSettings({
       repository: new PrismaBusinessSettingsRepository(),
     });
+    // `A-89` — la moneda base vigente sale de `money` (ver `readPublicOrderMoney`): es la que el pedido
+    // congela con sus montos, y la configuración de branding dejó de ser la autoridad monetaria.
+    const currencyCode = await readPublicOrderMoney();
 
-    // El estado operativo también es fuente de verdad del servidor: si el local no está
-    // aceptando pedidos, o está cerrado a la hora pedida, el pedido se rechaza aunque el
-    // cliente insista. Desde T8 el estado es **del local**: cada sucursal tiene su horario,
-    // su preparación y su interruptor. Sin locales cargados se usan los de la configuración,
-    // que es como funcionaba antes.
+    // El estado operativo también es fuente de verdad del servidor: si el local no está aceptando pedidos, o
+    // está cerrado a la hora pedida, el pedido se rechaza. Desde T8 el estado es **del local**. Sin locales
+    // cargados se usan los de la configuración, que es como funcionaba antes.
     const requestedPickupTime = parsed.data.pickupTime
       ? new Date(parsed.data.pickupTime)
       : null;
@@ -183,6 +182,8 @@ export async function POST(request: Request) {
         acceptancePickupTime: acceptance.pickupTime,
         requestedPickupTime: pickupTime !== null,
         idempotencyKey: resolveIdempotencyKey(request),
+        // `A-89`: la moneda de los montos del pedido, de `money`. El pedido la congela.
+        currencyCode,
       }),
       {
         repository,

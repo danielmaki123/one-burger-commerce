@@ -9,12 +9,14 @@ import { getBankCatalog } from "@/modules/banks/features/get-bank-catalog/get-ba
 import { PrismaBusinessCurrencySettingsRepository } from "@/modules/money/adapters/prisma-business-currency-settings-repository";
 import { PrismaCurrencyRepository } from "@/modules/money/adapters/prisma-currency-repository";
 import { PrismaExchangeRateRepository } from "@/modules/money/adapters/prisma-exchange-rate-repository";
+import { PrismaMoneyObligationGuard } from "@/modules/money/adapters/prisma-money-obligation-guard";
 import { KNOWN_CURRENCIES, KNOWN_LOCALES } from "@/modules/money/domain/currency-catalog";
 import { MoneyError } from "@/modules/money/domain/money-errors";
 import { changeBaseCurrency } from "@/modules/money/features/change-base-currency/change-base-currency";
 import { getMoneySettings } from "@/modules/money/features/get-money-settings/get-money-settings";
 import { registerExchangeRate } from "@/modules/money/features/register-exchange-rate/register-exchange-rate";
 import { saveCurrency } from "@/modules/money/features/save-currency/save-currency";
+import { updateMoneyLocale } from "@/modules/money/features/update-money-locale/update-money-locale";
 
 /**
  * `TASK-MONEY-PAYMENTS-RUNTIME-001` (`A-80`, `D-016`, `D-018`) — **la superficie de Finanzas**
@@ -54,6 +56,11 @@ const baseCurrencySchema = z.object({
   locale: z.string().trim().min(2).max(12).optional(),
 });
 
+/** `A-87` — el formato regional, solo. Misma forma que valida el dominio (`es-NI`). */
+const localeSchema = z.object({
+  locale: z.string().trim().min(2).max(12),
+});
+
 const paymentMethodSchema = z.object({
   id: z.string().trim().min(1).optional(),
   name: z.string().trim().min(1, "Poné el nombre del medio.").max(60),
@@ -65,6 +72,15 @@ const paymentMethodSchema = z.object({
   requiresReference: z.boolean().optional(),
   isActive: z.boolean().optional(),
   sortOrder: z.number().int().min(0).max(999).optional(),
+  /**
+   * `TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002` (`A-86`) — **la disponibilidad por sucursal**.
+   *
+   * `undefined` = no se toca; `[]` = se ofrece en **todas** (es el default de `PaymentMethodLocation`); una
+   * lista = sólo en esas. Antes el campo no existía en el esquema, así que la disponibilidad se leía para
+   * dibujarla pero **no se podía guardar**: la referencia congelada de Finanzas tenía una capacidad que el
+   * runtime no completaba.
+   */
+  locationIds: z.array(z.string().trim().min(1)).max(50).optional(),
 });
 
 const entitySchema = z.object({
@@ -124,12 +140,23 @@ export async function readFinanceConfig() {
     include: { locations: { select: { locationId: true, isActive: true } } },
   });
 
+  /**
+   * `A-86` — **las sucursales**, para que la pantalla pueda editar la disponibilidad del medio: la referencia
+   * congelada pide «Todos los locales / Locales seleccionados» y sin la lista no hay entre qué elegir.
+   */
+  const locations = await prisma.location.findMany({
+    orderBy: { name: "asc" },
+    select: { id: true, name: true, isActive: true },
+  });
+
   return {
     settings: { ...settings, rateHistory },
     /** El catálogo conocido es conveniencia del formulario, no una restricción (`D-019`). */
     knownCurrencies: KNOWN_CURRENCIES,
     knownLocales: KNOWN_LOCALES,
     entities: bankCatalog.banks,
+    /** `A-86` — las sucursales donde un medio puede ofrecerse. */
+    locations,
     paymentMethods: paymentMethods.map((method) => ({
       id: method.id,
       name: method.name,
@@ -215,6 +242,11 @@ export async function changeBaseCurrencyForRoute(body: unknown) {
     {
       currencyRepository: new PrismaCurrencyRepository(),
       settingsRepository: new PrismaBusinessCurrencySettingsRepository(),
+      /**
+       * `D-023` — **las obligaciones vivas de producción**: turnos con la caja abierta y pedidos que
+       * todavía deben plata. Es lo que hace que el cambio de base sea una operación de **período cerrado**.
+       */
+      obligationGuard: new PrismaMoneyObligationGuard(),
       actorUserId: session.user.id,
     },
   );
@@ -231,6 +263,30 @@ export async function changeBaseCurrencyForRoute(body: unknown) {
         "Los hechos históricos conservan su moneda, su tasa y su equivalente. Nada ya registrado se recalcula.",
     },
   };
+}
+
+/**
+ * `A-87` — **cambia sólo el formato regional**.
+ *
+ * Es un comando propio y no `change-base-currency` con la misma base: el formato es presentación, no cierra
+ * períodos de tasa ni deja asiento de cambio de base. El modal «Cambiar formato» de Finanzas llamaba al
+ * cambio de base con la base vigente, que el dominio rechaza con `409`, así que no guardaba nada.
+ */
+export async function updateLocaleForRoute(body: unknown) {
+  const session = await requireFinanceSession();
+  const parsed = localeSchema.safeParse(body);
+
+  if (!parsed.success) {
+    throw new MoneyError(422, "VALIDATION_ERROR", "Revisá el formato regional.", fieldErrors(parsed.error));
+  }
+
+  return updateMoneyLocale(
+    { locale: parsed.data.locale },
+    {
+      settingsRepository: new PrismaBusinessCurrencySettingsRepository(),
+      actorUserId: session.user.id,
+    },
+  );
 }
 
 /** Alta o edición de un medio de pago, con su tipo canónico y su disponibilidad por local. */
@@ -266,7 +322,53 @@ export async function savePaymentMethodForRoute(body: unknown) {
     },
   });
 
-  return { id: saved.id, name: saved.name, kind: saved.kind, isActive: saved.isActive };
+  /**
+   * `A-86` — **la disponibilidad por sucursal**, en la misma operación que el medio.
+   *
+   * La lista que llega dice **dónde sí**: las filas de los locales que salen quedan `isActive: false` (no se
+   * borran, igual que las denominaciones de Caja: un cobro viejo referencia el medio y su alcance explica por
+   * qué se pudo cobrar ahí). Sin el campo (`undefined`) no se toca nada: la pantalla manda lo que editó.
+   */
+  if (data.locationIds !== undefined) {
+    await replacePaymentMethodLocations(saved.id, data.locationIds);
+  }
+
+  return {
+    id: saved.id,
+    name: saved.name,
+    kind: saved.kind,
+    isActive: saved.isActive,
+    locationIds: data.locationIds,
+  };
+}
+
+/**
+ * `A-86` — deja la disponibilidad del medio como la lista pedida.
+ *
+ * Se hace en **una transacción** para que nadie lea el medio sin alcance a mitad de camino, y se **apaga** en
+ * vez de borrar: la fila es el registro de dónde se ofreció.
+ */
+async function replacePaymentMethodLocations(
+  paymentMethodConfigId: string,
+  locationIds: readonly string[],
+): Promise<void> {
+  const prisma = getPrismaClient();
+  const wanted = [...new Set(locationIds)];
+
+  await prisma.$transaction(async (tx) => {
+    await tx.paymentMethodLocation.updateMany({
+      where: { paymentMethodConfigId, locationId: { notIn: wanted } },
+      data: { isActive: false },
+    });
+
+    for (const locationId of wanted) {
+      await tx.paymentMethodLocation.upsert({
+        where: { locationId_paymentMethodConfigId: { locationId, paymentMethodConfigId } },
+        create: { locationId, paymentMethodConfigId, isActive: true },
+        update: { isActive: true },
+      });
+    }
+  });
 }
 
 /** Alta o edición de una entidad de cobro: **es** el catálogo `banks`, con su tipo (no hay uno paralelo). */

@@ -2,12 +2,10 @@ import { z } from "zod";
 
 import { BusinessSettingsError } from "@/modules/business-settings/domain/business-settings-errors";
 import {
-  CURRENCY_CODE_PATTERN,
   E164_DIGITS_PATTERN,
   E164_PHONE_PATTERN,
   FONT_CHOICES,
   HEX_COLOR_PATTERN,
-  LOCALE_PATTERN,
   TIME_OF_DAY_PATTERN,
   WEEKDAY_KEYS,
   type BusinessSettingsInput,
@@ -181,35 +179,22 @@ export const businessSettingsPatchSchema = z.object({
   longitude: z.number().min(-180, "Tiene que estar entre -180 y 180").max(180, "Tiene que estar entre -180 y 180").nullable().optional(),
   timezone: z.string().trim().min(1, "Elegí una zona horaria").max(64).optional(),
   businessHours: businessHoursPatchSchema.optional(),
-  currencyCode: z
-    .string()
-    .trim()
-    .refine(
-      (value) => CURRENCY_CODE_PATTERN.test(value),
-      "Usá el código ISO de 3 letras en mayúsculas, por ejemplo NIO",
-    )
-    .optional(),
-  currencySymbol: z
-    .string()
-    .trim()
-    .min(1, "Escribí el símbolo de la moneda")
-    .max(8, "Máximo 8 caracteres")
-    .optional(),
   /**
-   * TASK-303a — tipo de cambio del dólar, en moneda del negocio. `null` = sin tasa cargada (un cobro
-   * en dólares se rechaza hasta que se cargue). El tope de 100000 ataja un dedazo, no un mercado.
+   * `TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002` (`A-84`, `D-016`) — **la moneda, el símbolo, el locale y la
+   * tasa del dólar ya no se editan desde acá**.
+   *
+   * La autoridad monetaria es `money` (`BusinessCurrencySettings` + `ExchangeRate`) y su pantalla es
+   * `/admin/finance`. Con los dos formularios vivos, el dueño de la moneda base y de la tasa tenía **dos**
+   * dueños y ninguno avisaba del otro: cambiar la tasa en Personalización no la cambiaba en Finanzas.
+   *
+   * Las columnas de `BusinessSettings` **siguen existiendo** —son la compatibilidad de lectura y el valor que
+   * alimenta el formateo de las superficies que todavía no migraron— pero **no se aceptan por esta puerta**:
+   * el esquema las rechaza explícitamente con el motivo y adónde ir.
    */
-  usdExchangeRate: z
-    .number()
-    .positive("Tiene que ser mayor que cero")
-    .max(100000, "Ese número es demasiado grande para un tipo de cambio")
-    .nullable()
-    .optional(),
-  locale: z
-    .string()
-    .trim()
-    .refine((value) => LOCALE_PATTERN.test(value), "Usá el formato es-NI")
-    .optional(),
+  currencyCode: z.never().optional().describe("Se edita en Finanzas"),
+  currencySymbol: z.never().optional().describe("Se edita en Finanzas"),
+  usdExchangeRate: z.never().optional().describe("Se edita en Finanzas"),
+  locale: z.never().optional().describe("Se edita en Finanzas"),
   pickupLeadMinutes: z
     .number()
     .int("Tiene que ser un número entero de minutos")

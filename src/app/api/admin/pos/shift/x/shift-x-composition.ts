@@ -12,7 +12,12 @@ import { createProductionPosShiftDependencies } from "@/modules/pos/adapters/pro
  * necesita exactamente el mismo número —el que se firma— desde el caso de uso, no desde la ruta.
  */
 export async function previewOpenShiftArqueo(input: { locationId: string; now: Date }) {
-  const { shiftRepository, paymentRepository, businessCurrencyCode, usdExchangeRate } =
+  /**
+   * `TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002` (`A-83`) — el corte X convierte con la **misma**
+   * autoridad que el cierre: el contexto monetario de `money`. Antes los dos leían la configuración vieja
+   * por su cuenta, así que el número del corte X y el del arqueo podían salir de tasas distintas.
+   */
+  const { shiftRepository, paymentRepository, money } =
     await createProductionPosShiftDependencies();
 
   const { data: shift } = await getCurrentShift(
@@ -29,8 +34,7 @@ export async function previewOpenShiftArqueo(input: { locationId: string; now: D
       paymentRepository,
       cashMovementRepository: new PrismaCashMovementRepository(),
       refundRepository: new PrismaRefundRepository(),
-      businessCurrencyCode,
-      usdExchangeRate,
+      money,
     },
   );
 }

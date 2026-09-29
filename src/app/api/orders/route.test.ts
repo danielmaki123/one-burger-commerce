@@ -46,6 +46,26 @@ vi.mock("@/modules/business-settings/adapters/prisma-business-settings-repositor
   }),
 }));
 
+/**
+ * `TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002` (`A-89`) — la ruta lee la moneda base de **`money`** para
+ * congelarla en el pedido. El doble existe porque el job `verify` del CI corre los unitarios **sin**
+ * `DATABASE_URL`: un adaptador real que instancia Prisma haría fallar la ruta con 500 (`A-83`).
+ */
+vi.mock("@/modules/money/adapters/production-money-context", () => ({
+  readProductionMoney: async () => ({
+    context: {
+      baseCurrencyCode: "NIO",
+      locale: "es-NI",
+      rates: { USD: 36.5 },
+      knownCurrencyCodes: ["NIO", "USD"],
+    },
+    currencies: [
+      { code: "NIO", name: "Córdoba", symbol: "C$", decimals: 2, isBase: true },
+      { code: "USD", name: "Dólar", symbol: "US$", decimals: 2, isBase: false },
+    ],
+  }),
+}));
+
 vi.mock(
   "@/modules/business-settings/features/get-public-business-settings/get-public-business-settings",
   () => ({

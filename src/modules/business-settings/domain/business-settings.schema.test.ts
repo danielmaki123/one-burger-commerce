@@ -134,22 +134,25 @@ describe("validación de la configuración del negocio", () => {
     expectFieldError({ withdrawalLimit: -1 }, "withdrawalLimit");
   });
 
-  it("valida el tipo de cambio del dólar (TASK-303a)", () => {    // Es la casilla que el owner ajusta cuando se mueve el mercado; vacía = sin tasa cargada, y
-    // entonces un cobro en dólares se rechaza en vez de convertir con un número inventado.
-    expect(parseBusinessSettingsPatch({ usdExchangeRate: 36.5 })).toEqual({ usdExchangeRate: 36.5 });
-    expect(parseBusinessSettingsPatch({ usdExchangeRate: null })).toEqual({ usdExchangeRate: null });
-    expectFieldError({ usdExchangeRate: 0 }, "usdExchangeRate");
-    expectFieldError({ usdExchangeRate: -1 }, "usdExchangeRate");
-    expectFieldError({ usdExchangeRate: 100001 }, "usdExchangeRate");
+  /**
+   * `TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002` (`A-84`, `D-016`) — **la moneda, el símbolo, el locale y la
+   * tasa del dólar ya no se editan desde Personalización**.
+   *
+   * La autoridad monetaria es `money` y su pantalla es `/admin/finance`. Con los dos formularios vivos, el
+   * dueño de la moneda base y de la tasa tenía **dos** dueños y ninguno avisaba del otro: cambiar la tasa acá
+   * no la cambiaba en Finanzas. Las columnas siguen existiendo para la lectura, pero esta puerta las rechaza.
+   */
+  it("rechaza la moneda, el símbolo, el locale y la tasa: se editan en Finanzas", () => {
+    for (const field of ["currencyCode", "currencySymbol", "usdExchangeRate", "locale"] as const) {
+      expectFieldError({ [field]: "cualquier-cosa" }, field);
+    }
   });
 
-  it("valida moneda, locale y coordenadas", () => {
-    expect(parseBusinessSettingsPatch({ currencyCode: "NIO", locale: "es-NI" })).toEqual({
-      currencyCode: "NIO",
-      locale: "es-NI",
+  it("sigue aceptando lo que sí es de Personalización: coordenadas y zona horaria", () => {
+    expect(parseBusinessSettingsPatch({ latitude: 12.1, timezone: "America/Managua" })).toEqual({
+      latitude: 12.1,
+      timezone: "America/Managua",
     });
-    expectFieldError({ currencyCode: "nio" }, "currencyCode");
-    expectFieldError({ locale: "es_NI" }, "locale");
     expectFieldError({ latitude: 91 }, "latitude");
     expectFieldError({ longitude: -181 }, "longitude");
   });

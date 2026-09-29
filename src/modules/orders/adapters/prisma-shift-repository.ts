@@ -1,5 +1,7 @@
 import type { Decimal } from "@prisma/client/runtime/library";
 
+import { Prisma } from "@prisma/client";
+
 import { getPrismaClient, type DatabaseClient } from "@/infrastructure/database/prisma";
 import type { ShiftRecord, ShiftStatus } from "@/modules/orders/domain/order.types";
 import { ShiftError } from "@/modules/orders/domain/shift-errors";
@@ -62,6 +64,9 @@ function mapShift(shift: {
   refundsAmount?: Decimal | null;
   /** `TASK-MONEY-PAYMENTS-RUNTIME-001` (`A-72`) — la tasa que produjo el cierre. `null` en los viejos. */
   exchangeRate?: Decimal | null;
+  /** `A-90` — la moneda base y la tasa por moneda del cierre. `null` en los anteriores. */
+  baseCurrencyCode?: string | null;
+  exchangeRatesByCurrency?: unknown;
   difference: Decimal | null;
   bankDifferenceAmount?: Decimal | null;
   differenceNotifiedAt?: Date | null;
@@ -113,6 +118,13 @@ function mapShift(shift: {
      * recalcula con la tasa de hoy.
      */
     exchangeRate: decimalOrNull(shift.exchangeRate ?? null),
+    /**
+     * `A-90` — la moneda base y la tasa por moneda del cierre. `null` en los cierres anteriores: «no
+     * declaradas». Un cierre viejo **no** se re-firma ni se recalcula.
+     */
+    baseCurrencyCode: shift.baseCurrencyCode ?? null,
+    exchangeRatesByCurrency:
+      (shift.exchangeRatesByCurrency as Record<string, number> | null) ?? null,
     differenceNotifiedAt: shift.differenceNotifiedAt
       ? shift.differenceNotifiedAt.toISOString()
       : null,
@@ -311,6 +323,12 @@ export class PrismaShiftRepository implements ShiftRepository {
            * escribía**: el snapshot estaba a medias.
            */
           exchangeRate: input.exchangeRate ?? null,
+          /**
+           * `A-90` — la forma general del snapshot monetario del cierre: con qué moneda base y con qué tasa
+           * por moneda. El escalar de arriba explica el caso de un solo par; esto explica N monedas.
+           */
+          baseCurrencyCode: input.baseCurrencyCode ?? null,
+          exchangeRatesByCurrency: input.exchangeRatesByCurrency ?? Prisma.DbNull,
           ...(input.notes !== undefined ? { notes: input.notes } : {}),
         },
       });

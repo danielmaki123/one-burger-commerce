@@ -6,6 +6,7 @@ import { PAYMENT_METHOD_TYPE_LABELS } from "@/modules/orders/domain/order.types"
 import { calculateOrderChange } from "@/modules/orders/domain/payment-change";
 import { paidTotalInBaseCurrency } from "@/modules/money/domain/paid-total";
 import { POS_PAYMENT_METHODS } from "@/modules/pos/domain/pos-sale";
+import type { MoneyContext } from "@/modules/money/domain/money-context";
 import { formatCurrency, type CurrencyFormat } from "@/shared/lib/format-currency";
 import { roundCurrency } from "@/shared/lib/order-totals";
 import { Button } from "@/shared/ui/button";
@@ -79,10 +80,10 @@ export default function PosPaymentFields({
   payments,
   setPayments,
   fieldErrors,
-  currencyCode,
   currency,
   total,
-  usdExchangeRate,
+  money,
+  acceptedCurrencies,
   onRemovePayment,
   onAddPayment,
 }: {
@@ -90,18 +91,31 @@ export default function PosPaymentFields({
   setPayments: React.Dispatch<React.SetStateAction<PosPaymentDraft[]>>;
   /** Los errores por campo que devolvió el servidor (o los de la validación de la pantalla). */
   fieldErrors: Record<string, string>;
-  currencyCode: string;
-  /** El formato de la moneda del negocio, para los montos rápidos. */
+  /** El formato de la moneda base, para los montos rápidos. */
   currency: CurrencyFormat;
   /** El total de la venta: es lo que llena el botón «Exacto». */
   total: number;
-  /** Con tasa cargada el cajero puede cobrar en dólares; sin tasa, la moneda no se elige. */
-  usdExchangeRate: number | null;
+  /**
+   * `TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002` (`A-85`) — el contexto monetario vigente, de `money`.
+   */
+  money: MoneyContext;
+  /**
+   * Las monedas que el negocio acepta **hoy**, para ofrecer esas y no una lista fija. Sale de la misma
+   * lectura que `money`: ofrecer una moneda y convertir con otra tasa es lo que este cambio evita.
+   */
+  acceptedCurrencies: string[];
   /** Saca una fila del cobro partido (la primera no se saca: es el medio de la venta). */
   onRemovePayment?: (paymentId: string) => void;
   /** Agrega una fila de cobro con otro medio (partir el pago). */
   onAddPayment?: () => void;
 }) {
+  const currencyCode = money.baseCurrencyCode;
+  /**
+   * Las monedas que el cajero puede elegir: las que `money` declara activas. Con una sola no hay nada que
+   * elegir y el control no se dibuja.
+   */
+  const currencyOptions = acceptedCurrencies.map((code) => ({ value: code, label: code }));
+
   /**
    * `TASK-MONEY-PAYMENTS-RUNTIME-001` (`A-69c`) — **la suma de un cobro partido, en una sola moneda**.
    *
@@ -112,7 +126,7 @@ export default function PosPaymentFields({
   const paidTotal = paidTotalInBaseCurrency({
     payments,
     baseCurrencyCode: currencyCode,
-    usdExchangeRate,
+    rates: money.rates,
   });
 
   return (
@@ -162,7 +176,8 @@ export default function PosPaymentFields({
             </div>
           </div>
 
-          {usdExchangeRate !== null ? (
+          {/* `A-85` — con una sola moneda aceptada no hay nada que elegir y el control no se dibuja. */}
+          {currencyOptions.length > 1 ? (
             <Select
               label="Moneda del cobro"
               value={payment.currency}
@@ -173,10 +188,7 @@ export default function PosPaymentFields({
                   ),
                 )
               }
-              options={[
-                { value: currencyCode, label: currencyCode },
-                { value: "USD", label: "USD" },
-              ]}
+              options={currencyOptions}
             />
           ) : null}
 

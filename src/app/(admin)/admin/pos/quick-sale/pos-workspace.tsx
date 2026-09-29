@@ -1,5 +1,7 @@
 "use client";
 
+import type { MoneyContext } from "@/modules/money/domain/money-context";
+
 import * as React from "react";
 import { X } from "lucide-react";
 
@@ -131,8 +133,10 @@ export type PosWorkspaceSale = {
   addPaymentRow: () => void;
   removePaymentRow: (paymentId: string) => void;
   fieldErrors: Record<string, string>;
-  currencyCode: string;
-  usdExchangeRate: number | null;
+  /** A-85 — el contexto monetario vigente (moneda base y sus tasas), de `money`. */
+  money: MoneyContext;
+  /** A-85 — las monedas aceptadas que la pantalla ofrece. */
+  acceptedCurrencies: string[];
   canCharge: boolean;
   blockedReason: string | null;
   total: number;
@@ -490,10 +494,10 @@ export function PosWorkspace({
                   payments={sale.payments}
                   setPayments={sale.setPayments}
                   fieldErrors={sale.fieldErrors}
-                  currencyCode={sale.currencyCode}
                   currency={sale.currency}
                   total={sale.totals.total}
-                  usdExchangeRate={sale.usdExchangeRate}
+                  money={sale.money}
+                  acceptedCurrencies={sale.acceptedCurrencies}
                   onAddPayment={sale.addPaymentRow}
                   onRemovePayment={sale.removePaymentRow}
                 />

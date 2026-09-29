@@ -42,6 +42,14 @@ type MethodDraft = {
   currencyCodes: string[];
   requiresReference: boolean;
   isActive: boolean;
+  /**
+   * `TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002` (`A-86`) — **la disponibilidad por sucursal**.
+   *
+   * Lista vacía = **todos los locales** (es el default de `PaymentMethodLocation`). Con locales marcados, el
+   * medio se ofrece sólo ahí: es la «Disponibilidad: Todos los locales / Locales seleccionados» de la
+   * referencia congelada, que el runtime leía pero no podía escribir.
+   */
+  locationIds: string[];
 };
 
 export default function FinanceMethodsView({ config, api, run }: FinanceViewProps) {
@@ -155,6 +163,7 @@ export default function FinanceMethodsView({ config, api, run }: FinanceViewProp
                       currencyCodes: method.currencyCodes,
                       requiresReference: method.requiresReference,
                       isActive: method.isActive,
+                      locationIds: method.locationIds,
                     })
                   }
                 >
@@ -230,6 +239,39 @@ export default function FinanceMethodsView({ config, api, run }: FinanceViewProp
               onChange={(event) => setDraft({ ...draft, requiresReference: event.target.checked })}
             />
 
+            {/*
+              `A-86` — **Disponibilidad**: la capacidad que la referencia congelada pide y que el runtime leía
+              sin poder escribirla. Sin ningún local marcado el medio se ofrece en **todos** (el default de la
+              tabla), y eso se dice en la ayuda para que nadie crea que quedó apagado.
+            */}
+            <fieldset className="space-y-2">
+              <legend className="text-st-overline font-bold uppercase tracking-wider text-ink-muted">
+                Disponibilidad
+              </legend>
+              <p className="text-st-caption text-ink-muted">
+                {draft.locationIds.length === 0
+                  ? "Todos los locales. Marcá uno o más para ofrecerlo sólo ahí."
+                  : `Sólo en ${draft.locationIds.length} local${draft.locationIds.length === 1 ? "" : "es"}.`}
+              </p>
+              <div className="flex flex-wrap gap-x-4 gap-y-2">
+                {config.locations.map((location) => (
+                  <Checkbox
+                    key={location.id}
+                    label={location.name}
+                    checked={draft.locationIds.includes(location.id)}
+                    onChange={(event) =>
+                      setDraft({
+                        ...draft,
+                        locationIds: event.target.checked
+                          ? [...new Set([...draft.locationIds, location.id])]
+                          : draft.locationIds.filter((id) => id !== location.id),
+                      })
+                    }
+                  />
+                ))}
+              </div>
+            </fieldset>
+
             <div className="flex flex-wrap items-center gap-2">
               <Button
                 type="button"
@@ -261,5 +303,7 @@ function emptyMethod(): MethodDraft {
     currencyCodes: [],
     requiresReference: false,
     isActive: true,
+    // Sin locales marcados el medio se ofrece en todos (el default de la tabla).
+    locationIds: [],
   };
 }

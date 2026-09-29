@@ -1,4 +1,5 @@
 import type { ShiftRecord } from "@/modules/orders/domain/order.types";
+import { rateForCurrency, type MoneyContext } from "@/modules/money/domain/money-context";
 import { ShiftError } from "@/modules/orders/domain/shift-errors";
 import {
   cashCountsTotalInBusinessCurrency,
@@ -39,15 +40,21 @@ export async function openShift(
   {
     shiftRepository,
     locationRepository,
-    businessCurrencyCode,
-    usdExchangeRate,
+    money,
     cashCountConfig,
     cashTerminalIds,
   }: {
     shiftRepository: ShiftRepository;
     locationRepository: LocationRepository;
-    businessCurrencyCode: string;
-    usdExchangeRate: number | null;
+    /**
+     * `TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002` (`A-83`, `A-90`) — el contexto monetario vigente,
+     * leído de `money`.
+     *
+     * Abrir la caja no congela la tasa (eso es del cierre, que es el documento), pero sí necesita la moneda
+     * base para validar el conteo inicial y la forma general del arqueo. Antes los dos escalares salían de
+     * `BusinessSettings`, que es la autoridad vieja.
+     */
+    money: MoneyContext;
     /**
      * Fase 2 del rediseño de Caja (2026-09-22) — la config del conteo de este local (monedas y billetes).
      * Sin ella se validan los defaults del módulo: una base recién creada tiene que poder abrir la caja.
@@ -75,8 +82,8 @@ export async function openShift(
   const openingAmount = input.openingCounts?.length
     ? cashCountsTotalInBusinessCurrency({
         counts: input.openingCounts,
-        businessCurrencyCode,
-        usdExchangeRate,
+        businessCurrencyCode: money.baseCurrencyCode,
+        usdExchangeRate: rateForCurrency("USD", money),
       })
     : (input.openingAmount ?? 0);
 

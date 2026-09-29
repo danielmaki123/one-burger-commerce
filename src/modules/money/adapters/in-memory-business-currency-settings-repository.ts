@@ -1,5 +1,6 @@
 import { InMemoryAuditLogRepository } from "@/modules/audit/adapters/in-memory-audit-log-repository";
 import type { AuditLogRepository } from "@/modules/audit/ports/audit-log-repository";
+import { DEFAULT_BUSINESS_SETTINGS } from "@/modules/business-settings/domain/business-settings-defaults";
 import { currencyKey } from "@/modules/money/domain/convert-to-base-currency";
 import type { BusinessCurrencySettingsRecord } from "@/modules/money/domain/money.types";
 import type {
@@ -84,5 +85,27 @@ export class InMemoryBusinessCurrencySettingsRepository
       this.exchangeRateRepository.restore(ratesSnapshot);
       throw error;
     }
+  }
+
+  /**
+   * `A-87` — sólo el formato: **no** cierra períodos de tasa ni deja asiento. Es la escritura que el modal
+   * «Cambiar formato» de Finanzas necesita y que antes no existía (llamaba a `changeBaseCurrency` con la
+   * misma base, que el dominio rechaza).
+   */
+  async setLocale(input: {
+    locale: string;
+    updatedByUserId: string | null;
+  }): Promise<BusinessCurrencySettingsRecord> {
+    const baseCurrencyCode = currencyKey(
+      this.settings?.baseCurrencyCode ?? DEFAULT_BUSINESS_SETTINGS.currencyCode,
+    );
+
+    this.settings = {
+      baseCurrencyCode,
+      locale: input.locale,
+      updatedByUserId: input.updatedByUserId,
+    };
+
+    return { ...this.settings };
   }
 }

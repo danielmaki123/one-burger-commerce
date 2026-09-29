@@ -1,8 +1,7 @@
 import { refundRequestAudit } from "@/app/api/admin/audit-action-helpers";
 import type { RefundRequestPayload } from "@/app/api/admin/approvals/refunds-payload";
 import { getPrismaClient } from "@/infrastructure/database/prisma";
-import { PrismaBusinessSettingsRepository } from "@/modules/business-settings/adapters/prisma-business-settings-repository";
-import { loadBusinessSettings } from "@/modules/business-settings/features/get-public-business-settings/get-public-business-settings";
+import { readProductionMoney } from "@/modules/money/adapters/production-money-context";
 import { PrismaNotificationSettingsRepository } from "@/modules/notifications/adapters/prisma-notification-settings-repository";
 import { PrismaOutboxRepository } from "@/modules/notifications/adapters/prisma-outbox-repository";
 import { registerRefundAlert } from "@/modules/notifications/features/register-alert-event/register-alert-event";
@@ -107,19 +106,17 @@ export function runInRefundRequestTransaction<T>(
 /**
  * Las dependencias del caso de uso, armadas una sola vez para la ruta **y** para su test.
  *
- * La moneda del negocio entra por acá (`money` es su dueño): el caso de uso resuelve el `null` de
- * `Payment.currency` con **este** dato, no con un `"NIO"` escrito en el camino del dinero (`A-69`).
+ * `TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002` (`A-82`) — el contexto monetario entra por acá y lo lee
+ * **`money`**: la moneda base vigente y las tasas con las que la devolución congela su equivalente. Antes
+ * esta composición leía `settings.currencyCode` de `BusinessSettings`, que es la autoridad vieja, y la
+ * devolución no congelaba nada.
  */
 export async function refundRequestDependenciesForRoute(input: {
   runInRefundRequestTransaction: <T>(work: (scope: RefundRequestScope) => Promise<T>) => Promise<T>;
 }) {
-  const settings = await loadBusinessSettings({
-    repository: new PrismaBusinessSettingsRepository(),
-  });
-
   return {
     shiftRepository: new PrismaShiftRepository(),
     runInRefundRequestTransaction: input.runInRefundRequestTransaction,
-    businessCurrencyCode: settings.currencyCode,
+    readMoney: async () => (await readProductionMoney()).context,
   };
 }

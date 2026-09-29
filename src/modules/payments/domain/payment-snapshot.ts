@@ -1,4 +1,5 @@
 import { currencyKey } from "@/modules/money/domain/convert-to-base-currency";
+import { rateForCurrency, type MoneyContext } from "@/modules/money/domain/money-context";
 import { roundCurrency } from "@/modules/money/domain/round-currency";
 
 /**
@@ -43,6 +44,13 @@ export type PaymentSnapshotInput = {
   baseCurrencyCode: string;
   exchangeRate: number;
   methodKind: PaymentMethodKind;
+  /**
+   * `TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002` (`D-017`) — el **medio comercial** del momento y la
+   * **entidad** contra la que se liquidó, si el cobro se hizo con uno del catálogo. Opcionales porque el
+   * mostrador también cobra por el enum histórico, y porque el legacy no los tiene.
+   */
+  paymentMethodId?: string | null;
+  entityId?: string | null;
 };
 
 export type PaymentSnapshot = {
@@ -53,6 +61,8 @@ export type PaymentSnapshot = {
   exchangeRate: number;
   baseAmount: number;
   methodKind: PaymentMethodKind;
+  paymentMethodId?: string;
+  entityId?: string | null;
 };
 
 /** El error de un cobro que no se puede firmar. La ruta lo mapea a 422 con el campo que lo causó. */
@@ -121,7 +131,106 @@ export function buildPaymentSnapshot(input: PaymentSnapshotInput): PaymentSnapsh
     exchangeRate,
     baseAmount: roundCurrency(amount * exchangeRate),
     methodKind: input.methodKind,
+    ...(input.paymentMethodId ? { paymentMethodId: input.paymentMethodId } : {}),
+    ...(input.entityId !== undefined ? { entityId: input.entityId } : {}),
   };
+}
+
+/**
+ * `TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002` (`A-81`, `D-024`) — **el snapshot desde el contexto
+ * monetario**.
+ *
+ * Es la forma que usan los caminos productivos, y existe para que ninguno de ellos tenga que resolver la
+ * tasa por su cuenta: recibe el contexto de `money` y congela los cinco campos de `D-020`. El POS productivo
+ * escribía los cobros sin pasar por acá (`A-81`), que es exactamente el hueco que esto cierra.
+ *
+ * Dos decisiones que no son obvias:
+ *
+ * 1. **Un cobro en la moneda base se congela con tasa `1`**, no con la tasa «faltante». La igualdad es un
+ *    hecho del cobro y tiene que quedar escrita: si dentro de seis meses la base cambia, un `baseAmount`
+ *    `null` obligaría a reconstruir el pasado con la configuración de ese día, que es lo que `D-020`/`D-022`
+ *    prohíben. `rateForCurrency` devuelve `null` para la base justamente porque ahí no hay tasa que buscar.
+ * 2. **Sin tasa vigente no se firma.** El error es de dominio —no hay equivalente que inventar— y cada
+ *    superficie lo traduce a su error de negocio.
+ */
+export function buildPaymentSnapshotFor(
+  input: {
+    amount: number;
+    currency: string;
+    methodKind: PaymentMethodKind;
+    /** `D-017` — el medio comercial y su entidad, cuando el cobro se hizo con uno del catálogo. */
+    paymentMethodId?: string | null;
+    entityId?: string | null;
+  },
+  context: MoneyContext,
+): PaymentSnapshot {
+  const currency = currencyKey(input.currency);
+  const baseCurrencyCode = currencyKey(context.baseCurrencyCode);
+
+  const identity = {
+    ...(input.paymentMethodId ? { paymentMethodId: input.paymentMethodId } : {}),
+    ...(input.entityId !== undefined ? { entityId: input.entityId } : {}),
+  };
+
+  if (currency === baseCurrencyCode) {
+    return buildPaymentSnapshot({
+      amount: input.amount,
+      currency,
+      baseCurrencyCode,
+      exchangeRate: 1,
+      methodKind: input.methodKind,
+      ...identity,
+    });
+  }
+
+  const rate = rateForCurrency(currency, context);
+
+  if (rate === null) {
+    const known = context.knownCurrencyCodes
+      ? context.knownCurrencyCodes.some((code) => currencyKey(code) === currency)
+      : context.rates[currency] !== undefined;
+
+    throw new PaymentSnapshotError(
+      "exchangeRate",
+      known
+        ? `No hay una tasa vigente para ${currency}: registrala en Finanzas antes de cobrar en esa moneda.`
+        : `No conocemos la moneda ${currency}: agregala al catálogo de Finanzas antes de cobrar en ella.`,
+    );
+  }
+
+  return buildPaymentSnapshot({
+    amount: input.amount,
+    currency,
+    baseCurrencyCode,
+    exchangeRate: rate,
+    methodKind: input.methodKind,
+    ...identity,
+  });
+}
+
+/**
+ * `TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002` (`A-82`, `D-020`, `D-024`) — **el snapshot de una
+ * devolución**.
+ *
+ * Misma ley que el cobro y por la misma razón: una devolución es plata que **salió**, y sin la moneda base,
+ * la tasa y el equivalente, el neto del negocio no se puede explicar después sin volver a la configuración
+ * de ese día (`A-74` ya dependía de este equivalente para no restar dólares como córdobas).
+ *
+ * Se apoya en `buildPaymentSnapshotFor` a propósito: el cálculo del equivalente es **uno solo** para las dos
+ * puntas de la misma operación de dinero. Una devolución en la moneda base congela la igualdad; una en otra
+ * moneda, la tasa **vigente en el momento de la devolución** —que no tiene por qué ser la del cobro: el cobro
+ * explica cuánto valía la plata cuando entró, la devolución cuánto vale la que sale—.
+ */
+export function buildRefundSnapshotFor(
+  input: {
+    amount: number;
+    currency: string;
+    /** El tipo canónico que hereda del cobro: la devolución sale por el mismo medio. */
+    methodKind: PaymentMethodKind;
+  },
+  context: MoneyContext,
+): PaymentSnapshot {
+  return buildPaymentSnapshotFor(input, context);
 }
 
 /** Valida y normaliza la clave de idempotencia que mandó el cliente. */

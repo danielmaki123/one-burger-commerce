@@ -115,6 +115,16 @@ export type CreateOrderRequest = {
   geoAccuracy?: number | null;
   geoCapturedAt?: string | null;
   /**
+   * `TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002` (`A-89`, `D-022`) — **la moneda base vigente**, la que
+   * `money` declara, y en la que están expresados los montos de esta alta.
+   *
+   * Viaja en el request porque es un **dato del pedido** —el hecho congela en qué moneda está su deuda— y
+   * no una dependencia del alta. La escriben las dos puertas de creación (el menú público y la venta del
+   * mostrador) con lo que les da `money`; un pedido anterior a la columna queda en `null` (legacy) y **no**
+   * se le inventa una moneda con la configuración de hoy.
+   */
+  currencyCode?: string | null;
+  /**
    * TASK-101 — clave de operación del cliente para esta alta. Repetirla devuelve el pedido que ya
    * existe en vez de crear otro. Sin clave (o en blanco) el alta se comporta como antes.
    */
@@ -601,6 +611,12 @@ export async function createOrder(
         tipAmount,
         tipRate,
         total,
+        /**
+         * `A-89` — **la moneda de los montos de arriba**, congelada con el pedido. Sin esto, `total = 365` no
+         * dice si son córdobas o dólares y lo único que lo explicaba era la configuración mutable del
+         * negocio: cuando la base cambie, la deuda del pedido quedaría indemostrable (ley 7).
+         */
+        currencyCode: input.currencyCode?.trim().toUpperCase() || null,
         status,
         deliveryZoneId: input.deliveryZoneId ?? null,
         customerLat: input.customerLat ?? null,
