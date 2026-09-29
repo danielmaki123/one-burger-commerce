@@ -44,6 +44,13 @@ export type PaymentSnapshotInput = {
   baseCurrencyCode: string;
   exchangeRate: number;
   methodKind: PaymentMethodKind;
+  /**
+   * `TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002` (`D-017`) — el **medio comercial** del momento y la
+   * **entidad** contra la que se liquidó, si el cobro se hizo con uno del catálogo. Opcionales porque el
+   * mostrador también cobra por el enum histórico, y porque el legacy no los tiene.
+   */
+  paymentMethodId?: string | null;
+  entityId?: string | null;
 };
 
 export type PaymentSnapshot = {
@@ -54,6 +61,8 @@ export type PaymentSnapshot = {
   exchangeRate: number;
   baseAmount: number;
   methodKind: PaymentMethodKind;
+  paymentMethodId?: string;
+  entityId?: string | null;
 };
 
 /** El error de un cobro que no se puede firmar. La ruta lo mapea a 422 con el campo que lo causó. */
@@ -122,6 +131,8 @@ export function buildPaymentSnapshot(input: PaymentSnapshotInput): PaymentSnapsh
     exchangeRate,
     baseAmount: roundCurrency(amount * exchangeRate),
     methodKind: input.methodKind,
+    ...(input.paymentMethodId ? { paymentMethodId: input.paymentMethodId } : {}),
+    ...(input.entityId !== undefined ? { entityId: input.entityId } : {}),
   };
 }
 
@@ -147,11 +158,19 @@ export function buildPaymentSnapshotFor(
     amount: number;
     currency: string;
     methodKind: PaymentMethodKind;
+    /** `D-017` — el medio comercial y su entidad, cuando el cobro se hizo con uno del catálogo. */
+    paymentMethodId?: string | null;
+    entityId?: string | null;
   },
   context: MoneyContext,
 ): PaymentSnapshot {
   const currency = currencyKey(input.currency);
   const baseCurrencyCode = currencyKey(context.baseCurrencyCode);
+
+  const identity = {
+    ...(input.paymentMethodId ? { paymentMethodId: input.paymentMethodId } : {}),
+    ...(input.entityId !== undefined ? { entityId: input.entityId } : {}),
+  };
 
   if (currency === baseCurrencyCode) {
     return buildPaymentSnapshot({
@@ -160,6 +179,7 @@ export function buildPaymentSnapshotFor(
       baseCurrencyCode,
       exchangeRate: 1,
       methodKind: input.methodKind,
+      ...identity,
     });
   }
 
@@ -184,6 +204,7 @@ export function buildPaymentSnapshotFor(
     baseCurrencyCode,
     exchangeRate: rate,
     methodKind: input.methodKind,
+    ...identity,
   });
 }
 

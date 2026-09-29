@@ -1,6 +1,11 @@
 import type { PaymentMethodType } from "@/modules/orders/domain/order.types";
 import type { MoneyContext } from "@/modules/money/domain/money-context";
-import { paymentMethodKindFor } from "@/modules/payments/domain/payment-method-kind";
+import {
+  paymentMethodUnavailability,
+  resolveConfiguredPaymentMethod,
+  type PaymentMethodConfigRecord,
+} from "@/modules/payments/domain/payment-method-availability";
+import { paymentMethodKindFor, type PaymentMethodKind } from "@/modules/payments/domain/payment-method-kind";
 import {
   buildPaymentSnapshotFor,
   type PaymentSnapshot,
@@ -53,6 +58,14 @@ export type PosSalePaymentInput = {
   amount: number;
   /** Referencia externa del cobro (voucher, id de transferencia). Opcional. */
   reference?: string | null;
+  /**
+   * `TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002` (`A-85`, `D-017`) — **el medio comercial configurado** que
+   * el cajero eligió, si la pantalla lo conoce.
+   *
+   * Es **sólo el identificador**: el tipo canónico, la entidad y si pide referencia los resuelve el servidor
+   * contra el catálogo persistido. Un `kind` o un `entityId` que venga del cliente **no** se usa.
+   */
+  paymentMethodId?: string | null;
 };
 
 /** Suma de los cobros convertidos a la moneda base vigente. Lanza si un cobro no se puede convertir. */
@@ -92,6 +105,13 @@ export function paymentsTotalInBusinessCurrency(input: {
 export function buildSalePaymentSnapshots(input: {
   payments: PosSalePaymentInput[];
   money: MoneyContext;
+  /**
+   * `A-85`/`A-86` — **dónde** se está cobrando y **qué medios** ofrece el negocio ahí. Sin estos dos datos el
+   * snapshot sale del enum histórico, que es el comportamiento de siempre; con ellos, el medio configurado
+   * manda y un medio apagado o fuera de la sucursal **rechaza la venta**.
+   */
+  locationId?: string;
+  catalog?: readonly PaymentMethodConfigRecord[];
 }): PaymentSnapshot[] {
   return input.payments.map((payment) =>
     buildPaymentSnapshotFor(
@@ -99,15 +119,110 @@ export function buildSalePaymentSnapshots(input: {
         amount: payment.amount,
         currency: payment.currency,
         /**
-         * `D-017` — el tipo **canónico** del momento. El medio del mostrador es el enum histórico
-         * (`cash`/`card`/`transfer`/`other`); su semántica contable la traduce `payments`, que es la dueña de
-         * la correspondencia. `mixed` no llega acá: se deriva de más de un cobro.
+         * `D-017` — el tipo **canónico** del momento. Con un medio configurado nombrado, sale de **él** (y la
+         * entidad viaja con el hecho); sin medio, se traduce el enum histórico del cobro. `mixed` no llega
+         * acá: se deriva de más de un cobro.
          */
-        methodKind: paymentMethodKindFor(payment.method),
+        methodKind: resolveMethodKind(payment, input),
+        ...resolveMethodIdentity(payment, input),
       },
       input.money,
     ),
   );
+}
+
+/**
+ * El tipo canónico del cobro: el del **medio configurado** si el cajero nombró uno, y si no el que traduce el
+ * enum histórico. Un medio que no se puede cobrar lanza acá —antes de escribir nada— y no cae al enum: caer
+ * silenciosamente cobraría con un medio que el negocio no ofrece.
+ */
+function resolveMethodKind(
+  payment: PosSalePaymentInput,
+  input: { locationId?: string; catalog?: readonly PaymentMethodConfigRecord[] },
+): PaymentMethodKind {
+  const configured = resolveMethod(payment, input);
+
+  return configured ? configured.kind : paymentMethodKindFor(payment.method);
+}
+
+/** El medio y su entidad, sólo cuando el cobro nombró un medio del catálogo. */
+function resolveMethodIdentity(
+  payment: PosSalePaymentInput,
+  input: { locationId?: string; catalog?: readonly PaymentMethodConfigRecord[] },
+): { paymentMethodId?: string; entityId?: string | null } {
+  const configured = resolveMethod(payment, input);
+
+  return configured ? { paymentMethodId: configured.id, entityId: configured.entityId } : {};
+}
+
+/**
+ * `A-85`/`A-86` — **el medio configurado, resuelto contra el catálogo del servidor**.
+ *
+ * `null` cuando el cobro no nombró ninguno (el caso del mostrador que cobra por el enum, y el de las ventas
+ * ya guardadas). Si nombró uno y **no** se puede cobrar —apagado, fuera de la sucursal, moneda no admitida,
+ * identificador inexistente— la venta se rechaza con un error del POS: es un dato que la pantalla mandó mal o
+ * una configuración que cambió mientras el cajero cobraba, y en los dos casos cobrar igual sería peor.
+ */
+function resolveMethod(
+  payment: PosSalePaymentInput,
+  input: { locationId?: string; catalog?: readonly PaymentMethodConfigRecord[] },
+): PaymentMethodConfigRecord | null {
+  const paymentMethodId = payment.paymentMethodId?.trim();
+  if (!paymentMethodId) return null;
+
+  if (!input.catalog || !input.locationId) {
+    throw new PosError(
+      422,
+      "VALIDATION_ERROR",
+      "Este cobro nombra un medio de pago configurado, pero no hay catálogo para verificarlo.",
+      { paymentMethodId: "No se pudo verificar el medio de pago." },
+    );
+  }
+
+  const resolved = resolveConfiguredPaymentMethod(
+    { paymentMethodId, currency: payment.currency, locationId: input.locationId },
+    input.catalog,
+  );
+
+  if (!resolved) {
+    /**
+     * El motivo se busca en el catálogo para que el mensaje diga **qué arreglar**: un medio apagado se prende
+     * en Finanzas y uno que no se ofrece en la sucursal se habilita para ese local. «No se puede usar» a
+     * secas deja al dueño sin saber dónde mirar.
+     */
+    const configured = input.catalog.find((candidate) => candidate.id === paymentMethodId);
+    const reason = configured
+      ? paymentMethodUnavailability(configured, {
+          currency: payment.currency,
+          locationId: input.locationId,
+        })
+      : null;
+
+    throw new PosError(
+      422,
+      "VALIDATION_ERROR",
+      `${configured?.name ?? paymentMethodId}: ${unavailabilityMessage(reason)}`,
+      { paymentMethodId: unavailabilityMessage(reason) },
+    );
+  }
+
+  return resolved;
+}
+
+/** El texto de cada motivo, en un solo lugar. `null` es el caso del identificador que no existe. */
+function unavailabilityMessage(
+  reason: "inactive" | "not-offered-here" | "currency-not-admitted" | null,
+): string {
+  switch (reason) {
+    case "inactive":
+      return "ese medio está apagado en Finanzas.";
+    case "not-offered-here":
+      return "ese medio no se ofrece en esta sucursal.";
+    case "currency-not-admitted":
+      return "ese medio no admite esa moneda.";
+    default:
+      return "ese medio de pago no existe en el catálogo.";
+  }
 }
 
 /**

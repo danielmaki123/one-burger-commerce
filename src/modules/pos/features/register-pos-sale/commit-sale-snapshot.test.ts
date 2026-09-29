@@ -5,6 +5,7 @@ import type { OrderRecord } from "@/modules/orders/domain/order.types";
 import type { MoneyContext } from "@/modules/money/domain/money-context";
 
 import { addPosLine, createPosDraft } from "../../domain/pos-draft";
+import { buildSalePaymentSnapshots } from "../../domain/pos-sale";
 import { commitSale } from "./commit-sale";
 import type { PosSaleTransactionScope, RegisterPosSaleInput } from "./register-pos-sale";
 
@@ -185,5 +186,96 @@ describe("commitSale · snapshot monetario del cobro", () => {
     expect(result.reused).toBe(true);
     // 10 × 30 = 300. Con la tasa vigente (36.5) daría 365: reconstruir el pasado es el bug.
     expect(result.paidInBusinessCurrency).toBe(300);
+  });
+
+  /**
+   * `TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002` (`A-85`, `A-86`, `D-017`) — **el medio lo resuelve el
+   * servidor**.
+   *
+   * El POS ofrecía una lista fija y el payload no nombraba ningún medio comercial. Ahora el cobro puede
+   * nombrar el medio configurado y el servidor decide el **tipo canónico**, la **entidad** y si **pide
+   * referencia**: confiar en un `kind` o un `entityId` mandados por React dejaría que la pantalla eligiera la
+   * semántica contable del hecho.
+   *
+   * Los dos casos que importan son los negativos: un medio **apagado** y uno **que no se ofrece en la
+   * sucursal** no se pueden cobrar aunque el payload los traiga.
+   */
+  describe("medio de pago configurado", () => {
+    const catalog = [
+      {
+        id: "pm_bac",
+        name: "Tarjeta BAC",
+        kind: "card" as const,
+        entityId: "bank_bac",
+        currencyCodes: ["NIO", "USD"],
+        requiresReference: false,
+        isActive: true,
+        locations: [{ locationId: "loc_centro", isActive: true }],
+      },
+      {
+        id: "pm_apagado",
+        name: "Medio apagado",
+        kind: "other" as const,
+        entityId: null,
+        currencyCodes: [],
+        requiresReference: false,
+        isActive: false,
+        locations: [],
+      },
+    ];
+
+    function snapshotWithoutScope() {
+      return buildSalePaymentSnapshots({
+        payments: [
+          { method: "card", amount: 80, currency: "NIO", paymentMethodId: "pm_bac" },
+          { method: "other", amount: 20, currency: "NIO", paymentMethodId: "pm_apagado" },
+        ],
+        money,
+        locationId: "loc_centro",
+        catalog,
+      });
+    }
+
+    it("congela el tipo canónico y la entidad del medio configurado", () => {
+      const snapshots = buildSalePaymentSnapshots({
+        payments: [{ method: "card", amount: 80, currency: "NIO", paymentMethodId: "pm_bac" }],
+        money,
+        locationId: "loc_centro",
+        catalog,
+      });
+
+      expect(snapshots[0]).toMatchObject({
+        methodKind: "card",
+        paymentMethodId: "pm_bac",
+        entityId: "bank_bac",
+      });
+    });
+
+    it("un medio apagado no se puede cobrar", () => {
+      expect(() => snapshotWithoutScope()).toThrow(/apagado|no se ofrece/i);
+    });
+
+    it("un medio que no se ofrece en la sucursal no se puede cobrar", () => {
+      expect(() =>
+        buildSalePaymentSnapshots({
+          payments: [{ method: "card", amount: 80, currency: "NIO", paymentMethodId: "pm_bac" }],
+          money,
+          locationId: "loc_sur",
+          catalog,
+        }),
+      ).toThrow(/no se ofrece/i);
+    });
+
+    it("sin medio nombrado el tipo canónico sale del enum del cobro, como antes", () => {
+      const snapshots = buildSalePaymentSnapshots({
+        payments: [{ method: "transfer", amount: 80, currency: "NIO" }],
+        money,
+        locationId: "loc_centro",
+        catalog,
+      });
+
+      expect(snapshots[0]).toMatchObject({ methodKind: "bank_transfer" });
+      expect(snapshots[0].paymentMethodId).toBeUndefined();
+    });
   });
 });

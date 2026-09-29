@@ -3,6 +3,10 @@ import { getPrismaClient } from "@/infrastructure/database/prisma";
 import { PrismaBusinessSettingsRepository } from "@/modules/business-settings/adapters/prisma-business-settings-repository";
 import { loadBusinessSettings } from "@/modules/business-settings/features/get-public-business-settings/get-public-business-settings";
 import { PrismaLocationRepository } from "@/modules/locations/adapters/prisma-location-repository";
+import {
+  assertPaymentMethodKind,
+} from "@/modules/payments/domain/payment-method-kind";
+import type { PaymentMethodConfigRecord } from "@/modules/payments/domain/payment-method-availability";
 import { readProductionMoney } from "@/modules/money/adapters/production-money-context";
 import { PrismaOrderRepository } from "@/modules/orders/adapters/prisma-order-repository";
 import { PrismaPaymentRepository } from "@/modules/orders/adapters/prisma-payment-repository";
@@ -54,6 +58,36 @@ function isUniqueConflict(error: unknown): boolean {
     error !== null &&
     (error as { code?: unknown }).code === "P2002"
   );
+}
+
+/**
+ * `TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002` (`A-85`, `A-86`) — **los medios configurados que una
+ * sucursal ofrece**.
+ *
+ * Es la lectura que reemplaza a la lista fija del mostrador: el catálogo persistido con su disponibilidad por
+ * local (`PaymentMethodLocation`). Devuelve también los apagados y los de otras sucursales —el filtro lo hace
+ * el dominio (`listAvailablePaymentMethods`)—, porque el mismo catálogo sirve para rechazar un medio que la
+ * pantalla mandó mal y para decir **por qué** no se puede usar.
+ */
+async function listConfiguredPaymentMethods(): Promise<PaymentMethodConfigRecord[]> {
+  const rows = await getPrismaClient().paymentMethodConfig.findMany({
+    orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+    include: { locations: { select: { locationId: true, isActive: true } } },
+  });
+
+  return rows.map((row) => ({
+    id: row.id,
+    name: row.name,
+    kind: assertPaymentMethodKind(row.kind),
+    entityId: row.entityId,
+    currencyCodes: row.currencyCodes,
+    requiresReference: row.requiresReference,
+    isActive: row.isActive,
+    locations: row.locations.map((location) => ({
+      locationId: location.locationId,
+      isActive: location.isActive,
+    })),
+  }));
 }
 
 export async function createProductionPosSaleDependencies(): Promise<RegisterPosSaleDependencies> {
@@ -158,6 +192,14 @@ export async function createProductionPosSaleDependencies(): Promise<RegisterPos
      * pantalla ofrezca **esas** y no una lista fija con la moneda base y el dólar (`A-85`).
      */
     currencies,
+    /**
+     * `TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002` (`A-85`, `A-86`) — **los medios configurados que ese
+     * local ofrece**, leídos del catálogo persistido con su disponibilidad por sucursal.
+     *
+     * Es lo que reemplaza a la lista fija del mostrador: el dueño configura los medios en Finanzas y el POS
+     * ofrece esos. Un medio que la pantalla mande sin estar habilitado para el local lo rechaza la escritura.
+     */
+    listPaymentMethodsForLocation: () => listConfiguredPaymentMethods(),
     // Bloque 9.2: sin caja abierta no se cobra (`registerPosSale` corta con 409).
     //
     // Fase 6 del rediseño de Caja (2026-09-23) — la terminal viaja desde el POS: el turno que se resuelve

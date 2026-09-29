@@ -2,6 +2,7 @@ import type { OrderRecord, PaymentMethodType, PaymentRecord } from "@/modules/or
 import { calculateOrderChange, validatePaidWithAmount } from "@/modules/orders/domain/payment-change";
 import type { CreateOrderRequest } from "@/modules/orders/features/create-order/create-order";
 import type { PaymentSnapshot } from "@/modules/payments/domain/payment-snapshot";
+import type { PaymentMethodConfigRecord } from "@/modules/payments/domain/payment-method-availability";
 import type { MoneyContext } from "@/modules/money/domain/money-context";
 import { roundCurrency } from "@/shared/lib/order-totals";
 
@@ -37,6 +38,12 @@ type CommitSaleInput = {
    */
   money: MoneyContext;
   /**
+   * `A-85`/`A-86` — **los medios que esta sucursal ofrece**, ya resueltos contra el catálogo persistido. Sin
+   * ellos el snapshot sale del enum histórico del cobro; con ellos, un medio apagado o fuera de la sucursal
+   * rechaza la venta antes de escribir nada.
+   */
+  paymentMethods?: readonly PaymentMethodConfigRecord[];
+  /**
    * Los snapshots ya construidos, **opcionales**: el caso de uso los arma para poder rechazar una moneda sin
    * tasa antes de abrir la transacción. Si no llegan, `commitSale` los construye igual —con `money`— antes de
    * escribir, así que es imposible que un cobro del POS quede sin snapshot aunque el llamador se olvide.
@@ -51,6 +58,7 @@ export async function commitSale({
   openShift,
   scope,
   money,
+  paymentMethods = [],
   snapshots: providedSnapshots,
 }: CommitSaleInput): Promise<RegisterPosSaleResult> {
   /**
@@ -62,7 +70,13 @@ export async function commitSale({
    * vigente corta la venta antes de que exista el pedido.
    */
   const snapshots =
-    providedSnapshots ?? buildSalePaymentSnapshots({ payments: input.payments, money });
+    providedSnapshots ??
+    buildSalePaymentSnapshots({
+      payments: input.payments,
+      money,
+      locationId: input.draft.locationId,
+      catalog: paymentMethods,
+    });
   /**
    * TASK-AUD-005 — **primero el turno**, después todo lo demás.
    *
@@ -275,11 +289,13 @@ async function recordSalePayments({
         exchangeRate: snapshot.exchangeRate,
         baseAmount: snapshot.baseAmount,
         /**
-         * `D-017` — el tipo canónico del momento. `paymentMethodId`/`entityId` llegan cuando la venta se hizo
-         * con un medio del catálogo (paso 6 del plan): hoy el mostrador cobra por el enum y el tipo canónico
-         * se deriva de él, que es la semántica contable que el arqueo necesita.
+         * `D-017` — el tipo canónico del momento. Cuando el cobro se hizo con un medio del catálogo, el
+         * snapshot trae además **con qué medio** y **contra qué entidad** se liquidó: renombrar o apagar el
+         * medio no reescribe el hecho.
          */
         methodKind: snapshot.methodKind,
+        ...(snapshot.paymentMethodId ? { paymentMethodId: snapshot.paymentMethodId } : {}),
+        ...(snapshot.entityId !== undefined ? { entityId: snapshot.entityId } : {}),
       }),
     );
   }

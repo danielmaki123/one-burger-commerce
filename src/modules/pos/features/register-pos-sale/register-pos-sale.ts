@@ -7,6 +7,7 @@ import {
 import type { PaymentRepository } from "@/modules/orders/ports/payment-repository";
 import type { CreateOrderRequest } from "@/modules/orders/features/create-order/create-order";
 import type { MoneyContext } from "@/modules/money/domain/money-context";
+import type { PaymentMethodConfigRecord } from "@/modules/payments/domain/payment-method-availability";
 
 import { assertPosDraftReady, posDraftTotals, type PosDraft } from "../../domain/pos-draft";
 import { PosError } from "../../domain/pos-errors";
@@ -134,6 +135,17 @@ export type RegisterPosSaleDependencies = {
    */
   money: MoneyContext;
   /**
+   * `TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002` (`A-85`, `A-86`) — **los medios configurados que esta
+   * sucursal ofrece**, resueltos contra el catálogo persistido.
+   *
+   * Opcional como el resto: sin esta dependencia el mostrador cobra por el enum histórico (el
+   * comportamiento de siempre) y un cobro que **nombre** un medio configurado se rechaza en vez de adivinar.
+   * La composición de producción la inyecta **siempre**, así que el camino real valida.
+   */
+  listPaymentMethodsForLocation?: (
+    locationId: string,
+  ) => Promise<PaymentMethodConfigRecord[]>;
+  /**
    * Las monedas que el negocio acepta **hoy**, para que la superficie ofrezca esas y no una lista fija
    * (`A-85`). Es la misma lectura que alimenta `money`: ofrecer una moneda y convertir con otra tasa es el
    * bug que este campo evita.
@@ -212,7 +224,22 @@ export async function registerPosSale(
    * que exista el pedido. El total que se compara contra el pedido sale del mismo cálculo, así que no puede
    * haber dos números: lo que se validó es exactamente lo que se persiste.
    */
-  const snapshots = buildSalePaymentSnapshots({ payments: input.payments, money: deps.money });
+  /**
+   * `A-85`/`A-86` — los medios que la sucursal ofrece, **leídos una sola vez y antes de la transacción**.
+   *
+   * Se leen acá, con las otras validaciones previas, por dos motivos: la lectura es del catálogo (no del hecho
+   * que se está por escribir) y así el mismo dato valida y se congela. Un medio apagado en el medio de la
+   * venta lo rechaza la próxima venta, que es el comportamiento correcto: el hecho ya se firmó con lo que
+   * regía cuando entró la plata.
+   */
+  const paymentMethods = await listPaymentMethodsForSale(deps, input.draft.locationId);
+
+  const snapshots = buildSalePaymentSnapshots({
+    payments: input.payments,
+    money: deps.money,
+    locationId: input.draft.locationId,
+    catalog: paymentMethods,
+  });
 
   const couponCode = await resolveSalePricing({ input, deps, paidInBusinessCurrency });
 
@@ -224,9 +251,26 @@ export async function registerPosSale(
       openShift,
       scope,
       money: deps.money,
+      paymentMethods,
       snapshots,
     }),
   );
+}
+
+/**
+ * `A-85`/`A-86` — los medios que la sucursal ofrece, o una lista vacía cuando la dependencia no está.
+ *
+ * Sin la dependencia el mostrador cobra por el enum histórico (el comportamiento de siempre) y un cobro que
+ * **nombre** un medio configurado se rechaza en vez de adivinar. La composición de producción la inyecta
+ * siempre, así que el camino real valida contra el catálogo.
+ */
+async function listPaymentMethodsForSale(
+  deps: RegisterPosSaleDependencies,
+  locationId: string,
+): Promise<PaymentMethodConfigRecord[]> {
+  if (!deps.listPaymentMethodsForLocation) return [];
+
+  return deps.listPaymentMethodsForLocation(locationId);
 }
 
 /**
