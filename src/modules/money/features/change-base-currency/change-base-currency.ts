@@ -7,6 +7,7 @@ import { baseCurrencyChangedAuditEntry } from "@/modules/money/domain/money-audi
 import { MoneyError } from "@/modules/money/domain/money-errors";
 import type { BusinessCurrencySettingsRepository } from "@/modules/money/ports/business-currency-settings-repository";
 import type { CurrencyRepository } from "@/modules/money/ports/currency-repository";
+import type { MoneyObligationGuard } from "@/modules/money/ports/money-obligation-guard";
 
 /**
  * `TASK-MONEY-PAYMENTS-RUNTIME-001` (`D-018`, `A-80`) — **cambiar la moneda base**.
@@ -27,6 +28,14 @@ import type { CurrencyRepository } from "@/modules/money/ports/currency-reposito
 export type ChangeBaseCurrencyDependencies = {
   currencyRepository: CurrencyRepository;
   settingsRepository: BusinessCurrencySettingsRepository;
+  /**
+   * `TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002` (`D-023`) — **la guarda de obligaciones vivas**.
+   *
+   * Opcional a propósito: es una **consulta a otro módulo** (pedidos y turnos) y hay llamadores que no la
+   * tienen —los tests de esta operación, una instalación recién creada—. Sin guarda el caso de uso no
+   * inventa obligaciones: se comporta como antes. En producción la composición **siempre** la inyecta.
+   */
+  obligationGuard?: MoneyObligationGuard;
   /** Quién cambia la base: firma el asiento. */
   actorUserId: string;
   /** El instante desde el que rige la base nueva. Inyectable para que el test fije la hora. */
@@ -84,6 +93,15 @@ export async function changeBaseCurrency(
     });
   }
 
+  /**
+   * `D-023` — **el cambio es de período cerrado**.
+   *
+   * Se consulta **antes** de escribir nada: si hay un turno con la caja abierta o pedidos que todavía deben
+   * plata, sus montos quedarían expresados en la base vieja y el saldo exigido pasaría a significar otra cosa.
+   * Rechazar después de cerrar los períodos de tasa dejaría la configuración a medio cambiar.
+   */
+  await assertNoOpenObligations(dependencies.obligationGuard);
+
   const effectiveFrom = (dependencies.now ?? (() => new Date()))().toISOString();
 
   const updated = await dependencies.settingsRepository.changeBaseCurrency({
@@ -107,4 +125,43 @@ export async function changeBaseCurrency(
       previousBaseCurrencyCode,
     },
   };
+}
+
+/**
+ * `D-023` — **¿se puede cambiar la base ahora?**
+ *
+ * El mensaje nombra la obligación concreta porque las dos se arreglan en lugares distintos: un turno se
+ * cierra en Caja, y la deuda de un pedido se cobra en Órdenes. Decir sólo «hay obligaciones abiertas» deja al
+ * dueño sin saber qué hacer.
+ */
+async function assertNoOpenObligations(guard?: MoneyObligationGuard): Promise<void> {
+  if (!guard) return;
+
+  const { openShifts, pendingObligations } = await guard.countOpenObligations();
+
+  if (openShifts > 0) {
+    throw new MoneyError(
+      409,
+      "CONFLICT",
+      openShifts === 1
+        ? "Hay una caja abierta: cerrala antes de cambiar la moneda base."
+        : `Hay ${openShifts} cajas abiertas: cerralas antes de cambiar la moneda base.`,
+      {
+        code: "Cerrá la caja abierta antes de cambiar la moneda base.",
+      },
+    );
+  }
+
+  if (pendingObligations > 0) {
+    throw new MoneyError(
+      409,
+      "CONFLICT",
+      pendingObligations === 1
+        ? "Hay 1 pedido con saldo pendiente: cobralo o cancelalo antes de cambiar la moneda base."
+        : `Hay ${pendingObligations} pedidos con saldo pendiente: cobralos o cancelalos antes de cambiar la moneda base.`,
+      {
+        code: `${pendingObligations} pedido(s) con saldo pendiente quedarían expresados en la moneda base vieja.`,
+      },
+    );
+  }
 }

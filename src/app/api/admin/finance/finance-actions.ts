@@ -9,6 +9,7 @@ import { getBankCatalog } from "@/modules/banks/features/get-bank-catalog/get-ba
 import { PrismaBusinessCurrencySettingsRepository } from "@/modules/money/adapters/prisma-business-currency-settings-repository";
 import { PrismaCurrencyRepository } from "@/modules/money/adapters/prisma-currency-repository";
 import { PrismaExchangeRateRepository } from "@/modules/money/adapters/prisma-exchange-rate-repository";
+import { PrismaMoneyObligationGuard } from "@/modules/money/adapters/prisma-money-obligation-guard";
 import { KNOWN_CURRENCIES, KNOWN_LOCALES } from "@/modules/money/domain/currency-catalog";
 import { MoneyError } from "@/modules/money/domain/money-errors";
 import { changeBaseCurrency } from "@/modules/money/features/change-base-currency/change-base-currency";
@@ -221,6 +222,11 @@ export async function changeBaseCurrencyForRoute(body: unknown) {
     {
       currencyRepository: new PrismaCurrencyRepository(),
       settingsRepository: new PrismaBusinessCurrencySettingsRepository(),
+      /**
+       * `D-023` — **las obligaciones vivas de producción**: turnos con la caja abierta y pedidos que
+       * todavía deben plata. Es lo que hace que el cambio de base sea una operación de **período cerrado**.
+       */
+      obligationGuard: new PrismaMoneyObligationGuard(),
       actorUserId: session.user.id,
     },
   );

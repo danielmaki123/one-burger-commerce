@@ -111,3 +111,26 @@ parcial. Un pedido cuyo saldo **no se pueda demostrar** (cobro legacy sin snapsh
 porque nunca alcanza `paid`. La puerta rige **hacia adelante**: las facturas ya emitidas bajo la regla vieja
 —un cobro parcial alcanzaba— **no** se re-emiten ni se anulan retroactivamente. Aprobada por el owner el
 2026-09-28.
+
+## D-022 — Un cambio de moneda base no redenomina una deuda existente
+La moneda base es la unidad en la que el sistema **expresa y compara** la plata **de acá en adelante**, y con
+la que **congela** los hechos nuevos; **no** convierte retroactivamente lo ya registrado. Un cambio de base
+**no** recalcula `Payment`, `Refund`, `Shift`, `Invoice` ni `Order`: cada hecho conserva su moneda, su tasa y
+su equivalente (`D-018`, ley 7). Consecuencia directa: **`Order.currencyCode` se congela en el alta**, y un
+pedido anterior a esa columna cuya moneda no se pueda demostrar **permanece legacy/`unresolved`** — no se le
+inventa una moneda con la configuración actual. Aprobada por el owner el 2026-09-30.
+
+## D-023 — La moneda base se cambia con el período cerrado
+El cambio de base se **rechaza** mientras haya obligaciones vivas: un `Shift` con la caja **abierta** y
+pedidos cuya deuda siga viva (`pending`/`partial`, o sin cobro) cuyo saldo quedaría expresado en la base
+vieja. Se arregla donde corresponde y el mensaje lo dice: la caja se cierra en Caja y la deuda se cobra o se
+cancela en Órdenes. Un pedido **cobrado** no bloquea (su deuda está saldada) ni uno **terminado o cancelado**
+(no se le va a exigir nada), y un cobro **anulado** no cuenta como plata cobrada (`A-59`). Es una operación de
+período cerrado, no un campo de texto. Aprobada por el owner el 2026-09-30.
+
+## D-024 — El snapshot es obligatorio en toda escritura productiva
+**Toda** escritura productiva de un `Payment` o un `Refund` pasa por la construcción canónica del snapshot:
+un alta que termine con `baseCurrencyCode`, `exchangeRate` o `baseAmount` en `null` es **fallo**, no un caso
+degradado. Las columnas nacen nullable **sólo** para que el legacy se siga leyendo, no para que un camino
+nuevo lo alimente. El snapshot se construye **antes del primer `INSERT`** y una moneda sin tasa vigente
+**rechaza la operación** en vez de inventar un equivalente. Aprobada por el owner el 2026-09-30.
