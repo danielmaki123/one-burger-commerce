@@ -133,6 +133,12 @@ export interface OrderRepository {
       tipAmount: number;
       tipRate?: number | null;
       total: number;
+      /**
+       * `TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002` (`A-89`) — la moneda en la que están expresados los
+       * montos de esta alta. `null` sólo en los pedidos anteriores a la columna (legacy, no demostrables):
+       * **toda alta nueva la escribe**.
+       */
+      currencyCode?: string | null;
       status: string;
     },
     itemDetails: Array<{

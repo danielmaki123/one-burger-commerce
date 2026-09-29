@@ -1,3 +1,4 @@
+import { readProductionMoney } from "@/modules/money/adapters/production-money-context";
 import type { CreateOrderRequest } from "@/modules/orders/features/create-order/create-order";
 
 /**
@@ -17,13 +18,21 @@ import type { CreateOrderRequest } from "@/modules/orders/features/create-order/
  *    haber elegido nada.
  */
 export function buildPublicOrderInput(input: {
-  /** Lo que validó el `querySchema` de la ruta, sin la hora ni la clave. */
-  parsed: Omit<CreateOrderRequest, "source" | "pickupTime" | "pickupScheduled" | "idempotencyKey">;
+  /** Lo que validó el `querySchema` de la ruta, sin la hora, la clave ni la moneda. */
+  parsed: Omit<
+    CreateOrderRequest,
+    "source" | "pickupTime" | "pickupScheduled" | "idempotencyKey" | "currencyCode"
+  >;
   /** La hora que resolvió `resolveOrderAcceptance` (la elegida o «ahora + preparación»). */
   acceptancePickupTime: Date;
   /** Si el cliente había pedido una hora (no es «lo antes posible»). */
   requestedPickupTime: boolean;
   idempotencyKey?: string | null;
+  /**
+   * `TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002` (`A-89`) — la moneda base vigente que el pedido congela.
+   * La resuelve la ruta con `money`: el cuerpo del request no puede elegirla.
+   */
+  currencyCode: string;
 }): CreateOrderRequest {
   return {
     ...input.parsed,
@@ -31,5 +40,19 @@ export function buildPublicOrderInput(input: {
     pickupTime: input.acceptancePickupTime.toISOString(),
     pickupScheduled: input.requestedPickupTime,
     idempotencyKey: input.idempotencyKey ?? null,
+    currencyCode: input.currencyCode,
   };
+}
+
+/**
+ * `TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002` (`A-89`) — **la moneda base vigente del alta pública**.
+ *
+ * La lee la composición y no la ruta: el handler se queda en su tope de líneas y la decisión de *de dónde
+ * sale la moneda* vive donde viven las otras decisiones de servidor de esta puerta. El dueño del dato es
+ * `money`: la configuración de branding dejó de ser la autoridad monetaria.
+ */
+export async function readPublicOrderMoney(): Promise<string> {
+  const { context } = await readProductionMoney();
+
+  return context.baseCurrencyCode;
 }

@@ -36,4 +36,15 @@ export interface BusinessCurrencySettingsRepository {
   changeBaseCurrency(
     input: ChangeBaseCurrencyRepositoryInput,
   ): Promise<BusinessCurrencySettingsRecord>;
+  /**
+   * `TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002` (`A-87`) — **cambia sólo el formato regional**.
+   *
+   * Es una escritura **distinta** de `changeBaseCurrency` a propósito: el formato es presentación y no
+   * cierra ningún período de tasa, así que no puede compartir el camino de la operación auditada que sí
+   * cambia el significado de la plata. Antes el único camino era `changeBaseCurrency` con la misma base, que
+   * el dominio rechaza: el formato no se podía guardar.
+   */
+  setLocale(
+    input: { locale: string; updatedByUserId: string | null },
+  ): Promise<BusinessCurrencySettingsRecord>;
 }

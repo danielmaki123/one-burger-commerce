@@ -24,6 +24,7 @@ describe("buildPublicOrderInput", () => {
       parsed: PARSED,
       acceptancePickupTime: ACCEPTED_AT,
       requestedPickupTime: false,
+      currencyCode: "NIO",
     });
 
     expect(input.source).toBe("menu");
@@ -35,6 +36,7 @@ describe("buildPublicOrderInput", () => {
       parsed: { ...PARSED, source: "pos" } as typeof PARSED,
       acceptancePickupTime: ACCEPTED_AT,
       requestedPickupTime: false,
+      currencyCode: "NIO",
     });
 
     expect(input.source).toBe("menu");
@@ -45,6 +47,7 @@ describe("buildPublicOrderInput", () => {
       parsed: PARSED,
       acceptancePickupTime: ACCEPTED_AT,
       requestedPickupTime: true,
+      currencyCode: "NIO",
     });
 
     expect(input.pickupTime).toBe("2026-09-12T23:35:00.000Z");
@@ -56,6 +59,7 @@ describe("buildPublicOrderInput", () => {
         parsed: { ...PARSED, pickupScheduled: true } as typeof PARSED,
         acceptancePickupTime: ACCEPTED_AT,
         requestedPickupTime: false,
+        currencyCode: "NIO",
       }).pickupScheduled,
     ).toBe(false);
 
@@ -64,6 +68,7 @@ describe("buildPublicOrderInput", () => {
         parsed: PARSED,
         acceptancePickupTime: ACCEPTED_AT,
         requestedPickupTime: true,
+        currencyCode: "NIO",
       }).pickupScheduled,
     ).toBe(true);
   });
@@ -74,6 +79,7 @@ describe("buildPublicOrderInput", () => {
         parsed: PARSED,
         acceptancePickupTime: ACCEPTED_AT,
         requestedPickupTime: false,
+        currencyCode: "NIO",
         idempotencyKey: "op-1",
       }).idempotencyKey,
     ).toBe("op-1");
@@ -83,7 +89,23 @@ describe("buildPublicOrderInput", () => {
         parsed: PARSED,
         acceptancePickupTime: ACCEPTED_AT,
         requestedPickupTime: false,
+        currencyCode: "NIO",
       }).idempotencyKey,
     ).toBeNull();
+  });
+
+  /**
+   * `TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002` (`A-89`) — la moneda con la que el pedido congela sus
+   * montos la resuelve la **ruta** (`money`) y viaja en el input; el cuerpo del request no la elige.
+   */
+  it("la moneda del pedido viaja en el input y no sale del cuerpo del request", () => {
+    const input = buildPublicOrderInput({
+      parsed: PARSED,
+      acceptancePickupTime: ACCEPTED_AT,
+      requestedPickupTime: false,
+      currencyCode: "NIO",
+    });
+
+    expect(input.currencyCode).toBe("NIO");
   });
 });

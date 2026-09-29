@@ -12,6 +12,7 @@ import {
   saveCurrencyForRoute,
   saveEntityForRoute,
   savePaymentMethodForRoute,
+  updateLocaleForRoute,
 } from "./finance-actions";
 import { FINANCE_NO_STORE, financeErrorResponse } from "./finance-errors";
 
@@ -38,6 +39,7 @@ import { FINANCE_NO_STORE, financeErrorResponse } from "./finance-errors";
  * | `save-currency` | Alta o edición de una moneda (una moneda **no se borra**: se apaga) |
  * | `register-rate` | Registra una tasa: hecho nuevo que **cierra** el período anterior y deja asiento |
  * | `change-base-currency` | Operación **explícita y auditada** que **no** recalcula ningún hecho (`D-018`) |
+ * | `update-locale` | Cambia **sólo el formato regional** (presentación): no cierra tasas ni deja asiento (`A-87`) |
  * | `save-payment-method` | Alta o edición de un medio con su tipo canónico y sus monedas |
  * | `save-entity` | Alta o edición de una **entidad de cobro** en el catálogo `banks` que ya existe |
  */
@@ -66,6 +68,8 @@ export async function runFinanceCommand(body: { action?: string; payload?: unkno
       return registerRateForRoute(payload);
     case "change-base-currency":
       return changeBaseCurrencyForRoute(payload);
+    case "update-locale":
+      return updateLocaleForRoute(payload);
     case "save-payment-method":
       return savePaymentMethodForRoute(payload);
     case "save-entity":

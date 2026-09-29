@@ -15,6 +15,7 @@ import { changeBaseCurrency } from "@/modules/money/features/change-base-currenc
 import { getMoneySettings } from "@/modules/money/features/get-money-settings/get-money-settings";
 import { registerExchangeRate } from "@/modules/money/features/register-exchange-rate/register-exchange-rate";
 import { saveCurrency } from "@/modules/money/features/save-currency/save-currency";
+import { updateMoneyLocale } from "@/modules/money/features/update-money-locale/update-money-locale";
 
 /**
  * `TASK-MONEY-PAYMENTS-RUNTIME-001` (`A-80`, `D-016`, `D-018`) — **la superficie de Finanzas**
@@ -52,6 +53,11 @@ const rateSchema = z.object({
 const baseCurrencySchema = z.object({
   code: z.string().trim().min(2).max(12),
   locale: z.string().trim().min(2).max(12).optional(),
+});
+
+/** `A-87` — el formato regional, solo. Misma forma que valida el dominio (`es-NI`). */
+const localeSchema = z.object({
+  locale: z.string().trim().min(2).max(12),
 });
 
 const paymentMethodSchema = z.object({
@@ -231,6 +237,30 @@ export async function changeBaseCurrencyForRoute(body: unknown) {
         "Los hechos históricos conservan su moneda, su tasa y su equivalente. Nada ya registrado se recalcula.",
     },
   };
+}
+
+/**
+ * `A-87` — **cambia sólo el formato regional**.
+ *
+ * Es un comando propio y no `change-base-currency` con la misma base: el formato es presentación, no cierra
+ * períodos de tasa ni deja asiento de cambio de base. El modal «Cambiar formato» de Finanzas llamaba al
+ * cambio de base con la base vigente, que el dominio rechaza con `409`, así que no guardaba nada.
+ */
+export async function updateLocaleForRoute(body: unknown) {
+  const session = await requireFinanceSession();
+  const parsed = localeSchema.safeParse(body);
+
+  if (!parsed.success) {
+    throw new MoneyError(422, "VALIDATION_ERROR", "Revisá el formato regional.", fieldErrors(parsed.error));
+  }
+
+  return updateMoneyLocale(
+    { locale: parsed.data.locale },
+    {
+      settingsRepository: new PrismaBusinessCurrencySettingsRepository(),
+      actorUserId: session.user.id,
+    },
+  );
 }
 
 /** Alta o edición de un medio de pago, con su tipo canónico y su disponibilidad por local. */

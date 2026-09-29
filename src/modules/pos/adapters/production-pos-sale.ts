@@ -103,15 +103,23 @@ export async function createProductionPosSaleDependencies(): Promise<RegisterPos
                * reintento los cobros no se registran otra vez, así que la pantalla tiene que poder decirlo.
                */
               createPosOrder: async (input: CreateOrderRequest) => {
-                const result = await createOrder(input, {
-                  repository: orderRepository,
-                  locationRepository,
-                  tipPolicy: { enabled: settings.tipEnabled, rate: settings.tipRate },
-                  // El aviso de pedido creado no sale acá adentro: se junta y se publica después del commit.
-                  publishOrderCreated: (order) => {
-                    deferredPublishes.push(() => publish("OrderCreated", { order }));
+                const result = await createOrder(
+                  /**
+                   * `TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002` (`A-89`) — la venta del mostrador
+                   * congela la moneda base vigente con los montos del pedido. La sobreescribe acá (y no en
+                   * `saleOrderRequest`) porque el dato es de `money`, que el caso de uso del POS no lee.
+                   */
+                  { ...input, currencyCode: money.baseCurrencyCode },
+                  {
+                    repository: orderRepository,
+                    locationRepository,
+                    tipPolicy: { enabled: settings.tipEnabled, rate: settings.tipRate },
+                    // El aviso de pedido creado no sale acá adentro: se junta y se publica después del commit.
+                    publishOrderCreated: (order) => {
+                      deferredPublishes.push(() => publish("OrderCreated", { order }));
+                    },
                   },
-                });
+                );
 
                 return { order: result.data, reused: result.meta.reused === true };
               },

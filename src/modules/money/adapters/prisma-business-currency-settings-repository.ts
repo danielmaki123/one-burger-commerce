@@ -2,6 +2,7 @@ import type { BusinessCurrencySettings, Prisma } from "@prisma/client";
 
 import { getPrismaClient, type DatabaseClient } from "@/infrastructure/database/prisma";
 import type { RecordAuditLogInput } from "@/modules/audit/ports/audit-log-repository";
+import { DEFAULT_BUSINESS_SETTINGS } from "@/modules/business-settings/domain/business-settings-defaults";
 import { currencyKey } from "@/modules/money/domain/convert-to-base-currency";
 import {
   MONEY_SETTINGS_ID,
@@ -95,5 +96,35 @@ export class PrismaBusinessCurrencySettingsRepository
     });
 
     return mapSettings(saved);
+  }
+
+  /**
+   * `A-87` — sólo el formato regional.
+   *
+   * Un `UPDATE` de un campo de presentación: **no** cierra períodos de tasa, **no** deja asiento y **no**
+   * toca la moneda base. Compartir el camino de `changeBaseCurrency` era el bug: el dominio rechaza cambiar
+   * la base por la misma base, así que el formato nunca se guardaba.
+   */
+  async setLocale(input: {
+    locale: string;
+    updatedByUserId: string | null;
+  }): Promise<BusinessCurrencySettingsRecord> {
+    const current = await this.getSettings();
+    const baseCurrencyCode = currencyKey(
+      current?.baseCurrencyCode ?? DEFAULT_BUSINESS_SETTINGS.currencyCode,
+    );
+
+    const row = await this.client.businessCurrencySettings.upsert({
+      where: { id: MONEY_SETTINGS_ID },
+      create: {
+        id: MONEY_SETTINGS_ID,
+        baseCurrencyCode,
+        locale: input.locale,
+        updatedByUserId: input.updatedByUserId,
+      },
+      update: { locale: input.locale, updatedByUserId: input.updatedByUserId },
+    });
+
+    return mapSettings(row);
   }
 }
