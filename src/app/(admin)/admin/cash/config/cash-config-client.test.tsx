@@ -22,7 +22,7 @@ const denominations = [
 
 const config = {
   locationId: "loc_principal",
-  usdEnabled: false,
+  countedCurrencyCodes: [],
   blindCount: true,
   updatedAt: "2026-09-22T15:00:00.000Z",
   updatedByUserId: "user_owner",
@@ -64,9 +64,9 @@ describe("CashConfigClient", () => {
   });
 
   it("muestra los billetes de la config y los dos flags", () => {
-    render(<CashConfigClient locations={locations} initialConfig={config} />);
+    render(<CashConfigClient locations={locations} initialConfig={config} baseCurrencyCode="NIO" acceptedCurrencies={["NIO", "USD"]} />);
 
-    expect(screen.getByLabelText("Esta sucursal cuenta dólares")).toBeTruthy();
+    expect(screen.getByLabelText("Contar en USD")).toBeTruthy();
     expect(screen.getByLabelText(/Arqueo ciego/)).toBeTruthy();
     expect(screen.getByLabelText("1000")).toBeTruthy();
     expect(screen.getByLabelText("500")).toBeTruthy();
@@ -75,9 +75,9 @@ describe("CashConfigClient", () => {
 
   it("guardar manda los flags y los billetes con su estado", async () => {
     const user = userEvent.setup();
-    render(<CashConfigClient locations={locations} initialConfig={config} />);
+    render(<CashConfigClient locations={locations} initialConfig={config} baseCurrencyCode="NIO" acceptedCurrencies={["NIO", "USD"]} />);
 
-    await user.click(screen.getByLabelText("Esta sucursal cuenta dólares"));
+    await user.click(screen.getByLabelText("Contar en USD"));
     await user.click(screen.getByLabelText("500"));
     await user.click(screen.getByRole("button", { name: "Guardar configuración" }));
 
@@ -87,7 +87,7 @@ describe("CashConfigClient", () => {
     expect(put).toBeTruthy();
 
     const body = JSON.parse(String((put![1] as RequestInit).body));
-    expect(body).toMatchObject({ locationId: "loc_principal", usdEnabled: true, blindCount: true });
+    expect(body).toMatchObject({ locationId: "loc_principal", countedCurrencyCodes: ["USD"], blindCount: true });
     expect(body.denominations).toEqual([
       { currency: "NIO", value: 1000, isActive: true },
       { currency: "NIO", value: 500, isActive: false },
@@ -99,7 +99,7 @@ describe("CashConfigClient", () => {
 
   it("agrega un billete nuevo a la moneda que corresponde", async () => {
     const user = userEvent.setup();
-    render(<CashConfigClient locations={locations} initialConfig={config} />);
+    render(<CashConfigClient locations={locations} initialConfig={config} baseCurrencyCode="NIO" acceptedCurrencies={["NIO", "USD"]} />);
 
     await user.type(screen.getByLabelText("Agregar billete de NIO"), "200");
     await user.click(screen.getAllByRole("button", { name: "Agregar" })[0]);
@@ -115,7 +115,7 @@ describe("CashConfigClient", () => {
 
   it("no deja agregar el mismo billete dos veces", async () => {
     const user = userEvent.setup();
-    render(<CashConfigClient locations={locations} initialConfig={config} />);
+    render(<CashConfigClient locations={locations} initialConfig={config} baseCurrencyCode="NIO" acceptedCurrencies={["NIO", "USD"]} />);
 
     await user.type(screen.getByLabelText("Agregar billete de NIO"), "1000");
     await user.click(screen.getAllByRole("button", { name: "Agregar" })[0]);
@@ -125,7 +125,7 @@ describe("CashConfigClient", () => {
 
   it("cambiar de sucursal vuelve a pedir la config de esa sucursal", async () => {
     const user = userEvent.setup();
-    render(<CashConfigClient locations={locations} initialConfig={config} />);
+    render(<CashConfigClient locations={locations} initialConfig={config} baseCurrencyCode="NIO" acceptedCurrencies={["NIO", "USD"]} />);
 
     await user.selectOptions(screen.getByLabelText("Sucursal"), "loc_norte");
 
@@ -157,7 +157,7 @@ describe("CashConfigClient", () => {
       return jsonResponse({ data: config });
     });
 
-    render(<CashConfigClient locations={locations} initialConfig={config} />);
+    render(<CashConfigClient locations={locations} initialConfig={config} baseCurrencyCode="NIO" acceptedCurrencies={["NIO", "USD"]} />);
 
     await user.click(screen.getByRole("button", { name: "Guardar configuración" }));
 

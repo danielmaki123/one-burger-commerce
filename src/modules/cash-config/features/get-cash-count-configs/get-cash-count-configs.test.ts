@@ -13,7 +13,7 @@ import { getCashCountConfigs } from "./get-cash-count-configs";
 describe("getCashCountConfigs", () => {
   it("arma la config de cada sucursal con su moneda y las denominaciones activas", async () => {
     const repository = new InMemoryCashConfigRepository();
-    await repository.saveLocationConfig("loc_norte", { usdEnabled: true });
+    await repository.saveLocationConfig("loc_norte", { countedCurrencyCodes: ["USD"] });
     await repository.replaceDenominations([
       { currency: "NIO", value: 1000, isActive: true, sortOrder: 0 },
       { currency: "NIO", value: 500, isActive: false, sortOrder: 1 },

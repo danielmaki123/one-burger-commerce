@@ -15,8 +15,8 @@ import type {
  *
  * Qué toca y qué no:
  *
- * - Los **flags** de la sucursal (`usdEnabled`, `blindCount`) se guardan con quién los cambió: son la
- *   auditoría visible de la config (decisión del owner, 2026-09-22).
+ * - Los **flags** de la sucursal (`countedCurrencyCodes`, `blindCount`) se guardan con quién los cambió:
+ *   son la auditoría visible de la config (decisión del owner, 2026-09-22).
  * - Las **denominaciones** son del negocio, no de la sucursal: se reemplazan enteras y el adaptador
  *   desactiva las que ya no están en la lista en vez de borrarlas (los cierres viejos conservan con qué
  *   billetes se contó).
@@ -33,12 +33,15 @@ export async function updateCashConfig(
   const meta = { updatedByUserId };
 
   let config = await repository.getLocationConfig(locationId);
-  const hasFlags = patch.usdEnabled !== undefined || patch.blindCount !== undefined;
+  const hasFlags = patch.countedCurrencyCodes !== undefined || patch.blindCount !== undefined;
 
   if (hasFlags) {
     config = await repository.saveLocationConfig(
       locationId,
-      { usdEnabled: patch.usdEnabled, blindCount: patch.blindCount },
+      {
+        countedCurrencyCodes: patch.countedCurrencyCodes,
+        blindCount: patch.blindCount,
+      },
       meta,
     );
   }

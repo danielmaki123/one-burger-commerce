@@ -101,7 +101,7 @@ export default function CashView({
       cashCountConfigs[locationId] ?? {
         ...toCashCountConfig({
           businessCurrencyCode: settings.currencyCode,
-          usdEnabled: false,
+          countedCurrencyCodes: [],
           denominations: [],
         }),
         // Sin fila de config, el ciego queda prendido: el error cae del lado de no mostrar plata.

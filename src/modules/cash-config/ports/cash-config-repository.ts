@@ -29,7 +29,7 @@ export interface CashConfigRepository {
   getLocationConfig(locationId: string): Promise<LocationCashConfigRecord | null>;
   saveLocationConfig(
     locationId: string,
-    patch: Pick<CashConfigPatch, "usdEnabled" | "blindCount">,
+    patch: Pick<CashConfigPatch, "countedCurrencyCodes" | "blindCount">,
     meta?: UpdateCashConfigMeta,
   ): Promise<LocationCashConfigRecord>;
   /** Todas las filas, activas e inactivas, ordenadas por moneda y valor. */

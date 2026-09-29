@@ -355,14 +355,14 @@ const shortcuts: Array<[string, () => Promise<void>, Record<string, unknown>]> =
       cashConfigUpdateAudit({
         actorUserId: "user_owner",
         locationId: "loc_principal",
-        usdEnabled: true,
+        countedCurrencyCodes: ["USD"],
         blindCount: false,
       }),
     {
       action: "cash_config.update",
       targetType: "LocationCashConfig",
       targetId: "loc_principal",
-      detail: { usdEnabled: true, blindCount: false },
+      detail: { countedCurrencyCodes: ["USD"], blindCount: false },
     },
   ],
   /**

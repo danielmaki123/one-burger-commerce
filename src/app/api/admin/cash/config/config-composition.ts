@@ -82,7 +82,7 @@ export async function saveCashConfigForRoute(
   await cashConfigUpdateAudit({
     actorUserId: input.actorUserId,
     locationId: data.locationId,
-    usdEnabled: data.usdEnabled,
+    countedCurrencyCodes: data.countedCurrencyCodes,
     blindCount: data.blindCount,
   });
 

@@ -4,8 +4,7 @@ import { requirePosLocation } from "@/app/api/admin/pos/pos-route-helpers";
 import { getPrismaClient } from "@/infrastructure/database/prisma";
 import { canCollectPayment } from "@/modules/auth/domain/admin-permissions";
 import { AuthError } from "@/modules/auth/domain/auth-errors";
-import { PrismaBusinessSettingsRepository } from "@/modules/business-settings/adapters/prisma-business-settings-repository";
-import { loadBusinessSettings } from "@/modules/business-settings/features/get-public-business-settings/get-public-business-settings";
+import { readProductionMoney } from "@/modules/money/adapters/production-money-context";
 import { lockOrderRow, PrismaOrderRepository } from "@/modules/orders/adapters/prisma-order-repository";
 import { PrismaPaymentRepository } from "@/modules/orders/adapters/prisma-payment-repository";
 import { lockShiftRow, PrismaShiftRepository } from "@/modules/orders/adapters/prisma-shift-repository";
@@ -114,10 +113,16 @@ export async function registerOrderPaymentForRoute(input: {
     requested: order.locationId,
   });
 
-  const settings = await loadBusinessSettings({
-    repository: new PrismaBusinessSettingsRepository(),
-  });
   const shiftRepository = new PrismaShiftRepository();
+
+  /**
+   * `TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002` (`A-83`, `A-69`) — **la autoridad es `money`**.
+   *
+   * Antes acá se leía `BusinessSettings.currencyCode` y se traducía el escalar `usdExchangeRate` a un mapa
+   * con `buildRates`, con un comentario que decía «mientras `/admin/finance` no esté desplegada». Ya lo está:
+   * la moneda base y las tasas vigentes salen de `money`, que es quien las escribe.
+   */
+  const { context: money } = await readProductionMoney();
 
   return registerOrderPayment(
     { orderId: input.orderId, ...payload },
@@ -127,33 +132,16 @@ export async function registerOrderPaymentForRoute(input: {
       findOpenShift: async (locationId, terminalId) =>
         (await getCurrentShift({ locationId, terminalId }, { shiftRepository })).data,
       runInOrderPaymentTransaction,
-      baseCurrencyCode: settings.currencyCode,
+      baseCurrencyCode: money.baseCurrencyCode,
       /**
        * `D-019`/`A-69` — la tasa por moneda, no un escalar del dólar. La moneda del cobro la elige el
-       * mostrador, así que el mapa se arma con las monedas que el negocio acepta. Sin entrada para una
-       * moneda, el dominio rechaza el cobro (`missing-rate`) en vez de inventar una equivalencia.
+       * mostrador, así que el mapa trae **todas** las monedas aceptadas con tasa vigente. Sin entrada para
+       * una moneda, el dominio rechaza el cobro (`missing-rate`) en vez de inventar una equivalencia.
        */
-      rates: buildRates(settings.currencyCode, settings.usdExchangeRate),
+      rates: money.rates,
       paymentMethodKind: paymentMethodKindFor(payload.method),
     },
   );
-}
-
-/**
- * Las tasas vigentes que el cobro necesita, por moneda.
- *
- * Vive acá mientras `/admin/finance` no esté desplegada: la autoridad de la tasa pasa a `money` (con su
- * historial) y esta composición va a pedírsela a ese caso de uso. Mientras tanto traduce la configuración
- * que **hoy** existe —la moneda base y su tasa del dólar— a la forma nueva, en **un solo lugar**: ninguna
- * superficie vuelve a leer los dos campos de dinero por su cuenta (`A-69`).
- */
-export function buildRates(
-  businessCurrencyCode: string,
-  usdExchangeRate: number | null,
-): Record<string, number | null> {
-  const base = businessCurrencyCode.trim().toUpperCase();
-
-  return base === "USD" ? { NIO: null } : { USD: usdExchangeRate };
 }
 
 /**

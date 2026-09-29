@@ -32,7 +32,7 @@ export async function getCashCountConfigs(
     byLocation[locationId] = {
       ...toCashCountConfig({
         businessCurrencyCode: input.businessCurrencyCode,
-        usdEnabled: config.usdEnabled,
+        countedCurrencyCodes: config.countedCurrencyCodes,
         denominations,
       }),
       // Fase 4 — el arqueo ciego viaja con la config porque la pantalla lo necesita para no mostrarle la

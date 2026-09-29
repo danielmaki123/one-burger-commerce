@@ -29,11 +29,11 @@ describe("updateCashConfig", () => {
     const repository = new InMemoryCashConfigRepository();
 
     const config = await updateCashConfig(
-      { locationId: "loc_norte", usdEnabled: true },
+      { locationId: "loc_norte", countedCurrencyCodes: ["USD"] },
       { repository, updatedByUserId: "user_owner" },
     );
 
-    expect(config.usdEnabled).toBe(true);
+    expect(config.countedCurrencyCodes).toEqual(["USD"]);
     expect(config.blindCount).toBe(true);
     expect(config.updatedByUserId).toBe("user_owner");
     expect(config.updatedAt).not.toBeNull();

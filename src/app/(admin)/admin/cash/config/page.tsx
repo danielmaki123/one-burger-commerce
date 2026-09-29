@@ -7,6 +7,7 @@ import { canManageCashConfig } from "@/modules/auth/domain/admin-permissions";
 import { requireAdminSession } from "@/modules/auth/features/require-admin-session/require-admin-session";
 import { PrismaCashConfigRepository } from "@/modules/cash-config/adapters/prisma-cash-config-repository";
 import { getCashConfig } from "@/modules/cash-config/features/get-cash-config/get-cash-config";
+import { readProductionMoney } from "@/modules/money/adapters/production-money-context";
 import { resolveOrderLocationScope } from "@/modules/orders/domain/order-visibility";
 import { createProductionPosLocationDependencies } from "@/modules/pos/adapters/production-pos-location";
 import { listCashLocations } from "@/modules/pos/domain/cash-locations";
@@ -53,7 +54,7 @@ export default async function AdminCashConfigPage() {
   }
 
   const options = locations.map(({ id, name }) => ({ id, name }));
-  const [initialConfig, bankCatalog, terminals] = await Promise.all([
+  const [initialConfig, bankCatalog, terminals, money] = await Promise.all([
     getCashConfig({ locationId: options[0].id }, { repository: new PrismaCashConfigRepository() }),
     getBankCatalog({ repository: new PrismaBankRepository() }),
     /* Fase 6 del rediseno de Caja: las terminales del alcance, para editarlas por sucursal. */
@@ -61,6 +62,15 @@ export default async function AdminCashConfigPage() {
       { locationIds: options.map((location) => location.id) },
       { repository: new PrismaCashConfigRepository() },
     ),
+    /**
+     * `TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002` (`A-85`, `A-88`) — **las monedas que el negocio
+     * acepta, de `money`**.
+     *
+     * Antes esta pantalla tenía un `BASE_CURRENCY = "NIO"` escrito a mano y un interruptor «cuenta
+     * dólares»: la lista de monedas contables no podía crecer. Ahora la base y las candidatas salen de la
+     * autoridad monetaria, que es la que sabe qué monedas existen y cuál está activa.
+     */
+    readProductionMoney(),
   ]);
 
   return (
@@ -71,7 +81,12 @@ export default async function AdminCashConfigPage() {
         description="Las reglas del arqueo, por sucursal"
       />
 
-      <CashConfigClient locations={options} initialConfig={initialConfig} />
+      <CashConfigClient
+        locations={options}
+        initialConfig={initialConfig}
+        baseCurrencyCode={money.context.baseCurrencyCode}
+        acceptedCurrencies={money.currencies.map((currency) => currency.code)}
+      />
 
       <CashBanksSection locations={options} initialBanks={bankCatalog.banks} />
       <CashTerminalsSection locations={options} initialTerminals={terminals.terminals} />

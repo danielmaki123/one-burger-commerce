@@ -218,7 +218,13 @@ export function settingsUpdateAudit(input: { actorUserId: string }) {
 export function cashConfigUpdateAudit(input: {
   actorUserId: string;
   locationId: string;
-  usdEnabled: boolean;
+  /**
+   * `TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002` (`A-88`) — las **monedas contables** de la sucursal,
+   * como lista. Antes era `usdEnabled`: un booleano que sólo sabía decir «el dólar sí o no». El asiento
+   * tiene que poder explicar por qué esa caja contaba en una moneda nueva sin que exista una columna por
+   * moneda.
+   */
+  countedCurrencyCodes: string[];
   blindCount: boolean;
 }) {
   return recordAdminAudit({
@@ -226,7 +232,10 @@ export function cashConfigUpdateAudit(input: {
     actorUserId: input.actorUserId,
     targetType: "LocationCashConfig",
     targetId: input.locationId,
-    detail: { usdEnabled: input.usdEnabled, blindCount: input.blindCount },
+    detail: {
+      countedCurrencyCodes: input.countedCurrencyCodes,
+      blindCount: input.blindCount,
+    },
   });
 }
 

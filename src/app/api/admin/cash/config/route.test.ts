@@ -61,7 +61,7 @@ function putRequest(body: unknown) {
 
 const CONFIG = {
   locationId: "loc_principal",
-  usdEnabled: true,
+  countedCurrencyCodes: ["USD"],
   blindCount: true,
   updatedAt: "2026-09-22T15:00:00.000Z",
   updatedByUserId: "user_owner",
@@ -84,7 +84,7 @@ describe("/api/admin/cash/config", () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(body.data).toMatchObject({ locationId: "loc_principal", usdEnabled: true });
+    expect(body.data).toMatchObject({ locationId: "loc_principal", countedCurrencyCodes: ["USD"] });
     expect(getCashConfigMock).toHaveBeenCalledWith(
       { locationId: "loc_principal" },
       expect.objectContaining({ repository: expect.anything() }),
@@ -116,7 +116,7 @@ describe("/api/admin/cash/config", () => {
     requireAdminSessionMock.mockResolvedValue(sessionFor("owner"));
 
     const response = await PUT(
-      putRequest({ locationId: "loc_principal", usdEnabled: true, blindCount: false }),
+      putRequest({ locationId: "loc_principal", countedCurrencyCodes: ["USD"], blindCount: false }),
     );
 
     expect(response.status).toBe(200);
@@ -128,7 +128,7 @@ describe("/api/admin/cash/config", () => {
       expect.objectContaining({
         actorUserId: "user_owner",
         locationId: "loc_principal",
-        usdEnabled: true,
+        countedCurrencyCodes: ["USD"],
         blindCount: true,
       }),
     );
@@ -137,7 +137,7 @@ describe("/api/admin/cash/config", () => {
   it("un manager no puede guardar (ni con la sucursal a mano)", async () => {
     requireAdminSessionMock.mockResolvedValue(sessionFor("manager", ["loc_principal"]));
 
-    const response = await PUT(putRequest({ locationId: "loc_principal", usdEnabled: true }));
+    const response = await PUT(putRequest({ locationId: "loc_principal", countedCurrencyCodes: ["USD"] }));
 
     expect(response.status).toBe(403);
     expect(updateCashConfigMock).not.toHaveBeenCalled();
