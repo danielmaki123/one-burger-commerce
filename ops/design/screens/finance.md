@@ -3,15 +3,16 @@
 > **Plantilla**: [`TEMPLATE.md`](TEMPLATE.md). **Estado**: creada por
 > `TASK-MONEY-PAYMENTS-FOUNDATIONS-001` (docs-only, 2026-09-28) a partir de la **referencia aprobada por el
 > owner el 2026-09-27** ([`finance-reference.html`](finance-reference.html), versión byte a byte de
-> `one-burger-finanzas-desktop-reference.html`, SHA-256 `3964f097…68e09`, 33.528 bytes). **Nada de esta spec
-> está implementado**: la ruta `/admin/finance` **no existe hoy**, no hay entrada de navegación y el backend
-> **no tiene** el catálogo de monedas, el de medios de pago ni el historial de tasas que la pantalla
-> administra (§ *Datos disponibles*).
+> `one-burger-finanzas-desktop-reference.html`, SHA-256 `3964f097…68e09`, 33.528 bytes). **Implementada y
+> desplegada**: la ruta `/admin/finance` **existe** con sus tres vistas y su entrada de navegación, y el
+> backend tiene el catálogo de monedas, el de medios de pago con su alcance por local y el historial de tasas
+> (§ *Datos disponibles*). La implementación la cerraron `TASK-MONEY-PAYMENTS-RUNTIME-001` y su **cierre de
+> aceptación** (`TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002`).
 >
-> **Qué es**: la SPEC de la superficie de **configuración financiera**. Consume dos módulos que hoy **no
-> existen** (`money`, `payments`), un catálogo que **sí existe** (`banks`) y la configuración actual del
-> negocio (`business-settings`). **No crea módulos**: la creación de `money` y `payments` es dirección de
-> [`MODULE_ARCHITECTURE.md`](../../product/MODULE_ARCHITECTURE.md) §4.1 y la decide el roadmap, no esta spec.
+> **Qué es**: la SPEC de la superficie de **configuración financiera**. Consume dos módulos que **existen**
+> (`money`, `payments`), un catálogo que **ya existía** (`banks`) y la configuración del negocio
+> (`business-settings`). **No crea módulos**: la creación de `money` y `payments` es dirección de
+> [`MODULE_ARCHITECTURE.md`](../../product/MODULE_ARCHITECTURE.md) §4.1 y la decidió el roadmap, no esta spec.
 >
 > **Qué NO es**: no es un tablero de resultados, no muestra ventas ni arqueos (eso es Caja y Cierres), no
 > emite facturas (eso es Facturas) y **no recategoriza el dinero ya cobrado**. Es una pantalla de
@@ -49,20 +50,21 @@ todo lo que se muestra; la aritmética de `money-conversion.ts` como base del m�
 pantalla de **Config de Caja** (`/admin/cash/config`: `AdminPageHeader` + secciones + guardado explícito con
 estado «guardado / sin guardar»).
 
-**Realmente nuevo**:
+**Realmente nuevo** (todo esto **existe** hoy):
 
-1. El **catálogo de monedas** (hoy no existe: hay una sola moneda base con un símbolo y un locale).
-2. El **catálogo de medios de pago** persistido, con su **tipo canónico** (hoy no existe: es un enum).
-3. El **historial de tasas** (hoy no existe: `usdExchangeRate` es un escalar que se pisa).
+1. El **catálogo de monedas** (antes: una sola moneda base con un símbolo y un locale).
+2. El **catálogo de medios de pago** persistido, con su **tipo canónico** y su **alcance por local** (antes:
+   un enum y una lista fija en el POS).
+3. El **historial de tasas** (antes: `usdExchangeRate`, un escalar que se pisaba).
 4. El **tipo de entidad de cobro** (banco / adquirente / proveedor digital / otro) sobre `Bank`.
 5. La **ruta** `/admin/finance`, su entrada de navegación y sus tres vistas.
-6. La **moneda base como operación explícita** con preservación de historia (hoy es un campo de texto en
-   Personalización que cualquier guardado reinterpreta hacia atrás).
+6. La **moneda base como operación explícita** con preservación de historia (antes: un campo de texto en
+   Personalización que cualquier guardado reinterpretaba hacia atrás).
 
 **Lo que se elimina y por qué**: los campos `currencyCode` / `currencySymbol` / `locale` / `usdExchangeRate`
-**dejan de editarse en Personalización** cuando esta pantalla exista: una configuración mutable tiene **un solo
-dueño actual** ([`AGENTS.md`](../../../AGENTS.md) § *Leyes del repo*, ley 7) y hoy la moneda se edita donde
-también se edita el color de la marca. La **pantalla** de Personalización no se rediseña en esta TASK.
+**dejaron de editarse en Personalización** (`A-84`: el esquema los **rechaza**): una configuración mutable
+tiene **un solo dueño actual** ([`AGENTS.md`](../../../AGENTS.md) § *Leyes del repo*, ley 7). La **pantalla**
+de Personalización no se rediseñó: sólo perdió esos controles.
 
 **Lo que esta spec NO decide**: que `mixed` deje de existir en el enum, qué migración agrega cada tabla y
 cómo se tratan los hechos históricos (decisiones de `TASK-MONEY-PAYMENTS-FOUNDATIONS-001` § *Legacy* y del

@@ -128,55 +128,46 @@ Un módulo nace con las cuatro capas (`domain` · `features` · `ports` · `adap
 **Fuera del MVP no significa borrado**: significa que **no se ofrece** en navegación ni en APIs públicas y no
 se reactiva sin aprobación explícita del owner.
 
-### 4.1 Arquitectura objetivo de módulos (registrada, **no creada**)
+### 4.1 Arquitectura objetivo de módulos
 
 El objetivo es que cada responsabilidad tenga **un dueño**, en migración **incremental** —nada de big-bang—.
-Ninguno existe todavía: **crearlos es runtime**, y la secuencia está en el
-[roadmap maestro](../roadmap/PRODUCT-UX-ROADMAP.md).
+**Estado real (snapshot de `main` = `461cc49`)**: `money` y `payments` **existen** (órdenes 4 y 5, cerrados y
+desplegados); `invoices`, `orders`, `locations`, `dashboard` y `cash-config` también. **Faltan** `cash` (la
+regla del turno vive bajo `orders`: **orden 7**) y `promotions` (**orden 10**).
 
-| Módulo objetivo | Qué posee |
-|---|---|
-| `payments` | `Payment`, saldo del pedido, cobro parcial, refund, void, banco/procesador y **snapshots monetarios** |
-| `money` | Moneda, locale, **FX** y conversión |
-| `cash` | `Shift`, apertura, movimientos, conteo, cierre, handover y conciliación |
-| `promotions` | Elegibilidad, scope, límites, redemption y **BOGO** |
-| `invoices` (ya existe) | Documentos y **snapshots** |
-| `orders` (queda) | `Order`, items y ciclo de vida — **sin** cobros, **sin** turnos y **sin** promociones |
-| `locations` (ya existe) | Autoridad operativa por sucursal |
-| `dashboard` (ya existe) | Read model: **nunca** dueño de reglas |
+**Qué posee cada módulo, hoy y en el objetivo** —con quién consume a quién— está en
+[`MODULE-OWNERSHIP.md`](MODULE-OWNERSHIP.md), junto al catálogo de **qué reutiliza cada capacidad**
+([`CAPABILITY-REUSE-MAP.md`](CAPABILITY-REUSE-MAP.md)) y al detalle de **qué falta en cada orden pendiente**
+([`../roadmap/EXECUTION-MAP.md`](../roadmap/EXECUTION-MAP.md)). Acá queda la **ley**, no el inventario.
 
 **Ley que estos módulos aplican** ([`AGENTS.md`](../../AGENTS.md) § *Leyes del repo*, ley 7): la configuración
 mutable tiene un solo dueño **actual**; `Payment`, `Invoice`, `Shift` y `Order` **congelan los valores** que
 explican la operación en vez de reconstruir el pasado con la configuración de hoy.
 
-### 4.2 `money` y `payments`: auditados, con dueño y contratos (`TASK-MONEY-PAYMENTS-FOUNDATIONS-001`)
+### 4.2 `money` y `payments`: **creados y desplegados** (órdenes 4 y 5)
 
-Los órdenes **4** y **5** quedaron **auditados contra el código** y su ownership **resuelto**: los módulos se
-**crean en runtime**. Lo que queda escrito y no se vuelve a decidir:
+Los órdenes **4** y **5** se ejecutaron en **dos pasadas** —el runtime
+([`TASK-MONEY-PAYMENTS-RUNTIME-001`](../tasks/TASK-MONEY-PAYMENTS-RUNTIME-001.md)) y su **cierre de aceptación**
+([`TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002`](../tasks/TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002.md))— y
+los dos módulos **existen con sus cuatro capas**. Lo que quedó escrito y no se vuelve a decidir:
 
-- **`money`**: catálogo de monedas (código, nombre, símbolo, **decimales**, activa, personalizada), moneda
-  base, locale, **tasa por par con vigencia e historial**, conversión, redondeo y formato. Hoy está repartido
-  entre `shared/lib`, `business-settings`, `pos` y `cash-config`, con la aritmética canónica en
-  `src/shared/lib/money-conversion.ts` (se **reutiliza**, no se reescribe).
-- **`payments`**: `Payment`, estado financiero (`pending`/`partial`/`paid`, `paidAmount`, `outstandingAmount`,
-  `unresolvedAmount`), cobro parcial, void, refund como hecho financiero, **idempotencia del cobro** y
-  **snapshots monetarios** (monto, moneda, moneda base, tasa aplicada, equivalente, medio y su tipo canónico,
-  entidad, referencia, turno, timestamp). Hoy vive en `orders` y `pos`.
-- **`banks` se amplía, no se duplica**: gana el **tipo de entidad** (banco / adquirente / proveedor digital /
-  otro). `PosTerminal` sigue siendo una dimensión propia.
-- **`cash` no se mueve a `payments`**: turno, caja física, apertura/cierre, conteos, movimientos, arqueo,
-  diferencias, terminales y snapshots de cierre siguen siendo de Caja (orden **7**). Caja **consume** los
-  hechos de cobro y no recalcula la conversión.
-- **`invoices` consume `payments`**: `canEmitInvoiceFor` deja de usar `hasPayments` y exige `paid` **estricto**
-  (`D-021`: `partial` no factura, sin excepción por autorización). `orders` lo consume y **no** es dueño de
-  `Payment`.
-
-**Contratos y SPEC**: estado financiero canónico, snapshot, idempotencia y concurrencia, boundaries y
-migraciones enumeradas, en [`../tasks/TASK-MONEY-PAYMENTS-FOUNDATIONS-001.md`](../tasks/TASK-MONEY-PAYMENTS-FOUNDATIONS-001.md);
-la superficie, en [`../design/screens/finance.md`](../design/screens/finance.md) con su
-[referencia aprobada](../design/screens/finance-reference.html). Ahí está también lo **prohibido duplicar**:
-una sola conversión, un solo redondeo, un solo catálogo de entidades, uno solo de medios y **una sola
-definición de «pagado»**.
+- **`money`**: catálogo de monedas, **moneda base** (`BusinessCurrencySettings`, fila única), locale, **tasa por
+  par con vigencia e historial** (`ExchangeRate`), conversión, redondeo y formato. Una sola aritmética y una
+  sola lectura de producción.
+- **`payments`**: `Payment`, estado financiero canónico (`pending`/`partial`/`paid` con `paidAmount`,
+  `outstandingAmount` y `unresolvedAmount`), **snapshot obligatorio** del cobro y de la devolución,
+  **idempotencia durable**, void y catálogo de medios con su alcance por local.
+- **`banks` se amplió, no se duplicó**: tiene el **tipo de entidad**. `PosTerminal` sigue siendo una dimensión
+  propia.
+- **`cash` no se mueve a `payments`** y **tampoco está creado**: turno, caja, arqueo y snapshots de cierre
+  siguen bajo `orders` (orden **7**). Caja **consume** `money` para convertir.
+- **`invoices` consume `payments`**: `canEmitInvoiceFor` exige `paid` **estricto** (`D-021`). `orders` lo
+  consume y **no** es dueño de `Payment`. Las decisiones que dejaron escritas están en
+  [`../roadmap/DECISIONS.md`](../roadmap/DECISIONS.md) (`D-016`…`D-024`) y el catálogo de qué reutiliza cada
+  capacidad, en [`CAPABILITY-REUSE-MAP.md`](CAPABILITY-REUSE-MAP.md). Lo **prohibido duplicar** (una sola
+  conversión, un solo redondeo, un solo catálogo de entidades, uno solo de medios y **una sola definición de
+  «pagado»**) vive en el brief de fundaciones y en la SPEC de
+  [`../design/screens/finance.md`](../design/screens/finance.md).
 
 ### 4.3 Capacidades fuera del MVP: clasificación explícita
 
