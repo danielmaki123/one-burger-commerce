@@ -43,3 +43,13 @@ SELECT
   (SELECT count(*) FROM "Payment" WHERE "baseAmount" IS NOT NULL) AS cobros_con_equivalente_inventado,
   (SELECT count(*) FROM "Refund" WHERE "baseAmount" IS NOT NULL) AS devoluciones_con_equivalente_inventado,
   (SELECT count(*) FROM "Shift" WHERE "exchangeRate" IS NOT NULL) AS cierres_con_tasa_inventada;
+
+\echo '=== 13. Los pedidos legacy quedan SIN moneda (no se les inventa una con la configuración de hoy) ==='
+SELECT id, "orderNumber", total, "currencyCode" FROM "Order" ORDER BY id;
+
+\echo '=== 14. Los cierres legacy quedan SIN base ni tasas (no se re-firman) ==='
+SELECT id, "baseCurrencyCode", "exchangeRatesByCurrency" FROM "Shift" ORDER BY id;
+
+\echo '=== 15. La config de conteo por sucursal se tradujo de `usdEnabled`, sin reinterpretar hechos ==='
+SELECT "locationId", "usdEnabled", "countedCurrencyCodes" FROM "LocationCashConfig" ORDER BY "locationId";
+

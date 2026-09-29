@@ -9,6 +9,7 @@
  * Se corre con `DATABASE_URL` apuntando a una base **local**: es QA, no un test. Los `*.postgres.test.ts`
  * cubren la atomicidad y la concurrencia; esto cubre la **compatibilidad del esquema migrado**.
  */
+import { Prisma } from "@prisma/client";
 import { getPrismaClient } from "../src/infrastructure/database/prisma";
 
 async function main() {
@@ -69,11 +70,62 @@ async function main() {
     voided.voidedAt !== null && voided.baseAmount === null,
   );
 
+  /**
+   * `TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002` (`A-88`, `A-89`, `A-90`) — **las tres columnas nuevas se
+   * pueden escribir** en la base migrada, y su valor queda como se pidió: un pedido con su moneda congelada,
+   * un cierre con su base y su mapa de tasas, y una config de conteo con la lista de monedas contables.
+   *
+   * Es la mitad que `qa-upgrade-post.sql` no puede ver: que el esquema migrado **acepte** lo nuevo, no sólo que
+   * deje intacto lo viejo.
+   */
+  const order = await prisma.order.update({
+    where: { id: "ord_1" },
+    data: { currencyCode: "NIO" },
+    select: { currencyCode: true },
+  });
+
+  const shift = await prisma.shift.update({
+    where: { id: "sh_1" },
+    data: { baseCurrencyCode: "NIO", exchangeRatesByCurrency: { USD: 36.5 } },
+    select: { baseCurrencyCode: true, exchangeRatesByCurrency: true },
+  });
+
+  const cashConfig = await prisma.locationCashConfig.update({
+    where: { id: "cc_1" },
+    data: { countedCurrencyCodes: ["NIO", "USD", "EUR"] },
+    select: { countedCurrencyCodes: true },
+  });
+
+  console.log(
+    "columnas nuevas escribibles:",
+    JSON.stringify({
+      orderCurrency: order.currencyCode,
+      shiftBase: shift.baseCurrencyCode,
+      shiftRates: shift.exchangeRatesByCurrency,
+      counted: cashConfig.countedCurrencyCodes,
+    }),
+  );
+
+  /**
+   * `A-88` — **una moneda que no es `NIO` ni `USD`**, sin ninguna columna nueva: es la prueba de que la lista
+   * es estructura y no un booleano del dólar que se quedó corto.
+   */
+  console.log("tres monedas contables sin columna nueva:", cashConfig.countedCurrencyCodes.length === 3);
+
   // Se limpia lo que agregó esta prueba: la base de QA no queda con datos de la verificación.
   await prisma.payment.delete({ where: { id: "pay_new_after_upgrade" } });
   await prisma.payment.update({
     where: { id: "pay_legacy_usd" },
     data: { voidedAt: null, voidedByUserId: null, voidReason: null },
+  });
+  await prisma.order.update({ where: { id: "ord_1" }, data: { currencyCode: null } });
+  await prisma.shift.update({
+    where: { id: "sh_1" },
+    data: { baseCurrencyCode: null, exchangeRatesByCurrency: Prisma.DbNull },
+  });
+  await prisma.locationCashConfig.update({
+    where: { id: "cc_1" },
+    data: { countedCurrencyCodes: ["NIO", "USD"] },
   });
 
   await prisma.$disconnect();

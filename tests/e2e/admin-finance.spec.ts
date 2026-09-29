@@ -123,4 +123,29 @@ test.describe("Finanzas · las tres vistas y el copy congelado", () => {
 
     await page.screenshot({ path: "test-results/qa-finance-method-modal.png" });
   });
+
+  /**
+   * `TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002` (`A-86`) — **la disponibilidad por sucursal se edita**.
+   *
+   * La referencia congelada de Finanzas tiene «Disponibilidad: Todos los locales / Locales seleccionados» y
+   * la tabla `PaymentMethodLocation` la modela, pero la pantalla no la dibujaba y el payload no la aceptaba:
+   * la capacidad estaba a medio implementar. Sólo se puede ver en un navegador real que los controles estén.
+   */
+  test("el modal del medio ofrece la disponibilidad por sucursal (A-86)", async ({ page }) => {
+    await page.goto("/admin/login");
+    await page.locator('input[type="email"]').fill(E2E_ADMIN_EMAIL);
+    await page.locator('input[type="password"]').fill(E2E_ADMIN_PASSWORD);
+    await page.getByRole("button", { name: "Iniciar sesión" }).click();
+    await page.waitForURL(/\/admin(?:\/orders)?$/, { timeout: 20_000 });
+
+    await page.goto("/admin/finance");
+    await page.getByRole("button", { name: "+ Nuevo medio" }).click();
+
+    await expect(page.getByText("Disponibilidad", { exact: true })).toBeVisible();
+    // Sin ningún local marcado el medio se ofrece en todos: la ayuda lo dice para que nadie crea que quedó
+    // apagado.
+    await expect(page.getByText("Todos los locales", { exact: false })).toBeVisible();
+
+    await page.screenshot({ path: "test-results/qa-finance-method-availability.png" });
+  });
 });
