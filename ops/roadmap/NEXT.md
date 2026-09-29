@@ -7,12 +7,13 @@
 
 ## ACTIVE
 
-**Ninguno.** Money / Payments runtime (órdenes **4 y 5** del roadmap maestro, en **una sola TASK**,
-`high-risk-e2e`) quedó **cerrada, mergeada y desplegada**: creó los módulos `money` y `payments`, las
-**nueve migraciones** del catálogo, las tasas, el snapshot y la idempotencia, la puerta de la factura con
-**`paid` estricto** (`D-021`) y la superficie `/admin/finance`; cerró `A-68`, `A-69`, `A-71`, `A-72`, `A-73`,
-`A-74` y `A-75` **enteros**. Producción sirve `build-20260928-235256` sobre `main` = `5a99185`, **sin deriva**.
-Estado y evidencia: [`../CURRENT.md`](../CURRENT.md).
+**Ninguno.** Money / Payments quedó cerrado en **dos pasadas**: el **runtime** (órdenes **4 y 5**, `money` +
+`payments`, las nueve migraciones, `/admin/finance` y la factura con **`paid` estricto**, `D-021`) y su
+**cierre de aceptación**, que puso el snapshot en el POS y en la devolución, dejó **una sola** autoridad
+monetaria, hizo que el POS ofrezca los medios y las monedas **configurados**, congeló la moneda del pedido
+(`D-022`), convirtió el cambio de base en una operación de **período cerrado** (`D-023`) y sacó `usdEnabled` de
+la estructura de Caja. `A-68`…`A-75` y `A-81`…`A-90` están **cerrados** y el release está **desplegado**
+(`build-20260929-040610` sobre `main` = `32ca238`). Estado y evidencia: [`../CURRENT.md`](../CURRENT.md).
 **Una sola TASK activa por vez**: la próxima no se abre sin **autorización explícita del owner**.
 
 ## NEXT
