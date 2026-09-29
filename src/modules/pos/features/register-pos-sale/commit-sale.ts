@@ -1,9 +1,12 @@
 import type { OrderRecord, PaymentMethodType, PaymentRecord } from "@/modules/orders/domain/order.types";
 import { calculateOrderChange, validatePaidWithAmount } from "@/modules/orders/domain/payment-change";
 import type { CreateOrderRequest } from "@/modules/orders/features/create-order/create-order";
+import type { PaymentSnapshot } from "@/modules/payments/domain/payment-snapshot";
+import type { MoneyContext } from "@/modules/money/domain/money-context";
+import { roundCurrency } from "@/shared/lib/order-totals";
 
 import { PosError } from "../../domain/pos-errors";
-import { recordedPaymentsTotalInBusinessCurrency } from "../../domain/pos-sale";
+import { buildSalePaymentSnapshots } from "../../domain/pos-sale";
 import type {
   PosSaleTransactionScope,
   RegisterPosSaleInput,
@@ -25,8 +28,20 @@ type CommitSaleInput = {
   paidInBusinessCurrency: number;
   openShift: { id: string } | null;
   scope: PosSaleTransactionScope;
-  businessCurrencyCode: string;
-  usdExchangeRate: number | null;
+  /**
+   * `TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002` (`A-81`, `D-024`) — **el contexto monetario vigente**.
+   *
+   * Entra como dato, no como dos escalares (`businessCurrencyCode` + `usdExchangeRate`): con el contexto,
+   * `money` sigue siendo el dueño de la moneda base y de la tasa, y el POS puede cobrar en cualquier moneda
+   * que el negocio tenga aceptada con tasa vigente.
+   */
+  money: MoneyContext;
+  /**
+   * Los snapshots ya construidos, **opcionales**: el caso de uso los arma para poder rechazar una moneda sin
+   * tasa antes de abrir la transacción. Si no llegan, `commitSale` los construye igual —con `money`— antes de
+   * escribir, así que es imposible que un cobro del POS quede sin snapshot aunque el llamador se olvide.
+   */
+  snapshots?: PaymentSnapshot[];
 };
 
 export async function commitSale({
@@ -35,9 +50,19 @@ export async function commitSale({
   paidInBusinessCurrency,
   openShift,
   scope,
-  businessCurrencyCode,
-  usdExchangeRate,
+  money,
+  snapshots: providedSnapshots,
 }: CommitSaleInput): Promise<RegisterPosSaleResult> {
+  /**
+   * `A-81` — **el snapshot se construye antes del primer `INSERT`**, sí o sí.
+   *
+   * Es la guarda que cierra el hallazgo desde el lado de la escritura: el camino productivo podía crear un
+   * `Payment` con los cinco campos de `D-020` en `null` porque nada obligaba a construirlos. Acá se
+   * construyen —los que vinieron del caso de uso o unos nuevos con el mismo contexto— y una moneda sin tasa
+   * vigente corta la venta antes de que exista el pedido.
+   */
+  const snapshots =
+    providedSnapshots ?? buildSalePaymentSnapshots({ payments: input.payments, money });
   /**
    * TASK-AUD-005 — **primero el turno**, después todo lo demás.
    *
@@ -67,28 +92,36 @@ export async function commitSale({
    * El total real del alta puede no ser el del borrador (el menú cambió entre que el cajero cargó el
    * catálogo y cobró). Cortar acá **no deja el pedido**: la transacción se deshace entera (TASK-AUD-004).
    * Antes esta salida dejaba el pedido guardado **sin ningún cobro** y el cajero volvía a cobrar.
+   *
+   * `TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002` (`A-81`) — **en un reintento esta comprobación no corre**:
+   * el pedido ya existe y ya se validó cuando se cobró; lo que el cajero declaró ahora es el mismo intento, no
+   * un cobro nuevo. Comparar el monto de hoy contra el total real haría fallar un reintento legítimo si la
+   * tasa con la que se comparó cambió, que es exactamente «reconstruir el pasado con la configuración de hoy».
    */
-  const orderProblem = validatePaidWithAmount({
-    paidWithAmount: paidInBusinessCurrency,
-    total: order.total,
-    paymentMethod: "cash",
-  });
-  if (orderProblem) {
-    throw new PosError(
-      409,
-      "CONFLICT",
-      `El total del pedido ${order.orderNumber} es ${order.total} y el cobro no alcanza: revisá el menú y volvé a cobrar.`,
-      { payments: `Faltan cobrar ${order.total - paidInBusinessCurrency}` },
-    );
+  if (!reused) {
+    const orderProblem = validatePaidWithAmount({
+      paidWithAmount: paidInBusinessCurrency,
+      total: order.total,
+      paymentMethod: "cash",
+    });
+    if (orderProblem) {
+      throw new PosError(
+        409,
+        "CONFLICT",
+        `El total del pedido ${order.orderNumber} es ${order.total} y el cobro no alcanza: revisá el menú y volvé a cobrar.`,
+        { payments: `Faltan cobrar ${order.total - paidInBusinessCurrency}` },
+      );
+    }
   }
 
   // El vuelto **solo existe en un cobro único en efectivo**: si la venta se partió entre medios, la
   // parte de efectivo es exacta (lo que sobrara se habría cobrado de menos por el otro medio), así que
   // anunciar cambio sería mentirle al cajero y al arqueo. En un pago mixto queda en 0.
   const changeBelongsToCash = input.payments.length === 1 && input.payments[0].method === "cash";
-  const change = changeBelongsToCash
-    ? calculateOrderChange({ paidWithAmount: paidInBusinessCurrency, total: order.total })
-    : 0;
+  const change =
+    changeBelongsToCash && !reused
+      ? calculateOrderChange({ paidWithAmount: paidInBusinessCurrency, total: order.total })
+      : 0;
 
   /**
    * Tarea 11 del brief (2026-09-17) — el pedido ya existía (misma clave de intento): **no se cobra otra
@@ -101,13 +134,14 @@ export async function commitSale({
    * alcanza con una venta que quedó completa.
    */
   if (reused) {
-    return reuseRecordedSale({ scope, order, businessCurrencyCode, usdExchangeRate });
+    return reuseRecordedSale({ scope, order });
   }
 
   const payments = await recordSalePayments({
     scope,
     orderId: order.id,
     input,
+    snapshots,
     change,
     changeBelongsToCash,
     shiftId: openShift?.id ?? null,
@@ -203,6 +237,7 @@ async function recordSalePayments({
   scope,
   orderId,
   input,
+  snapshots,
   change,
   changeBelongsToCash,
   shiftId,
@@ -210,13 +245,16 @@ async function recordSalePayments({
   scope: PosSaleTransactionScope;
   orderId: string;
   input: RegisterPosSaleInput;
+  snapshots: PaymentSnapshot[];
   change: number | null;
   changeBelongsToCash: boolean;
   shiftId: string | null;
 }): Promise<PaymentRecord[]> {
   const payments: PaymentRecord[] = [];
 
-  for (const payment of input.payments) {
+  for (const [index, payment] of input.payments.entries()) {
+    const snapshot = snapshots[index];
+
     payments.push(
       await scope.paymentRepository.createPayment({
         orderId,
@@ -228,6 +266,20 @@ async function recordSalePayments({
         ...(payment.reference ? { reference: payment.reference } : {}),
         // Fase 6: el cobro queda firmado con el turno donde entró (si hay caja abierta).
         shiftId,
+        /**
+         * `A-81`/`D-020` — **el snapshot**, que es lo que hace que el hecho se explique solo. El monto y la
+         * moneda viajan igual que antes (son columnas propias del cobro); los otros tres campos son los que
+         * faltaban: contra qué moneda base se convirtió, con qué tasa y cuánto valía.
+         */
+        baseCurrencyCode: snapshot.baseCurrencyCode,
+        exchangeRate: snapshot.exchangeRate,
+        baseAmount: snapshot.baseAmount,
+        /**
+         * `D-017` — el tipo canónico del momento. `paymentMethodId`/`entityId` llegan cuando la venta se hizo
+         * con un medio del catálogo (paso 6 del plan): hoy el mostrador cobra por el enum y el tipo canónico
+         * se deriva de él, que es la semántica contable que el arqueo necesita.
+         */
+        methodKind: snapshot.methodKind,
       }),
     );
   }
@@ -235,29 +287,37 @@ async function recordSalePayments({
   return payments;
 }
 
-/** La respuesta de un reintento: lo que ya quedó guardado, sin volver a cobrar (tarea 11). */
+/**
+ * La respuesta de un reintento: lo que ya quedó guardado, sin volver a cobrar (tarea 11).
+ *
+ * `A-81`/`D-020` — el total se arma con el **equivalente persistido** de cada cobro (`baseAmount`), nunca
+ * volviendo a convertir con la tasa vigente: un reintento no puede cambiar el número que el cajero ya vio, y
+ * reconstruir el pasado con la configuración de hoy es el bug de dinero que `D-020` prohíbe.
+ */
 async function reuseRecordedSale({
   scope,
   order,
-  businessCurrencyCode,
-  usdExchangeRate,
 }: {
   scope: PosSaleTransactionScope;
   order: OrderRecord;
-  businessCurrencyCode: string;
-  usdExchangeRate: number | null;
 }): Promise<RegisterPosSaleResult> {
   const recorded = await scope.paymentRepository.listPaymentsByOrder(order.id);
 
   return {
     order,
     payments: recorded,
-    paidInBusinessCurrency: recordedPaymentsTotalInBusinessCurrency({
-      payments: recorded,
-      businessCurrencyCode,
-      usdExchangeRate,
-    }),
+    paidInBusinessCurrency: sumRecordedBaseAmounts(recorded),
     change: recorded.length === 1 && recorded[0].method === "cash" ? recorded[0].changeAmount : 0,
     reused: true,
   };
+}
+
+/**
+ * La suma de los cobros **ya congelados**. Un cobro legacy sin snapshot no se reinterpreta: queda fuera y el
+ * llamador lo ve en la diferencia (es la decisión de `D-020`, no un número inventado).
+ */
+function sumRecordedBaseAmounts(payments: readonly PaymentRecord[]): number {
+  const total = payments.reduce((sum, payment) => sum + (payment.baseAmount ?? 0), 0);
+
+  return roundCurrency(total);
 }

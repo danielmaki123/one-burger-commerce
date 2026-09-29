@@ -1,4 +1,5 @@
 import { currencyKey } from "@/modules/money/domain/convert-to-base-currency";
+import { rateForCurrency, type MoneyContext } from "@/modules/money/domain/money-context";
 import { roundCurrency } from "@/modules/money/domain/round-currency";
 
 /**
@@ -122,6 +123,68 @@ export function buildPaymentSnapshot(input: PaymentSnapshotInput): PaymentSnapsh
     baseAmount: roundCurrency(amount * exchangeRate),
     methodKind: input.methodKind,
   };
+}
+
+/**
+ * `TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002` (`A-81`, `D-024`) — **el snapshot desde el contexto
+ * monetario**.
+ *
+ * Es la forma que usan los caminos productivos, y existe para que ninguno de ellos tenga que resolver la
+ * tasa por su cuenta: recibe el contexto de `money` y congela los cinco campos de `D-020`. El POS productivo
+ * escribía los cobros sin pasar por acá (`A-81`), que es exactamente el hueco que esto cierra.
+ *
+ * Dos decisiones que no son obvias:
+ *
+ * 1. **Un cobro en la moneda base se congela con tasa `1`**, no con la tasa «faltante». La igualdad es un
+ *    hecho del cobro y tiene que quedar escrita: si dentro de seis meses la base cambia, un `baseAmount`
+ *    `null` obligaría a reconstruir el pasado con la configuración de ese día, que es lo que `D-020`/`D-022`
+ *    prohíben. `rateForCurrency` devuelve `null` para la base justamente porque ahí no hay tasa que buscar.
+ * 2. **Sin tasa vigente no se firma.** El error es de dominio —no hay equivalente que inventar— y cada
+ *    superficie lo traduce a su error de negocio.
+ */
+export function buildPaymentSnapshotFor(
+  input: {
+    amount: number;
+    currency: string;
+    methodKind: PaymentMethodKind;
+  },
+  context: MoneyContext,
+): PaymentSnapshot {
+  const currency = currencyKey(input.currency);
+  const baseCurrencyCode = currencyKey(context.baseCurrencyCode);
+
+  if (currency === baseCurrencyCode) {
+    return buildPaymentSnapshot({
+      amount: input.amount,
+      currency,
+      baseCurrencyCode,
+      exchangeRate: 1,
+      methodKind: input.methodKind,
+    });
+  }
+
+  const rate = rateForCurrency(currency, context);
+
+  if (rate === null) {
+    const known = context.knownCurrencyCodes
+      ? context.knownCurrencyCodes.some((code) => currencyKey(code) === currency)
+      : context.rates[currency] !== undefined;
+
+    throw new PaymentSnapshotError(
+      "exchangeRate",
+      known
+        ? `No hay una tasa vigente para ${currency}: registrala en Finanzas antes de cobrar en esa moneda.`
+        : `No conocemos la moneda ${currency}: agregala al catálogo de Finanzas antes de cobrar en ella.`,
+    );
+  }
+
+  return buildPaymentSnapshot({
+    amount: input.amount,
+    currency,
+    baseCurrencyCode,
+    exchangeRate: rate,
+    methodKind: input.methodKind,
+  });
 }
 
 /** Valida y normaliza la clave de idempotencia que mandó el cliente. */

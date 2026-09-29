@@ -49,8 +49,18 @@ vi.mock("@/modules/pos/adapters/production-pos-sale", () => ({
         // TASK-AUD-005: el turno sigue abierto (la carrera con el cierre va contra PostgreSQL).
         lockShift: async (shiftId: string) => ({ id: shiftId, status: "open" }),
       }),
-    businessCurrencyCode: "NIO",
-    usdExchangeRate: 36.5,
+    // `TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002` (`A-83`): el contexto monetario reemplaza a los dos
+    // escalares. La ruta lo usa para convertir y para congelar el snapshot de cada cobro (`A-81`).
+    money: {
+      baseCurrencyCode: "NIO",
+      locale: "es-NI",
+      rates: { USD: 36.5 },
+      knownCurrencyCodes: ["NIO", "USD"],
+    },
+    currencies: [
+      { code: "NIO", name: "Córdoba", symbol: "C$", decimals: 2, isBase: true },
+      { code: "USD", name: "Dólar", symbol: "US$", decimals: 2, isBase: false },
+    ],
     quoteCoupon: quoteCouponMock,
   }),
 }));
@@ -303,6 +313,12 @@ describe("admin pos sale route", () => {
       amount: 80,
       currency: "NIO",
       changeAmount: 0,
+      // `A-81`/`D-020`: un cobro productivo siempre lleva su snapshot, y el reintento suma el equivalente
+      // **persistido** (no vuelve a convertir con la tasa de hoy).
+      baseCurrencyCode: "NIO",
+      exchangeRate: 1,
+      baseAmount: 80,
+      methodKind: "cash",
     });
 
     const response = await callRoute(venta);

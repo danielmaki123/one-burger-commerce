@@ -16,13 +16,18 @@ import {
  * tasa cargada se rechaza el cobro en vez de cobrar mal.
  */
 
-const business = { businessCurrencyCode: "NIO", usdExchangeRate: 36.5 };
+const money = {
+  baseCurrencyCode: "NIO",
+  locale: "es-NI",
+  rates: { USD: 36.5 },
+  knownCurrencyCodes: ["NIO", "USD"],
+};
 
-describe("suma de los cobros en la moneda del negocio", () => {
+describe("suma de los cobros en la moneda base vigente", () => {
   it("suma un cobro simple", () => {
     expect(
       paymentsTotalInBusinessCurrency({
-        ...business,
+        money,
         payments: [{ method: "cash", currency: "NIO", amount: 130 }],
       }),
     ).toBe(130);
@@ -31,7 +36,7 @@ describe("suma de los cobros en la moneda del negocio", () => {
   it("convierte el cobro en dólares antes de sumar", () => {
     expect(
       paymentsTotalInBusinessCurrency({
-        ...business,
+        money,
         payments: [{ method: "cash", currency: "USD", amount: 4 }],
       }),
     ).toBe(146);
@@ -40,7 +45,7 @@ describe("suma de los cobros en la moneda del negocio", () => {
   it("un pago mixto suma las dos partes convertidas", () => {
     expect(
       paymentsTotalInBusinessCurrency({
-        ...business,
+        money,
         payments: [
           { method: "cash", currency: "USD", amount: 2 },
           { method: "card", currency: "NIO", amount: 57 },
@@ -50,14 +55,13 @@ describe("suma de los cobros en la moneda del negocio", () => {
   });
 
   it("sin cobros no hay venta", () => {
-    expect(() => paymentsTotalInBusinessCurrency({ ...business, payments: [] })).toThrow(PosError);
+    expect(() => paymentsTotalInBusinessCurrency({ money, payments: [] })).toThrow(PosError);
   });
 
-  it("sin tasa cargada no se puede sumar un cobro en dólares", () => {
+  it("sin tasa vigente no se puede sumar un cobro en dólares", () => {
     expect(() =>
       paymentsTotalInBusinessCurrency({
-        ...business,
-        usdExchangeRate: null,
+        money: { ...money, rates: {} },
         payments: [{ method: "cash", currency: "USD", amount: 4 }],
       }),
     ).toThrow(PosError);
@@ -65,36 +69,32 @@ describe("suma de los cobros en la moneda del negocio", () => {
 });
 
 /**
- * Tarea 11 del brief (2026-09-17) — la misma suma, pero sobre los cobros **ya guardados**.
+ * Tarea 11 del brief (2026-09-17) + `TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002` (`A-81`, `D-020`) — la
+ * misma suma, pero sobre los cobros **ya guardados**, y con el equivalente que cada uno **congeló**.
  *
- * La necesita el reintento de un cobro: cuando el servidor reconoce la operación, no registra los cobros
- * otra vez (los duplicaría y el arqueo contaría la venta dos veces), así que el resultado se arma con los
- * que ya están en la base. Un cobro guardado sin moneda (`null`) es de la moneda del negocio.
+ * La necesita el reintento de un cobro: cuando el servidor reconoce la operación, no registra los cobros otra
+ * vez (los duplicaría y el arqueo contaría la venta dos veces), así que el resultado se arma con los que ya
+ * están en la base. La versión anterior volvía a convertir con la tasa vigente —el reintento devolvía un
+ * número distinto del que el cajero vio, y se movía solo si alguien tocaba Finanzas—. Un cobro legacy sin
+ * snapshot vale `0`: el pasado no se reinterpreta.
  */
 describe("suma de los cobros ya guardados", () => {
-  it("suma los cobros guardados con su moneda", () => {
+  it("suma el equivalente persistido de cada cobro", () => {
     expect(
       recordedPaymentsTotalInBusinessCurrency({
-        ...business,
-        payments: [
-          { amount: 100, currency: "NIO" },
-          { amount: 4, currency: "USD" },
-        ],
+        payments: [{ baseAmount: 100 }, { baseAmount: 146 }],
       }),
     ).toBe(246);
   });
 
-  it("un cobro sin moneda guardada es de la moneda del negocio", () => {
+  it("un cobro legacy sin snapshot no se reinterpreta con la tasa de hoy", () => {
     expect(
-      recordedPaymentsTotalInBusinessCurrency({
-        ...business,
-        payments: [{ amount: 130, currency: null }],
-      }),
-    ).toBe(130);
+      recordedPaymentsTotalInBusinessCurrency({ payments: [{ baseAmount: null }] }),
+    ).toBe(0);
   });
 
   it("sin cobros guardados el total es cero (no hay nada que sumar)", () => {
-    expect(recordedPaymentsTotalInBusinessCurrency({ ...business, payments: [] })).toBe(0);
+    expect(recordedPaymentsTotalInBusinessCurrency({ payments: [] })).toBe(0);
   });
 });
 

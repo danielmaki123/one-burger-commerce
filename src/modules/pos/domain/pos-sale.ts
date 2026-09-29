@@ -1,7 +1,16 @@
 import type { PaymentMethodType } from "@/modules/orders/domain/order.types";
+import type { MoneyContext } from "@/modules/money/domain/money-context";
+import { paymentMethodKindFor } from "@/modules/payments/domain/payment-method-kind";
+import {
+  buildPaymentSnapshotFor,
+  type PaymentSnapshot,
+} from "@/modules/payments/domain/payment-snapshot";
 import { roundCurrency } from "@/shared/lib/order-totals";
 
-import { convertPaymentToBusinessCurrency } from "./payment-conversion";
+import {
+  convertPaymentToBusinessCurrency,
+  recordedPaymentsBaseTotal,
+} from "./payment-conversion";
 import { PosError } from "./pos-errors";
 
 /**
@@ -46,11 +55,10 @@ export type PosSalePaymentInput = {
   reference?: string | null;
 };
 
-/** Suma de los cobros convertidos a la moneda del negocio. Lanza si un cobro no se puede convertir. */
+/** Suma de los cobros convertidos a la moneda base vigente. Lanza si un cobro no se puede convertir. */
 export function paymentsTotalInBusinessCurrency(input: {
   payments: PosSalePaymentInput[];
-  businessCurrencyCode: string;
-  usdExchangeRate: number | null;
+  money: MoneyContext;
 }): number {
   if (input.payments.length === 0) {
     throw new PosError(422, "VALIDATION_ERROR", "Registrá al menos un cobro.", {
@@ -64,8 +72,7 @@ export function paymentsTotalInBusinessCurrency(input: {
       convertPaymentToBusinessCurrency({
         amount: payment.amount,
         currency: payment.currency,
-        businessCurrencyCode: input.businessCurrencyCode,
-        usdExchangeRate: input.usdExchangeRate,
+        money: input.money,
       }),
     0,
   );
@@ -74,29 +81,46 @@ export function paymentsTotalInBusinessCurrency(input: {
 }
 
 /**
- * Tarea 11 del brief (2026-09-17) — la misma suma, sobre los cobros **ya guardados**.
+ * `TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002` (`A-81`, `D-024`) — **los snapshots de la venta**, uno por
+ * cobro y en el mismo orden.
  *
- * La necesita el reintento de un cobro: cuando el servidor reconoce la operación (misma clave de intento)
- * no registra los cobros otra vez —los duplicaría y el arqueo contaría la venta dos veces—, así que la
- * respuesta se arma con los que ya están. Un `Payment` viejo puede no tener moneda declarada (`null`): es
- * la del negocio.
+ * Es la puerta por la que pasa todo cobro del mostrador. Existe como función propia para que la use el caso
+ * de uso **y** la escritura (`commitSale`): la escritura construye los suyos por si el llamador no los pasó
+ * —un doble, un test, una superficie futura—, y así es **imposible** que el POS vuelva a escribir un `Payment`
+ * con el snapshot en `null`, que era el hueco `A-81`.
+ */
+export function buildSalePaymentSnapshots(input: {
+  payments: PosSalePaymentInput[];
+  money: MoneyContext;
+}): PaymentSnapshot[] {
+  return input.payments.map((payment) =>
+    buildPaymentSnapshotFor(
+      {
+        amount: payment.amount,
+        currency: payment.currency,
+        /**
+         * `D-017` — el tipo **canónico** del momento. El medio del mostrador es el enum histórico
+         * (`cash`/`card`/`transfer`/`other`); su semántica contable la traduce `payments`, que es la dueña de
+         * la correspondencia. `mixed` no llega acá: se deriva de más de un cobro.
+         */
+        methodKind: paymentMethodKindFor(payment.method),
+      },
+      input.money,
+    ),
+  );
+}
+
+/**
+ * Tarea 11 del brief (2026-09-17) — la misma suma, pero sobre los cobros **ya guardados**.
+ *
+ * `TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002` (`A-81`, `D-020`) — **ya no convierte**: suma el
+ * equivalente que cada cobro **congeló** cuando se registró. La versión anterior re-convertía con la tasa
+ * vigente, así que el reintento de una venta devolvía un número distinto del que el cajero vio la primera
+ * vez —y el saldo del pedido se movía solo si alguien cambiaba la tasa—. Un cobro legacy sin snapshot vale
+ * `0` acá a propósito: el pasado no se reinterpreta (`D-020`).
  */
 export function recordedPaymentsTotalInBusinessCurrency(input: {
-  payments: readonly { amount: number; currency: string | null }[];
-  businessCurrencyCode: string;
-  usdExchangeRate: number | null;
+  payments: readonly { baseAmount?: number | null }[];
 }): number {
-  const total = input.payments.reduce(
-    (sum, payment) =>
-      sum +
-      convertPaymentToBusinessCurrency({
-        amount: payment.amount,
-        currency: payment.currency ?? input.businessCurrencyCode,
-        businessCurrencyCode: input.businessCurrencyCode,
-        usdExchangeRate: input.usdExchangeRate,
-      }),
-    0,
-  );
-
-  return roundCurrency(total);
+  return recordedPaymentsBaseTotal(input.payments);
 }

@@ -3,6 +3,7 @@ import { getPrismaClient } from "@/infrastructure/database/prisma";
 import { PrismaBusinessSettingsRepository } from "@/modules/business-settings/adapters/prisma-business-settings-repository";
 import { loadBusinessSettings } from "@/modules/business-settings/features/get-public-business-settings/get-public-business-settings";
 import { PrismaLocationRepository } from "@/modules/locations/adapters/prisma-location-repository";
+import { readProductionMoney } from "@/modules/money/adapters/production-money-context";
 import { PrismaOrderRepository } from "@/modules/orders/adapters/prisma-order-repository";
 import { PrismaPaymentRepository } from "@/modules/orders/adapters/prisma-payment-repository";
 import { lockShiftRow } from "@/modules/orders/adapters/prisma-shift-repository";
@@ -61,6 +62,20 @@ export async function createProductionPosSaleDependencies(): Promise<RegisterPos
   });
   const locationRepository = new PrismaLocationRepository();
   const shiftRepository = new PrismaShiftRepository();
+
+  /**
+   * `TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002` (`A-83`) — **la autoridad monetaria es `money`**.
+   *
+   * Antes el POS cobraba con `settings.currencyCode` + `settings.usdExchangeRate`: la moneda base y la tasa
+   * salían de `BusinessSettings` mientras `/admin/finance` escribía en `BusinessCurrencySettings` +
+   * `ExchangeRate`. Con las dos autoridades vivas, un cambio de tasa en Finanzas no llegaba al mostrador y
+   * el cobro se convertía con el número viejo.
+   *
+   * La lectura es **una sola** y también alimenta las opciones de moneda que la pantalla ofrece
+   * (`readAcceptedCurrencies`), así que lo que se puede cobrar y la tasa con la que se convierte salen del
+   * mismo lugar.
+   */
+  const { context: money, currencies } = await readProductionMoney();
 
   return {
     /**
@@ -129,8 +144,12 @@ export async function createProductionPosSaleDependencies(): Promise<RegisterPos
         return attempt();
       });
     },
-    businessCurrencyCode: settings.currencyCode,
-    usdExchangeRate: settings.usdExchangeRate,
+    money,
+    /**
+     * Las monedas que el negocio acepta hoy, tal como las lee `money`. La ruta las publica para que la
+     * pantalla ofrezca **esas** y no una lista fija con la moneda base y el dólar (`A-85`).
+     */
+    currencies,
     // Bloque 9.2: sin caja abierta no se cobra (`registerPosSale` corta con 409).
     //
     // Fase 6 del rediseño de Caja (2026-09-23) — la terminal viaja desde el POS: el turno que se resuelve
