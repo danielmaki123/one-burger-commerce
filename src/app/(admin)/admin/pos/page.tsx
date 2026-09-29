@@ -8,6 +8,7 @@ import { PrismaCashConfigRepository } from "@/modules/cash-config/adapters/prism
 import { getCashTerminals } from "@/modules/cash-config/features/get-cash-terminals/get-cash-terminals";
 import { pickPosLocations } from "@/modules/pos/domain/pos-locations";
 
+import { readProductionMoney } from "@/modules/money/adapters/production-money-context";
 import PosClient from "./pos-client";
 
 /**
@@ -63,9 +64,22 @@ export default async function AdminPosPage() {
       .map(({ id, label }) => ({ id, label }));
   }
 
+  // `A-85` — la moneda base vigente y las monedas aceptadas, de `money` (no de la configuración de branding).
+  const money = await readProductionMoney();
+
   return (
     <PosClient
       locations={locations}
+      /**
+       * `TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002` (`A-85`) — **la autoridad monetaria es `money`**.
+       *
+       * El mostrador recibe la moneda base vigente, sus **tasas por moneda** y las monedas que el negocio
+       * acepta: el selector de moneda ofrece esas y no una lista fija con la base y el dólar. Antes las dos
+       * salían de la configuración de branding (`settings.currencyCode` + `settings.usdExchangeRate`), que es
+       * la autoridad vieja.
+       */
+      money={money.context}
+      acceptedCurrencies={money.currencies.map((currency) => currency.code)}
       canDiscount={canDiscountPosSale(session.user.role)}
       cashTerminalsByLocation={cashTerminalsByLocation}
     />

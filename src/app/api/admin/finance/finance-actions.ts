@@ -72,6 +72,15 @@ const paymentMethodSchema = z.object({
   requiresReference: z.boolean().optional(),
   isActive: z.boolean().optional(),
   sortOrder: z.number().int().min(0).max(999).optional(),
+  /**
+   * `TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002` (`A-86`) — **la disponibilidad por sucursal**.
+   *
+   * `undefined` = no se toca; `[]` = se ofrece en **todas** (es el default de `PaymentMethodLocation`); una
+   * lista = sólo en esas. Antes el campo no existía en el esquema, así que la disponibilidad se leía para
+   * dibujarla pero **no se podía guardar**: la referencia congelada de Finanzas tenía una capacidad que el
+   * runtime no completaba.
+   */
+  locationIds: z.array(z.string().trim().min(1)).max(50).optional(),
 });
 
 const entitySchema = z.object({
@@ -302,7 +311,53 @@ export async function savePaymentMethodForRoute(body: unknown) {
     },
   });
 
-  return { id: saved.id, name: saved.name, kind: saved.kind, isActive: saved.isActive };
+  /**
+   * `A-86` — **la disponibilidad por sucursal**, en la misma operación que el medio.
+   *
+   * La lista que llega dice **dónde sí**: las filas de los locales que salen quedan `isActive: false` (no se
+   * borran, igual que las denominaciones de Caja: un cobro viejo referencia el medio y su alcance explica por
+   * qué se pudo cobrar ahí). Sin el campo (`undefined`) no se toca nada: la pantalla manda lo que editó.
+   */
+  if (data.locationIds !== undefined) {
+    await replacePaymentMethodLocations(saved.id, data.locationIds);
+  }
+
+  return {
+    id: saved.id,
+    name: saved.name,
+    kind: saved.kind,
+    isActive: saved.isActive,
+    locationIds: data.locationIds,
+  };
+}
+
+/**
+ * `A-86` — deja la disponibilidad del medio como la lista pedida.
+ *
+ * Se hace en **una transacción** para que nadie lea el medio sin alcance a mitad de camino, y se **apaga** en
+ * vez de borrar: la fila es el registro de dónde se ofreció.
+ */
+async function replacePaymentMethodLocations(
+  paymentMethodConfigId: string,
+  locationIds: readonly string[],
+): Promise<void> {
+  const prisma = getPrismaClient();
+  const wanted = [...new Set(locationIds)];
+
+  await prisma.$transaction(async (tx) => {
+    await tx.paymentMethodLocation.updateMany({
+      where: { paymentMethodConfigId, locationId: { notIn: wanted } },
+      data: { isActive: false },
+    });
+
+    for (const locationId of wanted) {
+      await tx.paymentMethodLocation.upsert({
+        where: { locationId_paymentMethodConfigId: { locationId, paymentMethodConfigId } },
+        create: { locationId, paymentMethodConfigId, isActive: true },
+        update: { isActive: true },
+      });
+    }
+  });
 }
 
 /** Alta o edición de una entidad de cobro: **es** el catálogo `banks`, con su tipo (no hay uno paralelo). */

@@ -35,7 +35,7 @@ function setup(overrides: Partial<Parameters<typeof usePosSale>[0]> = {}) {
   const currentParams: Parameters<typeof usePosSale>[0] = {
     locationId: "loc_norte",
     terminalId: null,
-    currencyCode: "NIO",
+    money: { baseCurrencyCode: "NIO", locale: "es-NI", rates: { USD: 36.5 }, knownCurrencyCodes: ["NIO", "USD"] },
     currency,
     fiscal: EMPTY_POS_FISCAL_DRAFT,
     customer: { name: "Cliente Mostrador", whatsapp: "88887777", email: "" },
