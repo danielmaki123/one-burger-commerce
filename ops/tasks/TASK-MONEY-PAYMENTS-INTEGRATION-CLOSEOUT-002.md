@@ -108,17 +108,36 @@ un retry con la tasa vigente · permitir el cambio de base con un `Shift` abiert
 contra **PostgreSQL real** y en **E2E local**. En producción se verifican health, readiness, smokes y la
 **lectura** autenticada de lo desplegado.
 
-## Acceptance criteria
+## Acceptance criteria — **todos cumplidos**
 
-- [ ] Ninguna escritura productiva de `Payment`/`Refund` deja el snapshot en `null`.
-- [ ] El retry del POS usa el `baseAmount` persistido.
-- [ ] Un solo camino de lectura de la configuración monetaria en producción.
-- [ ] Personalización no edita moneda, símbolo, locale financiero ni tasa.
-- [ ] El POS ofrece los medios configurados, con su disponibilidad por local, y no acepta un medio apagado.
-- [ ] El modal de formato guarda solo el locale.
-- [ ] `Order.currencyCode` se escribe en todo alta nueva; el legacy no se rellena.
-- [ ] El cambio de moneda base se rechaza con turno abierto o deuda pendiente.
-- [ ] Caja cuenta monedas configurables (no `usdEnabled`), y un cierre nuevo se explica con N monedas.
-- [ ] La impresión factura por la moneda congelada del documento.
-- [ ] Las siete mutaciones exigidas ponen la suite en rojo.
-- [ ] `A-81`…`A-90` cerrados con test, o degradados con el motivo escrito.
+- [x] Ninguna escritura productiva de `Payment`/`Refund` deja el snapshot en `null`.
+- [x] El retry del POS usa el `baseAmount` persistido.
+- [x] Un solo camino de lectura de la configuración monetaria en producción.
+- [x] Personalización no edita moneda, símbolo, locale financiero ni tasa.
+- [x] El POS ofrece los medios configurados, con su disponibilidad por local, y no acepta un medio apagado.
+- [x] El modal de formato guarda solo el locale.
+- [x] `Order.currencyCode` se escribe en todo alta nueva; el legacy no se rellena.
+- [x] El cambio de moneda base se rechaza con turno abierto o deuda pendiente.
+- [x] Caja cuenta monedas configurables (no `usdEnabled`), y un cierre nuevo se explica con N monedas.
+- [x] La impresión factura por la moneda congelada del documento.
+- [x] Las siete mutaciones exigidas ponen la suite en rojo.
+- [x] `A-81`…`A-90` cerrados con test, o degradados con el motivo escrito.
+
+
+## Estado de la entrega
+
+| Paso | Estado |
+|---|---|
+| Reproducción de los hallazgos | **Hecho** — `A-81`…`A-90` en `audit-backlog.md`, con `archivo:línea` |
+| Implementación con TDD, rojo observado, mutación y PostgreSQL real | **Hecho** |
+| Migración aditiva + upgrade test sobre una base **con datos** | **Hecho** — `20260930120000`, sin drift |
+| PR + CI verde (los cuatro checks) | **Hecho** — [PR #99](https://github.com/danielmaki123/one-burger-commerce/pull/99) |
+| Merge `--squash` a `main` | **Hecho** — `32ca238` |
+| Deploy | **Hecho por el owner** — `build-20260929-040610`, con la migración aplicada por el arranque |
+| Health / readiness / smokes | **Hecho** — los tres hosts, `ready` (db 2 ms), **menú 7/7** y **hosts 6/6** |
+| QA autenticada de producción | **Hecha** (`admin-finance.spec.ts`, **7/7**, incluida la sección **Disponibilidad**) |
+| Estado documental | **Hecho** — `CURRENT.md`, `NEXT.md`, `DECISIONS.md` (`D-022`/`D-023`/`D-024`) |
+
+**Excepciones, medidas y documentadas**: `A-91` (`admin-locations.spec.ts` falla igual en `main`: deuda del
+arnés de E2E) y `A-92` (`admin-pos.spec.ts` no es reejecutable contra una pantalla en vivo; el POS de producción
+se midió **sano**: sin scroll horizontal a `375×812` y `1280×720`, scroll de página `0` y `Cobrar` visible).
