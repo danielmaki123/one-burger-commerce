@@ -187,6 +187,31 @@ export function buildPaymentSnapshotFor(
   });
 }
 
+/**
+ * `TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002` (`A-82`, `D-020`, `D-024`) — **el snapshot de una
+ * devolución**.
+ *
+ * Misma ley que el cobro y por la misma razón: una devolución es plata que **salió**, y sin la moneda base,
+ * la tasa y el equivalente, el neto del negocio no se puede explicar después sin volver a la configuración
+ * de ese día (`A-74` ya dependía de este equivalente para no restar dólares como córdobas).
+ *
+ * Se apoya en `buildPaymentSnapshotFor` a propósito: el cálculo del equivalente es **uno solo** para las dos
+ * puntas de la misma operación de dinero. Una devolución en la moneda base congela la igualdad; una en otra
+ * moneda, la tasa **vigente en el momento de la devolución** —que no tiene por qué ser la del cobro: el cobro
+ * explica cuánto valía la plata cuando entró, la devolución cuánto vale la que sale—.
+ */
+export function buildRefundSnapshotFor(
+  input: {
+    amount: number;
+    currency: string;
+    /** El tipo canónico que hereda del cobro: la devolución sale por el mismo medio. */
+    methodKind: PaymentMethodKind;
+  },
+  context: MoneyContext,
+): PaymentSnapshot {
+  return buildPaymentSnapshotFor(input, context);
+}
+
 /** Valida y normaliza la clave de idempotencia que mandó el cliente. */
 export function assertIdempotencyKey(key: string | null | undefined): string {
   const normalized = (key ?? "").trim();

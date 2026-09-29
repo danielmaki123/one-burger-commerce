@@ -124,8 +124,17 @@ function buildDeps(
               (await paymentRepository.findPaymentById()) ? { id: paymentId } : null,
           }),
         ),
-      /** `A-69` — la moneda del negocio entra como dato; el caso de uso no escribe un `"NIO"`. */
-      businessCurrencyCode: "NIO",
+      /**
+       * `TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002` (`A-82`) — el contexto monetario del momento entra
+       * como dato: de ahí salen la moneda base vigente y **las tasas**, que son lo que la devolución congela.
+       * El caso de uso sigue sin escribir un `"NIO"` ni una tasa.
+       */
+      readMoney: async () => ({
+        baseCurrencyCode: "NIO",
+        locale: "es-NI",
+        rates: { USD: 36.5 },
+        knownCurrencyCodes: ["NIO", "USD"],
+      }),
     },
   };
 }

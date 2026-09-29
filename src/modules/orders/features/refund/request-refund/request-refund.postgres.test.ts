@@ -73,8 +73,7 @@ async function seed(): Promise<void> {
 }
 
 /**
- * El caso de uso tal como lo arma su composición. Se importa la composición real para no probar una copia:
- * un test que se arma su propio runner no prueba el que corre en producción.
+ * El caso de uso tal como lo arma su composición. Se importa la composición real para no probar una copia: * un test que se arma su propio runner no prueba el que corre en producción.
  */
 async function deps() {
   const { runInRefundRequestTransaction, refundRequestDependenciesForRoute } = await import(
@@ -89,6 +88,49 @@ async function deps() {
 /** El tipo del alcance transaccional, para la barrera. */
 type RefundDeps = Awaited<ReturnType<typeof deps>>;
 type RefundScope = Parameters<Parameters<RefundDeps["runInRefundRequestTransaction"]>[0]>[0];
+
+/**
+ * `A-82` — deja el catálogo y la base del negocio como los deja la primera lectura de `money`: sin fila de
+ * configuración la moneda base sale de los defaults, pero el catálogo necesita su fila para poder resolver
+ * el símbolo y los decimales.
+ */
+async function configureRefundMoney(baseCurrencyCode = "NIO"): Promise<void> {
+  const prisma = getPrismaClient();
+
+  await prisma.currency.upsert({
+    where: { code: baseCurrencyCode },
+    create: { code: baseCurrencyCode, name: baseCurrencyCode, symbol: baseCurrencyCode, isKnown: true },
+    update: {},
+  });
+  await prisma.currency.upsert({
+    where: { code: "USD" },
+    create: { code: "USD", name: "Dólar", symbol: "US$", isKnown: true },
+    update: {},
+  });
+  await prisma.businessCurrencySettings.upsert({
+    where: { id: "default" },
+    create: { id: "default", baseCurrencyCode, locale: "es-NI" },
+    update: { baseCurrencyCode, locale: "es-NI" },
+  });
+}
+
+/** La tasa vigente del dólar contra la base del negocio, con **una sola** fila abierta por par. */
+async function registerRefundRate(rate: number): Promise<void> {
+  const prisma = getPrismaClient();
+
+  await prisma.exchangeRate.updateMany({
+    where: { fromCurrencyCode: "USD", toCurrencyCode: "NIO", effectiveTo: null },
+    data: { effectiveTo: "2026-09-10T00:00:00.000Z" },
+  });
+  await prisma.exchangeRate.create({
+    data: {
+      fromCurrencyCode: "USD",
+      toCurrencyCode: "NIO",
+      rate,
+      effectiveFrom: "2026-09-10T00:00:00.000Z",
+    },
+  });
+}
 
 /**
  * Fuerza el **cruce real**: las dos lecturas del cupo terminan antes de que ninguna escriba.
@@ -204,5 +246,108 @@ describe("A-73 · dos devoluciones simultáneas del mismo cupo (PostgreSQL real)
     const refunds = await prisma.refund.findMany({ where: { paymentId: PAYMENT_ID } });
 
     expect(refunds).toHaveLength(1);
+  });
+});
+
+/**
+ * `TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002` (`A-82`, `D-020`, `D-024`) — **el snapshot de la
+ * devolución, contra PostgreSQL real**.
+ *
+ * La migración `20260929120600` agregó `baseCurrencyCode`, `exchangeRate` y `baseAmount` a `Refund` «por
+ * simetría con el cobro», y `request-refund.ts` **nunca las escribía**: quedaban en `null` en el camino
+ * productivo. Una columna nueva permanentemente `null` es lo que el criterio 9 de aceptación prohíbe, y el
+ * dashboard ya usaba ese equivalente para restar el neto (`A-74`).
+ *
+ * Se prueba contra la base y con la composición de producción: un doble en memoria podría aceptar el
+ * snapshot y no escribirlo, que es exactamente el modo de falla a detectar.
+ */
+describe("A-82 · la devolución congela su snapshot (PostgreSQL real)", () => {
+  beforeEach(async () => {
+    await resetDatabase();
+    await seed();
+    await configureRefundMoney();
+  });
+
+  afterAll(async () => {
+    await closeDatabase();
+  });
+
+  it("una devolución en la moneda base congela la igualdad", async () => {
+    const prisma = getPrismaClient();
+
+    await requestRefund(
+      {
+        paymentId: PAYMENT_ID,
+        kind: "partial",
+        amount: 40,
+        reason: "Faltaba una bebida",
+        requestedByUserId: "user_a73",
+        locationId: "loc_a73",
+        idempotencyKey: "key_snapshot_base",
+      },
+      await deps(),
+    );
+
+    const refund = await prisma.refund.findFirstOrThrow();
+
+    expect(refund.baseCurrencyCode).toBe("NIO");
+    expect(Number(refund.exchangeRate)).toBe(1);
+    expect(Number(refund.baseAmount)).toBe(40);
+  });
+
+  it("una devolución en otra moneda congela la tasa vigente del momento", async () => {
+    const prisma = getPrismaClient();
+    // El cobro fue de US$20 a 30 (C$600); la devolución sale cuando la tasa ya es 50.
+    await prisma.payment.update({
+      where: { id: PAYMENT_ID },
+      data: { amount: 20, currency: "USD", exchangeRate: 30, baseAmount: 600 },
+    });
+    await registerRefundRate(50);
+
+    await requestRefund(
+      {
+        paymentId: PAYMENT_ID,
+        kind: "partial",
+        amount: 5,
+        reason: "Faltaba una bebida",
+        requestedByUserId: "user_a73",
+        locationId: "loc_a73",
+        idempotencyKey: "key_snapshot_usd",
+      },
+      await deps(),
+    );
+
+    const refund = await prisma.refund.findFirstOrThrow();
+
+    // 5 × 50 = 250: la tasa de la **devolución**, no la del cobro.
+    expect(refund.currency).toBe("USD");
+    expect(refund.baseCurrencyCode).toBe("NIO");
+    expect(Number(refund.exchangeRate)).toBe(50);
+    expect(Number(refund.baseAmount)).toBe(250);
+  });
+
+  it("sin tasa vigente para la moneda del cobro no se registra la devolución", async () => {
+    const prisma = getPrismaClient();
+    await prisma.payment.update({
+      where: { id: PAYMENT_ID },
+      data: { amount: 20, currency: "USD", exchangeRate: null, baseAmount: null },
+    });
+
+    await expect(
+      requestRefund(
+        {
+          paymentId: PAYMENT_ID,
+          kind: "partial",
+          amount: 5,
+          reason: "Faltaba una bebida",
+          requestedByUserId: "user_a73",
+          locationId: "loc_a73",
+          idempotencyKey: "key_snapshot_sin_tasa",
+        },
+        await deps(),
+      ),
+    ).rejects.toThrow(/tasa vigente/i);
+
+    expect(await prisma.refund.count()).toBe(0);
   });
 });

@@ -2,6 +2,9 @@ import { OrderError } from "@/modules/orders/domain/order-errors";
 import type { PaymentRecord, RefundRecord } from "@/modules/orders/domain/order.types";
 import type { CreateRefundInput } from "@/modules/orders/ports/refund-repository";
 import type { ShiftRepository } from "@/modules/orders/ports/shift-repository";
+import type { MoneyContext } from "@/modules/money/domain/money-context";
+import { paymentMethodKindFor } from "@/modules/payments/domain/payment-method-kind";
+import { buildRefundSnapshotFor } from "@/modules/payments/domain/payment-snapshot";
 import { roundCurrency } from "@/shared/lib/order-totals";
 
 /**
@@ -41,7 +44,7 @@ export async function requestRefund(
   {
     shiftRepository,
     runInRefundRequestTransaction,
-    businessCurrencyCode,
+    readMoney,
   }: {
     /**
      * Lo único que se resuelve **fuera** de la transacción: el turno abierto del local. Es una lectura que no
@@ -60,10 +63,15 @@ export async function requestRefund(
       work: (scope: RefundRequestScope) => Promise<T>,
     ) => Promise<T>;
     /**
-     * `A-69` — la moneda del negocio, para resolver el `null` de `Payment.currency` sin escribir un `"NIO"`
-     * en el camino del dinero. La resolución la define `money`; acá entra como dato.
+     * `TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002` (`A-82`, `A-69`) — **el contexto monetario del
+     * momento**, leído de `money`.
+     *
+     * Reemplaza al `businessCurrencyCode` suelto que había antes: además de resolver el `null` de
+     * `Payment.currency` sin escribir un `"NIO"`, trae la moneda base vigente y **las tasas**, que es lo que
+     * la devolución necesita para congelar su equivalente. Sin esa tasa, una columna nueva quedaba
+     * permanentemente `null` en el camino productivo.
      */
-    businessCurrencyCode: string;
+    readMoney: () => Promise<MoneyContext>;
   },
 ) {
   const reason = input.reason?.trim();
@@ -162,25 +170,50 @@ export async function requestRefund(
      * firma («nadie la propia»), así que pedir y aprobar son dos actos distintos y separados en el tiempo:
      * el que pide deja el motivo y el dueño resuelve en `/admin/approvals`.
      */
+    /**
+     * `TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002` (`A-82`, `D-020`) — **el snapshot de la devolución**,
+     * construido con la moneda base vigente y **su** tasa.
+     *
+     * El contexto se lee acá adentro, con el cobro ya bloqueado: la tasa que se congela es la que rige en el
+     * momento de la devolución, y leerla antes de la transacción dejaría una ventana en la que un cambio de
+     * tasa produciría un equivalente que nunca existió.
+     *
+     * El tipo canónico lo hereda del cobro: la plata sale por el mismo medio por el que entró.
+     */
+    const money = await readMoney();
+    const currency = (payment.currency ?? money.baseCurrencyCode).toUpperCase();
+    const snapshot = buildRefundSnapshotFor(
+      {
+        amount: roundCurrency(input.amount),
+        currency,
+        methodKind: payment.methodKind ?? paymentMethodKindFor(payment.method),
+      },
+      money,
+    );
+
     return scope.createRefund({
       paymentId: payment.id,
       orderId: payment.orderId,
       shiftId: openShift?.id ?? null,
       kind: input.kind,
       method: payment.method,
-      amount: roundCurrency(input.amount),
+      amount: snapshot.amount,
       /**
-       * `A-69` — un cobro viejo sin moneda declarada se devuelve en **la moneda del negocio**, que es lo que
-       * el arqueo asume. La resolución del `null` la hace `money`; acá entra por dependencia para no dejar
-       * un `"NIO"` escrito en el camino del dinero.
+       * `A-69` — un cobro viejo sin moneda declarada se devuelve en **la moneda base vigente**, que es lo
+       * que el arqueo asume. La resolución del `null` la hace `money`; acá entra como dato, sin un `"NIO"`
+       * escrito en el camino del dinero.
        */
-      currency: (payment.currency ?? businessCurrencyCode).toUpperCase(),
+      currency: snapshot.currency,
       reason,
       status: "pending",
       requestedByUserId: input.requestedByUserId,
       approvedByUserId: null,
       approvedAt: null,
       idempotencyKey,
+      /** `A-82` — el snapshot congelado, con la misma ley que el cobro. */
+      baseCurrencyCode: snapshot.baseCurrencyCode,
+      exchangeRate: snapshot.exchangeRate,
+      baseAmount: snapshot.baseAmount,
     });
   });
 
