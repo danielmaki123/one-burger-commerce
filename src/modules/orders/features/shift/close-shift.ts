@@ -20,6 +20,8 @@ import {
 import { refundsTotalByCurrency, refundsTotalInBusinessCurrency } from "@/modules/orders/domain/shift-refund";
 import { emptyShiftPaymentMix, summarizeShiftPayments, type ShiftPaymentMix } from "@/modules/orders/domain/shift-payment-mix";
 import type { BankRepository } from "@/modules/banks/ports/bank-repository";
+import type { MoneyContext } from "@/modules/money/domain/money-context";
+import { rateForCurrency } from "@/modules/money/domain/money-context";
 import type { CashMovementRepository } from "@/modules/orders/ports/cash-movement-repository";
 import type { PaymentRepository } from "@/modules/orders/ports/payment-repository";
 import type { RefundRepository } from "@/modules/orders/ports/refund-repository";
@@ -82,8 +84,7 @@ export async function closeShift(
   {
     runInShiftTransaction,
     bankRepository,
-    businessCurrencyCode,
-    usdExchangeRate,
+    money,
     cashCountConfig,
   }: {
     /** TASK-AUD-005 — el límite atómico del cierre (lo implementa el adaptador con `$transaction`). */
@@ -93,8 +94,16 @@ export async function closeShift(
      * no puede declarar lote: se rechaza en vez de guardar un banco que no se puede verificar.
      */
     bankRepository?: BankRepository;
-    businessCurrencyCode: string;
-    usdExchangeRate: number | null;
+    /**
+     * `TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002` (`A-83`, `A-90`) — **el contexto monetario vigente**,
+     * leído de `money`.
+     *
+     * Reemplaza a los dos escalares (`businessCurrencyCode` + `usdExchangeRate`): el cierre congela su
+     * esperado **por moneda** desde siempre, pero leía la moneda base y la tasa de la configuración vieja,
+     * así que un cambio de tasa en Finanzas no llegaba al arqueo. Con el contexto, lo que convierte es lo
+     * mismo que el cierre firma.
+     */
+    money: MoneyContext;
     /**
      * Fase 2 del rediseño de Caja (2026-09-22) — la config del conteo de este local (monedas y billetes).
      * Sin ella se validan los defaults del módulo.
@@ -102,6 +111,9 @@ export async function closeShift(
     cashCountConfig?: ShiftCashCountConfig;
   },
 ) {
+  const businessCurrencyCode = money.baseCurrencyCode;
+  const usdExchangeRate = rateForCurrency("USD", money);
+
   const shiftId = input.shiftId?.trim();
   if (!shiftId) {
     throw new ShiftError(422, "VALIDATION_ERROR", "Invalid payload", { shiftId: "Requerido" });
@@ -141,6 +153,7 @@ export async function closeShift(
       bankRepository,
       businessCurrencyCode,
       usdExchangeRate,
+      money,
       cashCountConfig,
     }),
   );
@@ -159,6 +172,7 @@ async function closeLockedShift({
   bankRepository,
   businessCurrencyCode,
   usdExchangeRate,
+  money,
   cashCountConfig,
 }: {
   scope: CloseShiftScope;
@@ -168,6 +182,7 @@ async function closeLockedShift({
   bankRepository?: BankRepository;
   businessCurrencyCode: string;
   usdExchangeRate: number | null;
+  money: MoneyContext;
   cashCountConfig?: ShiftCashCountConfig;
 }) {
   const shiftId = input.shiftId.trim();
@@ -257,6 +272,15 @@ async function closeLockedShift({
      * la revisión de que cada columna nueva tenga quien la llene.
      */
     exchangeRate: usdExchangeRate,
+    /**
+     * `A-90` — **la forma general**: con qué moneda base y con qué tasa por moneda se firmó el cierre.
+     *
+     * El escalar de arriba sirve para el caso de un solo par de monedas; esto explica un cierre con N
+     * monedas contables sin agregar una columna por moneda. El mapa sale del contexto de `money`, así que
+     * es exactamente con lo que el arqueo convirtió.
+     */
+    baseCurrencyCode: money.baseCurrencyCode,
+    exchangeRatesByCurrency: closeExchangeRates(money),
     notes: input.notes ?? shift.notes,
   });
 
@@ -271,6 +295,25 @@ async function closeLockedShift({
       bankDifferenceAmount: bank.amount,
     },
   };
+}
+
+/**
+ * `A-90` — **la tasa por moneda que el cierre congela**.
+ *
+ * Sólo entran las monedas que tienen tasa vigente y **no** son la base: la moneda base no lleva tasa (su
+ * equivalente es el monto mismo) y una moneda sin tasa no se pudo convertir, así que no hay nada que
+ * congelar. El mapa es el del contexto de `money`, sin recortes: lo que se firma es lo que se usó.
+ */
+function closeExchangeRates(money: MoneyContext): Record<string, number> {
+  const rates: Record<string, number> = {};
+
+  for (const [currency, rate] of Object.entries(money.rates)) {
+    if (rate !== null && rate !== undefined && Number.isFinite(rate) && rate > 0) {
+      rates[currency] = rate;
+    }
+  }
+
+  return rates;
 }
 
 /**

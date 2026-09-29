@@ -87,6 +87,16 @@ export type CloseShiftInput = {
    * declarada (los cierres anteriores a la columna), y no se re-firman.
    */
   exchangeRate?: number | null;
+  /**
+   * `TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002` (`A-90`) — **la moneda base y la tasa por moneda que
+   * produjeron este cierre**.
+   *
+   * `exchangeRate` arriba es la forma escalar y sólo alcanza para un par de monedas; un cierre con N
+   * monedas contables necesita el mapa, y la alternativa —una columna por moneda— no escala. Nacen `null`
+   * en los cierres anteriores, que **no se re-firman ni se recalculan**.
+   */
+  baseCurrencyCode?: string | null;
+  exchangeRatesByCurrency?: Record<string, number> | null;
   notes?: string | null;
 };
 

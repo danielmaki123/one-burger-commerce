@@ -97,6 +97,45 @@ async function closeDeps() {
   return createProductionPosShiftDependencies({ locationId: "loc_test" });
 }
 
+/**
+ * `TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002` (`A-83`) — la configuración monetaria que el cierre lee:
+ * la moneda base en `BusinessCurrencySettings` y la tasa vigente en `ExchangeRate`. El arnés vacía la base,
+ * así que las filas se crean acá.
+ */
+async function configureCloseMoney(input: { base?: string; usdRate?: number } = {}): Promise<void> {
+  const prisma = getPrismaClient();
+  const base = input.base ?? "NIO";
+  const usdRate = input.usdRate ?? 36.5;
+
+  await prisma.currency.upsert({
+    where: { code: base },
+    create: { code: base, name: base, symbol: base, isKnown: true },
+    update: {},
+  });
+  await prisma.currency.upsert({
+    where: { code: "USD" },
+    create: { code: "USD", name: "Dólar", symbol: "US$", isKnown: true },
+    update: {},
+  });
+  await prisma.businessCurrencySettings.upsert({
+    where: { id: "default" },
+    create: { id: "default", baseCurrencyCode: base, locale: "es-NI" },
+    update: { baseCurrencyCode: base, locale: "es-NI" },
+  });
+  await prisma.exchangeRate.updateMany({
+    where: { fromCurrencyCode: "USD", toCurrencyCode: base, effectiveTo: null },
+    data: { effectiveTo: "2026-09-01T00:00:00.000Z" },
+  });
+  await prisma.exchangeRate.create({
+    data: {
+      fromCurrencyCode: "USD",
+      toCurrencyCode: base,
+      rate: usdRate,
+      effectiveFrom: "2026-09-01T00:00:00.000Z",
+    },
+  });
+}
+
 describe("TASK-AUD-005 · atomicidad del cierre de turno (PostgreSQL real)", () => {
   beforeEach(async () => {
     await resetDatabase();
@@ -494,31 +533,29 @@ describe("TASK-AUD-005 · atomicidad del cierre de turno (PostgreSQL real)", () 
    * La columna existía desde la migración y **nadie la escribía**: el snapshot estaba a medias. Por eso el
    * test mira la **base** y no sólo la respuesta del caso de uso.
    */
-  it("al cerrar congela la tasa vigente, para que el esperado en dos monedas quede explicable", async () => {
+  it("al cerrar congela la moneda base y la tasa de cada moneda contable", async () => {
     const prisma = getPrismaClient();
 
-    // La tasa vigente del negocio: es la que el cierre tiene que firmar. El arnés vacía la base, así que la
-    // fila única de la configuración se crea acá.
-    await prisma.businessSettings.upsert({
-      where: { id: "default" },
-      create: {
-        id: "default",
-        businessHours: [],
-        currencyCode: "NIO",
-        currencySymbol: "C$",
-        locale: "es-NI",
-        usdExchangeRate: 36.5,
-      },
-      update: { usdExchangeRate: 36.5 },
-    });
+    /**
+     * `TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002` (`A-83`, `A-90`) — la tasa que el cierre firma sale de
+     * **`money`**, no de `BusinessSettings.usdExchangeRate`: la autoridad es el catálogo de monedas con su
+     * historial de tasas, que es lo que `/admin/finance` escribe. Antes el cierre leía la configuración
+     * vieja, así que un cambio de tasa en Finanzas no llegaba al arqueo.
+     */
+    await configureCloseMoney();
 
     const cierre = await closeShift({ shiftId: SHIFT_ID, closingAmount: 0 }, await closeDeps());
 
-    expect(cierre.data?.exchangeRate, "el cierre no firmó la tasa con la que convirtió").toBe(36.5);
+    // La forma **general**: con qué moneda base y con qué tasa por moneda se firmó.
+    expect(cierre.data?.baseCurrencyCode, "el cierre no firmó su moneda base").toBe("NIO");
+    expect(cierre.data?.exchangeRatesByCurrency).toEqual({ USD: 36.5 });
 
     // Y queda **persistida**: es lo que hace que un cierre viejo pueda explicar la equivalencia.
     const persistido = await prisma.shift.findUnique({ where: { id: SHIFT_ID } });
 
+    expect(persistido?.baseCurrencyCode).toBe("NIO");
+    expect(persistido?.exchangeRatesByCurrency).toEqual({ USD: 36.5 });
+    // El escalar legacy se sigue firmando para la compatibilidad del caso de un solo par de monedas.
     expect(Number(persistido?.exchangeRate)).toBe(36.5);
   });
 });

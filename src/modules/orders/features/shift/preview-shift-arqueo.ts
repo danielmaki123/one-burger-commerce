@@ -1,3 +1,4 @@
+import { rateForCurrency, type MoneyContext } from "@/modules/money/domain/money-context";
 import type { CashMovementRepository } from "@/modules/orders/ports/cash-movement-repository";
 import type { PaymentRepository } from "@/modules/orders/ports/payment-repository";
 import type { RefundRepository } from "@/modules/orders/ports/refund-repository";
@@ -23,15 +24,18 @@ export async function previewShiftArqueo(
     paymentRepository,
     cashMovementRepository,
     refundRepository,
-    businessCurrencyCode,
-    usdExchangeRate,
+    money,
   }: {
     shiftRepository: ShiftRepository;
     paymentRepository: PaymentRepository;
     cashMovementRepository?: CashMovementRepository;
     refundRepository?: Pick<RefundRepository, "listByShift">;
-    businessCurrencyCode: string;
-    usdExchangeRate: number | null;
+    /**
+     * `TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002` (`A-83`) — el contexto monetario vigente, de `money`.
+     * Es la misma autoridad que usa el cierre: si el corte X leyera la configuración vieja, el papel del
+     * corte y el del cierre podrían decir números distintos del mismo turno.
+     */
+    money: MoneyContext;
   },
 ) {
   const shiftId = input.shiftId?.trim();
@@ -57,8 +61,8 @@ export async function previewShiftArqueo(
           denomination: count.denomination,
           quantity: count.quantity,
         })),
-      businessCurrencyCode,
-      usdExchangeRate,
+      businessCurrencyCode: money.baseCurrencyCode,
+      usdExchangeRate: rateForCurrency("USD", money),
     },
     paymentRepository,
     cashMovementRepository,

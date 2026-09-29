@@ -40,8 +40,7 @@ function buildDeps(input: { terminals?: string[] } = {}) {
     shiftRepository,
     paymentRepository,
     locationRepository,
-    businessCurrencyCode: "NIO",
-    usdExchangeRate: 36.5,
+    money: { baseCurrencyCode: "NIO", locale: "es-NI", rates: { USD: 36.5 }, knownCurrencyCodes: ["NIO", "USD"] },
     // TASK-AUD-005: el cierre corre adentro de su unidad de trabajo (el doble la resuelve en memoria).
     runInShiftTransaction: runInMemoryShiftTransaction({ shiftRepository, paymentRepository }),
     ...(input.terminals ? { cashTerminalIds: input.terminals } : {}),

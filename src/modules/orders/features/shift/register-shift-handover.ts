@@ -1,4 +1,5 @@
 import { OrderError } from "@/modules/orders/domain/order-errors";
+import type { MoneyContext } from "@/modules/money/domain/money-context";
 import { resolveHandoverReceiver } from "@/modules/orders/domain/shift-handover";
 import type { CashMovementRepository } from "@/modules/orders/ports/cash-movement-repository";
 import type { PaymentRepository } from "@/modules/orders/ports/payment-repository";
@@ -35,16 +36,19 @@ export async function registerShiftHandover(
     paymentRepository,
     cashMovementRepository,
     refundRepository,
-    businessCurrencyCode,
-    usdExchangeRate,
+    money,
   }: {
     shiftRepository: ShiftRepository;
     handoverRepository: ShiftHandoverRepository;
     paymentRepository: PaymentRepository;
     cashMovementRepository?: CashMovementRepository;
     refundRepository?: Pick<RefundRepository, "listByShift">;
-    businessCurrencyCode: string;
-    usdExchangeRate: number | null;
+    /**
+     * `TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002` (`A-83`) — el contexto monetario vigente, leído de
+     * `money`. El traspaso firma el **mismo** arqueo que el corte X y el cierre: si los tres leyeran la
+     * configuración por su cuenta, podrían mostrar números distintos del mismo turno.
+     */
+    money: MoneyContext;
   },
 ) {
   const receivedByName = resolveHandoverReceiver({
@@ -64,8 +68,7 @@ export async function registerShiftHandover(
       paymentRepository,
       cashMovementRepository,
       refundRepository,
-      businessCurrencyCode,
-      usdExchangeRate,
+      money,
     },
   );
 

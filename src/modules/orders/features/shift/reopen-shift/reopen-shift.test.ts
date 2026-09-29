@@ -30,8 +30,7 @@ function buildDeps() {
     locationRepository: new InMemoryLocationRepository([
       createInMemoryLocation({ id: "loc_principal", name: "Principal" }),
     ]),
-    businessCurrencyCode: "NIO",
-    usdExchangeRate: 36.5,
+    money: { baseCurrencyCode: "NIO", locale: "es-NI", rates: { USD: 36.5 }, knownCurrencyCodes: ["NIO", "USD"] },
     // TASK-AUD-005: el cierre (que la reapertura usa para dejar un turno cerrado) corre en su unidad de
     // trabajo; el doble la resuelve en memoria.
     runInShiftTransaction: runInMemoryShiftTransaction({ shiftRepository, paymentRepository }),

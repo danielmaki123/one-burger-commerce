@@ -460,6 +460,15 @@ export type ShiftRecord = {
    */
   exchangeRate?: number | null;
   /**
+   * `TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002` (`A-90`) — **la moneda base y la tasa por moneda del
+   * cierre**.
+   *
+   * `exchangeRate` es la forma escalar y sólo alcanza para un par de monedas; el mapa explica un cierre con
+   * N monedas contables. `null` en los cierres anteriores: no se re-firman ni se recalculan.
+   */
+  baseCurrencyCode?: string | null;
+  exchangeRatesByCurrency?: Record<string, number> | null;
+  /**
    * Fase 3 del rediseño de Caja (2026-09-23) — la diferencia del **cuadre por banco** (lo declarado
    * menos lo cobrado con tarjeta y transferencia), en la moneda del negocio. Congelada al cerrar: el
    * lote de una terminal no se recalcula después.
