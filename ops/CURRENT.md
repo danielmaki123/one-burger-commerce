@@ -8,18 +8,16 @@ en qué estado está el sistema en pocos minutos.
 [`.agents/CONTEXT.md`](../.agents/CONTEXT.md)). Este archivo se **actualiza seguido** y se mantiene
 corto: si crece como un diario, dejó de servir.
 
-> **Última actualización**: 2026-09-29, por **`TASK-MONEY-PAYMENTS-RUNTIME-001`** (Money / Payments runtime,
-> `high-risk-e2e`, **mergeada** en `main` = `5082ea5`, PRs
-> [#85](https://github.com/danielmaki123/one-burger-commerce/pull/85) y
-> [#87](https://github.com/danielmaki123/one-burger-commerce/pull/87)): creó los
-> módulos **`money`** (catálogo de monedas, moneda base, FX con vigencia e historial, conversión, redondeo y
-> formato) y **`payments`** (snapshot obligatorio del cobro, estado financiero canónico, idempotencia durable,
-> catálogo de medios con tipo canónico), las **nueve migraciones** aditivas y la superficie
-> **`/admin/finance`**. Cerró **`A-68`**, **`A-69`**, **`A-71`**, **`A-72`**, **`A-73`**, **`A-74`** y
-> **`A-75`** —enteros, con test y mutación—. La factura exige **`paid` estricto** (`D-021`). **Desplegada por
-> el owner** el 2026-09-28 (`build-20260928-200305`). Antes: `TASK-MONEY-PAYMENTS-FOUNDATIONS-001`
-> (`docs-only`, mergeada, sin deploy), que dejó la auditoría, el ownership, los contratos y el Design Freeze
-> de Finanzas. **Vigente: el Default E2E Delivery Contract**
+> **Última actualización**: 2026-09-29, por el **release de cierre de `TASK-MONEY-PAYMENTS-RUNTIME-001`**
+> (Money / Payments runtime, `high-risk-e2e`): el owner rebuildeó el servicio y producción quedó **al día** en
+> `build-20260928-235256` sobre `main` = `5a99185`, con los **dos arreglos de dinero** que faltaban
+> ([#91](https://github.com/danielmaki123/one-burger-commerce/pull/91), el «Cobrado» del POS en una sola
+> moneda; [#96](https://github.com/danielmaki123/one-burger-commerce/pull/96), el cierre de turno que congela
+> la tasa). La TASK creó los módulos **`money`** (monedas, moneda base, FX con vigencia e historial,
+> conversión, redondeo y formato) y **`payments`** (snapshot obligatorio, estado financiero canónico,
+> idempotencia durable, catálogo de medios), las **nueve migraciones** aditivas y **`/admin/finance`**; cerró
+> **`A-68`**, **`A-69`**, **`A-71`**, **`A-72`**, **`A-73`**, **`A-74`** y **`A-75`** enteros; y la factura exige
+> **`paid` estricto** (`D-021`). **No hay TASK activa.** **Vigente: el Default E2E Delivery Contract**
 > ([`.agents/skills/delivery-e2e/SKILL.md`](../.agents/skills/delivery-e2e/SKILL.md)).
 
 ---
@@ -28,10 +26,10 @@ corto: si crece como un diario, dejó de servir.
 
 | Qué | Estado |
 |---|---|
-| **Último deploy (producción)** | `build-20260928-200305`, desplegado por el **owner** el 2026-09-28 con el **Money / Payments runtime** (`main` = `9be0e10`, PRs #85, #87 y #89). Las **tres** superficies responden `/api/health` = `build-20260928-200305` y `/api/readiness` `ready`; smokes **menú 7/7** y **hosts 6/6**; y el build servido **contiene** la entrada de navegación nueva (`Finanzas`) con su descripción, comprobado con `scripts/qa-prod-build-probe.ts` sobre los chunks del login del panel. **Sin backup manual**: migraciones aditivas y sin backfill. **QA autenticada de producción hecha** (`tests/e2e/admin-finance.spec.ts`, **6/6** con sesión real contra `admin.oneburgernic.com`): los cuatro viewports sin scroll horizontal, las tres vistas y que `mixed` no se ofrece como tipo. La vista de *Monedas y tasas* —donde la QA local había encontrado el crash— se dibuja con los datos reales del negocio (`USD` a `36.7`) |
-| **Commit desplegado en producción** | `9be0e10` — es el `main` que corre hoy bajo el build de la fila anterior (la fecha del build es anterior al último merge de documentación, así que lo desplegado es el código de #85 y #87; #89 son scripts de QA que no entran al bundle) |
-| **`main` en GitHub** | **Avanza con cada merge, los `docs-only` incluidos**, así que acá no se copia un «valor actual» que quedaría viejo al minuto: el vigente se lee con `gh api repos/danielmaki123/one-burger-commerce/git/ref/heads/main`. **Verificado el 2026-09-28**: `9be0e10` (PR #89) |
-| **Deriva `main` / producción** | **Sí, y son dos arreglos de dinero**: `main` = `5fc8338` y producción sirve `build-20260928-200305`. Faltan el **PR #91** (el «Cobrado» del cobro partido del POS mostraba la suma cruda de monedas distintas) y el **PR #96** (el cierre de turno ahora **congela la tasa** que lo produjo; la columna `Shift.exchangeRate` existía y nadie la escribía). **Acción del owner**: un rebuild del servicio los pone al día; la base **no** necesita nada (ninguno de los dos trae migraciones) |
+| **Último deploy (producción)** | `build-20260928-235256`, rebuildeado por el **owner** el 2026-09-28 desde `main` = `5a99185` — el cierre del **Money / Payments runtime** con **PRs #85, #87, #89, #91, #94 y #96**. Las **tres** superficies responden `/api/health` = `build-20260928-235256` y `/api/readiness` `ready`; smokes **menú 7/7** y **hosts 6/6**. **Sin backup manual**: migraciones aditivas y sin backfill. **QA autenticada de producción hecha** (`tests/e2e/admin-finance.spec.ts`, **6/6** con sesión real contra `admin.oneburgernic.com`): los cuatro viewports sin scroll horizontal, las tres vistas y que `mixed` no se ofrece como tipo; la vista de *Monedas y tasas* —donde la QA local había encontrado el crash— se dibuja con los datos reales del negocio (`USD` a `36.7`) |
+| **Commit desplegado en producción** | `5a99185` (`main`, PR #97 de documentación) — **coincide** con lo que sirve `build-20260928-235256`: el rebuild del owner fue **posterior** a #91 y a #96 |
+| **`main` en GitHub** | **Avanza con cada merge, los `docs-only` incluidos**: el vigente se lee con `gh api repos/danielmaki123/one-burger-commerce/git/ref/heads/main` |
+| **Deriva `main` / producción** | **Ninguna verificada**: **PR #91** (el «Cobrado» del cobro partido del POS sumaba monedas distintas) y **PR #96** (el cierre de turno **congela la tasa** que lo produjo) entraron al build servido y se comprobaron **contra el build**, no contra el repo (ver abajo) |
 | **Migración aplicada en este deploy** | Las **nueve** del Money / Payments runtime (`20260929120000`…`20260929120600`: catálogo de monedas, fila de moneda base, historial de tasas, snapshot e idempotencia de `Payment`, catálogo de medios + asignación por local, `Bank.entityType`, idempotencia y snapshot de `Refund`, y la tasa del cierre en `Shift`), aplicadas por el arranque del contenedor. La ruta de upgrade sobre una base **con datos** está probada con `scripts/qa-upgrade-pre.sql` + `qa-upgrade-post.sql` + `qa-upgrade-write.ts` (ver PR #89) |
 | **Rollback target** | `build-20260928-043111` sobre `2bb551a9` (Cocina runtime) — la aplicación se revierte revirtiendo el commit en `main` y volviendo a disparar `deployService`; la base no se toca (las columnas nuevas son nullable y la app vieja las ignora) |
 | **Modelo de deploy** | Easypanel, proyecto `brunobot`, servicio `oneburguerweb`; build **desde GitHub `main`** con `forceRebuild`. Una sola llamada a `deployService` (la llamada puede cortar por timeout y el build sigue en segundo plano: comportamiento conocido) |
@@ -43,6 +41,17 @@ corto: si crece como un diario, dejó de servir.
 | **Base de datos** | PostgreSQL 17 en `oneburguer-postgres` (sin puerto expuesto: `exposedPort=0`) |
 | **Datos de negocio** | 3 sucursales reales (Camino de Oriente, Carretera Masaya, Casa Antigua). La carta la sigue cargando el owner |
 | **Caja en producción** | Sin terminales de caja cargadas al momento del último QA: es el estado real del negocio, no un defecto |
+
+✅ **QA post-rebuild de producción (2026-09-29, sobre `build-20260928-235256`)** — los cinco puntos del cierre,
+verificados **contra el build servido**, no contra el repo: (1) `/api/health` = `build-20260928-235256` en los
+**tres** hosts y `/api/readiness` = `ready`; (2) smokes **menú 7/7** y **hosts 6/6**; (3) **#91 presente** —con
+sesión real, los chunks del panel contienen los textos que introdujo el arreglo (`En un cobro partido no hay
+vuelto`, `Cómo puede pagar un cliente`); el marcador tiene que ser una **cadena de UI** porque la minificación
+borra los nombres de función—; (4) **#96 desplegado**: el detalle real de un turno (`GET
+/api/admin/cash/shifts/{id}`) incluye la clave **`exchangeRate`**, y el cierre inspeccionado la trae en `null`
+**porque es anterior al arreglo** —**cierres posteriores al deploy: 0**: contra producción está probado el
+**mapeo**, y contra **PostgreSQL real** la escritura—; (5) build efectivo `build-20260928-235256`. Las
+credenciales se usaron **solo por entorno** y **no** se guardan en el repo.
 
 ✅ **QA autenticada de producción de Cocina (2026-09-28, sobre `build-20260928-035241`)**: `/admin/kitchen` se
 abrió **en producción con sesión** a los cuatro viewports del contrato (`1366×768`, `1280×720`, `768×1024`,
@@ -71,9 +80,10 @@ las 03:15 p.m. con fondo C$0.00, cuyo efectivo esperado es **C$44.57**: lo cierr
 
 ⚠️ **Lo que la verificación de este release NO pudo hacer desde acá**: los **logs del contenedor** no son
 accesibles por API (`inspectAction`/`getActionLogs`/`inspectServiceLogs` responden 404, así que la búsqueda de
-`P2002`/`P2028`/`25P02`/deadlock/5xx queda pendiente) y no se ejercitó la presencia de `voidedAt` con lectura
-autenticada (sí la aplica el contenedor al arrancar). El POS se verificó además **antes** del deploy contra una
-base local con la suite E2E completa (`admin-pos` 11/11 con mutaciones, capturas en
+`P2002`/`P2028`/`25P02`/deadlock/5xx queda pendiente); y el **SHA exacto que compiló el panel** no se puede leer
+sin token (`EASYPANEL_TOKEN` está vacío en el entorno del agente), así que el SHA desplegado se afirma por
+**coincidencia verificada** con `main` y no por lectura del panel. El POS se verificó además **antes** del
+deploy contra una base local con la suite E2E completa (`admin-pos` 11/11 con mutaciones, capturas en
 [`design/screens/`](design/screens/)).
 
 ⚠️ **Hallazgo operativo (sigue abierto): el backup programado no genera archivos.** La config está
@@ -116,20 +126,17 @@ filtra datos) · **P2** (función rota, fuga o deuda estructural con impacto).
 
 > **No hay ningún P0 abierto conocido.**
 >
-> **P1 de dinero**: `A-68` (el cobro de un pedido que ya existe compara `Payment.amount` **sin** convertir,
-> mientras la venta del POS **sí** convierte) y **`A-73`** (pedir una devolución no tiene límite atómico ni
-> lock). **No hay superficie** que dispare `A-68` hoy (`A-67`): se llega sólo por API. Los dos son la razón
-> declarada para llevar **Money/Payments a runtime**. El otro P1 abierto es **operativo** (`A-57`, el backup
-> programado), que por decisión del owner **no** bloquea el trabajo de producto. `A-15` (con `A-59`) y `A-58`
-> quedaron **cerrados** el 2026-09-25.
+> **Ya no hay P1 de dinero**: `A-68` (el cobro de un pedido existente comparaba la suma **cruda** de
+> `Payment.amount`) y `A-73` (la devolución sin límite atómico ni lock) quedaron **cerrados** en
+> `TASK-MONEY-PAYMENTS-RUNTIME-001`, con test contra **PostgreSQL real** y mutación. El único P1 abierto es
+> **operativo** (`A-57`, el backup programado), que por decisión del owner **no** bloquea el trabajo de
+> producto. `A-15` (con `A-59`) y `A-58` quedaron **cerrados** el 2026-09-25.
 
 **P1**
 
 | Riesgo | Detalle | Dónde |
 |---|---|---|
-| **El cobro de un pedido que ya existe compara montos sin convertir** | `register-order-payment.ts:124-140` compara la **suma cruda** de `Payment.amount` contra `Order.total` (y recibe `businessCurrencyCode`/`usdExchangeRate` que **no usa**), mientras el POS **sí** convierte (`pos-sale.ts:50-74`). Un pedido de `C$365` acepta `US$10` como «10 pagados» y deja cobrar otros `C$355`. **Hoy no hay superficie** que lo dispare (`A-67`). **Reproducido** en `TASK-MONEY-PAYMENTS-FOUNDATIONS-001` | `A-68` en [`audit-backlog.md`](audit-backlog.md) |
-| **Pedir o resolver una devolución no tiene límite atómico** | `request-refund.ts:62-134` y `review-refund.ts:53-88` corren con adaptadores de cliente **raíz**, sin `$transaction`: dos POST simultáneos del mismo cobro leen el mismo cupo y los dos insertan. **No hay ningún `*.postgres.test.ts` de devoluciones.** Lo cierra la TASK de runtime de Money/Payments | `A-73` en [`audit-backlog.md`](audit-backlog.md) |
-| **El backup programado no genera archivos** | La config del servicio `oneburguer-postgres` está `enabled: true` (cron `0 0 * * *`) pero el respaldo programado **nunca** produjo un archivo: las únicas acciones de backup son las dos del drill (2026-09-12) y la manual del release anterior (2026-09-25 12:27), y **no hay retención declarada**. Es **materia de infraestructura/operación**: requiere revisar la sección Backups del panel y decidir retención — no es código y **no bloquea** el trabajo de producto. Mientras tanto: el **backup se decide por riesgo del release**, no por frecuencia ([`delivery-e2e`](../.agents/skills/delivery-e2e/SKILL.md) §4) | `A-57` en [`audit-backlog.md`](audit-backlog.md) |
+| **El backup programado no genera archivos** | La config del servicio `oneburguer-postgres` está `enabled: true` (cron `0 0 * * *`) pero el respaldo programado **nunca** produjo un archivo: las únicas acciones de backup son las dos del drill (2026-09-12) y las manuales de los releases, y **no hay retención declarada**. Es **materia de infraestructura/operación**: requiere revisar la sección Backups del panel y decidir retención — no es código y **no bloquea** el trabajo de producto. Mientras tanto: el **backup se decide por riesgo del release**, no por frecuencia ([`delivery-e2e`](../.agents/skills/delivery-e2e/SKILL.md) §4) | `A-57` en [`audit-backlog.md`](audit-backlog.md) |
 
 **P2**
 
@@ -151,36 +158,36 @@ solo lectura) · `A-12` (filtro «solo sin aceptar») · `A-13` (módulos cascar
 `table-ordering`) · `A-14` (mapeo de errores repetido) · `A-16` y `A-18` (**revisar: pueden estar
 obsoletos**, ver §5) · `A-19` (movimientos de caja) · `A-20`/`A-34` (fiscal y RUC) · `A-22` (deuda de UI
 sin guardrail) · `A-23` (cuenta de prueba con rol `owner` en producción) · `A-25` · `A-27` · `A-28` ·
-`A-30` · `A-33` · `A-69` (reglas de dinero duplicadas: `shift-refund` y el `"NIO"` hardcodeado) ·
-`A-70` (la factura sin puerta de rol ni alcance por sucursal; la anulación no se imprime) · `A-71` (el cobro
-de un pedido existente sin clave de idempotencia).
+`A-30` · `A-33` · `A-70` (la factura sin puerta de rol ni alcance por sucursal; la anulación no se imprime) ·
+`A-76` (`void` no mira el turno ni la factura) · `A-77` (`Payment.tip`, campo muerto que parece vivo) ·
+`A-78` (`canPrintCashDocuments` sin puerta de servidor) · `A-79` (cuatro runners de transacción casi
+idénticos) · `A-80` (cambiar la tasa o la moneda base no deja asiento de auditoría). Los `A-68`, `A-69`,
+`A-71`, `A-72`, `A-73`, `A-74` y `A-75` **ya no están acá: se cerraron** con `TASK-MONEY-PAYMENTS-RUNTIME-001`.
 
 ## 4. Trabajo actual
 
 **`TASK-MONEY-PAYMENTS-RUNTIME-001` — Money / Payments runtime (`high-risk-e2e`): CERRADA Y DESPLEGADA.**
-
-El release está en producción (`build-20260928-200305`): health y readiness `ok`, los dos smokes en verde y el
-build servido con la entrada de navegación nueva. Lo que queda de la TASK es **una sola cosa**: la QA
-autenticada de `/admin/finance` en producción, que necesita las credenciales del owner (no están en el repo).
-
-Los módulos `money` y `payments` existen con sus cuatro capas; las **nueve migraciones** están aplicadas y sin
-`drift` contra `schema.prisma` sobre PostgreSQL 17; `/admin/finance` tiene sus tres vistas; la factura exige
-`paid` estricto; y los hallazgos `A-68`, `A-69`, `A-71`, `A-72`, `A-73`, `A-74` y `A-75` están cerrados con test.
-La evidencia completa (rojos observados, mutaciones, PostgreSQL real y las excepciones) está en
-[`tasks/TASK-MONEY-PAYMENTS-RUNTIME-001.md`](tasks/TASK-MONEY-PAYMENTS-RUNTIME-001.md).
+El release está en producción **completo** (`build-20260928-235256`): health y readiness `ok`, los dos smokes
+en verde, la QA autenticada de `/admin/finance` hecha con sesión real y los **dos arreglos de dinero
+posteriores al build anterior** ([#91](https://github.com/danielmaki123/one-burger-commerce/pull/91) y
+[#96](https://github.com/danielmaki123/one-burger-commerce/pull/96)) verificados **contra el build servido**.
+**No queda nada pendiente: no hay TASK activa.** Los módulos `money` y `payments` existen con sus cuatro
+capas; las **nueve migraciones** están aplicadas y sin `drift` contra `schema.prisma` sobre PostgreSQL 17;
+`/admin/finance` tiene sus tres vistas; la factura exige `paid` estricto; y `A-68`, `A-69`, `A-71`, `A-72`,
+`A-73`, `A-74` y `A-75` están cerrados con test. Evidencia completa (rojos, mutaciones, PostgreSQL real y
+excepciones): [`tasks/TASK-MONEY-PAYMENTS-RUNTIME-001.md`](tasks/TASK-MONEY-PAYMENTS-RUNTIME-001.md).
 
 **`TASK-MONEY-PAYMENTS-FOUNDATIONS-001` — fundaciones de Money / Payments (`docs-only`): CERRADA Y MERGEADA.**
-
 Sin deploy: no tocó runtime, Prisma, migraciones, APIs ni navegación. Entregó la **auditoría real** de los dos
-subsistemas contra el código, la **matriz de clasificación** (`REUSE`/`MOVE`/`ADAPT`/`CONSOLIDATE`/`NEW`/
-`MISSING`/`OUT`), la **matriz de ownership definitiva**, los **contratos** (estado financiero canónico,
-snapshot de `Payment`, idempotencia y concurrencia, boundaries con Caja y Facturas), los **modelos
-conceptuales** de moneda/tasa/historial y de snapshot, la **estrategia legacy sin backfill**, las **diez
-migraciones enumeradas y no creadas**, los **archivos prohibidos de duplicar** y el **Design Freeze de
-Finanzas**. Todo el detalle y la evidencia, en
+subsistemas contra el código, las matrices de **clasificación** y de **ownership**, los **contratos** (estado
+financiero canónico, snapshot de `Payment`, idempotencia y concurrencia, boundaries con Caja y Facturas), la
+**estrategia legacy sin backfill**, las migraciones enumeradas y no creadas, los **archivos prohibidos de
+duplicar** y el **Design Freeze de Finanzas**:
 [`tasks/TASK-MONEY-PAYMENTS-FOUNDATIONS-001.md`](tasks/TASK-MONEY-PAYMENTS-FOUNDATIONS-001.md).
 
-**Lo que sigue es `Pedidos runtime`** (orden **5b**), con el remanente de `A-60` y `A-67`. **`DS-001`** (ley
+**Lo que sigue es `Pedidos runtime`** (orden **5b**): el remanente de `A-60` y la clasificación de los read
+models, **sin** el cobro real ni el handoff al POS (eso es el orden **6**, que cierra `A-67`). La secuencia
+inmediata está en [`roadmap/NEXT.md`](roadmap/NEXT.md) y **`ACTIVE` no tiene ninguna TASK**. **`DS-001`** (ley
 visual v4) está **aprobado y desplegado**; **`IA-001`** (navegación del panel) también.
 
 **Cocina runtime** (`TASK-ORDERS-KITCHEN-RUNTIME-002`, `high-risk-e2e`) está **desplegada** bajo
@@ -203,12 +210,9 @@ duplican**.
 
 Lo que sigue, en orden:
 
-1. **`Money / Payments runtime`** (órdenes 4 y 5, **una sola TASK**): crear los módulos `money` y `payments`
-   —dónde vive cada uno: `ops/product/MODULE_ARCHITECTURE.md` §4.1–§4.2—, el catálogo de monedas con historial
-   de tasas, el estado financiero canónico, la idempotencia del cobro y el snapshot monetario; cerrar `A-68`,
-   `A-71`, `A-72` y `A-73`; ampliar `banks` con el tipo de entidad; y la pantalla de Finanzas según su SPEC
-   congelada. Después **`Pedidos runtime`** (orden **5b**), donde vive el remanente de `A-60`. **No se inician
-   solas.**
+1. **`Pedidos runtime`** (orden **5b**): el recorte financiero del detalle compartido (remanente de `A-60`) y la
+   clasificación de los read models. **Sin** el cobro real ni el handoff al POS. Necesita brief y aprobación:
+   **no se inicia sola**.
 2. **Pedido existente → Cobrar en POS** (orden 6): **compone** el backend que ya existe
    (`POST /api/admin/orders/[id]/payment`); no lo reconstruye. Cierra `A-67`. Después **Cash ownership** (7).
 3. **Deuda de Pedidos/Cocina y de dinero (`A-60` a `A-80`)** y después `AUD-009`/`AUD-010`,
@@ -238,7 +242,7 @@ Solo bloqueos **reales**. Todo lo demás es trabajo pendiente.
 - **Roadmap maestro** (`ops/roadmap/PRODUCT-UX-ROADMAP.md`):
   [`roadmap/PRODUCT-UX-ROADMAP.md`](roadmap/PRODUCT-UX-ROADMAP.md) — secuencia inmediata en
   [`roadmap/NEXT.md`](roadmap/NEXT.md)
-- Arquitectura de producto: [`product/MODULE_ARCHITECTURE.md`](product/MODULE_ARCHITECTURE.md)
+- Arquitectura de producto: [`ops/product/MODULE_ARCHITECTURE.md`](product/MODULE_ARCHITECTURE.md)
 - Programa de remediación: [`tasks/AUDIT-REMEDIATION-ROADMAP.md`](tasks/AUDIT-REMEDIATION-ROADMAP.md)
 - Runbook de producción: [`production-readiness.md`](production-readiness.md)
 - Punto de entrada de una sesión: [`tasks/START-HERE.md`](tasks/START-HERE.md)

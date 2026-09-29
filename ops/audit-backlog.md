@@ -866,24 +866,26 @@ se corrige acá** (regla del repo: lo que aparece durante una auditoría se docu
 evidencia completa, las matrices y los contratos objetivo es
 [`tasks/TASK-MONEY-PAYMENTS-FOUNDATIONS-001.md`](tasks/TASK-MONEY-PAYMENTS-FOUNDATIONS-001.md).
 
-### Cierres de `TASK-MONEY-PAYMENTS-RUNTIME-001` (2026-09-29, PR #85)
+### Cierres de `TASK-MONEY-PAYMENTS-RUNTIME-001` (2026-09-29, PRs #85, #91 y #96)
 
 | A-68 | **CERRADO** (`TASK-MONEY-PAYMENTS-RUNTIME-001`, PR #85): el tope del saldo se mide contra el **equivalente en moneda base** del snapshot de cada cobro, no contra la suma cruda. Cubierto por `register-order-payment.postgres.test.ts` (US$10 × 36.5 = C$365 deja el pedido cubierto y rechaza los C$355 siguientes) y por la mutación que revierte a la suma cruda, que lo pone en rojo | bug (dinero) | — | `cerrado` | — |
 | A-71 | **CERRADO** (`TASK-MONEY-PAYMENTS-RUNTIME-001`, PR #85): `Payment.idempotencyKey` con índice único parcial, validado en el payload y leído dentro de la transacción. Cubierto por el caso de dos requests **simultáneos** con la misma clave contra PostgreSQL real, y por la mutación que quita la clave del `createPayment` | bug (dinero) | — | `cerrado` | — |
-| A-72 | **CERRADO** (`TASK-MONEY-PAYMENTS-RUNTIME-001`, PR #85): el cobro nuevo **congela obligatoriamente** monto, moneda, moneda base, tasa y equivalente (`D-020`), y el cierre congela la tasa que lo produjo. Un cobro sin esos cinco campos no se firma; el dominio lo exige en `buildPaymentSnapshot` | bug (dinero) | — | `cerrado` | — |
+| A-72 | **CERRADO** (`TASK-MONEY-PAYMENTS-RUNTIME-001`, PRs #85 y #96): el cobro nuevo **congela obligatoriamente** monto, moneda, moneda base, tasa y equivalente (`D-020`) —un cobro sin esos cinco campos no se firma, lo exige `buildPaymentSnapshot`— y el **cierre de turno congela la tasa** que lo produjo. Ojo con el orden real de los hechos: la migración `20260929120600` y su comentario entraron en **#85**, pero **nadie escribía la columna** —quedó muerta y se descubrió auditando que toda columna nueva tenga escritor—; la escritura llegó en **#96**, con test contra PostgreSQL real que se pone rojo si se quita el `exchangeRate` del cierre | bug (dinero) | — | `cerrado` | — |
 | A-73 | **CERRADO** (`TASK-MONEY-PAYMENTS-RUNTIME-001`, PR #85): `requestRefund` corre en una transacción que bloquea primero la fila del cobro (`lockPaymentRow`, `SELECT … FOR UPDATE`) y el payload exige clave de idempotencia. El test contra PostgreSQL real falla si se quita el lock —verificado con mutación, y la barrera del test se corrigió hasta que el rojo apareció de verdad | bug (dinero) | — | `cerrado` | — |
 | A-74 | **CERRADO** (`TASK-MONEY-PAYMENTS-RUNTIME-001`, PR #85): el neto del dashboard descuenta el **equivalente** de la devolución (`refundBaseAmount`), y una devolución legacy sin snapshot demostrable no se resta en vez de restarse cruda | bug (dinero) | — | `cerrado` | — |
 | A-75 | **CERRADO** (`TASK-MONEY-PAYMENTS-RUNTIME-001`, PR #85): el tope del cobro se compara contra el total que devuelve el **lock**, no contra el leído antes de abrir la transacción (`lockOrderRow` devuelve `total` y la composición lo convierte a número) | bug (dinero) | — | `cerrado` | — |
 
 | A-69 | **CERRADO** (`TASK-MONEY-PAYMENTS-RUNTIME-001`, PRs #85 y #91): las **tres** partes. (a) `shift-refund` dejó su conversión propia, el `"USD"` hardcodeado y el `toFixed(2)`: usa `money`. (b) La resolución del `null` de `Payment.currency` entra como **dato** (`businessCurrencyCode`) en las devoluciones en vez de un `"NIO"` escrito. (c) El «Cobrado» del cobro partido del POS se calcula con `paidTotalInBaseCurrency` —`monto × tasa` con el redondeo de `money`—, así que `US$10 + C$355` sobre un pedido de C$720 muestra **C$720** y no los 365 de la suma cruda. Cubierto con mutación: reintroducir la suma cruda pone en rojo 3 tests de dominio y 1 de componente | deuda / dinero | P2 | `cerrado` | — |
 
-### A-72 · El hecho financiero no congela la tasa — `reportado`
+### A-72 · El hecho financiero no congela la tasa — `cerrado` (PRs #85 y #96)
 `grep` de `usdExchangeRate` en `prisma/schema.prisma` → **sólo `:833`** (fila única de `BusinessSettings`).
-`Payment` y `Refund` no tienen `exchangeRate`/`baseAmount`/`baseCurrency`; `Shift` congela `expectedAmount`,
+`Payment` y `Refund` no tenían `exchangeRate`/`baseAmount`/`baseCurrency`; `Shift` congelaba `expectedAmount`,
 `expectedByCurrency`, `cashSalesAmount`, `refundsAmount` y `paymentMix` pero **no la tasa** que los produjo. La
 consecuencia medida: `recordedPaymentsTotalInBusinessCurrency` (`pos-sale.ts:84-102`) re-suma los cobros
-guardados con la tasa **vigente** que le pasa `register-pos-sale.ts:173`. Es la ley 7 rota en el lugar exacto
-donde importa. **Lo cierra la TASK de runtime de Money/Payments** (migraciones 4, 9 y 10 del brief).
+guardados con la tasa **vigente** que le pasa `register-pos-sale.ts:173`. Era la ley 7 rota en el lugar exacto
+donde importa. **Cerrado**: el snapshot obligatorio de `Payment` entró en **#85**; la **tasa del cierre** entró
+en **#96** —la columna existía desde la migración de #85 y **ninguna escritura la llenaba**, hueco que apareció
+al auditar que toda columna nueva tenga escritor—.
 
 ### A-73 · Devoluciones sin límite atómico — `reportado`
 `request-refund.ts:79-94` calcula el cupo leyendo las devoluciones del cobro y **después** inserta, sin
