@@ -244,10 +244,10 @@ la trata como contrato de composición, jerarquía, densidad y responsive: se tr
 
 | Elemento de la referencia | Qué se hace | Por qué |
 |---|---|---|
-| Etiqueta `MENÚ` / `POS` | se implementa, **depende de `Order.source`** | el dato no existe hoy; en un pedido histórico sin declarar la fila sale **sin** etiqueta |
-| `PENDIENTE` / `PAGADO` y el KPI «N pendientes de pago» | se implementan, **dependen de `payments`** | no existe un estado financiero canónico; hasta entonces el pago no se muestra |
+| Etiqueta `MENÚ` / `POS` | se implementa, **depende de `Order.source`** | el dato **ya se escribe** (`D-015`); en un pedido histórico sin declarar la fila sale **sin** etiqueta |
+| `PENDIENTE` / `PAGADO` y el KPI «N pendientes de pago» | se implementan, **dependen de `payments`** | **el estado financiero canónico ya existe** (`getOrderPaymentStatus`); lo que falta es **consumirlo** en esta pantalla, y eso es de `Pedidos runtime` (5b) |
 | `PIN retiro` en el detalle | sólo con la capacidad financiera | cocina no lo ve (`A-60`) |
-| Historial con «Pedido creado desde POS» | se implementa, depende de `Order.source` | el texto del evento no se puede afirmar sin el dato |
+| Historial con «Pedido creado desde POS» | se implementa, depende de `Order.source` | el texto del evento se puede afirmar: el canal se escribe desde `TASK-ORDERS-KITCHEN-RUNTIME-002` |
 | «Factura — se genera al completar el cobro» | **no** se implementa | hoy la factura **no** se automatiza al cobrar; el copy miente |
 
 ## Qué se elimina

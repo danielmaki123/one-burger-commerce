@@ -59,10 +59,10 @@ Cada paso se abre como **una TASK**, con su brief en `ops/tasks/` y su Delivery 
 1.  POS Fase 1 (venta rápida) ........ CERRADA (SCREEN-POS-QUICK-SALE-001.2, desplegada)
 2.  Consolidación arquitectónica ..... TASK-GOV-001 · docs-only · CERRADA (arquitectura objetivo + orden)
 3.  Separar Pedidos / Cocina ......... CERRADA (TASK-ORDERS-KITCHEN-FOUNDATIONS-001 · docs-only)
-3b. Cocina runtime ................... /admin/kitchen como proyección de orders · SIGUIENTE TASK
-4.  Money ownership .................. auditado, con dueño y contratos (TASK-MONEY-PAYMENTS-FOUNDATIONS-001) · SIGUIENTE: runtime
-5.  Payments ownership ............... auditado, con dueño y contratos (misma TASK) · SIGUIENTE: runtime
-5b. Pedidos runtime .................. /admin/orders denso y paginado + detalle con su historia y su cobro
+3b. Cocina runtime ................... CERRADA Y DESPLEGADA (/admin/kitchen como proyección de orders)
+4.  Money ownership .................. CERRADA Y DESPLEGADA (módulo `money` + /admin/finance)
+5.  Payments ownership ............... CERRADA Y DESPLEGADA (módulo `payments` + estado financiero canónico)
+5b. Pedidos runtime .................. /admin/orders denso y paginado + detalle con su historia y su cobro · SIGUIENTE
 6.  Pedido existente → Cobrar en POS . Órdenes localiza el pedido y el POS lo cobra (cierra `A-67`)
 7.  Cash ownership ................... Shift, apertura, movimientos, conteo, cierre, handover y conciliación
 8.  Separar Configuración: Negocio / Finanzas / Personalización / Locales ... cada una con su entrada
@@ -76,6 +76,13 @@ Cada paso se abre como **una TASK**, con su brief en `ops/tasks/` y su Delivery 
 16. Resumen, cuando las fuentes estén maduras ... `/admin`, al final, cuando las fuentes estén maduras
 ```
 
+**Los órdenes 4 y 5 se cerraron en dos pasadas**: el **runtime** (`TASK-MONEY-PAYMENTS-RUNTIME-001`) y su
+**cierre de aceptación** (`TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002`), porque los criterios 3, 9 y 12 del
+primero no se cumplían en el runtime que quedó desplegado. El detalle de cada orden **pendiente** —estado real
+auditado, dependencias, qué reutilizar, qué deuda entra y qué queda fuera— está en el
+[mapa de ejecución](EXECUTION-MAP.md); el catálogo de dueños y de lo que se reutiliza, en el
+[mapa de reutilización de capacidades](../product/CAPABILITY-REUSE-MAP.md).
+
 **Dependencias que no se saltean** (verificadas contra el código en `TASK-ORDERS-KITCHEN-FOUNDATIONS-001` y
 revalidadas en `TASK-MONEY-PAYMENTS-FOUNDATIONS-001`):
 
@@ -86,9 +93,11 @@ revalidadas en `TASK-MONEY-PAYMENTS-FOUNDATIONS-001`):
   puede cerrar la comparación sin convertir (`A-68`) sin la tasa que sólo `money` define, y `money` no tiene
   hecho histórico que congelar sin `payments`. Van juntos, en una TASK, con dueño, contratos y snapshot ya
   definidos; la SPEC de la superficie, en [`../design/screens/finance.md`](../design/screens/finance.md) con
-  su [referencia aprobada](../design/screens/finance-reference.html).
+  su [referencia aprobada](../design/screens/finance-reference.html). **Los dos están cerrados y desplegados**,
+  en dos pasadas: el runtime y su cierre de aceptación.
 - **4 y 5 antes de 5b**: el listado y el detalle muestran si el pedido está cobrado, y esa regla no se calcula
-  en React. El estado financiero canónico **no existe hoy** en ninguna capa.
+  en React. **El estado financiero canónico ya existe** (`payments`, `getOrderPaymentStatus`) y es lo que 5b
+  tiene que **consumir**, no recalcular.
 - **4 y 5 antes de 6** (no se cobra un pedido existente sin dueño del dinero) y **5b antes de 6**: alguien
   tiene que **localizar** el pedido antes de que el POS lo cobre, y hoy no hay superficie (`A-67`).
 - **16 al final**, porque un overview solo es honesto cuando las fuentes que resume ya están ordenadas.

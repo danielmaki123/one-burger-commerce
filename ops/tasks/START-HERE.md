@@ -71,14 +71,17 @@ falta reconstruir por qué algo es como es. Es lo que evita leer 3.000 líneas p
 - **Programa de remediación completo, en orden**: [`AUDIT-REMEDIATION-ROADMAP.md`](AUDIT-REMEDIATION-ROADMAP.md).
   Ese archivo dice qué sigue, con su objetivo, prioridad, riesgo y dependencia.
 - **Arquitectura de producto (hoy y objetivo)**: [`../product/MODULE_ARCHITECTURE.md`](../product/MODULE_ARCHITECTURE.md).
+- **Qué reutiliza cada capacidad y quién es su dueño hoy**: [`../product/CAPABILITY-REUSE-MAP.md`](../product/CAPABILITY-REUSE-MAP.md).
+- **Qué falta de verdad en cada orden pendiente (5b→16)**: [`../roadmap/EXECUTION-MAP.md`](../roadmap/EXECUTION-MAP.md).
+  Los dos son **snapshots** y se revalidan contra el código al iniciar la TASK que los use.
 - **Plantilla obligatoria de TASK**: [`TEMPLATE.md`](TEMPLATE.md).
 - **Lo que sigue**: **una sola próxima TASK**, **`Pedidos runtime`** (orden **5b** del roadmap maestro): el
   recorte financiero del detalle compartido (remanente de `A-60`) y la clasificación de los read models.
   **No incluye todavía el cobro real de un pedido existente ni su handoff al POS**: eso es el orden **6**
   («Pedido existente → Cobrar en POS»), que **compone** el backend que ya existe
-  (`POST /api/admin/orders/[id]/payment`) y cierra `A-67`. **`Money / Payments runtime`** (órdenes 4 y 5) y
-  **`Cocina runtime`** (orden 3b) **ya están cerradas y desplegadas**: no se retoman sin pedido del owner.
-  El alcance exacto está en `ops/roadmap/NEXT.md`; las specs congeladas, en
+  (`POST /api/admin/orders/[id]/payment`) y cierra `A-67`. **`Money / Payments`** (órdenes 4 y 5, con su
+  cierre de aceptación) y **`Cocina runtime`** (orden 3b) **ya están cerradas y desplegadas**: no se retoman
+  sin pedido del owner. El alcance exacto está en `ops/roadmap/NEXT.md`; las specs congeladas, en
   [`../design/screens/orders.md`](../design/screens/orders.md),
   [`../design/screens/kitchen.md`](../design/screens/kitchen.md) y
   [`../design/screens/finance.md`](../design/screens/finance.md). **No se arranca `Resumen`** (pasó al orden
