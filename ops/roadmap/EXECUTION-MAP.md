@@ -203,3 +203,12 @@
    `Deuda asignada` y `Fuera de alcance` son el `SCOPE OUT`.
 3. **Al cerrar**: el `Gate de cierre` es la lista de aceptación; lo que no se cumpla se degrada con el motivo
    escrito en [`../audit-backlog.md`](../audit-backlog.md), no se borra.
+
+## Lo que NO entra en este mapa
+
+Los hallazgos **operativos y de infraestructura** no pertenecen a ningún orden del roadmap de producto y **no
+se meten a la fuerza en una feature**: siguen viviendo, visibles, en [`../audit-backlog.md`](../audit-backlog.md).
+El ejemplo vivo es **`A-57`** (el backup programado de producción no genera archivos y no hay retención
+declarada): es decisión del **owner** sobre la infraestructura, no trabajo de producto, y no bloquea ninguna
+TASK de esta secuencia. Tampoco entran los hallazgos de **calidad del arnés** (`A-91`, `A-92`): se cierran con
+una TASK propia de QA, no dentro de un orden de producto.
