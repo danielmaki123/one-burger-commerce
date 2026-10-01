@@ -3,9 +3,6 @@ import { getPrismaClient } from "@/infrastructure/database/prisma";
 import { PrismaBusinessSettingsRepository } from "@/modules/business-settings/adapters/prisma-business-settings-repository";
 import { loadBusinessSettings } from "@/modules/business-settings/features/get-public-business-settings/get-public-business-settings";
 import { PrismaLocationRepository } from "@/modules/locations/adapters/prisma-location-repository";
-import {
-  assertPaymentMethodKind,
-} from "@/modules/payments/domain/payment-method-kind";
 import type { PaymentMethodConfigRecord } from "@/modules/payments/domain/payment-method-availability";
 import { readProductionMoney } from "@/modules/money/adapters/production-money-context";
 import { PrismaOrderRepository } from "@/modules/orders/adapters/prisma-order-repository";
@@ -20,6 +17,7 @@ import {
 
 import type { RegisterPosSaleDependencies } from "../features/register-pos-sale/register-pos-sale";
 import { quotePosCoupon } from "../features/quote-pos-coupon/quote-pos-coupon";
+import { createProductionConfiguredPaymentMethods } from "./production-configured-payment-methods";
 import { createProductionPosCouponDependencies } from "./production-pos-coupon";
 
 /**
@@ -68,26 +66,13 @@ function isUniqueConflict(error: unknown): boolean {
  * local (`PaymentMethodLocation`). Devuelve también los apagados y los de otras sucursales —el filtro lo hace
  * el dominio (`listAvailablePaymentMethods`)—, porque el mismo catálogo sirve para rechazar un medio que la
  * pantalla mandó mal y para decir **por qué** no se puede usar.
+ *
+ * `TASK-ORDER-POS-OPERATIONAL-006` la **extrajo** a `production-configured-payment-methods.ts`: el cobro de
+ * un pedido existente necesita la misma lectura y dos copias del mismo mapeo se desincronizan —una sola
+ * tabla, un solo código que la lee—.
  */
-async function listConfiguredPaymentMethods(): Promise<PaymentMethodConfigRecord[]> {
-  const rows = await getPrismaClient().paymentMethodConfig.findMany({
-    orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
-    include: { locations: { select: { locationId: true, isActive: true } } },
-  });
-
-  return rows.map((row) => ({
-    id: row.id,
-    name: row.name,
-    kind: assertPaymentMethodKind(row.kind),
-    entityId: row.entityId,
-    currencyCodes: row.currencyCodes,
-    requiresReference: row.requiresReference,
-    isActive: row.isActive,
-    locations: row.locations.map((location) => ({
-      locationId: location.locationId,
-      isActive: location.isActive,
-    })),
-  }));
+function listConfiguredPaymentMethods(): Promise<PaymentMethodConfigRecord[]> {
+  return createProductionConfiguredPaymentMethods().listPaymentMethods();
 }
 
 export async function createProductionPosSaleDependencies(): Promise<RegisterPosSaleDependencies> {
