@@ -178,11 +178,12 @@ export async function addCatalogProductToCart(
 /**
  * A dónde aterriza una sesión del panel, según el rol (`TASK-ORDERS-RUNTIME-5B`, `A-10`).
  *
- * El destino lo decide **`resolveAdminLanding`**: el dueño al Resumen (`/admin`), manager y cajero a Pedidos
- * (`/admin/orders`) y cocina a Cocina (`/admin/kitchen`). Antes el único destino era `/admin` (o
- * `/admin/orders`), así que un helper que exigiera esa URL dejaba de servir para el rol de cocina.
+ * El destino lo decide **`resolveAdminLanding`**: el dueño al Resumen (`/admin`), el manager a Pedidos
+ * (`/admin/orders`), el **cajero al POS** (`/admin/pos`, `TASK-ORDER-POS-OPERATIONAL-006`) y cocina a Cocina
+ * (`/admin/kitchen`). Antes el único destino era `/admin` (o `/admin/orders`), así que un helper que exigiera
+ * esa URL dejaba de servir para el rol de cocina —y ahora para el cajero, cuyo workspace operativo es el POS—.
  */
-const ADMIN_LANDING_PATTERN = /\/admin(?:\/orders|\/kitchen)?$/;
+const ADMIN_LANDING_PATTERN = /\/admin(?:\/orders|\/kitchen|\/pos)?$/;
 
 /** El mismo destino, para los specs que afirman la URL de aterrizaje después del login. */
 export { ADMIN_LANDING_PATTERN };

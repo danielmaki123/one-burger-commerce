@@ -10,13 +10,11 @@ corto: si crece como un diario, dejó de servir.
 
 > **Última actualización**: 2026-10-01, por **POS operativo del cajero** (`TASK-ORDER-POS-OPERATIONAL-006`,
 > `high-risk-e2e`, **orden 6**, ACTIVE). `/admin/pos` pasa a ser el **workspace operativo** del cajero:
-> `PosOperationalOrdersProjection` sirve los cuatro KPI operacionales **desde el servidor** (En proceso ·
-> Listos · Por cobrar · Programados), un panel operacional reutilizable resuelve los cuatro modos, el pedido
-> existente se abre **inmutable** desde Órdenes (`/admin/pos?orderId=`) y se cobra en un **checkout completo
-> atómico y exacto** (varios medios, una sola liquidación), y la entrega `ready_for_pickup → picked_up` gana
-> la puerta nominal `canDeliverOrder`. Cierra `A-67`, revalida `A-85` y registra el hallazgo de overpayment
-> partido. Antes: **Pedidos runtime** (`TASK-ORDERS-RUNTIME-5B`, orden 5b, cerrada).
-> **Vigente: el Default E2E Delivery Contract**
+> `PosOperationalOrdersProjection` sirve los cuatro KPI **desde el servidor**, un panel operacional
+> reutilizable resuelve los cuatro modos, el pedido existente se abre **inmutable** desde Órdenes
+> (`/admin/pos?orderId=`) y se cobra en un **checkout completo atómico y exacto**, y la entrega
+> `ready_for_pickup → picked_up` gana la puerta nominal `canDeliverOrder`. Antes: **Pedidos runtime**
+> (`TASK-ORDERS-RUNTIME-5B`, orden 5b, cerrada). **Vigente: el Default E2E Delivery Contract**
 > ([`.agents/skills/delivery-e2e/SKILL.md`](../.agents/skills/delivery-e2e/SKILL.md)).
 
 ---

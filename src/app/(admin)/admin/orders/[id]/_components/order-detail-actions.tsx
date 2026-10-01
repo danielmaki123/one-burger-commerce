@@ -87,6 +87,28 @@ export function OrderDetailActions({
   return (
     <DetailPanel title="Acciones">
       <div className="space-y-2">
+        {/*
+          `TASK-ORDER-POS-OPERATIONAL-006` (brief §24) — **el puente a cobrar en el POS**.
+          
+          Pedidos **localiza y revisa**; el **POS cobra** (*one canonical flow*). Así que acá no hay un
+          checkout: hay un enlace al mismo modo «pedido existente» del POS (`/admin/pos?orderId=`), que es el
+          que usan también los KPI de la banda. Un formulario de cobro dentro del detalle administrativo sería
+          el segundo flujo financiero que el brief §26 prohíbe.
+          
+          Se ofrece cuando hay algo que cobrar: el pedido no está cancelado y su estado financiero no es
+          `paid`. Con `unresolvedAmount > 0` el POS lo manda a **REVISAR** en vez de cobrarlo (brief §32), así
+          que el enlace sigue siendo el destino correcto —lo que hace falta es mirarlo—.
+        */}
+        {canCollectInPos(order) ? (
+          <a
+            data-testid="order-collect-in-pos"
+            className="inline-flex min-h-11 w-full items-center justify-center rounded-md bg-brand px-4 text-st-body font-medium text-brand-foreground hover:bg-brand-strong"
+            href={`/admin/pos?orderId=${encodeURIComponent(order.id)}`}
+          >
+            Cobrar en POS
+          </a>
+        ) : null}
+
         {transitions.map((status) => (
           <Button
             key={status}
@@ -132,3 +154,19 @@ const ACTION_LABELS: Record<string, string> = {
   picked_up: "Marcar retirado",
   closed: "Cerrar pedido",
 };
+
+/**
+ * ¿Hay algo que cobrar en el POS?
+ *
+ * El detalle administrativo **no** recalcula el estado financiero: lo recibe proyectado y por eso este
+ * guardián sólo lee `order.financial`. Sin capacidad financiera (`canViewFinancials === false`) no hay dato
+ * con el que decidir y **no** se ofrece el enlace: mandar a cobrar a ciegas a quien no puede ver montos sería
+ * peor que no ofrecerlo.
+ */
+function canCollectInPos(order: OrderDetailView): boolean {
+  if (!order.canViewFinancials) return false;
+  if (order.financial === null) return false;
+  if (order.status === "cancelled") return false;
+
+  return order.financial.status !== "paid";
+}

@@ -37,6 +37,20 @@ function setup(overrides: Partial<Parameters<typeof usePosSale>[0]> = {}) {
     terminalId: null,
     money: { baseCurrencyCode: "NIO", locale: "es-NI", rates: { USD: 36.5 }, knownCurrencyCodes: ["NIO", "USD"] },
     currency,
+    /**
+     * `TASK-ORDER-POS-OPERATIONAL-006` — los medios **configurados** del local. La primera fila de cobro nace
+     * con el primero y su `paymentMethodId` es lo que viaja al servidor (`A-85`).
+     */
+    methodOptions: [
+      {
+        id: "pm_cash",
+        label: "Efectivo",
+        kind: "cash",
+        method: "cash",
+        requiresReference: false,
+        currencyCodes: [],
+      },
+    ],
     fiscal: EMPTY_POS_FISCAL_DRAFT,
     customer: { name: "Cliente Mostrador", whatsapp: "88887777", email: "" },
     attempt: { attemptKey: "11111111-2222-4333-8444-555555555555", renewAttemptKey, restoreAttemptKey: () => {} },

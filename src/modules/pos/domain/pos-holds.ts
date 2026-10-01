@@ -32,6 +32,14 @@ import { createSaleAttemptKey, isSaleAttemptKey } from "./pos-sale-attempt";
 /** Los cobros que se estaban armando, con el monto **como texto**: al retomar se corrige, no se adivina. */
 export type PosHeldPayment = {
   method: PosPaymentMethod;
+  /**
+   * `TASK-ORDER-POS-OPERATIONAL-006` (brief §38) — el **medio configurado** que el cajero había elegido.
+   *
+   * Opcional a propósito: una venta en espera guardada antes de este cambio sólo tiene el `method` histórico,
+   * y el POS la **reconstruye** contra el catálogo del local al retomarla. Sin el campo, la espera vieja no se
+   * podría leer (y el cajero perdería la venta de un cliente que está esperando).
+   */
+  paymentMethodId?: string;
   currency: string;
   amount: string;
   /** Referencia del voucher o de la transferencia (Bloque 4.1). */
@@ -102,6 +110,15 @@ function readPayment(value: unknown): PosHeldPayment | null {
   const candidate = value as Partial<PosHeldPayment>;
   const currency = typeof candidate.currency === "string" ? candidate.currency.trim() : "";
   const reference = typeof candidate.reference === "string" ? candidate.reference : undefined;
+  /**
+   * `TASK-ORDER-POS-OPERATIONAL-006` — el medio configurado, si el guardado lo trae. Un valor que no sea un
+   * texto usable se descarta en silencio (queda `undefined`) y el POS lo reconstruye desde el `method`: es una
+   * venta en espera, no un hecho firmado, así que lo peor que puede pasar es que el cajero elija el medio.
+   */
+  const paymentMethodId =
+    typeof candidate.paymentMethodId === "string" && candidate.paymentMethodId.trim() !== ""
+      ? candidate.paymentMethodId.trim()
+      : undefined;
 
   if (typeof candidate.method !== "string" || !isPosPaymentMethod(candidate.method)) return null;
   if (currency === "") return null;
@@ -113,6 +130,7 @@ function readPayment(value: unknown): PosHeldPayment | null {
     currency,
     amount: candidate.amount,
     ...(reference === undefined ? {} : { reference }),
+    ...(paymentMethodId === undefined ? {} : { paymentMethodId }),
   };
 }
 
@@ -200,6 +218,9 @@ export function serializePosHolds(locationId: string, holds: readonly PosHeldSal
       },
       payments: hold.payments.map((payment) => ({
         method: payment.method,
+        ...(payment.paymentMethodId === undefined
+          ? {}
+          : { paymentMethodId: payment.paymentMethodId }),
         currency: payment.currency,
         amount: payment.amount,
         ...(payment.reference === undefined ? {} : { reference: payment.reference }),

@@ -2,16 +2,12 @@ import type { LocationRepository } from "@/modules/locations/ports/location-repo
 import {
   POS_OPERATIONAL_FEED_STATUSES,
   countPosOperationalSummary,
+  isPosOperationalScheduled,
   type PosOperationalOrder,
 } from "@/modules/orders/domain/pos-operational-orders";
-import type { OrderRepository } from "@/modules/orders/ports/order-repository";
+import type { AdminOrderRow, OrderRepository } from "@/modules/orders/ports/order-repository";
+import type { OrderPaymentStatus } from "@/modules/payments/domain/order-financial-status";
 import { getOrderPaymentStatus } from "@/modules/payments/features/get-order-payment-status/get-order-payment-status";
-
-import {
-  projectPosOperationalOrder,
-  sortPosOperationalOrders,
-  type PosOperationalFinancialProjection,
-} from "./pos-operational-orders-projection";
 
 /**
  * `TASK-ORDER-POS-OPERATIONAL-006` (brief §8, §9, §10, §12) — **el feed operacional del POS y su resumen**.
@@ -33,7 +29,103 @@ import {
  *    lo cancelado no tienen acción para el cajero y no se descargan para descartarlos después.
  * 5. **El orden es del feed, no del SQL.** Los programados van primero por hora prometida y el resto por
  *    «hace cuánto en esta etapa»; el `orderBy` de la lectura es una comodidad, no el contrato.
+ *
+ * La **proyección** (`projectPosOperationalOrder`) vive en este archivo y no en uno aparte: es la traducción de
+ * una fila leída al contrato del POS, no una responsabilidad con su propia razón de ser, y el repo exige que
+ * un caso de uso tenga su test hermano —un archivo de proyección sin test propio sería deuda nueva—.
  */
+
+/**
+ * `PosOperationalOrdersProjection` — la proyección mínima de `orders` orientada al cajero.
+ *
+ * Es la traducción de una fila leída (`AdminOrderRow`, la misma fila mínima que usa el listado administrativo)
+ * al contrato del POS. Reutiliza la lectura y **no** la reconstruye: lo que cambia es qué se proyecta y con
+ * qué pregunta.
+ *
+ * Lo que esta proyección **no** deja pasar, a propósito (brief §11): items, modificadores, historial completo,
+ * facturas, GPS, tokens de seguimiento, devoluciones y cualquier campo administrativo que el cajero no use
+ * para decidir su próxima acción. Tampoco el WhatsApp del cliente: no está en el contrato del POS y el panel
+ * no lo dibuja.
+ */
+
+/** El estado financiero que `payments` produjo, reducido a los cuatro números que el POS muestra. */
+export type PosOperationalFinancialProjection = Pick<
+  OrderPaymentStatus,
+  "status" | "paidAmount" | "outstandingAmount" | "unresolvedAmount"
+>;
+
+export type PosOperationalProjectionInput = {
+  row: AdminOrderRow;
+  locationName: string | null;
+  /** La moneda base vigente, resuelta por el borde con `money`. */
+  baseCurrencyCode: string;
+  financial: PosOperationalFinancialProjection;
+};
+
+export function projectPosOperationalOrder(
+  input: PosOperationalProjectionInput,
+): PosOperationalOrder {
+  const { row, financial } = input;
+
+  return {
+    id: row.id,
+    orderNumber: row.orderNumber,
+    source: row.source ?? null,
+    customerName: row.customerName,
+    locationId: row.locationId,
+    locationName: input.locationName,
+    status: row.status,
+    pickupTime: row.pickupTime,
+    pickupScheduled: row.pickupScheduled,
+    currencyCode: row.currencyCode,
+    total: row.total,
+    financialState: {
+      status: financial.status,
+      paidAmount: financial.paidAmount,
+      outstandingAmount: financial.outstandingAmount,
+      unresolvedAmount: financial.unresolvedAmount,
+      // Una fila legacy sin moneda de pedido se informa con la base vigente: es la moneda en la que
+      // `payments` expresó el estado, y cambiar la base no reinterpreta ningún cobro (`D-018`).
+      baseCurrencyCode: input.baseCurrencyCode,
+    },
+  };
+}
+
+/**
+ * El orden del feed: **los programados primero, por hora prometida**, y el resto por «hace cuánto está en
+ * esta etapa», con lo más reciente arriba.
+ *
+ * Por qué no se ordena todo por `pickupTime`: un pedido sin programar puede tener una `pickupTime` que el
+ * servidor calculó para que Cocina sepa cuándo arrancar (brief §6), así que ordenar por esa hora mezclaría
+ * compromisos del cliente con estimaciones del sistema. Los programados son los únicos con una promesa que el
+ * cajero tiene que respetar en un orden concreto.
+ */
+export function sortPosOperationalOrders(
+  orders: readonly PosOperationalOrder[],
+  stageChangedAtById: ReadonlyMap<string, string>,
+): PosOperationalOrder[] {
+  return [...orders].sort((a, b) => {
+    /**
+     * Un programado **sin hora** no es un programado (`isPosOperationalScheduled`): no entra a la primera
+     * banda ni se compara por una hora que no existe. Comparar `null` como `""` lo haría ganar el primer
+     * lugar, que es exactamente el error que el test fija.
+     */
+    const aScheduled = isPosOperationalScheduled(a);
+    const bScheduled = isPosOperationalScheduled(b);
+
+    if (aScheduled && bScheduled) {
+      const byPickup = (a.pickupTime ?? "").localeCompare(b.pickupTime ?? "");
+      if (byPickup !== 0) return byPickup;
+    } else if (aScheduled !== bScheduled) {
+      return aScheduled ? -1 : 1;
+    }
+
+    const aStage = stageChangedAtById.get(a.id) ?? "";
+    const bStage = stageChangedAtById.get(b.id) ?? "";
+
+    return bStage.localeCompare(aStage);
+  });
+}
 
 export type ListPosOperationalOrdersInput = {
   /** El local ya resuelto y autorizado por el borde. Es el alcance del feed. */

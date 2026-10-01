@@ -6,6 +6,7 @@ import * as React from "react";
 import { X } from "lucide-react";
 
 import type { PosDraftLine } from "@/modules/pos/domain/pos-draft";
+import type { PosPaymentMethodOption } from "@/modules/pos/domain/pos-payment-methods";
 import type { PosCatalogCategoryChip, PosCatalogProduct } from "@/modules/pos/ports/pos-catalog";
 import type { CurrencyFormat } from "@/shared/lib/format-currency";
 import { Button } from "@/shared/ui/button";
@@ -137,6 +138,11 @@ export type PosWorkspaceSale = {
   money: MoneyContext;
   /** A-85 — las monedas aceptadas que la pantalla ofrece. */
   acceptedCurrencies: string[];
+  /**
+   * `TASK-ORDER-POS-OPERATIONAL-006` (brief §37, §38) — los medios configurados que **este local** ofrece,
+   * resueltos por el servidor. Son los botones de «¿Cómo paga?».
+   */
+  methodOptions: PosPaymentMethodOption[];
   canCharge: boolean;
   blockedReason: string | null;
   total: number;
@@ -159,6 +165,23 @@ export type PosWorkspaceCash = {
   onOpen: () => void;
   /** El cierre pertenece a Caja (firma el arqueo): desde acá se **enlaza**, no se reimplementa. */
   closeHref: string;
+};
+
+/**
+ * `TASK-ORDER-POS-OPERATIONAL-006` (brief §5, §21) — **el trabajo operacional del cajero**, ya armado por la
+ * pantalla.
+ *
+ * La banda va debajo de la barra de contexto y los dos paneles (el operacional y el del pedido existente) son
+ * **nodos ya compuestos**: el workspace sólo decide **dónde** se dibujan, no qué hacen. Ponerlos acá y no en la
+ * columna del catálogo es deliberado: el panel operacional es de la pantalla entera, no del ticket.
+ */
+export type PosWorkspaceOperational = {
+  /** La banda de KPI (`En proceso · Listos · Por cobrar · Programados`). */
+  band: React.ReactNode;
+  /** El panel de lista abierto, o `null`. */
+  panel: React.ReactNode;
+  /** El modo «pedido existente» abierto, o `null`. */
+  existingOrder: React.ReactNode;
 };
 
 /**
@@ -245,10 +268,12 @@ export function PosWorkspace({
   catalog,
   sale,
   cash,
+  operational,
 }: {
   catalog: PosWorkspaceCatalog;
   sale: PosWorkspaceSale;
   cash: PosWorkspaceCash;
+  operational: PosWorkspaceOperational;
 }) {
   const twoPane = useMediaQuery(POS_TWO_PANE_QUERY);
   const [sheetOpen, setSheetOpen] = React.useState(false);
@@ -319,16 +344,22 @@ export function PosWorkspace({
       <PosToolbar catalog={catalog} cash={cash} />
 
       {/*
-        El segundo renglón se lleva **todo el alto que sobra**: la barra operativa mide lo que mide y el resto
-        es catálogo y venta.
-
-        El alto del workspace es `100dvh` menos el chrome real del admin (28 px de padding arriba y abajo más
-        los 44 px de la barra con su separación): con `100vh` a secas el pie del viewport se pasaba ~48 px y
-        el ticket terminaba fuera de la pantalla (medido a `1366×768`). `lg:overflow-hidden` es la red: si una
-        fila se niega a encogerse, se recorta acá y el catálogo sigue scrolleando adentro, en vez de empujar
-        el `Cobrar C$…` fuera de la vista.
+        `TASK-ORDER-POS-OPERATIONAL-006` (brief §5) — **la banda operacional**, debajo de la barra de contexto
+        y **encima** de las dos columnas. Es una banda compacta (nombre + contador) que no puede empujar el
+        `Cobrar C$…` fuera del primer viewport: el alto útil de las columnas se calcula sobre lo que sobra
+        después del chrome del admin, así que la banda tiene que quedarse en **un** renglón de chips con scroll
+        interno. Por eso no es una grilla de cards.
       */}
-      <div className="grid min-h-0 gap-3 max-lg:block lg:grow lg:grid-cols-[minmax(0,1fr)_minmax(340px,25rem)] lg:grid-rows-1">
+      {operational.band}
+      {operational.panel}
+
+      {/*
+        El **modo pedido existente** reemplaza al workspace cuando está abierto (brief §13: una sola ruta, dos
+        contextos). No conviven: dos superficies operativas a la vez obligarían al cajero a elegir cuál manda.
+      */}
+      {operational.existingOrder ??
+        (
+          <div className="grid min-h-0 gap-3 max-lg:block lg:grow lg:grid-cols-[minmax(0,1fr)_minmax(340px,25rem)] lg:grid-rows-1">
         {/*
           `min-w-0`: sin eso la columna del catálogo se estira con su contenido (la fila de chips con scroll
           horizontal la dejaba más ancha que la pantalla y aparecía scroll horizontal a 375 px).
@@ -498,6 +529,7 @@ export function PosWorkspace({
                   total={sale.totals.total}
                   money={sale.money}
                   acceptedCurrencies={sale.acceptedCurrencies}
+                  methodOptions={sale.methodOptions}
                   onAddPayment={sale.addPaymentRow}
                   onRemovePayment={sale.removePaymentRow}
                 />
@@ -559,6 +591,7 @@ export function PosWorkspace({
           )}
         </dialog>
       </div>
+      )}
 
       {/* El fondo oscurecido del sheet: es una capa de cierre, no una acción (no lleva primitivo). */}
       {sheetOpen ? (

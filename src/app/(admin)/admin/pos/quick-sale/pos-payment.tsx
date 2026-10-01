@@ -1,80 +1,31 @@
 "use client";
 
-import * as React from "react";
-
-import { PAYMENT_METHOD_TYPE_LABELS } from "@/modules/orders/domain/order.types";
-import { calculateOrderChange } from "@/modules/orders/domain/payment-change";
-import { paidTotalInBaseCurrency } from "@/modules/money/domain/paid-total";
-import { POS_PAYMENT_METHODS } from "@/modules/pos/domain/pos-sale";
 import type { MoneyContext } from "@/modules/money/domain/money-context";
+import { paidTotalInBaseCurrency } from "@/modules/money/domain/paid-total";
+import type { PosPaymentMethodOption } from "@/modules/pos/domain/pos-payment-methods";
 import { formatCurrency, type CurrencyFormat } from "@/shared/lib/format-currency";
-import { roundCurrency } from "@/shared/lib/order-totals";
 import { Button } from "@/shared/ui/button";
-import { Input } from "@/shared/ui/input";
-import { Select } from "@/shared/ui/select";
 
+import PosPaymentRows from "../pos-payment-rows";
 import type { PosPaymentDraft } from "../pos-types";
-import PosQuickCash from "../pos-quick-cash";
 import { OverlineLabel } from "./pos-disclosure";
 
 /**
  * El cobro de la venta normal: medio, moneda (si hay tasa), monto, montos rápidos y **vuelto en vivo**.
  *
- * **`mixed` no está en la lista y es a propósito**: el mixto es un *resultado* de partir el cobro entre dos
- * medios, no algo que el cajero elija. La lista sale del dominio (`POS_PAYMENT_METHODS`), la misma que
- * acepta la API del cobro y que se guarda en una venta en espera.
+ * `TASK-ORDER-POS-OPERATIONAL-006` (brief §37, §39) — **los medios salen del catálogo configurado** para este
+ * local, no de una constante del código. Es la corrección de la divergencia de `A-85`: el servidor ya resolvía
+ * el medio configurado en el `snapshot`, pero la pantalla ofrecía «Efectivo · Tarjeta · Transferencia · Otro»
+ * y el cajero nunca veía «Tarjeta BAC» ni «Zelle».
  *
- * El vuelto sale de `calculateOrderChange`, la misma fórmula que usa el servidor al registrar el cobro: el
- * número de la pantalla y el del arqueo no pueden discrepar. En un cobro **partido** no hay vuelto (lo dice
- * el panel) y lo que se muestra es cuánto se lleva cobrado del total.
+ * Las filas viven en `PosPaymentRows`, el componente **compartido** con el modo *pedido existente* del POS. La
+ * duplicación que había acá era justamente lo que dejaba vivir la lista hardcodeada: una sola implementación,
+ * un solo lugar donde los medios salen del catálogo del local.
  *
- * Partir el cobro vive detrás del disclosure (`Dar un segundo cobro`): es lo que se necesita *a veces*, no
- * en una venta normal, y su lugar natural es debajo de la primera fila.
+ * El vuelto y los montos rápidos salen de las mismas fórmulas que usa el servidor al registrar el cobro: el
+ * número de la pantalla y el del arqueo no pueden discrepar. En un cobro **partido** no hay vuelto (lo dice el
+ * resumen) y lo que se muestra es cuánto se lleva cobrado del total.
  */
-
-const PAYMENT_METHOD_CHOICES = POS_PAYMENT_METHODS.map((id) => ({
-  id,
-  label: PAYMENT_METHOD_TYPE_LABELS[id],
-}));
-
-/**
- * El vuelto en vivo de un cobro **único en efectivo**, mientras el cajero escribe.
- *
- * Si todavía no alcanza, lo dice: cobrar con un monto menor lo rechaza el alta.
- */
-function LiveChange({
-  paidWith,
-  total,
-  currency,
-}: {
-  paidWith: number;
-  total: number;
-  currency: CurrencyFormat;
-}) {
-  if (!Number.isFinite(paidWith) || paidWith <= 0) return null;
-
-  const change = calculateOrderChange({ paidWithAmount: paidWith, total });
-  if (change === null) return null;
-
-  const missing = roundCurrency(total - paidWith);
-
-  if (missing > 0) {
-    return (
-      <p className="text-st-caption font-medium text-status-sla-text">
-        Faltan <span className="font-mono tabular-nums">{formatCurrency(missing, currency)}</span>
-      </p>
-    );
-  }
-
-  return (
-    <p className="text-st-body text-ink-secondary">
-      Vuelto{" "}
-      <span className="font-mono text-st-h3 font-bold tabular-nums text-ink">
-        {formatCurrency(change, currency)}
-      </span>
-    </p>
-  );
-}
 
 export default function PosPaymentFields({
   payments,
@@ -84,6 +35,7 @@ export default function PosPaymentFields({
   total,
   money,
   acceptedCurrencies,
+  methodOptions,
   onRemovePayment,
   onAddPayment,
 }: {
@@ -95,26 +47,25 @@ export default function PosPaymentFields({
   currency: CurrencyFormat;
   /** El total de la venta: es lo que llena el botón «Exacto». */
   total: number;
-  /**
-   * `TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002` (`A-85`) — el contexto monetario vigente, de `money`.
-   */
+  /** El contexto monetario vigente, de `money` (`A-85`). */
   money: MoneyContext;
   /**
    * Las monedas que el negocio acepta **hoy**, para ofrecer esas y no una lista fija. Sale de la misma
    * lectura que `money`: ofrecer una moneda y convertir con otra tasa es lo que este cambio evita.
    */
   acceptedCurrencies: string[];
+  /**
+   * Los medios configurados que **este local** ofrece, resueltos por el servidor (`PaymentMethodConfig` +
+   * `PaymentMethodLocation`). Vacío = el local no tiene ninguno y la pantalla lo dice en vez de inventar
+   * botones.
+   */
+  methodOptions: PosPaymentMethodOption[];
   /** Saca una fila del cobro partido (la primera no se saca: es el medio de la venta). */
   onRemovePayment?: (paymentId: string) => void;
   /** Agrega una fila de cobro con otro medio (partir el pago). */
   onAddPayment?: () => void;
 }) {
   const currencyCode = money.baseCurrencyCode;
-  /**
-   * Las monedas que el cajero puede elegir: las que `money` declara activas. Con una sola no hay nada que
-   * elegir y el control no se dibuja.
-   */
-  const currencyOptions = acceptedCurrencies.map((code) => ({ value: code, label: code }));
 
   /**
    * `TASK-MONEY-PAYMENTS-RUNTIME-001` (`A-69c`) — **la suma de un cobro partido, en una sola moneda**.
@@ -133,143 +84,24 @@ export default function PosPaymentFields({
     <div className="space-y-2">
       <OverlineLabel>Pago</OverlineLabel>
 
-      {payments.map((payment, index) => (
-        /*
-          `SCREEN-POS-QUICK-SALE-001.2`: la tarjeta del cobro se aprieta un escalón (`p-2` y `space-y-1.5`)
-          porque es lo que decide si la forma de pago entra en el primer viewport a `1280×720`. Los controles
-          siguen en 44 px: lo que baja es el aire, no el área táctil.
-        */
-        <div key={payment.id} className="space-y-1.5 rounded-stitch-md border border-line-subtle p-2">
-          {index > 0 ? (
-            <p className="text-st-body font-semibold text-ink">{`Cobro ${index + 1}`}</p>
-          ) : null}
-
-          <div className="space-y-1">
-            <p className="text-st-body font-medium leading-none text-ink">¿Cómo paga?</p>
-            {/*
-              `max-lg:min-h-10 max-lg:px-3` acorta las píldoras **solo en escritorio** (el mismo criterio que
-              los chips de categoría del catálogo): con 44 px de alto, «Transferencia» se va a un tercer
-              renglón en la columna de 320 px y ese renglón de más era lo que dejaba la forma de pago fuera del
-              primer viewport a `1280×720` (`SCREEN-POS-QUICK-SALE-001.2`). Abajo de `lg` siguen en 44 px,
-              que es donde se toca con el dedo.
-            */}
-            <div role="group" aria-label="¿Cómo paga?" className="flex flex-wrap gap-1.5">
-              {PAYMENT_METHOD_CHOICES.map((option) => (
-                <Button
-                  key={option.id}
-                  type="button"
-                  size="pill"
-                  variant={payment.method === option.id ? "primary" : "secondary"}
-                  aria-pressed={payment.method === option.id}
-                  className="max-lg:min-h-10 max-lg:px-3"
-                  onClick={() =>
-                    setPayments((current) =>
-                      current.map((item) =>
-                        item.id === payment.id ? { ...item, method: option.id } : item,
-                      ),
-                    )
-                  }
-                >
-                  {option.label}
-                </Button>
-              ))}
-            </div>
-          </div>
-
-          {/* `A-85` — con una sola moneda aceptada no hay nada que elegir y el control no se dibuja. */}
-          {currencyOptions.length > 1 ? (
-            <Select
-              label="Moneda del cobro"
-              value={payment.currency}
-              onChange={(event) =>
-                setPayments((current) =>
-                  current.map((item) =>
-                    item.id === payment.id ? { ...item, currency: event.target.value } : item,
-                  ),
-                )
-              }
-              options={currencyOptions}
-            />
-          ) : null}
-
-          <Input
-            label={
-              payment.currency === currencyCode
-                ? "Con cuánto paga"
-                : `Con cuánto paga (en ${payment.currency})`
-            }
-            type="number"
-            inputMode="decimal"
-            min={0}
-            step="0.01"
-            value={payment.amount}
-            error={fieldErrors.amount ?? fieldErrors.payments}
-            onChange={(event) =>
-              setPayments((current) =>
-                current.map((item) =>
-                  item.id === payment.id ? { ...item, amount: event.target.value } : item,
-                ),
-              )
-            }
-          />
-
-          {payment.method === "cash" && payment.currency === currencyCode ? (
-            <PosQuickCash
-              total={total}
-              currency={currency}
-              onPick={(amount) =>
-                setPayments((current) =>
-                  current.map((item) =>
-                    item.id === payment.id ? { ...item, amount: String(amount) } : item,
-                  ),
-                )
-              }
-            />
-          ) : null}
-
-          {payment.method === "cash" &&
-          payment.currency === currencyCode &&
-          payment.amount.trim() !== "" ? (
-            <LiveChange paidWith={Number(payment.amount)} total={total} currency={currency} />
-          ) : null}
-
-          {payment.method === "transfer" ? (
-            <Input
-              label="Referencia de la transferencia (opcional)"
-              value={payment.reference ?? ""}
-              onChange={(event) =>
-                setPayments((current) =>
-                  current.map((item) =>
-                    item.id === payment.id ? { ...item, reference: event.target.value } : item,
-                  ),
-                )
-              }
-            />
-          ) : null}
-
-          {index > 0 ? (
-            <Button
-              type="button"
-              variant="ghost"
-              className="min-h-11"
-              onClick={() =>
-                onRemovePayment
-                  ? onRemovePayment(payment.id)
-                  : setPayments((current) => current.filter((item) => item.id !== payment.id))
-              }
-            >
-              {`Quitar el cobro ${index + 1}`}
-            </Button>
-          ) : null}
-        </div>
-      ))}
+      <PosPaymentRows
+        payments={payments}
+        setPayments={setPayments}
+        fieldErrors={fieldErrors}
+        currencyCode={currencyCode}
+        currency={currency}
+        total={total}
+        acceptedCurrencies={acceptedCurrencies}
+        methodOptions={methodOptions}
+        onRemovePayment={onRemovePayment ?? (() => {})}
+      />
 
       {payments.length > 1 ? (
         <p className="text-st-body text-ink-secondary">
           Cobrado{" "}
           <span className="font-mono tabular-nums text-ink">{formatCurrency(paidTotal, currency)}</span> de{" "}
-          <span className="font-mono tabular-nums">{formatCurrency(total, currency)}</span>. En un cobro
-          partido no hay vuelto.
+          <span className="font-mono tabular-nums">{formatCurrency(total, currency)}</span>. En un cobro partido
+          no hay vuelto.
         </p>
       ) : null}
 
@@ -286,3 +118,4 @@ export default function PosPaymentFields({
     </div>
   );
 }
+

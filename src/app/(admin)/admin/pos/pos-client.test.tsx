@@ -163,6 +163,9 @@ function jsonResponse(body: unknown, ok = true, status = 200) {
   } as Response);
 }
 
+/** La zona horaria del **negocio**: la pantalla nunca usa la del equipo (brief §56). */
+const BUSINESS_TIME_ZONE = "America/Managua";
+
 const locations = [
   { id: "loc_norte", name: "Local Norte" },
   { id: "loc_sur", name: "Local Sur" },
@@ -188,17 +191,23 @@ async function abrirOpcion(user: ReturnType<typeof userEvent.setup>, label: stri
   await user.click(screen.getByRole("button", { name: label }));
 }
 
-/** La confirmacion del ultimo cobro: es el ultimo `role=status` del panel de venta. */
+/**
+ * La confirmación del último cobro.
+ *
+ * `TASK-ORDER-POS-OPERATIONAL-006` — se busca por su identificador y no por «el último `role=status`»: con
+ * la banda operacional en la pantalla hay **más de un** `status` (informa que está leyendo los pedidos del
+ * local) y el orden del DOM dejó de ser la respuesta.
+ */
 function ultimaConfirmacion() {
-  const estados = screen.getAllByRole("status");
-  return estados[estados.length - 1]!;
+  return screen.getByTestId("pos-sale-confirmation");
 }
 
 async function confirmacionDelCobro() {
   return waitFor(() => {
-    const texto = ultimaConfirmacion().textContent ?? "";
+    const confirmacion = ultimaConfirmacion();
+    const texto = confirmacion.textContent ?? "";
     if (!texto.includes("Venta P-")) throw new Error("todavia no hay confirmacion");
-    return ultimaConfirmacion();
+    return confirmacion;
   });
 }
 
@@ -232,7 +241,51 @@ describe("PosClient", () => {
     localStorage.clear();
     fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
-      if (url.startsWith("/api/admin/pos/catalog")) return jsonResponse(productos);
+      if (url.startsWith("/api/admin/pos/catalog")) {
+        /**
+         * `TASK-ORDER-POS-OPERATIONAL-006` (`A-85`) — el catálogo publica los **medios configurados** del
+         * local y el POS arma con ellos los botones de «¿Cómo paga?». Se declaran acá para que la pantalla
+         * tenga con qué cobrar: sin medios, el cobro se rechaza a propósito.
+         */
+        return jsonResponse({
+          ...productos,
+          paymentMethods: [
+            {
+              id: "pm_cash",
+              label: "Efectivo",
+              kind: "cash",
+              method: "cash",
+              requiresReference: false,
+              currencyCodes: [],
+            },
+            {
+              id: "pm_bac",
+              label: "Tarjeta BAC",
+              kind: "card",
+              method: "card",
+              requiresReference: false,
+              currencyCodes: [],
+            },
+            {
+              id: "pm_banpro",
+              label: "Transferencia Banpro",
+              kind: "bank_transfer",
+              method: "transfer",
+              requiresReference: true,
+              currencyCodes: [],
+            },
+          ],
+        });
+      }
+      if (url.startsWith("/api/admin/pos/operational-orders")) {
+        return jsonResponse({
+          data: {
+            orders: [],
+            summary: { inProcess: 0, ready: 0, pendingPayment: 0, scheduled: 0 },
+          },
+        });
+      }
+
       if (url === "/api/admin/pos/sale" && init?.method === "POST") return jsonResponse(ventaCobrada, true, 201);
       if (url === "/api/admin/pos/coupon" && init?.method === "POST") {
         return jsonResponse({
@@ -299,7 +352,7 @@ describe("PosClient", () => {
   });
 
   it("carga el catálogo del primer local y lo muestra con su precio", async () => {
-    render(<PosClient locations={locations} />);
+    render(<PosClient locations={locations} timeZone={BUSINESS_TIME_ZONE} />);
 
     expect(await screen.findByText("Taco de birria")).toBeTruthy();
     expect(screen.getByText("C$35.00")).toBeTruthy();
@@ -308,7 +361,7 @@ describe("PosClient", () => {
 
   it("busca en memoria: escribir no dispara otra consulta y filtra por nombre", async () => {
     const user = userEvent.setup();
-    render(<PosClient locations={locations} />);
+    render(<PosClient locations={locations} timeZone={BUSINESS_TIME_ZONE} />);
 
     await screen.findByText("Taco de birria");
     const callsAfterLoad = fetchMock.mock.calls.length;
@@ -322,7 +375,7 @@ describe("PosClient", () => {
 
   it("el total incluye el empaque del producto (TASK-303b)", async () => {
     const user = userEvent.setup();
-    render(<PosClient locations={locations} />);
+    render(<PosClient locations={locations} timeZone={BUSINESS_TIME_ZONE} />);
 
     await screen.findByText("Taco de birria");
     await user.click(screen.getByRole("button", { name: "Agregar Taco de birria a la venta" }));
@@ -336,7 +389,7 @@ describe("PosClient", () => {
 
   it("un producto con modificadores se elige en el selector antes de entrar a la venta", async () => {
     const user = userEvent.setup();
-    render(<PosClient locations={locations} />);
+    render(<PosClient locations={locations} timeZone={BUSINESS_TIME_ZONE} />);
 
     await screen.findByText("Taco especial");
     await user.click(screen.getByRole("button", { name: "Agregar Taco especial a la venta" }));
@@ -355,7 +408,7 @@ describe("PosClient", () => {
   });
 
   it("un producto agotado se ve, dice «Agotado» y no se puede agregar", async () => {
-    render(<PosClient locations={locations} />);
+    render(<PosClient locations={locations} timeZone={BUSINESS_TIME_ZONE} />);
 
     await screen.findByText("Taco agotado");
 
@@ -365,7 +418,7 @@ describe("PosClient", () => {
 
   it("los chips de categoría (con su contador) filtran el catálogo", async () => {
     const user = userEvent.setup();
-    render(<PosClient locations={locations} />);
+    render(<PosClient locations={locations} timeZone={BUSINESS_TIME_ZONE} />);
 
     await screen.findByText("Taco de birria");
 
@@ -381,7 +434,7 @@ describe("PosClient", () => {
 
   it("suma y resta unidades, y sacar deja la venta vacía", async () => {
     const user = userEvent.setup();
-    render(<PosClient locations={locations} />);
+    render(<PosClient locations={locations} timeZone={BUSINESS_TIME_ZONE} />);
 
     await screen.findByText("Cola");
     await user.click(screen.getByRole("button", { name: "Agregar Cola a la venta" }));
@@ -398,7 +451,7 @@ describe("PosClient", () => {
 
   it("cambiar de local vuelve a pedir el catálogo y arranca una venta nueva", async () => {
     const user = userEvent.setup();
-    render(<PosClient locations={locations} />);
+    render(<PosClient locations={locations} timeZone={BUSINESS_TIME_ZONE} />);
 
     await screen.findByText("Taco de birria");
     await user.click(screen.getByRole("button", { name: "Agregar Taco de birria a la venta" }));
@@ -412,7 +465,7 @@ describe("PosClient", () => {
 
   it("cobra la venta de una vez y limpia el mostrador (TASK-303b)", async () => {
     const user = userEvent.setup();
-    render(<PosClient locations={locations} />);
+    render(<PosClient locations={locations} timeZone={BUSINESS_TIME_ZONE} />);
 
     // Bloque 9.2: sin caja abierta el cobro está bloqueado (el servidor lo rechaza con 409), así que
     // la venta arranca abriendo la caja, que es lo que hace el cajero en el local.
@@ -443,7 +496,14 @@ describe("PosClient", () => {
       quantity: 1,
       packagingUnitAmount: 5,
     });
-    expect(body.payments).toEqual([{ method: "cash", currency: "NIO", amount: 100 }]);
+    /**
+     * `TASK-ORDER-POS-OPERATIONAL-006` (brief §38) — el payload nombra el **medio configurado** que el cajero
+     * eligió. El servidor resuelve el tipo canónico, la entidad y la disponibilidad desde ese id: el `method`
+     * es una derivación para el contrato del payload, no la verdad.
+     */
+    expect(body.payments).toEqual([
+      { paymentMethodId: "pm_cash", method: "cash", currency: "NIO", amount: 100 },
+    ]);
     expect(body.idempotencyKey).toBeTruthy();
 
     const confirmacion = await confirmacionDelCobro();
@@ -462,7 +522,7 @@ describe("PosClient", () => {
    */
   it("la factura con RUC pide los dos datos y viaja en el cobro (Punto 4)", async () => {
     const user = userEvent.setup();
-    render(<PosClient locations={locations} />);
+    render(<PosClient locations={locations} timeZone={BUSINESS_TIME_ZONE} />);
 
     await esperarCajaAbierta();
     await screen.findByText("Taco de birria");
@@ -511,27 +571,35 @@ describe("PosClient", () => {
    */
   it("parte el cobro: agrega una fila con transferencia y su referencia (Bloque 4)", async () => {
     const user = userEvent.setup();
-    render(<PosClient locations={locations} />);
+    render(<PosClient locations={locations} timeZone={BUSINESS_TIME_ZONE} />);
 
     await esperarCajaAbierta();
     await screen.findByText("Taco de birria");
 
     await user.click(screen.getByRole("button", { name: "Partir el cobro" }));
 
-    // La fila nueva arranca en transferencia y pide la referencia del voucher.
-    expect(screen.getByLabelText("Referencia de la transferencia (opcional)")).toBeTruthy();
+    /**
+     * La fila nueva nace con un medio del catálogo y la referencia la pide el **medio** que la exige
+     * (`requiresReference`), no su tipo histórico: el fixture del catálogo tiene «Transferencia Banpro» con
+     * `requiresReference: true` y «Transferencia BAC» con `false`.
+     *
+     * El botón se busca por **posición** porque cada fila dibuja su propio juego de medios: el segundo
+     * «Transferencia Banpro» es el de la fila que se acaba de agregar.
+     */
+    await user.click(screen.getAllByRole("button", { name: "Transferencia Banpro" })[1]!);
+    expect(screen.getByLabelText("Referencia del cobro")).toBeTruthy();
     expect(screen.getAllByLabelText("Con cuánto paga")).toHaveLength(2);
     expect(screen.getByText("Cobro 2")).toBeTruthy();
 
     await user.click(screen.getByRole("button", { name: "Quitar el cobro 2" }));
 
-    expect(screen.queryByLabelText("Referencia de la transferencia (opcional)")).toBeNull();
+    expect(screen.queryByLabelText("Referencia del cobro")).toBeNull();
     expect(screen.getAllByLabelText("Con cuánto paga")).toHaveLength(1);
   });
 
   it("un cobro partido incompleto no se manda", async () => {
     const user = userEvent.setup();
-    render(<PosClient locations={locations} />);
+    render(<PosClient locations={locations} timeZone={BUSINESS_TIME_ZONE} />);
 
     await esperarCajaAbierta();
     await screen.findByText("Taco de birria");
@@ -552,7 +620,7 @@ describe("PosClient", () => {
 
   it("no manda nada si falta el nombre o el monto: lo dice en el campo", async () => {
     const user = userEvent.setup();
-    render(<PosClient locations={locations} />);
+    render(<PosClient locations={locations} timeZone={BUSINESS_TIME_ZONE} />);
 
     await esperarCajaAbierta();
     await screen.findByText("Taco de birria");
@@ -570,7 +638,51 @@ describe("PosClient", () => {
     const user = userEvent.setup();
     fetchMock.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
-      if (url.startsWith("/api/admin/pos/catalog")) return jsonResponse(productos);
+      if (url.startsWith("/api/admin/pos/catalog")) {
+        /**
+         * `TASK-ORDER-POS-OPERATIONAL-006` (`A-85`) — el catálogo publica los **medios configurados** del
+         * local y el POS arma con ellos los botones de «¿Cómo paga?». Se declaran acá para que la pantalla
+         * tenga con qué cobrar: sin medios, el cobro se rechaza a propósito.
+         */
+        return jsonResponse({
+          ...productos,
+          paymentMethods: [
+            {
+              id: "pm_cash",
+              label: "Efectivo",
+              kind: "cash",
+              method: "cash",
+              requiresReference: false,
+              currencyCodes: [],
+            },
+            {
+              id: "pm_bac",
+              label: "Tarjeta BAC",
+              kind: "card",
+              method: "card",
+              requiresReference: false,
+              currencyCodes: [],
+            },
+            {
+              id: "pm_banpro",
+              label: "Transferencia Banpro",
+              kind: "bank_transfer",
+              method: "transfer",
+              requiresReference: true,
+              currencyCodes: [],
+            },
+          ],
+        });
+      }
+      if (url.startsWith("/api/admin/pos/operational-orders")) {
+        return jsonResponse({
+          data: {
+            orders: [],
+            summary: { inProcess: 0, ready: 0, pendingPayment: 0, scheduled: 0 },
+          },
+        });
+      }
+
       if (url === "/api/admin/pos/sale" && init?.method === "POST") {
         return jsonResponse(
           {
@@ -587,7 +699,7 @@ describe("PosClient", () => {
       return jsonResponse({ data: [] });
     });
 
-    render(<PosClient locations={locations} />);
+    render(<PosClient locations={locations} timeZone={BUSINESS_TIME_ZONE} />);
 
     await screen.findByText("Taco de birria");
     await user.click(screen.getByRole("button", { name: "Agregar Taco de birria a la venta" }));
@@ -613,7 +725,7 @@ describe("PosClient", () => {
           updatedByUserId: null,
         }}
       >
-        <PosClient locations={locations} />
+        <PosClient locations={locations} timeZone={BUSINESS_TIME_ZONE} />
       </BusinessSettingsProvider>,
     );
 
@@ -632,12 +744,56 @@ describe("PosClient", () => {
   it("sin caja, el checkout ofrece abrirla y no hay enlaces permanentes", async () => {
     fetchMock.mockImplementation((input: RequestInfo | URL) => {
       const url = String(input);
-      if (url.startsWith("/api/admin/pos/catalog")) return jsonResponse(productos);
+      if (url.startsWith("/api/admin/pos/catalog")) {
+        /**
+         * `TASK-ORDER-POS-OPERATIONAL-006` (`A-85`) — el catálogo publica los **medios configurados** del
+         * local y el POS arma con ellos los botones de «¿Cómo paga?». Se declaran acá para que la pantalla
+         * tenga con qué cobrar: sin medios, el cobro se rechaza a propósito.
+         */
+        return jsonResponse({
+          ...productos,
+          paymentMethods: [
+            {
+              id: "pm_cash",
+              label: "Efectivo",
+              kind: "cash",
+              method: "cash",
+              requiresReference: false,
+              currencyCodes: [],
+            },
+            {
+              id: "pm_bac",
+              label: "Tarjeta BAC",
+              kind: "card",
+              method: "card",
+              requiresReference: false,
+              currencyCodes: [],
+            },
+            {
+              id: "pm_banpro",
+              label: "Transferencia Banpro",
+              kind: "bank_transfer",
+              method: "transfer",
+              requiresReference: true,
+              currencyCodes: [],
+            },
+          ],
+        });
+      }
+      if (url.startsWith("/api/admin/pos/operational-orders")) {
+        return jsonResponse({
+          data: {
+            orders: [],
+            summary: { inProcess: 0, ready: 0, pendingPayment: 0, scheduled: 0 },
+          },
+        });
+      }
+
       if (url.startsWith("/api/admin/pos/shift?")) return jsonResponse({ data: null });
       return jsonResponse({ data: [] });
     });
 
-    render(<PosClient locations={locations} />);
+    render(<PosClient locations={locations} timeZone={BUSINESS_TIME_ZONE} />);
 
     // El estado, en la barra operativa.
     const barra = await screen.findByLabelText("Barra del mostrador");
@@ -653,7 +809,7 @@ describe("PosClient", () => {
   });
 
   it("con la caja abierta muestra el estado y ninguna acción de caja", async () => {
-    render(<PosClient locations={locations} />);
+    render(<PosClient locations={locations} timeZone={BUSINESS_TIME_ZONE} />);
 
     await esperarCajaAbierta();
     expect(screen.getByText("Caja abierta")).toBeTruthy();
@@ -674,7 +830,51 @@ describe("PosClient", () => {
 
     fetchMock.mockImplementation((input: RequestInfo | URL) => {
       const url = String(input);
-      if (url.startsWith("/api/admin/pos/catalog")) return jsonResponse(productos);
+      if (url.startsWith("/api/admin/pos/catalog")) {
+        /**
+         * `TASK-ORDER-POS-OPERATIONAL-006` (`A-85`) — el catálogo publica los **medios configurados** del
+         * local y el POS arma con ellos los botones de «¿Cómo paga?». Se declaran acá para que la pantalla
+         * tenga con qué cobrar: sin medios, el cobro se rechaza a propósito.
+         */
+        return jsonResponse({
+          ...productos,
+          paymentMethods: [
+            {
+              id: "pm_cash",
+              label: "Efectivo",
+              kind: "cash",
+              method: "cash",
+              requiresReference: false,
+              currencyCodes: [],
+            },
+            {
+              id: "pm_bac",
+              label: "Tarjeta BAC",
+              kind: "card",
+              method: "card",
+              requiresReference: false,
+              currencyCodes: [],
+            },
+            {
+              id: "pm_banpro",
+              label: "Transferencia Banpro",
+              kind: "bank_transfer",
+              method: "transfer",
+              requiresReference: true,
+              currencyCodes: [],
+            },
+          ],
+        });
+      }
+      if (url.startsWith("/api/admin/pos/operational-orders")) {
+        return jsonResponse({
+          data: {
+            orders: [],
+            summary: { inProcess: 0, ready: 0, pendingPayment: 0, scheduled: 0 },
+          },
+        });
+      }
+
       if (url.startsWith("/api/admin/pos/shift?")) {
         return jsonResponse({ data: { id: "shift_1", openedAt: ayer, openingAmount: 1000 } });
       }
@@ -682,7 +882,7 @@ describe("PosClient", () => {
     });
 
     render(
-      <PosClient locations={[{ id: "loc_norte", name: "Norte", requireShiftClose: true }]} />,
+      <PosClient locations={[{ id: "loc_norte", name: "Norte", requireShiftClose: true }]} timeZone={BUSINESS_TIME_ZONE} />,
     );
 
     await screen.findByText("Taco de birria");
@@ -705,7 +905,51 @@ describe("PosClient", () => {
 
     fetchMock.mockImplementation((input: RequestInfo | URL) => {
       const url = String(input);
-      if (url.startsWith("/api/admin/pos/catalog")) return jsonResponse(productos);
+      if (url.startsWith("/api/admin/pos/catalog")) {
+        /**
+         * `TASK-ORDER-POS-OPERATIONAL-006` (`A-85`) — el catálogo publica los **medios configurados** del
+         * local y el POS arma con ellos los botones de «¿Cómo paga?». Se declaran acá para que la pantalla
+         * tenga con qué cobrar: sin medios, el cobro se rechaza a propósito.
+         */
+        return jsonResponse({
+          ...productos,
+          paymentMethods: [
+            {
+              id: "pm_cash",
+              label: "Efectivo",
+              kind: "cash",
+              method: "cash",
+              requiresReference: false,
+              currencyCodes: [],
+            },
+            {
+              id: "pm_bac",
+              label: "Tarjeta BAC",
+              kind: "card",
+              method: "card",
+              requiresReference: false,
+              currencyCodes: [],
+            },
+            {
+              id: "pm_banpro",
+              label: "Transferencia Banpro",
+              kind: "bank_transfer",
+              method: "transfer",
+              requiresReference: true,
+              currencyCodes: [],
+            },
+          ],
+        });
+      }
+      if (url.startsWith("/api/admin/pos/operational-orders")) {
+        return jsonResponse({
+          data: {
+            orders: [],
+            summary: { inProcess: 0, ready: 0, pendingPayment: 0, scheduled: 0 },
+          },
+        });
+      }
+
       if (url.startsWith("/api/admin/pos/shift?")) {
         return jsonResponse({ data: { id: "shift_1", openedAt: ayer, openingAmount: 1000 } });
       }
@@ -713,7 +957,7 @@ describe("PosClient", () => {
     });
 
     render(
-      <PosClient locations={[{ id: "loc_norte", name: "Norte", requireShiftClose: false }]} />,
+      <PosClient locations={[{ id: "loc_norte", name: "Norte", requireShiftClose: false }]} timeZone={BUSINESS_TIME_ZONE} />,
     );
 
     await screen.findByText("Taco de birria");
@@ -738,12 +982,56 @@ describe("PosClient", () => {
     const user = userEvent.setup();
     fetchMock.mockImplementation((input: RequestInfo | URL) => {
       const url = String(input);
-      if (url.startsWith("/api/admin/pos/catalog")) return jsonResponse(productos);
+      if (url.startsWith("/api/admin/pos/catalog")) {
+        /**
+         * `TASK-ORDER-POS-OPERATIONAL-006` (`A-85`) — el catálogo publica los **medios configurados** del
+         * local y el POS arma con ellos los botones de «¿Cómo paga?». Se declaran acá para que la pantalla
+         * tenga con qué cobrar: sin medios, el cobro se rechaza a propósito.
+         */
+        return jsonResponse({
+          ...productos,
+          paymentMethods: [
+            {
+              id: "pm_cash",
+              label: "Efectivo",
+              kind: "cash",
+              method: "cash",
+              requiresReference: false,
+              currencyCodes: [],
+            },
+            {
+              id: "pm_bac",
+              label: "Tarjeta BAC",
+              kind: "card",
+              method: "card",
+              requiresReference: false,
+              currencyCodes: [],
+            },
+            {
+              id: "pm_banpro",
+              label: "Transferencia Banpro",
+              kind: "bank_transfer",
+              method: "transfer",
+              requiresReference: true,
+              currencyCodes: [],
+            },
+          ],
+        });
+      }
+      if (url.startsWith("/api/admin/pos/operational-orders")) {
+        return jsonResponse({
+          data: {
+            orders: [],
+            summary: { inProcess: 0, ready: 0, pendingPayment: 0, scheduled: 0 },
+          },
+        });
+      }
+
       if (url.startsWith("/api/admin/pos/shift?")) return jsonResponse({ data: null });
       return jsonResponse({ data: [] });
     });
 
-    render(<PosClient locations={locations} />);
+    render(<PosClient locations={locations} timeZone={BUSINESS_TIME_ZONE} />);
 
     await screen.findByText("Taco de birria");
     await user.click(screen.getByRole("button", { name: "Agregar Taco de birria a la venta" }));
@@ -770,7 +1058,7 @@ describe("PosClient", () => {
     const user = userEvent.setup();
 
     try {
-      render(<PosClient locations={locations} />);
+      render(<PosClient locations={locations} timeZone={BUSINESS_TIME_ZONE} />);
 
       await screen.findByText("Taco de birria");
       await user.click(screen.getByRole("button", { name: "Agregar Taco de birria a la venta" }));
@@ -797,7 +1085,7 @@ describe("PosClient", () => {
 
   it("genera el recibo del último cobro y lo ofrece para enviar (TASK-307)", async () => {
     const user = userEvent.setup();
-    render(<PosClient locations={locations} />);
+    render(<PosClient locations={locations} timeZone={BUSINESS_TIME_ZONE} />);
 
     await esperarCajaAbierta();
     await screen.findByText("Taco de birria");
@@ -829,7 +1117,7 @@ describe("PosClient", () => {
   }, 20_000);
 
   it("sin locales activos lo dice y no pide catálogo", () => {
-    render(<PosClient locations={[]} />);
+    render(<PosClient locations={[]} timeZone={BUSINESS_TIME_ZONE} />);
 
     expect(screen.getByText("Sin locales activos")).toBeTruthy();
     expect(fetchMock).not.toHaveBeenCalled();
@@ -837,10 +1125,17 @@ describe("PosClient", () => {
 
   it("muestra el error del catálogo con reintento", async () => {
     fetchMock.mockImplementation(() => jsonResponse({}, false));
-    render(<PosClient locations={locations} />);
+    render(<PosClient locations={locations} timeZone={BUSINESS_TIME_ZONE} />);
 
     expect(await screen.findByText("No se pudo cargar el catálogo")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Reintentar" })).toBeTruthy();
+
+    /**
+     * `TASK-ORDER-POS-OPERATIONAL-006` — con todo fallando hay **dos** reintentos en pantalla: el del
+     * catálogo y el de la banda operacional (que también lee del servidor). El test afirma que el del
+     * catálogo está, que es lo que este caso mide; la banda tiene su propio caso en su archivo.
+     */
+    const reintentos = screen.getAllByRole("button", { name: "Reintentar" });
+    expect(reintentos.length).toBeGreaterThanOrEqual(1);
   });
 
   /**
@@ -855,7 +1150,51 @@ describe("PosClient", () => {
     let intentos = 0;
     fetchMock.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
-      if (url.startsWith("/api/admin/pos/catalog")) return jsonResponse(productos);
+      if (url.startsWith("/api/admin/pos/catalog")) {
+        /**
+         * `TASK-ORDER-POS-OPERATIONAL-006` (`A-85`) — el catálogo publica los **medios configurados** del
+         * local y el POS arma con ellos los botones de «¿Cómo paga?». Se declaran acá para que la pantalla
+         * tenga con qué cobrar: sin medios, el cobro se rechaza a propósito.
+         */
+        return jsonResponse({
+          ...productos,
+          paymentMethods: [
+            {
+              id: "pm_cash",
+              label: "Efectivo",
+              kind: "cash",
+              method: "cash",
+              requiresReference: false,
+              currencyCodes: [],
+            },
+            {
+              id: "pm_bac",
+              label: "Tarjeta BAC",
+              kind: "card",
+              method: "card",
+              requiresReference: false,
+              currencyCodes: [],
+            },
+            {
+              id: "pm_banpro",
+              label: "Transferencia Banpro",
+              kind: "bank_transfer",
+              method: "transfer",
+              requiresReference: true,
+              currencyCodes: [],
+            },
+          ],
+        });
+      }
+      if (url.startsWith("/api/admin/pos/operational-orders")) {
+        return jsonResponse({
+          data: {
+            orders: [],
+            summary: { inProcess: 0, ready: 0, pendingPayment: 0, scheduled: 0 },
+          },
+        });
+      }
+
       if (url.startsWith("/api/admin/pos/shift?")) return jsonResponse({ data: turnoAbierto });
       if (url === "/api/admin/pos/sale" && init?.method === "POST") {
         intentos += 1;
@@ -865,7 +1204,7 @@ describe("PosClient", () => {
       return jsonResponse({ data: [] });
     });
 
-    render(<PosClient locations={locations} />);
+    render(<PosClient locations={locations} timeZone={BUSINESS_TIME_ZONE} />);
     await esperarCajaAbierta();
     await screen.findByText("Taco de birria");
     await user.click(screen.getByRole("button", { name: "Agregar Taco de birria a la venta" }));
@@ -899,6 +1238,7 @@ describe("PosClient", () => {
     render(
       <PosClient
         locations={locations}
+        timeZone={BUSINESS_TIME_ZONE}
         cashTerminalsByLocation={{
           [locations[0]!.id]: [
             { id: "term_caja_1", label: "Caja 1" },
@@ -933,7 +1273,7 @@ describe("PosClient", () => {
 
   it("sin terminales cargadas no dibuja el selector y el cobro va sin terminal", async () => {
     const user = userEvent.setup();
-    render(<PosClient locations={locations} />);
+    render(<PosClient locations={locations} timeZone={BUSINESS_TIME_ZONE} />);
 
     await esperarCajaAbierta();
     await screen.findByText("Taco de birria");
@@ -958,7 +1298,7 @@ describe("PosClient", () => {
 
   it("después de cobrar, la venta siguiente usa otra clave", async () => {
     const user = userEvent.setup();
-    render(<PosClient locations={locations} />);
+    render(<PosClient locations={locations} timeZone={BUSINESS_TIME_ZONE} />);
 
     await esperarCajaAbierta();
     await screen.findByText("Taco de birria");
@@ -990,7 +1330,51 @@ describe("PosClient", () => {
     const user = userEvent.setup();
     fetchMock.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
-      if (url.startsWith("/api/admin/pos/catalog")) return jsonResponse(productos);
+      if (url.startsWith("/api/admin/pos/catalog")) {
+        /**
+         * `TASK-ORDER-POS-OPERATIONAL-006` (`A-85`) — el catálogo publica los **medios configurados** del
+         * local y el POS arma con ellos los botones de «¿Cómo paga?». Se declaran acá para que la pantalla
+         * tenga con qué cobrar: sin medios, el cobro se rechaza a propósito.
+         */
+        return jsonResponse({
+          ...productos,
+          paymentMethods: [
+            {
+              id: "pm_cash",
+              label: "Efectivo",
+              kind: "cash",
+              method: "cash",
+              requiresReference: false,
+              currencyCodes: [],
+            },
+            {
+              id: "pm_bac",
+              label: "Tarjeta BAC",
+              kind: "card",
+              method: "card",
+              requiresReference: false,
+              currencyCodes: [],
+            },
+            {
+              id: "pm_banpro",
+              label: "Transferencia Banpro",
+              kind: "bank_transfer",
+              method: "transfer",
+              requiresReference: true,
+              currencyCodes: [],
+            },
+          ],
+        });
+      }
+      if (url.startsWith("/api/admin/pos/operational-orders")) {
+        return jsonResponse({
+          data: {
+            orders: [],
+            summary: { inProcess: 0, ready: 0, pendingPayment: 0, scheduled: 0 },
+          },
+        });
+      }
+
       if (url.startsWith("/api/admin/pos/shift?")) return jsonResponse({ data: turnoAbierto });
       if (url === "/api/admin/pos/sale" && init?.method === "POST") {
         return jsonResponse({ data: { ...ventaCobrada.data, reused: true } }, true, 200);
@@ -998,7 +1382,7 @@ describe("PosClient", () => {
       return jsonResponse({ data: [] });
     });
 
-    render(<PosClient locations={locations} />);
+    render(<PosClient locations={locations} timeZone={BUSINESS_TIME_ZONE} />);
     await esperarCajaAbierta();
     await screen.findByText("Taco de birria");
     await user.click(screen.getByRole("button", { name: "Agregar Taco de birria a la venta" }));
@@ -1021,7 +1405,7 @@ describe("PosClient", () => {
    */
   it("deja la venta en espera, libera el mostrador y la retoma completa", async () => {
     const user = userEvent.setup();
-    render(<PosClient locations={locations} />);
+    render(<PosClient locations={locations} timeZone={BUSINESS_TIME_ZONE} />);
 
     await screen.findByText("Taco de birria");
     await user.click(screen.getByRole("button", { name: "Agregar Taco de birria a la venta" }));
@@ -1069,7 +1453,51 @@ describe("PosClient", () => {
     let intentos = 0;
     fetchMock.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
-      if (url.startsWith("/api/admin/pos/catalog")) return jsonResponse(productos);
+      if (url.startsWith("/api/admin/pos/catalog")) {
+        /**
+         * `TASK-ORDER-POS-OPERATIONAL-006` (`A-85`) — el catálogo publica los **medios configurados** del
+         * local y el POS arma con ellos los botones de «¿Cómo paga?». Se declaran acá para que la pantalla
+         * tenga con qué cobrar: sin medios, el cobro se rechaza a propósito.
+         */
+        return jsonResponse({
+          ...productos,
+          paymentMethods: [
+            {
+              id: "pm_cash",
+              label: "Efectivo",
+              kind: "cash",
+              method: "cash",
+              requiresReference: false,
+              currencyCodes: [],
+            },
+            {
+              id: "pm_bac",
+              label: "Tarjeta BAC",
+              kind: "card",
+              method: "card",
+              requiresReference: false,
+              currencyCodes: [],
+            },
+            {
+              id: "pm_banpro",
+              label: "Transferencia Banpro",
+              kind: "bank_transfer",
+              method: "transfer",
+              requiresReference: true,
+              currencyCodes: [],
+            },
+          ],
+        });
+      }
+      if (url.startsWith("/api/admin/pos/operational-orders")) {
+        return jsonResponse({
+          data: {
+            orders: [],
+            summary: { inProcess: 0, ready: 0, pendingPayment: 0, scheduled: 0 },
+          },
+        });
+      }
+
       if (url.startsWith("/api/admin/pos/shift?")) return jsonResponse({ data: turnoAbierto });
       if (url === "/api/admin/pos/sale" && init?.method === "POST") {
         intentos += 1;
@@ -1081,7 +1509,7 @@ describe("PosClient", () => {
       return jsonResponse({ data: [] });
     });
 
-    render(<PosClient locations={locations} />);
+    render(<PosClient locations={locations} timeZone={BUSINESS_TIME_ZONE} />);
     await esperarCajaAbierta();
     await screen.findByText("Taco de birria");
 
@@ -1121,7 +1549,7 @@ describe("PosClient", () => {
    */
   it("un cupón cotizado baja el total y viaja al cobrar", async () => {
     const user = userEvent.setup();
-    render(<PosClient locations={locations} />);
+    render(<PosClient locations={locations} timeZone={BUSINESS_TIME_ZONE} />);
 
     await screen.findByText("Taco de birria");
     await user.click(screen.getByRole("button", { name: "Agregar Taco de birria a la venta" }));
@@ -1153,7 +1581,7 @@ describe("PosClient", () => {
 
   it("si la venta cambia, el cupón deja de valer y hay que volver a aplicarlo", async () => {
     const user = userEvent.setup();
-    render(<PosClient locations={locations} />);
+    render(<PosClient locations={locations} timeZone={BUSINESS_TIME_ZONE} />);
 
     await screen.findByText("Taco de birria");
     await user.click(screen.getByRole("button", { name: "Agregar Taco de birria a la venta" }));
@@ -1175,7 +1603,51 @@ describe("PosClient", () => {
   it("un código que no sirve dice el motivo y no toca el total", async () => {    const user = userEvent.setup();
     fetchMock.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
-      if (url.startsWith("/api/admin/pos/catalog")) return jsonResponse(productos);
+      if (url.startsWith("/api/admin/pos/catalog")) {
+        /**
+         * `TASK-ORDER-POS-OPERATIONAL-006` (`A-85`) — el catálogo publica los **medios configurados** del
+         * local y el POS arma con ellos los botones de «¿Cómo paga?». Se declaran acá para que la pantalla
+         * tenga con qué cobrar: sin medios, el cobro se rechaza a propósito.
+         */
+        return jsonResponse({
+          ...productos,
+          paymentMethods: [
+            {
+              id: "pm_cash",
+              label: "Efectivo",
+              kind: "cash",
+              method: "cash",
+              requiresReference: false,
+              currencyCodes: [],
+            },
+            {
+              id: "pm_bac",
+              label: "Tarjeta BAC",
+              kind: "card",
+              method: "card",
+              requiresReference: false,
+              currencyCodes: [],
+            },
+            {
+              id: "pm_banpro",
+              label: "Transferencia Banpro",
+              kind: "bank_transfer",
+              method: "transfer",
+              requiresReference: true,
+              currencyCodes: [],
+            },
+          ],
+        });
+      }
+      if (url.startsWith("/api/admin/pos/operational-orders")) {
+        return jsonResponse({
+          data: {
+            orders: [],
+            summary: { inProcess: 0, ready: 0, pendingPayment: 0, scheduled: 0 },
+          },
+        });
+      }
+
       if (url.startsWith("/api/admin/pos/shift?")) return jsonResponse({ data: turnoAbierto });
       if (url === "/api/admin/pos/coupon" && init?.method === "POST") {
         return jsonResponse(
@@ -1192,7 +1664,7 @@ describe("PosClient", () => {
       return jsonResponse({ data: [] });
     });
 
-    render(<PosClient locations={locations} />);
+    render(<PosClient locations={locations} timeZone={BUSINESS_TIME_ZONE} />);
     await screen.findByText("Taco de birria");
     await user.click(screen.getByRole("button", { name: "Agregar Taco de birria a la venta" }));
 
@@ -1213,7 +1685,7 @@ describe("PosClient", () => {
    * mueve el total antes de cobrar. El número lo calcula el servidor; la pantalla muestra el mismo.
    */
   it("el cajero no tiene el descuento manual: no ve el control (9.7)", async () => {
-    render(<PosClient locations={locations} />);
+    render(<PosClient locations={locations} timeZone={BUSINESS_TIME_ZONE} />);
 
     await screen.findByText("Taco de birria");
 
@@ -1224,7 +1696,51 @@ describe("PosClient", () => {
     const user = userEvent.setup();
     fetchMock.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
-      if (url.startsWith("/api/admin/pos/catalog")) return jsonResponse(productos);
+      if (url.startsWith("/api/admin/pos/catalog")) {
+        /**
+         * `TASK-ORDER-POS-OPERATIONAL-006` (`A-85`) — el catálogo publica los **medios configurados** del
+         * local y el POS arma con ellos los botones de «¿Cómo paga?». Se declaran acá para que la pantalla
+         * tenga con qué cobrar: sin medios, el cobro se rechaza a propósito.
+         */
+        return jsonResponse({
+          ...productos,
+          paymentMethods: [
+            {
+              id: "pm_cash",
+              label: "Efectivo",
+              kind: "cash",
+              method: "cash",
+              requiresReference: false,
+              currencyCodes: [],
+            },
+            {
+              id: "pm_bac",
+              label: "Tarjeta BAC",
+              kind: "card",
+              method: "card",
+              requiresReference: false,
+              currencyCodes: [],
+            },
+            {
+              id: "pm_banpro",
+              label: "Transferencia Banpro",
+              kind: "bank_transfer",
+              method: "transfer",
+              requiresReference: true,
+              currencyCodes: [],
+            },
+          ],
+        });
+      }
+      if (url.startsWith("/api/admin/pos/operational-orders")) {
+        return jsonResponse({
+          data: {
+            orders: [],
+            summary: { inProcess: 0, ready: 0, pendingPayment: 0, scheduled: 0 },
+          },
+        });
+      }
+
       if (url.startsWith("/api/admin/pos/shift?")) return jsonResponse({ data: turnoAbierto });
       if (url === "/api/admin/pos/sale" && init?.method === "POST") {
         // El alta devuelve el pedido con el descuento aplicado (40 − 10 % de 35).
@@ -1233,7 +1749,7 @@ describe("PosClient", () => {
       return jsonResponse({ data: [] });
     });
 
-    render(<PosClient locations={locations} canDiscount />);
+    render(<PosClient locations={locations} timeZone={BUSINESS_TIME_ZONE} canDiscount />);
 
     await screen.findByText("Taco de birria");
     await user.click(screen.getByRole("button", { name: "Agregar Taco de birria a la venta" }));
@@ -1267,3 +1783,9 @@ describe("PosClient", () => {
     });
   });
 });
+
+
+
+
+
+

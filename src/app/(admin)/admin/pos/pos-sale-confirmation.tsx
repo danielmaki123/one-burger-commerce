@@ -33,6 +33,12 @@ export default function PosSaleConfirmation({
   return (
     <div
       role="status"
+      /**
+       * `TASK-ORDER-POS-OPERATIONAL-006` — el comprobante del cobro lleva su propio identificador: la
+       * pantalla ahora tiene **más de un** `role="status"` (la banda operacional informa que está leyendo o
+       * que falló), así que «el último `status` del DOM» dejó de ser una forma estable de encontrarlo.
+       */
+      data-testid="pos-sale-confirmation"
       className="rounded-stitch-lg border border-status-ready-border bg-status-ready-bg px-3 py-2 text-st-body text-status-ready-text"
     >
       Venta <span className="font-mono">{sale.orderNumber}</span> cobrada por{" "}

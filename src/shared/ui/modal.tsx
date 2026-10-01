@@ -6,12 +6,35 @@ interface ModalProps {
   onClose: () => void;
   /** Título visible, que además nombra el diálogo para el lector de pantalla. */
   title: string;
-  /** Ancho máximo. Por defecto, el de las hojas de edición del panel. */
-  size?: "sm" | "lg";
+  /**
+   * Ancho máximo. Por defecto, el de las hojas de edición del panel.
+   *
+   * `full` es el de las superficies **operativas** que necesitan el ancho de la pantalla (el panel
+   * operacional del POS y el modo «pedido existente», `TASK-ORDER-POS-OPERATIONAL-006`): casi todo el
+   * viewport, con su propio scroll interno. Existe acá y no como un diálogo declarado a mano porque el
+   * guardrail `manual-aria-role` lo prohíbe y porque el foco atrapado, el Escape y la semántica son
+   * exactamente lo que este primitivo ya resuelve.
+   */
+  size?: "sm" | "lg" | "full";
+  /** Identificador de test del `<dialog>`, para las superficies que el E2E tiene que localizar. */
+  testId?: string;
+  /**
+   * El nombre accesible del botón de cierre. Por defecto «Cerrar»; una superficie puede querer decir **qué**
+   * cierra («Cerrar panel», «Cerrar pedido») para que dos capas de la misma pantalla no compartan nombre.
+   */
+  closeLabel?: string;
   children: React.ReactNode;
 }
 
-const SIZES = { sm: "max-w-sm", lg: "max-w-lg" } as const;
+/**
+ * Los anchos, por tamaño. `full` sale del `max-w` del resto: usa el viewport menos un margen, que es lo que
+ * necesita un panel de operación con filas y columnas.
+ */
+const SIZES = {
+  sm: "max-w-sm",
+  lg: "max-w-lg",
+  full: "max-w-[min(72rem,calc(100vw-2rem))]",
+} as const;
 
 /**
  * C1-1 de `plan2uiux.md` — el `Modal` que faltaba.
@@ -31,7 +54,15 @@ const SIZES = { sm: "max-w-sm", lg: "max-w-lg" } as const;
  * Tailwind (`* { margin: 0 }`) lo borraba y el diálogo aparecía **pegado a la esquina** —visto en el POS,
  * que es donde se capturó—. Sin eso, el modo modal del navegador no alcanza.
  */
-export function Modal({ open, onClose, title, size = "lg", children }: ModalProps) {
+export function Modal({
+  open,
+  onClose,
+  title,
+  size = "lg",
+  testId,
+  closeLabel = "Cerrar",
+  children,
+}: ModalProps) {
   const ref = React.useRef<HTMLDialogElement>(null);
   const titleId = React.useId();
 
@@ -49,10 +80,19 @@ export function Modal({ open, onClose, title, size = "lg", children }: ModalProp
   return (
     <dialog
       ref={ref}
+      {...(testId ? { "data-testid": testId } : {})}
       aria-labelledby={titleId}
       onCancel={(event) => {
         event.preventDefault();
         onClose();
+      }}
+      /**
+       * El `cancel` del `<dialog>` **es** el camino del navegador para Escape, y es el que se conserva como
+       * autoridad. Además se escucha `keydown`: algunos entornos (jsdom en los tests de componente) no emiten
+       * `cancel`, y sin esto la misma pulsación se comportaría distinto en un test y en el navegador.
+       */
+      onKeyDown={(event) => {
+        if (event.key === "Escape") onClose();
       }}
       onClick={(event) => {
         // El click de fondo llega con `target === dialog` (el contenido es un hijo). Así se puede
@@ -68,7 +108,7 @@ export function Modal({ open, onClose, title, size = "lg", children }: ModalProp
         <button
           type="button"
           onClick={onClose}
-          aria-label="Cerrar"
+          aria-label={closeLabel}
           className="shrink-0 rounded-md p-1 text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
         >
           <svg

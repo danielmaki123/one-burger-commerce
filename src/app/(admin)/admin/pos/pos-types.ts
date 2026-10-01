@@ -22,6 +22,16 @@ export type PosLocationOption = {
 export type PosPaymentDraft = {
   id: string;
   method: PosPaymentMethod;
+  /**
+   * `TASK-ORDER-POS-OPERATIONAL-006` (brief §38) — **el medio configurado que el cajero eligió**.
+   *
+   * Es lo que viaja al servidor: el tipo canónico, la entidad y si pide referencia los resuelve el servidor
+   * contra el catálogo. El `method` de arriba es una derivación para el contrato del payload, no la verdad.
+   *
+   * Opcional por compatibilidad con una **venta en espera** guardada antes de este cambio: sin él la fila
+   * cae al comportamiento histórico, que el servidor sigue aceptando.
+   */
+  paymentMethodId?: string;
   currency: string;
   amount: string;
   /** Referencia del voucher o de la transferencia (Bloque 4.1). */

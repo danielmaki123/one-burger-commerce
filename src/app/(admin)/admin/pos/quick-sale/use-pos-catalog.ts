@@ -7,6 +7,7 @@ import type {
   PosCatalogProduct,
   PosCatalogView,
 } from "@/modules/pos/ports/pos-catalog";
+import type { PosPaymentMethodOption } from "@/modules/pos/domain/pos-payment-methods";
 import type { CurrencyFormat } from "@/shared/lib/format-currency";
 
 import type { PosLocationOption } from "../pos-types";
@@ -83,6 +84,12 @@ export function usePosCatalog({
   const [activeCategoryId, setActiveCategoryId] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [loadError, setLoadError] = React.useState<string | null>(null);
+  /**
+   * `TASK-ORDER-POS-OPERATIONAL-006` (brief §37) — los medios configurados que este local ofrece. Viajan con
+   * el catálogo porque es la misma respuesta del mismo local; sin ellos la pantalla no puede dibujar los
+   * botones de «¿Cómo paga?» y el POS no cobra.
+   */
+  const [paymentMethods, setPaymentMethods] = React.useState<PosPaymentMethodOption[]>([]);
   const [query, setQuery] = React.useState("");
   const [reloadKey, setReloadKey] = React.useState(0);
   // El local actual, para que un refresco que llega tarde no pise el catálogo del local nuevo.
@@ -107,7 +114,14 @@ export function usePosCatalog({
         // La respuesta es la **vista** del catálogo (el caso de uso del menú + la proyección del POS):
         // los productos ya traen el precio del local en `basePrice` y los agotados. Los chips de categoría
         // (`categories`) llegan en la misma respuesta.
-        const body = (await response.json()) as { data: PosCatalogView };
+        //
+        // `TASK-ORDER-POS-OPERATIONAL-006` — los **medios configurados** de este local llegan acá también:
+        // es la misma pantalla, el mismo local y el mismo momento, y el POS tiene que ofrecerlos sin una
+        // segunda consulta que pueda quedar desincronizada del catálogo (`A-85`).
+        const body = (await response.json()) as {
+          data: PosCatalogView;
+          paymentMethods?: PosPaymentMethodOption[];
+        };
         if (locationRef.current !== targetLocationId) return;
 
         // Solo se reemplaza si cambió: refrescar cada 3 s no tiene que re-renderizar la pantalla.
@@ -115,6 +129,7 @@ export function usePosCatalog({
           JSON.stringify(current) === JSON.stringify(body.data.products) ? current : body.data.products,
         );
         setCategories(body.data.categories);
+        setPaymentMethods(body.paymentMethods ?? []);
       } catch (error) {
         if (options.silent) return;
 
@@ -157,6 +172,8 @@ export function usePosCatalog({
     setActiveCategoryId,
     loading,
     loadError,
+    /** `A-85`/`TASK-ORDER-POS-OPERATIONAL-006` — los medios configurados del local, para el cobro. */
+    paymentMethods,
     refreshCatalog,
     /** Reintenta la carga del catálogo (el botón del estado de error). */
     retryCatalog: () => setReloadKey((key) => key + 1),

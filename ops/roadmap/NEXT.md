@@ -25,7 +25,8 @@ hallazgo nuevo de **overpayment en cobro partido**. Brief y reuse audit:
 
 **Ninguno hasta cerrar la orden 6.** La próxima es **`Cash ownership`** (orden **7**): Shift, apertura,
 movimientos, conteo, cierre, handover y conciliación con dueño propio, más la consolidación de los cuatro
-runners de transacción (`A-79`). **No se abre por iniciativa propia.**
+runners de transacción (`A-79`). Necesita **autorización explícita del owner**: que la próxima TASK no se
+abre sola es la regla, y la orden 6 se cierra entera antes.
 
 ## LATER
 
