@@ -8,13 +8,15 @@ en qué estado está el sistema en pocos minutos.
 [`.agents/CONTEXT.md`](../.agents/CONTEXT.md)). Este archivo se **actualiza seguido** y se mantiene
 corto: si crece como un diario, dejó de servir.
 
-> **Última actualización**: 2026-10-01, por **Pedidos runtime** (`TASK-ORDERS-RUNTIME-5B`, `high-risk-e2e`).
-> `/admin/orders` dejó de ser el tablero viejo de comandas: es el **read model administrativo canónico**
-> —listado paginado con los KPI del **filtro completo** y detalle con el **historial real con actor**—, la
-> puerta nominal `canViewOrders` dejó a **cocina afuera** (403 y `/admin/kitchen`) y al **cajero adentro**, y el
-> **recorte financiero se aplica en el servidor**, no escondiendo bloques en React. Se cerraron `A-09`, `A-10`,
-> `A-60`, `A-61`, `A-62`, `A-63`, el remanente de `A-64`, `A-66` y la autorización mínima de `A-70`.
-> **No hay TASK activa.** **Vigente: el Default E2E Delivery Contract**
+> **Última actualización**: 2026-10-01, por **POS operativo del cajero** (`TASK-ORDER-POS-OPERATIONAL-006`,
+> `high-risk-e2e`, **orden 6**, ACTIVE). `/admin/pos` pasa a ser el **workspace operativo** del cajero:
+> `PosOperationalOrdersProjection` sirve los cuatro KPI operacionales **desde el servidor** (En proceso ·
+> Listos · Por cobrar · Programados), un panel operacional reutilizable resuelve los cuatro modos, el pedido
+> existente se abre **inmutable** desde Órdenes (`/admin/pos?orderId=`) y se cobra en un **checkout completo
+> atómico y exacto** (varios medios, una sola liquidación), y la entrega `ready_for_pickup → picked_up` gana
+> la puerta nominal `canDeliverOrder`. Cierra `A-67`, revalida `A-85` y registra el hallazgo de overpayment
+> partido. Antes: **Pedidos runtime** (`TASK-ORDERS-RUNTIME-5B`, orden 5b, cerrada).
+> **Vigente: el Default E2E Delivery Contract**
 > ([`.agents/skills/delivery-e2e/SKILL.md`](../.agents/skills/delivery-e2e/SKILL.md)).
 
 ---

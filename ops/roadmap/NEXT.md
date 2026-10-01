@@ -7,23 +7,28 @@
 
 ## ACTIVE
 
-**Ninguno.** `Pedidos runtime` (orden **5b**) quedó **cerrada** el 2026-10-01: `/admin/orders` es el **read
-model administrativo canónico** —listado paginado con los KPI del filtro completo, detalle con el historial
-real con actor—, la puerta `canViewOrders` dejó a **cocina afuera** (403 y `/admin/kitchen`) y al **cajero
-adentro**, el recorte financiero se aplica **en el servidor** y el aterrizaje por rol es **uno solo**
-(`resolveAdminLanding`). Cerró `A-09`, `A-10`, `A-60`, `A-61`, `A-62`, `A-63`, el remanente de `A-64`, `A-66`
-y la autorización mínima de `A-70`; el detalle y la evidencia viven en [`../CURRENT.md`](../CURRENT.md).
-**Una sola TASK activa por vez**: la próxima no se abre sin **autorización explícita del owner**.
+**`Pedido existente → Cobrar en POS` — POS operativo del cajero** (orden **6** del roadmap maestro),
+`TASK-ORDER-POS-OPERATIONAL-006`, `high-risk-e2e`, abierta el **2026-10-01** con autorización del owner.
+`/admin/pos` pasa a ser el **workspace operativo** del cajero: banda de KPI operacionales servida por
+`PosOperationalOrdersProjection` (En proceso · Listos · Por cobrar · Programados), panel operacional
+reutilizable, modo **pedido existente** inmutable con cobro partido **atómico** y **exacto**, y entrega
+(`ready_for_pickup → picked_up`) con la puerta nominal `canDeliverOrder`. Cierra `A-67`, revalida y corrige
+la divergencia de **`A-85`** (el POS visible todavía no consumía `PaymentMethodConfig`) y registra el
+hallazgo nuevo de **overpayment en cobro partido**. Brief y reuse audit:
+[`../tasks/TASK-ORDER-POS-OPERATIONAL-006.md`](../tasks/TASK-ORDER-POS-OPERATIONAL-006.md).
+
+**Una sola TASK activa por vez.** `Pedidos runtime` (orden **5b**) quedó **cerrada** el 2026-10-01: el
+`OrderListProjection` administrativo, `canViewOrders`, el recorte financiero en servidor y
+`resolveAdminLanding` son **entradas** de esta TASK, no trabajo pendiente.
 
 ## NEXT
 
-**`Pedido existente → Cobrar en POS`** (orden **6** del roadmap maestro): Órdenes **localiza** el pedido y el
-POS lo **cobra**, componiendo el backend que ya existe (`POST /api/admin/orders/[id]/payment`) y cerrando
-`A-67`. **No se abre por iniciativa propia**: necesita su brief y su aprobación.
+**Ninguno hasta cerrar la orden 6.** La próxima es **`Cash ownership`** (orden **7**): Shift, apertura,
+movimientos, conteo, cierre, handover y conciliación con dueño propio, más la consolidación de los cuatro
+runners de transacción (`A-79`). **No se abre por iniciativa propia.**
 
 ## LATER
 
-Los órdenes **6 a 16** del [roadmap maestro](PRODUCT-UX-ROADMAP.md) § 2, en ese orden: «Pedido existente →
-Cobrar en POS», Cash ownership, Configuración separada, Cierres / Facturas, Promotions ownership,
-consolidación de la historia del pedido, saneamiento `FROZEN`/`LEGACY`, Table Service/Mesas, refinamiento de
-Catálogo y —al final— `Resumen`.
+Los órdenes **7 a 16** del [roadmap maestro](PRODUCT-UX-ROADMAP.md) § 2, en ese orden: Cash ownership,
+Configuración separada, Cierres / Facturas, Promotions ownership, consolidación de la historia del pedido,
+saneamiento `FROZEN`/`LEGACY`, Table Service/Mesas, refinamiento de Catálogo y —al final— `Resumen`.
