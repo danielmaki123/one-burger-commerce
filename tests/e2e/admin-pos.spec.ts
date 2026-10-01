@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import {
+  ADMIN_LANDING_PATTERN,
   ADMIN_PASSWORD,
   createAdminUserViaUi,
   loginAsOwner,
@@ -670,7 +671,7 @@ test.describe("punto de venta", () => {
     await page.locator('input[type="email"]').fill(email);
     await page.locator('input[type="password"]').fill(ADMIN_PASSWORD);
     await page.getByRole("button", { name: "Iniciar sesión" }).click();
-    await expect(page).toHaveURL(/\/admin(?:\/orders)?$/);
+    await expect(page).toHaveURL(ADMIN_LANDING_PATTERN);
 
     await page.goto("/admin/pos");
     await expect(page).toHaveURL(/\/admin\/orders$/);

@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import {
+  ADMIN_LANDING_PATTERN,
   ADMIN_PASSWORD,
   createAdminUserViaUi,
   loginAsOwner,
@@ -60,7 +61,7 @@ test.describe("admin operations", () => {
     await page.locator('input[type="password"]').fill(ADMIN_PASSWORD);
     await page.getByRole("button", { name: "Iniciar sesión" }).click();
 
-    await expect(page).toHaveURL(/\/admin(?:\/orders)?$/);
+    await expect(page).toHaveURL(ADMIN_LANDING_PATTERN);
     await page.goto("/admin/orders");
     await expect(page.getByRole("heading", { name: "Órdenes", exact: true })).toBeVisible();
 
@@ -192,7 +193,7 @@ test.describe("admin operations", () => {
     await page.locator('input[type="email"]').fill(email);
     await page.locator('input[type="password"]').fill(ADMIN_PASSWORD);
     await page.getByRole("button", { name: "Iniciar sesión" }).click();
-    await expect(page).toHaveURL(/\/admin(?:\/orders)?$/);
+    await expect(page).toHaveURL(ADMIN_LANDING_PATTERN);
 
     await page.goto("/admin/settings");
     await expect(page).toHaveURL(/\/admin\/orders$/);

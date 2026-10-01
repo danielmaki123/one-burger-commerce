@@ -8,15 +8,13 @@ en qué estado está el sistema en pocos minutos.
 [`.agents/CONTEXT.md`](../.agents/CONTEXT.md)). Este archivo se **actualiza seguido** y se mantiene
 corto: si crece como un diario, dejó de servir.
 
-> **Última actualización**: 2026-09-30, por el **cierre de aceptación de Money / Payments**
-> (`TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002`, `high-risk-e2e`, **mergeada** en `main` = `32ca238`,
-> [PR #99](https://github.com/danielmaki123/one-burger-commerce/pull/99)). Los criterios **3, 9 y 12** de
-> `TASK-MONEY-PAYMENTS-RUNTIME-001` no se cumplían en el runtime desplegado: el POS creaba `Payment` **sin
-> snapshot**, la devolución hacía lo mismo con `Refund`, cinco consumidores leían la autoridad monetaria
-> vieja, Personalización seguía editando moneda y tasa, y `Order` no congelaba su moneda. Los diez hallazgos
-> nuevos (**`A-81`…`A-90`**) quedaron **cerrados** con test, mutación y PostgreSQL real; la migración
-> `20260930120000` es **aditiva y sin backfill**. **Producción va un release atrás** y necesita el rebuild
-> (ver §1). **No hay TASK activa.** **Vigente: el Default E2E Delivery Contract**
+> **Última actualización**: 2026-10-01, por **Pedidos runtime** (`TASK-ORDERS-RUNTIME-5B`, `high-risk-e2e`).
+> `/admin/orders` dejó de ser el tablero viejo de comandas: es el **read model administrativo canónico**
+> —listado paginado con los KPI del **filtro completo** y detalle con el **historial real con actor**—, la
+> puerta nominal `canViewOrders` dejó a **cocina afuera** (403 y `/admin/kitchen`) y al **cajero adentro**, y el
+> **recorte financiero se aplica en el servidor**, no escondiendo bloques en React. Se cerraron `A-09`, `A-10`,
+> `A-60`, `A-61`, `A-62`, `A-63`, el remanente de `A-64`, `A-66` y la autorización mínima de `A-70`.
+> **No hay TASK activa.** **Vigente: el Default E2E Delivery Contract**
 > ([`.agents/skills/delivery-e2e/SKILL.md`](../.agents/skills/delivery-e2e/SKILL.md)).
 
 ---
@@ -26,10 +24,10 @@ corto: si crece como un diario, dejó de servir.
 | Qué | Estado |
 |---|---|
 | **Último deploy (producción)** | `build-20260929-040610`, rebuildeado por el **owner** el 2026-09-30 desde `main` = `32ca238` (PR #99, el **cierre de aceptación de Money / Payments**). Las **tres** superficies responden `/api/health` = `build-20260929-040610` y `/api/readiness` `ready` (db 2 ms); smokes **menú 7/7** y **hosts 6/6**. **Migración aplicada por el arranque**: `20260930120000` (aditiva, sin backfill, sin backup manual). **QA autenticada de producción hecha** (`admin-finance.spec.ts`, **7/7** con sesión real): los cuatro viewports sin scroll horizontal, las tres vistas, `mixed` fuera de los tipos y la sección **Disponibilidad** del medio |
-| **Commit desplegado en producción** | `32ca238` — **coincide con `main`**: el rebuild del owner fue posterior al merge de #99 |
+| **Commit desplegado en producción** | `32ca238` — **NO coincide con `main`**: `main` avanzó por merges **docs-only** (`d3932b4`, `4d33a0e`) después del rebuild del owner, así que producción va un release atrás en documentación, no en runtime. El `main` vigente se lee con `gh api repos/danielmaki123/one-burger-commerce/git/ref/heads/main` |
 | **QA de producción de este release** | Hecha **de lectura** sobre el build servido: health en los tres hosts, readiness, smokes de menú y hosts, la QA autenticada de Finanzas (**7/7**) y la medición del POS con sesión real (sin scroll horizontal a `375×812` y `1280×720`, scroll de página `0` y `Cobrar` visible). **No se afirma que una escritura peligrosa se probó en producción**: los snapshots y las guardas se prueban contra **PostgreSQL real** y en **E2E local**. El detalle de los specs que **no** son reejecutables contra producción está en `A-91`/`A-92` |
 | **`main` en GitHub** | **Avanza con cada merge, los `docs-only` incluidos**: el vigente se lee con `gh api repos/danielmaki123/one-burger-commerce/git/ref/heads/main` |
-| **Deriva `main` / producción** | **Ninguna verificada**: el owner rebuildeó después del merge de #99 y el build servido lo confirma |
+| **Deriva `main` / producción** | **Ninguna de runtime verificada**: el owner rebuildeó después del merge de #99 y el build servido lo confirma. `main` sí avanzó **por commits docs-only** (`d3932b4`, `4d33a0e`) que no cambian lo desplegado |
 | **Migración aplicada en este deploy** | La **nueva** del cierre de aceptación: `20260930120000_add_order_currency_and_cash_counted_currencies` (`Order.currencyCode`, `LocationCashConfig.countedCurrencyCodes`, `Shift.baseCurrencyCode` + `Shift.exchangeRatesByCurrency`), aditiva y **sin backfill**, aplicada por el arranque. Encima de las **nueve** del runtime (`20260929120000`…`20260929120600`). La ruta de upgrade sobre una base **con datos** está probada con `scripts/qa-upgrade-pre.sql` + `qa-upgrade-post.sql` + `qa-upgrade-write.ts` |
 | **Rollback target** | `build-20260928-235256` sobre `5a99185` — la aplicación se revierte revirtiendo el commit en `main` y volviendo a disparar `deployService`; **la base no se toca**: las columnas nuevas son nullable y la app vieja las ignora |
 | **Modelo de deploy** | Easypanel, proyecto `brunobot`, servicio `oneburguerweb`; build **desde GitHub `main`** con `forceRebuild`. Una sola llamada a `deployService` (la llamada puede cortar por timeout y el build sigue en segundo plano: comportamiento conocido) |
@@ -89,7 +87,6 @@ programado **no produjo ningún archivo** y **no hay retención declarada** → 
 firmado y **ninguno** tenía retiros ni devoluciones, así que la fórmula de AUD-005 **no altera ningún número
 histórico**; el detalle de `ShiftBankClose` es **no determinable** (producción no tiene bancos). **A-50** — **no
 identificable** desde la API: requiere leer la base. **No reparado.**
-
 
 **Integraciones**
 
@@ -161,16 +158,24 @@ idénticos) · `A-80` (cambiar la tasa o la moneda base no deja asiento de audit
 
 ## 4. Trabajo actual
 
-**`TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002` — cierre de aceptación de Money / Payments
-(`high-risk-e2e`): CERRADA, MERGEADA Y DESPLEGADA.**
+**`TASK-ORDERS-RUNTIME-5B` — Pedidos runtime (`high-risk-e2e`): CERRADA.**
+El orden **5b** del roadmap: `/admin/orders` dejó de ser el tablero viejo de comandas y pasó a ser el **read
+model administrativo canónico**. Entregó `OrderListProjection` (mínima, paginada, con `financialState` y los
+**cuatro KPI del filtro completo**), `OrderDetailProjection` (items, modificadores, notas, punto de retiro,
+**historial real con actor**, sellos por etapa, PIN y documentos **sólo con capacidad**), `canViewOrders`,
+`resolveAdminLanding`, los **siete filtros en la URL** y el cierre de la autorización mínima de `A-70`.
+Cerró `A-09`, `A-10`, `A-60`, `A-61`, `A-62`, `A-63`, el remanente de `A-64` y `A-66`. Detalle, evidencia,
+mutaciones y excepciones: [`tasks/TASK-ORDERS-RUNTIME-5B.md`](tasks/TASK-ORDERS-RUNTIME-5B.md).
+
+**`TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002` — cierre de aceptación de Money / Payments: CERRADA,
+MERGEADA Y DESPLEGADA.**
 Segunda pasada sobre los órdenes 4 y 5: los criterios **3, 9 y 12** de `TASK-MONEY-PAYMENTS-RUNTIME-001` no se
 cumplían en el runtime desplegado. **`A-81`…`A-90` cerrados con test**: el POS y la devolución ya no pueden
 escribir un cobro sin snapshot; el reintento del POS suma el equivalente **persistido**; `readProductionMoney`
 es la **lectura única** y Personalización dejó de editar moneda, símbolo, locale y tasa; el POS ofrece los
-medios y las monedas **configurados** (el servidor resuelve `kind`/`entityId` y rechaza un medio apagado o
-fuera de la sucursal); la disponibilidad por sucursal se **edita** en Finanzas; `Order.currencyCode` se congela
-en toda alta nueva; el cambio de base es una **operación de período cerrado** (`D-023`); y la Caja cuenta
-monedas **configurables** en vez de `usdEnabled`. Evidencia, mutaciones y excepciones:
+medios y las monedas **configurados**; `Order.currencyCode` se congela en toda alta nueva; el cambio de base es
+una **operación de período cerrado** (`D-023`); y la Caja cuenta monedas **configurables** en vez de
+`usdEnabled`. Evidencia, mutaciones y excepciones:
 [`tasks/TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002.md`](tasks/TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002.md).
 
 **`TASK-MONEY-PAYMENTS-RUNTIME-001` — Money / Payments runtime: CERRADA Y DESPLEGADA** (`build-20260928-235256`):
@@ -180,21 +185,19 @@ creó los módulos `money` y `payments`, las **nueve migraciones** aditivas, `/a
 
 **`TASK-MONEY-PAYMENTS-FOUNDATIONS-001` — fundaciones de Money / Payments (`docs-only`): CERRADA Y MERGEADA.**
 Sin deploy: no tocó runtime, Prisma, migraciones, APIs ni navegación. Entregó la **auditoría real** de los dos
-subsistemas contra el código, las matrices de **clasificación** y de **ownership**, los **contratos** (estado
-financiero canónico, snapshot de `Payment`, idempotencia y concurrencia, boundaries con Caja y Facturas), la
+subsistemas contra el código, las matrices de **clasificación** y de **ownership**, los **contratos**, la
 **estrategia legacy sin backfill**, las migraciones enumeradas y no creadas, los **archivos prohibidos de
 duplicar** y el **Design Freeze de Finanzas**:
 [`tasks/TASK-MONEY-PAYMENTS-FOUNDATIONS-001.md`](tasks/TASK-MONEY-PAYMENTS-FOUNDATIONS-001.md).
 
-**Lo que sigue es `Pedidos runtime`** (orden **5b**): el remanente de `A-60` y la clasificación de los read
-models, **sin** el cobro real ni el handoff al POS (eso es el orden **6**, que cierra `A-67`). La secuencia
-inmediata está en [`roadmap/NEXT.md`](roadmap/NEXT.md) y **`ACTIVE` no tiene ninguna TASK**. **`DS-001`** (ley
-visual v4) está **aprobado y desplegado**; **`IA-001`** (navegación del panel) también.
+**Lo que sigue es `Pedido existente → Cobrar en POS`** (orden **6**): cierra `A-67` **componiendo** el backend
+que ya existe, **sin** reconstruirlo. La secuencia inmediata está en [`roadmap/NEXT.md`](roadmap/NEXT.md) y
+**`ACTIVE` no tiene ninguna TASK**. **`DS-001`** (ley visual v4) está **aprobado y desplegado**; **`IA-001`**
+(navegación del panel) también.
 
 **Cocina runtime** (`TASK-ORDERS-KITCHEN-RUNTIME-002`, `high-risk-e2e`) está **desplegada** bajo
-`build-20260928-035241` sobre `72b22b5` (detalle en §1 y §5). **`A-60` no se declara cerrado**: el recorte
-financiero del detalle compartido es de **Pedidos runtime (5b)**.
-
+`build-20260928-035241` sobre `72b22b5` (detalle en §1 y §5). **`A-60` quedó cerrado** en `Pedidos runtime`
+(5b): el recorte financiero del detalle compartido se aplica en el servidor.
 **Los cierres anteriores ya no viven acá**: el detalle se movió a
 [`history/cierres-2026-09.md`](history/cierres-2026-09.md) cuando este archivo llegó a su techo de **250
 líneas**. Ahí están `AUD-003..008`, `A-54`/`A-55`/`A-58`/`A-59`, `SCREEN-POS-QUICK-SALE-001.x`,
@@ -211,12 +214,9 @@ duplican**.
 
 Lo que sigue, en orden:
 
-1. **`Pedidos runtime`** (orden **5b**): el recorte financiero del detalle compartido (remanente de `A-60`) y la
-   clasificación de los read models. **Sin** el cobro real ni el handoff al POS. Necesita brief y aprobación:
-   **no se inicia sola**.
-2. **Pedido existente → Cobrar en POS** (orden 6): **compone** el backend que ya existe
+1. **`Pedido existente → Cobrar en POS`** (orden **6**): **compone** el backend que ya existe
    (`POST /api/admin/orders/[id]/payment`); no lo reconstruye. Cierra `A-67`. Después **Cash ownership** (7).
-3. **Deuda de Pedidos/Cocina y de dinero (`A-60` a `A-80`)** y después `AUD-009`/`AUD-010`,
+2. **Deuda de Pedidos/Cocina y de dinero (`A-67` a `A-80`)** y después `AUD-009`/`AUD-010`,
    `AUD-012`/`AUD-013`/`AUD-014`. `A-57` (backup programado) es **infraestructura**: el owner decide y no
    bloquea el producto.
 

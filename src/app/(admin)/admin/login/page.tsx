@@ -8,7 +8,16 @@ import { BrandMark } from "@/shared/ui/brand-mark";
 import { useBusinessSettings } from "@/shared/lib/business-settings";
 import { Input } from "@/shared/ui/input";
 import { Button } from "@/shared/ui/button";
+import { resolveAdminLanding } from "@/modules/auth/domain/admin-landing";
+import { isAdminRole } from "@/modules/auth/domain/admin-role";
 
+/**
+ * `/admin/login` — la entrada del panel.
+ *
+ * `TASK-ORDERS-RUNTIME-5B` (`A-10`) — a dónde va cada rol lo decide **`resolveAdminLanding`**, la misma
+ * función que usan el redirect de `/admin` y el `homeHref` del shell. Antes acá se iba siempre a `/admin` y
+ * cocina terminaba aterrizando en Pedidos —una pantalla que la API le responde 403—.
+ */
 export default function AdminLoginPage() {
   const router = useRouter();
   const settings = useBusinessSettings();
@@ -26,10 +35,14 @@ export default function AdminLoginPage() {
           credentials: "same-origin",
         });
         if (res.ok) {
-          router.replace("/admin");
+          const payload = (await res.json().catch(() => null)) as {
+            data?: { user?: { role?: string } };
+          } | null;
+          const role = payload?.data?.user?.role;
+          router.replace(role && isAdminRole(role) ? resolveAdminLanding(role) : "/admin");
         }
       } catch {
-        // ignore
+        // Sin respuesta se deja el formulario: entrar es la salida.
       } finally {
         setCheckingSession(false);
       }
@@ -66,7 +79,14 @@ export default function AdminLoginPage() {
         return;
       }
 
-      window.location.assign("/admin");
+      // El destino de cada rol sale del resolutor único: el dueño al Resumen, cocina a Cocina y el mostrador
+      // a Pedidos (`A-10`).
+      const payload = (await sessionRes.json().catch(() => null)) as {
+        data?: { user?: { role?: string } };
+      } | null;
+      const role = payload?.data?.user?.role;
+
+      window.location.assign(role && isAdminRole(role) ? resolveAdminLanding(role) : "/admin");
     } catch {
       setError("Error de red. Verifica tu conexión.");
     } finally {

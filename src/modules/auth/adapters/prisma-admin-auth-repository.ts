@@ -86,6 +86,20 @@ export class PrismaAdminAuthRepository implements AdminAuthRepository {
     return users.map(mapUser);
   }
 
+  /**
+   * `TASK-ORDERS-RUNTIME-5B` — sólo `id` y `name`, sin el hash de la contraseña ni las asignaciones: el
+   * historial del pedido necesita firmar cada cambio, no la ficha completa del usuario.
+   */
+  async listUserNames(): Promise<Array<{ id: string; name: string }>> {
+    const prisma = getPrismaClient();
+    const users = await prisma.adminUser.findMany({
+      orderBy: { createdAt: "asc" },
+      select: { id: true, name: true },
+    });
+
+    return users;
+  }
+
   async updateUserRole(id: string, role: AdminRole) {
     const prisma = getPrismaClient();
     const user = await prisma.adminUser.update({

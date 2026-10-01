@@ -35,7 +35,7 @@ snapshot y debe revalidarse al iniciar la TASK que la use**: el código manda.
 | Formato de la plata | `money` | `domain/format-money.ts` detrás de `shared/lib/format-currency.ts` | público y panel | `REUSE` | Un formateador propio por pantalla |
 | **Lectura única en producción** | `money` | `adapters/production-money-context.ts` (`readProductionMoney`) | POS, cobro, devolución, Caja, Factura, Dashboard, alta pública | `REUSE` | Que un consumidor arme su propio contexto leyendo la configuración |
 | Snapshot del cobro | `payments` | `domain/payment-snapshot.ts` (`buildPaymentSnapshotFor`) | POS, cobro de pedido, devolución | `REUSE` | Escribir un `Payment`/`Refund` sin pasar por el constructor |
-| Estado financiero del pedido | `payments` | `domain/order-financial-status.ts` + `features/get-order-payment-status` | Factura, Dashboard, POS, cobro | `REUSE` | Contar filas o sumar montos crudos para decidir «pagado» |
+| Estado financiero del pedido | `payments` | `domain/order-financial-status.ts` + `features/get-order-payment-status` | Factura, Dashboard, POS, cobro, **Pedidos (listado y detalle)** | `REUSE` | Contar filas o sumar montos crudos para decidir «pagado» |
 | Saldo y no-demostrable | `payments` | misma proyección (`outstandingAmount`, `unresolvedAmount`) | Factura, Pedidos | `REUSE` | Convertir un cobro legacy con la tasa vigente |
 | Catálogo de medios de pago | `payments` | `PaymentMethodConfig` + `domain/payment-method-availability.ts` | POS, Finanzas | `REUSE` | `POS_PAYMENT_METHODS` como fuente de verdad del medio |
 | Disponibilidad por local | `payments` | `PaymentMethodLocation` + `isPaymentMethodAvailableAt` | POS, Finanzas | `REUSE` | Un segundo mapa de «dónde se ofrece» |
@@ -59,6 +59,10 @@ snapshot y debe revalidarse al iniciar la TASK que la use**: el código manda.
 | Configuración de conteo | `cash-config` | `CashDenomination` + `LocationCashConfig.countedCurrencyCodes` | `REUSE` | `NIO`/`USD` como estructura, o billetes inventados |
 | Configuración operativa del POS | `pos` | `domain/shift-close-policy.ts`, `cash-locations.ts` | `REUSE` | Repetir la política de cierre en la pantalla |
 | Visibilidad por rol/local | `orders` | `domain/order-visibility.ts` | `REUSE` | Filtrar en React y creer que es autorización |
+| Read model del listado admin | `orders` | `features/list-admin-orders/order-list-projection.ts` + `listAdminOrders` (pagina y agrega en el servidor) | `REUSE` | Traer el pedido entero para dibujar una fila, filtrar o paginar en React, o calcular los KPI sobre la página visible |
+| Read model del detalle admin | `orders` | `features/get-order/order-detail-projection.ts` (+ `getOrder`) | `REUSE` | Devolver los campos financieros a un rol sin `canViewOrderFinancials` «para que React los esconda», o derivar el saldo comparando `Order.total` contra los cobros |
+| Puerta de Pedidos | `auth` | `canViewOrders` (`admin-permissions`) | `REUSE` | Reutilizar `canManageOrderOperations` (mete a cocina y deja afuera al cajero) |
+| Aterrizaje por rol | `auth` | `domain/admin-landing.ts` (`resolveAdminLanding`) | `REUSE` | Un `if role === …` por superficie (login, shell, home): es la decisión escrita tres veces |
 
 ## 3. Facturas, catálogo y configuración
 

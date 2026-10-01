@@ -112,12 +112,23 @@ test.describe("Cocina: el tablero propio (TASK-ORDERS-KITCHEN-RUNTIME-002)", () 
     expect(body).not.toMatch(/PIN/i);
   });
 
-  test("el botón de modo cocina ya no vive en Órdenes", async ({ page }) => {
+  /**
+   * `TASK-ORDERS-RUNTIME-5B` — la frontera entre las dos superficies.
+   *
+   * Antes este caso abría Órdenes y comprobaba que ya no estuviera el *modo cocina*. Ahora Órdenes es el
+   * **read model administrativo** (`TASK-ORDERS-RUNTIME-5B`) y el tablero de comandas vive sólo acá: lo que se
+   * fija es que **Cocina no está en Órdenes** (ni el tablero ni la entrada) y que la entrada del panel lleva a
+   * su superficie propia.
+   */
+  test("el tablero de comandas vive sólo en Cocina", async ({ page }) => {
     await loginAsOwner(page);
-    await page.goto("/admin/orders");
-    await expect(page.getByTestId("comandas-topbar")).toBeVisible();
 
+    // El dueño sí entra a Órdenes (es el read model), y ahí no hay tablero ni «Modo cocina».
+    await page.goto("/admin/orders");
+    await expect(page.getByRole("heading", { name: "Pedidos" })).toBeVisible();
+    await expect(page.getByTestId("comandas-topbar")).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Modo cocina" })).toHaveCount(0);
+
     // Y la entrada del panel lleva a la superficie propia (por su `href`, no por el texto: la entrada de
     // Órdenes también dice «Cocina» en su descripción).
     const entry = page.locator('.admin-sidebar-shell a[href="/admin/kitchen"]').first();

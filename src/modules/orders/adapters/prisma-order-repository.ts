@@ -6,12 +6,15 @@ import type {
   CouponRecord,
   DeliveryFeeStatus,
   OrderRecord,
+  OrderSource,
   OrderStatus,
   OrderStatusHistoryRecord,
   OrderType,
   TableRecord,
 } from "@/modules/orders/domain/order.types";
 import type {
+  AdminOrderRow,
+  AdminOrderRowFilter,
   CouponInput,
   CreateOrderInput,
   ListOrdersFilter,
@@ -116,6 +119,11 @@ function mapOrder(order: any): OrderRecord {
     // TASK-ORDERS-KITCHEN-RUNTIME-002: el canal se lee tal como se guardó. `null` = no declarado
     // (pedidos anteriores a la columna) y **no** se completa con ninguna deducción.
     source: (order.source ?? null) as OrderRecord["source"],
+    /**
+     * `A-89`/`D-022` — la moneda congelada del pedido. Se lee tal como se guardó: `null` en un pedido
+     * anterior a la columna y **no** se completa con la moneda base de hoy.
+     */
+    currencyCode: order.currencyCode ?? null,
     customerName: order.customerName,
     customerWhatsapp: order.customerWhatsapp,
     customerEmail: order.customerEmail,
@@ -536,6 +544,136 @@ export class PrismaOrderRepository implements OrderRepository {
     });
 
     return orders.map((o: unknown) => mapQueueOrder(o));
+  }
+
+  /**
+   * `TASK-ORDERS-RUNTIME-5B` — **el read model mínimo del listado de Pedidos**.
+   *
+   * Qué cambia respecto de `listOrders` (que sigue existiendo para la cola de Cocina, que sí necesita los
+   * items para dibujar la comanda):
+   *
+   * 1. **`select` en vez de `include`**: sólo los campos que la proyección declara. `orderLookupTokenHash`,
+   *    los cuatro campos de GPS, los items, los modificadores y el historial **no se leen** — no es que se
+   *    filtren después, es que nunca salen de la base (`A-61`).
+   * 2. **Orden en la base**: `createdAt desc`, lo más reciente primero, como la referencia aprobada.
+   * 3. **Los cobros de cada pedido en la misma consulta**, y sólo las columnas que la proyección de
+   *    `payments` necesita para sumar. Sin `include: { payments: true }` completo: `Payment` trae más de
+   *    veinte columnas y acá se usan nueve.
+   *
+   * `stageChangedAt` se deriva del historial con la regla de dominio (`resolveStageChangedAt`), la misma
+   * que aplica el adaptador de memoria: la derivación no se copia. Para eso se traen **sólo** las dos
+   * columnas que esa función mira.
+   */
+  async listAdminOrderRows(filter: AdminOrderRowFilter): Promise<AdminOrderRow[]> {
+    const where: {
+      status?: { in: OrderStatus[] };
+      locationId?: { in: string[] };
+      createdAt?: { gte?: Date; lte?: Date };
+      pickupScheduled?: boolean;
+      OR?: Array<Record<string, unknown>>;
+    } = {};
+
+    if (filter.statuses?.length) {
+      where.status = { in: filter.statuses as OrderStatus[] };
+    }
+    if (filter.locationIds?.length) {
+      where.locationId = { in: filter.locationIds };
+    }
+    if (filter.dateFrom || filter.dateTo) {
+      where.createdAt = {};
+      if (filter.dateFrom) where.createdAt.gte = new Date(filter.dateFrom);
+      if (filter.dateTo) where.createdAt.lte = new Date(filter.dateTo);
+    }
+    if (filter.scheduledOnly) {
+      where.pickupScheduled = true;
+    }
+
+    // La misma regla que `domain/order-search.ts`, escrita en SQL igual que en `listOrders`.
+    const needle = normalizeOrderSearch(filter.search);
+    if (needle) {
+      const digits = searchDigits(needle);
+
+      where.OR = [
+        { orderNumber: { contains: needle, mode: "insensitive" } },
+        { customerName: { contains: needle, mode: "insensitive" } },
+        { customerWhatsapp: { contains: needle } },
+        ...(digits ? [{ pickupPin: { contains: digits } }] : []),
+      ];
+    }
+
+    const orders = await this.client.order.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        orderNumber: true,
+        source: true,
+        status: true,
+        type: true,
+        customerName: true,
+        customerWhatsapp: true,
+        locationId: true,
+        pickupTime: true,
+        pickupScheduled: true,
+        total: true,
+        currencyCode: true,
+        createdAt: true,
+        statusHistory: { select: { status: true, createdAt: true }, orderBy: { createdAt: "asc" } },
+        payments: {
+          select: {
+            id: true,
+            amount: true,
+            currency: true,
+            baseCurrencyCode: true,
+            exchangeRate: true,
+            baseAmount: true,
+            method: true,
+            createdAt: true,
+            voidedAt: true,
+          },
+          orderBy: { createdAt: "asc" },
+        },
+      },
+    });
+
+    return orders.map((order) => {
+      const createdAt = order.createdAt.toISOString();
+      const history = order.statusHistory.map((entry) => ({
+        id: "",
+        orderId: order.id,
+        status: entry.status as OrderStatusHistoryRecord["status"],
+        note: null,
+        createdAt: entry.createdAt.toISOString(),
+      }));
+
+      return {
+        id: order.id,
+        orderNumber: order.orderNumber,
+        source: (order.source ?? null) as OrderSource | null,
+        status: order.status as OrderStatus,
+        type: order.type as OrderRecord["type"],
+        customerName: order.customerName,
+        customerWhatsapp: order.customerWhatsapp,
+        locationId: order.locationId,
+        pickupTime: order.pickupTime ? order.pickupTime.toISOString() : null,
+        pickupScheduled: order.pickupScheduled,
+        total: decimalToNumber(order.total),
+        currencyCode: order.currencyCode ?? null,
+        stageChangedAt: resolveStageChangedAt(history, createdAt),
+        createdAt,
+        payments: order.payments.map((payment) => ({
+          id: payment.id,
+          amount: decimalToNumber(payment.amount),
+          currency: payment.currency,
+          baseCurrencyCode: payment.baseCurrencyCode ?? null,
+          exchangeRate: payment.exchangeRate ? decimalToNumber(payment.exchangeRate) : null,
+          baseAmount: payment.baseAmount ? decimalToNumber(payment.baseAmount) : null,
+          method: payment.method,
+          createdAt: payment.createdAt.toISOString(),
+          voidedAt: payment.voidedAt ? payment.voidedAt.toISOString() : null,
+        })),
+      };
+    });
   }
 
   async updateOrderStatus(

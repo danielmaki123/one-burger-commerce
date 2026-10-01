@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import {
+  ADMIN_LANDING_PATTERN,
   ADMIN_PASSWORD,
   E2E_ADMIN_EMAIL,
   addSeedProductToCart,
@@ -146,7 +147,7 @@ async function logIn(page: Page, email: string, password: string) {
   await page.locator('input[type="email"]').fill(email);
   await page.locator('input[type="password"]').fill(password);
   await page.getByRole("button", { name: "Iniciar sesión" }).click();
-  await expect(page).toHaveURL(/\/admin(?:\/orders)?$/);
+  await expect(page).toHaveURL(ADMIN_LANDING_PATTERN);
 }
 
 test.describe("alcance por sucursal del staff (A)", () => {

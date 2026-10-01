@@ -59,7 +59,8 @@ const LEGACY_RAW_CONTROLS: Record<string, number> = {
   "src/app/(public)/checkout/page.tsx": 3,
   "src/app/(public)/checkout/pickup-schedule-field.tsx": 3,
   "src/app/(public)/menu/page.tsx": 3,
-  "src/app/(admin)/admin/orders/[id]/page.tsx": 2,
+  // `TASK-ORDERS-RUNTIME-5B` borró la fila de `orders/[id]/page.tsx`: el detalle dejó de tener controles
+  // crudos (los `<select>` de estado pasaron a `OrderDetailActions` con los primitivos `Button`/`Input`).
   "src/app/(admin)/admin/_components/admin-edit-sheet.tsx": 1,
   "src/app/(public)/menu/[productId]/page.tsx": 2,
   "src/app/(admin)/admin/delivery-zones/[id]/page.tsx": 1,

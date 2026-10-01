@@ -5,7 +5,9 @@ import type {
   OrderPaymentMethod,
   OrderRecord,
   OrderSource,
+  OrderStatus,
   OrderStatusHistoryRecord,
+  OrderType,
   TableRecord,
 } from "@/modules/orders/domain/order.types";
 
@@ -122,6 +124,65 @@ export type ListOrdersFilter = {
   paymentMethod?: OrderPaymentMethod;
 };
 
+/**
+ * `TASK-ORDERS-RUNTIME-5B` — la fila **mínima** del listado administrativo de pedidos.
+ *
+ * Existe porque la bandeja de Pedidos no necesita el pedido para dibujar una comanda: necesita
+ * identificarlo, ubicarlo y decir cómo viene de plata. Traer `items` + `modifiers` + el historial completo
+ * de cada fila —lo que hacía `listOrders`— era la causa del `A-61` (proyección excesiva) y lo que impedía
+ * paginar.
+ *
+ * **Sin un solo campo de dinero crudo**: el estado financiero se resuelve en el caso de uso con la
+ * proyección de `payments`, que es su dueño. Acá sólo viaja el resumen de los cobros para que esa
+ * proyección pueda sumar (`baseAmount`, `unresolvedAmount`).
+ *
+ * No incluye `orderLookupTokenHash`, ni GPS, ni items, ni historial: si un campo no lo dibuja el listado ni
+ * decide su filtro, no sale de la base.
+ */
+export type AdminOrderRow = {
+  id: string;
+  orderNumber: string;
+  source: OrderSource | null;
+  status: OrderStatus;
+  type: OrderType;
+  customerName: string;
+  customerWhatsapp: string;
+  locationId: string;
+  pickupTime: string | null;
+  pickupScheduled: boolean;
+  total: number;
+  /** La moneda en la que está expresado `total`; `null` en los pedidos legacy (`D-022`). */
+  currencyCode: string | null;
+  /** El último cambio de estado, o la creación: lo que mide «hace cuánto en esta etapa». */
+  stageChangedAt: string;
+  createdAt: string;
+  /** Los cobros **de este pedido**, en la misma consulta. La regla de qué es «pagado» es de `payments`. */
+  payments: Array<{
+    id: string;
+    amount: number;
+    currency: string | null;
+    baseCurrencyCode: string | null;
+    exchangeRate: number | null;
+    baseAmount: number | null;
+    method: string;
+    createdAt: string;
+    voidedAt: string | null;
+  }>;
+};
+
+export type AdminOrderRowFilter = {
+  /** Varios estados a la vez (los grupos del control de estado). Vacío = todos. */
+  statuses?: string[];
+  /** Ventana de creación del pedido, ya resuelta en la zona del negocio. */
+  dateFrom?: string;
+  dateTo?: string;
+  /** Sucursales del alcance del usuario. Vacío o ausente = todas. */
+  locationIds?: string[];
+  search?: string;
+  /** Sólo los programados (`pickupScheduled`). Sin valor, no filtra. */
+  scheduledOnly?: boolean;
+};
+
 export interface OrderRepository {
   createOrder(
     input: CreateOrderInput & {
@@ -168,6 +229,18 @@ export interface OrderRepository {
   findOrderByIdempotencyKey(idempotencyKey: string): Promise<OrderRecord | null>;
 
   listOrders(filter: ListOrdersFilter): Promise<OrderQueueRecord[]>;
+
+  /**
+   * `TASK-ORDERS-RUNTIME-5B` — las filas **mínimas** del listado administrativo, ya filtradas.
+   *
+   * Devuelve el filtro **completo** (no una página): el caso de uso resuelve el estado financiero de cada
+   * fila con la proyección de `payments`, aplica el filtro por estado de pago —que no existe en `Order`—,
+   * calcula los KPI sobre ese conjunto y **después** recorta la página. Empujar ese filtro a SQL obligaría
+   * a reescribir la regla de `D-020` en SQL, que es exactamente lo que la ley de *Single Owner* prohíbe.
+   *
+   * El orden es por `createdAt` descendente (lo más reciente primero), igual que la referencia aprobada.
+   */
+  listAdminOrderRows(filter: AdminOrderRowFilter): Promise<AdminOrderRow[]>;
 
   updateOrderStatus(
     id: string,

@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 
-import { canManageOrderOperations } from "@/modules/auth/domain/admin-permissions";
+import { canViewOrderFinancials } from "@/modules/auth/domain/admin-permissions";
 import { requireAdminSession } from "@/modules/auth/features/require-admin-session/require-admin-session";
 import { PrismaBusinessSettingsRepository } from "@/modules/business-settings/adapters/prisma-business-settings-repository";
 import { loadBusinessSettings } from "@/modules/business-settings/features/get-public-business-settings/get-public-business-settings";
@@ -8,6 +8,7 @@ import { PrismaInvoiceRepository } from "@/modules/invoices/adapters/prisma-invo
 import { PrismaLocationRepository } from "@/modules/locations/adapters/prisma-location-repository";
 import { PrismaOrderRepository } from "@/modules/orders/adapters/prisma-order-repository";
 import { PrismaPaymentRepository } from "@/modules/orders/adapters/prisma-payment-repository";
+import { canAccessOrderLocation, resolveOrderLocationScope } from "@/modules/orders/domain/order-visibility";
 import { getOrder } from "@/modules/orders/features/get-order/get-order";
 
 import InvoicePrintButton from "./invoice-print-button";
@@ -16,19 +17,25 @@ import InvoicePrintSheet from "./invoice-print-sheet";
 export const dynamic = "force-dynamic";
 
 /**
- * Factura simple (2026-09-18) — la **hoja A4** del documento, lista para imprimir o guardar como PDF.
+ * Factura simple (2026-09-18) — la **hoja de 80 mm** del documento, lista para imprimir o guardar como PDF.
  *
  * Página propia y no una ventana emergente: el logo y las fuentes del sitio cargan bien, `Ctrl+P` sale
- * limpio y el enlace se puede guardar o compartir. Es HTML con CSS embebido y **sin dependencias nuevas**.
+ * limpio y el enlace se puede guardar o compartir. Su fondo es blanco aunque el panel sea oscuro: el
+ * `@media print` esconde el panel entero y deja sólo la hoja.
  *
- * Es un documento de impresión, así que el fondo es blanco aunque el panel sea oscuro: el `@media print`
- * esconde el panel entero (la barra lateral, la barra de acciones) y deja solo la hoja.
+ * `TASK-ORDERS-RUNTIME-5B` (`A-70`) — **la fuga lateral que cerraba este camino**. Antes la hoja se abría
+ * con `canManageOrderOperations`, que **incluye cocina**: el rol que no maneja plata imprimía el documento
+ * de un pedido con sólo escribir la URL, sin alcance por sucursal. Ahora la puerta es la capacidad
+ * **financiera** —el documento es plata— y el pedido tiene que estar en el alcance del usuario. Es un
+ * `redirect` y no un 403 porque es una página: el shell ya sabe explicar el permiso y una hoja de impresión
+ * no tiene dónde hacerlo.
+ *
+ * Las **dos** mitades —el permiso y el alcance— son las mismas que aplica `GET …/invoice` en la API: es el
+ * mismo dato y la misma regla, y tenerlas acá evita que la hoja sea un camino lateral para llegar a él.
  */
 export default async function InvoicePrintPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await requireAdminSession();
-  if (!canManageOrderOperations(session.user.role)) {
-    redirect("/admin/orders");
-  }
+  if (!canViewOrderFinancials(session.user.role)) redirect("/admin/orders");
 
   const { id } = await params;
   const order = await getOrder(id, {
@@ -37,11 +44,15 @@ export default async function InvoicePrintPage({ params }: { params: Promise<{ i
     paymentRepository: new PrismaPaymentRepository(),
   });
 
+  const scope = resolveOrderLocationScope({
+    role: session.user.role,
+    assignedLocationIds: session.user.locationIds,
+  });
+  if (!canAccessOrderLocation(scope, order.data.locationId)) redirect("/admin/orders");
+
   const invoice = await new PrismaInvoiceRepository().findByOrderId(id);
-  if (!invoice) {
-    // Sin factura emitida no hay documento que imprimir: se vuelve al pedido, que es donde se emite.
-    notFound();
-  }
+  // Sin factura emitida no hay documento que imprimir: se vuelve al pedido, que es donde se emite.
+  if (!invoice) notFound();
 
   const settings = await loadBusinessSettings({
     repository: new PrismaBusinessSettingsRepository(),

@@ -15,6 +15,17 @@ export interface AdminAuthRepository {
     locationIds?: string[];
   }): Promise<AdminUserRecord>;
   listUsers(): Promise<AdminUserRecord[]>;
+  /**
+   * `TASK-ORDERS-RUNTIME-5B` — **el nombre de cada usuario del panel**, por id.
+   *
+   * Lo necesita el historial del pedido: `OrderStatusHistory.changedByUserId` guarda el id —a propósito,
+   * sin FK, para que borrar una cuenta no borre lo que pasó—, y «quién aceptó esto» sólo se responde con
+   * el nombre. Una sola consulta para todos los cambios del pedido, no una por evento.
+   *
+   * Devuelve sólo los que existen: un usuario borrado no tiene nombre y el evento queda sin firma, que es
+   * la verdad.
+   */
+  listUserNames(): Promise<Array<{ id: string; name: string }>>;
   updateUserRole(
     id: string,
     role: AdminUserRecord["role"],

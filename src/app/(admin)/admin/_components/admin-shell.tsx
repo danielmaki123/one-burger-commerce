@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import * as React from "react";
 
+import { resolveAdminLanding } from "@/modules/auth/domain/admin-landing";
 import { canUsePOS } from "@/modules/auth/domain/admin-permissions";
 import { isAdminRole } from "@/modules/auth/domain/admin-role";
 import { BrandMark } from "@/shared/ui/brand-mark";
@@ -117,7 +118,12 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
     () => getAdminNavigation(role, { posAvailable }),
     [role, posAvailable],
   );
-  const homeHref = role === "owner" ? "/admin" : "/admin/orders";
+  /**
+   * `TASK-ORDERS-RUNTIME-5B` (`A-10`) — a dónde lleva el logo del panel lo decide **`resolveAdminLanding`**,
+   * la misma función que el redirect de `/admin` y el login. Antes era un `role === "owner"` a mano, y
+   * cocina caía en Pedidos.
+   */
+  const homeHref = role ? resolveAdminLanding(role) : "/admin";
 
   if (isLoginRoute) {
     // El panel es oscuro (sistema Stitch): `dark` acá activa los tokens del modo oscuro para todo

@@ -18,6 +18,18 @@ vi.mock("@/modules/auth/features/require-admin-session/require-admin-session", (
   requireAdminSession: requireAdminSessionMock,
 }));
 
+/**
+ * `TASK-ORDERS-RUNTIME-5B` (`A-70`) — el alcance por sucursal de la factura sale del **pedido**. El doble
+ * devuelve un pedido del local por defecto, que es el que tienen las sesiones de estos casos.
+ */
+const findOrderByIdMock = vi.fn();
+
+vi.mock("@/modules/orders/adapters/prisma-order-repository", () => ({
+  PrismaOrderRepository: vi.fn(function () {
+    return { findOrderById: findOrderByIdMock };
+  }),
+}));
+
 let invoices: InvoiceRecord[] = [];
 let payments = 1;
 /**
@@ -134,6 +146,7 @@ describe("admin order invoice route", () => {
     payments = 1;
     orderStatus = "picked_up";
     orderExists = true;
+    findOrderByIdMock.mockResolvedValue({ id: "ord_01", locationId: "loc_camino" });
     requireAdminSessionMock.mockResolvedValue({
       user: { id: "admin_1", role: "cashier", locationIds: [] },
     });
@@ -159,9 +172,24 @@ describe("admin order invoice route", () => {
       user: { id: "admin_2", role: "kitchen", locationIds: [] },
     });
 
-    const body = await (await callGet()).json();
+    // `TASK-ORDERS-RUNTIME-5B` (`A-70`): cocina ya no **lee** el documento. Antes el GET le devolvía la
+    // factura y sólo le apagaba el botón de emitir.
+    const response = await callGet();
 
-    expect(body.data.canEmit).toBe(false);
+    expect(response.status).toBe(403);
+  });
+
+  it("un rol acotado no lee la factura de otra sucursal (A-70)", async () => {
+    requireAdminSessionMock.mockResolvedValue({
+      user: { id: "admin_3", role: "manager", locationIds: ["loc_sur"] },
+    });
+    findOrderByIdMock.mockResolvedValue({ id: "ord_01", locationId: "loc_camino" });
+
+    const response = await callGet();
+    const body = await response.json();
+
+    expect(response.status).toBe(403);
+    expect(body.error.message).toContain("sucursal");
   });
 
   it("POST emite la factura con los datos fiscales del cliente y devuelve 201", async () => {
