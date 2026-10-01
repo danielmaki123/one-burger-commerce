@@ -17,6 +17,7 @@
     "tests/e2e/admin-orders.spec.ts::no hay pedidos en el rango para pedir su factura": 1,
     "tests/e2e/admin-orders.spec.ts::la fila no expone el id del pedido": 1,
     "tests/e2e/admin-orders.spec.ts::hacen falta credenciales del admin del entorno (E2E_ADMIN_EMAIL/E2E_ADMIN_PASSWORD)": 1,
+    "tests/e2e/orders-visual-check.spec.ts::no hay pedidos en los últimos 30 días: no hay detalle que medir": 1,
     "tests/e2e/admin-pos-idempotency.spec.ts::Order creation is disabled unless E2E_ALLOW_MUTATIONS=true.": 1,
     "tests/e2e/admin-pos.spec.ts::Creating a promo is disabled unless E2E_ALLOW_MUTATIONS=true.": 1,
     "tests/e2e/admin-pos.spec.ts::Order creation is disabled unless E2E_ALLOW_MUTATIONS=true.": 6,
