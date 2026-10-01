@@ -193,7 +193,7 @@ describe("usePosSale", () => {
           total: 36,
           change: 64,
           reused: false,
-          payments: [{ method: "cash", amount: 100, currency: "NIO" }],
+          payments: [{ paymentMethodId: "pm_cash", method: "cash", amount: 100, currency: "NIO" }],
         },
       });
     });
@@ -213,7 +213,7 @@ describe("usePosSale", () => {
     });
     await act(async () => {
       result.current.setPayments([
-        { id: "pay_1", method: "cash", currency: "NIO", amount: "100" },
+        { id: "pay_1", method: "cash", paymentMethodId: "pm_cash", currency: "NIO", amount: "100" },
       ]);
     });
     await act(async () => {
@@ -230,7 +230,9 @@ describe("usePosSale", () => {
       value: 5,
       reason: "Cliente de siempre",
     });
-    expect(body.payments).toEqual([{ method: "cash", currency: "NIO", amount: 100 }]);
+    expect(body.payments).toEqual([
+      { paymentMethodId: "pm_cash", method: "cash", currency: "NIO", amount: 100 },
+    ]);
     expect(body.customer).toEqual({
       name: "Cliente Mostrador",
       whatsapp: "88887777",
@@ -249,7 +251,7 @@ describe("usePosSale", () => {
           total: 40,
           change: 60,
           reused: false,
-          payments: [{ method: "cash", amount: 100, currency: "NIO" }],
+          payments: [{ paymentMethodId: "pm_cash", method: "cash", amount: 100, currency: "NIO" }],
         },
       }),
     );
@@ -257,7 +259,7 @@ describe("usePosSale", () => {
     const { result, onSaleCharged, renewAttemptKey } = setup();
 
     await act(async () => {
-      result.current.setPayments([{ id: "pay_1", method: "cash", currency: "NIO", amount: "100" }]);
+      result.current.setPayments([{ id: "pay_1", method: "cash", paymentMethodId: "pm_cash", currency: "NIO", amount: "100" }]);
     });
     await act(async () => {
       await result.current.charge();
@@ -271,7 +273,7 @@ describe("usePosSale", () => {
     expect(renewAttemptKey).toHaveBeenCalledTimes(1);
     expect(onSaleCharged).toHaveBeenCalledTimes(1);
     expect(result.current.payments).toEqual([
-      { id: "pay_1", method: "cash", currency: "NIO", amount: "" },
+      { id: "pay_1", method: "cash", paymentMethodId: "pm_cash", currency: "NIO", amount: "" },
     ]);
   });
 
@@ -283,7 +285,7 @@ describe("usePosSale", () => {
     const { result, renewAttemptKey } = setup();
 
     await act(async () => {
-      result.current.setPayments([{ id: "pay_1", method: "cash", currency: "NIO", amount: "100" }]);
+      result.current.setPayments([{ id: "pay_1", method: "cash", paymentMethodId: "pm_cash", currency: "NIO", amount: "100" }]);
     });
     await act(async () => {
       await result.current.charge();
@@ -300,7 +302,7 @@ describe("usePosSale", () => {
     const { result } = setup();
 
     await act(async () => {
-      result.current.setPayments([{ id: "pay_1", method: "cash", currency: "NIO", amount: "100" }]);
+      result.current.setPayments([{ id: "pay_1", method: "cash", paymentMethodId: "pm_cash", currency: "NIO", amount: "100" }]);
     });
     await act(async () => {
       await result.current.charge();
@@ -319,7 +321,7 @@ describe("usePosSale", () => {
           total: 40,
           change: 60,
           reused: false,
-          payments: [{ method: "cash", amount: 100, currency: "NIO" }],
+          payments: [{ paymentMethodId: "pm_cash", method: "cash", amount: 100, currency: "NIO" }],
         },
       }),
     );
@@ -327,7 +329,7 @@ describe("usePosSale", () => {
     const { result } = setup();
 
     await act(async () => {
-      result.current.setPayments([{ id: "pay_1", method: "cash", currency: "NIO", amount: "100" }]);
+      result.current.setPayments([{ id: "pay_1", method: "cash", paymentMethodId: "pm_cash", currency: "NIO", amount: "100" }]);
     });
     await act(async () => {
       await result.current.charge();
@@ -354,7 +356,7 @@ describe("usePosSale", () => {
 
     await act(async () => {
       result.current.setPayments([
-        { id: "pay_1", method: "cash", currency: "NIO", amount: "100", reference: "voucher" },
+        { id: "pay_1", method: "cash", paymentMethodId: "pm_cash", currency: "NIO", amount: "100", reference: "voucher" },
       ]);
     });
     await act(async () => {
@@ -363,10 +365,11 @@ describe("usePosSale", () => {
 
     expect(onHold).toHaveBeenCalledWith({
       lines: draftLines,
-      payments: [{ method: "cash", currency: "NIO", amount: "100", reference: "voucher" }],
+      payments: [{ paymentMethodId: "pm_cash", method: "cash", currency: "NIO", amount: "100", reference: "voucher" }],
       attemptKey: "11111111-2222-4333-8444-555555555555",
     });
     expect(renewAttemptKey).toHaveBeenCalledTimes(1);
     expect(result.current.payments[0]!.amount).toBe("");
   });
 });
+

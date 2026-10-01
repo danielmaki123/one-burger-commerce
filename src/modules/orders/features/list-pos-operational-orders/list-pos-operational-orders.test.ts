@@ -273,8 +273,12 @@ describe("listPosOperationalOrders · resumen del servidor", () => {
 describe("listPosOperationalOrders · orden del feed", () => {
   it("los programados van primero y por hora prometida, no por creación", async () => {
     const repository = new FakeOrderRepository();
+    /**
+     * `stageChangedAt` está elegido para que el orden por etapa dé **`[tarde, temprano, ahora]`**, distinto
+     * del orden por hora prometida **`[temprano, tarde, ahora]`**: sin esa diferencia el caso pasaría igual
+     * con la implementación rota y no tendría dientes (se midió con el mutation check, que daba verde).
+     */
     repository.rows = [
-      // Creado primero (más viejo) pero prometido para más tarde.
       row({
         id: "tarde",
         orderNumber: "P-TARDE",
@@ -282,9 +286,9 @@ describe("listPosOperationalOrders · orden del feed", () => {
         pickupScheduled: true,
         pickupTime: "2026-10-02T18:00:00.000Z",
         createdAt: "2026-10-01T08:00:00.000Z",
-        stageChangedAt: "2026-10-01T08:00:00.000Z",
+        // La etapa **más reciente** de los tres: por etapa ganaría, por hora prometida pierde.
+        stageChangedAt: "2026-10-01T22:00:00.000Z",
       }),
-      // Creado último pero prometido para más temprano: tiene que ir antes.
       row({
         id: "temprano",
         orderNumber: "P-TEMPRANO",
@@ -294,7 +298,7 @@ describe("listPosOperationalOrders · orden del feed", () => {
         createdAt: "2026-10-01T20:00:00.000Z",
         stageChangedAt: "2026-10-01T20:00:00.000Z",
       }),
-      // Sin programar: va después de los dos programados.
+      // Sin programar: va después de los dos programados, aunque su etapa no sea la más vieja.
       row({
         id: "ahora",
         orderNumber: "P-AHORA",

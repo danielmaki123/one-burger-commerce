@@ -418,6 +418,12 @@ export function usePosSale({
       lines: getLines(),
       payments: payments.map((payment) => ({
         method: payment.method,
+        /**
+         * `TASK-ORDER-POS-OPERATIONAL-006` (brief §38) — el medio configurado viaja **con** la espera: al
+         * retomarla, el cobro tiene que poder nombrar el mismo medio y no depender de que la pantalla lo
+         * reconstruya. Es opcional para que una espera vieja (sin el campo) siga siendo legible.
+         */
+        ...(payment.paymentMethodId ? { paymentMethodId: payment.paymentMethodId } : {}),
         currency: payment.currency,
         amount: payment.amount,
         ...(payment.reference ? { reference: payment.reference } : {}),
