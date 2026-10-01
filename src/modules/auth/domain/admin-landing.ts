@@ -20,6 +20,8 @@ export const ADMIN_LANDING = {
   /** El overview del negocio: sólo el dueño (`canViewAdminOverview`). */
   dashboard: "/admin",
   orders: "/admin/orders",
+  /** El workspace operativo del cajero (`canUsePOS`). */
+  pos: "/admin/pos",
   kitchen: "/admin/kitchen",
 } as const;
 
@@ -30,12 +32,19 @@ export const ADMIN_LANDING = {
  * |---|---|---|
  * | `owner` | `/admin` | el Resumen es su overview transversal |
  * | `manager` | `/admin/orders` | su trabajo del día empieza localizando y revisando pedidos |
- * | `cashier` | `/admin/orders` | tiene que **encontrar** el pedido que va a cobrar antes de abrirlo en el POS (`D-014`) |
+ * | `cashier` | `/admin/pos` | su **workspace operativo** es el mostrador (orden 6): ve qué está en proceso, qué está listo, qué falta cobrar y qué viene programado, y desde ahí abre el pedido, lo cobra y lo entrega |
  * | `kitchen` | `/admin/kitchen` | su superficie es Cocina; Pedidos no es suya y le responde 403 |
+ *
+ * `TASK-ORDER-POS-OPERATIONAL-006` (brief §25) cambió el destino del `cashier` de `/admin/orders` a
+ * `/admin/pos`. El anterior era correcto mientras el POS no podía cobrar un pedido que ya existía —el
+ * cajero tenía que **encontrarlo** en Pedidos antes de poder hacer algo—; con la orden 6 el POS resuelve su
+ * día entero, así que Pedidos deja de ser su primera pantalla. **No deja de ser suya**: `canViewOrders`
+ * sigue dejándolo entrar a localizar, revisar e investigar.
  */
 export function resolveAdminLanding(role: AdminRole): string {
   if (role === ADMIN_ROLES.owner) return ADMIN_LANDING.dashboard;
   if (role === ADMIN_ROLES.kitchen) return ADMIN_LANDING.kitchen;
+  if (role === ADMIN_ROLES.cashier) return ADMIN_LANDING.pos;
 
   return ADMIN_LANDING.orders;
 }

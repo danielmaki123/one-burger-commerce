@@ -173,6 +173,14 @@ export type AdminOrderRow = {
 export type AdminOrderRowFilter = {
   /** Varios estados a la vez (los grupos del control de estado). Vacío = todos. */
   statuses?: string[];
+  /**
+   * `TASK-ORDER-POS-OPERATIONAL-006` — estados que **no** entran, aunque estén dentro de `statuses`.
+   *
+   * Lo necesita el feed operacional del POS: considera los estados **vivos** (`POS_OPERATIONAL_FEED_STATUSES`)
+   * y descarta lo terminal y lo cancelado. Un feed que trajera historia obligaría al cliente a filtrarla, y
+   * el servidor es el dueño de la pregunta («¿qué necesita hacer el cajero ahora?»).
+   */
+  excludeStatuses?: string[];
   /** Ventana de creación del pedido, ya resuelta en la zona del negocio. */
   dateFrom?: string;
   dateTo?: string;

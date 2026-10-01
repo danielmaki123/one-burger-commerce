@@ -566,7 +566,7 @@ export class PrismaOrderRepository implements OrderRepository {
    */
   async listAdminOrderRows(filter: AdminOrderRowFilter): Promise<AdminOrderRow[]> {
     const where: {
-      status?: { in: OrderStatus[] };
+      status?: { in?: OrderStatus[]; notIn?: OrderStatus[] };
       locationId?: { in: string[] };
       createdAt?: { gte?: Date; lte?: Date };
       pickupScheduled?: boolean;
@@ -575,6 +575,17 @@ export class PrismaOrderRepository implements OrderRepository {
 
     if (filter.statuses?.length) {
       where.status = { in: filter.statuses as OrderStatus[] };
+    }
+    /**
+     * `TASK-ORDER-POS-OPERATIONAL-006` — el feed operacional del POS descarta lo terminal y lo cancelado.
+     * Va como `notIn` sobre la misma columna que el `in` de `statuses`: los dos juntos son la intersección
+     * que el llamador pidió, y el `and` implícito de Prisma con dos claves iguales se evita escribiendo
+     * `notIn` dentro del mismo objeto de `status`.
+     */
+    if (filter.excludeStatuses?.length) {
+      where.status = where.status
+        ? { in: where.status.in, notIn: filter.excludeStatuses as OrderStatus[] }
+        : { notIn: filter.excludeStatuses as OrderStatus[] };
     }
     if (filter.locationIds?.length) {
       where.locationId = { in: filter.locationIds };
