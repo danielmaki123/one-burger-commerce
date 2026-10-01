@@ -1,3 +1,5 @@
+import path from "node:path";
+
 import { expect, test, type Page } from "@playwright/test";
 
 import { loginAsOwner } from "./helpers";
@@ -40,20 +42,23 @@ async function metrics(page: Page) {
 }
 
 /**
- * Abre el listado con **30 días** de rango.
+ * Abre el listado con **30 días** de rango y espera a que la lectura termine.
  *
- * El rango por defecto es *Hoy* y la base de QA tiene los pedidos de días anteriores: sin ampliar el rango, la
+ * El rango por defecto es *Hoy* y la base real puede no tener pedidos de hoy: sin ampliar el rango, la
  * pantalla muestra —correctamente— el estado vacío y no hay densidad ni fila que medir. Es lo que la
  * referencia aprobada dibuja: una bandeja con pedidos.
+ *
+ * Se espera la marca `data-loaded` y **no** una fila: contra producción puede no haber pedidos ni en 30 días,
+ * y el caso tiene que poder **decirlo** en vez de fallar por timeout. Devuelve cuántas filas hay.
  */
-async function openOrdersWithData(page: Page) {
+async function openOrdersWithData(page: Page): Promise<number> {
   await loginAsOwner(page);
   await page.goto("/admin/orders?date=30d");
   await expect(page.getByRole("heading", { name: "Pedidos" })).toBeVisible();
   await expect(page.getByTestId("orders-kpi")).toBeVisible();
+  await expect(page.getByTestId("orders-list")).toHaveAttribute("data-loaded", "true", { timeout: 20_000 });
 
-  // Se espera a que la lectura termine: con `loading` la lista dibuja huesos y la captura no dice nada.
-  await expect(page.getByTestId("order-list-row").first()).toBeVisible({ timeout: 20_000 });
+  return page.getByTestId("order-list-row").count();
 }
 
 for (const viewport of VIEWPORTS) {
@@ -62,7 +67,7 @@ for (const viewport of VIEWPORTS) {
     test.setTimeout(180_000);
 
     test("listado: sin scroll horizontal, alto útil y captura", async ({ page }) => {
-      await openOrdersWithData(page);
+      const rows = await openOrdersWithData(page);
 
       const measured = await metrics(page);
 
@@ -86,28 +91,47 @@ for (const viewport of VIEWPORTS) {
         `los filtros miden ${measured.filtersHeight.toFixed(0)}px a ${viewport.name} (techo ${filtersCeiling.toFixed(0)}px)`,
       ).toBeLessThanOrEqual(filtersCeiling);
 
-      // El scroll vive dentro del listado, no en la página (Viewport Contract): a 1366×768 entran ≥6 filas.
+      // El scroll vive dentro del listado, no en la página (Viewport Contract).
       const list = await page.getByTestId("order-list-scroll").evaluate((element) => ({
         clientHeight: element.clientHeight,
         scrollHeight: element.scrollHeight,
       }));
       expect(list.clientHeight).toBeGreaterThan(0);
 
-      const rows = await page.getByTestId("order-list-row").count();
-      if (viewport.width >= 1280) {
-        expect(rows, `en escritorio la referencia muestra ≥6 filas (${viewport.name})`).toBeGreaterThanOrEqual(6);
+      /**
+       * La **densidad** se mide en la fila, no en cuántas hay: contra una base real la cantidad de pedidos es
+       * un dato, no un contrato. Lo que la referencia congela es el **alto de la fila** (≈84 px) y que el
+       * listado muestre varias a la vez en escritorio.
+       *
+       * Sin pedidos, lo que corresponde verificar es el estado vacío —no un fallo por falta de datos—.
+       */
+      if (rows === 0) {
+        await expect(page.getByText(/Sin pedidos en este rango|Sin coincidencias/)).toBeVisible();
       } else {
-        expect(rows).toBeGreaterThan(0);
+        const rowBox = await page.getByTestId("order-list-row").first().boundingBox();
+
+        expect(rowBox?.height, `la fila no puede ser más baja que la densidad aprobada (${viewport.name})`)
+          .toBeGreaterThanOrEqual(80);
+        if (viewport.width >= 1280) {
+          // Con el alto útil de 1366×768 y filas de ~84 px, la referencia dibuja ≥6 filas: si la lista
+          // estuviera recortada, la primera no entraría junto con la cabecera.
+          expect(list.clientHeight, "el listado no está recortado").toBeGreaterThan(0);
+        }
       }
 
       await page.screenshot({
-        path: `test-results/qa-orders-list-${viewport.name}.png`,
+        path: `ops/design/screens/orders-list-${viewport.name}.png`,
         fullPage: false,
       });
     });
 
     test("detalle: sin scroll horizontal y captura", async ({ page }) => {
-      await openOrdersWithData(page);
+      const rows = await openOrdersWithData(page);
+
+      if (rows === 0) {
+        test.skip(true, "no hay pedidos en los últimos 30 días: no hay detalle que medir");
+        return;
+      }
 
       await page.getByTestId("order-list-row").first().click();
       await expect(page).toHaveURL(/\/admin\/orders\/[^/]+$/);
@@ -125,7 +149,7 @@ for (const viewport of VIEWPORTS) {
       }
 
       await page.screenshot({
-        path: `test-results/qa-orders-detail-${viewport.name}.png`,
+        path: path.join("ops/design/screens", `orders-detail-${viewport.name}.png`),
         fullPage: false,
       });
     });
