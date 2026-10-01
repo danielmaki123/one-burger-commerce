@@ -7,22 +7,19 @@
 
 ## ACTIVE
 
-**Ninguno.** Money / Payments quedó cerrado en **dos pasadas**: el **runtime** (órdenes **4 y 5**, `money` +
-`payments`, las nueve migraciones, `/admin/finance` y la factura con **`paid` estricto**, `D-021`) y su
-**cierre de aceptación**, que puso el snapshot en el POS y en la devolución, dejó **una sola** autoridad
-monetaria, hizo que el POS ofrezca los medios y las monedas **configurados**, congeló la moneda del pedido
-(`D-022`), convirtió el cambio de base en una operación de **período cerrado** (`D-023`) y sacó `usdEnabled` de
-la estructura de Caja. `A-68`…`A-75` y `A-81`…`A-90` están **cerrados** y el release está **desplegado**
-(`build-20260929-040610` sobre `main` = `32ca238`). Estado y evidencia: [`../CURRENT.md`](../CURRENT.md).
+**Ninguno.** `Pedidos runtime` (orden **5b**) quedó **cerrada** el 2026-10-01: `/admin/orders` es el **read
+model administrativo canónico** —listado paginado con los KPI del filtro completo, detalle con el historial
+real con actor—, la puerta `canViewOrders` dejó a **cocina afuera** (403 y `/admin/kitchen`) y al **cajero
+adentro**, el recorte financiero se aplica **en el servidor** y el aterrizaje por rol es **uno solo**
+(`resolveAdminLanding`). Cerró `A-09`, `A-10`, `A-60`, `A-61`, `A-62`, `A-63`, el remanente de `A-64`, `A-66`
+y la autorización mínima de `A-70`; el detalle y la evidencia viven en [`../CURRENT.md`](../CURRENT.md).
 **Una sola TASK activa por vez**: la próxima no se abre sin **autorización explícita del owner**.
 
 ## NEXT
 
-**`Pedidos runtime`** (orden **5b** del roadmap maestro): el recorte financiero del detalle compartido
-(el remanente de `A-60`) y la clasificación de los read models. **No incluye todavía el cobro real de un
-pedido existente ni su handoff al POS**: eso es el orden **6** («Pedido existente → Cobrar en POS»), que
-**compone** el backend que ya existe (`POST /api/admin/orders/[id]/payment`) y cierra `A-67`. Necesita su
-brief y su aprobación. **No se abre por iniciativa propia.**
+**`Pedido existente → Cobrar en POS`** (orden **6** del roadmap maestro): Órdenes **localiza** el pedido y el
+POS lo **cobra**, componiendo el backend que ya existe (`POST /api/admin/orders/[id]/payment`) y cerrando
+`A-67`. **No se abre por iniciativa propia**: necesita su brief y su aprobación.
 
 ## LATER
 

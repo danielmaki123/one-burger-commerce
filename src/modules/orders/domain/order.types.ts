@@ -125,6 +125,14 @@ export type OrderRecord = {
    * valor, no dibuja etiqueta.
    */
   source?: OrderSource | null;
+  /**
+   * `TASK-MONEY-PAYMENTS-INTEGRATION-CLOSEOUT-002` (`A-89`, `D-022`) — **la moneda en la que están
+   * expresados los montos de este pedido**, congelada al crearlo.
+   *
+   * Sin esto, `total = 365` no dice si son córdobas o dólares. `null` en los pedidos anteriores a la
+   * columna: **no** se les inventa una con la configuración de hoy (ley 7), y quedan como legacy.
+   */
+  currencyCode?: string | null;
   customerName: string;
   customerWhatsapp: string;
   /** TASK-303b — correo del cliente, si lo dejó (la venta de mostrador lo pide opcional). */

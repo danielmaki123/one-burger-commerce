@@ -45,6 +45,29 @@ export function canManageOrderOperations(role: AdminRole) {
 }
 
 /**
+ * `TASK-ORDERS-RUNTIME-5B` (`D-014`) — **entrar a Pedidos**: localizar un pedido y revisarlo.
+ *
+ * La contradicción que cierra: la entrada de navegación se le ofrecía a los cuatro roles y la API le
+ * respondía **403** al `cashier`, que es justamente quien tiene que localizar el pedido que va a cobrar
+ * (`A-66`). La puerta gruesa no servía para esto: `canManageOrderOperations` mete a `kitchen` —que por
+ * `D-014` y por la regla del repo («cocina no maneja plata») no entra a Pedidos— y deja afuera al
+ * `cashier`.
+ *
+ * Es una capacidad **nominal** propia, como `canOperateKitchen`: Pedidos localiza y revisa, Cocina opera
+ * la comanda, el POS cobra. Hoy los tres conjuntos coinciden en parte por casualidad del producto, no por
+ * diseño, y tenerlas separadas permite que el día que dejen de coincidir cada una ya exista.
+ *
+ * `kitchen` opera exclusivamente `/admin/kitchen`.
+ */
+export function canViewOrders(role: AdminRole) {
+  return (
+    role === ADMIN_ROLES.owner ||
+    role === ADMIN_ROLES.manager ||
+    role === ADMIN_ROLES.cashier
+  );
+}
+
+/**
  * `TASK-ORDERS-KITCHEN-RUNTIME-002` — **operar Cocina**: aceptar la comanda, iniciar la preparación y
  * marcarla lista.
  *

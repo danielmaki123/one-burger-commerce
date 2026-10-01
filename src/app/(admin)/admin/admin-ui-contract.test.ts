@@ -175,7 +175,11 @@ describe("admin ui contracts", () => {
 
     expect(pageSource).toContain("requireAdminSession");
     expect(pageSource).toContain("canViewAdminOverview");
-    expect(pageSource).toContain('redirect("/admin/orders")');
+    /**
+     * `TASK-ORDERS-RUNTIME-5B` (`A-10`) — el destino de un rol que no ve el Resumen ya no es un literal a
+     * `/admin/orders`: lo decide `resolveAdminLanding`, que manda a cocina a **su** superficie.
+     */
+    expect(pageSource).toContain("resolveAdminLanding");
     expect(existsSync(overviewPath)).toBe(true);
     if (!existsSync(overviewPath)) return;
 
@@ -423,8 +427,9 @@ describe("admin ui contracts", () => {
     const componentSource = readAdminFile("_components/admin-operational-ui.tsx");
     const overviewSource = readAdminFile("_components/admin-overview-client.tsx");
     const productsSource = readAdminFile("menu/products/page.tsx");
-    const ordersSource = readAdminFile("orders/page.tsx");
-    const ordersToolbarSource = readAdminFile("orders/orders-toolbar.tsx");
+    const ordersPageSource = readAdminFile("orders/page.tsx");
+    const ordersListSource = readAdminFile("orders/_components/order-list-client.tsx");
+    const orderRowSource = readAdminFile("orders/_components/order-list-row.tsx");
 
     expect(componentSource).toContain("AdminPageHeader");
     expect(componentSource).toContain("AdminMetricStrip");
@@ -433,12 +438,16 @@ describe("admin ui contracts", () => {
     expect(componentSource).toContain("AdminStatusPill");
     expect(overviewSource).toContain("AdminPageHeader");
     expect(productsSource).toContain("AdminCompactToolbar");
-    expect(ordersSource).toContain("ordersStatusCounts");
-    // Órdenes tiene su propia barra de trabajo (layout unificado, 2026-09-18): la misma para el
-    // tablero y la lista, así que el shell no cambia de forma al cambiar de tab.
-    expect(ordersSource).toContain("<OrdersToolbar");
-    expect(ordersSource).toContain("AdminPageHeader");
-    expect(ordersToolbarSource).toContain("ORDERS_STATUS_TABS");
+    /**
+     * `TASK-ORDERS-RUNTIME-5B` — la bandeja dejó de ser un tablero de comandas: el listado vive en
+     * `orders/_components/order-list-client.tsx` y usa los primitivos del sistema para el vacío
+     * (`AdminEmptyState`) y para el chip de estado de cada fila (`AdminStatusSolid`). La página es la puerta.
+     */
+    expect(ordersPageSource).toContain("canViewOrders");
+    expect(ordersListSource).toContain("AdminEmptyState");
+    expect(orderRowSource).toContain("AdminStatusSolid");
+    expect(orderRowSource).toContain("getAdminOrderSolidStatus");
+    expect(orderRowSource).not.toContain("animate-pulse");
   });
 
   it("el panel de Locales usa el sistema: sin alias viejos ni valores arbitrarios", () => {
@@ -593,15 +602,20 @@ describe("admin ui contracts", () => {
     expect(nextConfigSource).toContain('"no-store"');
   });
 
+  /**
+   * `TASK-ORDERS-RUNTIME-5B` — los filtros de Pedidos siguen envolviéndose en varias filas a 375 px en vez de
+   * scrollear a lo ancho. Antes vivían en la barra de trabajo; ahora en la barra de filtros del listado.
+   */
   it("keeps order filters readable on narrow screens", () => {
-    // Los filtros de la bandeja viven en la barra de trabajo (layout unificado, 2026-09-18): es ahí
-    // donde se envuelven en varias filas a 375 px en vez de scrollear a lo ancho.
-    const source = readAdminFile("orders/orders-toolbar.tsx");
+    const source = readAdminFile("orders/_components/order-list-filters.tsx");
 
     expect(source).not.toContain("overflow-x-auto");
-    expect(source).toContain("flex flex-wrap");
+    expect(source).toContain("grid-cols-2");
     expect(source).toContain("min-h-11");
-    expect(source).toContain("whitespace-nowrap");
+    expect(source).toContain("sm:grid-cols-3");
+    // El buscador ocupa el ancho completo en celular y la barra no se desborda.
+    expect(source).toContain("col-span-2");
+    expect(source).toContain('aria-label="Filtros de pedidos"');
   });
 
   it("keeps table capacity in one compact operational summary", () => {
@@ -716,18 +730,25 @@ describe("admin ui contracts", () => {
     expect(source).not.toContain('aria-label="Filtros de reservas"');
   });
 
-  it("keeps order operations in one toolbar for the whole shell", () => {
-    const source = readAdminFile("orders/page.tsx");
-    const toolbarSource = readAdminFile("orders/orders-toolbar.tsx");
+  /**
+   * `TASK-ORDERS-RUNTIME-5B` — la bandeja dejó de ser el **tablero de comandas** con sus tabs de estado: la
+   * barra de trabajo, los carriles y el modo cocina se fueron a `/admin/kitchen` (que ya tenía su suite).
+   * Lo que este contrato cuida ahora es lo que el listado **sí** tiene que hacer: una sola barra de filtros
+   * visible (sin panel que se abre y se cierra), el vacío con su mensaje y el scroll **del listado**.
+   */
+  it("keeps one always-visible filter bar and no retired comanda board in Pedidos", () => {
+    const source = readAdminFile("orders/_components/order-list-client.tsx");
+    const filtersSource = readAdminFile("orders/_components/order-list-filters.tsx");
 
     expect(source).not.toContain("AdminMetricStrip");
-    expect(source).toContain("Órdenes en vista");
-    // Una sola barra de trabajo y siempre visible (layout unificado, 2026-09-18): los tabs de estado
-    // son el filtro, así que ya no hay panel secundario que se abra y cierre.
-    expect(source).toContain("<OrdersToolbar");
+    expect(source).not.toContain("OrdersToolbar");
+    expect(source).not.toContain("OrderComandaBoard");
     expect(source).not.toContain("Mostrar filtros");
     expect(source).not.toContain("filtersOpen");
-    expect(toolbarSource).toContain("Filtro por tipo de pedido");
+    // El scroll vive en el listado, no en la página (Viewport Contract).
+    expect(source).toContain('data-testid="order-list-scroll"');
+    expect(source).toContain('className="min-h-0 flex-1 overflow-y-auto"');
+    expect(filtersSource).toContain('aria-label="Filtros de pedidos"');
   });
 
   it("removes technical internal copy from the order detail view", () => {

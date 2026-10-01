@@ -13,6 +13,8 @@ import {
   resolveStageChangedAt,
 } from "@/modules/orders/domain/order-stage-times";
 import type {
+  AdminOrderRow,
+  AdminOrderRowFilter,
   CouponInput,
   CreateOrderInput,
   ListOrdersFilter,
@@ -27,6 +29,12 @@ export class InMemoryOrderRepository implements OrderRepository {
   coupons: CouponRecord[] = [];
   tables: TableRecord[] = [];
   zones: DeliveryZoneRecord[] = [];
+  /**
+   * `TASK-ORDERS-RUNTIME-5B` — el resumen de cobros que acompaña cada fila del listado admin. En la base
+   * sale de la relación `Order.payments`; acá se carga aparte porque el doble de órdenes no es dueño de
+   * los cobros (`PaymentRepository` sí lo es). Los tests que necesitan estado financiero lo cargan acá.
+   */
+  adminRowPayments: Record<string, AdminOrderRow["payments"]> = {};
   products: Array<{
     id: string;
     name: string;
@@ -96,6 +104,9 @@ export class InMemoryOrderRepository implements OrderRepository {
       // `TASK-ORDERS-KITCHEN-RUNTIME-002`: el canal llega declarado por la puerta de creación; sin
       // valor queda `null` (no declarado) y no se deduce de nada.
       source: input.source ?? null,
+      // `A-89`/`D-022`: el doble guarda la moneda igual que el adaptador de Prisma. Si no viniera, `null`
+      // es «no declarada» — nunca la moneda base de hoy.
+      currencyCode: (input as { currencyCode?: string | null }).currencyCode ?? null,
       customerName: input.customerName,
       customerWhatsapp: input.customerWhatsapp,
       customerEmail: input.customerEmail ?? null,
@@ -307,6 +318,50 @@ export class InMemoryOrderRepository implements OrderRepository {
 
   async getOrderStatusHistory(orderId: string): Promise<OrderStatusHistoryRecord[]> {
     return this.statusHistory.filter((h) => h.orderId === orderId);
+  }
+
+  /**
+   * `TASK-ORDERS-RUNTIME-5B` — las filas mínimas del listado administrativo, con la **misma** semántica
+   * que el adaptador de Prisma: mismos filtros, mismo orden (más recientes primero) y la misma proyección
+   * mínima. Si los dos no dijeran lo mismo, el test del caso de uso probaría una cosa y la pantalla
+   * mostraría otra.
+   */
+  async listAdminOrderRows(filter: AdminOrderRowFilter): Promise<AdminOrderRow[]> {
+    return this.orders
+      .filter((order) => {
+        if (filter.statuses?.length && !filter.statuses.includes(order.status)) return false;
+        if (filter.locationIds?.length && !filter.locationIds.includes(order.locationId)) return false;
+        if (filter.dateFrom && order.createdAt < filter.dateFrom) return false;
+        if (filter.dateTo && order.createdAt > filter.dateTo) return false;
+        if (filter.scheduledOnly && !order.pickupScheduled) return false;
+        if (filter.search && !orderMatchesSearch(order, filter.search)) return false;
+
+        return true;
+      })
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      .map((order) => {
+        const history = this.statusHistory.filter((entry) => entry.orderId === order.id);
+
+        return {
+          id: order.id,
+          orderNumber: order.orderNumber,
+          source: order.source ?? null,
+          status: order.status,
+          type: order.type,
+          customerName: order.customerName,
+          customerWhatsapp: order.customerWhatsapp,
+          locationId: order.locationId,
+          pickupTime: order.pickupTime ?? null,
+          pickupScheduled: order.pickupScheduled ?? false,
+          total: order.total,
+          currencyCode: order.currencyCode ?? null,
+          stageChangedAt: resolveStageChangedAt(history, order.createdAt),
+          createdAt: order.createdAt,
+          // Los cobros viven en el repositorio de cobros; el caso de uso de la lista recibe esta fila con
+          // los suyos ya resueltos. Acá no se inventan: el doble que los necesite los carga por fuera.
+          payments: this.adminRowPayments[order.id] ?? [],
+        };
+      });
   }
 
   async findCouponByCode(code: string): Promise<CouponRecord | null> {

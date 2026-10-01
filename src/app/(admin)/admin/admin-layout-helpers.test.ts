@@ -170,9 +170,24 @@ describe("admin layout helpers", () => {
     },
   );
 
-  it("lets kitchen see only orders and its own board", () => {
-    expect(visibleHrefs("kitchen", true)).toEqual(["/admin/orders", "/admin/kitchen"]);
+  /**
+   * `TASK-ORDERS-RUNTIME-5B` (`A-66`) — **cocina no ve la entrada de Pedidos**.
+   *
+   * Antes la entrada se ofrecía a los cuatro roles (`canSee: everyRole`) mientras la API le respondía 403 al
+   * cajero —que sí entra— y le abría la puerta a cocina, que no maneja plata (`D-014`). La entrada usa la
+   * **misma** puerta que la pantalla y su API: `canViewOrders`.
+   */
+  it("lets kitchen see only its own board", () => {
+    expect(visibleHrefs("kitchen", true)).toEqual(["/admin/kitchen"]);
     expect(groupLabels("kitchen")).toEqual(["Operación"]);
+  });
+
+  it("Pedidos se le ofrece a quien puede entrar: dueño, manager y cajero — no a cocina", () => {
+    for (const role of ["owner", "manager", "cashier"] as const) {
+      expect(visibleHrefs(role, true)).toContain("/admin/orders");
+    }
+
+    expect(visibleHrefs("kitchen", true)).not.toContain("/admin/orders");
   });
 
   /**

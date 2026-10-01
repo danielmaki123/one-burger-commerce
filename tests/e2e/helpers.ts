@@ -176,6 +176,18 @@ export async function addCatalogProductToCart(
 }
 
 /**
+ * A dónde aterriza una sesión del panel, según el rol (`TASK-ORDERS-RUNTIME-5B`, `A-10`).
+ *
+ * El destino lo decide **`resolveAdminLanding`**: el dueño al Resumen (`/admin`), manager y cajero a Pedidos
+ * (`/admin/orders`) y cocina a Cocina (`/admin/kitchen`). Antes el único destino era `/admin` (o
+ * `/admin/orders`), así que un helper que exigiera esa URL dejaba de servir para el rol de cocina.
+ */
+const ADMIN_LANDING_PATTERN = /\/admin(?:\/orders|\/kitchen)?$/;
+
+/** El mismo destino, para los specs que afirman la URL de aterrizaje después del login. */
+export { ADMIN_LANDING_PATTERN };
+
+/**
  * Intenta entrar al panel con las credenciales del entorno y devuelve si lo logró.
  *
  * Los specs que necesitan el panel se **saltean** cuando las credenciales no sirven para ese entorno
@@ -187,7 +199,7 @@ export async function tryLoginAsOwner(page: Page): Promise<boolean> {
   await page.goto("/admin/login");
 
   // Con una sesión activa, `/admin/login` redirige al panel: ya estamos adentro.
-  if (/\/admin(?:\/orders)?$/.test(page.url())) return true;
+  if (ADMIN_LANDING_PATTERN.test(page.url())) return true;
 
   const email = page.locator('input[type="email"]');
   if ((await email.count()) === 0) return false;
@@ -197,7 +209,7 @@ export async function tryLoginAsOwner(page: Page): Promise<boolean> {
   await page.getByRole("button", { name: "Iniciar sesión" }).click();
 
   return page
-    .waitForURL(/\/admin(?:\/orders)?$/, { timeout: 10_000 })
+    .waitForURL(ADMIN_LANDING_PATTERN, { timeout: 10_000 })
     .then(() => true)
     .catch(() => false);
 }
@@ -207,7 +219,7 @@ export async function loginAsOwner(page: Page) {
   await page.locator('input[type="email"]').fill(E2E_ADMIN_EMAIL);
   await page.locator('input[type="password"]').fill(E2E_ADMIN_PASSWORD);
   await page.getByRole("button", { name: "Iniciar sesión" }).click();
-  await expect(page).toHaveURL(/\/admin(?:\/orders)?$/);
+  await expect(page).toHaveURL(ADMIN_LANDING_PATTERN);
 }
 
 /**
@@ -259,8 +271,8 @@ export async function loginWithCredentials(
   await page.locator('input[type="email"]').fill(email);
   await page.locator('input[type="password"]').fill(password);
   await page.getByRole("button", { name: "Iniciar sesión" }).click();
-  // Cocina y cajero aterrizan en sus órdenes; el dueño, en el resumen.
-  await expect(page).toHaveURL(/\/admin(?:\/orders)?$/);
+  // El destino depende del rol: el dueño al Resumen, cocina a Cocina y el mostrador a Pedidos.
+  await expect(page).toHaveURL(ADMIN_LANDING_PATTERN);
 }
 
 /**

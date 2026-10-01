@@ -12,6 +12,15 @@ interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
   options?: SelectOption[];
   /** Opción vacía al principio, para los campos opcionales (por ejemplo "Elegí una opción"). */
   placeholder?: string;
+  /**
+   * Oculta el rótulo **a la vista** y lo deja para el lector de pantalla.
+   *
+   * Lo pide una barra de filtros densa: el sistema reserva el 20% del alto para cabecera y herramientas, y un
+   * rótulo visible por control cuesta una línea por fila. El nombre accesible **no** se pierde —el `<label>`
+   * sigue asociado por `htmlFor`—: lo que se va es el texto en pantalla, y el control lo compensa diciendo qué
+   * filtra en su primera opción («Estado: todos»).
+   */
+  hideLabel?: boolean;
 }
 
 /**
@@ -31,6 +40,7 @@ export function Select({
   error,
   options,
   placeholder,
+  hideLabel = false,
   id,
   children,
   ...props
@@ -42,7 +52,10 @@ export function Select({
   return (
     <div className="w-full space-y-1.5">
       {label && (
-        <label htmlFor={selectId} className="text-sm font-medium leading-none text-foreground">
+        <label
+          htmlFor={selectId}
+          className={hideLabel ? "sr-only" : "text-sm font-medium leading-none text-foreground"}
+        >
           {label}
         </label>
       )}

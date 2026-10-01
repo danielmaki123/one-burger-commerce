@@ -12,24 +12,25 @@
 >
 > ⚠️ **Toda la evidencia de este archivo es un snapshot de `main` = `461cc49` (2026-09-30) y debe revalidarse
 > al iniciar la TASK que la use.** El código manda: si algo de acá no coincide con el repo, gana el repo y se
-> corrige este archivo en el commit de esa TASK.
+> corrige este archivo en el commit de esa TASK. La fila de **5b** sí se revalidó contra `main` = `4d33a0e`
+> al abrir `TASK-ORDERS-RUNTIME-5B` (2026-10-01) y quedó con su estado final.
 
 ---
 
-## 5b · Pedidos runtime — **la próxima**
+## 5b · Pedidos runtime — **cerrada** (`TASK-ORDERS-RUNTIME-5B`, 2026-10-01)
 
 | Campo | Contenido |
 |---|---|
 | **Objetivo** | `/admin/orders` denso y paginado, y el detalle del pedido con su historia y su estado de cobro |
-| **Estado real** | La bandeja existe y funciona; el detalle comparte componentes con el público y **no muestra el estado financiero**, que ya existe como proyección (`payments`), ni la historia de estados completa. `A-60` (recorte financiero del detalle compartido) **sigue abierto** |
+| **Estado real** | **Entregada**: el tablero viejo se reemplazó por el read model canónico —`OrderListProjection` paginada con los KPI del **filtro completo**, `OrderDetailProjection` con el **historial real con actor** y los sellos por etapa—, el recorte financiero se aplica **en el servidor**, y la puerta nominal `canViewOrders` dejó a cocina afuera (403 y `/admin/kitchen`) y al cajero adentro |
 | **Depende de** | Órdenes 4 y 5, **cerrados** (el estado financiero canónico existe) y 3b, **desplegado** |
-| **`REUSE` obligatorio** | `payments/features/get-order-payment-status` para el estado; `orders/domain/order-workflows.ts` para los estados; `shared/lib/order-totals.ts` para los montos; `money` para el formato |
-| **`MOVE`/`CONSOLIDATE`** | Si el detalle tiene una copia del cálculo de «pagado» o del formato, se lleva al dueño en esta TASK |
-| **`NEW` real** | La **paginación** de la bandeja y la **composición** del detalle (lo que no existe es la pantalla, no la regla) |
-| **Deuda asignada** | `A-60` (recorte financiero del detalle) · `A-09` (el actor del cambio de estado no se muestra) · `A-10` (la home del panel no existe para roles sin Resumen) · `A-12` (filtro «solo sin aceptar») |
-| **Fuera de alcance** | El **cobro real** del pedido desde la superficie y su handoff al POS: es el **orden 6** (`A-67`). Tampoco entra el move de Caja (7) |
-| **Decisiones del owner** | Ninguna pendiente: el brief se escribe y se aprueba |
-| **Gate de cierre** | Bandeja paginada y detalle con estado de cobro **consumido de `payments`**; Viewport Contract en los cuatro viewports; E2E local; `A-60`/`A-09` cerrados o degradados con el motivo escrito |
+| **`REUSE` obligatorio** | Se consumió tal cual: `payments/features/get-order-payment-status` (el estado, **sin recalcularlo**), `orders/domain/order-workflows.ts`, `shared/lib/order-totals.ts`, `order-search`, `order-visibility`/`order-scope`, `order-stage-times`, `money` y el historial de `orders` |
+| **`MOVE`/`CONSOLIDATE`** | **Hecho**: el recorrido del detalle dejó de ser un mapa paralelo —sale del **historial real**— y el listado dejó de proyectar `items`/`modifiers`/`history` (`A-61`) |
+| **`NEW` real** | `canViewOrders`, `OrderListProjection`/`OrderDetailProjection`, la paginación y los KPI server-side, el **resolutor único de landing por rol** (`resolveAdminLanding`) y la composición de las dos pantallas |
+| **Deuda asignada** | `A-09`, `A-10`, `A-60`, `A-61`, `A-62`, `A-63`, el remanente de `A-64`, `A-66` y la autorización mínima de `A-70`: **todos cerrados con evidencia**. `A-12` sigue **fuera** por decisión ya tomada |
+| **Fuera de alcance** | El **cobro real** del pedido desde la superficie y su handoff al POS: es el **orden 6** (`A-67`). Tampoco entró el move de Caja (7) |
+| **Decisiones del owner** | Ninguna pendiente |
+| **Gate de cierre** | **Cumplido**: bandeja paginada y detalle con estado de cobro **consumido de `payments`**; Viewport Contract en los cuatro viewports; E2E local (`tests/e2e/admin-orders.spec.ts`); los hallazgos cerrados con test, mutación y evidencia |
 
 ## 6 · Pedido existente → Cobrar en POS
 

@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { E2E_ADMIN_EMAIL, E2E_ADMIN_PASSWORD } from "./helpers";
+import { ADMIN_LANDING_PATTERN, E2E_ADMIN_EMAIL, E2E_ADMIN_PASSWORD } from "./helpers";
 
 /**
  * `TASK-MONEY-PAYMENTS-RUNTIME-001` — **QA de la superficie `/admin/finance`** contra la SPEC congelada
@@ -42,7 +42,7 @@ test.describe("Finanzas · Viewport Contract", () => {
       await page.locator('input[type="email"]').fill(E2E_ADMIN_EMAIL);
       await page.locator('input[type="password"]').fill(E2E_ADMIN_PASSWORD);
       await page.getByRole("button", { name: "Iniciar sesión" }).click();
-      await page.waitForURL(/\/admin(?:\/orders)?$/, { timeout: 20_000 });
+      await page.waitForURL(ADMIN_LANDING_PATTERN, { timeout: 20_000 });
 
       await page.goto("/admin/finance");
 
@@ -82,7 +82,7 @@ test.describe("Finanzas · las tres vistas y el copy congelado", () => {
     await page.locator('input[type="email"]').fill(E2E_ADMIN_EMAIL);
     await page.locator('input[type="password"]').fill(E2E_ADMIN_PASSWORD);
     await page.getByRole("button", { name: "Iniciar sesión" }).click();
-    await page.waitForURL(/\/admin(?:\/orders)?$/, { timeout: 20_000 });
+    await page.waitForURL(ADMIN_LANDING_PATTERN, { timeout: 20_000 });
 
     await page.goto("/admin/finance");
     await expect(page.getByRole("heading", { name: "Finanzas", exact: true })).toBeVisible();
@@ -107,7 +107,7 @@ test.describe("Finanzas · las tres vistas y el copy congelado", () => {
     await page.locator('input[type="email"]').fill(E2E_ADMIN_EMAIL);
     await page.locator('input[type="password"]').fill(E2E_ADMIN_PASSWORD);
     await page.getByRole("button", { name: "Iniciar sesión" }).click();
-    await page.waitForURL(/\/admin(?:\/orders)?$/, { timeout: 20_000 });
+    await page.waitForURL(ADMIN_LANDING_PATTERN, { timeout: 20_000 });
 
     await page.goto("/admin/finance");
     await page.getByRole("button", { name: "+ Nuevo medio" }).click();
@@ -136,7 +136,7 @@ test.describe("Finanzas · las tres vistas y el copy congelado", () => {
     await page.locator('input[type="email"]').fill(E2E_ADMIN_EMAIL);
     await page.locator('input[type="password"]').fill(E2E_ADMIN_PASSWORD);
     await page.getByRole("button", { name: "Iniciar sesión" }).click();
-    await page.waitForURL(/\/admin(?:\/orders)?$/, { timeout: 20_000 });
+    await page.waitForURL(ADMIN_LANDING_PATTERN, { timeout: 20_000 });
 
     await page.goto("/admin/finance");
     await page.getByRole("button", { name: "+ Nuevo medio" }).click();

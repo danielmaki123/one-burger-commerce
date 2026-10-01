@@ -683,6 +683,111 @@
       "dont_use_when": "No para filas del panel."
     },
     {
+      "name": "OrderListHeader",
+      "file": "src/app/(admin)/admin/orders/_components/order-list-header.tsx",
+      "layer": "admin",
+      "kind": "display",
+      "status": "in-use",
+      "exports": [
+        "OrderListHeader"
+      ],
+      "variants": [],
+      "sizes": [],
+      "use_when": "Cabecera compacta del listado de Pedidos: título, contexto de sucursal, los cuatro KPI del filtro completo (clicables: aplican el filtro que describen) y el botón de actualizar.",
+      "dont_use_when": "No en otra pantalla: cada superficie estrena su cabecera con su referencia. Para una tira de métricas con ícono y helper va AdminMetricStrip.",
+      "notes": "TASK-ORDERS-RUNTIME-5B. Los KPI llegan del servidor y describen el FILTRO COMPLETO, no la página: cambiar de página no puede cambiar un número."
+    },
+    {
+      "name": "OrderListFilters",
+      "file": "src/app/(admin)/admin/orders/_components/order-list-filters.tsx",
+      "layer": "admin",
+      "kind": "control",
+      "status": "in-use",
+      "exports": [
+        "OrderListFilters"
+      ],
+      "variants": [],
+      "sizes": [],
+      "use_when": "Barra de filtros del listado de Pedidos: búsqueda, rango, sucursal, estado, pago y «solo programados». Todos escriben en la URL.",
+      "dont_use_when": "No para filtros que viven en el estado de React (A-62): acá la URL es la fuente. No reusarla en otra pantalla por parecido.",
+      "notes": "TASK-ORDERS-RUNTIME-5B. Los valores válidos salen del dominio (`admin-order-filters`); la sucursal sólo se dibuja con más de una a la vista."
+    },
+    {
+      "name": "OrderListRowView",
+      "file": "src/app/(admin)/admin/orders/_components/order-list-row.tsx",
+      "layer": "admin",
+      "kind": "display",
+      "status": "in-use",
+      "exports": [
+        "OrderListRowView"
+      ],
+      "variants": [],
+      "sizes": [],
+      "use_when": "Fila densa (~84 px) del listado de Pedidos: número con su canal, cliente, cuándo, estado, total con el rótulo financiero y la flecha de apertura. La fila entera es el enlace.",
+      "dont_use_when": "No para la bandeja de Cocina (ahí va la tarjeta de comanda) ni para una lista sin columnas congeladas por una referencia aprobada.",
+      "notes": "TASK-ORDERS-RUNTIME-5B. La hora se formatea en la zona del negocio (A-63). El orden de los bloques en celular es el mismo que en escritorio, apilado."
+    },
+    {
+      "name": "OrderListPagination",
+      "file": "src/app/(admin)/admin/orders/_components/order-list-pagination.tsx",
+      "layer": "admin",
+      "kind": "control",
+      "status": "in-use",
+      "exports": [
+        "OrderListPagination"
+      ],
+      "variants": [],
+      "sizes": [],
+      "use_when": "Pie de la paginación server-side del listado de Pedidos: rango visible, página actual y anterior/siguiente.",
+      "dont_use_when": "No para una lista sin paginar ni para paginar en el cliente: la página la resuelve el servidor.",
+      "notes": "TASK-ORDERS-RUNTIME-5B."
+    },
+    {
+      "name": "OrderListClient",
+      "file": "src/app/(admin)/admin/orders/_components/order-list-client.tsx",
+      "layer": "admin",
+      "kind": "layout",
+      "status": "in-use",
+      "exports": [
+        "AdminOrdersListClient"
+      ],
+      "variants": [],
+      "sizes": [],
+      "use_when": "La superficie completa del listado de Pedidos: cabecera, filtros, estados (cargando, vacío, error con datos, sin permiso) y el listado con su scroll.",
+      "dont_use_when": "No como widget en otra pantalla: es la pantalla.",
+      "notes": "TASK-ORDERS-RUNTIME-5B. El scroll vive en el listado, no en la página (Viewport Contract); un fallo de red conserva lo último leído."
+    },
+    {
+      "name": "OrderDetailClient",
+      "file": "src/app/(admin)/admin/orders/[id]/_components/order-detail-client.tsx",
+      "layer": "admin",
+      "kind": "layout",
+      "status": "in-use",
+      "exports": [
+        "OrderDetailClient"
+      ],
+      "variants": [],
+      "sizes": [],
+      "use_when": "La superficie del detalle de un pedido en Pedidos: dos columnas en escritorio y una en tablet/celular, con los paneles de pedido, cliente, retiro, historial real, pago, operación y documentos.",
+      "dont_use_when": "No en Cocina: el detalle de Pedidos trae plata y la cocina no la ve. No reusarlo como ficha pública.",
+      "notes": "TASK-ORDERS-RUNTIME-5B. El recorte financiero lo aplica el servidor: los paneles de pago y documentos se dibujan sólo si la proyección los trae (A-60)."
+    },
+    {
+      "name": "OrderDetailActions",
+      "file": "src/app/(admin)/admin/orders/[id]/_components/order-detail-actions.tsx",
+      "layer": "admin",
+      "kind": "control",
+      "status": "in-use",
+      "exports": [
+        "OrderDetailActions"
+      ],
+      "variants": [],
+      "sizes": [],
+      "use_when": "Acciones administrativas del detalle de un pedido: marcar retirado, cerrar y cancelar con motivo. La lista de transiciones sale de `order-workflows`.",
+      "dont_use_when": "No para operar Cocina (aceptar, preparar, marcar listo viven en `/admin/kitchen`) ni para cobrar: el cobro de un pedido existente es del POS (orden 6).",
+      "notes": "TASK-ORDERS-RUNTIME-5B. El motivo es obligatorio al cancelar y el servidor lo vuelve a exigir: la validación de la pantalla no es la puerta."
+    },
+    {
       "name": "AdminTable",
       "file": "src/app/(admin)/admin/finance/finance-table.tsx",
       "layer": "admin",

@@ -40,7 +40,13 @@ pedido y el documento de factura. **No** se reutiliza la forma de la query actua
 
 **Realmente nuevo**: los tres contratos de lectura (`OrderListProjection`, `OrderDetailProjection`,
 `KitchenOrderProjection`) **sin dominios nuevos**; la paginación con KPI calculados sobre el **filtro
-completo**; y el **canal de origen** (`Order.source`), que la referencia muestra y el modelo no tiene.
+completo**; y el **canal de origen** (`Order.source`), que la referencia pide y el modelo **ya tenía**.
+
+> **Corrección de una premisa obsoleta (2026-10-01, `TASK-ORDERS-RUNTIME-5B`)**: esta línea decía que
+> `Order.source` «el modelo no tiene». **Falso desde `TASK-ORDERS-KITCHEN-RUNTIME-002`**: el campo existe
+> (`Order.source`, `OrderSource`, escrito por las dos puertas de creación) y el read model lo **consume**. Lo
+> que sí faltaba era el estado financiero **en esta pantalla** —la proyección existe desde
+> `TASK-MONEY-PAYMENTS-RUNTIME-001`— y la capacidad `canViewOrderFinancials`, que existía **sin consumidor**.
 
 ---
 
@@ -69,11 +75,11 @@ no acá.
 | `cashier` | **localiza el pedido que tiene que cobrar** y lo cobra desde el flujo canónico | no opera Cocina, no administra ni anula el pedido, no ve la cola de cocina |
 | `kitchen` | **no entra**: su superficie es [`kitchen.md`](kitchen.md) | nada de esta pantalla |
 
-Hoy esto **no** se cumple: la entrada se le ofrece a los cuatro roles (`admin-layout-helpers.ts:97`), la API
-le responde **403** al `cashier` (`api/admin/orders/route.ts:59`) y la pantalla lo muestra como «Sesión de
-administrador requerida», que es falso (`A-66`). La puerta objetivo `canViewOrders` cierra esa contradicción;
-la financiera (`canViewOrderFinancials`) es la que hoy falta y deja que `kitchen` lea montos, PIN, cobros y
-factura (`A-60`).
+Hoy esto **ya se cumple** (`TASK-ORDERS-RUNTIME-5B`, 2026-10-01): la entrada y las dos API usan la puerta
+nominal `canViewOrders` (owner · manager · cashier), el `cashier` lista y abre pedidos, `kitchen` recibe
+**403** y aterriza en `/admin/kitchen` con el resolutor único de landing, y el detalle deja de mostrarle
+montos, PIN, cobros y factura. `canViewOrderFinancials` —que existía sin consumidor— es la puerta del recorte,
+aplicada **en el servidor**.
 
 ## Propósito
 
@@ -106,12 +112,12 @@ Tres proyecciones de `orders`, sin crear dominios. Ninguna reimplementa una regl
 | Campo | Fuente |
 |---|---|
 | `id`, `orderNumber`, `status`, `createdAt` | `orders` |
-| `source` (canal: menú / POS) | `orders` — **FALTA** el campo |
+| `source` (canal: menú / POS) | `orders` — **existe** (`Order.source`, `D-015`); `null` = no declarado |
 | `customerName`, `customerWhatsapp`, `locationName` | `orders` + `locations` |
 | `pickupTime`, `pickupScheduled` | `orders` |
 | `total` | `orders` (`calculateOrderTotals`) |
-| `financialState`: `state` (`pending` \| `partial` \| `paid`), `paidAmount`, `outstandingAmount` | **`payments`** — **FALTA** |
-| `elapsedInStage` (chip de la etapa en curso) | `orders` (`stageChangedAt`) |
+| `financialState`: `state` (`pending` \| `partial` \| `paid`), `paidAmount`, `outstandingAmount`, `unresolvedAmount` | **`payments`** — **existe** (`getOrderPaymentStatus`); `Pedidos runtime` es quien lo **consume** |
+| `stageChangedAt` (chip de la etapa en curso) | `orders` (`resolveStageChangedAt`) |
 
 - **Paginación**: `page`, `pageSize` y `total`. Entra en la implementación.
 - **KPI del header** (`N pedidos · N activas · N pendientes de pago · N programadas`): se calculan sobre el
@@ -273,6 +279,19 @@ la trata como contrato de composición, jerarquía, densidad y responsive: se tr
   de **todas** las filas y **no** pagina (`prisma-order-repository.ts:503-518`): es una premisa a **corregir**
   por el read model, no la base de la pantalla nueva.
 
+## Estado de implementación (`TASK-ORDERS-RUNTIME-5B`, 2026-10-01)
+
+**Implementado y corregido acá**: el **read model** canónico —`OrderListProjection` paginada con los KPI del
+filtro completo y `OrderDetailProjection` con el recorte financiero en el servidor—, la puerta nominal
+`canViewOrders` (owner · manager · cashier; `kitchen` no entra y aterriza en `/admin/kitchen`), el resolutor
+único de landing por rol, los siete filtros en la URL, el historial real con actor y los sellos por etapa, y
+el cierre de la fuga lateral de la factura (`A-70`).
+
+Lo que este documento daba por faltante y **el repo ya tenía** (se verificó y se corrigió la premisa):
+`Order.source` (`D-015`), el estado financiero canónico de `payments` (`getOrderPaymentStatus`), los sellos
+por etapa (`resolveOrderStageTimes`) y la capacidad `canViewOrderFinancials` — que **existía sin un solo
+consumidor** y es la que esta TASK empezó a aplicar.
+
 ## Estado de implementación (`SCREEN-ORDERS-001`, ya en producción)
 
 Entregado con test y capturas ([`orders-after-1280.png`](orders-after-1280.png),
@@ -293,15 +312,17 @@ quedan **congeladas** la composición, la information architecture y el comporta
 del detalle. Una desviación **material** modifica **primero** la spec y la decide el owner; si aparece durante
 la implementación, es **Stop Condition**.
 
-## Deuda registrada (no corregida acá)
+## Deuda registrada
 
-- `kitchen` lee montos, PIN, cobros y factura en el detalle (`A-60`).
-- `GET /api/admin/orders` proyecta de más y filtra de menos, sin paginar (`A-61`).
-- El filtro de estado no vive en la URL (`A-62`).
-- Las fechas del detalle usan la zona del navegador (`A-63`).
-- Cinco mapas estado→etapa y cuatro formateadores duplicados (`A-64`).
-- Alias históricos (`text-st-*`) y colores semánticos viejos, con techo propio (`A-65`).
-- El `cashier` ve la entrada y recibe 403, con un mensaje que miente (`A-66`).
-- El actor del cambio de estado se guarda y no se muestra (`A-09`).
-- **Nuevos de la auditoría de fundaciones**: la ruta de la factura sin puerta de rol ni alcance por sucursal,
-  y el cobro de un pedido existente sin clave de idempotencia (`A-70` y `A-71`).
+> **Cerrada por `TASK-ORDERS-RUNTIME-5B` (2026-10-01)**: `A-09` (el actor del cambio de estado ya se muestra
+> en el historial real), `A-10` (la home por rol existe y es única: `resolveAdminLanding`), `A-60` (el recorte
+> financiero del detalle se aplica en el servidor), `A-61` (el listado proyecta lo mínimo, pagina y agrega en
+> el servidor), `A-62` (el filtro de estado vive en la URL), `A-63` (las fechas del detalle usan la zona del
+> negocio), `A-66` (el cajero entra y cocina recibe 403 y aterriza en Cocina) y la autorización mínima de
+> `A-70` (la factura y su hoja de impresión exigen capacidad financiera y alcance por sucursal). El
+> **remanente** de `A-64` —un solo mapa estado→etapa y un solo formateador de tiempo— también queda cerrado:
+> el recorrido del detalle sale del historial real.
+
+- `A-12` (filtro «solo sin aceptar»): sigue **fuera**, por decisión ya tomada (los grupos de estado lo cubren).
+- `A-76`/`A-78` (la anulación no marca la factura; `canPrintCashDocuments` sin guarda de servidor): son del
+  orden 9 (Cierres / Facturas), no de Pedidos.

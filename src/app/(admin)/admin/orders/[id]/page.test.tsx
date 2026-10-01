@@ -1,228 +1,79 @@
-// @vitest-environment jsdom
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+const requireAdminSessionMock = vi.fn();
+const canViewOrdersMock = vi.fn();
+const resolveAdminLandingMock = vi.fn();
+const redirectMock = vi.fn();
 
-vi.mock("next/navigation", () => ({
-  useParams: () => ({ id: "ord_1" }),
-  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn() }),
+vi.mock("@/modules/auth/features/require-admin-session/require-admin-session", () => ({
+  requireAdminSession: requireAdminSessionMock,
 }));
 
-import AdminOrderDetailPage from "./page";
+vi.mock("@/modules/auth/domain/admin-permissions", () => ({
+  canViewOrders: canViewOrdersMock,
+}));
 
-/** Mismo criterio que la bandeja: la hora prometida manda, no la antigüedad del pedido. */
+vi.mock("@/modules/auth/domain/admin-landing", () => ({
+  resolveAdminLanding: resolveAdminLandingMock,
+}));
 
-const NOW = new Date("2026-09-11T20:10:00-06:00");
+vi.mock("next/navigation", () => ({
+  redirect: redirectMock,
+}));
 
-function detail(overrides: Record<string, unknown> = {}) {
-  return {
-    id: "ord_1",
-    orderNumber: "OB-1",
-    type: "pickup",
-    status: "preparing",
-    customerName: "Ana",
-    customerWhatsapp: "+50588887777",
-    subtotal: 380,
-    discount: 0,
-    packagingAmount: 0,
-    deliveryFeeAmount: 0,
-    tipAmount: 0,
-    total: 380,
-    items: [],
-    createdAt: "2026-09-12T01:40:00.000Z",
-    updatedAt: "2026-09-12T01:40:00.000Z",
-    ...overrides,
-  };
+vi.mock("./_components/order-detail-client", () => ({
+  default: () => null,
+}));
+
+async function renderPage() {
+  const { default: Page } = await import("./page");
+
+  return Page({ params: Promise.resolve({ id: "ord_1" }) });
 }
-
-function timingChip(container: HTMLElement, tone: "on-time" | "past" | "late") {
-  return container.querySelector(`[class*="bg-pickup-${tone}"]`);
-}
-
-async function renderWith(order: Record<string, unknown>) {
-  vi.stubGlobal(
-    "fetch",
-    vi.fn().mockResolvedValue({
-      ok: true,
-      status: 200,
-      json: async () => ({ data: order }),
-    }),
-  );
-
-  const view = render(<AdminOrderDetailPage />);
-  await waitFor(() => expect(screen.getByText("OB-1")).toBeTruthy());
-
-  return view;
-}
-
-describe("detalle de la orden: hora de retiro", () => {
-  beforeEach(() => {
-    vi.useFakeTimers({ toFake: ["Date"] });
-    vi.setSystemTime(NOW);
-  });
-
-  afterEach(() => {
-    cleanup();
-    vi.unstubAllGlobals();
-    vi.useRealTimers();
-  });
-
-  it("muestra la hora del retiro programado", async () => {
-    await renderWith({
-      ...detail(),
-      pickupTime: "2026-09-12T02:30:00.000Z",
-      pickupScheduled: true,
-    });
-
-    expect(screen.getByText("Retiro 8:30 p. m. · Programado")).toBeTruthy();
-  });
-
-  it("distingue un pedido sin programar", async () => {
-    await renderWith({
-      ...detail(),
-      pickupTime: "2026-09-12T02:35:00.000Z",
-      pickupScheduled: false,
-    });
-
-    expect(screen.getByText("Retiro ~8:35 p. m. · Lo antes posible")).toBeTruthy();
-  });
-
-  it("pinta el atraso contra la hora prometida", async () => {
-    const { container } = await renderWith({
-      ...detail(),
-      pickupTime: "2026-09-12T01:50:00.000Z",
-      pickupScheduled: true,
-    });
-
-    expect(timingChip(container, "late")?.textContent).toBe("hace 20 min");
-  });
-
-  it("una orden cerrada no alarma", async () => {
-    const { container } = await renderWith({
-      ...detail({ status: "closed" }),
-      pickupTime: "2026-09-12T01:00:00.000Z",
-      pickupScheduled: true,
-    });
-
-    expect(timingChip(container, "late")).toBeNull();
-    expect(timingChip(container, "past")).toBeNull();
-  });
-});
 
 /**
- * T8 fase 7 — de qué local sale el pedido.
+ * `TASK-ORDERS-RUNTIME-5B` — la **puerta** del detalle de Pedidos.
  *
- * Con más de una sucursal, el mismo número de pedido puede existir en dos cocinas: el
- * detalle tiene que decir cuál, y con la dirección para poder mandarlo si hace falta.
- */
-describe("detalle de la orden: local de retiro", () => {
-  afterEach(() => {
-    cleanup();
-    vi.unstubAllGlobals();
-  });
-
-  it("muestra el local y su dirección", async () => {
-    await renderWith({
-      ...detail(),
-      pickupLocation: {
-        name: "Sucursal Norte",
-        addressLine: "Frente al parque",
-        addressReference: null,
-        city: "Managua",
-        mapsUrl: null,
-      },
-    });
-
-    expect(screen.getByText("Local")).toBeTruthy();
-    expect(screen.getByText("Sucursal Norte")).toBeTruthy();
-    expect(screen.getByText("Frente al parque, Managua")).toBeTruthy();
-  });
-
-  it("sin local resuelto no dibuja la sección", async () => {
-    await renderWith({ ...detail(), pickupLocation: null });
-
-    expect(screen.queryByText("Local")).toBeNull();
-  });
-
-  it("muestra el motivo del servidor cuando el pedido es de otra sucursal (A)", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
-        ok: false,
-        status: 403,
-        json: async () => ({
-          error: {
-            code: "FORBIDDEN",
-            message: "Este pedido es de otra sucursal: tu usuario no tiene acceso a ese local",
-          },
-        }),
-      }),
-    );
-
-    render(<AdminOrderDetailPage />);
-
-    expect(
-      await screen.findByText(
-        "Este pedido es de otra sucursal: tu usuario no tiene acceso a ese local",
-      ),
-    ).toBeTruthy();
-  });
-
-  it("sin mensaje del servidor cae al texto genérico", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
-        ok: false,
-        status: 500,
-        json: async () => ({}),
-      }),
-    );
-
-    render(<AdminOrderDetailPage />);
-
-    expect(
-      await screen.findByText("No se pudo cargar el detalle de la orden."),
-    ).toBeTruthy();
-  });
-});
-
-/**
- * TASK-304 — lo que cobró el mostrador.
+ * El detalle es la pantalla donde `A-60` se veía: le mostraba montos, PIN, cobros y factura a cocina. La
+ * página aplica la misma capacidad que la API (`canViewOrders`) y, si el rol no entra, lo manda a **su**
+ * superficie con el resolutor único de landing —no a un destino genérico—.
  *
- * Un pedido del checkout se paga al retirar y no tiene cobros; una venta de mostrador sí, y la caja
- * necesita ver con qué pagó el cliente. Un cobro en otra moneda se muestra con **su código**: ponerle
- * el símbolo del negocio a un cobro de US$3 sería un número falso.
+ * El recorte de los campos financieros y el alcance por sucursal **no** se prueban acá: los aplica el
+ * servidor y tienen su propio test (`api/admin/orders/[id]`).
  */
-describe("detalle de la orden: cobros registrados", () => {
+describe("/admin/orders/[id] · la puerta", () => {
   beforeEach(() => {
-    vi.useFakeTimers({ toFake: ["Date"] });
-    vi.setSystemTime(NOW);
+    vi.resetAllMocks();
+    resolveAdminLandingMock.mockReturnValue("/admin/kitchen");
   });
 
-  afterEach(() => {
-    cleanup();
-    vi.unstubAllGlobals();
-    vi.useRealTimers();
-  });
-
-  it("muestra los cobros del mostrador con su moneda", async () => {
-    await renderWith({
-      ...detail(),
-      pickupTime: "2026-09-12T02:30:00.000Z",
-      payments: [
-        { id: "pay_1", method: "cash", amount: 100, currency: "NIO" },
-        { id: "pay_2", method: "card", amount: 3, currency: "USD" },
-      ],
+  it("con permiso renderiza el detalle y no redirige", async () => {
+    requireAdminSessionMock.mockResolvedValueOnce({
+      user: { id: "admin_1", role: "cashier", locationIds: [] },
     });
+    canViewOrdersMock.mockReturnValueOnce(true);
 
-    expect(screen.getByText("Cobrado en el mostrador")).toBeTruthy();
-    expect(screen.getByText(/Efectivo C\$100\.00/)).toBeTruthy();
-    expect(screen.getByText(/Tarjeta USD 3\.00/)).toBeTruthy();
+    await renderPage();
+
+    expect(canViewOrdersMock).toHaveBeenCalledWith("cashier");
+    expect(redirectMock).not.toHaveBeenCalled();
   });
 
-  it("un pedido sin cobros (pago al retirar) no muestra el bloque", async () => {
-    await renderWith({ ...detail(), pickupTime: "2026-09-12T02:30:00.000Z" });
+  it("cocina va a su superficie, no a Pedidos", async () => {
+    requireAdminSessionMock.mockResolvedValueOnce({
+      user: { id: "admin_5", role: "kitchen", locationIds: [] },
+    });
+    canViewOrdersMock.mockReturnValueOnce(false);
 
-    expect(screen.queryByText("Cobrado en el mostrador")).toBeNull();
+    await renderPage();
+
+    expect(redirectMock).toHaveBeenCalledWith("/admin/kitchen");
+  });
+
+  it("sin sesión no se proyecta nada: la excepción sale antes del render", async () => {
+    requireAdminSessionMock.mockRejectedValueOnce(new Error("sin sesión"));
+
+    await expect(renderPage()).rejects.toThrow("sin sesión");
+    expect(redirectMock).not.toHaveBeenCalled();
   });
 });

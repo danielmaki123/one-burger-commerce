@@ -26,7 +26,8 @@ const MAX_ROUTE_LINES = 50;
 const LEGACY_ROUTE_LINES: Record<string, number> = {
   "src/app/api/orders/route.ts": 201,
   "src/app/api/internal/outbox/process/route.ts": 155,
-  "src/app/api/admin/orders/route.ts": 127,
+  // `TASK-ORDERS-RUNTIME-5B` **borró** la fila de `api/admin/orders/route.ts`: de 127 líneas bajó al tope
+  // real de 50, porque los siete filtros y su validación se fueron a `order-list-query.ts` (composición).
   // TASK-308 bajó estas dos: el esquema del local (que estaba duplicado en las dos) se fue a
   // `locations/location-payload.ts`, así que las rutas quedaron en 56 y 71 líneas.
   "src/app/api/admin/locations/[id]/route.ts": 71,

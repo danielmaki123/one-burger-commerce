@@ -19,10 +19,19 @@ import {
   canViewCashHistory,
   canViewDashboardSummary,
   canViewHistory,
+  canViewOrderFinancials,
+  canViewOrders,
   canViewOutboxEvents,
   canVoidPayment,
 } from "@/modules/auth/domain/admin-permissions";
 import { ADMIN_ROLES, type AdminRole } from "@/modules/auth/domain/admin-role";
+
+const ALL_ADMIN_ROLES: AdminRole[] = [
+  ADMIN_ROLES.owner,
+  ADMIN_ROLES.manager,
+  ADMIN_ROLES.cashier,
+  ADMIN_ROLES.kitchen,
+];
 
 describe("admin permissions", () => {
   /**
@@ -262,5 +271,62 @@ describe("admin permissions", () => {
     expect(canVoidPayment(ADMIN_ROLES.manager)).toBe(false);
     expect(canVoidPayment(ADMIN_ROLES.cashier)).toBe(false);
     expect(canVoidPayment(ADMIN_ROLES.kitchen)).toBe(false);
+  });
+
+  /**
+   * `TASK-ORDERS-RUNTIME-5B` (`D-014`) — **entrar a Pedidos**: localizar un pedido y revisarlo.
+   *
+   * La contradicción que cierra: la entrada de navegación se le ofrecía a los cuatro roles
+   * (`admin-layout-helpers.ts`, `canSee: everyRole`) y la API le respondía **403** al `cashier`, que es
+   * justamente quien tiene que localizar el pedido que va a cobrar. La puerta gruesa
+   * (`canManageOrderOperations`) no servía: metía a `kitchen`, que por `D-014` y por la regla del repo
+   * («cocina no maneja plata») **no** entra a Pedidos, y dejaba afuera al `cashier`.
+   *
+   * Es una capacidad **nominal** propia: Pedidos localiza y revisa, Cocina opera la comanda, el POS
+   * cobra. Hoy los tres conjuntos coinciden en parte por casualidad del producto, no por diseño.
+   */
+  it("canViewOrders: owner, manager y cashier entran a Pedidos — cocina no", () => {
+    expect(canViewOrders(ADMIN_ROLES.owner)).toBe(true);
+    expect(canViewOrders(ADMIN_ROLES.manager)).toBe(true);
+    expect(canViewOrders(ADMIN_ROLES.cashier)).toBe(true);
+    expect(canViewOrders(ADMIN_ROLES.kitchen)).toBe(false);
+  });
+
+  it("la puerta de Pedidos no es ninguna de las que ya existían", () => {
+    // `canManageOrderOperations` incluye a cocina y deja afuera al cajero; `canOperateKitchen` es lo
+    // contrario. Si `canViewOrders` hubiera reutilizado una de las dos, alguno de los dos roles quedaría
+    // donde no va: por eso el conjunto se fija entero y contra las otras dos puertas.
+    expect(ALL_ADMIN_ROLES.filter(canViewOrders)).toEqual([
+      ADMIN_ROLES.owner,
+      ADMIN_ROLES.manager,
+      ADMIN_ROLES.cashier,
+    ]);
+
+    expect(ALL_ADMIN_ROLES.filter(canViewOrders)).not.toEqual(
+      ALL_ADMIN_ROLES.filter(canManageOrderOperations),
+    );
+    expect(ALL_ADMIN_ROLES.filter(canViewOrders)).not.toEqual(
+      ALL_ADMIN_ROLES.filter(canOperateKitchen),
+    );
+  });
+
+  /**
+   * `TASK-MONEY-PAYMENTS-RUNTIME-001` (`D-016`) + `TASK-ORDERS-RUNTIME-5B` — **ver los datos financieros**
+   * del pedido. La capacidad existía desde Money/Payments y **no tenía un solo consumidor en producción**;
+   * esta TASK es la que la aplica (el recorte del detalle y la puerta de la factura de `A-70`).
+   */
+  it("canViewOrderFinancials: la plata del pedido no la ve cocina", () => {
+    expect(canViewOrderFinancials(ADMIN_ROLES.owner)).toBe(true);
+    expect(canViewOrderFinancials(ADMIN_ROLES.manager)).toBe(true);
+    expect(canViewOrderFinancials(ADMIN_ROLES.cashier)).toBe(true);
+    expect(canViewOrderFinancials(ADMIN_ROLES.kitchen)).toBe(false);
+  });
+
+  it("entrar a Pedidos y ver su plata son dos puertas distintas", () => {
+    // Hoy coinciden, y el test lo dice a propósito: el día que un rol localice pedidos sin ver montos
+    // (por ejemplo, un rol de salón), la puerta financiera ya está separada y no hay que inventarla.
+    expect(canViewOrders(ADMIN_ROLES.cashier)).toBe(true);
+    expect(canViewOrderFinancials(ADMIN_ROLES.cashier)).toBe(true);
+    expect(canViewOrderFinancials(ADMIN_ROLES.kitchen)).toBe(false);
   });
 });

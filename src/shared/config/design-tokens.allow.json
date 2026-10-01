@@ -67,7 +67,6 @@
       "src/shared/ui/status-progress.tsx": 1
     },
     "arbitrary-shadow": {
-      "src/app/(admin)/admin/orders/[id]/page.tsx": 1,
       "src/app/(public)/_components/empty-cart-state.tsx": 1,
       "src/app/(public)/_components/order-summary-card.tsx": 1,
       "src/app/(public)/activity/order-history-views.tsx": 2,
@@ -115,7 +114,6 @@
       "src/app/(admin)/admin/menu/products/[id]/page.tsx": 8,
       "src/app/(admin)/admin/menu/products/page.tsx": 3,
       "src/app/(admin)/admin/menu/products/product-dish-card.tsx": 1,
-      "src/app/(admin)/admin/orders/[id]/page.tsx": 2,
       "src/app/(admin)/admin/promotions/page.tsx": 1,
       "src/app/(admin)/admin/promotions/promotion-helpers.ts": 2,
       "src/app/(public)/activity/order-history-views.tsx": 1,

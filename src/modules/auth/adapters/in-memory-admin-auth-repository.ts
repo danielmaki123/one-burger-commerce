@@ -58,6 +58,11 @@ export class InMemoryAdminAuthRepository implements AdminAuthRepository {
     return [...this.users];
   }
 
+  /** `TASK-ORDERS-RUNTIME-5B` — sólo `id` y `name`, igual que el adaptador de Prisma. */
+  async listUserNames(): Promise<Array<{ id: string; name: string }>> {
+    return this.users.map((user) => ({ id: user.id, name: user.name }));
+  }
+
   async updateUserRole(
     id: string,
     role: AdminUserRecord["role"],

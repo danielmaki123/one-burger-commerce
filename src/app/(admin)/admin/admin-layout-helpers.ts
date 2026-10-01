@@ -31,6 +31,7 @@ import {
   canUsePOS,
   canViewAdminOverview,
   canViewHistory,
+  canViewOrders,
 } from "@/modules/auth/domain/admin-permissions";
 import type { AdminRole } from "@/modules/auth/domain/admin-role";
 
@@ -73,8 +74,6 @@ export type AdminNavigation = {
   groups: AdminNavGroup[];
 };
 
-const everyRole = () => true;
-
 /**
  * RESUMEN — el overview transversal del owner. Va como **entrada superior**, no dentro de Operación: no es
  * una tarea de operación, es la vista que muestra señales de todos los módulos
@@ -97,7 +96,18 @@ export const ADMIN_PRIMARY_NAV_ITEMS: AdminNavItem[] = [
  * Caja, Cierres, Aprobaciones y Config de Caja).
  */
 export const ADMIN_OPERATION_NAV_ITEMS: AdminNavItem[] = [
-  { href: "/admin/orders", label: "Órdenes", description: "Cocina y servicio", icon: ClipboardList, canSee: everyRole },
+  {
+    href: "/admin/orders",
+    label: "Órdenes",
+    description: "Localizar y revisar pedidos",
+    icon: ClipboardList,
+    /**
+     * `TASK-ORDERS-RUNTIME-5B` (`A-66`) — la entrada usa **la misma puerta que la pantalla y su API**
+     * (`canViewOrders`): dueño, manager y cajero. Antes era `everyRole`, así que cocina veía una entrada que la
+     * API le respondía 403 y el cajero —que sí entra— no tenía cómo llegar. Su superficie es `/admin/kitchen`.
+     */
+    canSee: ({ role }) => Boolean(role && canViewOrders(role)),
+  },
   {
     /**
      * `TASK-ORDERS-KITCHEN-RUNTIME-002` — **Cocina** es una sección propia.
