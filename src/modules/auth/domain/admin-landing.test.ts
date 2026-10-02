@@ -20,11 +20,24 @@ describe("resolveAdminLanding", () => {
     expect(resolveAdminLanding(ADMIN_ROLES.owner)).toBe("/admin");
   });
 
-  it("manager y cashier aterrizan en Pedidos", () => {
-    // El cajero entra a Pedidos a **localizar el pedido que tiene que cobrar** (D-014): es su primera
-    // pantalla, no el POS, porque todavía no eligió qué cobrar.
+  it("manager aterriza en Pedidos", () => {
+    // Su trabajo del día empieza **localizando y revisando** pedidos: la superficie administrativa.
     expect(resolveAdminLanding(ADMIN_ROLES.manager)).toBe("/admin/orders");
-    expect(resolveAdminLanding(ADMIN_ROLES.cashier)).toBe("/admin/orders");
+  });
+
+  /**
+   * `TASK-ORDER-POS-OPERATIONAL-006` (brief §25) — **el cajero aterriza en el POS**.
+   *
+   * El destino anterior era `/admin/orders`, y era correcto mientras el POS no podía cobrar un pedido que
+   * ya existía: el cajero tenía que **encontrarlo** en Pedidos antes de poder hacer algo. Con la orden 6 el
+   * POS resuelve su día entero —ver qué está en proceso, qué está listo, qué falta cobrar, qué viene
+   * programado, abrir el pedido, cobrarlo y entregarlo—, así que su **workspace operativo** es `/admin/pos`.
+   *
+   * Pedidos **no** desaparece ni se le cierra: `canViewOrders` sigue dejándolo entrar a localizar, revisar e
+   * investigar. Lo que cambia es cuál de las dos superficies es su primera pantalla.
+   */
+  it("el cajero aterriza en el POS, que es su workspace operativo", () => {
+    expect(resolveAdminLanding(ADMIN_ROLES.cashier)).toBe("/admin/pos");
   });
 
   /**

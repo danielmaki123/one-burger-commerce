@@ -4,6 +4,7 @@ import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import type { PosPaymentMethodOption } from "@/modules/pos/domain/pos-payment-methods";
 import { DEFAULT_CURRENCY_FORMAT } from "@/shared/lib/format-currency";
 
 import { PosWorkspace, type PosWorkspaceCash, type PosWorkspaceSale } from "./pos-workspace";
@@ -48,6 +49,39 @@ afterEach(() => {
 
 const currency = DEFAULT_CURRENCY_FORMAT;
 
+/**
+ * `TASK-ORDER-POS-OPERATIONAL-006` (brief §37) — los medios configurados de este local. El workspace los
+ * recibe **dentro de la venta** (`sale.methodOptions`) y los pasa al checkout, que arma con ellos los
+ * botones de «¿Cómo paga?»; sin ellos el cobro no se puede registrar. Se declara una sola vez, en inglés los
+ * identificadores y en español lo que ve el cajero.
+ */
+const methodOptions: PosPaymentMethodOption[] = [
+  {
+    id: "pm_cash",
+    label: "Efectivo",
+    kind: "cash",
+    method: "cash",
+    requiresReference: false,
+    currencyCodes: [],
+  },
+  {
+    id: "pm_card",
+    label: "Tarjeta",
+    kind: "card",
+    method: "card",
+    requiresReference: false,
+    currencyCodes: [],
+  },
+  {
+    id: "pm_banpro",
+    label: "Transferencia Banpro",
+    kind: "bank_transfer",
+    method: "transfer",
+    requiresReference: true,
+    currencyCodes: [],
+  },
+];
+
 function emptySale(overrides: Partial<PosWorkspaceSale> = {}): PosWorkspaceSale {
   return {
     lines: [],
@@ -71,6 +105,7 @@ function emptySale(overrides: Partial<PosWorkspaceSale> = {}): PosWorkspaceSale 
     fieldErrors: {},
     money: { baseCurrencyCode: "NIO", locale: "es-NI", rates: { USD: 36.5 }, knownCurrencyCodes: ["NIO", "USD"] },
     acceptedCurrencies: ["NIO", "USD"],
+    methodOptions,
     canCharge: true,
     blockedReason: null,
     total: 0,
@@ -128,6 +163,12 @@ function renderWorkspace({
     },
     sale: emptySale(sale),
     cash: openCash(cash),
+    /*
+     * `TASK-ORDER-POS-OPERATIONAL-006` (brief §5, §21) — los nodos operacionales ya compuestos (banda,
+     * panel abierto y modo «pedido existente») son de la pantalla, no del workspace. Vacíos acá: lo que se
+     * prueba es el layout, la barra, el sheet y el checkout, y esas piezas tienen su propio test.
+     */
+    operational: { band: null, panel: null, existingOrder: null },
   };
 
   return render(<PosWorkspace {...props} />);

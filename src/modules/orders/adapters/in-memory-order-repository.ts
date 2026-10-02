@@ -330,6 +330,9 @@ export class InMemoryOrderRepository implements OrderRepository {
     return this.orders
       .filter((order) => {
         if (filter.statuses?.length && !filter.statuses.includes(order.status)) return false;
+        if (filter.excludeStatuses?.length && filter.excludeStatuses.includes(order.status)) {
+          return false;
+        }
         if (filter.locationIds?.length && !filter.locationIds.includes(order.locationId)) return false;
         if (filter.dateFrom && order.createdAt < filter.dateFrom) return false;
         if (filter.dateTo && order.createdAt > filter.dateTo) return false;

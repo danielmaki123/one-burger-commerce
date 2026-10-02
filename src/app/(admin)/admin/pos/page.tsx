@@ -7,6 +7,8 @@ import { createProductionPosLocationDependencies } from "@/modules/pos/adapters/
 import { PrismaCashConfigRepository } from "@/modules/cash-config/adapters/prisma-cash-config-repository";
 import { getCashTerminals } from "@/modules/cash-config/features/get-cash-terminals/get-cash-terminals";
 import { pickPosLocations } from "@/modules/pos/domain/pos-locations";
+import { loadBusinessSettings } from "@/modules/business-settings/features/get-public-business-settings/get-public-business-settings";
+import { PrismaBusinessSettingsRepository } from "@/modules/business-settings/adapters/prisma-business-settings-repository";
 
 import { readProductionMoney } from "@/modules/money/adapters/production-money-context";
 import PosClient from "./pos-client";
@@ -21,8 +23,17 @@ import PosClient from "./pos-client";
  * TASK-308: la lista de locales sale de `pickPosLocations`, la misma regla que usa la navegación para
  * ofrecer la entrada. Un local con el POS apagado no se puede elegir acá —y si no queda ninguno, la
  * pantalla no existe para ese admin: vuelve a órdenes—.
+ *
+ * `TASK-ORDER-POS-OPERATIONAL-006` (brief §24) — la pantalla acepta `?orderId=<id>`: es el puente con el que
+ * Pedidos manda un pedido a **cobrar en el POS**. Abre el mismo modo «pedido existente» que los KPI, no un
+ * checkout especial. La hora prometida se formatea con la zona del **negocio**, que es la única autoridad
+ * para saber de qué día se habla.
  */
-export default async function AdminPosPage() {
+export default async function AdminPosPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ orderId?: string }>;
+}) {
   const session = await requireAdminSession();
 
   if (!canUsePOS(session.user.role)) {
@@ -67,6 +78,12 @@ export default async function AdminPosPage() {
   // `A-85` — la moneda base vigente y las monedas aceptadas, de `money` (no de la configuración de branding).
   const money = await readProductionMoney();
 
+  /** La zona horaria del negocio, para las horas prometidas del panel operacional. */
+  const settings = await loadBusinessSettings({
+    repository: new PrismaBusinessSettingsRepository(),
+  });
+  const { orderId } = await searchParams;
+
   return (
     <PosClient
       locations={locations}
@@ -82,6 +99,8 @@ export default async function AdminPosPage() {
       acceptedCurrencies={money.currencies.map((currency) => currency.code)}
       canDiscount={canDiscountPosSale(session.user.role)}
       cashTerminalsByLocation={cashTerminalsByLocation}
+      initialOrderId={orderId ?? null}
+      timeZone={settings.timezone}
     />
   );
 }

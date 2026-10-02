@@ -5,6 +5,7 @@ import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import type { PosPaymentMethodOption } from "@/modules/pos/domain/pos-payment-methods";
 import { DEFAULT_CURRENCY_FORMAT, formatCurrency } from "@/shared/lib/format-currency";
 
 import type { PosPaymentDraft } from "../pos-types";
@@ -12,6 +13,10 @@ import PosPaymentFields from "./pos-payment";
 
 /**
  * El cobro de la venta normal: medio de pago, monto, montos rápidos de billetes y **vuelto en vivo**.
+ *
+ * `TASK-ORDER-POS-OPERATIONAL-006` (brief §37, §39) — los medios de «¿Cómo paga?» salen del **catálogo
+ * configurado** del local y no de una constante del código: la pieza recibe `methodOptions` y las filas
+ * viven en `PosPaymentRows`, compartido con el cobro del pedido existente.
  *
  * El vuelto se prueba contra una regla explícita del negocio —paga C$100 por una venta de C$40, el vuelto es
  * C$60; paga C$20, faltan C$20— y no contra el helper que usa la pantalla. El vuelto de un **cobro partido**
@@ -21,7 +26,65 @@ import PosPaymentFields from "./pos-payment";
 const currency = DEFAULT_CURRENCY_FORMAT;
 const money = (amount: number) => formatCurrency(amount, currency);
 
-const cash: PosPaymentDraft = { id: "pay_1", method: "cash", currency: "NIO", amount: "" };
+/**
+ * Los medios configurados que este local ofrece. Se declara **una sola vez** y lo usan todos los renders:
+ * las dos transferencias comparten `kind`/`method` y difieren en `requiresReference`, que es la regla que
+ * decide si el cobro pide referencia (brief §39).
+ */
+const methodOptions: PosPaymentMethodOption[] = [
+  {
+    id: "pm_cash",
+    label: "Efectivo",
+    kind: "cash",
+    method: "cash",
+    requiresReference: false,
+    currencyCodes: [],
+  },
+  {
+    id: "pm_card",
+    label: "Tarjeta",
+    kind: "card",
+    method: "card",
+    requiresReference: false,
+    currencyCodes: [],
+  },
+  {
+    id: "pm_banpro",
+    label: "Transferencia Banpro",
+    kind: "bank_transfer",
+    method: "transfer",
+    requiresReference: true,
+    currencyCodes: [],
+  },
+  {
+    id: "pm_bac",
+    label: "Transferencia BAC",
+    kind: "bank_transfer",
+    method: "transfer",
+    requiresReference: false,
+    currencyCodes: [],
+  },
+  {
+    id: "pm_other",
+    label: "Otro",
+    kind: "other",
+    method: "other",
+    requiresReference: false,
+    currencyCodes: [],
+  },
+];
+
+/**
+ * La fila del cobro único en efectivo. Lleva su `paymentMethodId` para que la fila tenga medio elegido: sin
+ * él no hay opción seleccionada y no habría montos rápidos ni vuelto que probar.
+ */
+const cash: PosPaymentDraft = {
+  id: "pay_1",
+  method: "cash",
+  paymentMethodId: "pm_cash",
+  currency: "NIO",
+  amount: "",
+};
 
 function Harness({ initial = [cash], total = 40 }: { initial?: PosPaymentDraft[]; total?: number }) {
   const [payments, setPayments] = useState(initial);
@@ -35,6 +98,7 @@ function Harness({ initial = [cash], total = 40 }: { initial?: PosPaymentDraft[]
       acceptedCurrencies={["NIO", "USD"]}
       currency={currency}
       total={total}
+      methodOptions={methodOptions}
     />
   );
 }
@@ -42,12 +106,23 @@ function Harness({ initial = [cash], total = 40 }: { initial?: PosPaymentDraft[]
 afterEach(cleanup);
 
 describe("PosPaymentFields", () => {
-  it("pregunta cómo paga con los cuatro medios del POS", () => {
+  it("pregunta cómo paga con los medios configurados del local", () => {
     render(<Harness />);
 
+    /*
+     * Los medios ya no son los cuatro de la constante: son el catálogo del local, con el nombre que el
+     * dueño configuró («Transferencia Banpro» no existía como constante). El grupo con su nombre accesible
+     * sigue siendo el de la pregunta.
+     */
     const grupo = screen.getByRole("group", { name: "¿Cómo paga?" });
 
-    for (const medio of ["Efectivo", "Tarjeta", "Transferencia", "Otro"]) {
+    for (const medio of [
+      "Efectivo",
+      "Tarjeta",
+      "Transferencia Banpro",
+      "Transferencia BAC",
+      "Otro",
+    ]) {
       expect(within(grupo).getByRole("button", { name: medio })).toBeTruthy();
     }
 
@@ -113,6 +188,7 @@ describe("PosPaymentFields", () => {
         acceptedCurrencies={["NIO"]}
         currency={currency}
         total={40}
+        methodOptions={methodOptions}
       />,
     );
 
@@ -134,6 +210,7 @@ describe("PosPaymentFields", () => {
         acceptedCurrencies={["NIO", "USD", "EUR"]}
         currency={currency}
         total={40}
+        methodOptions={methodOptions}
       />,
     );
 
@@ -143,14 +220,14 @@ describe("PosPaymentFields", () => {
     expect(screen.getByRole("option", { name: "EUR" })).toBeTruthy();
   });
 
-  it("la transferencia pide su referencia y el efectivo no", async () => {
+  it("la transferencia que pide referencia la muestra y el efectivo no", async () => {
     const user = userEvent.setup();
     render(<Harness />);
 
-    expect(screen.queryByLabelText("Referencia de la transferencia (opcional)")).toBeNull();
+    expect(screen.queryByLabelText("Referencia del cobro")).toBeNull();
 
-    await user.click(screen.getByRole("button", { name: "Transferencia" }));
-    expect(screen.getByLabelText("Referencia de la transferencia (opcional)")).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Transferencia Banpro" }));
+    expect(screen.getByLabelText("Referencia del cobro")).toBeTruthy();
   });
 
   it("numera las filas de un cobro partido y permite sacarlas", async () => {
@@ -160,8 +237,14 @@ describe("PosPaymentFields", () => {
     render(
       <PosPaymentFields
         payments={[
-          { id: "pay_1", method: "cash", currency: "NIO", amount: "40" },
-          { id: "pay_2", method: "transfer", currency: "NIO", amount: "" },
+          { id: "pay_1", method: "cash", paymentMethodId: "pm_cash", currency: "NIO", amount: "40" },
+          {
+            id: "pay_2",
+            method: "transfer",
+            paymentMethodId: "pm_banpro",
+            currency: "NIO",
+            amount: "",
+          },
         ]}
         setPayments={() => {}}
         fieldErrors={{}}
@@ -169,11 +252,13 @@ describe("PosPaymentFields", () => {
       acceptedCurrencies={["NIO", "USD"]}
         currency={currency}
         total={40}
+        methodOptions={methodOptions}
         onRemovePayment={onRemovePayment}
       />,
     );
 
     expect(screen.getByText("Cobro 2")).toBeTruthy();
+    // El control lleva el número de la fila y la pantalla es la que saca el cobro (acá, el espía).
     await user.click(screen.getByRole("button", { name: "Quitar el cobro 2" }));
     expect(onRemovePayment).toHaveBeenCalledWith("pay_2");
   });
@@ -182,8 +267,14 @@ describe("PosPaymentFields", () => {
     render(
       <PosPaymentFields
         payments={[
-          { id: "pay_1", method: "cash", currency: "NIO", amount: "20" },
-          { id: "pay_2", method: "transfer", currency: "NIO", amount: "20" },
+          { id: "pay_1", method: "cash", paymentMethodId: "pm_cash", currency: "NIO", amount: "20" },
+          {
+            id: "pay_2",
+            method: "transfer",
+            paymentMethodId: "pm_banpro",
+            currency: "NIO",
+            amount: "20",
+          },
         ]}
         setPayments={() => {}}
         fieldErrors={{}}
@@ -191,6 +282,7 @@ describe("PosPaymentFields", () => {
       acceptedCurrencies={["NIO", "USD"]}
         currency={currency}
         total={40}
+        methodOptions={methodOptions}
       />,
     );
 
@@ -212,8 +304,14 @@ describe("PosPaymentFields", () => {
     render(
       <PosPaymentFields
         payments={[
-          { id: "pay_1", method: "cash", currency: "USD", amount: "10" },
-          { id: "pay_2", method: "transfer", currency: "NIO", amount: "355" },
+          { id: "pay_1", method: "cash", paymentMethodId: "pm_cash", currency: "USD", amount: "10" },
+          {
+            id: "pay_2",
+            method: "transfer",
+            paymentMethodId: "pm_banpro",
+            currency: "NIO",
+            amount: "355",
+          },
         ]}
         setPayments={() => {}}
         fieldErrors={{}}
@@ -221,6 +319,7 @@ describe("PosPaymentFields", () => {
       acceptedCurrencies={["NIO", "USD"]}
         currency={currency}
         total={720}
+        methodOptions={methodOptions}
       />,
     );
 
@@ -244,6 +343,7 @@ describe("PosPaymentFields", () => {
       acceptedCurrencies={["NIO", "USD"]}
         currency={currency}
         total={40}
+        methodOptions={methodOptions}
       />,
     );
 

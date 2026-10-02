@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  canDeliverOrder,
   canDiscountPosSale,
   canManageBusinessSettings,
   canManageCash,
@@ -328,5 +329,46 @@ describe("admin permissions", () => {
     expect(canViewOrders(ADMIN_ROLES.cashier)).toBe(true);
     expect(canViewOrderFinancials(ADMIN_ROLES.cashier)).toBe(true);
     expect(canViewOrderFinancials(ADMIN_ROLES.kitchen)).toBe(false);
+  });
+
+  /**
+   * `TASK-ORDER-POS-OPERATIONAL-006` (brief §18, §19) — **entregar el pedido** (`ready_for_pickup` →
+   * `picked_up`) es una capacidad **nominal** propia.
+   *
+   * El problema que cierra: hasta acá la única puerta que autorizaba la transición de estado era
+   * `canManageOrderOperations`, que **incluye a cocina y excluye al cajero**. El cajero es exactamente quien
+   * entrega el pedido en el mostrador, así que sin una puerta propia había que elegir entre dejarlo afuera
+   * —el defecto— o darle la capacidad **gruesa** y, por efecto secundario, autorizarlo a preparar, cancelar
+   * y cerrar, que el brief §19 prohíbe.
+   *
+   * La puerta autoriza **sólo** la entrega; que el rol no pueda hacer el resto del flujo es una aserción
+   * aparte y explícita (los dos tests de abajo), porque el riesgo real de una capacidad nueva no es que
+   * falte, es que venga con más de lo que dice.
+   */
+  it("canDeliverOrder: owner, manager y cashier entregan — cocina no", () => {
+    expect(canDeliverOrder(ADMIN_ROLES.owner)).toBe(true);
+    expect(canDeliverOrder(ADMIN_ROLES.manager)).toBe(true);
+    expect(canDeliverOrder(ADMIN_ROLES.cashier)).toBe(true);
+    expect(canDeliverOrder(ADMIN_ROLES.kitchen)).toBe(false);
+  });
+
+  it("entregar no es la puerta gruesa de pedidos ni la de Cocina", () => {
+    // Los dos conjuntos son distintos a propósito: si `canDeliverOrder` hubiera reutilizado cualquiera de
+    // las dos, el cajero seguiría afuera (la gruesa no lo tiene) o cocina entraría (Cocina sí lo tiene).
+    expect(ALL_ADMIN_ROLES.filter(canDeliverOrder)).not.toEqual(
+      ALL_ADMIN_ROLES.filter(canManageOrderOperations),
+    );
+    expect(ALL_ADMIN_ROLES.filter(canDeliverOrder)).not.toEqual(
+      ALL_ADMIN_ROLES.filter(canOperateKitchen),
+    );
+  });
+
+  it("el cajero que entrega no gana preparar, cancelar ni cerrar", () => {
+    // Brief §19: la capacidad autoriza **únicamente** la transición de entrega. El cajero sigue sin poder
+    // avanzar la comanda (`canOperateKitchen`) ni operar el flujo de pedidos en bloque
+    // (`canManageOrderOperations`), que es de donde salen preparar, cancelar y cerrar.
+    expect(canDeliverOrder(ADMIN_ROLES.cashier)).toBe(true);
+    expect(canOperateKitchen(ADMIN_ROLES.cashier)).toBe(false);
+    expect(canManageOrderOperations(ADMIN_ROLES.cashier)).toBe(false);
   });
 });

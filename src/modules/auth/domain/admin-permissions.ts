@@ -137,6 +137,31 @@ export function canCollectPayment(role: AdminRole) {
 }
 
 /**
+ * `TASK-ORDER-POS-OPERATIONAL-006` (brief §18, §19) — **entregar el pedido**: `ready_for_pickup` →
+ * `picked_up`.
+ *
+ * Es una capacidad **nominal** propia, y la razón es un defecto medido: la única puerta que autorizaba una
+ * transición de estado era `canManageOrderOperations`, que **incluye a `kitchen`** —cocina no maneja
+ * plata y no entrega— y **excluye a `cashier`**, que es exactamente quien entrega en el mostrador. Sin una
+ * puerta propia había que elegir entre dejar afuera al cajero o darle la capacidad gruesa y, por efecto
+ * secundario, autorizarlo a preparar, cancelar y cerrar.
+ *
+ * `canDeliverOrder` autoriza **únicamente** esa transición. No habilita ninguna otra: la ruta de estado
+ * sigue exigiendo el flujo completo para todo lo demás, y el test de permisos fija que el cajero que
+ * entrega sigue sin `canOperateKitchen` ni `canManageOrderOperations`.
+ *
+ * Es también la puerta del extremo nuevo del POS (entregar desde el mostrador), que es donde el cajero
+ * cierra su día.
+ */
+export function canDeliverOrder(role: AdminRole) {
+  return (
+    role === ADMIN_ROLES.owner ||
+    role === ADMIN_ROLES.manager ||
+    role === ADMIN_ROLES.cashier
+  );
+}
+
+/**
  * `TASK-MONEY-PAYMENTS-RUNTIME-001` (`D-014`, `D-016`) — **ver los datos financieros de un pedido**:
  * `status`, `paidAmount`, `outstandingAmount` y `unresolvedAmount`.
  *

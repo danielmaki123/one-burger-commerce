@@ -178,11 +178,12 @@ export async function addCatalogProductToCart(
 /**
  * A dónde aterriza una sesión del panel, según el rol (`TASK-ORDERS-RUNTIME-5B`, `A-10`).
  *
- * El destino lo decide **`resolveAdminLanding`**: el dueño al Resumen (`/admin`), manager y cajero a Pedidos
- * (`/admin/orders`) y cocina a Cocina (`/admin/kitchen`). Antes el único destino era `/admin` (o
- * `/admin/orders`), así que un helper que exigiera esa URL dejaba de servir para el rol de cocina.
+ * El destino lo decide **`resolveAdminLanding`**: el dueño al Resumen (`/admin`), el manager a Pedidos
+ * (`/admin/orders`), el **cajero al POS** (`/admin/pos`, `TASK-ORDER-POS-OPERATIONAL-006`) y cocina a Cocina
+ * (`/admin/kitchen`). Antes el único destino era `/admin` (o `/admin/orders`), así que un helper que exigiera
+ * esa URL dejaba de servir para el rol de cocina —y ahora para el cajero, cuyo workspace operativo es el POS—.
  */
-const ADMIN_LANDING_PATTERN = /\/admin(?:\/orders|\/kitchen)?$/;
+const ADMIN_LANDING_PATTERN = /\/admin(?:\/orders|\/kitchen|\/pos)?$/;
 
 /** El mismo destino, para los specs que afirman la URL de aterrizaje después del login. */
 export { ADMIN_LANDING_PATTERN };
@@ -219,7 +220,15 @@ export async function loginAsOwner(page: Page) {
   await page.locator('input[type="email"]').fill(E2E_ADMIN_EMAIL);
   await page.locator('input[type="password"]').fill(E2E_ADMIN_PASSWORD);
   await page.getByRole("button", { name: "Iniciar sesión" }).click();
-  await expect(page).toHaveURL(ADMIN_LANDING_PATTERN);
+  /**
+   * `TASK-ORDER-POS-OPERATIONAL-006` — **con presupuesto explícito** y no con el default de 5 s.
+   *
+   * El login del panel hace la verificación de contraseña (bcrypt) y, la primera vez de una cuenta, la
+   * **rehashea**: con la suite entera corriendo en paralelo eso pasa de 5 s de reloj de pared y el
+   * `toHaveURL` se rendía **antes** de que la sesión existiera. Los casos fallaban por reloj, no por
+   * comportamiento: los mismos specs pasan solos y fallaban cuatro distintos por corrida. Es del arnés.
+   */
+  await expect(page).toHaveURL(ADMIN_LANDING_PATTERN, { timeout: 20_000 });
 }
 
 /**

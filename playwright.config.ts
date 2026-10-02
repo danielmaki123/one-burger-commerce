@@ -16,6 +16,16 @@ export default defineConfig({
     ["list"],
     ["html", { outputFolder: "playwright-report", open: "never" }],
   ],
+  /**
+   * `TASK-ORDER-POS-OPERATIONAL-006` — **presupuesto de `expect` explícito**.
+   *
+   * El default de Playwright es 5 s. El panel verifica la contraseña con bcrypt y **rehashea** en el primer
+   * login de una cuenta: con la suite entera en paralelo, la sesión tardaba más que eso y los casos de rol
+   * fallaban por reloj (`toHaveURL` en `/admin/login`), no por comportamiento —los mismos specs pasan solos y
+   * fallaban cuatro distintos por corrida—. Subir el techo no baja ninguna expectativa: un caso que de verdad
+   * no llega sigue fallando, sólo tarda más en decirlo.
+   */
+  expect: { timeout: 20_000 },
   use: {
     baseURL,
     trace: "on-first-retry",

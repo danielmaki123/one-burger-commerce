@@ -62,8 +62,8 @@ Cada paso se abre como **una TASK**, con su brief en `ops/tasks/` y su Delivery 
 3b. Cocina runtime ................... CERRADA Y DESPLEGADA (/admin/kitchen como proyección de orders)
 4.  Money ownership .................. CERRADA Y DESPLEGADA (módulo `money` + /admin/finance)
 5.  Payments ownership ............... CERRADA Y DESPLEGADA (módulo `payments` + estado financiero canónico)
-5b. Pedidos runtime .................. /admin/orders denso y paginado + detalle con su historia y su cobro · SIGUIENTE
-6.  Pedido existente → Cobrar en POS . Órdenes localiza el pedido y el POS lo cobra (cierra `A-67`)
+5b. Pedidos runtime .................. /admin/orders denso y paginado + detalle con su historia y su cobro · CERRADA
+6.  Pedido existente → Cobrar en POS . POS operativo del cajero · ACTIVE (TASK-ORDER-POS-OPERATIONAL-006)
 7.  Cash ownership ................... Shift, apertura, movimientos, conteo, cierre, handover y conciliación
 8.  Separar Configuración: Negocio / Finanzas / Personalización / Locales ... cada una con su entrada
 9.  Separar Cierres / Facturas ....... dos capacidades distintas, dos documentos, dos dueños

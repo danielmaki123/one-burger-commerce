@@ -36,7 +36,11 @@ const LEGACY_ROUTE_LINES: Record<string, number> = {
   "src/app/api/admin/locations/route.ts": 56,
   "src/app/api/admin/menu/products/route.ts": 112,
   "src/app/api/admin/menu/marketing-blocks/route.ts": 111,
-  "src/app/api/admin/orders/[id]/status/route.ts": 107,
+  // `TASK-ORDER-POS-OPERATIONAL-006` **bajó** esta fila de 107 a 56 líneas: el preámbulo (payload,
+  // capacidad, alcance y transición) se fue a `orders/order-status-request.ts`, así que la puerta nominal de
+  // la entrega (`canDeliverOrder`) entró **sin subir el techo**. Queda arriba de 50, así que la fila sigue
+  // (la regla es que a ≤50 se borra, y la fila muerta la exige el contrato de integridad).
+  "src/app/api/admin/orders/[id]/status/route.ts": 56,
   "src/app/api/admin/users/[id]/route.ts": 103,
   "src/app/api/internal/staging/persistent-admin/route.ts": 102,
   "src/app/api/admin/menu/marketing-blocks/[id]/route.ts": 100,

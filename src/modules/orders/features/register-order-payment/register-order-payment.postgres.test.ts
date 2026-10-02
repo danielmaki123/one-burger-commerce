@@ -1,4 +1,4 @@
-import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { runInOrderPaymentTransaction } from "@/app/api/admin/orders/[id]/payment/payment-composition";
 import { getPrismaClient } from "@/infrastructure/database/prisma";
@@ -6,80 +6,100 @@ import { PrismaOrderRepository } from "@/modules/orders/adapters/prisma-order-re
 import { PrismaPaymentRepository } from "@/modules/orders/adapters/prisma-payment-repository";
 import {
   registerOrderPayment,
+  settlementPaymentKey,
+  type OrderPaymentScope,
   type RegisterOrderPaymentDependencies,
 } from "@/modules/orders/features/register-order-payment/register-order-payment";
 
 import { closeDatabase, resetDatabase } from "@/shared/testing/postgres";
 
 /**
- * TASK-AUD-055 — **dos cobros simultáneos del mismo pedido no pueden superar el saldo pendiente**.
+ * `TASK-ORDER-POS-OPERATIONAL-006` (brief §49, §50, §51, §52) — **las propiedades que sólo PostgreSQL
+ * puede demostrar**: atomicidad, concurrencia, idempotencia y turno, sobre la liquidación del POS.
  *
- * `registerOrderPayment` valida el tope leyendo la suma de los cobros (`getPaymentSummary`) y **después**
- * escribe. Dos requests simultáneos leen los dos el mismo saldo, los dos pasan la comprobación y los dos
- * insertan: el pedido termina cobrado de más. Y la comprobación previa es un `if` sobre una lectura, no una
- * garantía.
+ * El brief es explícito en que un doble en memoria **no** sirve para esto (§49: «No dejar una prueba falsa
+ * basada únicamente en dobles/mocks»). Cada caso de acá corre contra la base real y usa la **misma**
+ * composición de producción (`runInOrderPaymentTransaction`), porque un test que se arma su propio runner no
+ * prueba el que corre en producción.
  *
- * La invariante: **la suma aceptada nunca supera el total del pedido**. Se fija con dos requests
- * simultáneos reales contra PostgreSQL.
+ * Las propiedades:
+ *
+ * 1. **Atomicidad** (§29): si el segundo `Payment` de una liquidación falla, quedan **cero** cobros. Ninguna
+ *    liquidación puede dejar plata parcial por un fallo técnico intermedio.
+ * 2. **Concurrencia** (§50): dos requests simultáneos cobrando el mismo saldo lo cobran **una sola vez**.
+ * 3. **Idempotencia** (§51): dos requests con la misma clave producen **un solo** hecho financiero.
+ * 4. **Turno** (§52): el `Payment` no queda sin turno ni asociado al turno equivocado.
  */
 
-const ORDER_ID = "ord_a55";
+const ORDER_ID = "ord_pos06";
 
 async function seed(total = 100): Promise<void> {
   const prisma = getPrismaClient();
 
   await prisma.adminUser.create({
     data: {
-      id: "user_a55",
+      id: "user_pos06",
       name: "Cajera de prueba",
-      email: "cajera@a55.test.local",
+      email: "cajera@pos06.test.local",
       passwordHash: "no-es-un-hash-real",
       role: "cashier",
     },
   });
 
   await prisma.location.create({
-    data: { id: "loc_a55", name: "Local de prueba", slug: "local-a55", businessHours: [] },
+    data: { id: "loc_pos06", name: "Local de prueba", slug: "local-pos06", businessHours: [] },
   });
 
   await prisma.order.create({
     data: {
       id: ORDER_ID,
-      orderNumber: "P-A55-1",
+      orderNumber: "P-POS06-1",
       type: "pickup",
-      status: "ready",
+      status: "ready_for_pickup",
       customerName: "Cliente de prueba",
-      customerWhatsapp: "+50588887772",
-      locationId: "loc_a55",
+      customerWhatsapp: "+50588887770",
+      locationId: "loc_pos06",
       subtotal: total,
       total,
     },
   });
 }
 
-/** Las dependencias reales del cobro de un pedido existente (sin caja abierta: el turno no es el tema acá). */
-async function deps(): Promise<RegisterOrderPaymentDependencies> {
+/** Las dependencias reales de la liquidación, con un turno abierto en el local. */
+async function deps(
+  overrides: Partial<RegisterOrderPaymentDependencies> = {},
+): Promise<RegisterOrderPaymentDependencies> {
   return {
     orderRepository: new PrismaOrderRepository(),
     paymentRepository: new PrismaPaymentRepository(),
-    findOpenShift: async () => null,
+    findOpenShift: async () => ({ id: "shift_pos06" }),
     runInOrderPaymentTransaction,
     baseCurrencyCode: "NIO",
-    // `A-68` — el equivalente se mide con la tasa vigente, no con la suma cruda de los montos.
     rates: { USD: 36.5 },
     paymentMethodKind: "cash",
+    ...overrides,
   };
 }
 
+/** Un turno abierto real, para el caso del turno (brief §52). */
+async function seedShift(id = "shift_pos06", status: "open" | "closed" = "open") {
+  const prisma = getPrismaClient();
+
+  await prisma.shift.create({
+    data: {
+      id,
+      locationId: "loc_pos06",
+      userId: "user_pos06",
+      status,
+      openingAmount: 0,
+    },
+  });
+}
+
 /**
- * Fuerza el cruce: las dos lecturas del saldo pendiente terminan **antes** de que ninguna escriba. Sin esto el
- * caso depende del planificador (y pasaba sin arreglar nada). Si solo llega una lectura —que es lo que pasa
- * cuando el fix serializa con el lock—, sigue a los 1,5 s para no colgar el test.
- *
- * `TASK-MONEY-PAYMENTS-RUNTIME-001` — la lectura del saldo dejó de pedirle el resumen agregado a la base
- * (`getPaymentSummary`, que sólo sabía sumar montos **crudos**) y ahora trae las filas para poder sumar el
- * **equivalente en moneda base** de cada cobro. La barrera sigue el camino nuevo: si envolviera un método
- * que ya no se llama, el test dejaría de forzar el cruce y pasaría por casualidad.
+ * Fuerza el cruce: las dos lecturas del saldo terminan **antes** de que ninguna escriba. Sin esto el caso
+ * depende del planificador y pasaría sin arreglar nada. Si sólo llega una lectura —que es lo que pasa cuando
+ * el lock serializa—, sigue a los 1,5 s para no colgar el test.
  */
 function withReadBarrier<T extends RegisterOrderPaymentDependencies>(dependencies: T): T {
   let llegaron = 0;
@@ -88,7 +108,6 @@ function withReadBarrier<T extends RegisterOrderPaymentDependencies>(dependencie
     liberar = resolve;
   });
 
-  /** La lectura del saldo pendiente espera a la otra: sin esto el cruce depende del planificador. */
   function barrera<TRepo extends object>(repository: TRepo): TRepo {
     return new Proxy(repository, {
       get(target, property, receiver) {
@@ -111,8 +130,6 @@ function withReadBarrier<T extends RegisterOrderPaymentDependencies>(dependencie
 
   return {
     ...dependencies,
-    paymentRepository: barrera(dependencies.paymentRepository),
-    /* El fix mueve la validación adentro de la transacción: la barrera tiene que cubrir ese camino también. */
     runInOrderPaymentTransaction: (work) =>
       dependencies.runInOrderPaymentTransaction((scope) =>
         work({ ...scope, paymentRepository: barrera(scope.paymentRepository) }),
@@ -120,185 +137,287 @@ function withReadBarrier<T extends RegisterOrderPaymentDependencies>(dependencie
   } as T;
 }
 
-describe("TASK-AUD-055 · doble cobro concurrente del mismo pedido (PostgreSQL real)", () => {
+async function paymentsOf(orderId = ORDER_ID) {
+  return getPrismaClient().payment.findMany({ where: { orderId }, orderBy: { createdAt: "asc" } });
+}
+
+describe("brief §49 · atomicidad de la liquidación partida (PostgreSQL real)", () => {
   beforeEach(async () => {
     await resetDatabase();
-    await seed(100);
+    await seed(800);
+    await seedShift();
   });
 
   afterAll(async () => {
     await closeDatabase();
   });
 
-  it("dos cobros simultáneos que en suma pasan el total: uno solo entra", async () => {
-    const prisma = getPrismaClient();
-
+  it("si el segundo cobro falla, quedan CERO cobros: no hay plata parcial", async () => {
     /**
-     * `TASK-MONEY-PAYMENTS-RUNTIME-001` — cada request lleva **su propia** clave.
-     *
-     * Con la misma clave, el segundo request no sería el caso de este test —dos cobros **distintos** que en
-     * suma pasan el total— sino un *replay* idempotente: el pedido terminaría con **un** cobro por la razón
-     * equivocada y la suite diría «uno solo entra» sin haber probado nunca el tope.
+     * Se envuelve el `createPayment` del alcance para que el **segundo** falle. El fallo es de la escritura,
+     * no de una validación previa: es exactamente el escenario «Payment 1 se insertaría, Payment 2 falla».
      */
-    const results = await Promise.allSettled([
-      registerOrderPayment(
-        { orderId: ORDER_ID, method: "cash", amount: 100, currency: "NIO", idempotencyKey: "key_tope_a" },
-        withReadBarrier(await deps()),
-      ),
-      registerOrderPayment(
-        { orderId: ORDER_ID, method: "cash", amount: 100, currency: "NIO", idempotencyKey: "key_tope_b" },
-        withReadBarrier(await deps()),
-      ),
-    ]);
+    let created = 0;
 
-    const aceptados = results.filter((result) => result.status === "fulfilled");
-
-    expect(aceptados, "los dos cobros pasaron la comprobación previa").toHaveLength(1);
-
-    const payments = await prisma.payment.findMany({ where: { orderId: ORDER_ID } });
-    const cobrado = payments.reduce((sum, payment) => sum + Number(payment.amount), 0);
-
-    expect(cobrado, "el pedido quedó cobrado por encima de su total").toBeLessThanOrEqual(100);
-
-    // Y el que pierde no se cae por un error técnico: lo rechaza una regla de negocio.
-    const rechazado = results.find((result) => result.status === "rejected") as PromiseRejectedResult;
-
-    expect((rechazado.reason as { status?: number }).status).toBe(409);
-  });
-
-  it("dos cobros simultáneos que en suma entran justo en el total: los dos entran", async () => {
-    const prisma = getPrismaClient();
-
-    const results = await Promise.allSettled([
-      registerOrderPayment(
-        { orderId: ORDER_ID, method: "cash", amount: 60, currency: "NIO", idempotencyKey: "key_justo_a" },
-        withReadBarrier(await deps()),
-      ),
-      registerOrderPayment(
-        { orderId: ORDER_ID, method: "card", amount: 40, currency: "NIO", idempotencyKey: "key_justo_b" },
-        withReadBarrier(await deps()),
-      ),
-    ]);
-
-    expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(2);
-
-    const payments = await prisma.payment.findMany({ where: { orderId: ORDER_ID } });
-
-    expect(payments).toHaveLength(2);
-  });
-});
-
-/**
- * `TASK-MONEY-PAYMENTS-RUNTIME-001` (`A-71`) — **la idempotencia la garantiza la base, no la UI**.
- *
- * Dos requests **simultáneos** con la **misma** clave de idempotencia sobre un cobro **parcial**. Es el hueco
- * exacto del hallazgo: el tope dejaba pasar los dos mientras la suma no alcanzara el total, así que el
- * reintento registraba la misma plata dos veces. La garantía no puede ser un bloqueo de botón ni un `if`
- * sobre una lectura —eso es una carrera con apariencia de control—: es un **índice único parcial** en
- * PostgreSQL, y este test es el que lo demuestra contra la base real.
- *
- * También fija el alcance de la clave: es del **cobro**, no del pedido. Dos claves distintas son dos abonos
- * legítimos y tienen que poder convivir.
- */
-describe("A-71 · idempotencia del cobro concurrente (PostgreSQL real)", () => {
-  beforeEach(async () => {
-    await resetDatabase();
-    await seed(1_000);
-  });
-
-  afterAll(async () => {
-    await closeDatabase();
-  });
-
-  it("dos requests simultáneos con la MISMA clave producen un solo `Payment`", async () => {
-    const prisma = getPrismaClient();
-
-    const cobro = {
-      orderId: ORDER_ID,
-      method: "cash" as const,
-      amount: 100,
-      currency: "NIO",
-      idempotencyKey: "key_simultanea",
-    };
-
-    const results = await Promise.allSettled([
-      registerOrderPayment(cobro, await deps()),
-      registerOrderPayment(cobro, await deps()),
-    ]);
-
-    const payments = await prisma.payment.findMany({ where: { orderId: ORDER_ID } });
-
-    expect(payments, "el reintento simultáneo registró la misma plata dos veces").toHaveLength(1);
-
-    // Y ninguna de las dos respuestas puede ser un error técnico: las dos tienen que devolver el cobro.
-    const fulfilled = results.filter((result) => result.status === "fulfilled");
-    expect(fulfilled).toHaveLength(2);
-
-    const ids = fulfilled.map((result) => (result as PromiseFulfilledResult<{ data: { id: string } }>).value.data.id);
-    expect(new Set(ids).size, "las dos respuestas tienen que apuntar al mismo cobro").toBe(1);
-  });
-
-  it("dos claves DISTINTAS son dos abonos legítimos y conviven", async () => {
-    const prisma = getPrismaClient();
-
-    await Promise.all([
-      registerOrderPayment(
-        { orderId: ORDER_ID, method: "cash", amount: 400, currency: "NIO", idempotencyKey: "key_abono_1" },
-        await deps(),
-      ),
-      registerOrderPayment(
-        { orderId: ORDER_ID, method: "card", amount: 600, currency: "NIO", idempotencyKey: "key_abono_2" },
-        await deps(),
-      ),
-    ]);
-
-    const payments = await prisma.payment.findMany({ where: { orderId: ORDER_ID } });
-
-    expect(payments).toHaveLength(2);
-    expect(payments.reduce((sum, payment) => sum + Number(payment.amount), 0)).toBe(1_000);
-  });
-});
-
-/**
- * `TASK-MONEY-PAYMENTS-RUNTIME-001` (`A-68`) — **el tope se mide en moneda base, contra la base real**.
- *
- * El caso textual del hallazgo: un pedido de C$365 que acepta `US$10` como «10 pagados» y deja cobrar otros
- * C$355. El equivalente se congela al cobrar (×36.5 = C$365), así que el pedido queda cubierto y el segundo
- * cobro tiene que ser rechazado. La suma cruda seguiría dando 365 < 375.
- */
-describe("A-68 · el tope del saldo en moneda base (PostgreSQL real)", () => {
-  beforeEach(async () => {
-    await resetDatabase();
-    await seed(365);
-  });
-
-  afterAll(async () => {
-    await closeDatabase();
-  });
-
-  it("un cobro de US$10 deja el pedido de C$365 cubierto y rechaza los C$355 siguientes", async () => {
-    const prisma = getPrismaClient();
-
-    const primero = await registerOrderPayment(
-      { orderId: ORDER_ID, method: "cash", amount: 10, currency: "USD", idempotencyKey: "key_usd" },
-      await deps(),
-    );
-
-    expect(primero.data).toMatchObject({ amount: 10, currency: "USD", baseCurrencyCode: "NIO", exchangeRate: 36.5, baseAmount: 365 });
+    const failingTransaction = <T,>(work: (scope: OrderPaymentScope) => Promise<T>): Promise<T> =>
+      runInOrderPaymentTransaction((scope) =>
+        work({
+          ...scope,
+          /**
+           * El doble del alcance reproduce **su** contrato: los métodos de `PrismaPaymentRepository` viven en
+           * el prototipo, así que el spread los perdería y el caso fallaría por un `not a function` en vez de
+           * por el fallo simulado —un rojo por la razón equivocada—.
+           */
+          paymentRepository: {
+            createPayment: async (input) => {
+              created += 1;
+              if (created === 2) throw new Error("fallo técnico simulado en el segundo cobro");
+              return scope.paymentRepository.createPayment(input);
+            },
+            listPaymentsByOrder: (orderId) => scope.paymentRepository.listPaymentsByOrder(orderId),
+          },
+        }),
+      );
 
     await expect(
       registerOrderPayment(
-        { orderId: ORDER_ID, method: "cash", amount: 355, currency: "NIO", idempotencyKey: "key_nio" },
-        await deps(),
+        {
+          orderId: ORDER_ID,
+          idempotencyKey: "key_atomica",
+          payments: [
+            { method: "cash", amount: 300, currency: "NIO" },
+            { method: "card", amount: 500, currency: "NIO" },
+          ],
+        },
+        await deps({ runInOrderPaymentTransaction: failingTransaction }),
+      ),
+    ).rejects.toThrow("fallo técnico simulado");
+
+    // La propiedad que importa: el primero entró y el ROLLBACK se lo llevó.
+    expect(created, "los dos intentos de escritura tienen que haber corrido").toBe(2);
+    expect(await paymentsOf(), "quedó un Payment parcial de una liquidación que no se completó").toHaveLength(0);
+  });
+
+  it("la liquidación completa entra entera: dos cobros en la misma transacción", async () => {
+    const result = await registerOrderPayment(
+      {
+        orderId: ORDER_ID,
+        idempotencyKey: "key_entera",
+        payments: [
+          { method: "cash", amount: 300, currency: "NIO" },
+          { method: "card", amount: 500, currency: "NIO" },
+        ],
+      },
+      await deps(),
+    );
+
+    expect(result.appliedAmount).toBe(800);
+
+    const payments = await paymentsOf();
+    expect(payments).toHaveLength(2);
+    expect(payments.map((payment) => Number(payment.amount))).toEqual([300, 500]);
+    expect(payments.reduce((sum, payment) => sum + Number(payment.baseAmount), 0)).toBe(800);
+  });
+});
+
+describe("brief §50 · concurrencia: el saldo se cobra una sola vez (PostgreSQL real)", () => {
+  beforeEach(async () => {
+    await resetDatabase();
+    await seed(800);
+    await seedShift();
+  });
+
+  afterAll(async () => {
+    await closeDatabase();
+  });
+
+  it("dos liquidaciones simultáneas del mismo saldo: una sola entra y no hay sobrecobro", async () => {
+    const request = (key: string) => ({
+      orderId: ORDER_ID,
+      idempotencyKey: key,
+      payments: [{ method: "cash" as const, amount: 800, currency: "NIO" }],
+    });
+
+    const results = await Promise.allSettled([
+      registerOrderPayment(request("key_carrera_a"), withReadBarrier(await deps())),
+      registerOrderPayment(request("key_carrera_b"), withReadBarrier(await deps())),
+    ]);
+
+    expect(
+      results.filter((result) => result.status === "fulfilled"),
+      "las dos liquidaciones cobraron el mismo saldo",
+    ).toHaveLength(1);
+
+    const payments = await paymentsOf();
+    const cobrado = payments.reduce((sum, payment) => sum + Number(payment.amount), 0);
+
+    expect(payments, "el pedido quedó cobrado dos veces").toHaveLength(1);
+    expect(cobrado, "el pedido quedó cobrado por encima de su total").toBeLessThanOrEqual(800);
+
+    // El que pierde no se cae por un error técnico: lo rechaza una regla de negocio.
+    const rechazado = results.find((result) => result.status === "rejected") as PromiseRejectedResult;
+    expect((rechazado.reason as { status?: number }).status).toBe(409);
+  });
+});
+
+describe("brief §51 · idempotencia de la liquidación (PostgreSQL real)", () => {
+  beforeEach(async () => {
+    await resetDatabase();
+    await seed(800);
+    await seedShift();
+  });
+
+  afterAll(async () => {
+    await closeDatabase();
+  });
+
+  it("dos requests simultáneos con la MISMA clave producen un solo hecho financiero", async () => {
+    const request = {
+      orderId: ORDER_ID,
+      idempotencyKey: "key_simultanea",
+      payments: [
+        { method: "cash" as const, amount: 300, currency: "NIO" },
+        { method: "card" as const, amount: 500, currency: "NIO" },
+      ],
+    };
+
+    const results = await Promise.allSettled([
+      registerOrderPayment(request, await deps()),
+      registerOrderPayment(request, await deps()),
+    ]);
+
+    const payments = await paymentsOf();
+
+    expect(payments, "el reintento simultáneo registró la misma plata dos veces").toHaveLength(2);
+    expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(2);
+
+    // Las dos respuestas apuntan al MISMO hecho financiero.
+    const ids = results.map((result) =>
+      (result as PromiseFulfilledResult<{ data: Array<{ id: string }> }>).value.data
+        .map((payment) => payment.id)
+        .sort(),
+    );
+    expect(ids[0]).toEqual(ids[1]);
+  });
+
+  it("el reintento serial (no simultáneo) tampoco duplica la liquidación", async () => {
+    const request = {
+      orderId: ORDER_ID,
+      idempotencyKey: "key_serial",
+      payments: [{ method: "cash" as const, amount: 800, currency: "NIO" }],
+    };
+
+    const first = await registerOrderPayment(request, await deps());
+    const second = await registerOrderPayment(request, await deps());
+
+    expect(await paymentsOf()).toHaveLength(1);
+    expect(second.data.map((payment) => payment.id)).toEqual(first.data.map((payment) => payment.id));
+    // La clave derivada es la que garantiza la unicidad en la base.
+    expect(first.data[0].idempotencyKey).toBe(settlementPaymentKey("key_serial", 0));
+  });
+});
+
+describe("brief §52 · el turno del cobro (PostgreSQL real)", () => {
+  beforeEach(async () => {
+    await resetDatabase();
+    await seed(100);
+    await seedShift();
+  });
+
+  afterAll(async () => {
+    await closeDatabase();
+  });
+
+  it("el cobro queda asociado al turno abierto del local", async () => {
+    await registerOrderPayment(
+      {
+        orderId: ORDER_ID,
+        idempotencyKey: "key_turno",
+        payments: [{ method: "cash", amount: 100, currency: "NIO" }],
+      },
+      await deps(),
+    );
+
+    const payments = await paymentsOf();
+
+    expect(payments).toHaveLength(1);
+    expect(payments[0].shiftId, "el Payment quedó sin turno").toBe("shift_pos06");
+  });
+
+  it("sin caja abierta no se cobra: no hay arqueo que lo explique", async () => {
+    await expect(
+      registerOrderPayment(
+        {
+          orderId: ORDER_ID,
+          idempotencyKey: "key_sin_caja",
+          payments: [{ method: "cash", amount: 100, currency: "NIO" }],
+        },
+        await deps({ findOpenShift: async () => null }),
       ),
     ).rejects.toMatchObject({ status: 409 });
 
-    const payments = await prisma.payment.findMany({ where: { orderId: ORDER_ID } });
+    expect(await paymentsOf()).toHaveLength(0);
+  });
 
-    expect(payments).toHaveLength(1);
-    expect(
-      payments.reduce((sum, payment) => sum + Number(payment.baseAmount), 0),
-      "la suma demostrable no puede pasar el total",
-    ).toBeLessThanOrEqual(365);
+  it("si la caja se cierra entre la lectura y la escritura, el cobro se rechaza y no queda asociado a un turno cerrado", async () => {
+    const prisma = getPrismaClient();
+
+    // El turno se cierra **después** de resolverlo pero **antes** de que la transacción lo bloquee: es la
+    // ventana real que `lockShift` + la comprobación de estado tienen que cubrir.
+    const closingTransaction = <T,>(work: (scope: OrderPaymentScope) => Promise<T>): Promise<T> =>
+      runInOrderPaymentTransaction(async (scope) => {
+        await prisma.shift.update({ where: { id: "shift_pos06" }, data: { status: "closed" } });
+
+        return work(scope);
+      });
+
+    await expect(
+      registerOrderPayment(
+        {
+          orderId: ORDER_ID,
+          idempotencyKey: "key_turno_cerrado",
+          payments: [{ method: "cash", amount: 100, currency: "NIO" }],
+        },
+        await deps({ runInOrderPaymentTransaction: closingTransaction }),
+      ),
+    ).rejects.toMatchObject({ status: 409 });
+
+    expect(await paymentsOf()).toHaveLength(0);
+  });
+});
+
+describe("brief §34 · el sobrecobro partido no deja rastro (PostgreSQL real)", () => {
+  beforeEach(async () => {
+    await resetDatabase();
+    await seed(80);
+    await seedShift();
+  });
+
+  afterAll(async () => {
+    await closeDatabase();
+  });
+
+  it("80 con 50 + 50 se rechaza y no hay cambios financieros", async () => {
+    const spy = vi.fn();
+
+    await expect(
+      registerOrderPayment(
+        {
+          orderId: ORDER_ID,
+          idempotencyKey: "key_over",
+          payments: [
+            { method: "cash", amount: 50, currency: "NIO" },
+            { method: "card", amount: 50, currency: "NIO" },
+          ],
+        },
+        await deps(),
+      ).then((result) => {
+        spy();
+        return result;
+      }),
+    ).rejects.toMatchObject({ status: 409 });
+
+    expect(spy, "la liquidación sobrecobrada se aceptó").not.toHaveBeenCalled();
+    expect(await paymentsOf()).toHaveLength(0);
   });
 });

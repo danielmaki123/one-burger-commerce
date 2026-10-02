@@ -1,100 +1,54 @@
 import { NextResponse } from "next/server";
-import { z } from "zod";
 
-import { canManageOrderOperations } from "@/modules/auth/domain/admin-permissions";
-import { AuthError } from "@/modules/auth/domain/auth-errors";
 import { requireAdminSession } from "@/modules/auth/features/require-admin-session/require-admin-session";
 import { registerOutboxEventBusHandlers } from "@/modules/notifications/adapters/outbox-subscriber";
-import { PrismaOrderRepository } from "@/modules/orders/adapters/prisma-order-repository";
-import { OrderError } from "@/modules/orders/domain/order-errors";
-import { resolveOrderLocationScope } from "@/modules/orders/domain/order-visibility";
 import { createErrorResponse } from "@/shared/lib/http/error-response";
 
 import { applyOrderStatusChange } from "../../order-status-composition";
-import { assertOrderInScope } from "../../order-scope";
+import {
+  createOrderStatusRepository,
+  resolveOrderStatusChange,
+} from "../../order-status-request";
 
 registerOutboxEventBusHandlers();
 
-const statusSchema = z.object({
-  status: z.enum([
-    "new",
-    "confirmed",
-    "preparing",
-    "ready",
-    "out_for_delivery",
-    "delivered",
-    "closed",
-    "ready_for_pickup",
-    "picked_up",
-    "accepted",
-    "served",
-    "cancelled",
-  ]),
-  note: z.string().nullable().optional(),
-});
-
+/**
+ * `TASK-ORDER-POS-OPERATIONAL-006` (brief §18, §19) — **el cambio de estado del pedido**, con la puerta
+ * nominal de la entrega.
+ *
+ * El handler quedó en lo que tiene que ser: sesión, resolución del preámbulo (payload, capacidad, alcance y
+ * transición real, todo en `order-status-request.ts`) y la llamada a la composición. El preámbulo se movió a
+ * composición al agregar la puerta de la entrega: esta ruta es **legacy con techo medido** y agregar la
+ * capacidad nominal **sin subir el techo** era el punto.
+ */
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await requireAdminSession();
-    if (!canManageOrderOperations(session.user.role)) {
-      throw new AuthError(403, "FORBIDDEN", "Insufficient permissions");
-    }
-
     const { id } = await params;
-    const parsed = statusSchema.safeParse(await request.json().catch(() => ({})));
 
-    if (!parsed.success) {
-      return NextResponse.json(
-        {
-          error: {
-            code: "BAD_REQUEST",
-            message: "Invalid payload",
-            fields: Object.fromEntries(
-              Object.entries(parsed.error.flatten().fieldErrors).map(([k, v]) => [
-                k,
-                Array.isArray(v) ? v[0] : String(v),
-              ]),
-            ),
-          },
-        },
-        { status: 400 },
-      );
+    const resolved = await resolveOrderStatusChange({
+      body: await request.json().catch(() => ({})),
+      orderId: id,
+      role: session.user.role,
+      assignedLocationIds: session.user.locationIds,
+      repository: createOrderStatusRepository(),
+    });
+
+    if (!resolved.ok) {
+      return NextResponse.json(resolved.body, { status: resolved.status });
     }
 
-    if (parsed.data.status === "cancelled" && !parsed.data.note?.trim()) {
-      return NextResponse.json(
-        {
-          error: {
-            code: "VALIDATION_ERROR",
-            message: "Invalid payload",
-            fields: { note: "Required when status is cancelled" },
-          },
-        },
-        { status: 422 },
-      );
-    }
+    // B5: quién lo cambió, para el historial. Bloque 3.5: la composición deja la devolución pendiente al
+    // cancelar un pedido cobrado (A-15) y aplica la capacidad de Cocina con el rol que firma.
+    const result = await applyOrderStatusChange({
+      orderId: id,
+      status: resolved.context.request.status,
+      note: resolved.context.request.note,
+      changedByUserId: session.user.id,
+      actorRole: session.user.role,
+      order: resolved.context.order,
+    });
 
-    // A: el alcance se comprueba **antes** de mutar; un pedido de otra sucursal no se toca.
-    const repository = new PrismaOrderRepository();
-    const existing = await repository.findOrderById(id);
-    if (!existing) {
-      throw new OrderError(404, "NOT_FOUND", "Order not found");
-    }
-
-    assertOrderInScope(
-      resolveOrderLocationScope({
-        role: session.user.role,
-        assignedLocationIds: session.user.locationIds,
-      }),
-      existing.locationId,
-    );
-
-    // B5: quién lo cambió, para el historial: con cuentas compartidas, "quién aceptó esto" es la pregunta
-    // que se hace después, cuando algo sale mal.
-    //
-    // Bloque 3.5: la composición deja la devolución pendiente al cancelar un pedido cobrado (A-15). Con el
-    // rol que firma y el pedido ya leído, esa misma composición aplica la capacidad de Cocina.
-    const result = await applyOrderStatusChange({ orderId: id, status: parsed.data.status, note: parsed.data.note ?? null, changedByUserId: session.user.id, actorRole: session.user.role, order: existing });
     return NextResponse.json(result);
   } catch (error) {
     return createErrorResponse(error);

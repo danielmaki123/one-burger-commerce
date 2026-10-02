@@ -6,6 +6,7 @@ import type { MoneyContext } from "@/modules/money/domain/money-context";
 import { PAYMENT_METHOD_TYPE_LABELS } from "@/modules/orders/domain/order.types";
 import type { PosDraftLine } from "@/modules/pos/domain/pos-draft";
 import { posDraftTotals } from "@/modules/pos/domain/pos-draft";
+import type { PosPaymentMethodOption } from "@/modules/pos/domain/pos-payment-methods";
 import { manualDiscountAmount } from "@/modules/orders/domain/sale-discount";
 import { describeCouponLabel } from "@/shared/lib/coupon-label";
 import type { CurrencyFormat } from "@/shared/lib/format-currency";
@@ -36,7 +37,14 @@ export type PosSaleAttempt = {
 /** Lo que se guarda al dejar la venta en espera: las líneas, el cobro armado y la clave del intento. */
 export type PosHoldPayload = {
   lines: PosDraftLine[];
-  payments: { method: string; currency: string; amount: string; reference?: string }[];
+  payments: {
+    method: string;
+    /** `TASK-ORDER-POS-OPERATIONAL-006` — el medio configurado elegido; opcional en una espera vieja. */
+    paymentMethodId?: string;
+    currency: string;
+    amount: string;
+    reference?: string;
+  }[];
   attemptKey: string;
 };
 
@@ -47,6 +55,14 @@ export type UsePosSaleParams = {
   /** `A-85` — el contexto monetario vigente: la moneda base de los borradores y sus tasas. */
   money: MoneyContext;
   currency: CurrencyFormat;
+  /**
+   * `TASK-ORDER-POS-OPERATIONAL-006` (brief §37, §38) — **los medios configurados que este local ofrece**.
+   *
+   * Entran por acá porque el hook es el dueño del estado de las filas de cobro: la primera fila nace con el
+   * primer medio del catálogo y el `paymentMethodId` viaja en el payload. Sin opciones (local sin medios
+   * configurados) la fila nace sin medio y el cobro se rechaza en vez de mandar un medio inventado.
+   */
+  methodOptions: PosPaymentMethodOption[];
   /** Punto 4 — la factura con RUC que el cajero cargó (la valida el dominio de la pantalla). */
   fiscal: PosFiscalDraft;
   /** El estado del cliente: viaja en el cobro y en el recibo. */
@@ -66,6 +82,7 @@ export function usePosSale({
   terminalId,
   money,
   currency,
+  methodOptions,
   fiscal,
   customer,
   attempt,
@@ -73,6 +90,30 @@ export function usePosSale({
   onSaleCharged,
   onHold,
 }: UsePosSaleParams) {
+  /**
+   * `TASK-ORDER-POS-OPERATIONAL-006` — la fila de cobro **nace con el primer medio configurado** del local.
+   *
+   * Antes nacía con `method: "cash"` a mano: un valor del enum histórico que no decía nada sobre la
+   * configuración del negocio. Ahora el medio por defecto es el primero que el dueño habilitó para esta
+   * sucursal, y su `paymentMethodId` es lo que viaja al servidor.
+   */
+  const firstMethod = methodOptions[0] ?? null;
+  /**
+   * `TASK-ORDER-POS-OPERATIONAL-006` — **la identidad del medio, no el objeto**.
+   *
+   * `methodOptions` es un arreglo **nuevo en cada refresco** del catálogo: sale de
+   * `setPaymentMethods(body.paymentMethods ?? [])` en `use-pos-catalog.ts`, y el POS se refresca solo cada 3 s.
+   * Un `useCallback` que dependa del **objeto** `firstMethod` (o del arreglo) se rearma en cada refresco, y el
+   * efecto que reinicia la venta al cambiar de local (`pos-client.tsx`) lo tiene como dependencia: disparaba
+   * **en cada refresco** y borraba el cupón ya cotizado y el monto que el cajero había tipeado, sin que nadie
+   * tocara nada.
+   *
+   * Se derivan los valores que el callback realmente usa para que su identidad dependa del **contenido** del
+   * primer medio y no de la identidad del arreglo. Medido: el caso «el refresco automático no borra el cupón
+   * cotizado ni el monto del cobro» fallaba con un solo ciclo de refresco y pasa con esto.
+   */
+  const firstMethodId = firstMethod?.id ?? null;
+  const firstMethodKind = firstMethod?.method ?? null;
   /**
    * El cupón que el cliente trajo, **cotizado por el servidor**. Se guarda con la **firma de la venta**
    * sobre la que se cotizó: un código aplicado a una venta que después cambió vale para esa venta, no para
@@ -88,7 +129,13 @@ export function usePosSale({
   const [couponError, setCouponError] = React.useState<string | null>(null);
   const [manualDiscount, setManualDiscount] = React.useState<AppliedManualDiscount | null>(null);
   const [payments, setPayments] = React.useState<PosPaymentDraft[]>(() => [
-    { id: "pay_1", method: "cash", currency: money.baseCurrencyCode, amount: "" },
+    {
+      id: "pay_1",
+      method: (firstMethod?.method ?? "cash") as PosPaymentDraft["method"],
+      ...(firstMethod ? { paymentMethodId: firstMethod.id } : {}),
+      currency: money.baseCurrencyCode,
+      amount: "",
+    },
   ]);
   const [charging, setCharging] = React.useState(false);
   const [saleError, setSaleError] = React.useState<string | null>(null);
@@ -135,13 +182,23 @@ export function usePosSale({
    * acaba de cobrar (y el orden de los `setState` en el mismo tick definiría la suerte del recibo).
    */
   const resetSale = React.useCallback(() => {
-    setPayments([{ id: "pay_1", method: "cash", currency: money.baseCurrencyCode, amount: "" }]);
+    setPayments([
+      {
+        id: "pay_1",
+        method: (firstMethodKind ?? "cash") as PosPaymentDraft["method"],
+        ...(firstMethodId ? { paymentMethodId: firstMethodId } : {}),
+        currency: money.baseCurrencyCode,
+        amount: "",
+      },
+    ]);
     setCoupon(null);
     setCouponError(null);
     setManualDiscount(null);
     setSaleError(null);
     setFieldErrors({});
-  }, [money.baseCurrencyCode]);
+    // Dependencias **por valor**: ver `firstMethodId`/`firstMethodKind`. Con el objeto, cada refresco del
+    // catálogo rearmaba este callback y el efecto de `pos-client.tsx` reiniciaba la venta en curso.
+  }, [firstMethodId, firstMethodKind, money.baseCurrencyCode]);
 
   /** Arranca una venta nueva **y** suelta la confirmación anterior: es lo que hace cambiar de local. */
   const startNewSale = React.useCallback(() => {
@@ -219,12 +276,20 @@ export function usePosSale({
       ...current,
       {
         id: `pay_${current.length + 1}_${Date.now()}`,
-        method: "transfer",
+        /**
+         * `TASK-ORDER-POS-OPERATIONAL-006` (brief §37, §38) — la fila nueva nace con un **medio configurado**
+         * del local, igual que la primera: sin `paymentMethodId` la liquidación no se puede mandar (el
+         * servidor lo exige) y el cajero vería «Elegí el medio de pago» en un cobro partido que acaba de
+         * armar. Nace en el primero del catálogo —el más probable— y el cajero lo cambia si hace falta.
+         */
+        method: (firstMethodKind ?? "cash") as PosPaymentDraft["method"],
+        ...(firstMethodId ? { paymentMethodId: firstMethodId } : {}),
         currency: money.baseCurrencyCode,
         amount: "",
       },
     ]);
-  }, [money.baseCurrencyCode]);
+    // Mismas dependencias **por valor** que `resetSale`: el arreglo del catálogo es nuevo en cada refresco.
+  }, [firstMethodId, firstMethodKind, money.baseCurrencyCode]);
 
   /** Saca una fila del cobro partido. La primera no se saca: es el medio de la venta. */
   const removePaymentRow = React.useCallback((paymentId: string) => {
@@ -246,6 +311,19 @@ export function usePosSale({
     if (customer.name.trim() === "") problems.name = "Escribí el nombre del cliente.";
     if (customer.whatsapp.trim() === "") problems.whatsapp = "Escribí el número del cliente.";
     if (!fiscalPayload.ok) problems[fiscalPayload.field] = fiscalPayload.message;
+    /**
+     * `TASK-ORDER-POS-OPERATIONAL-006` (brief §37, §38) — cada fila tiene que nombrar un **medio configurado**.
+     *
+     * El servidor lo vuelve a exigir y resuelve el tipo canónico, pero sin este chequeo el cajero mandaría un
+     * cobro sin medio y el error volvería recién después de la request. Un local sin medios configurados no
+     * puede cobrar: es una configuración que falta, no un dato del formulario.
+     */
+    if (payments.some((payment) => !payment.paymentMethodId)) {
+      problems.paymentMethodId =
+        methodOptions.length === 0
+          ? "Este local no tiene medios de pago configurados."
+          : "Elegí el medio de pago de cada cobro.";
+    }
     if (filled.length === 0) problems.amount = "Escribí con cuánto paga el cliente.";
     else if (filled.length !== payments.length) {
       problems.amount = "Completá el monto de todos los cobros.";
@@ -276,6 +354,9 @@ export function usePosSale({
           },
           lines,
           payments: filled.map((payment) => ({
+            // `TASK-ORDER-POS-OPERATIONAL-006` — el medio configurado es **el** dato que el servidor
+            // resuelve; el `method` es su derivación para el contrato del payload.
+            paymentMethodId: payment.paymentMethodId,
             method: payment.method,
             currency: payment.currency,
             amount: Number(payment.amount),
@@ -347,6 +428,7 @@ export function usePosSale({
     fiscal,
     getLines,
     locationId,
+    methodOptions,
     manualDiscount,
     onSaleCharged,
     payments,
@@ -362,6 +444,12 @@ export function usePosSale({
       lines: getLines(),
       payments: payments.map((payment) => ({
         method: payment.method,
+        /**
+         * `TASK-ORDER-POS-OPERATIONAL-006` (brief §38) — el medio configurado viaja **con** la espera: al
+         * retomarla, el cobro tiene que poder nombrar el mismo medio y no depender de que la pantalla lo
+         * reconstruya. Es opcional para que una espera vieja (sin el campo) siga siendo legible.
+         */
+        ...(payment.paymentMethodId ? { paymentMethodId: payment.paymentMethodId } : {}),
         currency: payment.currency,
         amount: payment.amount,
         ...(payment.reference ? { reference: payment.reference } : {}),

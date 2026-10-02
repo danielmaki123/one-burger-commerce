@@ -4,6 +4,7 @@ import { AuthError } from "@/modules/auth/domain/auth-errors";
 
 const requireAdminSessionMock = vi.fn();
 const canManageOrderOperationsMock = vi.fn();
+const canDeliverOrderMock = vi.fn();
 const findOrderByIdMock = vi.fn();
 const updateOrderStatusMock = vi.fn();
 
@@ -27,6 +28,10 @@ vi.mock("@/modules/auth/features/require-admin-session/require-admin-session", (
 
 vi.mock("@/modules/auth/domain/admin-permissions", () => ({
   canManageOrderOperations: canManageOrderOperationsMock,
+  // `TASK-ORDER-POS-OPERATIONAL-006` (brief §19) — la puerta **nominal** de la entrega. El doble la declara
+  // porque la autorización de la ruta ahora usa las dos: la gruesa para el flujo completo y la nominal para
+  // que el cajero pueda firmar `ready_for_pickup → picked_up`.
+  canDeliverOrder: canDeliverOrderMock,
 }));
 
 async function patchStatus(id: string, body: unknown) {
@@ -62,6 +67,7 @@ describe("PATCH /api/admin/orders/[id]/status · alcance por sucursal (A)", () =
   beforeEach(() => {
     vi.resetAllMocks();
     canManageOrderOperationsMock.mockReturnValue(true);
+    canDeliverOrderMock.mockReturnValue(false);
     updateOrderStatusMock.mockResolvedValue({ data: { id: "ord_1", status: "confirmed" } });
   });
 
@@ -130,6 +136,118 @@ describe("PATCH /api/admin/orders/[id]/status · alcance por sucursal (A)", () =
     const { status } = await patchStatus("ord_1", { status: "confirmed" });
 
     expect(status).toBe(401);
+    expect(updateOrderStatusMock).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * `TASK-ORDER-POS-OPERATIONAL-006` (brief §18, §19) — **el cajero entrega y nada más**.
+ *
+ * El `cashier` no tiene la capacidad **gruesa** (`canManageOrderOperations`), así que la única forma de que
+ * pueda cerrar su día desde el POS es la puerta **nominal** de la entrega. Lo que estos casos fijan es que esa
+ * puerta **no venga con más de lo que dice**: preparar, cancelar y cerrar siguen rechazados, y una entrega
+ * sobre un pedido que no está listo también.
+ *
+ * El doble de las dos puertas reproduce sus valores reales (`admin-permissions.ts`): gruesa = owner, manager,
+ * kitchen; nominal = owner, manager, cashier.
+ */
+describe("PATCH /api/admin/orders/[id]/status · entrega por el cajero (brief §19)", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    canManageOrderOperationsMock.mockReturnValue(false);
+    canDeliverOrderMock.mockReturnValue(true);
+    updateOrderStatusMock.mockResolvedValue({ data: { id: "ord_1", status: "picked_up" } });
+  });
+
+  it("el cajero entrega un pedido listo", async () => {
+    requireAdminSessionMock.mockResolvedValueOnce({
+      user: { id: "admin_cajera", role: "cashier", locationIds: [] },
+    });
+    findOrderByIdMock.mockResolvedValueOnce(
+      existingOrder({ id: "ord_1", locationId: "loc_norte", status: "ready_for_pickup" }),
+    );
+
+    const { status } = await patchStatus("ord_1", { status: "picked_up" });
+
+    expect(status).toBe(200);
+    expect(updateOrderStatusMock).toHaveBeenCalledWith(
+      "ord_1",
+      expect.objectContaining({ status: "picked_up", changedByUserId: "admin_cajera" }),
+      expect.anything(),
+    );
+  });
+
+  it("el cajero NO prepara: la puerta nominal sólo firma la entrega", async () => {
+    requireAdminSessionMock.mockResolvedValueOnce({
+      user: { id: "admin_cajera", role: "cashier", locationIds: [] },
+    });
+    findOrderByIdMock.mockResolvedValueOnce(
+      existingOrder({ id: "ord_1", locationId: "loc_norte", status: "confirmed" }),
+    );
+
+    const { status } = await patchStatus("ord_1", { status: "preparing" });
+
+    expect(status).toBe(403);
+    expect(updateOrderStatusMock).not.toHaveBeenCalled();
+  });
+
+  it("el cajero NO cancela", async () => {
+    requireAdminSessionMock.mockResolvedValueOnce({
+      user: { id: "admin_cajera", role: "cashier", locationIds: [] },
+    });
+    findOrderByIdMock.mockResolvedValueOnce(
+      existingOrder({ id: "ord_1", locationId: "loc_norte", status: "confirmed" }),
+    );
+
+    const { status } = await patchStatus("ord_1", { status: "cancelled", note: "se arrepintió" });
+
+    expect(status).toBe(403);
+    expect(updateOrderStatusMock).not.toHaveBeenCalled();
+  });
+
+  it("el cajero NO cierra el pedido", async () => {
+    requireAdminSessionMock.mockResolvedValueOnce({
+      user: { id: "admin_cajera", role: "cashier", locationIds: [] },
+    });
+    findOrderByIdMock.mockResolvedValueOnce(
+      existingOrder({ id: "ord_1", locationId: "loc_norte", status: "picked_up" }),
+    );
+
+    const { status } = await patchStatus("ord_1", { status: "closed" });
+
+    expect(status).toBe(403);
+    expect(updateOrderStatusMock).not.toHaveBeenCalled();
+  });
+
+  it("entregar un pedido que no está listo se rechaza: la transición depende del estado real", async () => {
+    // `preparing → picked_up` no es una transición válida del dominio, y la puerta nominal no la inventa.
+    requireAdminSessionMock.mockResolvedValueOnce({
+      user: { id: "admin_cajera", role: "cashier", locationIds: [] },
+    });
+    findOrderByIdMock.mockResolvedValueOnce(
+      existingOrder({ id: "ord_1", locationId: "loc_norte", status: "preparing" }),
+    );
+
+    const { status } = await patchStatus("ord_1", { status: "picked_up" });
+
+    expect(status).toBe(403);
+    expect(updateOrderStatusMock).not.toHaveBeenCalled();
+  });
+
+  it("cocina no entrega: no tiene ni la gruesa ni la nominal", async () => {
+    requireAdminSessionMock.mockReturnValue(false);
+    canDeliverOrderMock.mockReturnValue(false);
+
+    requireAdminSessionMock.mockResolvedValueOnce({
+      user: { id: "admin_cocina", role: "kitchen", locationIds: [] },
+    });
+    findOrderByIdMock.mockResolvedValueOnce(
+      existingOrder({ id: "ord_1", locationId: "loc_norte", status: "ready_for_pickup" }),
+    );
+
+    const { status } = await patchStatus("ord_1", { status: "picked_up" });
+
+    expect(status).toBe(403);
     expect(updateOrderStatusMock).not.toHaveBeenCalled();
   });
 });

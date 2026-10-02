@@ -169,6 +169,30 @@ export class PrismaPaymentRepository implements PaymentRepository {
   }
 
   /**
+   * `TASK-ORDER-POS-OPERATIONAL-006` (brief §27, §51) — **los cobros de una liquidación**, por su clave base.
+   *
+   * Una liquidación del POS es **una** operación comercial (el saldo entero) que puede estar compuesta por
+   * varios `Payment`. Cada fila conserva su propia clave derivada (`<clave>:<índice>`, ver
+   * `settlementPaymentKey`), así que el reintento del mismo request se reconoce por el prefijo y devuelve
+   * **el hecho completo** en vez de un solo cobro o —peor— de un segundo juego de filas.
+   *
+   * El `orderBy` por clave reconstruye el orden de la liquidación: el índice viaja al final del texto y el
+   * orden lexicográfico lo respeta para los índices de un dígito, que es el rango real (medios de pago de un
+   * cobro partido). Se lee con el cliente de la transacción para que el chequeo ocurra **después** del lock.
+   */
+  async listPaymentsBySettlementKey(key: string): Promise<PaymentRecord[]> {
+    const normalized = key.trim();
+    if (normalized.length === 0) return [];
+
+    const payments = await this.client.payment.findMany({
+      where: { idempotencyKey: { startsWith: `${normalized}:` } },
+      orderBy: { idempotencyKey: "asc" },
+    });
+
+    return payments.map(mapPayment);
+  }
+
+  /**
    * Fase 6 del rediseño de Caja (2026-09-23) — los cobros de un turno. Es la consulta del arqueo cuando el
    * local tiene más de una caja abierta: leer por ventana haría que las dos se contaran la misma plata.
    */

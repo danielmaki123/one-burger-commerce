@@ -21,16 +21,20 @@ import {
 } from "@/shared/lib/receipt-image";
 import { AdminEmptyState, AdminPageHeader } from "../_components/admin-operational-ui";
 import { EMPTY_POS_FISCAL_DRAFT } from "./pos-fiscal-payload";
+import PosExistingOrderPanel from "./pos-existing-order-panel";
 import PosModifierDialog, { type PosModifierSelection } from "./pos-modifier-dialog";
+import { PosOperationalBand } from "./pos-operational-band";
+import PosOperationalPanel from "./pos-operational-panel";
 import PosSaleConfirmation from "./pos-sale-confirmation";
 import PosTicketButtons from "./pos-ticket-buttons";
-import type { PosLocationOption, PosSaleSummary } from "./pos-types";
+import type { PosLocationOption, PosPaymentDraft, PosSaleSummary } from "./pos-types";
 import { PosSaleOptions } from "./quick-sale/pos-sale-options";
 import { PosWorkspace } from "./quick-sale/pos-workspace";
 import { usePosCatalog } from "./quick-sale/use-pos-catalog";
 import { usePosSale } from "./quick-sale/use-pos-sale";
 import { usePosShift } from "./quick-sale/use-pos-shift";
 import { usePosDraft } from "./use-pos-draft";
+import { usePosOperational } from "./use-pos-operational";
 import { usePosHolds } from "./use-pos-holds";
 
 /**
@@ -55,6 +59,8 @@ export default function PosClient({
   acceptedCurrencies,
   canDiscount = false,
   cashTerminalsByLocation = {},
+  initialOrderId = null,
+  timeZone,
 }: {
   locations: PosLocationOption[];
   /**
@@ -76,6 +82,14 @@ export default function PosClient({
   money?: MoneyContext;
   /** `A-85` — las monedas que el negocio acepta hoy: son las que la pantalla ofrece. */
   acceptedCurrencies?: string[];
+  /**
+   * `TASK-ORDER-POS-OPERATIONAL-006` (brief §24) — el pedido que Pedidos mandó a cobrar
+   * (`/admin/pos?orderId=<id>`). Abre el **mismo** modo «pedido existente» que los KPI: no hay un checkout
+   * especial para Pedidos.
+   */
+  initialOrderId?: string | null;
+  /** La zona horaria del negocio (`settings.timezone`), para las horas prometidas. */
+  timeZone: string;
 }) {
   const currency = useCurrencyFormat();
   const settings = useBusinessSettings();
@@ -117,6 +131,20 @@ export default function PosClient({
     timezone: settings.timezone,
   });
 
+  /**
+   * `TASK-ORDER-POS-OPERATIONAL-006` — **el trabajo operacional del cajero**: el feed con sus cuatro KPI
+   * (calculados en el servidor), qué panel está abierto y qué pedido existente se está cobrando o entregando.
+   * La venta rápida y la operación comparten la pantalla y el local, no el estado.
+   */
+  const operational = usePosOperational({
+    locationId,
+    initialOrderId,
+    refreshMs: catalog.refreshMs,
+  });
+
+  /** Los medios configurados del local (`A-85`): llegan con el catálogo, que es del mismo local y momento. */
+  const methodOptions = catalog.paymentMethods;
+
   const [customer, setCustomer] = React.useState<{
     name: string;
     whatsapp: string;
@@ -146,6 +174,7 @@ export default function PosClient({
     terminalId,
     money,
     currency,
+    methodOptions,
     fiscal: customer.fiscal,
     customer: { name: customer.name, whatsapp: customer.whatsapp, email: customer.email },
     attempt: { attemptKey, renewAttemptKey, restoreAttemptKey },
@@ -173,6 +202,56 @@ export default function PosClient({
   const { startNewSale } = sale;
   const { refreshCatalog, refreshMs } = catalog;
   const { refreshShift } = shiftState;
+
+  /**
+   * `TASK-ORDER-POS-OPERATIONAL-006` (brief §21) — **el panel operacional y la banda de KPI**.
+   *
+   * La banda va **debajo** de la barra de contexto (ella la dibuja el workspace) y pulsar un contador abre el
+   * **mismo** panel con otro modo. Un solo panel montado por vez; con el pedido existente abierto, el panel de
+   * lista se cierra: dos capas abiertas serían la deuda `A-92` (un `<dialog>` interceptando los punteros del
+   * otro).
+   */
+  const operationalPanel =
+    operational.mode && operational.feed ? (
+      <PosOperationalPanel
+        mode={operational.mode}
+        orders={operational.feed.orders}
+        timeZone={timeZone}
+        onClose={operational.closePanel}
+        onOpenOrder={(orderId) => {
+          operational.closePanel();
+          operational.openOrder(orderId);
+        }}
+      />
+    ) : null;
+
+  /**
+   * El **modo pedido existente** (brief §15–§18): abierto por un KPI o por `?orderId=` desde Pedidos. Cuando
+   * está abierto, es la superficie operativa de la pantalla — la venta rápida espera a que el cajero lo cierre.
+   */
+  const existingOrderPanel =
+    operational.order || operational.orderLoading || operational.orderError ? (
+      <PosExistingOrderPanel
+        order={operational.order}
+        loading={operational.orderLoading}
+        error={operational.orderError}
+        money={money}
+        methodOptions={methodOptions}
+        acceptedCurrencies={currencyChoices}
+        currency={currency}
+        timeZone={timeZone}
+        terminalId={terminalId}
+        onClose={operational.closeOrder}
+        onCollected={() => {
+          void operational.reloadOrder();
+          void operational.reloadFeed();
+        }}
+        onDelivered={() => {
+          void operational.reloadOrder();
+          void operational.reloadFeed();
+        }}
+      />
+    ) : null;
 
   /**
    * Cambiar de local (o de moneda) empieza una venta nueva: el borrador lleva el local y sus precios y lo
@@ -238,15 +317,40 @@ export default function PosClient({
     setDraft((current) => setPosLineQuantity(current, lineKey, quantity));
   const removeSaleLine = (lineKey: string) => setDraft((current) => removePosLine(current, lineKey));
 
-  /** Tareas 9.4 y 9.5 — traer de vuelta la venta en espera, con su cliente, su cobro y su clave. */
+  /**
+   * Tareas 9.4 y 9.5 — traer de vuelta la venta en espera, con su cliente, su cobro y su clave.
+   *
+   * `TASK-ORDER-POS-OPERATIONAL-006` (brief §38) — una venta en espera **guardada antes de este cambio** no
+   * tiene `paymentMethodId`: sólo su `method` histórico. Se la **reconstruye** contra el catálogo del local
+   * —el primer medio con ese tipo— para que el cobro siga siendo posible; sin esto, retomar una espera vieja
+   * dejaría el cobro bloqueado y la venta del cliente sin registrar. No se inventa un medio: si el catálogo ya
+   * no ofrece ese tipo, la fila queda sin medio y el cajero elige (la validación lo dice).
+   */
+  const resolvePaymentMethodId = (method: string): string | undefined =>
+    methodOptions.find((option) => option.method === method)?.id;
+
   const resumeHeldSale = (heldSale: PosHeldSale) => {
     setDraft({ locationId, lines: heldSale.lines });
     // Punto 4: la factura que quedó a medio cargar vuelve con la venta; sin ella, arranca apagada.
     setCustomer({ ...heldSale.customer, fiscal: heldSale.customer.fiscal ?? EMPTY_POS_FISCAL_DRAFT });
     sale.setPayments(
       heldSale.payments.length === 0
-        ? [{ id: "pay_1", method: "cash", currency: settings.currencyCode, amount: "" }]
-        : heldSale.payments.map((payment, index) => ({ ...payment, id: `pay_${index + 1}` })),
+        ? [
+            {
+              id: "pay_1",
+              method: (methodOptions[0]?.method ?? "cash") as PosPaymentDraft["method"],
+              ...(methodOptions[0] ? { paymentMethodId: methodOptions[0].id } : {}),
+              currency: settings.currencyCode,
+              amount: "",
+            },
+          ]
+        : heldSale.payments.map((payment, index) => ({
+            ...payment,
+            id: `pay_${index + 1}`,
+            method: payment.method as PosPaymentDraft["method"],
+            paymentMethodId:
+              payment.paymentMethodId ?? resolvePaymentMethodId(payment.method),
+          })),
     );
     // La espera trae el intento con el que se armó; un guardado viejo sin clave usa la que ya está (nueva).
     if (heldSale.attemptKey) restoreAttemptKey(heldSale.attemptKey);
@@ -374,6 +478,20 @@ export default function PosClient({
     <div className="pb-24 lg:pb-0">
       <PosWorkspace
         cash={cash}
+        operational={{
+          band: (
+            <PosOperationalBand
+              feed={operational.feed}
+              loading={operational.loading}
+              error={operational.error}
+              activeMode={operational.mode}
+              onSelect={operational.openPanel}
+              onRetry={operational.retry}
+            />
+          ),
+          panel: operationalPanel,
+          existingOrder: existingOrderPanel,
+        }}
         catalog={{
           locationId,
           locations,
@@ -408,6 +526,7 @@ export default function PosClient({
           fieldErrors: sale.fieldErrors,
           money,
           acceptedCurrencies: currencyChoices,
+          methodOptions,
           addPaymentRow: sale.addPaymentRow,
           removePaymentRow: sale.removePaymentRow,
           canCharge: shiftState.canCharge,
@@ -439,3 +558,4 @@ export default function PosClient({
     </div>
   );
 }
+
