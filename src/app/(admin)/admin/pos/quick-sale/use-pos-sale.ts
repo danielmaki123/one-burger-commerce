@@ -99,6 +99,22 @@ export function usePosSale({
    */
   const firstMethod = methodOptions[0] ?? null;
   /**
+   * `TASK-ORDER-POS-OPERATIONAL-006` — **la identidad del medio, no el objeto**.
+   *
+   * `methodOptions` es un arreglo **nuevo en cada refresco** del catálogo: sale de
+   * `setPaymentMethods(body.paymentMethods ?? [])` en `use-pos-catalog.ts`, y el POS se refresca solo cada 3 s.
+   * Un `useCallback` que dependa del **objeto** `firstMethod` (o del arreglo) se rearma en cada refresco, y el
+   * efecto que reinicia la venta al cambiar de local (`pos-client.tsx`) lo tiene como dependencia: disparaba
+   * **en cada refresco** y borraba el cupón ya cotizado y el monto que el cajero había tipeado, sin que nadie
+   * tocara nada.
+   *
+   * Se derivan los valores que el callback realmente usa para que su identidad dependa del **contenido** del
+   * primer medio y no de la identidad del arreglo. Medido: el caso «el refresco automático no borra el cupón
+   * cotizado ni el monto del cobro» fallaba con un solo ciclo de refresco y pasa con esto.
+   */
+  const firstMethodId = firstMethod?.id ?? null;
+  const firstMethodKind = firstMethod?.method ?? null;
+  /**
    * El cupón que el cliente trajo, **cotizado por el servidor**. Se guarda con la **firma de la venta**
    * sobre la que se cotizó: un código aplicado a una venta que después cambió vale para esa venta, no para
    * esta (el descuento se calculó sobre lo que había). Con la firma, la cotización vencida se descarta sola.
@@ -169,8 +185,8 @@ export function usePosSale({
     setPayments([
       {
         id: "pay_1",
-        method: (firstMethod?.method ?? "cash") as PosPaymentDraft["method"],
-        ...(firstMethod ? { paymentMethodId: firstMethod.id } : {}),
+        method: (firstMethodKind ?? "cash") as PosPaymentDraft["method"],
+        ...(firstMethodId ? { paymentMethodId: firstMethodId } : {}),
         currency: money.baseCurrencyCode,
         amount: "",
       },
@@ -180,7 +196,9 @@ export function usePosSale({
     setManualDiscount(null);
     setSaleError(null);
     setFieldErrors({});
-  }, [firstMethod, money.baseCurrencyCode]);
+    // Dependencias **por valor**: ver `firstMethodId`/`firstMethodKind`. Con el objeto, cada refresco del
+    // catálogo rearmaba este callback y el efecto de `pos-client.tsx` reiniciaba la venta en curso.
+  }, [firstMethodId, firstMethodKind, money.baseCurrencyCode]);
 
   /** Arranca una venta nueva **y** suelta la confirmación anterior: es lo que hace cambiar de local. */
   const startNewSale = React.useCallback(() => {
@@ -264,13 +282,14 @@ export function usePosSale({
          * servidor lo exige) y el cajero vería «Elegí el medio de pago» en un cobro partido que acaba de
          * armar. Nace en el primero del catálogo —el más probable— y el cajero lo cambia si hace falta.
          */
-        method: (firstMethod?.method ?? "cash") as PosPaymentDraft["method"],
-        ...(firstMethod ? { paymentMethodId: firstMethod.id } : {}),
+        method: (firstMethodKind ?? "cash") as PosPaymentDraft["method"],
+        ...(firstMethodId ? { paymentMethodId: firstMethodId } : {}),
         currency: money.baseCurrencyCode,
         amount: "",
       },
     ]);
-  }, [firstMethod, money.baseCurrencyCode]);
+    // Mismas dependencias **por valor** que `resetSale`: el arreglo del catálogo es nuevo en cada refresco.
+  }, [firstMethodId, firstMethodKind, money.baseCurrencyCode]);
 
   /** Saca una fila del cobro partido. La primera no se saca: es el medio de la venta. */
   const removePaymentRow = React.useCallback((paymentId: string) => {

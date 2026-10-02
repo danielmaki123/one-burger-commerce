@@ -35,6 +35,21 @@ function catalogUrl(locationId: string) {
   return `/api/admin/pos/catalog?locationId=${encodeURIComponent(locationId)}`;
 }
 
+/**
+ * `TASK-ORDER-POS-OPERATIONAL-006` — **un refresco silencioso no reemplaza el estado si nada cambió**.
+ *
+ * El POS se refresca solo cada 3 s y `body` es un objeto **nuevo** en cada vuelta (viene de `response.json()`).
+ * Asignarlo tal cual cambia la **identidad** de todo lo que depende del catálogo: re-renderiza la pantalla
+ * entera sin motivo y —lo que se midió— rearmaba los `useCallback` del cobro, cuyo efecto de reinicio borraba
+ * el cupón ya cotizado y el monto que el cajero había tipeado, sin que nadie tocara nada.
+ *
+ * La guarda ya existía para `products`; `categories` y `paymentMethods` no la tenían y por ahí entraba el
+ * defecto. Se expresa una sola vez y se usa en los tres.
+ */
+function keepIfEqual<T>(current: T, next: T): T {
+  return JSON.stringify(current) === JSON.stringify(next) ? current : next;
+}
+
 export type UsePosCatalogParams = {
   locations: PosLocationOption[];
   /** Las terminales activas por local, resueltas en el servidor (Fase 6 del rediseño de Caja). */
@@ -125,11 +140,9 @@ export function usePosCatalog({
         if (locationRef.current !== targetLocationId) return;
 
         // Solo se reemplaza si cambió: refrescar cada 3 s no tiene que re-renderizar la pantalla.
-        setProducts((current) =>
-          JSON.stringify(current) === JSON.stringify(body.data.products) ? current : body.data.products,
-        );
-        setCategories(body.data.categories);
-        setPaymentMethods(body.paymentMethods ?? []);
+        setProducts((current) => keepIfEqual(current, body.data.products));
+        setCategories((current) => keepIfEqual(current, body.data.categories));
+        setPaymentMethods((current) => keepIfEqual(current, body.paymentMethods ?? []));
       } catch (error) {
         if (options.silent) return;
 

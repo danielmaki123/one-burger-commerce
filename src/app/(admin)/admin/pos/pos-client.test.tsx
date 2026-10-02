@@ -1104,6 +1104,56 @@ describe("PosClient", () => {
     }
   });
 
+  /**
+   * `TASK-ORDER-POS-OPERATIONAL-006` — **el refresco automático no puede desarmar el cobro**.
+   *
+   * El caso anterior comprueba el buscador y la línea del carrito, pero **no** el cupón ni el monto: el POS se
+   * refresca solo cada 3 s y ese refresco reconstruye el catálogo. La cotización del cupón está atada a la
+   * **firma de la venta** (`use-pos-sale.ts`: si la venta cambia, la cotización vence) y el monto del cobro vive
+   * en el mismo estado que se rearma al cambiar de local/venta. Si el refresco llega a tocar ese estado, el
+   * cajero pierde el descuento que ya cotizó y lo que ya tipeó **sin hacer nada**.
+   *
+   * Este es el caso que expone el defecto: aplica la promo, arma el cobro, deja pasar **un** ciclo de refresco y
+   * exige que las dos cosas sigan ahí. En una corrida aislada el test terminaba antes del primer refresco, así
+   * que el defecto sólo aparecía con la suite entera corriendo en paralelo (el test cruzaba los 3 s): por eso se
+   * falsean los intervalos y se avanza el reloj **a mano**, para que el ciclo ocurra siempre y no dependa de la
+   * carga de la máquina.
+   */
+  it("el refresco automático no borra el cupón cotizado ni el monto del cobro", async () => {
+    // Se falsean **solo** los intervalos: `waitFor` y `userEvent` siguen con el reloj real.
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+    const user = userEvent.setup();
+
+    try {
+      render(<PosClient locations={locations} timeZone={BUSINESS_TIME_ZONE} />);
+
+      await screen.findByText("Taco de birria");
+      await user.click(screen.getByRole("button", { name: "Agregar Taco de birria a la venta" }));
+
+      // El cajero cotiza la promo del cliente: 35 del taco + 5 de empaque − 3.50.
+      await abrirOpcion(user, "Aplicar promo");
+      await user.type(screen.getByLabelText("Código de promo (opcional)"), "BIENVENIDA10");
+      await user.click(screen.getByRole("button", { name: "Aplicar" }));
+      expect(await screen.findAllByText("10 % de descuento")).toBeTruthy();
+      expect(screen.getByRole("button", { name: "Cobrar C$36.50" })).toBeTruthy();
+
+      // Y arma el cobro con lo que el cliente puso sobre el mostrador.
+      await user.type(screen.getByLabelText("Con cuánto paga"), "40");
+
+      // Un ciclo del refresco automático: es lo que el POS hace solo, sin que nadie toque nada.
+      await act(async () => {
+        vi.advanceTimersByTime(POS_REFRESH_MS);
+      });
+
+      // El descuento cotizado sigue aplicado: el total no vuelve al de lista.
+      expect(screen.getByRole("button", { name: "Cobrar C$36.50" })).toBeTruthy();
+      // Y el monto que el cajero tipeó sigue en su campo.
+      expect((screen.getByLabelText("Con cuánto paga") as HTMLInputElement).value).toBe("40");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("genera el recibo del último cobro y lo ofrece para enviar (TASK-307)", async () => {
     const user = userEvent.setup();
     render(<PosClient locations={locations} timeZone={BUSINESS_TIME_ZONE} />);
