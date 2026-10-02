@@ -93,6 +93,16 @@ export function PosExistingOrderPanel({
   acceptedCurrencies,
   currency,
   timeZone,
+  /**
+   * `TASK-ORDER-POS-OPERATIONAL-006` (brief §36) — **la terminal del POS que cobra**.
+   *
+   * Sin esto el cobro viaja **sin** `terminalId` y el servidor resuelve el turno del cubo «sin terminal»
+   * (`payment-composition.ts` → `findOpenShift(locationId, null)`). En una sucursal **con terminales** ese cubo
+   * no tiene caja abierta, así que el cajero recibía `409 «Abrí la caja antes de cobrar»` con su caja abierta en
+   * la estación. Medido por el E2E: el payload salía sin `terminalId` y la base tenía dos cajas abiertas, las
+   * dos **por terminal**.
+   */
+  terminalId,
   onClose,
   onCollected,
   onDelivered,
@@ -107,6 +117,8 @@ export function PosExistingOrderPanel({
   currency: CurrencyFormat;
   /** La zona horaria del **negocio** para la hora prometida: nunca la del navegador (brief §56). */
   timeZone: string;
+  /** Fase 6 — la terminal de la barra, para que el cobro se firme con **su** caja. */
+  terminalId: string | null;
   onClose: () => void;
   /** Se llama después de que el servidor confirmó la liquidación, para releer el hecho canónico. */
   onCollected: () => void;
@@ -117,6 +129,15 @@ export function PosExistingOrderPanel({
   const [busy, setBusy] = React.useState(false);
   const [actionError, setActionError] = React.useState<string | null>(null);
   const [notice, setNotice] = React.useState<string | null>(null);
+  /**
+   * `TASK-ORDER-POS-OPERATIONAL-006` (brief §17) — **el aviso del cobro sobrevive a la relectura**.
+   *
+   * Después de cobrar, la pantalla relee el pedido (el saldo lo dice `payments`, no el estado local) y esa
+   * relectura cambia `outstanding`, que dispara el efecto de abajo y **borra** el aviso. El cajero necesita ver
+   * «Pago registrado» para saber que el hecho quedó asentado —y que la entrega es el paso siguiente—, así que el
+   * aviso se recompone después de la relectura. La bandera se limpia al cerrar el panel.
+   */
+  const avisoDelCobro = React.useRef(false);
 
   const firstMethod = methodOptions[0] ?? null;
   const outstanding = order?.financial?.outstandingAmount ?? 0;
@@ -140,7 +161,7 @@ export function PosExistingOrderPanel({
           ],
     );
     setActionError(null);
-    setNotice(null);
+    setNotice(avisoDelCobro.current ? "Pago registrado." : null);
   }, [order?.id, outstanding, firstMethod, money.baseCurrencyCode]);
 
   React.useEffect(() => {
@@ -180,6 +201,8 @@ export function PosExistingOrderPanel({
               reference: payment.reference ?? null,
             })),
           idempotencyKey: createCollectionKey(),
+          // La terminal de la barra: el cobro se firma con **su** caja, igual que la venta rápida.
+          terminalId,
         }),
       });
 
@@ -194,6 +217,7 @@ export function PosExistingOrderPanel({
       }
 
       // Brief §17: el cobro queda **registrado** y el cajero ve la entrega como el paso siguiente.
+      avisoDelCobro.current = true;
       setNotice("Pago registrado.");
       onCollected();
     } catch {

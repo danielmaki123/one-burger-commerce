@@ -240,6 +240,7 @@ export default function PosClient({
         acceptedCurrencies={currencyChoices}
         currency={currency}
         timeZone={timeZone}
+        terminalId={terminalId}
         onClose={operational.closeOrder}
         onCollected={() => {
           void operational.reloadOrder();
