@@ -7,26 +7,24 @@
 
 ## ACTIVE
 
-**`Pedido existente → Cobrar en POS` — POS operativo del cajero** (orden **6** del roadmap maestro),
-`TASK-ORDER-POS-OPERATIONAL-006`, `high-risk-e2e`, abierta el **2026-10-01** con autorización del owner.
-`/admin/pos` pasa a ser el **workspace operativo** del cajero: banda de KPI operacionales servida por
-`PosOperationalOrdersProjection` (En proceso · Listos · Por cobrar · Programados), panel operacional
-reutilizable, modo **pedido existente** inmutable con cobro partido **atómico** y **exacto**, y entrega
-(`ready_for_pickup → picked_up`) con la puerta nominal `canDeliverOrder`. Cierra `A-67`, revalida y corrige
-la divergencia de **`A-85`** (el POS visible todavía no consumía `PaymentMethodConfig`) y registra el
-hallazgo nuevo de **overpayment en cobro partido**. Brief y reuse audit:
+**Ninguna.** La orden **6** — `Pedido existente → Cobrar en POS` (`TASK-ORDER-POS-OPERATIONAL-006`,
+`high-risk-e2e`)— quedó **cerrada, mergeada y desplegada** el **2026-10-02** (`build-20261002-042038` sobre
+`main` = `5fda5e2`, PR #107). Entregó el **workspace operativo** del cajero en `/admin/pos`: banda de KPI
+servida por el read model (`En proceso · Listos · Por cobrar · Programados`), panel operacional reutilizable,
+modo **pedido existente** inmutable con cobro partido **atómico** y **exacto**, y entrega
+(`ready_for_pickup → picked_up`) con la puerta nominal `canDeliverOrder`. **`/admin/orders` (Pedidos) sigue siendo la superficie administrativa**: el POS no pasa a ser dueño de Pedidos, Cocina, Dinero ni Cobros. Cerró `A-67`, corrigió la divergencia
+de **`A-85`** y corrigió, al verificar, tres defectos reales del POS (cobro sin `terminalId`, refresco
+automático que desarmaba el cobro en curso y el grid tapando el panel). Evidencia, mutaciones y excepciones:
 [`../tasks/TASK-ORDER-POS-OPERATIONAL-006.md`](../tasks/TASK-ORDER-POS-OPERATIONAL-006.md).
 
-**Una sola TASK activa por vez.** `Pedidos runtime` (orden **5b**) quedó **cerrada** el 2026-10-01: el
-`OrderListProjection` administrativo, `canViewOrders`, el recorte financiero en servidor y
-`resolveAdminLanding` son **entradas** de esta TASK, no trabajo pendiente.
+**Una sola TASK activa por vez**, y ahora **no hay ninguna abierta**.
 
 ## NEXT
 
-**Ninguno hasta cerrar la orden 6.** La próxima es **`Cash ownership`** (orden **7**): Shift, apertura,
-movimientos, conteo, cierre, handover y conciliación con dueño propio, más la consolidación de los cuatro
-runners de transacción (`A-79`). Necesita **autorización explícita del owner**: que la próxima TASK no se
-abre sola es la regla, y la orden 6 se cierra entera antes.
+**`Cash ownership`** (orden **7** del roadmap maestro): Shift, apertura, movimientos, conteo, cierre, handover y
+conciliación con dueño propio, más la consolidación de los cuatro runners de transacción (`A-79`).
+**Necesita autorización explícita del owner**: que la próxima TASK no se abre sola es la regla, y por eso la
+orden 7 **no arranca** hasta que el owner la pida. **Cerrar la orden 6 no la abre.**
 
 ## LATER
 

@@ -298,3 +298,28 @@ CI verdes, `/api/health` con la versión nueva, `/api/readiness` `ready` y los d
   fuera.
 - **Migraciones y cambios de base**: ninguno.
 - **Dominio, puertos y endpoints**: no se tocan. Si la Fase 1 hubiera necesitado alguno, la TASK se detiene.
+
+## POS operativo del cajero (`TASK-ORDER-POS-OPERATIONAL-006`, orden 6)
+
+La venta rápida **no cambia**: lo que se agrega es la **capa operativa** del local, en la misma pantalla.
+
+- **Banda de KPI** en la fila de contexto de la barra (escritorio: el espacio que sobra a la derecha; abajo de
+  `lg` envuelve y sus chips scrollean dentro). Cuatro contadores **superpuestos** —`En proceso` · `Listos para
+  entregar` · `Por cobrar` · `Programados`—: un pedido puede contarse en más de uno, así que **no son
+  excluyentes** y no se suman para «cuadrar». Cada uno es un `button` con `aria-label="«rótulo»: N pedidos"` y su
+  contador en `font-mono tabular-nums`; el número lo calcula el **servidor** (`summarizePosOperationalOrders`), no
+  la pantalla. La banda no agrega alto en escritorio: es lo que mantiene el `Cobrar C$…` dentro del primer
+  viewport.
+- **Panel operacional**: **uno solo**, reutilizado por los cuatro modos (`Modal size="full"`, `layered`). Pulsar
+  otro KPI **cambia el modo del mismo panel**: dos `<dialog>` superpuestos serían un toque perdido. Trae la
+  búsqueda por número de pedido y se cierra con su botón o con `Escape`. Se **ancla debajo de la barra** con su
+  propia capa: sin eso el grid (que ocupa el alto disponible) queda por encima y el botón de cerrar no recibe el
+  toque.
+- **Modo pedido existente** (desde un KPI o desde `?orderId=`, el enlace «Cobrar en POS» de Pedidos): el pedido se
+  abre **inmutable** —desde el POS **sólo se cobra y se entrega**; para cambiarlo se abre en Pedidos—. El cobro es
+  **partido y exacto** (`Σ aplicado == saldo`), viaja como **una** operación con su clave de intento y firma con la
+  **terminal de la barra**. La entrega es un **hecho aparte**: después de cobrar aparece «Entregar», y sólo la
+  firma quien tiene `canDeliverOrder` (cocina no).
+- **Viewport contract**: la pantalla se verifica en **1366×768, 1280×720, 768×1024 y 375×812** con
+  `tests/e2e/pos-operational-visual-check.spec.ts` —sin scroll horizontal, controles de la banda ≥44 px, un solo
+  diálogo cuando el panel está abierto y ninguno cuando está cerrado—.

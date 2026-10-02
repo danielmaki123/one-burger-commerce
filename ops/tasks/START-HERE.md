@@ -75,13 +75,12 @@ falta reconstruir por qué algo es como es. Es lo que evita leer 3.000 líneas p
 - **Qué falta de verdad en cada orden pendiente (5b→16)**: [`../roadmap/EXECUTION-MAP.md`](../roadmap/EXECUTION-MAP.md).
   Los dos son **snapshots** y se revalidan contra el código al iniciar la TASK que los use.
 - **Plantilla obligatoria de TASK**: [`TEMPLATE.md`](TEMPLATE.md).
-- **Lo que sigue**: **una sola próxima TASK**, **`Pedidos runtime`** (orden **5b** del roadmap maestro): el
-  recorte financiero del detalle compartido (remanente de `A-60`) y la clasificación de los read models.
-  **No incluye todavía el cobro real de un pedido existente ni su handoff al POS**: eso es el orden **6**
-  («Pedido existente → Cobrar en POS»), que **compone** el backend que ya existe
-  (`POST /api/admin/orders/[id]/payment`) y cierra `A-67`. **`Money / Payments`** (órdenes 4 y 5, con su
-  cierre de aceptación) y **`Cocina runtime`** (orden 3b) **ya están cerradas y desplegadas**: no se retoman
-  sin pedido del owner. El alcance exacto está en `ops/roadmap/NEXT.md`; las specs congeladas, en
+- **Lo que sigue**: **nada activo**. La orden **6** («Pedido existente → Cobrar en POS»,
+  `TASK-ORDER-POS-OPERATIONAL-006`) quedó **cerrada, mergeada y desplegada** el 2026-10-02
+  (`build-20261002-042038` sobre `main` = `5fda5e2`, PR #107), y **las órdenes 3b, 4, 5, 5b y 6 ya no se
+  retoman sin pedido del owner**. **La próxima es la orden 7, `Cash ownership`** (Shift, apertura,
+  movimientos, conteo, cierre, handover y conciliación) y **necesita autorización explícita del owner**:
+  cerrar la orden 6 **no** la abre. El alcance exacto está en `ops/roadmap/NEXT.md`; las specs congeladas, en
   [`../design/screens/orders.md`](../design/screens/orders.md),
   [`../design/screens/kitchen.md`](../design/screens/kitchen.md) y
   [`../design/screens/finance.md`](../design/screens/finance.md). **No se arranca `Resumen`** (pasó al orden

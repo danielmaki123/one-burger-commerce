@@ -19,7 +19,7 @@
 | `payments` | **creado** (órdenes 4 y 5) | `Payment`, saldo, cobro parcial, refund, void, **snapshot obligatorio**, estado financiero canónico, idempotencia durable y catálogo de medios con su alcance por local |
 | `banks` | **creado, ampliado** | El **catálogo de entidades de cobro** con su **tipo** (banco, adquirente, proveedor digital, otro). **No** hay un catálogo paralelo |
 | `orders` | **creado** | `Order`, items y **ciclo de vida**. Consume `money` (moneda congelada) y `payments` (estado financiero). **Presta** todavía el turno y el arqueo |
-| `pos` | **creado** | La venta del mostrador: cotiza, decide y **compone**; no es dueño de ninguna regla de dinero |
+| `pos` | **creado** | La **superficie operativa** del cajero (orden 6): la venta del mostrador y el **cobro del pedido existente**, el read model operacional del local, la banda de KPI y el panel. Cotiza, decide y **compone**; **no** es dueño de ninguna regla de dinero, ni de `Order`, ni de la entrega |
 | `cash-config` | **creado** | Los **billetes y monedas** del negocio y qué monedas cuenta cada sucursal (`countedCurrencyCodes`) |
 | `invoices` | **creado** | Documentos y sus **snapshots**; exige `paid` estricto (`D-021`) |
 | `menu` · `locations` · `customers` · `notifications` · `audit` | **creados** | Catálogo y precios · autoridad operativa por sucursal · clientes · outbox y avisos · asiento de auditoría |

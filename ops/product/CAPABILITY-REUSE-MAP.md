@@ -53,7 +53,7 @@ snapshot y debe revalidarse al iniciar la TASK que la use**: el código manda.
 | Canal de origen (`source`) | `orders` | `Order.source` escrito por cada puerta (`D-015`) | `REUSE` | Inferirlo del medio de pago o del cliente |
 | Moneda del pedido | `orders` (dato) leyendo `money` | `Order.currencyCode` (`D-022`) | `REUSE` | Reconstruir la moneda con la configuración de hoy |
 | Cobro del mostrador | `pos` | `features/register-pos-sale` (decide) + `commit-sale` (escribe) | `REUSE` | Que otra superficie cree `Payment` por su cuenta |
-| Cobro de un pedido existente | `orders` | `features/register-order-payment` + `POST /api/admin/orders/[id]/payment` | `REUSE` | Una segunda ruta de cobro (la orden 6 **enlaza**) |
+| Cobro de un pedido existente | `orders` | `features/register-order-payment` + `POST /api/admin/orders/[id]/payment` (**lote atómico**, `payments[]`) | `REUSE` | Una segunda ruta de cobro, o cobrar en dos escrituras en vez de una transacción |
 | Devolución | `orders` | `features/refund/request-refund` + `review-refund` | `REUSE` | Devolver por fuera del cupo o sin lock |
 | Turno y arqueo | `orders` | `features/shift/*` + `domain/shift-cash.ts` | `MOVE` → `cash` (**orden 7**) | Recalcular el arqueo de un turno cerrado |
 | Configuración de conteo | `cash-config` | `CashDenomination` + `LocationCashConfig.countedCurrencyCodes` | `REUSE` | `NIO`/`USD` como estructura, o billetes inventados |
@@ -63,6 +63,10 @@ snapshot y debe revalidarse al iniciar la TASK que la use**: el código manda.
 | Read model del detalle admin | `orders` | `features/get-order/order-detail-projection.ts` (+ `getOrder`) | `REUSE` | Devolver los campos financieros a un rol sin `canViewOrderFinancials` «para que React los esconda», o derivar el saldo comparando `Order.total` contra los cobros |
 | Puerta de Pedidos | `auth` | `canViewOrders` (`admin-permissions`) | `REUSE` | Reutilizar `canManageOrderOperations` (mete a cocina y deja afuera al cajero) |
 | Aterrizaje por rol | `auth` | `domain/admin-landing.ts` (`resolveAdminLanding`) | `REUSE` | Un `if role === …` por superficie (login, shell, home): es la decisión escrita tres veces |
+| Read model operacional del POS | `orders` | `domain/pos-operational-orders.ts` + `features/list-pos-operational-orders` | `REUSE` | Clasificar los pedidos en React, contar los KPI sobre lo que se ve, o una segunda definición de «listo para entregar» |
+| Medios de cobro del POS | `payments` | `features/list-available-payment-methods` (+ `domain/pos-payment-methods.ts` como vista) | `REUSE` | Un segundo catálogo de medios, o una constante de medios en el POS (`A-85`) |
+| Liquidación exacta de un cobro | `payments` | `domain/order-settlement.ts` (`validateExactSettlement`) | `REUSE` | Validar el saldo en la pantalla, o permitir sobrepago/abono comercial |
+| Autorización de entrega | `auth` | `canDeliverOrder` (`admin-permissions`) + `assertDeliverableByRole` | `REUSE` | Dejar que cualquier rol firme `picked_up`, o esconder el botón y creer que es autorización |
 
 ## 3. Facturas, catálogo y configuración
 
