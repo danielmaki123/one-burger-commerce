@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AuthError } from "@/modules/auth/domain/auth-errors";
-import type { ProductRecord, PublicMenuCategory } from "@/modules/menu/domain/menu.types";
+import type { ProductRecord } from "@/modules/menu/domain/menu.types";
 
 /**
  * TASK-302 — la ruta del catálogo del punto de venta.
@@ -14,7 +14,7 @@ import type { ProductRecord, PublicMenuCategory } from "@/modules/menu/domain/me
 
 const requireAdminSessionMock = vi.fn();
 const canUsePOSMock = vi.fn();
-const getCatalogMock = vi.fn();
+const listCatalogMock = vi.fn();
 const findLocationByIdMock = vi.fn();
 
 vi.mock("@/modules/auth/features/require-admin-session/require-admin-session", () => ({
@@ -25,8 +25,25 @@ vi.mock("@/modules/auth/domain/admin-permissions", () => ({
   canUsePOS: canUsePOSMock,
 }));
 
-vi.mock("@/modules/menu/features/get-catalog/get-catalog", () => ({
-  getCatalog: getCatalogMock,
+/**
+ * `TASK-ORDER-POS-OPERATIONAL-006` — la composición del catálogo se movió a
+ * `catalog/pos-catalog-composition.ts` (tope de 50 líneas del handler). El doble del **puerto** es el que
+ * ahora ejerce la ruta: `getCatalog` ya no se llama desde acá.
+ */
+vi.mock("@/modules/pos/adapters/production-pos-catalog", () => ({
+  createProductionPosCatalog: () => ({ listCatalog: listCatalogMock }),
+}));
+
+/**
+ * `TASK-ORDER-POS-OPERATIONAL-006` (brief §37) — el catálogo publica los **medios configurados** del local.
+ * El doble evita que el unitario dependa de la base: el job `verify` del CI no tiene `DATABASE_URL`.
+ */
+const configuredPaymentMethodsMock = vi.fn();
+
+vi.mock("@/modules/pos/adapters/production-configured-payment-methods", () => ({
+  createProductionConfiguredPaymentMethods: () => ({
+    listPaymentMethods: configuredPaymentMethodsMock,
+  }),
 }));
 
 vi.mock("@/modules/menu/adapters/prisma-menu-repository", () => ({
@@ -78,27 +95,27 @@ function product(over: Partial<ProductRecord> & { id: string; name: string }): P
   };
 }
 
-const menu: { categories: PublicMenuCategory[] } = {
-  categories: [
-    {
-      id: "cat_tacos",
-      name: "Tacos",
-      slug: "tacos",
-      sortOrder: 0,
-      color: null,
-      subcategories: [],
-      products: [
-        product({ id: "prod_taco", name: "Taco de birria" }),
-        product({ id: "prod_cola", name: "Cola", basePrice: 25 }),
-      ],
-    },
-  ],
-};
-
 async function callRoute(query: string) {
   const { GET } = await import("./route");
 
   return GET(new Request(`http://localhost/api/admin/pos/catalog${query}`));
+}
+
+/** La vista del catálogo tal como la devuelve el caso de uso del POS (productos con su categoría). */
+function catalogView(query: string) {
+  return {
+    products: [
+      { ...product({ id: "prod_taco", name: "Taco de birria" }), requiresOptions: false, categoryName: "Tacos" },
+      {
+        ...product({ id: "prod_cola", name: "Cola", basePrice: 25 }),
+        requiresOptions: false,
+        categoryName: "Tacos",
+      },
+    ],
+    categories: [{ id: "cat_tacos", name: "Tacos", count: 2 }],
+    total: 2,
+    query,
+  };
 }
 
 describe("admin pos catalog route", () => {
@@ -108,7 +125,8 @@ describe("admin pos catalog route", () => {
       user: { id: "admin_1", role: "cashier", locationIds: [] },
     });
     canUsePOSMock.mockReturnValue(true);
-    getCatalogMock.mockResolvedValue(menu);
+    listCatalogMock.mockImplementation(async ({ query }: { query: string }) => catalogView(query));
+    configuredPaymentMethodsMock.mockResolvedValue([]);
     findLocationByIdMock.mockResolvedValue({ id: "loc_norte", posEnabled: true });
   });
 
@@ -118,7 +136,7 @@ describe("admin pos catalog route", () => {
     const response = await callRoute("?locationId=loc_norte");
 
     expect(response.status).toBe(401);
-    expect(getCatalogMock).not.toHaveBeenCalled();
+    expect(listCatalogMock).not.toHaveBeenCalled();
   });
 
   it("cocina no usa el punto de venta: 403", async () => {
@@ -129,7 +147,7 @@ describe("admin pos catalog route", () => {
 
     expect(response.status).toBe(403);
     expect(body.error.code).toBe("FORBIDDEN");
-    expect(getCatalogMock).not.toHaveBeenCalled();
+    expect(listCatalogMock).not.toHaveBeenCalled();
   });
 
   it("sin local pedido responde 400 con el campo señalado", async () => {
@@ -145,13 +163,7 @@ describe("admin pos catalog route", () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(getCatalogMock).toHaveBeenCalledWith(
-      { scope: "pos", locationId: "loc_norte", query: "" },
-      expect.objectContaining({
-        repository: expect.anything(),
-        locationRepository: expect.anything(),
-      }),
-    );
+    expect(listCatalogMock).toHaveBeenCalledWith({ locationId: "loc_norte", query: "" });
     expect(body.data.products.map((item: { id: string }) => item.id)).toEqual([
       "prod_taco",
       "prod_cola",
@@ -165,15 +177,46 @@ describe("admin pos catalog route", () => {
     expect(body.data.categories).toEqual([{ id: "cat_tacos", name: "Tacos", count: 2 }]);
   });
 
+  it("publica el contexto de `money`, las monedas aceptadas y los medios configurados del local", async () => {
+    // `TASK-ORDER-POS-OPERATIONAL-006` (brief §37, §40): es lo que el POS necesita para cobrar con el
+    // catálogo real, y viaja en la **misma** respuesta del **mismo** local.
+    configuredPaymentMethodsMock.mockResolvedValue([
+      {
+        id: "pm_cash",
+        name: "Efectivo",
+        kind: "cash",
+        entityId: null,
+        currencyCodes: [],
+        requiresReference: false,
+        isActive: true,
+        locations: [],
+      },
+      {
+        id: "pm_solo_sur",
+        name: "Zelle",
+        kind: "wallet",
+        entityId: null,
+        currencyCodes: ["USD"],
+        requiresReference: true,
+        isActive: true,
+        locations: [{ locationId: "loc_sur", isActive: true }],
+      },
+    ]);
+
+    const body = await (await callRoute("?locationId=loc_norte")).json();
+
+    expect(body.money.baseCurrencyCode).toBe("NIO");
+    expect(body.acceptedCurrencies).toEqual(["NIO", "USD"]);
+    // El medio de la otra sucursal **no** se ofrece acá: la disponibilidad la aplica el dominio de `payments`.
+    expect(body.paymentMethods.map((method: { id: string }) => method.id)).toEqual(["pm_cash"]);
+  });
+
   it("le pasa la búsqueda al caso de uso: la ruta no filtra", async () => {
     const response = await callRoute("?locationId=loc_norte&query=cola");
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(getCatalogMock).toHaveBeenCalledWith(
-      { scope: "pos", locationId: "loc_norte", query: "cola" },
-      expect.anything(),
-    );
+    expect(listCatalogMock).toHaveBeenCalledWith({ locationId: "loc_norte", query: "cola" });
     // El filtro vive en el caso de uso (`get-catalog.test.ts`); acá se devuelve lo que él trajo.
     expect(body.data.query).toBe("cola");
   });
@@ -188,7 +231,7 @@ describe("admin pos catalog route", () => {
 
     expect(response.status).toBe(403);
     expect(body.error.fields.locationId).toContain("acceso");
-    expect(getCatalogMock).not.toHaveBeenCalled();
+    expect(listCatalogMock).not.toHaveBeenCalled();
   });
 
   // TASK-308: el local con el POS apagado no lee el catálogo ni por URL directa.
@@ -200,6 +243,6 @@ describe("admin pos catalog route", () => {
 
     expect(response.status).toBe(403);
     expect(body.error.code).toBe("FORBIDDEN");
-    expect(getCatalogMock).not.toHaveBeenCalled();
+    expect(listCatalogMock).not.toHaveBeenCalled();
   });
 });

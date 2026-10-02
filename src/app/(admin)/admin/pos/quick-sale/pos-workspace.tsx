@@ -191,15 +191,27 @@ export type PosWorkspaceOperational = {
  * enlaces ni explicaciones permanentes, y los selectores pierden su etiqueta visible (el valor ya dice qué
  * son) para entrar en una línea.
  */
-function PosToolbar({
-  catalog,
-  cash,
-}: {
-  catalog: PosWorkspaceCatalog;
-  cash: PosWorkspaceCash;
-}) {
+const PosToolbar = React.forwardRef<
+  HTMLElement,
+  {
+    catalog: PosWorkspaceCatalog;
+    cash: PosWorkspaceCash;
+    /** `TASK-ORDER-POS-OPERATIONAL-006` — la banda de KPI, que comparte esta fila (brief §5). */
+    operational?: React.ReactNode;
+  }
+>(function PosToolbar({ catalog, cash, operational }, ref) {
   return (
-    <header aria-label="Barra del mostrador" className="flex flex-wrap items-center gap-x-2 gap-y-2">
+    <header
+      ref={ref}
+      aria-label="Barra del mostrador"
+      /**
+       * `shrink-0` es del layout y es **necesario**: el cuerpo del workspace tiene alto fijo y, con el panel
+       * operacional abierto, el `flex` repartía la presión encogiendo esta barra —y con ella la banda de KPI—
+       * hasta dejarla sin alto útil, así que el toque en otro contador no llegaba (medido por el E2E:
+       * `locator.click` con timeout). La barra es chrome de la pantalla: no se encoge.
+       */
+      className="flex shrink-0 flex-wrap items-center gap-x-2 gap-y-2"
+    >
       <h1 className="mr-auto text-panel-title font-bold tracking-tight text-ink">POS</h1>
 
       <div className="w-44 max-lg:hidden">
@@ -260,9 +272,17 @@ function PosToolbar({
               ? "Cierre pendiente"
               : "Sin caja abierta"}
       </p>
+
+      {/*
+        `TASK-ORDER-POS-OPERATIONAL-006` (brief §5, §60) — la banda en la **misma fila** que el contexto. En
+        escritorio ocupa el espacio que sobra a la derecha; abajo de `lg` envuelve debajo y sus chips scrollean
+        dentro de su contenedor. No agrega alto a la barra en escritorio, que es lo que la spec exige para que
+        el `Cobrar C$…` no se vaya del primer viewport (medido por `admin-pos-ticket.spec.ts`).
+      */}
+      {operational ? <div className="min-w-0 lg:ml-auto">{operational}</div> : null}
     </header>
   );
-}
+});
 
 export function PosWorkspace({
   catalog,
@@ -279,7 +299,6 @@ export function PosWorkspace({
   const [sheetOpen, setSheetOpen] = React.useState(false);
   const panelRef = React.useRef<HTMLDialogElement>(null);
   const columnRef = React.useRef<HTMLDivElement>(null);
-
   const sheetDismissible = !twoPane;
   const sheetHidden = sheetDismissible && !sheetOpen;
   /** Con el sheet cerrado no hay formulario en el DOM (ver el comentario del panel). */
@@ -339,19 +358,82 @@ export function PosWorkspace({
 
   const unitsCount = sale.lines.reduce((sum, line) => sum + line.quantity, 0);
 
+  /**
+   * Dónde se ancla el **panel operacional**: debajo del encabezado real (barra + banda).
+   *
+   * El `<dialog>` en modo capa es `position: absolute; inset: 0` por el estilo del navegador, así que sale del
+   * flujo y se dibuja **encima** de la barra aunque en el DOM venga después —el toque en «Por cobrar» aterrizaba
+   * en el panel, medido con `elementFromPoint`—. Con `top` y `bottom` explícitos queda justo debajo, que es
+   * donde el cajero lo espera y donde la banda sigue siendo accionable.
+   *
+   * Se **mide** el encabezado en vez de sumar constantes porque la barra envuelve abajo de `lg` (los chips de
+   * la banda pasan a un segundo renglón) y una constante mentiría en ese viewport.
+   */
+  const toolbarRef = React.useRef<HTMLElement>(null);
+  const [panelTop, setPanelTop] = React.useState<number | null>(null);
+
+  React.useEffect(() => {
+    const toolbar = toolbarRef.current;
+    if (!toolbar || !operational.panel) {
+      setPanelTop(null);
+      return;
+    }
+
+    const measure = () => setPanelTop(Math.round(toolbar.getBoundingClientRect().bottom) + 8);
+
+    measure();
+
+    // `ResizeObserver` no existe en jsdom: sin guarda, el render de los tests rompe (el navegador real
+    // siempre lo tiene, así que no es una rama de producto).
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(measure);
+    observer?.observe(toolbar);
+
+    return () => observer?.disconnect();
+  }, [operational.panel]);
+
   return (
     <div className="flex flex-col gap-3 lg:box-border lg:h-[calc(100dvh-6.25rem)] lg:overflow-hidden">
-      <PosToolbar catalog={catalog} cash={cash} />
+      {/*
+        `TASK-ORDER-POS-OPERATIONAL-006` (brief §5, §60) — **la banda operacional comparte la barra**.
+
+        Es la decisión de layout que hace que los KPI entren **sin costar alto**: la medición de la geometría
+        real del ticket (`admin-pos-ticket.spec.ts`) mostró que una fila propia debajo de la barra empujaba la
+        forma de pago **157 px** debajo del pliegue a `1366×768` y `1280×720`, que es exactamente lo que la
+        spec prohíbe. La barra ya medía 54 px (los 44 px del estado de caja), así que la banda entra **dentro
+        de esa fila**: en escritorio a la derecha del estado de caja, y en tablet/celular envuelve debajo con
+        scroll interno de sus propios chips (nunca empujando el ancho de la página).
+      */}
+      <PosToolbar ref={toolbarRef} catalog={catalog} cash={cash} operational={operational.band} />
 
       {/*
-        `TASK-ORDER-POS-OPERATIONAL-006` (brief §5) — **la banda operacional**, debajo de la barra de contexto
-        y **encima** de las dos columnas. Es una banda compacta (nombre + contador) que no puede empujar el
-        `Cobrar C$…` fuera del primer viewport: el alto útil de las columnas se calcula sobre lo que sobra
-        después del chrome del admin, así que la banda tiene que quedarse en **un** renglón de chips con scroll
-        interno. Por eso no es una grilla de cards.
+        `TASK-ORDER-POS-OPERATIONAL-006` (brief §21) — **el panel va entre la banda y las columnas**, no encima.
+
+        Con la banda dentro de la barra, un panel **antes** del grid lo tapaba: el cajero abría «Listos» y el
+        toque en «Por cobrar» caía sobre el panel —el E2E lo midió: `<dialog …> intercepts pointer events`—, así
+        que cambiar de modo sin cerrar era imposible. Puesto acá, la banda queda **visible y accionable** arriba
+        del panel, que es la propiedad que el brief pide («un único panel reutilizable», no cuatro modales).
+
+        Como el panel es un `<dialog open>`, sale del flujo del grid: se le asigna el ancho completo y el grid
+        se encoge (`min-h-0`) para dejarle el alto, así que **nunca** lo tapa.
       */}
-      {operational.band}
-      {operational.panel}
+      {operational.panel ? (
+        /**
+         * `TASK-ORDER-POS-OPERATIONAL-006` (brief §21) — **el panel se ancla debajo de la banda**.
+         *
+         * Un `<dialog>` abierto con el atributo `open` —el modo **capa** del `Modal`, sin `showModal()`— viene
+         * del navegador con `position: absolute; inset: 0`, así que sale del flujo y se dibuja **encima** de la
+         * barra aunque en el DOM venga después: el toque en «Por cobrar» aterrizaba en el panel (medido con
+         * `elementFromPoint`). Anclarlo en `top` a la altura real del encabezado lo deja justo debajo, que es
+         * donde el cajero lo espera y donde la banda sigue siendo accionable.
+         */
+        <div
+          className="relative z-20 shrink-0 lg:min-w-0"
+          data-testid="pos-operational-panel-slot"
+          style={panelTop === null ? undefined : { top: panelTop, bottom: "auto" }}
+        >
+          {operational.panel}
+        </div>
+      ) : null}
 
       {/*
         El **modo pedido existente** reemplaza al workspace cuando está abierto (brief §13: una sola ruta, dos
@@ -359,7 +441,21 @@ export function PosWorkspace({
       */}
       {operational.existingOrder ??
         (
-          <div className="grid min-h-0 gap-3 max-lg:block lg:grow lg:grid-cols-[minmax(0,1fr)_minmax(340px,25rem)] lg:grid-rows-1">
+          <div
+            className={[
+              "grid min-h-0 gap-3 max-lg:block lg:grid-cols-[minmax(0,1fr)_minmax(340px,25rem)] lg:grid-rows-1",
+              /**
+               * `TASK-ORDER-POS-OPERATIONAL-006` (brief §21) — con el panel abierto el grid **cede su alto**.
+               *
+               * El panel es un `<dialog open>`, así que el navegador lo posiciona `absolute` y sale del flujo: el
+               * grid seguiría ocupando todo el alto disponible y **se dibujaría encima** (su contenido tiene
+               * contexto de apilado), tapando el botón de cerrar del panel —medido por el E2E:
+               * `<div class="grid …"> subtree intercepts pointer events`—. Acotarlo mientras el panel está
+               * abierto deja el panel por delante y la banda accionable; al cerrarlo vuelve a llevarse el alto.
+               */
+              operational.panel ? "lg:max-h-[38vh] lg:shrink" : "lg:grow",
+            ].join(" ")}
+          >
         {/*
           `min-w-0`: sin eso la columna del catálogo se estira con su contenido (la fila de chips con scroll
           horizontal la dejaba más ancha que la pantalla y aparecía scroll horizontal a 375 px).

@@ -23,6 +23,12 @@ interface ModalProps {
    * cierra («Cerrar panel», «Cerrar pedido») para que dos capas de la misma pantalla no compartan nombre.
    */
   closeLabel?: string;
+  /**
+   * Abrir como **capa** en vez de como modal: el `<dialog>` queda `open` sin `showModal()`, así que el
+   * contenido de atrás **sigue siendo accionable**. Lo usa el panel operacional del POS, donde el cajero
+   * cambia de modo pulsando otro contador de la banda (brief §21). Un modal bloquea eso a propósito.
+   */
+  layered?: boolean;
   children: React.ReactNode;
 }
 
@@ -61,26 +67,47 @@ export function Modal({
   size = "lg",
   testId,
   closeLabel = "Cerrar",
+  layered = false,
   children,
 }: ModalProps) {
   const ref = React.useRef<HTMLDialogElement>(null);
   const titleId = React.useId();
 
+  /**
+   * `TASK-ORDER-POS-OPERATIONAL-006` (brief §21) — **capa, no trampa**.
+   *
+   * El panel operacional del POS tiene que dejar la banda de KPI **accionable** mientras está abierto: el
+   * cajero cambia de modo pulsando otro contador, y el panel es el **mismo** componente con otro filtro. Con
+   * `showModal()` el navegador pone una barrera de punteros y esas pulsaciones se pierden —el spec E2E lo
+   * midió: `<dialog …> intercepts pointer events`—, así que un panel **por capas** se abre con el atributo
+   * `open` y conserva su semántica de `dialog` sin la barrera. El modo **modal** sigue siendo el default: es
+   * lo correcto para las hojas de edición y las confirmaciones, donde no hay nada detrás que tocar.
+   *
+   * La `role` explícita existe sólo acá, en el primitivo: el guardrail `manual-aria-role` prohíbe declararla
+   * a mano en una pantalla, no en el componente que **es** el diálogo.
+   */
   React.useEffect(() => {
     const dialog = ref.current;
     if (!dialog) return;
 
-    if (open && !dialog.open) {
-      dialog.showModal();
-    } else if (!open && dialog.open) {
-      dialog.close();
+    if (!open) {
+      if (dialog.open) dialog.close();
+      return;
     }
-  }, [open]);
+
+    if (layered) {
+      if (!dialog.open) dialog.setAttribute("open", "");
+      return;
+    }
+
+    if (!dialog.open) dialog.showModal();
+  }, [open, layered]);
 
   return (
     <dialog
       ref={ref}
       {...(testId ? { "data-testid": testId } : {})}
+      {...(layered ? { role: "dialog" } : {})}
       aria-labelledby={titleId}
       onCancel={(event) => {
         event.preventDefault();

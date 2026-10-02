@@ -30,6 +30,13 @@ export default defineConfig({
      * un test colgado sigue fallando: solo tarda más en decirlo.
      */
     testTimeout: 20_000,
+    /**
+     * `TASK-ORDER-POS-OPERATIONAL-006` — el `beforeEach` del POS monta el componente con su `fetch`
+     * simulado y el `afterEach` restaura los globals; con la suite entera corriendo en paralelo, ese trabajo
+     * se acerca al default de 10 s y un `beforeEach` cortado deja la corrida a medias. El techo sube, no la
+     * expectativa: un hook colgado sigue fallando, sólo tarda más en decirlo.
+     */
+    hookTimeout: 20_000,
     // Margen de espera para los tests de DOM (`findBy*`, `waitFor`). Ver `src/test-setup.ts`.
     setupFiles: ["./src/test-setup.ts"],
   },

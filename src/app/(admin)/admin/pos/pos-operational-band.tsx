@@ -106,13 +106,26 @@ export function PosOperationalBand({
               type="button"
               data-testid={`pos-kpi-${entry.mode}`}
               aria-pressed={activeMode === entry.mode}
+              /**
+               * El nombre accesible es **explícito** y dice el rótulo completo con el conteo («Listos: 4
+               * pedidos»): la banda se puede leer sin ver el color ni el ancho, y el rótulo corto de abajo de
+               * `sm` no entra en el nombre (el lector recibe el bueno, no el abreviado).
+               */
               aria-label={`${entry.label}: ${entry.value} pedidos`}
               variant={activeMode === entry.mode ? "primary" : "secondary"}
               className="min-h-11"
               onClick={() => onSelect(entry.mode)}
             >
-              <span className="hidden sm:inline">{entry.label}</span>
-              <span className="sm:hidden">{entry.shortLabel}</span>
+              {/*
+                **Un solo rótulo en el DOM.** El intento anterior dibujaba el largo y el corto y ocultaba uno con
+                `hidden`/`sm:hidden`: los **dos** nodos existen igual, así que el `textContent` del botón
+                concatenaba los dos rótulos y el número («En procesoProceso0») —el E2E y el contrato de la banda
+                miden ese texto—. Abajo de `sm` se dibuja **sólo el número**: el nombre completo lo lleva el
+                `aria-label` y el contador ya queda claro por su posición en la banda.
+              */}
+              <span aria-hidden="true" className="hidden sm:inline">
+                {entry.label}
+              </span>
               <span className="font-mono tabular-nums text-ink">{entry.value}</span>
             </Button>
           </li>

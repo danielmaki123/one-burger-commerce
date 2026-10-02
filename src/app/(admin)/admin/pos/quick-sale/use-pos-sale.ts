@@ -258,12 +258,19 @@ export function usePosSale({
       ...current,
       {
         id: `pay_${current.length + 1}_${Date.now()}`,
-        method: "transfer",
+        /**
+         * `TASK-ORDER-POS-OPERATIONAL-006` (brief §37, §38) — la fila nueva nace con un **medio configurado**
+         * del local, igual que la primera: sin `paymentMethodId` la liquidación no se puede mandar (el
+         * servidor lo exige) y el cajero vería «Elegí el medio de pago» en un cobro partido que acaba de
+         * armar. Nace en el primero del catálogo —el más probable— y el cajero lo cambia si hace falta.
+         */
+        method: (firstMethod?.method ?? "cash") as PosPaymentDraft["method"],
+        ...(firstMethod ? { paymentMethodId: firstMethod.id } : {}),
         currency: money.baseCurrencyCode,
         amount: "",
       },
     ]);
-  }, [money.baseCurrencyCode]);
+  }, [firstMethod, money.baseCurrencyCode]);
 
   /** Saca una fila del cobro partido. La primera no se saca: es el medio de la venta. */
   const removePaymentRow = React.useCallback((paymentId: string) => {

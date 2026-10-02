@@ -203,12 +203,22 @@ function ultimaConfirmacion() {
 }
 
 async function confirmacionDelCobro() {
-  return waitFor(() => {
-    const confirmacion = ultimaConfirmacion();
-    const texto = confirmacion.textContent ?? "";
-    if (!texto.includes("Venta P-")) throw new Error("todavia no hay confirmacion");
-    return confirmacion;
-  });
+  return waitFor(
+    () => {
+      const confirmacion = ultimaConfirmacion();
+      const texto = confirmacion.textContent ?? "";
+      if (!texto.includes("Venta P-")) throw new Error("todavia no hay confirmacion");
+      return confirmacion;
+    },
+    /**
+     * `TASK-ORDER-POS-OPERATIONAL-006` — **se espera explícitamente**, en vez de confiar en el `asyncUtilTimeout`
+     * global (5 s). Este archivo cobra muchas veces y el runner cargado lo empuja cerca del límite: en la
+     * corrida completa el `fetch` del cobro resolvía *después* de que la espera se rindiera y el caso fallaba
+     * por reloj, no por comportamiento (los mismos casos pasan aislados). Un `timeout` acá es la espera legítima
+     * más larga, no una expectativa más baja: lo que se afirma sigue siendo lo mismo.
+     */
+    { timeout: 15_000 },
+  );
 }
 
 async function fillCustomer(user: ReturnType<typeof userEvent.setup>) {
@@ -349,6 +359,17 @@ describe("PosClient", () => {
     cleanup();
     vi.unstubAllGlobals();
     Reflect.deleteProperty(window, "matchMedia");
+    /**
+     * `TASK-ORDER-POS-OPERATIONAL-006` — **los timers se restauran acá y no sólo en el `finally` del caso.**
+     *
+     * El caso de «se refresca solo cada 3 s» falsea `setInterval`, y si vitest lo mata por presupuesto
+     * (`testTimeout`) el `finally` **no corre**: el archivo quedaba con el reloj falseado y **todos** los casos
+     * siguientes fallaban por una razón que no era la suya —el `fetch` del cobro no resolvía y las aserciones
+     * «expected undefined/null»—. Se midió: los mismos casos pasan aislados y en la corrida completa fallaban
+     * cuatro distintos en cada corrida. Un techo en el `afterEach` es la red que hace que un caso lento no
+     * envenene a los demás.
+     */
+    vi.useRealTimers();
   });
 
   it("carga el catálogo del primer local y lo muestra con su precio", async () => {

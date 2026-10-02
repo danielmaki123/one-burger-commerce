@@ -5,7 +5,13 @@ import type {
   PosOperationalOrder,
 } from "@/modules/orders/domain/pos-operational-orders";
 
-import { createAdminUserViaUi, loginAsOwner, logoutAdmin, mutationsAllowed } from "./helpers";
+import {
+  ADMIN_LANDING_PATTERN,
+  createAdminUserViaUi,
+  loginAsOwner,
+  logoutAdmin,
+  mutationsAllowed,
+} from "./helpers";
 
 /**
  * `TASK-ORDER-POS-OPERATIONAL-006` (orden **6** del roadmap) — **el POS operativo del cajero**, medido en un
@@ -106,6 +112,14 @@ async function createCashierAndLogin(page: Page): Promise<CashierAccount> {
   await page.locator('input[type="email"]').fill(account.email);
   await page.locator('input[type="password"]').fill(account.password);
   await page.getByRole("button", { name: "Iniciar sesión" }).click();
+  /**
+   * **Se espera el aterrizaje** antes de devolver el control. El login del panel cierra con un redirect del
+   * cliente (`window.location.assign(resolveAdminLanding(role))`, `login/page.tsx`), así que un `page.goto`
+   * inmediato después compite con esa navegación y el navegador la aborta
+   * (`net::ERR_ABORTED at /admin/pos`). Es del **arnés**, no de la pantalla: acá había cuatro casos rojos por
+   * esto y no por el producto.
+   */
+  await page.waitForURL(ADMIN_LANDING_PATTERN, { timeout: 15_000 });
 
   return account;
 }
@@ -166,43 +180,59 @@ async function readOperationalFeed(page: Page, locationId: string): Promise<PosO
  * saldo. Primero se pregunta si ya hay una abierta —lo que deja el caso repetible— y sólo si no la hay se
  * abre contando cero.
  */
-async function ensureOpenShift(page: Page, locationId: string): Promise<boolean> {
-  return page.evaluate(async (id) => {
-    const terminalsResponse = await fetch(
-      `/api/admin/cash/terminals?locationId=${encodeURIComponent(id)}`,
-      { cache: "no-store" },
-    );
-    const terminalsBody = terminalsResponse.ok
-      ? (
-          (await terminalsResponse.json()) as {
-            data?:
-              | { terminals?: Array<{ id: string; isActive: boolean }> }
-              | Array<{ id: string; isActive: boolean }>;
-          }
-        ).data
-      : undefined;
-    // La ruta devuelve `{ terminals }`; el doble del contrato acepta también un arreglo suelto.
-    const terminalsRaw = Array.isArray(terminalsBody) ? terminalsBody : terminalsBody?.terminals;
-    const terminalId = (terminalsRaw ?? []).find((terminal) => terminal.isActive)?.id ?? null;
+/**
+ * La **terminal que el POS está usando**, leída de su propio selector.
+ *
+ * Tres hechos del arnés que esto resuelve, medidos:
+ *
+ * 1. El cajero **no** puede leer la lista de terminales (`/api/admin/cash/terminals` le responde **403**).
+ * 2. El local **exige** una terminal para abrir la caja: sin ella el alta responde `422` con «Elegí la terminal
+ *    de esta caja».
+ * 3. Y tiene que ser **la misma que el POS eligió**: el turno se firma con la terminal de la barra, así que
+ *    abrirlo en otra deja al cobro sin caja (`409 «Abrí la caja antes de cobrar»`, medido). Por eso se lee del
+ *    selector y no de la lista de terminales del local.
+ */
+async function terminalDelPos(page: Page): Promise<string | null> {
+  if ((await page.getByLabel("Terminal", { exact: true }).count()) === 0) return null;
 
+  return page.evaluate(
+    () => document.querySelector<HTMLSelectElement>('select[aria-label="Terminal"]')?.value ?? null,
+  );
+}
+
+async function ensureOpenShift(
+  page: Page,
+  locationId: string,
+  terminalId: string | null,
+): Promise<{ ok: boolean; detail: unknown }> {
+  return page.evaluate(async ({ id, terminal }) => {
     const shiftResponse = await fetch(
       `/api/admin/pos/shift?locationId=${encodeURIComponent(id)}${
-        terminalId ? `&terminalId=${encodeURIComponent(terminalId)}` : ""
+        terminal ? `&terminalId=${encodeURIComponent(terminal)}` : ""
       }`,
       { cache: "no-store" },
     );
     const shift = ((await shiftResponse.json()) as { data?: { id: string } | null }).data;
 
-    if (shift) return true;
+    if (shift) return { ok: true, detail: { locationId: id, terminalId: terminal, found: "open" } };
 
     const opened = await fetch("/api/admin/pos/shift/open", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ locationId: id, ...(terminalId ? { terminalId } : {}), counts: [] }),
+      body: JSON.stringify({ locationId: id, ...(terminal ? { terminalId: terminal } : {}), counts: [] }),
     });
 
-    return opened.ok;
-  }, locationId);
+    return {
+      ok: opened.ok,
+      detail: {
+        locationId: id,
+        terminalId: terminal,
+        shiftStatus: shiftResponse.status,
+        openStatus: opened.status,
+        openBody: opened.ok ? null : (await opened.text()).slice(0, 200),
+      },
+    };
+  }, { id: locationId, terminal: terminalId });
 }
 
 /**
@@ -241,14 +271,20 @@ test.describe("POS operativo del cajero (orden 6)", () => {
       const contador = page.getByTestId(entry.id);
       await expect(contador, `falta el contador ${entry.id}`).toBeVisible();
 
-      // 1) Cada contador dice **un número**.
-      await expect(contador).toHaveText(/\d/);
-
-      // 2) Y es **el número que el servidor calculó**: un contador en cero hardcodeado no pasa.
+      /**
+       * Se lee **el número** del contador —el último tramo de su texto— y se compara con el que calculó el
+       * servidor (`summary`). No se usa `toHaveText`/`toContainText` sobre el texto completo: el botón dibuja
+       * también su rótulo arriba de `sm` (el nodo existe en los dos anchos aunque el CSS oculte uno), así que su
+       * texto es «{rótulo}{número}» y un patrón con límites de palabra depende de que el rótulo termine en un
+       * carácter no alfanumérico —una sensibilidad que no tiene nada que ver con el KPI—.
+       */
       const esperado = feed.summary[entry.summaryKey];
-      await expect(contador).toHaveText(new RegExp(`\\b${esperado}\\b`));
+      expect(await contador.textContent(), `el contador ${entry.id} no dice el número del servidor`).toMatch(
+        new RegExp(`\\d+\\s*$`),
+      );
+      expect(Number((await contador.textContent())?.match(/(\d+)\s*$/)?.[1])).toBe(esperado);
 
-      // 3) El nombre accesible lleva el rótulo y el conteo: la banda se puede leer sin ver el color.
+      // Y el nombre accesible lleva el rótulo completo con el conteo: la banda se lee sin ver el color.
       await expect(
         page.getByRole("button", { name: new RegExp(`^${entry.label}: \\d+ pedidos$`) }),
       ).toBeVisible();
@@ -285,8 +321,7 @@ test.describe("POS operativo del cajero (orden 6)", () => {
       si apareciera un segundo `data-testid="pos-operational-panel"` (o quedara el anterior montado), el
       cajero tendría cuatro modales superpuestos —la deuda `A-92`— y el toque lo recibiría otro.
     */
-    await page.getByTestId("pos-kpi-pending-payment").click();
-    await expect(page.getByTestId("pos-operational-panel")).toHaveCount(1);
+    await page.getByTestId("pos-kpi-pending-payment").click();    await expect(page.getByTestId("pos-operational-panel")).toHaveCount(1);
     await expect(panel.getByRole("heading", { name: "Por cobrar" })).toBeVisible();
     await expect(page.getByRole("dialog", { name: "Listos para entregar" })).toHaveCount(0);
 
@@ -448,9 +483,10 @@ test.describe("POS operativo del cajero (orden 6)", () => {
 
     // El cobro exige turno abierto (`register-order-payment.ts:187`): se deja la caja lista antes de abrir el
     // pedido, para que lo que se mida sea el rechazo por el saldo y no la falta de caja.
+    const caja = await ensureOpenShift(page, locationId, await terminalDelPos(page));
     expect(
-      await ensureOpenShift(page, locationId),
-      "el arnés tiene que poder dejar una caja abierta: sin turno el POS no cobra",
+      caja.ok,
+      `el arnés tiene que poder dejar una caja abierta: sin turno el POS no cobra (${JSON.stringify(caja.detail)})`,
     ).toBe(true);
 
     await page.goto(`/admin/pos?orderId=${encodeURIComponent(candidato.id)}`);
@@ -469,9 +505,14 @@ test.describe("POS operativo del cajero (orden 6)", () => {
 
     const filas = panel.getByLabel("Con cuánto paga", { exact: true });
     await expect(filas).toHaveCount(1);
-    await filas.first().fill(String(saldo));
 
-    // El cobro partido: una fila con el saldo y otra con un peso más. La suma **pasa** el saldo.
+    /**
+     * La primera fila cubre **casi** todo el saldo y la segunda suma un peso: las dos tienen que ser positivas
+     * —un monto de cero lo rechazan la pantalla y el servidor, y un saldo de C$1 dejaría la mitad en cero— y la
+     * suma **pasa** el saldo, que es lo que el caso mide. El saldo lo dice `payments`, no el test.
+     */
+    await filas.first().fill(String(Number(Math.max(0.01, saldo - 1).toFixed(2))));
+
     await panel.getByRole("button", { name: "Partir el cobro" }).click();
     await expect(filas).toHaveCount(2);
     await filas.nth(1).fill("1");
@@ -508,4 +549,100 @@ test.describe("POS operativo del cajero (orden 6)", () => {
     expect(mismo!.financialState.outstandingAmount).toBe(candidato.financialState.outstandingAmount);
     expect(mismo!.financialState.status).toBe(candidato.financialState.status);
   });
+
+  /**
+   * `TASK-ORDER-POS-OPERATIONAL-006` (brief §57) — **E2E D: el cobro partido liquida el saldo exacto**.
+   *
+   * El caso hermano del anterior: con el mismo punto de partida, dos medios que **suman el saldo** tienen que
+   * registrarse los dos, en el mismo pedido, contra el mismo turno, y dejar el pedido `paid`. Es la mitad que
+   * el rechazo no prueba: que el camino bueno funcione entero.
+   *
+   * Lo que se mide, y por qué: el saldo lo dice `payments` (no el test), el estado después se lee del feed
+   * operacional —el dueño del estado financiero— y se comprueba que el pedido quedó **pagado** y que **no** se
+   * marcó entregado: cobrar y entregar son dos hechos (brief §17).
+   */
+  test("un cobro partido en dos medios liquida el saldo y deja el pedido pagado", async ({ page }) => {
+    test.skip(!mutationsAllowed, "Crear un usuario toca la base: E2E_ALLOW_MUTATIONS=true.");
+
+    await openPosAsCashier(page);
+    const locationId = await readPosLocationId(page);
+    const feed = await readOperationalFeed(page, locationId);
+
+    const candidato = pickChargeableOrder(feed);
+
+    if (!candidato) {
+      test.skip(
+        true,
+        "no hay ningún pedido con saldo pendiente y sin montos sin resolver en el local: el POS no puede abrir un cobro normal",
+      );
+      return;
+    }
+
+    const caja = await ensureOpenShift(page, locationId, await terminalDelPos(page));
+    expect(
+      caja.ok,
+      `el arnés tiene que poder dejar una caja abierta: sin turno el POS no cobra (${JSON.stringify(caja.detail)})`,
+    ).toBe(true);
+
+    await page.goto(`/admin/pos?orderId=${encodeURIComponent(candidato.id)}`);
+
+    const panel = page.getByTestId("pos-existing-order-panel");
+    await expect(panel).toBeVisible();
+    await expect(panel).toContainText(candidato.orderNumber);
+
+    const saldo = candidato.financialState.outstandingAmount;
+    expect(saldo, "el caso necesita un saldo real que liquidar").toBeGreaterThanOrEqual(2);
+
+    /**
+     * El saldo se parte en **dos montos positivos que suman exacto**. Se usa `Math.round` (y no `floor`) para
+     * que la mitad nunca quede en cero con un saldo chico: el monto tiene que ser mayor que cero para la
+     * pantalla y para el servidor. La suma se afirma antes de tocar la pantalla —el test no le pide al POS un
+     * número que él mismo no sabe—.
+     */
+    const primera = Number((saldo / 2).toFixed(2));
+    const segunda = Number((saldo - primera).toFixed(2));
+    expect(primera).toBeGreaterThan(0);
+    expect(segunda).toBeGreaterThan(0);
+    expect(Number((primera + segunda).toFixed(2))).toBe(Number(saldo.toFixed(2)));
+
+    const filas = panel.getByLabel("Con cuánto paga", { exact: true });
+    await expect(filas).toHaveCount(1);
+    await filas.first().click();
+    await filas.first().fill(String(primera));
+    await expect(filas.first()).toHaveValue(String(primera));
+
+    await panel.getByRole("button", { name: "Partir el cobro" }).click();
+    await expect(filas).toHaveCount(2);
+    await filas.nth(1).fill(String(segunda));
+    await expect(filas.nth(1)).toHaveValue(String(segunda));
+
+    // Si el medio elegido pide referencia, se completa: lo que el caso mide es la liquidación, no el campo.
+    const referencias = panel.getByLabel("Referencia del cobro");
+    for (let index = 0; index < (await referencias.count()); index += 1) {
+      await referencias.nth(index).fill("E2E-PARTIDO");
+    }
+
+    await panel.getByRole("button", { name: /^Cobrar/i }).click();
+
+    // 1) La pantalla dice que el cobro quedó registrado (hecho 1) y ofrece la entrega (hecho 2, separado).
+    await expect(panel).toContainText(/pago registrado/i);
+    await expect(panel.getByRole("button", { name: /^Entregar$/ })).toBeVisible();
+
+    // 2) El servidor —dueño del estado financiero— dice `paid` y saldo cero en el feed operacional del local.
+    const despues = await readOperationalFeed(page, locationId);
+    const pagado = despues.orders.find((order) => order.id === candidato.id);
+
+    expect(pagado, "el pedido tiene que seguir en el feed operacional del local").toBeTruthy();
+    expect(pagado!.financialState.status).toBe("paid");
+    expect(pagado!.financialState.outstandingAmount).toBe(0);
+    expect(pagado!.financialState.paidAmount).toBeGreaterThanOrEqual(saldo);
+
+    // 3) Cobrar **no** entregó: el eje de producción no se movió (brief §17 y §62).
+    expect(pagado!.status).not.toBe("picked_up");
+  });
 });
+
+
+
+
+

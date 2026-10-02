@@ -220,7 +220,15 @@ export async function loginAsOwner(page: Page) {
   await page.locator('input[type="email"]').fill(E2E_ADMIN_EMAIL);
   await page.locator('input[type="password"]').fill(E2E_ADMIN_PASSWORD);
   await page.getByRole("button", { name: "Iniciar sesión" }).click();
-  await expect(page).toHaveURL(ADMIN_LANDING_PATTERN);
+  /**
+   * `TASK-ORDER-POS-OPERATIONAL-006` — **con presupuesto explícito** y no con el default de 5 s.
+   *
+   * El login del panel hace la verificación de contraseña (bcrypt) y, la primera vez de una cuenta, la
+   * **rehashea**: con la suite entera corriendo en paralelo eso pasa de 5 s de reloj de pared y el
+   * `toHaveURL` se rendía **antes** de que la sesión existiera. Los casos fallaban por reloj, no por
+   * comportamiento: los mismos specs pasan solos y fallaban cuatro distintos por corrida. Es del arnés.
+   */
+  await expect(page).toHaveURL(ADMIN_LANDING_PATTERN, { timeout: 20_000 });
 }
 
 /**

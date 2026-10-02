@@ -437,7 +437,14 @@ test.describe("punto de venta", () => {
     await page.getByLabel("Con cuánto paga").fill(String(total * 2));
     await page.getByRole("button", { name: /^Cobrar C\$/ }).click();
 
-    const confirmacion = page.getByRole("status").last();
+    /**
+     * `TASK-ORDER-POS-OPERATIONAL-006` — la confirmación se busca por su **identificador** y no por «el último
+     * `role=status`»: con la banda operacional en la pantalla hay **más de un** `status` (informa que está
+     * leyendo los pedidos del local), y el último del DOM dejó de ser la confirmación. Además el número de
+     * pedido ahora aparece también en la banda, así que `getByText(numero)` no es único: el caso sigue
+     * midiendo lo mismo —el pedido está en Pedidos y en Cocina— con localizadores que sí son únicos.
+     */
+    const confirmacion = page.getByTestId("pos-sale-confirmation");
     await expect(confirmacion).toContainText("Venta P-");
     await expect(confirmacion).toContainText("Cambio");
 
@@ -470,7 +477,9 @@ test.describe("punto de venta", () => {
 
     // El camino real: el pedido cobrado en el mostrador está en el tablero de la cocina...
     await page.goto("/admin/orders");
-    await expect(page.getByText(numero!)).toBeVisible();
+    // `.first()` porque el número aparece en la fila **y** en su etiqueta de canal; lo que importa es que el
+    // pedido esté listado (el caso de Pedidos ya mide la fila con su propio locator).
+    await expect(page.getByText(numero!).first()).toBeVisible();
 
     // ...y **avanza con las mismas reglas** que uno del checkout (TASK-304): se acepta desde la fila.
     // La acción se llama por lo que hace (`Iniciar preparación`), y el pedido aceptado sigue en ENTRADA

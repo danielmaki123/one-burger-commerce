@@ -132,6 +132,13 @@ export function PosOperationalPanel({
       size="full"
       testId="pos-operational-panel"
       closeLabel="Cerrar panel"
+      /**
+       * **Capa, no modal** (brief §21). Con el panel abierto el cajero tiene que poder pulsar **otro** KPI y
+       * cambiar de modo en el **mismo** panel: un modal del navegador intercepta esos toques —el spec E2E lo
+       * midió: `<dialog …> intercepts pointer events`— y además convertiría el cambio de modo en un cierre y
+       * una apertura, que es justo lo que el brief prohíbe («no crear cuatro modales independientes»).
+       */
+      layered
     >
       <div className="flex flex-wrap items-center gap-2 border-b border-line-subtle pb-2">
         <span className="mr-auto font-mono text-st-body tabular-nums text-ink-secondary">
