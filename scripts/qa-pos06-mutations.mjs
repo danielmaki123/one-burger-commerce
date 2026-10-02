@@ -120,15 +120,31 @@ const MUTATIONS = [
 
 const results = [];
 
+/**
+ * `TASK-ORDER-POS-OPERATIONAL-006` — **los patrones se ajustan al fin de línea del archivo**.
+ *
+ * Los patrones multi-línea de acá se escriben con `\n`, pero un `git checkout`/`reset --hard` en Windows deja
+ * los fuentes en **CRLF** (`core.autocrlf`). Sin esto, `original.includes(from)` da falso para todo patrón de
+ * dos líneas y la mutación se reporta **NO-APLICABLE**: el chequeo se degrada en silencio —se midió: pasó de
+ * **13/13** a **11/13** sin que nada avisara, porque «no aplicable» no es rojo—. Se detecta el fin de línea real
+ * del archivo y se traduce el patrón, así el chequeo mide lo mismo en cualquier forma de checkout.
+ */
+function adaptToLineEndings(text, original) {
+  const usesCrlf = original.includes("\r\n");
+  return usesCrlf ? text.replace(/\r?\n/g, "\r\n") : text.replace(/\r\n/g, "\n");
+}
+
 for (const mutation of MUTATIONS) {
   const original = readFileSync(mutation.file, "utf8");
+  const from = adaptToLineEndings(mutation.from, original);
+  const to = adaptToLineEndings(mutation.to, original);
 
-  if (!original.includes(mutation.from)) {
+  if (!original.includes(from)) {
     results.push({ ...mutation, outcome: "NO-APLICABLE (patrón no encontrado)" });
     continue;
   }
 
-  writeFileSync(mutation.file, original.replace(mutation.from, mutation.to), "utf8");
+  writeFileSync(mutation.file, original.replace(from, to), "utf8");
 
   let outcome;
   try {
