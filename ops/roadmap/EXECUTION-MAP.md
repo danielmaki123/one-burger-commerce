@@ -32,12 +32,12 @@
 | **Decisiones del owner** | Ninguna pendiente |
 | **Gate de cierre** | **Cumplido**: bandeja paginada y detalle con estado de cobro **consumido de `payments`**; Viewport Contract en los cuatro viewports; E2E local (`tests/e2e/admin-orders.spec.ts`); los hallazgos cerrados con test, mutación y evidencia |
 
-## 6 · Pedido existente → Cobrar en POS
+## 6 · Pedido existente → Cobrar en POS — **cerrada** (`TASK-ORDER-POS-OPERATIONAL-006`, 2026-10-02; `build-20261002-042038` sobre `main` = `5fda5e2`)
 
 | Campo | Contenido |
 |---|---|
 | **Objetivo** | Órdenes **localiza** el pedido y el POS lo **cobra** |
-| **Estado real** | El backend **ya existe y está probado**: `POST /api/admin/orders/[id]/payment` con `canCollectPayment`, alcance por local, idempotencia (`A-71`) y snapshot obligatorio. **Falta la superficie**: hoy `A-67` no tiene UI |
+| **Estado real** | **CERRADA Y DESPLEGADA.** El backend existía y se **compuso**: la ruta de pago pasó a **lote atómico** con liquidación **exacta** (`Σ aplicado == saldo`), el POS publica los **medios configurados** del local (cierra `A-85`) y la superficie es la banda de KPI + un panel operacional reutilizable + el modo **pedido existente inmutable**, con la entrega detrás de `canDeliverOrder`. `A-67` cerrado |
 | **Depende de** | 5b (alguien tiene que localizar el pedido) |
 | **`REUSE` obligatorio** | La ruta y `register-order-payment` **tal como están**; el POS como superficie de cobro |
 | **`MOVE`/`CONSOLIDATE`** | Ninguno: es **composición** de lo que ya existe. Si aparece un segundo flujo de cobro, es un error de diseño |
@@ -45,7 +45,7 @@
 | **Deuda asignada** | `A-67` (no hay superficie) · `A-76` (`void` no mira el turno ni la factura) si el cobro lo toca · `A-77` (`Payment.tip`, campo muerto) |
 | **Fuera de alcance** | Cash ownership (7) y la reforma de Cierres/Facturas (9) |
 | **Decisiones del owner** | **Ninguna nueva**: el cobro ya está decidido; si al componer aparece una regla que no está escrita, se pregunta |
-| **Gate de cierre** | Un pedido del menú se localiza en Órdenes y se cobra desde el POS **sin segunda ruta**; el estado del pedido cambia por la proyección; E2E del flujo completo; `A-67` cerrado |
+| **Gate de cierre** | **CUMPLIDO**: un pedido se localiza en Pedidos y se cobra desde el POS **sin segunda ruta**; el estado del pedido sigue saliendo de la proyección; E2E del flujo (6/6 en la orden, 2 casos `fixme` = `A-95`) y PostgreSQL real (9 casos) |
 
 ## 7 · Cash ownership
 

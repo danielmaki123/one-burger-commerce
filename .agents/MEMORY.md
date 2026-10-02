@@ -243,3 +243,15 @@ va al historial o al PR. Si cambia semana a semana, va a `CURRENT.md`.
   (`runtime-e2e`/`high-risk-e2e`) **ya autoriza** su merge y su release: no se pide un segundo OK salvo
   **Stop Condition** ([`skills/delivery-e2e/SKILL.md`](skills/delivery-e2e/SKILL.md)). Nunca se despliega
   una rama de trabajo, y el **backup se decide por riesgo del release**, no por frecuencia.
+- **Un refresco silencioso no puede cambiar identidades.** El POS se refresca solo cada 3 s y reemplazaba
+  `categories`/`paymentMethods` con los objetos nuevos de `response.json()`: esa identidad se propagaba a los
+  `useCallback` del cobro y el efecto que reinicia la venta los tenía como dependencia, así que **disparaba en
+  cada refresco** y borraba el cupón ya cotizado y el monto tipeado. Dos reglas que quedan: un `useCallback`
+  depende de **valores**, no de objetos que otro estado reconstruye por diseño; y un refresco de fondo
+  **conserva la referencia** si el contenido no cambió (`keepIfEqual` en `use-pos-catalog.ts`, con la guarda
+  que `products` ya tenía y a la que le faltaban sus dos hermanas).
+- **Un test que falla solo bajo carga paralela suele estar midiendo un ciclo que en aislamiento no llega a
+  ocurrir.** Los cuatro casos que fallaban de forma rotativa terminaban antes de los 3 s del refresco; el
+  arreglo no fue subir timeouts sino **falsear el intervalo y avanzar el reloj a mano** para que el ciclo
+  ocurra siempre: así el defecto se reproduce de forma determinista y el test tiene dientes. Y el mapa de
+  fallos dio el diagnóstico: lo que se perdía era **exactamente** lo que limpiaba `resetSale`.
